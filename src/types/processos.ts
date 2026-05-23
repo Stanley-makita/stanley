@@ -1,0 +1,175 @@
+export type ModalidadeProcesso =
+  | 'SFI' | 'SBPE' | 'PMCMV' | 'Pro_Cotista' | 'CGI' | 'Contrato' | 'Consorcio'
+
+export type StatusEmissao = 'emitido' | 'nao_emitido'
+export type ChanceEmissao = 'certeza' | 'incerteza'
+export type StatusProcesso = 'em_analise' | 'aprovado' | 'pendente' | 'reprovado' | 'cancelado'
+
+export interface Processo {
+  id: string
+  empresa_id: string
+  numero_processo: string
+  numero_proposta?: string | null
+  lead_id?: string | null
+  pessoa_id?: string | null
+  nome_imovel: string
+  modalidade: ModalidadeProcesso
+  status_processo: StatusProcesso
+  status_emissao: StatusEmissao
+  chance_emissao: ChanceEmissao
+  // Valores
+  valor_imovel: number | null
+  valor_financiado: number | null
+  valor_entrada: number | null
+  // Banco
+  banco_id: string | null
+  // Contrato
+  numero_contrato?: string | null
+  data_contrato?: string | null
+  // Assessoria
+  tem_assessoria: boolean
+  comissao_comercial: number | null
+  comissao_empresa: number | null
+  // Responsáveis
+  operacional_id: string | null
+  comercial_id: string | null
+  juridico_id?: string | null
+  corretor_nome: string | null
+  corretor_creci: string | null
+  // Fases e datas
+  fase_atual_id: string | null
+  data_inicio: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  // Joins
+  banco?: { id: string; nome: string } | null
+  operacional?: { id: string; nome: string; email: string } | null
+  comercial?: { id: string; nome: string; email: string } | null
+  juridico?: { id: string; nome: string; email: string } | null
+  fase_atual?: { id: string; nome: string; cor: string | null } | null
+  compradores?: { nome: string; cpf: string | null; principal: boolean }[]
+}
+
+export interface ProcessoComentario {
+  id: string
+  processo_id: string
+  empresa_id: string
+  usuario_id: string | null
+  tipo: 'observacao' | 'alteracao' | 'solicitacao'
+  texto: string
+  notificar_cliente: boolean
+  created_at: string
+  usuario?: { nome: string } | null
+}
+
+export interface ProcessoTarefa {
+  id: string
+  processo_id: string
+  empresa_id: string
+  titulo: string
+  prioridade: 'alta' | 'media' | 'baixa'
+  status: 'pendente' | 'em_andamento' | 'concluida'
+  concluida: boolean
+  concluida_em: string | null
+  responsavel_id: string | null
+  data_prazo: string | null
+  created_at: string
+  updated_at: string
+  responsavel?: { nome: string } | null
+}
+
+export interface ProcessoCobranca {
+  id: string
+  processo_id: string
+  empresa_id: string
+  usuario_id: string | null
+  descricao: string
+  valor: number
+  data_vencimento: string
+  data_pagamento: string | null
+  status: 'pendente' | 'pago' | 'cancelado'
+  created_at: string
+}
+
+export interface ProcessoComprador {
+  id: string
+  processo_id: string
+  empresa_id: string
+  nome: string
+  cpf: string | null
+  email: string | null
+  telefone: string | null
+  renda_mensal: number | null
+  principal: boolean
+  created_at: string
+}
+
+export interface ProcessoFinanceiro {
+  id: string
+  empresa_id: string
+  processo_id: string
+  descricao: string
+  valor: number
+  tipo: 'receita_empresa' | 'custo_empresa' | 'repasse_cliente' | 'deposito_cliente'
+  situacao: 'pendente' | 'pago' | 'cancelado'
+  pago_em: string | null
+  observacao: string | null
+  criado_por: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProcessoVendedor {
+  id: string
+  processo_id: string
+  empresa_id: string
+  nome: string
+  cpf: string | null
+  email: string | null
+  telefone: string | null
+  created_at: string
+}
+
+export interface ProcessoFaseHistorico {
+  id: string
+  processo_id: string
+  fase_id: string
+  usuario_id: string | null
+  entrou_em: string
+  observacao: string | null
+  fase?: { id: string; nome: string; cor: string | null } | null
+  usuario?: { nome: string } | null
+}
+
+export type TimelineItem =
+  | { tipo: 'comentario'; data: string; payload: ProcessoComentario }
+  | { tipo: 'fase'; data: string; payload: ProcessoFaseHistorico }
+  | { tipo: 'tarefa_criada'; data: string; payload: ProcessoTarefa }
+  | { tipo: 'tarefa_concluida'; data: string; payload: ProcessoTarefa }
+
+export interface ResumoEstoque {
+  certeza_total: number
+  certeza_valor: number
+  incerteza_total: number
+  incerteza_valor: number
+  total_estoque: number
+  total_valor: number
+}
+
+export interface PerformanceBanco {
+  banco_nome: string
+  banco_cor: string | null
+  realizado: number
+  percentual_valor: number
+  num_contratos: number
+  percentual_contratos: number
+}
+
+export interface EmissaoSemana {
+  emitidos: number
+  producao: number
+  emitidos_ate: string
+  percentual_valor: number
+  percentual_contratos: number
+}

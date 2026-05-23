@@ -1,0 +1,191 @@
+'use client'
+
+import { useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Search, Loader2, User, Users, FileText } from 'lucide-react'
+import { useBuscaGlobal, type ResultadoBusca } from '@/hooks/busca/useBuscaGlobal'
+import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
+import { SinoNotificacoes } from './SinoNotificacoes'
+import { cn } from '@/lib/utils'
+
+function iniciais(nome: string) {
+  return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+}
+
+export function Topbar() {
+  const router = useRouter()
+  const { data: usuario } = useUsuarioAtual()
+  const { termo, setTermo, resultados, buscando, aberto, setAberto, limpar } = useBuscaGlobal()
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const inputRef   = useRef<HTMLInputElement>(null)
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setAberto(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Atalho global: Ctrl+K / Cmd+K para focar busca
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
+
+  function handleSelect(id: string, tipo: ResultadoBusca['tipo']) {
+    limpar()
+    if (tipo === 'lead')    router.push(`/leads?open=${id}`)
+    else if (tipo === 'pessoa') router.push(`/pessoas/${id}`)
+    else router.push(`/processos/${id}`)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') { limpar(); inputRef.current?.blur() }
+    if (e.key === 'Enter' && resultados.length > 0) {
+      handleSelect(resultados[0].id, resultados[0].tipo)
+    }
+  }
+
+  return (
+    <header className="h-14 border-b border-gray-200 bg-white flex items-center px-6 gap-4 shrink-0 z-30">
+
+      {/* Busca global */}
+      <div ref={wrapperRef} className="relative flex-1 max-w-md">
+        <div className="relative">
+          {buscando
+            ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin pointer-events-none" />
+            : <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          }
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Busque em qualquer lugar..."
+            value={termo}
+            onChange={e => setTermo(e.target.value)}
+            onFocus={() => { if (resultados.length > 0) setAberto(true) }}
+            onKeyDown={handleKeyDown}
+            className="w-full h-9 pl-9 pr-16 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#253B29] focus:ring-1 focus:ring-[#253B29]/20 transition-all placeholder:text-gray-400"
+          />
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 text-xs text-gray-300 font-mono">
+            <span>⌘</span><span>K</span>
+          </kbd>
+        </div>
+
+        {/* Dropdown de resultados */}
+        {aberto && resultados.length > 0 && (() => {
+          const leads     = resultados.filter(r => r.tipo === 'lead')
+          const pessoas   = resultados.filter(r => r.tipo === 'pessoa')
+          const processos = resultados.filter(r => r.tipo === 'processo')
+
+          function ItemLinha({ item }: { item: ResultadoBusca }) {
+            return (
+              <button
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                onMouseDown={e => { e.preventDefault(); handleSelect(item.id, item.tipo) }}
+              >
+                {item.tipo === 'pessoa' ? (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                    <Users className="h-4 w-4 text-blue-600" />
+                  </div>
+                ) : item.tipo === 'processo' ? (
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                    <FileText className="h-4 w-4 text-amber-600" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-white">{iniciais(item.titulo)}</span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{item.titulo}</p>
+                  <p className="text-xs text-gray-400 truncate">{item.subtitulo}</p>
+                </div>
+                {item.fase && (
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-medium text-white shrink-0"
+                    style={{ backgroundColor: item.faseCor ?? '#253B29' }}
+                  >
+                    {item.fase}
+                  </span>
+                )}
+              </button>
+            )
+          }
+
+          return (
+            <div className="absolute top-full mt-1.5 left-0 right-0 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-50">
+              {leads.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 border-b border-gray-100 bg-gray-50">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Leads</p>
+                  </div>
+                  <ul>{leads.map(item => <li key={item.id}><ItemLinha item={item} /></li>)}</ul>
+                </>
+              )}
+              {pessoas.length > 0 && (
+                <>
+                  <div className={cn('px-3 py-1.5 border-b border-gray-100 bg-gray-50', leads.length > 0 && 'border-t')}>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Pessoas</p>
+                  </div>
+                  <ul>{pessoas.map(item => <li key={item.id}><ItemLinha item={item} /></li>)}</ul>
+                </>
+              )}
+              {processos.length > 0 && (
+                <>
+                  <div className={cn('px-3 py-1.5 border-b border-gray-100 bg-gray-50', (leads.length > 0 || pessoas.length > 0) && 'border-t')}>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Processos</p>
+                  </div>
+                  <ul>{processos.map(item => <li key={item.id}><ItemLinha item={item} /></li>)}</ul>
+                </>
+              )}
+              <div className="px-3 py-1.5 border-t border-gray-100 bg-gray-50">
+                <p className="text-xs text-gray-400">Enter para abrir o primeiro · Esc para fechar</p>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Sem resultados */}
+        {aberto && termo.length >= 2 && !buscando && resultados.length === 0 && (
+          <div className="absolute top-full mt-1.5 left-0 right-0 bg-white rounded-xl border border-gray-200 shadow-lg z-50 px-4 py-4 text-center">
+            <p className="text-sm text-gray-400">Nenhum resultado para <strong>&ldquo;{termo}&rdquo;</strong></p>
+          </div>
+        )}
+      </div>
+
+      {/* Espaço flex */}
+      <div className="flex-1" />
+
+      {/* Notificações + perfil */}
+      <div className="flex items-center gap-3">
+        <SinoNotificacoes />
+
+        {/* Avatar do usuário */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-[#253B29] flex items-center justify-center">
+            {usuario?.nome
+              ? <span className="text-xs font-bold text-white">{iniciais(usuario.nome)}</span>
+              : <User className="h-4 w-4 text-white" />
+            }
+          </div>
+          {usuario?.nome && (
+            <span className="text-sm font-medium text-gray-700 hidden lg:block max-w-[120px] truncate">
+              {usuario.nome.split(' ')[0]}
+            </span>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
