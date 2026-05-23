@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { KanbanBoard } from '@/components/leads/KanbanBoard'
 import { LeadModal } from '@/components/leads/LeadModal'
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 
 type Visao = 'kanban' | 'lista'
 
-export default function LeadsPage() {
+function LeadsContent() {
   const { pode } = usePermissao()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -143,5 +143,13 @@ export default function LeadsPage() {
         onFechar={fecharDetalhe}
       />
     </div>
+  )
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense>
+      <LeadsContent />
+    </Suspense>
   )
 }
