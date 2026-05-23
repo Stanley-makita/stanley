@@ -165,7 +165,7 @@ export default function ProcessoDetalhePage() {
               <AbaVendedores processoId={id} />
             </TabsContent>
             <TabsContent value="fases" className="m-0">
-              <AbaFases processoId={id} />
+              <AbaFases processoId={id} processo={processo} />
             </TabsContent>
             <TabsContent value="documentos" className="m-0">
               <AbaDocumentos processoId={id} />
