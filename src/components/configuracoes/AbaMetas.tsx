@@ -45,7 +45,7 @@ export function AbaMetas() {
     salvar(meta, {
       onSuccess: () => {
         setEdicao((prev) => { const n = { ...prev }; delete n[mes]; return n })
-        toast({ description: `Meta de ${MESES[mes - 1]} salva.`, className: 'border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+        toast({ description: `Meta de ${MESES[mes - 1]} salva.` })
       },
     })
   }

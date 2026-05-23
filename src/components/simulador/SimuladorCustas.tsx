@@ -288,7 +288,7 @@ export function SimuladorCustas({
 
   const cidadesDisponiveis = useMemo(() => {
     const fromDb = itbiConfigs.map((c) => c.municipio)
-    return [...new Set([...CIDADES_REGIAO, ...fromDb])].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    return Array.from(new Set([...CIDADES_REGIAO, ...fromDb])).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [itbiConfigs])
   const bancosDisponiveis = useMemo(() => {
     const fromDb = custasConfigs.map((c) => c.bancoNome)

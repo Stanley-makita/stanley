@@ -70,7 +70,7 @@ export function AbaPersonalizacao() {
       { ...form, logo_path: logoPath ?? undefined },
       {
         onSuccess: () => {
-          toast({ description: 'Configurações salvas.', className: 'border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+          toast({ description: 'Configurações salvas.' })
         },
       }
     )

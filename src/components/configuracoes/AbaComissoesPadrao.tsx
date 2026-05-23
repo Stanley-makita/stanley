@@ -38,7 +38,7 @@ export function AbaComissoesPadrao() {
     salvar({ bancoId, comissaoEmpresa: e, comissaoComercial: c }, {
       onSuccess: () => {
         setEdicao((prev) => { const n = { ...prev }; delete n[bancoId]; return n })
-        toast({ description: `Comissão padrão de ${bancoNome} salva.`, className: 'border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+        toast({ description: `Comissão padrão de ${bancoNome} salva.` })
       },
     })
   }

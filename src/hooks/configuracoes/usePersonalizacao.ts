@@ -14,7 +14,7 @@ export function usePersonalizacao() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('empresas')
-        .select('id, nome, cnpj, telefone, email, site, logo_url')
+        .select('id, nome, cnpj, telefone, email, email_contato, site, logo_url, logo_path')
         .eq('id', usuario!.empresa_id)
         .single()
       if (error) throw error

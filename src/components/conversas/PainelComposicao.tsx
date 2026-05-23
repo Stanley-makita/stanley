@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Send, Paperclip, Mic, MicOff, X, Smile, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -8,8 +8,17 @@ import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 
+interface EmojiPickerProps {
+  data: object
+  onEmojiSelect: (emoji: { native: string }) => void
+  locale?: string
+  theme?: string
+  previewPosition?: string
+  skinTonePosition?: string
+}
+
 const EmojiPickerLib = dynamic(
-  () => import('@emoji-mart/react').then((m) => m.default),
+  () => import('@emoji-mart/react').then((m) => m.default as React.ComponentType<EmojiPickerProps>),
   { ssr: false }
 )
 
@@ -55,7 +64,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
   const [gravando, setGravando] = useState(false)
   const [tempoGravacao, setTempoGravacao] = useState(0)
   const [emojiAberto, setEmojiAberto] = useState(false)
-  const [emojiData, setEmojiData] = useState<unknown>(null)
+  const [emojiData, setEmojiData] = useState<object | null>(null)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

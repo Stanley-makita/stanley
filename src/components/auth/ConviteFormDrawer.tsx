@@ -21,7 +21,7 @@ import { UserPlus } from 'lucide-react'
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
   perfil: z.enum(['admin', 'gerente', 'analista', 'consultor', 'cliente'], {
-    required_error: 'Selecione um perfil',
+    error: 'Selecione um perfil',
   }),
 })
 

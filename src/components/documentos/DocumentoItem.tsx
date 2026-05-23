@@ -37,14 +37,14 @@ export function DocumentoItem({ documento, onExcluir, podeExcluir }: DocumentoIt
     <tr className="border-t hover:bg-gray-50">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg leading-none">{iconeParaMime(documento.mime_type)}</span>
+          <span className="text-lg leading-none">{iconeParaMime(documento.mime_type ?? '')}</span>
           <span className="text-sm font-medium text-gray-800 truncate max-w-[260px]">
             {documento.nome}
           </span>
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-        {formatarTamanho(documento.tamanho)}
+        {formatarTamanho(documento.tamanho ?? 0)}
       </td>
       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
         {documento.enviado_por_usuario?.nome ?? '—'}

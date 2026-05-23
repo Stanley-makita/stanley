@@ -9,8 +9,10 @@ interface PersonalizacaoUpdate {
   cnpj?: string
   telefone?: string
   email?: string
+  email_contato?: string
   site?: string
   logo_url?: string
+  logo_path?: string
 }
 
 export function useSalvarPersonalizacao() {

@@ -148,6 +148,31 @@ export type TimelineItem =
   | { tipo: 'tarefa_criada'; data: string; payload: ProcessoTarefa }
   | { tipo: 'tarefa_concluida'; data: string; payload: ProcessoTarefa }
 
+export interface ProcessoMovimento {
+  id: string
+  processo_id: string
+  empresa_id: string
+  usuario_id: string | null
+  tipo: 'credito' | 'debito'
+  descricao: string
+  valor: number
+  data_movimento: string
+  created_at: string
+  usuario?: { nome: string } | null
+}
+
+export interface ProcessoCusta {
+  id: string
+  processo_id: string
+  empresa_id: string
+  usuario_id: string | null
+  descricao: string
+  valor: number
+  data_custa: string
+  pago: boolean
+  created_at: string
+}
+
 export interface ResumoEstoque {
   certeza_total: number
   certeza_valor: number
