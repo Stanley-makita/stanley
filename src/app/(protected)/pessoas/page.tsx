@@ -63,7 +63,7 @@ export default function PessoasPage() {
         .not('tipo', 'is', null)
 
       if (error) return []
-      const unicos = [...new Set((data ?? []).map((r) => r.tipo as string))]
+      const unicos = Array.from(new Set((data ?? []).map((r) => r.tipo as string)))
       return unicos.sort((a, b) => (TIPO_LABEL[a] ?? a).localeCompare(TIPO_LABEL[b] ?? b))
     },
   })
