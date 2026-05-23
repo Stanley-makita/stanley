@@ -301,7 +301,10 @@ export default function ConversasPage() {
         .is('deleted_at', null)
         .or(`nome.ilike.%${buscaLead.trim()}%,telefone.ilike.%${buscaLead.trim()}%`)
         .limit(10)
-      return (data ?? []) as { id: string; nome: string; telefone: string; fase: { nome: string; cor: string } | null }[]
+      return (data ?? []).map((l: { id: string; nome: string; telefone: string; fase: { nome: string; cor: string }[] }) => ({
+        ...l,
+        fase: l.fase?.[0] ?? null,
+      })) as { id: string; nome: string; telefone: string; fase: { nome: string; cor: string } | null }[]
     },
   })
 
