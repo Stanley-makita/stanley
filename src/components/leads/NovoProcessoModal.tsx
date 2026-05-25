@@ -14,6 +14,7 @@ import { type Lead } from '@/types/leads'
 import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
 
 type TipoProcesso = 'financiamento' | 'consorcio' | 'cgi' | 'contrato' | 'credito_pj'
@@ -191,7 +192,9 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
   onFechar: () => void
 }) {
   const router = useRouter()
+  const { usuario } = useAuth()
   const { data: bancos = [] } = useBancos()
+  const { data: usuarios = [] } = useUsuariosEmpresa()
   const criarProcesso = useCriarProcesso()
 
   const clienteNome    = lead?.nome     ?? pessoa?.nome     ?? ''
@@ -204,6 +207,9 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
   const [modalidade, setModalidade] = useState('')
   const [valorFinanciar, setValorFinanciar] = useState('')
   const [temAssessoria, setTemAssessoria] = useState(true)
+  const [valorAssessoria, setValorAssessoria] = useState('')
+  const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
+  const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? usuario?.id ?? '')
 
   async function handleCriar() {
     if (!bancoId || !modalidade || !valorImovel) return
@@ -221,10 +227,11 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
       chance_emissao:   'incerteza',
       status_processo:  'em_analise',
       tem_assessoria:   temAssessoria,
+      valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
       comissao_comercial: null,
       comissao_empresa:   null,
-      operacional_id:   null,
-      comercial_id:     lead?.responsavel_id ?? null,
+      operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
+      comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    null,
       corretor_creci:   null,
       fase_atual_id:    null,
@@ -249,7 +256,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
   }
 
   return (
-    <div className="overflow-y-auto max-h-[70vh] px-5 py-5 space-y-5">
+    <div className="overflow-y-auto max-h-[75vh] px-5 py-5 space-y-5">
       <Secao titulo="Dados do Cliente">
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
@@ -283,36 +290,54 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
             </Select>
           </Campo>
           <Campo label="Valor do Imóvel *">
-            <Input
-              placeholder="R$ 0,00"
-              value={valorImovel}
-              onChange={e => setValorImovel(e.target.value)}
-              onBlur={e => setValorImovel(formatMoedaInput(e.target.value))}
-              className="h-9 text-sm"
-            />
+            <Input placeholder="R$ 0,00" value={valorImovel} onChange={e => setValorImovel(e.target.value)} onBlur={e => setValorImovel(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
           </Campo>
           <Campo label="Valor a Financiar">
-            <Input
-              placeholder="R$ 0,00"
-              value={valorFinanciar}
-              onChange={e => setValorFinanciar(e.target.value)}
-              onBlur={e => setValorFinanciar(formatMoedaInput(e.target.value))}
-              className="h-9 text-sm"
-            />
+            <Input placeholder="R$ 0,00" value={valorFinanciar} onChange={e => setValorFinanciar(e.target.value)} onBlur={e => setValorFinanciar(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
           </Campo>
         </div>
       </Secao>
 
       <Secao titulo="Assessoria">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <div
-            onClick={() => setTemAssessoria(!temAssessoria)}
-            className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-[#253B29]' : 'bg-gray-200')}
-          >
-            <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temAssessoria ? 'translate-x-4' : 'translate-x-0')} />
-          </div>
-          <span className="text-sm text-gray-700">Processo inclui Assessoria</span>
-        </label>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              onClick={() => setTemAssessoria(!temAssessoria)}
+              className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-[#253B29]' : 'bg-gray-200')}
+            >
+              <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temAssessoria ? 'translate-x-4' : 'translate-x-0')} />
+            </div>
+            <span className="text-sm text-gray-700">Processo inclui Assessoria</span>
+          </label>
+          {temAssessoria && (
+            <Campo label="Valor da Assessoria negociado">
+              <Input placeholder="R$ 0,00" value={valorAssessoria} onChange={e => setValorAssessoria(e.target.value)} onBlur={e => setValorAssessoria(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
+            </Campo>
+          )}
+        </div>
+      </Secao>
+
+      <Secao titulo="Responsáveis">
+        <div className="grid grid-cols-2 gap-3">
+          <Campo label="Operacional">
+            <Select value={operacionalId} onValueChange={setOperacionalId}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__nenhum">Nenhum</SelectItem>
+                {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo label="Comercial">
+            <Select value={comercialId} onValueChange={setComercialId}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__nenhum">Nenhum</SelectItem>
+                {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+        </div>
       </Secao>
 
       <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
@@ -340,7 +365,9 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
   onFechar: () => void
 }) {
   const router = useRouter()
+  const { usuario } = useAuth()
   const { data: bancos = [] } = useBancos()
+  const { data: usuarios = [] } = useUsuariosEmpresa()
   const criarProcesso = useCriarProcesso()
 
   const clienteNome    = lead?.nome ?? pessoa?.nome ?? ''
@@ -350,6 +377,9 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
   const [valorGarantia, setValorGarantia] = useState('')
   const [bancoId, setBancoId] = useState('')
   const [temAssessoria, setTemAssessoria] = useState(true)
+  const [valorAssessoria, setValorAssessoria] = useState('')
+  const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
+  const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? usuario?.id ?? '')
 
   async function handleCriar() {
     if (!bancoId || !valorCredito) return
@@ -367,10 +397,11 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
       chance_emissao:   'incerteza',
       status_processo:  'em_analise',
       tem_assessoria:   temAssessoria,
+      valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
       comissao_comercial: null,
       comissao_empresa:   null,
-      operacional_id:   null,
-      comercial_id:     lead?.responsavel_id ?? null,
+      operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
+      comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    null,
       corretor_creci:   null,
       fase_atual_id:    null,
@@ -395,7 +426,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
   }
 
   return (
-    <div className="overflow-y-auto max-h-[70vh] px-5 py-5 space-y-5">
+    <div className="overflow-y-auto max-h-[75vh] px-5 py-5 space-y-5">
       <Secao titulo="Dados do Cliente">
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
@@ -421,12 +452,42 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
       </Secao>
 
       <Secao titulo="Assessoria">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <div onClick={() => setTemAssessoria(!temAssessoria)} className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-[#253B29]' : 'bg-gray-200')}>
-            <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temAssessoria ? 'translate-x-4' : 'translate-x-0')} />
-          </div>
-          <span className="text-sm text-gray-700">Processo inclui Assessoria</span>
-        </label>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div onClick={() => setTemAssessoria(!temAssessoria)} className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-[#253B29]' : 'bg-gray-200')}>
+              <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temAssessoria ? 'translate-x-4' : 'translate-x-0')} />
+            </div>
+            <span className="text-sm text-gray-700">Processo inclui Assessoria</span>
+          </label>
+          {temAssessoria && (
+            <Campo label="Valor da Assessoria negociado">
+              <Input placeholder="R$ 0,00" value={valorAssessoria} onChange={e => setValorAssessoria(e.target.value)} onBlur={e => setValorAssessoria(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
+            </Campo>
+          )}
+        </div>
+      </Secao>
+
+      <Secao titulo="Responsáveis">
+        <div className="grid grid-cols-2 gap-3">
+          <Campo label="Operacional">
+            <Select value={operacionalId} onValueChange={setOperacionalId}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__nenhum">Nenhum</SelectItem>
+                {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo label="Comercial">
+            <Select value={comercialId} onValueChange={setComercialId}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__nenhum">Nenhum</SelectItem>
+                {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+        </div>
       </Secao>
 
       <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">

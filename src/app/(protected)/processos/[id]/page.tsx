@@ -319,7 +319,12 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
           <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Assessoria & Contrato</h4>
           <div className={`flex items-center justify-between p-3 rounded-lg ${processo.tem_assessoria ? 'bg-[#E7E0C4]' : 'bg-gray-50'}`}>
             <span className="text-sm text-[#253B29]">{processo.tem_assessoria ? 'Com Assessoria' : 'Sem Assessoria'}</span>
-            {processo.tem_assessoria && <span className="text-xs text-[#253B29] font-medium">Inclusa</span>}
+            {processo.tem_assessoria && processo.valor_assessoria != null && (
+              <span className="text-sm font-semibold text-[#253B29]">{formatarMoeda(processo.valor_assessoria)}</span>
+            )}
+            {processo.tem_assessoria && processo.valor_assessoria == null && (
+              <span className="text-xs text-[#253B29] font-medium">Inclusa</span>
+            )}
           </div>
           {(processo.comissao_comercial || processo.comissao_empresa) && (
             <div className="grid grid-cols-2 gap-2 text-sm">

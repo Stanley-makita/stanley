@@ -28,6 +28,7 @@ export interface Processo {
   data_contrato?: string | null
   // Assessoria
   tem_assessoria: boolean
+  valor_assessoria?: number | null
   comissao_comercial: number | null
   comissao_empresa: number | null
   // Responsáveis
