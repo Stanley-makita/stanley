@@ -23,12 +23,12 @@ export function useUsuarioAtual() {
       const { data, error } = await supabase
         .from('usuarios')
         .select('id, nome, email, perfil, empresa_id, ativo, avatar_url')
-        .eq('id', user.id)
+        .eq('auth_user_id', user.id)
         .single()
 
       if (error) throw error
       return data as UsuarioAtual
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
   })
 }

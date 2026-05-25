@@ -20,7 +20,6 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 
 const navItems = [
@@ -43,14 +42,12 @@ const adminItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
   const { data: usuario } = useUsuarioAtual()
 
   async function handleLogout() {
+    const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    window.location.href = '/login'
   }
 
   const isAdmin = usuario?.perfil === 'admin'
