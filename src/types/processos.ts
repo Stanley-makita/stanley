@@ -128,6 +128,15 @@ export interface ProcessoVendedor {
   cpf: string | null
   email: string | null
   telefone: string | null
+  banco: string | null
+  agencia: string | null
+  conta: string | null
+  estado_civil: string | null
+  conjuge_nome: string | null
+  conjuge_cpf: string | null
+  conjuge_rg: string | null
+  conjuge_data_nasc: string | null
+  conjuge_papel: 'conjuge' | 'proprietario' | null
   created_at: string
 }
 
