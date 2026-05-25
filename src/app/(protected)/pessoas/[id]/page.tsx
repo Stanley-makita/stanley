@@ -11,6 +11,7 @@ import {
   ArrowLeft, Phone, Mail, User, MessageSquare, Briefcase,
   Plus, Trash2, Edit2, Check, X, GitMerge, ExternalLink,
   UserPlus, MessageCirclePlus, FileText, Building2, FolderPlus,
+  CreditCard, Calendar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -239,12 +240,13 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
 
   const mutAtualizarPessoa = useMutation({
     mutationFn: async (dados: typeof form) => {
+      const cpf = dados.cpf.trim() || null
       const { error } = await supabase
         .from('pessoas')
         .update({
           nome: dados.nome.trim() || undefined,
           email: dados.email.trim() || null,
-          cpf: dados.cpf.trim() || null,
+          cpf,
           data_nascimento: dados.data_nascimento || null,
           observacoes: dados.observacoes.trim() || null,
           tipo: dados.tipo || null,
@@ -252,6 +254,14 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         .eq('id', params.id)
         .eq('empresa_id', usuario!.empresa_id)
       if (error) throw error
+
+      if (cpf) {
+        await supabase
+          .from('leads')
+          .update({ cpf })
+          .eq('pessoa_id', params.id)
+          .eq('empresa_id', usuario!.empresa_id)
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pessoa', params.id] })
@@ -501,28 +511,30 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
           ) : (
             <div className="grid grid-cols-2 gap-x-8 gap-y-3">
               {[
-                { label: 'Nome', value: pessoa.nome, icon: User },
-                { label: 'E-mail', value: pessoa.email, icon: Mail },
-                { label: 'CPF', value: pessoa.cpf, icon: User },
-                { label: 'Nascimento', value: pessoa.data_nascimento ? format(new Date(pessoa.data_nascimento), 'dd/MM/yyyy') : null, icon: User },
-              ].map(({ label, value, icon: Icon }) => value ? (
+                { label: 'Nome',       value: pessoa.nome,  icon: User },
+                { label: 'E-mail',     value: pessoa.email, icon: Mail },
+                { label: 'CPF',        value: pessoa.cpf,   icon: CreditCard },
+                { label: 'Nascimento', value: pessoa.data_nascimento
+                    ? format(new Date(pessoa.data_nascimento + 'T12:00:00'), 'dd/MM/yyyy')
+                    : null,                                  icon: Calendar },
+              ].map(({ label, value, icon: Icon }) => (
                 <div key={label} className="flex items-start gap-2">
                   <Icon className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-[11px] text-gray-400">{label}</p>
-                    <p className="text-sm text-gray-800">{value}</p>
+                    <p className={cn('text-sm', value ? 'text-gray-800' : 'text-gray-300 italic')}>{value ?? '—'}</p>
                   </div>
                 </div>
-              ) : null)}
-              {pessoa.tipo && (
-                <div className="flex items-start gap-2">
-                  <User className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-[11px] text-gray-400">Tipo</p>
-                    <p className="text-sm text-gray-800">{TIPOS.find((t) => t.value === pessoa.tipo)?.label ?? pessoa.tipo}</p>
-                  </div>
+              ))}
+              <div className="flex items-start gap-2">
+                <User className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400">Tipo</p>
+                  <p className={cn('text-sm', pessoa.tipo ? 'text-gray-800' : 'text-gray-300 italic')}>
+                    {pessoa.tipo ? (TIPOS.find((t) => t.value === pessoa.tipo)?.label ?? pessoa.tipo) : '—'}
+                  </p>
                 </div>
-              )}
+              </div>
               {pessoa.observacoes && (
                 <div className="col-span-2 mt-1 p-3 bg-amber-50 rounded-lg text-sm text-amber-800">
                   {pessoa.observacoes}

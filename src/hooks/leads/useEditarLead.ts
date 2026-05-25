@@ -44,6 +44,14 @@ export function useEditarLead() {
         .single()
 
       if (error) throw error
+
+      if (campos.cpf?.trim() && data.pessoa_id) {
+        await supabase
+          .from('pessoas')
+          .update({ cpf: campos.cpf.trim() })
+          .eq('id', data.pessoa_id)
+      }
+
       return data
     },
     onSuccess: (data) => {
