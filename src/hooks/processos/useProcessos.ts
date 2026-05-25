@@ -5,8 +5,13 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Processo, type StatusProcesso } from '@/types/processos'
 
+export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato'
+
+const FINANCIAMENTO_MODALIDADES = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista']
+
 interface FiltrosProcessos {
   status?: StatusProcesso | 'todos'
+  produto?: ProdutoFiltro
   busca?: string
 }
 
@@ -32,6 +37,18 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
 
       if (filtros.status && filtros.status !== 'todos') {
         query = query.eq('status_processo', filtros.status)
+      }
+
+      if (filtros.produto && filtros.produto !== 'todos') {
+        if (filtros.produto === 'financiamento') {
+          query = query.in('modalidade', FINANCIAMENTO_MODALIDADES)
+        } else if (filtros.produto === 'consorcio') {
+          query = query.eq('modalidade', 'Consorcio')
+        } else if (filtros.produto === 'cgi') {
+          query = query.eq('modalidade', 'CGI')
+        } else if (filtros.produto === 'contrato') {
+          query = query.eq('modalidade', 'Contrato')
+        }
       }
 
       if (filtros.busca) {

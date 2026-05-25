@@ -1,14 +1,23 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { type Processo } from '@/types/processos'
+import { type Processo, type ModalidadeProcesso } from '@/types/processos'
 import { ProcessoStatusBadge } from '../ProcessoStatusBadge'
 import { ChanceBadge } from '../ChanceBadge'
 import { useSolicitacoesAbertasPorProcesso } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorProcesso'
 import { Building2, User, Calendar, Clock } from 'lucide-react'
-import { Progress } from '@/components/ui/progress'
 
 interface Props { processo: Processo }
+
+const MODALIDADE_CONFIG: Record<ModalidadeProcesso, { label: string; className: string }> = {
+  SFI:         { label: 'SFI',         className: 'bg-blue-100 text-blue-700' },
+  SBPE:        { label: 'SBPE',        className: 'bg-blue-100 text-blue-700' },
+  PMCMV:       { label: 'PMCMV',       className: 'bg-blue-100 text-blue-700' },
+  Pro_Cotista: { label: 'Pro Cotista', className: 'bg-blue-100 text-blue-700' },
+  CGI:         { label: 'CGI',         className: 'bg-purple-100 text-purple-700' },
+  Contrato:    { label: 'Contrato',    className: 'bg-gray-100 text-gray-600' },
+  Consorcio:   { label: 'Consórcio',   className: 'bg-orange-100 text-orange-700' },
+}
 
 export function ProcessoCard({ processo }: Props) {
   const router = useRouter()
@@ -17,27 +26,48 @@ export function ProcessoCard({ processo }: Props) {
   const formatarMoeda = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
 
+  const compradorPrincipal =
+    processo.compradores?.find((c) => c.principal)?.nome ??
+    processo.compradores?.[0]?.nome ??
+    null
+
+  const modalidadeCfg = MODALIDADE_CONFIG[processo.modalidade]
+
   return (
     <div
       className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#C2AA6A] transition-all"
       onClick={() => router.push(`/processos/${processo.id}`)}
     >
-      {/* Header do card */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <ProcessoStatusBadge status={processo.status_processo} />
+          {modalidadeCfg && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${modalidadeCfg.className}`}>
+              {modalidadeCfg.label}
+            </span>
+          )}
           <span className="text-xs text-gray-400">{processo.numero_processo}</span>
         </div>
         <ChanceBadge chance={processo.chance_emissao} />
       </div>
 
-      {/* Nome do imóvel */}
-      <div className="flex items-start gap-2 mb-3">
-        <Building2 className="h-4 w-4 text-[#253B29] mt-0.5 shrink-0" />
-        <p className="text-sm font-semibold text-[#253B29] leading-snug line-clamp-2">
-          {processo.nome_imovel}
+      {/* Cliente (principal) */}
+      <div className="flex items-start gap-2 mb-1">
+        <User className="h-4 w-4 text-[#253B29] mt-0.5 shrink-0" />
+        <p className="text-sm font-semibold text-[#253B29] leading-snug line-clamp-1">
+          {compradorPrincipal ?? processo.nome_imovel}
         </p>
       </div>
+
+      {/* Nome do imóvel (secundário) */}
+      {compradorPrincipal && processo.nome_imovel && (
+        <div className="flex items-start gap-2 mb-3 pl-6">
+          <Building2 className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-gray-400 leading-snug line-clamp-1">{processo.nome_imovel}</p>
+        </div>
+      )}
+      {!compradorPrincipal && <div className="mb-3" />}
 
       {/* Valor + Data */}
       <div className="flex items-center justify-between mb-3 text-sm">
