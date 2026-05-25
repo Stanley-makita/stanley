@@ -29,6 +29,41 @@ export async function PUT(
   const body = await request.json()
   const { nome, perfil, funcao, ativo } = body
 
+  // Busca o usuário alvo para verificar guards de segurança
+  const { data: alvo } = await supabase
+    .from('usuarios')
+    .select('id, perfil, ativo, email')
+    .eq('id', params.id)
+    .eq('empresa_id', admin.empresa_id)
+    .single()
+
+  if (!alvo) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+
+  // Guard: impede desativar o próprio usuário admin logado
+  const { data: adminAtual } = await supabase
+    .from('usuarios')
+    .select('id')
+    .eq('auth_user_id', (await supabase.auth.getUser(token)).data.user?.id ?? '')
+    .single()
+
+  if (ativo === false && adminAtual?.id === alvo.id) {
+    return NextResponse.json({ error: 'Você não pode desativar sua própria conta.' }, { status: 400 })
+  }
+
+  // Guard: impede desativar o último admin ativo da empresa
+  if (ativo === false && alvo.perfil === 'admin') {
+    const { count } = await supabase
+      .from('usuarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('empresa_id', admin.empresa_id)
+      .eq('perfil', 'admin')
+      .eq('ativo', true)
+      .neq('id', alvo.id)
+    if ((count ?? 0) === 0) {
+      return NextResponse.json({ error: 'Não é possível desativar o único administrador ativo.' }, { status: 400 })
+    }
+  }
+
   const update: Record<string, unknown> = {}
   if (nome  !== undefined) update.nome  = nome?.trim() || undefined
   if (perfil !== undefined) update.perfil = perfil
