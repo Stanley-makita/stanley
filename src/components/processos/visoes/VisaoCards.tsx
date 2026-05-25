@@ -16,11 +16,15 @@ const FILTROS_STATUS: { label: string; value: StatusProcesso | 'todos' }[] = [
 ]
 
 const FILTROS_PRODUTO: { label: string; value: ProdutoFiltro }[] = [
-  { label: 'Todos',         value: 'todos' },
   { label: 'Financiamento', value: 'financiamento' },
   { label: 'Consórcio',     value: 'consorcio' },
   { label: 'CGI',           value: 'cgi' },
   { label: 'Contrato',      value: 'contrato' },
+]
+
+const FILTROS_CHANCE = [
+  { label: 'Certeza',   value: 'certeza'   as const },
+  { label: 'Incerteza', value: 'incerteza' as const },
 ]
 
 const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
@@ -28,16 +32,21 @@ const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
 export function VisaoCards() {
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>('todos')
+  const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
-  const { data: processos = [], isLoading } = useProcessos({ status: statusFiltro, produto: produtoFiltro, busca })
 
-  // Contagem por status
+  const { data: processos = [], isLoading } = useProcessos({
+    status: statusFiltro,
+    produto: produtoFiltro,
+    chance: chanceFiltro,
+    busca,
+  })
+
   const contagemStatus = processos.reduce((acc, p) => {
     acc[p.status_processo] = (acc[p.status_processo] ?? 0) + 1
     return acc
   }, {} as Record<string, number>)
 
-  // Contagem por produto
   const contagemProduto = processos.reduce((acc, p) => {
     const mod = p.modalidade
     if (FINANCIAMENTO_MODS.has(mod)) acc.financiamento = (acc.financiamento ?? 0) + 1
@@ -47,57 +56,84 @@ export function VisaoCards() {
     return acc
   }, {} as Record<string, number>)
 
+  const contagemChance = processos.reduce((acc, p) => {
+    acc[p.chance_emissao] = (acc[p.chance_emissao] ?? 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
   return (
     <div className="space-y-3">
-      {/* Filtros por status */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Filtros em linha única */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+
+        {/* Status — verde escuro quando ativo */}
         {FILTROS_STATUS.map((f) => {
           const count = f.value === 'todos' ? processos.length : (contagemStatus[f.value] ?? 0)
           return (
             <button
               key={f.value}
               onClick={() => setStatusFiltro(f.value)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 statusFiltro === f.value
                   ? 'bg-[#253B29] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {f.label} {count > 0 && <span className="ml-1 opacity-70">{count}</span>}
+              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
             </button>
           )
         })}
-      </div>
 
-      {/* Filtros por produto */}
-      <div className="flex items-center gap-2 flex-wrap">
+        <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
+
+        {/* Produto — dourado quando ativo; clique no ativo deseleciona */}
         {FILTROS_PRODUTO.map((f) => {
-          const count = f.value === 'todos' ? processos.length : (contagemProduto[f.value] ?? 0)
+          const count = contagemProduto[f.value] ?? 0
           return (
             <button
               key={f.value}
-              onClick={() => setProdutoFiltro(f.value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              onClick={() => setProdutoFiltro(produtoFiltro === f.value ? 'todos' : f.value)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 produtoFiltro === f.value
                   ? 'bg-[#C2AA6A] text-[#253B29]'
                   : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
               }`}
             >
-              {f.label} {count > 0 && <span className="ml-1 opacity-70">{count}</span>}
+              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
             </button>
           )
         })}
-      </div>
 
-      {/* Busca */}
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Buscar por imóvel, cliente ou proposta..."
-          className="pl-9"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
+        <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
+
+        {/* Chance — âmbar quando ativo; clique no ativo deseleciona */}
+        {FILTROS_CHANCE.map((f) => {
+          const count = contagemChance[f.value] ?? 0
+          return (
+            <button
+              key={f.value}
+              onClick={() => setChanceFiltro(chanceFiltro === f.value ? 'todos' : f.value)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                chanceFiltro === f.value
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
+            </button>
+          )
+        })}
+
+        {/* Busca */}
+        <div className="relative flex-1 min-w-[160px] max-w-[260px] ml-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <Input
+            placeholder="Buscar por imóvel ou proposta..."
+            className="pl-8 h-7 text-xs"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Grid de cards */}

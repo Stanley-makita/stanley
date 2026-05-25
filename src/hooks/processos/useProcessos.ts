@@ -13,6 +13,7 @@ interface FiltrosProcessos {
   status?: StatusProcesso | 'todos'
   produto?: ProdutoFiltro
   busca?: string
+  chance?: 'certeza' | 'incerteza' | 'todos'
 }
 
 export function useProcessos(filtros: FiltrosProcessos = {}) {
@@ -49,6 +50,10 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
         } else if (filtros.produto === 'contrato') {
           query = query.eq('modalidade', 'Contrato')
         }
+      }
+
+      if (filtros.chance && filtros.chance !== 'todos') {
+        query = query.eq('chance_emissao', filtros.chance)
       }
 
       if (filtros.busca) {
