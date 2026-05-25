@@ -10,7 +10,7 @@ import { PainelPendencias } from '@/components/processos/detalhe/PainelPendencia
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
@@ -236,41 +236,114 @@ export default function ProcessoDetalhePage() {
 function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['data'] & {} }) {
   if (!processo) return null
 
+  const fmtMoeda = (v: number | null) =>
+    v ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) : '—'
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      {/* Operação */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Operação</h4>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <Campo label="Modalidade" valor={processo.modalidade} />
-          <Campo label="Banco" valor={processo.banco?.nome ?? '—'} />
-          <Campo label="Valor Financiado" valor={
-            processo.valor_financiado
-              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(processo.valor_financiado)
-              : '—'
-          } />
-          <Campo label="Entrada" valor={
-            processo.valor_entrada
-              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(processo.valor_entrada)
-              : '—'
-          } />
-          <Campo label="Data Início" valor={processo.data_inicio} />
+    <div className="space-y-4">
+      {/* Row 1: Operação + Participantes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Operação */}
+        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Operação</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <Campo label="Modalidade"       valor={processo.modalidade} />
+            <Campo label="Banco"            valor={processo.banco?.nome ?? '—'} />
+            <Campo label="Valor Financiado" valor={fmtMoeda(processo.valor_financiado)} />
+            <Campo label="Entrada"          valor={fmtMoeda(processo.valor_entrada)} />
+            <Campo label="Data Início"      valor={processo.data_inicio} />
+            {processo.numero_proposta && (
+              <Campo label="Nº Proposta" valor={processo.numero_proposta} />
+            )}
+          </div>
+        </div>
+
+        {/* Participantes */}
+        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Participantes</h4>
+          {(processo.compradores?.length ?? 0) > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Compradores</p>
+              {processo.compradores!.map((c) => (
+                <div key={c.id} className="flex items-center gap-2 text-sm">
+                  <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <span className="text-[#253B29] font-medium">{c.nome}</span>
+                  {c.cpf && <span className="text-xs text-gray-400">{c.cpf}</span>}
+                  {c.principal && (
+                    <span className="text-[10px] bg-[#253B29] text-white px-1.5 py-0.5 rounded-full">Principal</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {(processo.vendedores?.length ?? 0) > 0 && (
+            <div className="space-y-1.5 mt-2">
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Vendedores</p>
+              {processo.vendedores!.map((v) => (
+                <div key={v.id} className="flex items-center gap-2 text-sm">
+                  <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <span className="text-[#253B29] font-medium">{v.nome}</span>
+                  {v.cpf && <span className="text-xs text-gray-400">{v.cpf}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          {!processo.compradores?.length && !processo.vendedores?.length && (
+            <p className="text-sm text-gray-300 italic">Nenhum participante cadastrado</p>
+          )}
         </div>
       </div>
 
-      {/* Assessoria */}
-      {processo.tem_assessoria && (
-        <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Assessoria</h4>
-          <div className="flex items-center justify-between p-3 bg-[#E7E0C4] rounded-lg">
-            <span className="text-sm text-[#253B29]">Com Assessoria</span>
-            <span className="text-xs text-[#253B29] font-medium">Inclusa</span>
+      {/* Row 2: Imóvel + Assessoria & Contrato */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Imóvel */}
+        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Imóvel</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="col-span-2">
+              <Campo label="Descrição" valor={processo.nome_imovel} />
+            </div>
+            <Campo label="Valor" valor={fmtMoeda(processo.valor_imovel)} />
+          </div>
+        </div>
+
+        {/* Assessoria & Contrato */}
+        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Assessoria & Contrato</h4>
+          <div className={`flex items-center justify-between p-3 rounded-lg ${processo.tem_assessoria ? 'bg-[#E7E0C4]' : 'bg-gray-50'}`}>
+            <span className="text-sm text-[#253B29]">{processo.tem_assessoria ? 'Com Assessoria' : 'Sem Assessoria'}</span>
+            {processo.tem_assessoria && <span className="text-xs text-[#253B29] font-medium">Inclusa</span>}
+          </div>
+          {(processo.comissao_comercial || processo.comissao_empresa) && (
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {processo.comissao_comercial != null && (
+                <Campo label="Comissão Comercial" valor={`${processo.comissao_comercial}%`} />
+              )}
+              {processo.comissao_empresa != null && (
+                <Campo label="Comissão Empresa" valor={`${processo.comissao_empresa}%`} />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Responsáveis */}
+      <BlocoResponsaveis processo={processo} />
+
+      {/* Barra de progresso fina */}
+      {processo.fase_atual && (
+        <div>
+          <div className="flex justify-between text-xs text-gray-400 mb-1">
+            <span>Fase atual: {processo.fase_atual.nome}</span>
+          </div>
+          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: '40%', backgroundColor: processo.fase_atual.cor ?? '#253B29' }}
+            />
           </div>
         </div>
       )}
-
-      {/* Responsáveis */}
-      <BlocoResponsaveis processo={processo} />
     </div>
   )
 }

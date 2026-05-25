@@ -80,7 +80,9 @@ export function useProcesso(processoId: string) {
           operacional:usuarios!operacional_id(id, nome, email),
           comercial:usuarios!comercial_id(id, nome, email),
           juridico:usuarios!juridico_id(id, nome, email),
-          fase_atual:fases!fase_atual_id(id, nome, cor)
+          fase_atual:fases!fase_atual_id(id, nome, cor),
+          compradores:processo_compradores(id, nome, cpf, principal),
+          vendedores:processo_vendedores(id, nome, cpf)
         `)
         .eq('id', processoId)
         .eq('empresa_id', usuario!.empresa_id)

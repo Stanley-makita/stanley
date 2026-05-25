@@ -48,7 +48,8 @@ export interface Processo {
   comercial?: { id: string; nome: string; email: string } | null
   juridico?: { id: string; nome: string; email: string } | null
   fase_atual?: { id: string; nome: string; cor: string | null } | null
-  compradores?: { nome: string; cpf: string | null; principal: boolean }[]
+  compradores?: { id: string; nome: string; cpf: string | null; principal: boolean }[]
+  vendedores?:  { id: string; nome: string; cpf: string | null }[]
 }
 
 export interface ProcessoComentario {
