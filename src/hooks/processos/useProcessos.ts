@@ -61,7 +61,6 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
       if (error) throw error
       return data
     },
-    staleTime: 1000 * 60 * 2,
     enabled: !!usuario,
   })
 }

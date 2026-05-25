@@ -27,7 +27,6 @@ export function useLeadsPorFase(faseId: string) {
       if (error) throw error
       return data
     },
-    staleTime: 1000 * 60 * 2,
     enabled: !!usuario && !!faseId,
   })
 }
@@ -86,7 +85,5 @@ export function useLeadsTodos(faseId?: string, search?: string) {
       return data as Lead[]
     },
     enabled: !!usuario,
-    staleTime: 10_000,
-    refetchOnWindowFocus: true,
   })
 }

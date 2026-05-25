@@ -43,15 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [authUserId, carregarPerfil])
 
   useEffect(() => {
-    // Usa getUser() — valida o JWT com o servidor (mais confiável que getSession)
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (user) {
-        setAuthUserId(user.id)
-        await carregarPerfil(user.id)
-      }
-      setCarregando(false)
-    })
-
+    // onAuthStateChange dispara INITIAL_SESSION imediatamente a partir dos cookies (sem rede)
+    // TOKEN_REFRESHED / SIGNED_OUT são tratados automaticamente
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {

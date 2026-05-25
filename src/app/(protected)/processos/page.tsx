@@ -56,13 +56,15 @@ export default function ProcessosPage() {
         </div>
       </div>
 
-      {/* Resumo do Estoque — sempre visível */}
-      <ResumoEstoque />
-
       {/* Visão selecionada */}
       {visao === 'cards'    && <VisaoCards />}
       {visao === 'tabela'   && <VisaoTabela />}
-      {visao === 'emissoes' && <VisaoEmissoes />}
+      {visao === 'emissoes' && (
+        <>
+          <ResumoEstoque />
+          <VisaoEmissoes />
+        </>
+      )}
     </div>
   )
 }

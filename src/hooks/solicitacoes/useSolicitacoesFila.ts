@@ -55,7 +55,6 @@ export function useSolicitacoesFila(filtros: FiltrosFila = {}) {
         (ORDEM_PRIORIDADE[a.prioridade] ?? 9) - (ORDEM_PRIORIDADE[b.prioridade] ?? 9)
       )
     },
-    staleTime: 1000 * 30,
     enabled: !!usuario,
   })
 }
@@ -89,7 +88,6 @@ export function useSolicitacoesConcluidasFila(filtros: Omit<FiltrosFila, 'inclui
 
       return data as unknown as SolicitacaoOperacional[]
     },
-    staleTime: 1000 * 60,
     enabled: !!usuario,
   })
 }
