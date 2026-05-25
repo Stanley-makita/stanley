@@ -510,14 +510,19 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              {[
-                { label: 'Nome',       value: pessoa.nome,  icon: User },
-                { label: 'E-mail',     value: pessoa.email, icon: Mail },
-                { label: 'CPF',        value: pessoa.cpf,   icon: CreditCard },
-                { label: 'Nascimento', value: pessoa.data_nascimento
-                    ? format(new Date(pessoa.data_nascimento + 'T12:00:00'), 'dd/MM/yyyy')
-                    : null,                                  icon: Calendar },
-              ].map(({ label, value, icon: Icon }) => (
+              {(() => {
+                const lead0 = pessoa.leads[0] ?? null
+                const cpfEfetivo = pessoa.cpf ?? lead0?.cpf ?? null
+                const nascEfetivo = pessoa.data_nascimento ?? lead0?.data_nascimento ?? null
+                return [
+                  { label: 'Nome',       value: pessoa.nome,  icon: User },
+                  { label: 'E-mail',     value: pessoa.email ?? lead0?.email ?? null, icon: Mail },
+                  { label: 'CPF',        value: cpfEfetivo,   icon: CreditCard },
+                  { label: 'Nascimento', value: nascEfetivo
+                      ? format(new Date(nascEfetivo + 'T12:00:00'), 'dd/MM/yyyy')
+                      : null,                                  icon: Calendar },
+                ]
+              })().map(({ label, value, icon: Icon }) => (
                 <div key={label} className="flex items-start gap-2">
                   <Icon className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
                   <div>
@@ -809,8 +814,8 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         pessoa={{
           id:       pessoa.id,
           nome:     pessoa.nome,
-          cpf:      pessoa.cpf,
-          email:    pessoa.email,
+          cpf:      pessoa.cpf ?? pessoa.leads[0]?.cpf ?? null,
+          email:    pessoa.email ?? pessoa.leads[0]?.email ?? null,
           telefone: telPrincipal?.telefone ?? null,
         }}
       />
