@@ -258,12 +258,11 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
           </div>
         </div>
 
-        {/* Participantes */}
+        {/* Compradores */}
         <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Participantes</h4>
-          {(processo.compradores?.length ?? 0) > 0 && (
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Compradores</h4>
+          {(processo.compradores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Compradores</p>
               {processo.compradores!.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 text-sm">
                   <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
@@ -275,26 +274,13 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
                 </div>
               ))}
             </div>
-          )}
-          {(processo.vendedores?.length ?? 0) > 0 && (
-            <div className="space-y-1.5 mt-2">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Vendedores</p>
-              {processo.vendedores!.map((v) => (
-                <div key={v.id} className="flex items-center gap-2 text-sm">
-                  <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                  <span className="text-[#253B29] font-medium">{v.nome}</span>
-                  {v.cpf && <span className="text-xs text-gray-400">{v.cpf}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-          {!processo.compradores?.length && !processo.vendedores?.length && (
-            <p className="text-sm text-gray-300 italic">Nenhum participante cadastrado</p>
+          ) : (
+            <p className="text-sm text-gray-300 italic">Nenhum comprador cadastrado</p>
           )}
         </div>
       </div>
 
-      {/* Row 2: Imóvel + Assessoria & Contrato */}
+      {/* Row 2: Imóvel + Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Imóvel */}
         <div className="space-y-3 border border-gray-100 rounded-lg p-4">
@@ -307,6 +293,27 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
           </div>
         </div>
 
+        {/* Vendedores */}
+        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Vendedores</h4>
+          {(processo.vendedores?.length ?? 0) > 0 ? (
+            <div className="space-y-1.5">
+              {processo.vendedores!.map((v) => (
+                <div key={v.id} className="flex items-center gap-2 text-sm">
+                  <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <span className="text-[#253B29] font-medium">{v.nome}</span>
+                  {v.cpf && <span className="text-xs text-gray-400">{v.cpf}</span>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-300 italic">Nenhum vendedor cadastrado</p>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Assessoria & Contrato + Responsáveis */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Assessoria & Contrato */}
         <div className="space-y-3 border border-gray-100 rounded-lg p-4">
           <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Assessoria & Contrato</h4>
@@ -325,10 +332,10 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
             </div>
           )}
         </div>
-      </div>
 
-      {/* Row 3: Responsáveis */}
-      <BlocoResponsaveis processo={processo} />
+        {/* Responsáveis */}
+        <BlocoResponsaveis processo={processo} />
+      </div>
 
       {/* Barra de progresso fina */}
       {processo.fase_atual && (
