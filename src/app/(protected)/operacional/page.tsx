@@ -133,7 +133,7 @@ function KanbanColuna({ label, cor, items, onResponder }: {
   onResponder: (s: SolicitacaoOperacional) => void
 }) {
   return (
-    <div className="flex flex-col min-w-[200px] max-w-[280px] flex-1">
+    <div className="flex flex-col min-w-[200px] flex-1">
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cor }} />

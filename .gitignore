@@ -4,3 +4,4 @@ node_modules
 .next
 .DS_Store
 scripts/set-admin-password.mjs
+output/credifon-codigo.txt
