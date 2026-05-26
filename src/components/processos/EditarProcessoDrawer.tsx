@@ -22,21 +22,23 @@ const MODALIDADES = [
   'SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio',
 ] as const
 
+const numField = z.number().or(z.nan()).nullable()
+
 const schema = z.object({
   banco_id: z.string().nullable(),
   modalidade: z.string().min(1),
   tem_assessoria: z.boolean(),
-  valor_assessoria: z.coerce.number().nullable(),
-  valor_financiado: z.coerce.number().nullable(),
-  valor_entrada: z.coerce.number().nullable(),
-  valor_imovel: z.coerce.number().nullable(),
+  valor_assessoria: numField,
+  valor_financiado: numField,
+  valor_entrada: numField,
+  valor_imovel: numField,
 })
 
 type FormData = z.infer<typeof schema>
 
-function parseMoeda(v: number | null): string {
-  if (v == null) return ''
-  return String(v)
+function normNum(v: number | null | undefined): number | null {
+  if (v == null || isNaN(v)) return null
+  return v
 }
 
 interface Props {
@@ -84,10 +86,10 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       banco_id: dados.banco_id || null,
       modalidade: dados.modalidade,
       tem_assessoria: dados.tem_assessoria,
-      valor_assessoria: dados.tem_assessoria ? (dados.valor_assessoria ?? null) : null,
-      valor_financiado: dados.valor_financiado ?? null,
-      valor_entrada: dados.valor_entrada ?? null,
-      valor_imovel: dados.valor_imovel ?? null,
+      valor_assessoria: dados.tem_assessoria ? normNum(dados.valor_assessoria) : null,
+      valor_financiado: normNum(dados.valor_financiado),
+      valor_entrada: normNum(dados.valor_entrada),
+      valor_imovel: normNum(dados.valor_imovel),
     })
     onFechar()
   }
@@ -144,8 +146,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
               <Input
                 type="number"
                 placeholder="0"
-                {...form.register('valor_imovel')}
-                defaultValue={parseMoeda(processo.valor_imovel)}
+                {...form.register('valor_imovel', { valueAsNumber: true })}
               />
             </div>
             <div className="space-y-1.5">
@@ -153,8 +154,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
               <Input
                 type="number"
                 placeholder="0"
-                {...form.register('valor_financiado')}
-                defaultValue={parseMoeda(processo.valor_financiado)}
+                {...form.register('valor_financiado', { valueAsNumber: true })}
               />
             </div>
             <div className="space-y-1.5">
@@ -162,8 +162,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
               <Input
                 type="number"
                 placeholder="0"
-                {...form.register('valor_entrada')}
-                defaultValue={parseMoeda(processo.valor_entrada)}
+                {...form.register('valor_entrada', { valueAsNumber: true })}
               />
             </div>
           </div>
@@ -183,7 +182,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
                 <Input
                   type="number"
                   placeholder="Deixe vazio se inclusa"
-                  {...form.register('valor_assessoria')}
+                  {...form.register('valor_assessoria', { valueAsNumber: true })}
                 />
               </div>
             )}
