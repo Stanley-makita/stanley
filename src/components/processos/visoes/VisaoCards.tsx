@@ -1,19 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
-import { ProcessoCard } from './ProcessoCard'
+import { useFases } from '@/hooks/configuracoes/useFases'
+import { useSolicitacoesAbertasPorProcesso } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorProcesso'
+import { ChanceBadge } from '@/components/processos/ChanceBadge'
+import { ProcessoStatusBadge } from '@/components/processos/ProcessoStatusBadge'
 import { Input } from '@/components/ui/input'
-import { type StatusProcesso } from '@/types/processos'
-import { Search } from 'lucide-react'
+import { Search, User, Clock } from 'lucide-react'
+import type { Processo, ModalidadeProcesso } from '@/types/processos'
 
-const FILTROS_STATUS: { label: string; value: StatusProcesso | 'todos' }[] = [
-  { label: 'Todos',      value: 'todos' },
-  { label: 'Em Análise', value: 'em_analise' },
-  { label: 'Aprovados',  value: 'aprovado' },
-  { label: 'Pendentes',  value: 'pendente' },
-  { label: 'Reprovados', value: 'reprovado' },
-]
+// ─── Filtros ──────────────────────────────────────────────────────────────────
 
 const FILTROS_PRODUTO: { label: string; value: ProdutoFiltro }[] = [
   { label: 'Financiamento', value: 'financiamento' },
@@ -29,24 +27,153 @@ const FILTROS_CHANCE = [
 
 const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
 
+const MODALIDADE_CONFIG: Record<ModalidadeProcesso, { label: string; cls: string }> = {
+  SFI:         { label: 'SFI',         cls: 'bg-blue-100 text-blue-700' },
+  SBPE:        { label: 'SBPE',        cls: 'bg-blue-100 text-blue-700' },
+  PMCMV:       { label: 'PMCMV',       cls: 'bg-blue-100 text-blue-700' },
+  Pro_Cotista: { label: 'Pro Cotista', cls: 'bg-blue-100 text-blue-700' },
+  CGI:         { label: 'CGI',         cls: 'bg-purple-100 text-purple-700' },
+  Contrato:    { label: 'Contrato',    cls: 'bg-gray-100 text-gray-600' },
+  Consorcio:   { label: 'Consórcio',   cls: 'bg-orange-100 text-orange-700' },
+}
+
+function fmtMoeda(v: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
+  }).format(v)
+}
+
+// ─── Card compacto ────────────────────────────────────────────────────────────
+
+function KanbanCard({ processo }: { processo: Processo }) {
+  const router = useRouter()
+  const { data: pendencias = [] } = useSolicitacoesAbertasPorProcesso(processo.id)
+
+  const comprador =
+    processo.compradores?.find((c) => c.principal)?.nome ??
+    processo.compradores?.[0]?.nome
+
+  const mod = MODALIDADE_CONFIG[processo.modalidade]
+
+  return (
+    <div
+      onClick={() => router.push(`/processos/${processo.id}`)}
+      className="bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:shadow-md hover:border-[#C2AA6A] transition-all select-none"
+    >
+      {/* linha 1: status + modalidade + chance */}
+      <div className="flex items-center justify-between gap-1 mb-1.5">
+        <div className="flex items-center gap-1 min-w-0 flex-wrap">
+          <ProcessoStatusBadge status={processo.status_processo} />
+          {mod && (
+            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${mod.cls}`}>
+              {mod.label}
+            </span>
+          )}
+        </div>
+        <ChanceBadge chance={processo.chance_emissao} />
+      </div>
+
+      {/* linha 2: cliente / imóvel */}
+      <div className="flex items-start gap-1 mb-0.5">
+        <User className="h-3 w-3 text-[#253B29] mt-0.5 shrink-0" />
+        <p className="text-xs font-semibold text-[#253B29] line-clamp-1 leading-tight">
+          {comprador ?? processo.nome_imovel}
+        </p>
+      </div>
+      {comprador && (
+        <p className="text-[10px] text-gray-400 line-clamp-1 pl-4 mb-1.5 leading-tight">
+          {processo.nome_imovel}
+        </p>
+      )}
+
+      {/* linha 3: valor + nº */}
+      <div className="flex items-center justify-between mt-1.5">
+        <span className="text-xs font-bold text-[#253B29]">
+          {processo.valor_financiado ? fmtMoeda(processo.valor_financiado) : '—'}
+        </span>
+        <span className="text-[9px] text-gray-400 tabular-nums">{processo.numero_processo}</span>
+      </div>
+
+      {/* linha 4: banco + pendencias + responsável */}
+      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-100">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {processo.banco && (
+            <span className="text-[10px] text-gray-500 truncate max-w-[90px]">
+              {processo.banco.nome}
+            </span>
+          )}
+          {pendencias.length > 0 && (
+            <div className="flex items-center gap-0.5 text-amber-600 shrink-0">
+              <Clock className="h-2.5 w-2.5" />
+              <span className="text-[10px] font-medium">{pendencias.length}</span>
+            </div>
+          )}
+        </div>
+        {processo.operacional && (
+          <span className="text-[10px] text-gray-400 shrink-0">
+            {processo.operacional.nome.split(' ')[0]}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Coluna do Kanban ─────────────────────────────────────────────────────────
+
+function KanbanColuna({
+  nome, cor, count, processos,
+}: {
+  nome: string
+  cor: string | null
+  count: number
+  processos: Processo[]
+}) {
+  return (
+    <div className="flex flex-col min-w-[180px] max-w-[260px] flex-1">
+      {/* cabeçalho */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            style={{ backgroundColor: cor ?? '#C2AA6A' }}
+          />
+          <span className="text-xs font-semibold text-gray-700 truncate">{nome}</span>
+        </div>
+        <span className="text-xs font-medium text-gray-400 shrink-0 ml-2 tabular-nums">
+          {count}
+        </span>
+      </div>
+
+      {/* corpo */}
+      <div className="flex-1 bg-gray-50/80 border border-gray-200 rounded-xl p-2 space-y-2 overflow-y-auto">
+        {processos.length === 0 ? (
+          <p className="text-center py-6 text-[11px] text-gray-300">—</p>
+        ) : (
+          processos.map((p) => <KanbanCard key={p.id} processo={p} />)
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Visão principal ──────────────────────────────────────────────────────────
+
 export function VisaoCards() {
-  const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>('todos')
   const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
 
-  const { data: processos = [], isLoading } = useProcessos({
-    status: statusFiltro,
+  const { data: fases = [], isLoading: fasesLoading } = useFases('processos')
+  const { data: processos = [], isLoading: processosLoading } = useProcessos({
     produto: produtoFiltro,
     chance: chanceFiltro,
     busca,
   })
 
-  const contagemStatus = processos.reduce((acc, p) => {
-    acc[p.status_processo] = (acc[p.status_processo] ?? 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const isLoading = fasesLoading || processosLoading
 
+  // contagens para os filtros
   const contagemProduto = processos.reduce((acc, p) => {
     const mod = p.modalidade
     if (FINANCIAMENTO_MODS.has(mod)) acc.financiamento = (acc.financiamento ?? 0) + 1
@@ -61,70 +188,62 @@ export function VisaoCards() {
     return acc
   }, {} as Record<string, number>)
 
+  // agrupar por fase
+  const porFase = processos.reduce((acc, p) => {
+    const key = p.fase_atual_id ?? '__sem_fase__'
+    ;(acc[key] ??= []).push(p)
+    return acc
+  }, {} as Record<string, Processo[]>)
+
   return (
-    <div className="space-y-3">
-      {/* Filtros em linha única */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
+      {/* ── Filtros ── */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3 shrink-0">
 
-        {/* Status — verde escuro quando ativo */}
-        {FILTROS_STATUS.map((f) => {
-          const count = f.value === 'todos' ? processos.length : (contagemStatus[f.value] ?? 0)
-          return (
-            <button
-              key={f.value}
-              onClick={() => setStatusFiltro(f.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                statusFiltro === f.value
-                  ? 'bg-[#253B29] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
-            </button>
-          )
-        })}
-
-        <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
-
-        {/* Produto — dourado quando ativo; clique no ativo deseleciona */}
         {FILTROS_PRODUTO.map((f) => {
           const count = contagemProduto[f.value] ?? 0
+          const ativo = produtoFiltro === f.value
           return (
             <button
               key={f.value}
-              onClick={() => setProdutoFiltro(produtoFiltro === f.value ? 'todos' : f.value)}
+              onClick={() => setProdutoFiltro(ativo ? 'todos' : f.value)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                produtoFiltro === f.value
+                ativo
                   ? 'bg-[#C2AA6A] text-[#253B29]'
                   : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
               }`}
             >
-              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
+              {f.label}
+              {count > 0 && <span className="ml-1 opacity-70">{count}</span>}
             </button>
           )
         })}
 
         <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
 
-        {/* Chance — âmbar quando ativo; clique no ativo deseleciona */}
         {FILTROS_CHANCE.map((f) => {
           const count = contagemChance[f.value] ?? 0
+          const ativo = chanceFiltro === f.value
+          const ativoClass = f.value === 'certeza'
+            ? 'bg-green-600 text-white border-green-600'
+            : 'bg-amber-500 text-white border-amber-500'
+          const inativoClass = f.value === 'certeza'
+            ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+            : 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100'
           return (
             <button
               key={f.value}
-              onClick={() => setChanceFiltro(chanceFiltro === f.value ? 'todos' : f.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                chanceFiltro === f.value
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100'
+              onClick={() => setChanceFiltro(ativo ? 'todos' : f.value)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                ativo ? ativoClass : inativoClass
               }`}
             >
-              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
+              {f.label}
+              {count > 0 && <span className="ml-1 opacity-70">{count}</span>}
             </button>
           )
         })}
 
-        {/* Busca */}
         <div className="relative flex-1 min-w-[160px] max-w-[260px] ml-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <Input
@@ -136,22 +255,33 @@ export function VisaoCards() {
         </div>
       </div>
 
-      {/* Grid de cards */}
+      {/* ── Kanban Board ── */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex gap-3 overflow-x-auto pb-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-gray-100 rounded-xl h-44" />
+            <div key={i} className="shrink-0 w-48 animate-pulse bg-gray-100 rounded-xl h-full min-h-[400px]" />
           ))}
-        </div>
-      ) : processos.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p>Nenhum processo encontrado.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {processos.map((p) => (
-            <ProcessoCard key={p.id} processo={p} />
+        <div className="flex gap-3 overflow-x-auto pb-4 flex-1 min-h-0">
+          {fases.map((fase) => (
+            <KanbanColuna
+              key={fase.id}
+              nome={fase.nome}
+              cor={fase.cor}
+              count={(porFase[fase.id] ?? []).length}
+              processos={porFase[fase.id] ?? []}
+            />
           ))}
+
+          {(porFase['__sem_fase__']?.length ?? 0) > 0 && (
+            <KanbanColuna
+              nome="Sem fase"
+              cor="#9CA3AF"
+              count={porFase['__sem_fase__'].length}
+              processos={porFase['__sem_fase__']}
+            />
+          )}
         </div>
       )}
     </div>
