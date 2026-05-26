@@ -37,7 +37,12 @@ export function ProcessoCard({ processo }: Props) {
   return (
     <div
       className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#C2AA6A] transition-all"
-      onClick={() => router.push(`/processos/${processo.id}`)}
+      onClick={() => {
+        const rota = processo.modalidade === 'Consorcio'
+          ? `/negocios/consorcio/${processo.id}`
+          : `/processos/${processo.id}`
+        router.push(rota)
+      }}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">

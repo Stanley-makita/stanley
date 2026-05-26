@@ -37,6 +37,16 @@ export interface Processo {
   juridico_id?: string | null
   corretor_nome: string | null
   corretor_creci: string | null
+  // Consórcio
+  administradora?: string | null
+  grupo_consorcio?: string | null
+  cota_consorcio?: string | null
+  valor_carta?: number | null
+  parcela_consorcio?: number | null
+  prazo_meses?: number | null
+  credito_desejado?: number | null
+  carta_sugerida?: number | null
+  justificativa_carta?: string | null
   // Fases e datas
   fase_atual_id: string | null
   data_inicio: string
@@ -140,6 +150,19 @@ export interface ProcessoVendedor {
   conjuge_data_nasc: string | null
   conjuge_papel: 'conjuge' | 'proprietario' | null
   created_at: string
+}
+
+export interface ProcessoSimulacao {
+  id: string
+  processo_id: string
+  empresa_id: string
+  descricao: string
+  arquivo_path: string | null
+  arquivo_nome: string | null
+  arquivo_mime: string | null
+  criado_em: string
+  usuario_id: string | null
+  usuario?: { nome: string } | null
 }
 
 export interface ProcessoFaseHistorico {

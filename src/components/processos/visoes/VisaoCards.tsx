@@ -58,7 +58,12 @@ function KanbanCard({ processo }: { processo: Processo }) {
 
   return (
     <div
-      onClick={() => router.push(`/processos/${processo.id}`)}
+      onClick={() => {
+        const rota = processo.modalidade === 'Consorcio'
+          ? `/negocios/consorcio/${processo.id}`
+          : `/processos/${processo.id}`
+        router.push(rota)
+      }}
       className="bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:shadow-md hover:border-[#C2AA6A] transition-all select-none"
     >
       {/* linha 1: status + modalidade + chance */}
