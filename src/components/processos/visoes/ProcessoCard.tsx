@@ -17,6 +17,7 @@ const MODALIDADE_CONFIG: Record<ModalidadeProcesso, { label: string; className: 
   CGI:         { label: 'CGI',         className: 'bg-purple-100 text-purple-700' },
   Contrato:    { label: 'Contrato',    className: 'bg-gray-100 text-gray-600' },
   Consorcio:   { label: 'Consórcio',   className: 'bg-orange-100 text-orange-700' },
+  Registro:    { label: 'Registro',    className: 'bg-teal-100 text-teal-700' },
 }
 
 export function ProcessoCard({ processo }: Props) {
