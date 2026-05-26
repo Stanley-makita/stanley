@@ -10,7 +10,7 @@ import { PainelPendencias } from '@/components/processos/detalhe/PainelPendencia
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User } from 'lucide-react'
+import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
@@ -20,6 +20,7 @@ import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
 import { AbaFases } from '@/components/processos/abas/AbaFases'
 import { AbaDocumentos } from '@/components/processos/abas/AbaDocumentos'
+import { AbaContrato } from '@/components/processos/abas/AbaContrato'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
 import { AbaCustas } from '@/components/processos/abas/AbaCustas'
@@ -142,6 +143,9 @@ export default function ProcessoDetalhePage() {
               ...(MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])
                 ? [['custas','Custas']] as [string,string][]
                 : []),
+              ...(processo.modalidade === 'Contrato'
+                ? [['contrato','Contrato']] as [string,string][]
+                : []),
               ['timeline','Timeline'],['solicitacoes','Solicitações'],
             ] as [string,string][]).map(([value, label]) => (
               <TabsTrigger
@@ -175,6 +179,9 @@ export default function ProcessoDetalhePage() {
             </TabsContent>
             <TabsContent value="custas" className="m-0">
               <AbaCustas processoId={id} />
+            </TabsContent>
+            <TabsContent value="contrato" className="m-0">
+              <AbaContrato processoId={id} processo={processo} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
               <AbaTimeline processoId={id} />
@@ -283,15 +290,27 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
       {/* Row 2: Imóvel + Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Imóvel */}
-        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Imóvel</h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="col-span-2">
-              <Campo label="Descrição" valor={processo.nome_imovel} />
+        {processo.modalidade === 'Contrato' ? (
+          <div className="space-y-2 border border-gray-100 rounded-lg p-4 flex items-center gap-3">
+            <div className="w-8 h-8 bg-[#E7E0C4] rounded-lg flex items-center justify-center shrink-0">
+              <FileText className="h-4 w-4 text-[#253B29]" />
             </div>
-            <Campo label="Valor" valor={fmtMoeda(processo.valor_imovel)} />
+            <div>
+              <p className="text-xs text-gray-400">Contrato</p>
+              <p className="text-sm text-gray-500 italic">Acesse a aba "Contrato" para redigir e exportar.</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3 border border-gray-100 rounded-lg p-4">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Imóvel</h4>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="col-span-2">
+                <Campo label="Descrição" valor={processo.nome_imovel} />
+              </div>
+              <Campo label="Valor" valor={fmtMoeda(processo.valor_imovel)} />
+            </div>
+          </div>
+        )}
 
         {/* Vendedores */}
         <div className="space-y-3 border border-gray-100 rounded-lg p-4">

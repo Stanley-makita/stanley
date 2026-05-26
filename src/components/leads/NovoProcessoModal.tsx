@@ -527,50 +527,22 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
   const claudia = usuarios.find(u => u.nome.toLowerCase().includes('cláudia') || u.nome.toLowerCase().includes('claudia'))
 
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>('')
-  const [descricao, setDescricao] = useState('')
-  const [valorImovel, setValorImovel] = useState('')
-  const [enderecoImovel, setEnderecoImovel] = useState('')
-  const [prazoPossе, setPrazoPossе] = useState('')
-  const [obsPartes, setObsPartes] = useState('')
-  const [valorHonorarios, setValorHonorarios] = useState('')
-  const [vigencia, setVigencia] = useState('')
-  const [valorEnvolvido, setValorEnvolvido] = useState('')
-  const [obsJuridico, setObsJuridico] = useState('')
   const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? '')
   const [juridicoId, setJuridicoId] = useState(claudia?.id ?? '')
 
   const claudiaId = claudia?.id ?? ''
 
   async function handleCriar() {
-    if (!tipoContrato || !descricao) return
-
-    let valorImovelFinal: number | null = null
-    let valorFinanciadoFinal: number | null = null
-    let corretorNome: string | null = null
-    let corretorCreci: string | null = null
-    const linhasObs: string[] = []
-
-    if (tipoContrato === 'compra_venda') {
-      valorImovelFinal = parseMoeda(valorImovel) || null
-      corretorNome = enderecoImovel || null
-      corretorCreci = prazoPossе || null
-      if (obsPartes) linhasObs.push(obsPartes)
-    } else if (tipoContrato === 'prestacao_servico') {
-      valorFinanciadoFinal = parseMoeda(valorHonorarios) || null
-      corretorCreci = vigencia || null
-    } else if (tipoContrato === 'juridico_externo') {
-      valorImovelFinal = parseMoeda(valorEnvolvido) || null
-      if (obsJuridico) linhasObs.push(obsJuridico)
-    }
+    if (!tipoContrato) return
 
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
-      nome_imovel:      descricao,
+      nome_imovel:      clienteNome,
       modalidade:       'Contrato',
       banco_id:         null,
-      valor_imovel:     valorImovelFinal,
-      valor_financiado: valorFinanciadoFinal,
+      valor_imovel:     null,
+      valor_financiado: null,
       valor_entrada:    null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'certeza',
@@ -580,8 +552,8 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
       comissao_empresa:   null,
       operacional_id:   (() => { const v = juridicoId || claudiaId; return v && v !== '__nenhum' ? v : null })(),
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
-      corretor_nome:    corretorNome,
-      corretor_creci:   corretorCreci,
+      corretor_nome:    null,
+      corretor_creci:   null,
       numero_contrato:  TIPO_CONTRATO_LABELS[tipoContrato],
       fase_atual_id:    null,
       data_inicio:      new Date().toISOString().split('T')[0],
@@ -596,16 +568,6 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
         email:       clienteEmail,
         telefone:    clienteTelefone,
         principal:   true,
-      })
-    }
-
-    if (linhasObs.length > 0) {
-      await supabase.from('processo_comentarios').insert({
-        processo_id:       processo.id,
-        empresa_id:        processo.empresa_id,
-        tipo:              'observacao',
-        texto:             linhasObs.join('\n'),
-        notificar_cliente: false,
       })
     }
 
@@ -624,80 +586,17 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
       </Secao>
 
       <Secao titulo="Tipo de Contrato">
-        <div className="space-y-3">
-          <Campo label="Tipo *">
-            <Select value={tipoContrato} onValueChange={v => setTipoContrato(v as TipoContrato)}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="compra_venda">Compra e Venda de Imóvel</SelectItem>
-                <SelectItem value="prestacao_servico">Prestação de Serviço</SelectItem>
-                <SelectItem value="juridico_externo">Jurídico / Externo</SelectItem>
-              </SelectContent>
-            </Select>
-          </Campo>
-          <Campo label="Descrição resumida *">
-            <Textarea
-              placeholder={
-                tipoContrato === 'compra_venda'      ? 'Ex: Compra e venda do imóvel Rua X, apto 42' :
-                tipoContrato === 'prestacao_servico' ? 'Ex: Assessoria de financiamento imobiliário' :
-                tipoContrato === 'juridico_externo'  ? 'Ex: Revisão contratual — locação comercial' :
-                'Descreva o contrato...'
-              }
-              value={descricao}
-              onChange={e => setDescricao(e.target.value)}
-              rows={2}
-              className="text-sm resize-none"
-            />
-          </Campo>
-        </div>
+        <Campo label="Tipo *">
+          <Select value={tipoContrato} onValueChange={v => setTipoContrato(v as TipoContrato)}>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="compra_venda">Compra e Venda de Imóvel</SelectItem>
+              <SelectItem value="prestacao_servico">Prestação de Serviço</SelectItem>
+              <SelectItem value="juridico_externo">Jurídico / Externo</SelectItem>
+            </SelectContent>
+          </Select>
+        </Campo>
       </Secao>
-
-      {tipoContrato === 'compra_venda' && (
-        <Secao titulo="Partes e Imóvel">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Campo label="Valor do Imóvel *">
-                <Input placeholder="R$ 0,00" value={valorImovel} onChange={e => setValorImovel(e.target.value)} onBlur={e => setValorImovel(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
-              </Campo>
-              <Campo label="Prazo de Posse">
-                <Input placeholder="Ex: 30 dias após assinatura" value={prazoPossе} onChange={e => setPrazoPossе(e.target.value)} className="h-9 text-sm" />
-              </Campo>
-            </div>
-            <Campo label="Endereço do Imóvel">
-              <Input placeholder="Rua, número, complemento..." value={enderecoImovel} onChange={e => setEnderecoImovel(e.target.value)} className="h-9 text-sm" />
-            </Campo>
-            <Campo label="Observações sobre as partes">
-              <Textarea placeholder="Ex: 2 compradores, 3 vendedores, permuta parcial" value={obsPartes} onChange={e => setObsPartes(e.target.value)} rows={2} className="text-sm resize-none" />
-            </Campo>
-          </div>
-        </Secao>
-      )}
-
-      {tipoContrato === 'prestacao_servico' && (
-        <Secao titulo="Serviço">
-          <div className="grid grid-cols-2 gap-3">
-            <Campo label="Valor dos Honorários">
-              <Input placeholder="R$ 0,00" value={valorHonorarios} onChange={e => setValorHonorarios(e.target.value)} onBlur={e => setValorHonorarios(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
-            </Campo>
-            <Campo label="Vigência">
-              <Input placeholder="Ex: 12 meses a partir da assinatura" value={vigencia} onChange={e => setVigencia(e.target.value)} className="h-9 text-sm" />
-            </Campo>
-          </div>
-        </Secao>
-      )}
-
-      {tipoContrato === 'juridico_externo' && (
-        <Secao titulo="Detalhes">
-          <div className="space-y-3">
-            <Campo label="Valor Envolvido">
-              <Input placeholder="R$ 0,00" value={valorEnvolvido} onChange={e => setValorEnvolvido(e.target.value)} onBlur={e => setValorEnvolvido(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
-            </Campo>
-            <Campo label="Observações">
-              <Textarea placeholder="Detalhes adicionais..." value={obsJuridico} onChange={e => setObsJuridico(e.target.value)} rows={3} className="text-sm resize-none" />
-            </Campo>
-          </div>
-        </Secao>
-      )}
 
       <Secao titulo="Responsáveis">
         <div className="grid grid-cols-2 gap-3">
@@ -727,7 +626,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
           size="sm"
           className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]"
           onClick={handleCriar}
-          disabled={criarProcesso.isPending || !tipoContrato || !descricao || (tipoContrato === 'compra_venda' && !valorImovel)}
+          disabled={criarProcesso.isPending || !tipoContrato}
         >
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>
