@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Processo, type StatusProcesso } from '@/types/processos'
 
-export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato'
+export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato' | 'registro'
 
 const FINANCIAMENTO_MODALIDADES = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista']
 
@@ -49,6 +49,8 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
           query = query.eq('modalidade', 'CGI')
         } else if (filtros.produto === 'contrato') {
           query = query.eq('modalidade', 'Contrato')
+        } else if (filtros.produto === 'registro') {
+          query = query.eq('modalidade', 'Registro')
         }
       }
 

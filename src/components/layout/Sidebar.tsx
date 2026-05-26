@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -7,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   UserCircle,
-  FileText,
   DollarSign,
   BarChart2,
   Bell,
@@ -18,22 +18,31 @@ import {
   MessageSquare,
   ShieldCheck,
   ClipboardList,
+  Briefcase,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 
 const navItems = [
-  { href: '/dashboard',     label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/leads',         label: 'Leads',        icon: Users },
-  { href: '/pessoas',       label: 'Pessoas',      icon: UserCircle },
-  { href: '/conversas',     label: 'Conversas',    icon: MessageSquare },
-  { href: '/processos',     label: 'Processos',    icon: FileText },
-  { href: '/operacional',   label: 'Operacional',  icon: ClipboardList },
-  { href: '/financeiro',    label: 'Financeiro',   icon: DollarSign },
-  { href: '/relatorios',    label: 'Relatórios',   icon: BarChart2 },
-  { href: '/notificacoes',  label: 'Notificações', icon: Bell },
-  { href: '/agenda',        label: 'Agenda',       icon: Calendar },
-  { href: '/base-conhecimento', label: 'Biblioteca', icon: BookOpen },
+  { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/leads',             label: 'Leads',        icon: Users },
+  { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle },
+  { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
+  { href: '/operacional',       label: 'Operacional',  icon: ClipboardList },
+  { href: '/financeiro',        label: 'Financeiro',   icon: DollarSign },
+  { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2 },
+  { href: '/notificacoes',      label: 'Notificações', icon: Bell },
+  { href: '/agenda',            label: 'Agenda',       icon: Calendar },
+  { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen },
+]
+
+const negociosItems = [
+  { href: '/negocios/financiamento', label: 'Financiamento' },
+  { href: '/negocios/consorcio',     label: 'Consórcio' },
+  { href: '/negocios/contrato',      label: 'Contrato' },
+  { href: '/negocios/registro',      label: 'Registro' },
 ]
 
 const adminItems = [
@@ -43,6 +52,9 @@ const adminItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { data: usuario } = useUsuarioAtual()
+  const [negociosAberto, setNegociosAberto] = useState(
+    () => pathname.startsWith('/negocios') || pathname.startsWith('/processos')
+  )
 
   async function handleLogout() {
     const supabase = createClient()
@@ -86,6 +98,45 @@ export function Sidebar() {
             </Link>
           )
         })}
+
+        {/* ── Negócios submenu ── */}
+        <button
+          onClick={() => setNegociosAberto((v) => !v)}
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+            pathname.startsWith('/negocios') || pathname.startsWith('/processos')
+              ? 'bg-white/15 text-white'
+              : 'text-white/70 hover:bg-white/10 hover:text-white'
+          )}
+        >
+          <Briefcase className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-left">Negócios</span>
+          {negociosAberto
+            ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+            : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+        </button>
+
+        {negociosAberto && (
+          <div className="ml-3 border-l border-white/10 pl-2 space-y-0.5">
+            {negociosItems.map(({ href, label }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                    active
+                      ? 'bg-white/15 text-white'
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  )}
+                >
+                  {label}
+                </Link>
+              )
+            })}
+          </div>
+        )}
 
         {isGestor && (
           <>

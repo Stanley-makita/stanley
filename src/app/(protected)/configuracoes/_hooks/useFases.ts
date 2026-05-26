@@ -12,6 +12,9 @@ export const MODULOS_FASES = [
   { id: 'leads',            label: 'Leads',            descricao: 'Colunas do Kanban de Leads' },
   { id: 'processos',        label: 'Processos',        descricao: 'Etapas do pipeline de crédito' },
   { id: 'fila_operacional', label: 'Fila Operacional', descricao: 'Etapas da fila operacional' },
+  { id: 'consorcio',        label: 'Consórcio',        descricao: 'Etapas do pipeline de consórcio' },
+  { id: 'contrato',         label: 'Contrato',         descricao: 'Etapas do pipeline de contratos' },
+  { id: 'registro',         label: 'Registro',         descricao: 'Etapas do processo de registro' },
 ] as const
 
 export type ModuloFase = typeof MODULOS_FASES[number]['id']

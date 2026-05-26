@@ -1,5 +1,5 @@
 export type ModalidadeProcesso =
-  | 'SFI' | 'SBPE' | 'PMCMV' | 'Pro_Cotista' | 'CGI' | 'Contrato' | 'Consorcio'
+  | 'SFI' | 'SBPE' | 'PMCMV' | 'Pro_Cotista' | 'CGI' | 'Contrato' | 'Consorcio' | 'Registro'
 
 export type StatusEmissao = 'emitido' | 'nao_emitido'
 export type ChanceEmissao = 'certeza' | 'incerteza'

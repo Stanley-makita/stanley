@@ -9,6 +9,15 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/processos',
+        destination: '/negocios/financiamento',
+        permanent: false,
+      },
+    ]
+  },
 }
 
 export default nextConfig

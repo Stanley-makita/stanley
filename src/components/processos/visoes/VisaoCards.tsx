@@ -35,6 +35,7 @@ const MODALIDADE_CONFIG: Record<ModalidadeProcesso, { label: string; cls: string
   CGI:         { label: 'CGI',         cls: 'bg-purple-100 text-purple-700' },
   Contrato:    { label: 'Contrato',    cls: 'bg-gray-100 text-gray-600' },
   Consorcio:   { label: 'Consórcio',   cls: 'bg-orange-100 text-orange-700' },
+  Registro:    { label: 'Registro',    cls: 'bg-teal-100 text-teal-700' },
 }
 
 function fmtMoeda(v: number) {
@@ -159,14 +160,17 @@ function KanbanColuna({
 
 // ─── Visão principal ──────────────────────────────────────────────────────────
 
-export function VisaoCards() {
+export function VisaoCards({ modulo = 'processos', produtoFixo }: {
+  modulo?: string
+  produtoFixo?: ProdutoFiltro
+}) {
   const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>('todos')
   const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
 
-  const { data: fases = [], isLoading: fasesLoading } = useFases('processos')
+  const { data: fases = [], isLoading: fasesLoading } = useFases(modulo)
   const { data: processos = [], isLoading: processosLoading } = useProcessos({
-    produto: produtoFiltro,
+    produto: produtoFixo ?? produtoFiltro,
     chance: chanceFiltro,
     busca,
   })
@@ -200,7 +204,7 @@ export function VisaoCards() {
       {/* ── Filtros ── */}
       <div className="flex items-center gap-1.5 flex-wrap mb-3 shrink-0">
 
-        {FILTROS_PRODUTO.map((f) => {
+        {!produtoFixo && FILTROS_PRODUTO.map((f) => {
           const count = contagemProduto[f.value] ?? 0
           const ativo = produtoFiltro === f.value
           return (
@@ -219,7 +223,7 @@ export function VisaoCards() {
           )
         })}
 
-        <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
+        {!produtoFixo && <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />}
 
         {FILTROS_CHANCE.map((f) => {
           const count = contagemChance[f.value] ?? 0
