@@ -9,8 +9,8 @@ import { MensagemBubble } from './MensagemBubble'
 import { SolicitacaoPrioridadeBadge } from './SolicitacaoPrioridadeBadge'
 import { SolicitacaoStatusBadge } from './SolicitacaoStatusBadge'
 import { SlaCountdown } from './SlaCountdown'
-import { TIPO_LABELS, STATUS_LABELS, type SolicitacaoOperacional, type StatusSolicitacao } from '@/types/solicitacoes-operacionais'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { TIPO_LABELS, type SolicitacaoOperacional, type StatusSolicitacao } from '@/types/solicitacoes-operacionais'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -88,17 +88,17 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
   }
 
   return (
-    <Sheet open={!!s} onOpenChange={(o) => !o && onFechar()}>
-      <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
-        <SheetHeader className="px-6 pt-6 pb-4 border-b">
+    <Dialog open={!!s} onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent className="max-w-lg w-full flex flex-col gap-0 p-0 max-h-[90vh]">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-500 font-medium">{TIPO_LABELS[s.tipo]}</span>
             <SolicitacaoPrioridadeBadge prioridade={s.prioridade} />
             <SolicitacaoStatusBadge status={s.status} />
             <SlaCountdown slaAt={s.sla_at} concluido={s.status === 'concluido'} />
           </div>
-          <SheetTitle className="text-[#253B29] mt-1">{s.titulo}</SheetTitle>
-        </SheetHeader>
+          <DialogTitle className="text-[#253B29] mt-1">{s.titulo}</DialogTitle>
+        </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Contexto */}
@@ -293,7 +293,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
             {salvando ? 'Salvando...' : 'Salvar Retorno'}
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
