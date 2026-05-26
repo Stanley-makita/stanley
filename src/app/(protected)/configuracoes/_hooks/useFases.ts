@@ -9,8 +9,9 @@ const supabase = createClient()
 
 // Módulos disponíveis — adicione aqui para novos módulos
 export const MODULOS_FASES = [
-  { id: 'leads',     label: 'Leads',     descricao: 'Colunas do Kanban de Leads' },
-  { id: 'processos', label: 'Processos', descricao: 'Etapas do pipeline de crédito' },
+  { id: 'leads',            label: 'Leads',            descricao: 'Colunas do Kanban de Leads' },
+  { id: 'processos',        label: 'Processos',        descricao: 'Etapas do pipeline de crédito' },
+  { id: 'fila_operacional', label: 'Fila Operacional', descricao: 'Etapas da fila operacional' },
 ] as const
 
 export type ModuloFase = typeof MODULOS_FASES[number]['id']
