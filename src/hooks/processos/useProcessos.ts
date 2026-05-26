@@ -99,6 +99,62 @@ export function useProcesso(processoId: string) {
   })
 }
 
+export function useAtualizarChanceEmissao() {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      processoId,
+      chance_emissao,
+    }: {
+      processoId: string
+      chance_emissao: 'certeza' | 'incerteza'
+    }) => {
+      const { error } = await supabase
+        .from('processos')
+        .update({ chance_emissao })
+        .eq('id', processoId)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['processos', vars.processoId] })
+    },
+  })
+}
+
+export interface DadosProcessoUpdate {
+  processoId: string
+  banco_id: string | null
+  modalidade: string
+  tem_assessoria: boolean
+  valor_assessoria: number | null
+  valor_financiado: number | null
+  valor_entrada: number | null
+  valor_imovel: number | null
+}
+
+export function useAtualizarDadosProcesso() {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ processoId, ...campos }: DadosProcessoUpdate) => {
+      const { error } = await supabase
+        .from('processos')
+        .update(campos)
+        .eq('id', processoId)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['processos', vars.processoId] })
+      qc.invalidateQueries({ queryKey: ['processos'] })
+    },
+  })
+}
+
 export function useAtualizarResponsaveis() {
   const { usuario } = useAuth()
   const qc = useQueryClient()

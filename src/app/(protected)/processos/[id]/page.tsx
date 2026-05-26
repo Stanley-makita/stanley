@@ -10,11 +10,13 @@ import { PainelPendencias } from '@/components/processos/detalhe/PainelPendencia
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText } from 'lucide-react'
+import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, Pencil, CheckCircle2, AlertCircle } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
+import { EditarProcessoDrawer } from '@/components/processos/EditarProcessoDrawer'
+import { useAtualizarChanceEmissao } from '@/hooks/processos/useProcessos'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
@@ -39,7 +41,9 @@ export default function ProcessoDetalhePage() {
   const { carregando } = useAuth()
   const { data: processo, isLoading, error } = useProcesso(id)
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
+  const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState('resumo')
+  const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
 
   if (carregando || isLoading) {
     return (
@@ -85,15 +89,54 @@ export default function ProcessoDetalhePage() {
                 Assessoria
               </Badge>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-auto gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
-              onClick={() => setNovaSolicitacaoAberta(true)}
-            >
-              <ClipboardList className="h-3.5 w-3.5" />
-              + Solicitação
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              {/* Toggle Certeza / Incerteza */}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={atualizandoChance}
+                onClick={() =>
+                  atualizarChance({
+                    processoId: id,
+                    chance_emissao: processo.chance_emissao === 'certeza' ? 'incerteza' : 'certeza',
+                  })
+                }
+                className={
+                  processo.chance_emissao === 'certeza'
+                    ? 'gap-1.5 text-xs border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
+                    : 'gap-1.5 text-xs border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100'
+                }
+              >
+                {processo.chance_emissao === 'certeza' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
+              </Button>
+
+              {/* Editar Processo */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+                onClick={() => setEditarProcessoAberto(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Editar
+              </Button>
+
+              {/* Nova Solicitação */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                onClick={() => setNovaSolicitacaoAberta(true)}
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                + Solicitação
+              </Button>
+            </div>
           </div>
 
           <p className="text-xs text-gray-400 ml-11">
@@ -220,6 +263,12 @@ export default function ProcessoDetalhePage() {
           processoCompradorPrincipal: processo.compradores?.find((c) => c.principal)?.nome ?? processo.compradores?.[0]?.nome,
           responsavelSugeridoId: processo.operacional_id,
         } satisfies ContextoSolicitacao}
+      />
+
+      <EditarProcessoDrawer
+        aberto={editarProcessoAberto}
+        onFechar={() => setEditarProcessoAberto(false)}
+        processo={processo}
       />
 
       {/* Painel direito — sempre visível */}
