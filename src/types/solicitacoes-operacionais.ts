@@ -42,7 +42,13 @@ export interface SolicitacaoOperacional {
   responsavel?: { id: string; nome: string } | null
   solicitante?: { id: string; nome: string } | null
   lead?: { id: string; nome: string } | null
-  processo?: { id: string; nome_imovel: string; numero_processo: string } | null
+  processo?: {
+    id: string
+    nome_imovel: string
+    numero_processo: string
+    modalidade?: string | null
+    banco?: { nome: string } | null
+  } | null
   pessoa?: { id: string; nome: string } | null
 }
 

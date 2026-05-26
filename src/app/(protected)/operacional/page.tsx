@@ -1,30 +1,216 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSolicitacoesFila, useSolicitacoesConcluidasFila } from '@/hooks/solicitacoes/useSolicitacoesFila'
 import { useSolicitacaoMensagens } from '@/hooks/solicitacoes/useSolicitacaoMensagens'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { SolicitacaoPrioridadeBadge } from '@/components/solicitacoes/SolicitacaoPrioridadeBadge'
-import { SolicitacaoStatusBadge } from '@/components/solicitacoes/SolicitacaoStatusBadge'
 import { SlaCountdown } from '@/components/solicitacoes/SlaCountdown'
 import { ResponderSolicitacaoDrawer } from '@/components/solicitacoes/ResponderSolicitacaoDrawer'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
-import { TIPO_LABELS, PRIORIDADE_DOT, type TipoSolicitacao, type PrioridadeSolicitacao, type SolicitacaoOperacional } from '@/types/solicitacoes-operacionais'
+import {
+  TIPO_LABELS, PRIORIDADE_DOT,
+  type TipoSolicitacao, type PrioridadeSolicitacao, type SolicitacaoOperacional,
+} from '@/types/solicitacoes-operacionais'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ClipboardList, Plus, ExternalLink, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
+import { Plus, ExternalLink, MessageSquare, Building2, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+
+// ─── Colunas do Kanban ────────────────────────────────────────────────────────
+
+const COLUNAS = [
+  {
+    id: 'em_andamento' as const,
+    label: 'Em andamento',
+    cor: '#3B82F6',
+    statuses: ['pendente', 'em_andamento'] as string[],
+  },
+  {
+    id: 'aguardando_resposta' as const,
+    label: 'Aguardando resposta',
+    cor: '#A855F7',
+    statuses: ['aguardando_resposta'] as string[],
+  },
+  {
+    id: 'aguardando_cliente' as const,
+    label: 'Aguardando cliente',
+    cor: '#F97316',
+    statuses: ['aguardando_cliente'] as string[],
+  },
+  {
+    id: 'concluido' as const,
+    label: 'Concluído',
+    cor: '#22C55E',
+    statuses: ['concluido', 'cancelado'] as string[],
+  },
+]
+
+// ─── Card do Kanban ───────────────────────────────────────────────────────────
+
+function KanbanCard({
+  s,
+  onResponder,
+}: {
+  s: SolicitacaoOperacional
+  onResponder: (s: SolicitacaoOperacional) => void
+}) {
+  const router = useRouter()
+  const concluida = s.status === 'concluido' || s.status === 'cancelado'
+  const { data: mensagens = [] } = useSolicitacaoMensagens(
+    s.retorno_operacional ? s.id : undefined
+  )
+  const totalMensagens = mensagens.length + (s.replica_comercial && mensagens.length === 0 ? 1 : 0)
+  const vencido = !concluida && s.sla_at && new Date(s.sla_at) < new Date()
+
+  function navEntidade() {
+    if (s.lead_id) router.push(`/leads/${s.lead_id}`)
+    else if (s.processo_id) router.push(`/processos/${s.processo_id}`)
+  }
+
+  return (
+    <div className={`bg-white border rounded-lg p-3 transition-all cursor-default ${
+      concluida
+        ? 'border-gray-100 opacity-60'
+        : vencido
+          ? 'border-red-200 hover:border-red-300'
+          : 'border-gray-200 hover:border-[#C2AA6A]/60 hover:shadow-sm'
+    }`}>
+      {/* linha 1: prioridade dot + tipo + prioridade badge */}
+      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+        {!concluida && (
+          <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORIDADE_DOT[s.prioridade]}`} />
+        )}
+        <span className="text-[11px] font-semibold text-gray-600">
+          {TIPO_LABELS[s.tipo]}
+        </span>
+        <SolicitacaoPrioridadeBadge prioridade={s.prioridade} />
+      </div>
+
+      {/* título */}
+      <p className="text-xs font-medium text-[#253B29] line-clamp-2 leading-snug mb-2">
+        {s.titulo}
+      </p>
+
+      {/* solicitante */}
+      {s.solicitante && (
+        <div className="flex items-center gap-1 mb-1.5">
+          <User className="h-3 w-3 text-gray-400 shrink-0" />
+          <span className="text-[10px] text-gray-500 truncate">
+            {s.solicitante.nome.split(' ')[0]}
+          </span>
+        </div>
+      )}
+
+      {/* vínculo: lead ou processo */}
+      {(s.lead || s.processo || s.pessoa) && (
+        <div className="flex items-center gap-1 mb-1.5">
+          <ExternalLink className="h-3 w-3 text-gray-300 shrink-0" />
+          <span className="text-[10px] text-gray-500 truncate">
+            {s.lead
+              ? `Lead: ${s.lead.nome}`
+              : s.processo
+                ? `Proc: ${s.processo.nome_imovel}`
+                : `Pessoa: ${s.pessoa!.nome}`}
+          </span>
+        </div>
+      )}
+
+      {/* banco + produto (do processo) */}
+      {s.processo && (s.processo.banco || s.processo.modalidade) && (
+        <div className="flex items-center gap-1 mb-2">
+          <Building2 className="h-3 w-3 text-gray-300 shrink-0" />
+          <span className="text-[10px] text-gray-400 truncate">
+            {[s.processo.banco?.nome, s.processo.modalidade].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {/* footer: SLA + mensagens + ações */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-1 flex-wrap">
+        <div className="flex items-center gap-2">
+          <SlaCountdown slaAt={s.sla_at} concluido={concluida} />
+          {totalMensagens > 0 && (
+            <span className="flex items-center gap-0.5 text-gray-400">
+              <MessageSquare className="h-2.5 w-2.5" />
+              <span className="text-[10px]">{totalMensagens}</span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          {!concluida && (
+            <Button
+              size="sm"
+              className="h-6 text-[10px] px-2 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              onClick={() => onResponder(s)}
+            >
+              Responder
+            </Button>
+          )}
+          {(s.lead_id || s.processo_id) && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[10px] px-1.5 gap-0.5"
+              onClick={navEntidade}
+            >
+              <ExternalLink className="h-2.5 w-2.5" />
+              {s.lead_id ? 'Lead' : 'Proc.'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Coluna ───────────────────────────────────────────────────────────────────
+
+function KanbanColuna({
+  label, cor, items, onResponder,
+}: {
+  label: string
+  cor: string
+  items: SolicitacaoOperacional[]
+  onResponder: (s: SolicitacaoOperacional) => void
+}) {
+  return (
+    <div className="flex flex-col min-w-[200px] max-w-[280px] flex-1">
+      {/* cabeçalho */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cor }} />
+          <span className="text-xs font-semibold text-gray-700 truncate">{label}</span>
+        </div>
+        <span className="text-xs font-medium text-gray-400 shrink-0 ml-2 tabular-nums">
+          {items.length}
+        </span>
+      </div>
+
+      {/* corpo */}
+      <div className="flex-1 bg-gray-50/80 border border-gray-200 rounded-xl p-2 space-y-2 overflow-y-auto">
+        {items.length === 0 ? (
+          <p className="text-center py-6 text-[11px] text-gray-300">—</p>
+        ) : (
+          items.map((s) => (
+            <KanbanCard key={s.id} s={s} onResponder={onResponder} />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function OperacionalPage() {
   const { usuario } = useAuth()
-  const router = useRouter()
-
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
   const [filtroTipo, setFiltroTipo] = useState<TipoSolicitacao | 'all'>('all')
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeSolicitacao | 'all'>('all')
   const [soMinhaFila, setSoMinhaFila] = useState(false)
-  const [concluidasAbertas, setConcluidasAbertas] = useState(false)
 
   const [selecionada, setSelecionada] = useState<SolicitacaoOperacional | null>(null)
   const [novaAberta, setNovaAberta] = useState(false)
@@ -38,22 +224,21 @@ export default function OperacionalPage() {
   const { data: ativas = [], isLoading } = useSolicitacoesFila(filtrosBase)
   const { data: concluidas = [], isLoading: loadingConcluidas } = useSolicitacoesConcluidasFila(filtrosBase)
 
+  const todas = [...ativas, ...concluidas]
+
   const urgentes = ativas.filter((s) => s.prioridade === 'urgente').length
   const vencidas = ativas.filter((s) => s.sla_at && new Date(s.sla_at) < new Date()).length
 
-  function handleResponder(s: SolicitacaoOperacional) {
-    setSelecionada(s)
-  }
-
-  function handleVerEntidade(s: SolicitacaoOperacional) {
-    if (s.lead_id) router.push(`/leads/${s.lead_id}`)
-    else if (s.processo_id) router.push(`/processos/${s.processo_id}`)
-  }
+  // agrupar por coluna
+  const porColuna = COLUNAS.map((col) => ({
+    ...col,
+    items: todas.filter((s) => col.statuses.includes(s.status)),
+  }))
 
   return (
-    <div className="p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3 px-6 pt-6 shrink-0">
         <div>
           <h1 className="text-lg font-bold text-[#253B29]">
             {isGestor && !soMinhaFila ? 'Fila Operacional — Empresa' : 'Minha Fila Operacional'}
@@ -62,12 +247,13 @@ export default function OperacionalPage() {
             {isLoading ? 'Carregando...' : (
               <>
                 {ativas.length} ativa{ativas.length !== 1 ? 's' : ''}
-                {urgentes > 0 && <> · <span className="text-red-600">{urgentes} urgente{urgentes !== 1 ? 's' : ''}</span></>}
-                {vencidas > 0 && <> · <span className="text-red-500">{vencidas} vencida{vencidas !== 1 ? 's' : ''}</span></>}
+                {urgentes > 0 && <> · <span className="text-red-600 font-medium">{urgentes} urgente{urgentes !== 1 ? 's' : ''}</span></>}
+                {vencidas > 0 && <> · <span className="text-red-500 font-medium">{vencidas} vencida{vencidas !== 1 ? 's' : ''}</span></>}
               </>
             )}
           </p>
         </div>
+
         <div className="flex items-center gap-2">
           {isGestor && (
             <Button
@@ -90,8 +276,8 @@ export default function OperacionalPage() {
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
+      {/* ── Filtros ── */}
+      <div className="flex gap-2 flex-wrap mb-3 px-6 shrink-0">
         <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as TipoSolicitacao | 'all')}>
           <SelectTrigger className="h-8 text-xs w-44">
             <SelectValue placeholder="Tipo" />
@@ -125,66 +311,25 @@ export default function OperacionalPage() {
         )}
       </div>
 
-      {/* Lista Ativas */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
-        </div>
-      ) : ativas.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm font-medium">Fila limpa</p>
-          <p className="text-xs mt-1">
-            {isGestor && !soMinhaFila
-              ? 'Nenhuma solicitação ativa na empresa'
-              : 'Nenhuma solicitação ativa atribuída a você'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {ativas.map((s) => (
-            <SolicitacaoCard
-              key={s.id}
-              solicitacao={s}
-              onResponder={() => handleResponder(s)}
-              onVerEntidade={() => handleVerEntidade(s)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Seção Concluídas */}
-      <div>
-        <button
-          className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors py-1"
-          onClick={() => setConcluidasAbertas((v) => !v)}
-        >
-          {concluidasAbertas
-            ? <ChevronDown className="h-3.5 w-3.5" />
-            : <ChevronRight className="h-3.5 w-3.5" />}
-          <span className="font-medium">
-            Concluídas{!loadingConcluidas && concluidas.length > 0 && ` (${concluidas.length})`}
-          </span>
-        </button>
-
-        {concluidasAbertas && (
-          <div className="mt-2 space-y-2">
-            {loadingConcluidas ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />)}
-              </div>
-            ) : concluidas.length === 0 ? (
-              <p className="text-xs text-gray-400 py-4 text-center">Nenhuma solicitação concluída</p>
-            ) : (
-              concluidas.map((s) => (
-                <SolicitacaoCard
-                  key={s.id}
-                  solicitacao={s}
-                  concluida
-                  onVerEntidade={() => handleVerEntidade(s)}
-                />
-              ))
-            )}
+      {/* ── Kanban Board ── */}
+      <div className="flex-1 min-h-0 px-6 pb-6">
+        {isLoading || loadingConcluidas ? (
+          <div className="flex gap-3 h-full">
+            {COLUNAS.map((col) => (
+              <div key={col.id} className="flex-1 min-w-[200px] animate-pulse bg-gray-100 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex gap-3 h-full overflow-x-auto">
+            {porColuna.map((col) => (
+              <KanbanColuna
+                key={col.id}
+                label={col.label}
+                cor={col.cor}
+                items={col.items}
+                onResponder={setSelecionada}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -198,102 +343,6 @@ export default function OperacionalPage() {
         aberto={novaAberta}
         onFechar={() => setNovaAberta(false)}
       />
-    </div>
-  )
-}
-
-function SolicitacaoCard({
-  solicitacao: s,
-  concluida = false,
-  onResponder,
-  onVerEntidade,
-}: {
-  solicitacao: SolicitacaoOperacional
-  concluida?: boolean
-  onResponder?: () => void
-  onVerEntidade?: () => void
-}) {
-  const temEntidade = !!(s.lead_id || s.processo_id)
-  const { data: mensagens = [] } = useSolicitacaoMensagens(
-    s.retorno_operacional ? s.id : undefined
-  )
-  const totalMensagens = mensagens.length + (s.replica_comercial && mensagens.length === 0 ? 1 : 0)
-
-  return (
-    <div className={`bg-white border rounded-xl p-4 transition-colors ${
-      concluida
-        ? 'border-gray-100 opacity-60'
-        : 'border-gray-200 hover:border-[#C2AA6A]/60'
-    }`}>
-      <div className="flex items-start gap-3">
-        {/* Dot de prioridade */}
-        {!concluida && (
-          <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${PRIORIDADE_DOT[s.prioridade]}`} />
-        )}
-
-        <div className="flex-1 min-w-0">
-          {/* Badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500 font-medium">{TIPO_LABELS[s.tipo]}</span>
-            <SolicitacaoPrioridadeBadge prioridade={s.prioridade} />
-            <SolicitacaoStatusBadge status={s.status} />
-          </div>
-
-          {/* Título */}
-          <p className="text-sm font-medium text-[#253B29] mt-1 leading-tight">{s.titulo}</p>
-
-          {/* Meta: vínculo + SLA + indicador de conversa */}
-          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 flex-wrap">
-            {s.lead && <span>Lead: {s.lead.nome}</span>}
-            {s.processo && <span>Processo: {s.processo.nome_imovel}</span>}
-            {s.pessoa && !s.lead && !s.processo && <span>Pessoa: {s.pessoa.nome}</span>}
-            {!s.lead && !s.processo && !s.pessoa && <span>Sem vínculo</span>}
-            <SlaCountdown slaAt={s.sla_at} concluido={concluida} />
-            {s.retorno_operacional && (
-              <span className="flex items-center gap-1 text-gray-400">
-                <MessageSquare className="h-3 w-3" />
-                {totalMensagens > 0 ? `${totalMensagens} msg` : 'Retorno'}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Ações */}
-        {!concluida && (
-          <div className="flex flex-col gap-1.5 shrink-0">
-            <Button
-              size="sm"
-              className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white px-3"
-              onClick={onResponder}
-            >
-              Responder
-            </Button>
-            {temEntidade && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs gap-1 px-3"
-                onClick={onVerEntidade}
-              >
-                <ExternalLink className="h-3 w-3" />
-                {s.lead_id ? 'Ver Lead' : 'Ver Processo'}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {concluida && temEntidade && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs gap-1 px-2 text-gray-400 shrink-0"
-            onClick={onVerEntidade}
-          >
-            <ExternalLink className="h-3 w-3" />
-            {s.lead_id ? 'Lead' : 'Processo'}
-          </Button>
-        )}
-      </div>
     </div>
   )
 }

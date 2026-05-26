@@ -18,7 +18,7 @@ const JOINS = `
   responsavel:usuarios!responsavel_id(id, nome),
   solicitante:usuarios!solicitante_id(id, nome),
   lead:leads!lead_id(id, nome),
-  processo:processos!processo_id(id, nome_imovel, numero_processo),
+  processo:processos!processo_id(id, nome_imovel, numero_processo, modalidade, banco:bancos!banco_id(nome)),
   pessoa:pessoas!pessoa_id(id, nome)
 `
 
