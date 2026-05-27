@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import type { UsuarioPerfil } from '@/types/auth'
 
 export interface UsuarioAtual {
   id: string
   nome: string
   email: string
-  perfil: 'admin' | 'gerente' | 'comercial' | 'operacional' | 'suporte'
+  perfil: UsuarioPerfil
   empresa_id: string
   ativo: boolean
   avatar_url: string | null
