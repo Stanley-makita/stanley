@@ -1,4 +1,6 @@
-export type UsuarioPerfil = 'admin' | 'gerente' | 'analista' | 'consultor' | 'cliente'
+export type UsuarioPerfil =
+  | 'admin' | 'gerente' | 'analista' | 'consultor' | 'cliente'
+  | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio'
 
 export interface Usuario {
   id: string

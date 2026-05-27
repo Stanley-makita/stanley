@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
+import { useAgendaBadge } from '@/hooks/useAgendaBadge'
 
 const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
@@ -54,7 +55,9 @@ const adminItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: usuario } = useUsuarioAtual()
+  const { data: agendaBadge = 0 } = useAgendaBadge()
   const [negociosAberto, setNegociosAberto] = useState(
     () => pathname.startsWith('/negocios') || pathname.startsWith('/processos')
   )
@@ -104,7 +107,7 @@ export function Sidebar() {
 
         {/* ── Negócios submenu ── */}
         <button
-          onClick={() => setNegociosAberto((v) => !v)}
+          onClick={() => { router.push('/negocios'); setNegociosAberto(true) }}
           className={cn(
             'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
             pathname.startsWith('/negocios') || pathname.startsWith('/processos')
@@ -114,9 +117,15 @@ export function Sidebar() {
         >
           <Briefcase className="h-4 w-4 shrink-0" />
           <span className="flex-1 text-left">Negócios</span>
-          {negociosAberto
-            ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-            : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+          <span
+            role="button"
+            onClick={(e) => { e.stopPropagation(); setNegociosAberto((v) => !v) }}
+            className="p-0.5 rounded hover:bg-white/10"
+          >
+            {negociosAberto
+              ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+              : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+          </span>
         </button>
 
         {negociosAberto && (
@@ -143,20 +152,27 @@ export function Sidebar() {
 
         {navItemsBottom.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
+          const isAgenda = href === '/agenda'
           return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                active
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+            <div key={href} className="relative">
+              <Link
+                href={href}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </Link>
+              {isAgenda && agendaBadge > 0 && (
+                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
+                  {agendaBadge > 99 ? '99+' : agendaBadge}
+                </span>
               )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
+            </div>
           )
         })}
 

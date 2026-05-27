@@ -6,6 +6,9 @@ import { ProcessosPorFaseChart } from '@/components/dashboard/ProcessosPorFaseCh
 import { AtividadeRecente } from '@/components/dashboard/AtividadeRecente'
 import { MetasEquipe } from '@/components/dashboard/MetasEquipe'
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton'
+import { DashboardComercial } from '@/components/dashboard/DashboardComercial'
+import { DashboardOperacional } from '@/components/dashboard/DashboardOperacional'
+import { DashboardJuridico } from '@/components/dashboard/DashboardJuridico'
 import { useDashboardKpis, useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { useAuth } from '@/hooks/auth/useAuth'
 
@@ -24,7 +27,7 @@ function saudacao(): string {
   return 'Boa noite'
 }
 
-export default function DashboardPage() {
+function DashboardGestor() {
   const { usuario } = useAuth()
   const { data: kpis, isLoading: loadingKpis } = useDashboardKpis()
   const { data: membros } = useMembrosAtivos()
@@ -35,7 +38,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Saudação */}
       <div>
         <h1 className="text-2xl font-bold text-[#253B29]">
           {saudacao()}, {usuario?.nome?.split(' ')[0]} 👋
@@ -45,7 +47,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard
           titulo="Processos ativos"
@@ -82,7 +83,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Gráfico de fases + Atividade recente */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <ProcessosPorFaseChart />
@@ -92,9 +92,23 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Metas da equipe */}
       <MetasEquipe />
-
     </div>
   )
+}
+
+export default function DashboardPage() {
+  const { usuario } = useAuth()
+  const perfil = usuario?.perfil
+
+  if (!perfil) return <DashboardSkeleton />
+
+  if (perfil === 'operacional') return <DashboardOperacional nome={usuario?.nome} />
+  if (perfil === 'juridico') return <DashboardJuridico nome={usuario?.nome} />
+  if (perfil === 'comercial' || perfil === 'analista' || perfil === 'consultor' || perfil === 'apoio') {
+    return <DashboardComercial nome={usuario?.nome} />
+  }
+
+  // admin | gerente | gestor | cliente
+  return <DashboardGestor />
 }

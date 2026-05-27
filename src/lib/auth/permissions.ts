@@ -18,12 +18,37 @@ export const PERMISSOES: Record<UsuarioPerfil, Acao[]> = {
   gerente: TODAS_ACOES.filter(
     (a) => !(['rh.editar', 'usuarios.desativar', 'instancias.gerenciar'] as Acao[]).includes(a)
   ),
+  gestor: TODAS_ACOES.filter(
+    (a) => !(['rh.editar', 'usuarios.desativar', 'instancias.gerenciar'] as Acao[]).includes(a)
+  ),
   analista: [
     'leads.ver', 'leads.criar', 'leads.editar',
     'processos.ver', 'processos.criar', 'processos.editar',
     'configuracoes.ver',
     'conversas.transferir',
     'pessoas.ver', 'pessoas.editar',
+    'biblioteca.ver',
+  ],
+  comercial: [
+    'leads.ver', 'leads.criar', 'leads.editar',
+    'processos.ver', 'processos.criar', 'processos.editar',
+    'pessoas.ver',
+    'biblioteca.ver',
+  ],
+  operacional: [
+    'processos.ver', 'processos.editar',
+    'pessoas.ver',
+    'biblioteca.ver',
+  ],
+  juridico: [
+    'processos.ver', 'processos.editar',
+    'pessoas.ver',
+    'biblioteca.ver',
+  ],
+  apoio: [
+    'leads.ver',
+    'processos.ver',
+    'pessoas.ver',
     'biblioteca.ver',
   ],
   consultor: ['leads.ver', 'processos.ver', 'pessoas.ver', 'biblioteca.ver'],
