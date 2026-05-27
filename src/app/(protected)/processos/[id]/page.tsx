@@ -143,6 +143,9 @@ export default function ProcessoDetalhePage() {
             {processo.numero_processo}
             {processo.banco && ` • ${processo.banco.nome}`}
             {` • ${diasEmAndamento} dias em andamento`}
+            {processo.fase_atual && (
+              <span className="text-[#253B29] font-medium"> • {processo.fase_atual.nome}</span>
+            )}
             {` • Emissão: `}
             <span className={processo.chance_emissao === 'certeza' ? 'text-green-600' : 'text-amber-600'}>
               {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
