@@ -25,10 +25,13 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 
-const navItems = [
+const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
   { href: '/leads',             label: 'Leads',        icon: Users },
   { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle },
+]
+
+const navItemsBottom = [
   { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
   { href: '/operacional',       label: 'Operacional',  icon: ClipboardList },
   { href: '/financeiro',        label: 'Financeiro',   icon: DollarSign },
@@ -80,7 +83,7 @@ export function Sidebar() {
 
       {/* Nav principal */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItemsTop.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link
@@ -137,6 +140,25 @@ export function Sidebar() {
             })}
           </div>
         )}
+
+        {navItemsBottom.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || pathname.startsWith(href + '/')
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                active
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
+            </Link>
+          )
+        })}
 
         {isGestor && (
           <>
