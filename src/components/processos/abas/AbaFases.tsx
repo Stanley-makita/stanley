@@ -40,13 +40,13 @@ interface Props {
 function StepperFases({
   fases,
   faseAtualId,
-  faseAtualOrdem,
+  faseAtualIndex,
   podeEditar,
   onVoltar,
 }: {
   fases: Fase[]
   faseAtualId: string | null
-  faseAtualOrdem: number | null
+  faseAtualIndex: number
   podeEditar: boolean
   onVoltar: (fase: Fase) => void
 }) {
@@ -61,7 +61,7 @@ function StepperFases({
     <div className="overflow-x-auto pb-1">
       <div className="flex items-start min-w-max gap-0">
         {fases.map((fase, idx) => {
-          const isConcluida = faseAtualOrdem !== null && fase.ordem < faseAtualOrdem
+          const isConcluida = faseAtualIndex >= 0 && idx < faseAtualIndex
           const isAtual     = fase.id === faseAtualId
           const isFutura    = !isConcluida && !isAtual
           const isLast      = idx === fases.length - 1
@@ -138,14 +138,15 @@ export function AbaFases({ processoId, processo }: Props) {
   const { data: fases = [], isLoading: fasesLoading } = useFases(modulo)
 
   // Fase atual
-  const faseAtual = fases.find((f) => f.id === processo.fase_atual_id) ?? null
-  const faseAtualOrdem = faseAtual?.ordem ?? null
+  const faseAtualIndex = fases.findIndex((f) => f.id === processo.fase_atual_id)
 
-  // Próxima fase (sequencial)
+  // Próxima fase (sequencial por índice, independente do valor numérico de ordem)
   const proximaFase = fases.length > 0
     ? processo.fase_atual_id === null
       ? fases[0]
-      : fases.find((f) => f.ordem > (faseAtualOrdem ?? -Infinity)) ?? null
+      : faseAtualIndex >= 0 && faseAtualIndex < fases.length - 1
+        ? fases[faseAtualIndex + 1]
+        : null
     : null
 
   // Estado: dialog de retorno
@@ -183,7 +184,7 @@ export function AbaFases({ processoId, processo }: Props) {
             <StepperFases
               fases={fases}
               faseAtualId={processo.fase_atual_id}
-              faseAtualOrdem={faseAtualOrdem}
+              faseAtualIndex={faseAtualIndex}
               podeEditar={podeEditar}
               onVoltar={(fase) => { setVoltarParaFase(fase); setMotivo('') }}
             />
@@ -208,7 +209,7 @@ export function AbaFases({ processoId, processo }: Props) {
               <Check className="h-4 w-4" /> Todas as fases concluídas
             </p>
           ) : null}
-          {podeEditar && faseAtual && (
+          {podeEditar && faseAtualIndex >= 0 && (
             <p className="text-xs text-gray-400">
               Clique em uma fase anterior no stepper para retornar
             </p>
