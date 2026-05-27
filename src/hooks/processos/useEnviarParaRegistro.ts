@@ -51,6 +51,9 @@ export function useEnviarParaRegistro() {
         className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
       })
     },
-    onError: () => toast.error('Erro ao criar processo de Registro.'),
+    onError: (err: any) => {
+      console.error('[useEnviarParaRegistro] erro:', err)
+      toast.error(`Erro ao criar processo de Registro: ${err?.message ?? JSON.stringify(err)}`)
+    },
   })
 }
