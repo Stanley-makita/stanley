@@ -22,7 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { useAgendaBadge } from '@/hooks/useAgendaBadge'
 
@@ -57,16 +57,11 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { data: usuario } = useUsuarioAtual()
+  const { sair } = useAuth()
   const { data: agendaBadge = 0 } = useAgendaBadge()
   const [negociosAberto, setNegociosAberto] = useState(
     () => pathname.startsWith('/negocios') || pathname.startsWith('/processos')
   )
-
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
 
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
@@ -235,7 +230,7 @@ export function Sidebar() {
           </div>
         )}
         <button
-          onClick={handleLogout}
+          onClick={sair}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
         >
           <LogOut className="h-4 w-4" />

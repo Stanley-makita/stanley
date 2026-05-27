@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { type SessaoUsuario } from '@/types/auth'
 
@@ -16,7 +16,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<SessaoUsuario | null>(null)
   const [carregando, setCarregando] = useState(true)
-  const [authUserId, setAuthUserId] = useState<string | null>(null)
+  // Ref evita que onAuthStateChange dispare carregarPerfil duas vezes para o mesmo uid
+  const authUserIdRef = useRef<string | null>(null)
 
   const carregarPerfil = useCallback(async (uid: string) => {
     const { data } = await supabase
@@ -25,40 +26,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('auth_user_id', uid)
       .single()
 
-    if (data) {
-      if (!data.ativo) {
-        // Usuário desativado — forçar logout
-        await supabase.auth.signOut()
-        setUsuario(null)
-      } else {
-        setUsuario(data)
-      }
-    } else {
+    if (!data) {
       setUsuario(null)
+      return
     }
+
+    if (!data.ativo) {
+      await supabase.auth.signOut()
+      setUsuario(null)
+      return
+    }
+
+    setUsuario(data as SessaoUsuario)
   }, [])
 
   const recarregarPerfil = useCallback(async () => {
-    if (authUserId) await carregarPerfil(authUserId)
-  }, [authUserId, carregarPerfil])
+    if (authUserIdRef.current) await carregarPerfil(authUserIdRef.current)
+  }, [carregarPerfil])
 
   useEffect(() => {
-    // onAuthStateChange dispara INITIAL_SESSION imediatamente a partir dos cookies (sem rede)
-    // TOKEN_REFRESHED / SIGNED_OUT são tratados automaticamente
+    let active = true
+
+    // Lê a sessão dos cookies/localStorage imediatamente (sem rede).
+    // É a forma mais confiável de recuperar a sessão no F5/refresh.
+    async function initAuth() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!active) return
+
+      if (session?.user) {
+        authUserIdRef.current = session.user.id
+        await carregarPerfil(session.user.id)
+      } else {
+        authUserIdRef.current = null
+        setUsuario(null)
+      }
+
+      if (active) setCarregando(false)
+    }
+
+    initAuth()
+
+    // Escuta mudanças subsequentes: login, logout, token refresh.
+    // Não é usado para o carregamento inicial (initAuth cuida disso).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!active) return
+
         if (session?.user) {
-          setAuthUserId(session.user.id)
-          await carregarPerfil(session.user.id)
+          // Evita recarregar o perfil quando o uid não mudou (TOKEN_REFRESHED, etc.)
+          if (authUserIdRef.current !== session.user.id) {
+            authUserIdRef.current = session.user.id
+            await carregarPerfil(session.user.id)
+            if (active) setCarregando(false)
+          }
         } else {
-          setAuthUserId(null)
+          authUserIdRef.current = null
           setUsuario(null)
+          if (active) setCarregando(false)
         }
-        setCarregando(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [carregarPerfil])
 
   // Realtime: detecta mudanças no perfil/ativo do usuário logado sem precisar de F5
@@ -76,18 +108,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           filter: `id=eq.${usuario.id}`,
         },
         async () => {
-          if (authUserId) await carregarPerfil(authUserId)
+          if (authUserIdRef.current) await carregarPerfil(authUserIdRef.current)
         }
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [usuario?.id, authUserId, carregarPerfil])
+  }, [usuario?.id, carregarPerfil])
 
   async function sair() {
-    await supabase.auth.signOut()
+    authUserIdRef.current = null
     setUsuario(null)
-    setAuthUserId(null)
+    await supabase.auth.signOut()
+    // Hard redirect garante que todo estado em memória é descartado
+    window.location.href = '/login'
   }
 
   return (
