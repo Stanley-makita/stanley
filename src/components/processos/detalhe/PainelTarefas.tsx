@@ -10,9 +10,10 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 const PRIORIDADE_CONFIG: Record<ProcessoTarefa['prioridade'], { label: string; className: string; icone: React.ElementType }> = {
-  alta:  { label: 'Alta',  className: 'text-red-600 bg-red-50',    icone: AlertTriangle },
-  media: { label: 'Média', className: 'text-amber-600 bg-amber-50', icone: Clock },
-  baixa: { label: 'Baixa', className: 'text-gray-500 bg-gray-50',   icone: Clock },
+  urgente: { label: 'Urgente', className: 'text-red-800 bg-red-100',   icone: AlertTriangle },
+  alta:    { label: 'Alta',    className: 'text-red-600 bg-red-50',    icone: AlertTriangle },
+  media:   { label: 'Média',   className: 'text-amber-600 bg-amber-50', icone: Clock },
+  baixa:   { label: 'Baixa',   className: 'text-gray-500 bg-gray-50',   icone: Clock },
 }
 
 interface Props { processoId: string; onNovaTarefa?: () => void }
