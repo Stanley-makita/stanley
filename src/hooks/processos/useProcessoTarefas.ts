@@ -44,6 +44,7 @@ export function useCriarTarefa(processoId: string) {
         .insert({
           processo_id: processoId,
           empresa_id: usuario!.empresa_id,
+          criado_por: usuario!.id,
           status: 'pendente',
           ...input,
         })

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { Loader2, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export const CATEGORIAS_TAREFA = ['contato', 'follow-up', 'visita', 'proposta', 'documentos', 'outro']
 
@@ -74,17 +75,22 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
 
   async function handleSalvar() {
     if (!titulo.trim()) return
-    await onSalvar({
-      titulo:          titulo.trim(),
-      descricao:       descricao.trim() || undefined,
-      categoria,
-      prioridade,
-      responsavel_id:  responsavel || undefined,
-      data_prazo:      dataPrazo   || undefined,
-      horario_inicio:  horarioInicio  || null,
-      horario_termino: horarioTermino || null,
-    })
-    if (!editing) resetar()
+    try {
+      await onSalvar({
+        titulo:          titulo.trim(),
+        descricao:       descricao.trim() || undefined,
+        categoria,
+        prioridade,
+        responsavel_id:  responsavel || undefined,
+        data_prazo:      dataPrazo   || undefined,
+        horario_inicio:  horarioInicio  || null,
+        horario_termino: horarioTermino || null,
+      })
+      if (!editing) resetar()
+    } catch (err) {
+      console.error('Erro ao salvar tarefa:', err)
+      toast.error('Erro ao salvar tarefa. Tente novamente.')
+    }
   }
 
   return (
