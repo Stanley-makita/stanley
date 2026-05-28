@@ -94,12 +94,16 @@ export interface ProcessoTarefa {
   processo_id: string
   empresa_id: string
   titulo: string
-  prioridade: 'alta' | 'media' | 'baixa'
+  descricao?: string | null
+  categoria?: string | null
+  prioridade: 'alta' | 'media' | 'baixa' | 'urgente'
   status: 'pendente' | 'em_andamento' | 'concluida'
   concluida: boolean
   concluida_em: string | null
   responsavel_id: string | null
   data_prazo: string | null
+  horario_inicio?: string | null
+  horario_termino?: string | null
   created_at: string
   updated_at: string
   responsavel?: { nome: string } | null

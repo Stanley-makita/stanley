@@ -66,9 +66,9 @@ export default function AgendaPage() {
     incluirConcluidas: false,
   })
 
-  const handleToggle = useCallback((tarefaId: string, concluida: boolean) => {
+  const handleToggle = useCallback((tarefaId: string, concluida: boolean, fonte?: 'processo' | 'lead') => {
     if (concluida) {
-      concluirTarefa(tarefaId, {
+      concluirTarefa({ tarefaId, fonte }, {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda-tarefas'] }),
       })
     }

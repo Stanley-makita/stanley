@@ -22,7 +22,7 @@ interface ListaAgendaProps {
   onFiltroStatusChange: (v: FiltroStatus) => void
   onFiltroPrioridadeChange: (v: PrioridadeTarefa | 'todas') => void
   onFiltroPeriodoChange: (v: FiltroPeriodo) => void
-  onToggle: (id: string, concluida: boolean) => void
+  onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead') => void
 }
 
 const PERIODOS: { value: FiltroPeriodo; label: string }[] = [
@@ -134,6 +134,7 @@ export function ListaAgenda({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="todas">Todas prioridades</SelectItem>
+            <SelectItem value="urgente">Urgente</SelectItem>
             <SelectItem value="alta">Alta</SelectItem>
             <SelectItem value="media">Média</SelectItem>
             <SelectItem value="baixa">Baixa</SelectItem>

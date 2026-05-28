@@ -34,6 +34,10 @@ export function useCriarTarefa(processoId: string) {
       prioridade: ProcessoTarefa['prioridade']
       responsavel_id?: string
       data_prazo?: string
+      descricao?: string
+      categoria?: string
+      horario_inicio?: string | null
+      horario_termino?: string | null
     }) => {
       const { error } = await supabase
         .from('processo_tarefas')
