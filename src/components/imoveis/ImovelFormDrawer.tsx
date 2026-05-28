@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -150,6 +150,8 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
       observacoes: strOrNull(form.observacoes),
     }
 
+    if (!form.matricula.trim() || !form.cidade.trim()) return
+
     try {
       if (imovel) {
         await atualizar.mutateAsync({ id: imovel.id, ...dados })
@@ -165,13 +167,13 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
   }
 
   return (
-    <Sheet open={aberto} onOpenChange={(o) => !o && onFechar()}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col">
-        <SheetHeader className="shrink-0">
-          <SheetTitle>{imovel ? 'Editar Imóvel' : 'Novo Imóvel'}</SheetTitle>
-        </SheetHeader>
+    <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{imovel ? 'Editar Imóvel' : 'Novo Imóvel'}</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto py-4 space-y-6 pr-1">
+        <form onSubmit={handleSubmit} className="space-y-6 py-2">
 
           {/* Identificação */}
           <section className="space-y-4">
@@ -232,11 +234,12 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Matrícula</Label>
+                <Label>Matrícula <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="Ex: 12345"
                   value={form.matricula}
                   onChange={(e) => set('matricula', e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-1.5">
@@ -355,11 +358,12 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Cidade</Label>
+              <Label>Cidade <span className="text-red-500">*</span></Label>
               <Input
                 placeholder="Ex: Maringá"
                 value={form.cidade}
                 onChange={(e) => set('cidade', e.target.value)}
+                required
               />
             </div>
           </section>
@@ -409,14 +413,14 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
             </Button>
             <Button
               type="submit"
-              disabled={isPending}
+              disabled={!form.matricula.trim() || !form.cidade.trim() || isPending}
               className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
             >
               {isPending ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

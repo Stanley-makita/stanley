@@ -37,8 +37,8 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
     imovel_matricula: processo.imovel_matricula ?? '',
     imovel_tipo: processo.imovel_tipo ?? '',
     imovel_categoria: processo.imovel_categoria ?? '',
-    imovel_area_construida: processo.imovel_area_construida ?? '',
-    imovel_area_terreno: processo.imovel_area_terreno ?? '',
+    imovel_area_construida: processo.imovel_area_construida != null ? String(processo.imovel_area_construida) : '',
+    imovel_area_terreno: processo.imovel_area_terreno != null ? String(processo.imovel_area_terreno) : '',
     imovel_rua: processo.imovel_rua ?? '',
     imovel_numero: processo.imovel_numero ?? '',
     imovel_complemento: processo.imovel_complemento ?? '',
@@ -107,7 +107,22 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
   }
 
   function desvincular() {
-    onUpdate({ imovel_id: null })
+    onUpdate({
+      imovel_id: null,
+      imovel_matricula: null,
+      imovel_tipo: null,
+      imovel_categoria: null,
+      imovel_area_construida: null,
+      imovel_area_terreno: null,
+      imovel_rua: null,
+      imovel_numero: null,
+      imovel_complemento: null,
+      imovel_bairro: null,
+      imovel_cidade: null,
+      imovel_uf: null,
+      imovel_registro_id: null,
+      nome_imovel: '',
+    })
   }
 
   const registroNome = registros.find((r) => r.id === processo.imovel_registro_id)?.nome
@@ -251,10 +266,13 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
 
           <div className="space-y-1">
             <Label className="text-xs">Registro de Imóveis</Label>
-            <Select value={form.imovel_registro_id} onValueChange={(v) => setForm((f) => ({ ...f, imovel_registro_id: v }))}>
+            <Select
+              value={form.imovel_registro_id || '__'}
+              onValueChange={(v) => setForm((f) => ({ ...f, imovel_registro_id: v === '__' ? '' : v }))}
+            >
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Não informado</SelectItem>
+                <SelectItem value="__">— Não informado</SelectItem>
                 {registros.map((r) => (
                   <SelectItem key={r.id} value={r.id}>{r.nome}{r.cidade ? ` — ${r.cidade}` : ''}</SelectItem>
                 ))}

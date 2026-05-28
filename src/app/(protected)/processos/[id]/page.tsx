@@ -83,7 +83,11 @@ export default function ProcessoDetalhePage() {
             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400" onClick={() => router.push('/processos')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-xl font-bold text-[#253B29]">{processo.nome_imovel}</h1>
+            <h1 className="text-xl font-bold text-[#253B29]">
+              {processo.compradores?.find(c => c.principal)?.nome
+                ?? processo.compradores?.[0]?.nome
+                ?? processo.nome_imovel}
+            </h1>
             <ProcessoStatusBadge status={processo.status_processo} />
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
