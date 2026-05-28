@@ -10,7 +10,7 @@ import { PainelPendencias } from '@/components/processos/detalhe/PainelPendencia
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, Pencil, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
@@ -28,6 +28,7 @@ import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
 import { AbaCustas } from '@/components/processos/abas/AbaCustas'
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
+import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialog'
 
 const MODALIDADES_COM_CUSTAS = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'] as const
 
@@ -43,6 +44,7 @@ export default function ProcessoDetalhePage() {
   const { data: processo, isLoading, error } = useProcesso(id)
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
+  const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState('resumo')
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
@@ -88,7 +90,21 @@ export default function ProcessoDetalhePage() {
                 ?? processo.compradores?.[0]?.nome
                 ?? processo.nome_imovel}
             </h1>
-            <ProcessoStatusBadge status={processo.status_processo} />
+            {processo.fase_atual ? (
+              <Badge
+                variant="outline"
+                className="text-xs font-medium"
+                style={processo.fase_atual.cor ? {
+                  backgroundColor: processo.fase_atual.cor + '20',
+                  borderColor: processo.fase_atual.cor + '60',
+                  color: processo.fase_atual.cor,
+                } : undefined}
+              >
+                {processo.fase_atual.nome}
+              </Badge>
+            ) : (
+              <ProcessoStatusBadge status={processo.status_processo} />
+            )}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
               <Badge className="text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]">
@@ -121,6 +137,16 @@ export default function ProcessoDetalhePage() {
                 {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
               </Button>
 
+              {/* Nova Tarefa */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+                onClick={() => setNovaTarefaAberta(true)}
+              >
+                <Plus className="h-3.5 w-3.5" /> + Tarefa
+              </Button>
+
               {/* Editar Processo */}
               <Button
                 size="sm"
@@ -128,8 +154,8 @@ export default function ProcessoDetalhePage() {
                 className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
                 onClick={() => setEditarProcessoAberto(true)}
               >
-                <Pencil className="h-3.5 w-3.5" />
-                Editar
+                <DollarSign className="h-3.5 w-3.5" />
+                $ Negócio
               </Button>
 
               {/* Nova Solicitação */}
@@ -149,9 +175,6 @@ export default function ProcessoDetalhePage() {
             {processo.numero_processo}
             {processo.banco && ` • ${processo.banco.nome}`}
             {` • ${diasEmAndamento} dias em andamento`}
-            {processo.fase_atual && (
-              <span className="text-[#253B29] font-medium"> • {processo.fase_atual.nome}</span>
-            )}
             {` • Emissão: `}
             <span className={processo.chance_emissao === 'certeza' ? 'text-green-600' : 'text-amber-600'}>
               {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
@@ -284,6 +307,12 @@ export default function ProcessoDetalhePage() {
         processo={processo}
       />
 
+      <NovaTarefaDialog
+        open={novaTarefaAberta}
+        onOpenChange={setNovaTarefaAberta}
+        processoId={id}
+      />
+
       {/* Painel direito — sempre visível */}
       <div className="w-80 shrink-0 flex flex-col gap-4 overflow-y-auto">
         <div className="bg-white border border-gray-200 rounded-xl p-4 flex-1">
@@ -294,7 +323,7 @@ export default function ProcessoDetalhePage() {
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
         />
         <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <PainelTarefas processoId={id} />
+          <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
         </div>
       </div>
     </div>

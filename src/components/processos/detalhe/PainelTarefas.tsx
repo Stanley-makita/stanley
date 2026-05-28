@@ -15,9 +15,9 @@ const PRIORIDADE_CONFIG: Record<ProcessoTarefa['prioridade'], { label: string; c
   baixa: { label: 'Baixa', className: 'text-gray-500 bg-gray-50',   icone: Clock },
 }
 
-interface Props { processoId: string }
+interface Props { processoId: string; onNovaTarefa?: () => void }
 
-export function PainelTarefas({ processoId }: Props) {
+export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
   const { data: tarefas = [] } = useProcessoTarefas(processoId)
   const concluirTarefa = useConcluirTarefa(processoId)
   const [aba, setAba] = useState<'pendente' | 'concluida' | 'todas'>('pendente')
@@ -44,7 +44,7 @@ export function PainelTarefas({ processoId }: Props) {
             </Badge>
           )}
         </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-[#253B29]">
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-[#253B29]" onClick={() => onNovaTarefa?.()}>
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
