@@ -10,6 +10,7 @@ import type { PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
 import type { PrioridadeTarefa } from '@/types/agenda'
 
 const PRIORIDADE_TAREFA_COR: Record<PrioridadeTarefa, string> = {
+  urgente: 'bg-red-200 text-red-800',
   alta:  'bg-red-100 text-red-700',
   media: 'bg-yellow-100 text-yellow-700',
   baixa: 'bg-gray-100 text-gray-500',
