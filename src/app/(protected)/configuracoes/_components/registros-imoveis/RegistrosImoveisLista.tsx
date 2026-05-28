@@ -97,12 +97,12 @@ function FormRegistroImoveis({ inicial, onSalvar, onCancelar, isPending }: FormP
         </div>
         <div className="space-y-1.5">
           <Label>UF</Label>
-          <Select value={form.uf} onValueChange={(v) => set('uf', v)}>
+          <Select value={form.uf || '__'} onValueChange={(v) => set('uf', v === '__' ? '' : v)}>
             <SelectTrigger>
               <SelectValue placeholder="UF" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">—</SelectItem>
+              <SelectItem value="__">—</SelectItem>
               {UFS.map((s) => (
                 <SelectItem key={s} value={s}>{s}</SelectItem>
               ))}

@@ -228,10 +228,10 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">UF</Label>
-              <Select value={form.imovel_uf} onValueChange={(v) => setForm((f) => ({ ...f, imovel_uf: v }))}>
+              <Select value={form.imovel_uf || '__'} onValueChange={(v) => setForm((f) => ({ ...f, imovel_uf: v === '__' ? '' : v }))}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">—</SelectItem>
+                  <SelectItem value="__">—</SelectItem>
                   {UFS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>

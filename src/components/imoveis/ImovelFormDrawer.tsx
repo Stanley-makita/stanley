@@ -205,10 +205,10 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Tipo</Label>
-                <Select value={form.tipo} onValueChange={(v) => set('tipo', v)}>
+                <Select value={form.tipo || '__'} onValueChange={(v) => set('tipo', v === '__' ? '' : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Não informado</SelectItem>
+                    <SelectItem value="__">— Não informado</SelectItem>
                     <SelectItem value="apartamento">Apartamento</SelectItem>
                     <SelectItem value="casa">Casa</SelectItem>
                     <SelectItem value="sobrado">Sobrado</SelectItem>
@@ -219,10 +219,10 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>Condição</Label>
-                <Select value={form.condicao} onValueChange={(v) => set('condicao', v)}>
+                <Select value={form.condicao || '__'} onValueChange={(v) => set('condicao', v === '__' ? '' : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Não informado</SelectItem>
+                    <SelectItem value="__">— Não informado</SelectItem>
                     <SelectItem value="novo">Novo</SelectItem>
                     <SelectItem value="usado">Usado</SelectItem>
                   </SelectContent>
@@ -251,10 +251,10 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
 
             <div className="space-y-1.5">
               <Label>Registro de Imóveis</Label>
-              <Select value={form.registro_imoveis_id} onValueChange={(v) => set('registro_imoveis_id', v)}>
+              <Select value={form.registro_imoveis_id || '__'} onValueChange={(v) => set('registro_imoveis_id', v === '__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione o cartório..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Não informado</SelectItem>
+                  <SelectItem value="__">— Não informado</SelectItem>
                   {registros.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.nome}{r.cidade ? ` — ${r.cidade}` : ''}
@@ -344,10 +344,10 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>UF</Label>
-                <Select value={form.uf} onValueChange={(v) => set('uf', v)}>
+                <Select value={form.uf || '__'} onValueChange={(v) => set('uf', v === '__' ? '' : v)}>
                   <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">—</SelectItem>
+                    <SelectItem value="__">—</SelectItem>
                     {UFS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
