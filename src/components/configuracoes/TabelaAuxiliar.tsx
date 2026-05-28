@@ -1,16 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ColunaAuxiliar<T> {
   key: keyof T
   label: string
-  render?: (valor: T[keyof T], linha: T) => React.ReactNode
+  render?: (valor: T[keyof T], linha: T) => ReactNode
 }
 
 interface TabelaAuxiliarProps<T extends { id: string }> {
@@ -190,7 +190,7 @@ export function TabelaAuxiliar<T extends { id: string }>({
         </div>
       )}
 
-      <Dialog open={modalAberto} onOpenChange={(open) => !open && fecharModal()}>
+      <Dialog open={modalAberto} onOpenChange={(open: boolean) => !open && fecharModal()}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{itemEditando ? `Editar ${titulo}` : `Novo ${titulo}`}</DialogTitle>
