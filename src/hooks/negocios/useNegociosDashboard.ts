@@ -64,20 +64,46 @@ export function useNegociosDashboard() {
   const hoje = new Date()
   const dataInicio = format(subDays(hoje, 30), 'yyyy-MM-dd')
   const dataFim    = format(addDays(hoje, 30), 'yyyy-MM-dd')
+  const uid        = usuario?.id
 
   const tarefasHoje = useQuery({
-    queryKey: ['negocios', 'dashboard', 'tarefas-proximas', usuario?.id],
+    queryKey: ['negocios', 'dashboard', 'tarefas-proximas', uid],
     enabled: !!usuario,
     staleTime: 1000 * 60 * 2,
     queryFn: async (): Promise<TarefaAgenda[]> => {
-      const { data, error } = await supabase.rpc('agenda_tarefas', {
-        p_empresa_id:     usuario!.empresa_id,
-        p_data_inicio:    dataInicio,
-        p_data_fim:       dataFim,
-        p_responsavel_id: usuario!.id,
-      })
+      const { data, error } = await supabase
+        .from('processo_tarefas')
+        .select(`
+          id, titulo, prioridade, concluida, concluida_em,
+          data_prazo, vencimento, data_vencimento,
+          responsavel_id, criado_por,
+          processo:processos!processo_id (id, nome_imovel, numero_processo)
+        `)
+        .eq('empresa_id', usuario!.empresa_id)
+        .eq('concluida', false)
+        .is('deleted_at', null)
+        .or(`responsavel_id.eq.${uid},criado_por.eq.${uid}`)
+        .or(`data_prazo.is.null,and(data_prazo.gte.${dataInicio},data_prazo.lte.${dataFim})`)
+        .order('data_prazo', { ascending: true, nullsFirst: false })
+        .limit(20)
+
       if (error) throw error
-      return ((data as TarefaAgenda[]) ?? []).filter((t) => !t.concluida)
+
+      return (data ?? []).map((t: any): TarefaAgenda => ({
+        tarefa_id:            t.id,
+        tarefa_titulo:        t.titulo,
+        tarefa_vencimento:    t.data_prazo ?? t.vencimento ?? t.data_vencimento ?? null,
+        tarefa_prioridade:    t.prioridade,
+        concluida:            t.concluida,
+        concluida_em:         t.concluida_em,
+        processo_id:          t.processo?.id ?? null,
+        processo_nome_imovel: t.processo?.nome_imovel ?? '',
+        processo_numero:      t.processo?.numero_processo ?? '',
+        responsavel_id:       t.responsavel_id ?? t.criado_por,
+        responsavel_nome:     '',
+        fonte:                'processo',
+        lead_id:              null,
+      }))
     },
   })
 
