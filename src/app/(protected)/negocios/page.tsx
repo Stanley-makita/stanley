@@ -133,7 +133,7 @@ export default function NegociosDashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="h-4 w-4 text-[#253B29]" />
-            <h2 className="font-semibold text-[#253B29] text-sm">Suas tarefas do dia</h2>
+            <h2 className="font-semibold text-[#253B29] text-sm">Suas próximas tarefas</h2>
             {!tarefasHoje.isLoading && (
               <span className="ml-auto text-xs text-gray-400">
                 {tarefasHoje.data?.length ?? 0} pendente{(tarefasHoje.data?.length ?? 0) !== 1 ? 's' : ''}
@@ -149,7 +149,7 @@ export default function NegociosDashboardPage() {
             </div>
           ) : tarefasHoje.data?.length === 0 ? (
             <div className="py-8 text-center text-gray-400 text-sm">
-              Nenhuma tarefa para hoje 🎉
+              Nenhuma tarefa pendente 🎉
             </div>
           ) : (
             <div className="space-y-2">

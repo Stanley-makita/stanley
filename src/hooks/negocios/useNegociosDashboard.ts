@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
-import { format } from 'date-fns'
+import { format, addDays, subDays } from 'date-fns'
 import type { TarefaAgenda } from '@/types/agenda'
 import type { SolicitacaoOperacional } from '@/types/solicitacoes-operacionais'
 
@@ -61,17 +61,19 @@ export function useNegociosDashboard() {
     },
   })
 
-  const hoje = format(new Date(), 'yyyy-MM-dd')
+  const hoje = new Date()
+  const dataInicio = format(subDays(hoje, 30), 'yyyy-MM-dd')
+  const dataFim    = format(addDays(hoje, 30), 'yyyy-MM-dd')
 
   const tarefasHoje = useQuery({
-    queryKey: ['negocios', 'dashboard', 'tarefas-hoje', usuario?.id],
+    queryKey: ['negocios', 'dashboard', 'tarefas-proximas', usuario?.id],
     enabled: !!usuario,
     staleTime: 1000 * 60 * 2,
     queryFn: async (): Promise<TarefaAgenda[]> => {
       const { data, error } = await supabase.rpc('agenda_tarefas', {
         p_empresa_id:     usuario!.empresa_id,
-        p_data_inicio:    hoje,
-        p_data_fim:       hoje,
+        p_data_inicio:    dataInicio,
+        p_data_fim:       dataFim,
         p_responsavel_id: usuario!.id,
       })
       if (error) throw error
