@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   Users,
   UserCircle,
+  Building2,
   DollarSign,
   BarChart2,
   Bell,
@@ -19,8 +19,6 @@ import {
   ShieldCheck,
   ClipboardList,
   Briefcase,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
@@ -30,6 +28,7 @@ const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
   { href: '/leads',             label: 'Leads',        icon: Users },
   { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle },
+  { href: '/imoveis',           label: 'Imóveis',      icon: Building2 },
 ]
 
 const navItemsBottom = [
@@ -42,26 +41,15 @@ const navItemsBottom = [
   { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen },
 ]
 
-const negociosItems = [
-  { href: '/negocios/financiamento', label: 'Financiamento' },
-  { href: '/negocios/consorcio',     label: 'Consórcio' },
-  { href: '/negocios/contrato',      label: 'Contrato' },
-  { href: '/negocios/registro',      label: 'Registro' },
-]
-
 const adminItems = [
   { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { data: usuario } = useUsuarioAtual()
   const { sair } = useAuth()
   const { data: agendaBadge = 0 } = useAgendaBadge()
-  const [negociosAberto, setNegociosAberto] = useState(
-    () => pathname.startsWith('/negocios') || pathname.startsWith('/processos')
-  )
 
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
@@ -100,50 +88,26 @@ export function Sidebar() {
           )
         })}
 
-        {/* ── Negócios submenu ── */}
-        <button
-          onClick={() => { router.push('/negocios'); setNegociosAberto(true) }}
-          className={cn(
-            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            pathname.startsWith('/negocios') || pathname.startsWith('/processos')
-              ? 'bg-white/15 text-white'
-              : 'text-white/70 hover:bg-white/10 hover:text-white'
-          )}
-        >
-          <Briefcase className="h-4 w-4 shrink-0" />
-          <span className="flex-1 text-left">Negócios</span>
-          <span
-            role="button"
-            onClick={(e) => { e.stopPropagation(); setNegociosAberto((v) => !v) }}
-            className="p-0.5 rounded hover:bg-white/10"
-          >
-            {negociosAberto
-              ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-              : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-          </span>
-        </button>
-
-        {negociosAberto && (
-          <div className="ml-3 border-l border-white/10 pl-2 space-y-0.5">
-            {negociosItems.map(({ href, label }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
-                    active
-                      ? 'bg-white/15 text-white'
-                      : 'text-white/60 hover:bg-white/10 hover:text-white'
-                  )}
-                >
-                  {label}
-                </Link>
-              )
-            })}
-          </div>
-        )}
+        {/* ── Negócios ── */}
+        {(() => {
+          const negociosActive = pathname === '/negocios'
+            || pathname.startsWith('/negocios/')
+            || pathname.startsWith('/processos')
+          return (
+            <Link
+              href="/negocios"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                negociosActive
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              <Briefcase className="h-4 w-4 shrink-0" />
+              Negócios
+            </Link>
+          )
+        })()}
 
         {navItemsBottom.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')

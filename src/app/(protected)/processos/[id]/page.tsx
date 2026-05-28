@@ -16,7 +16,8 @@ import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { EditarProcessoDrawer } from '@/components/processos/EditarProcessoDrawer'
-import { useAtualizarChanceEmissao } from '@/hooks/processos/useProcessos'
+import { useAtualizarChanceEmissao, useAtualizarImovelProcesso } from '@/hooks/processos/useProcessos'
+import { BlocoImovel } from '@/components/imoveis/BlocoImovel'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
@@ -44,6 +45,7 @@ export default function ProcessoDetalhePage() {
   const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState('resumo')
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
+  const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
 
   if (carregando || isLoading) {
     return (
@@ -206,7 +208,11 @@ export default function ProcessoDetalhePage() {
 
           <div className="mt-4 bg-white border border-gray-200 rounded-xl p-5">
             <TabsContent value="resumo" className="m-0">
-              <AbaResumo processo={processo} />
+              <AbaResumo
+                processo={processo}
+                onUpdateImovel={(campos) => atualizarImovel({ processoId: id, ...campos } as any)}
+                isPendingImovel={atualizandoImovel}
+              />
             </TabsContent>
             <TabsContent value="compradores" className="m-0">
               <AbaCompradores processoId={id} />
@@ -292,7 +298,15 @@ export default function ProcessoDetalhePage() {
 }
 
 // Componente inline da aba Resumo
-function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['data'] & {} }) {
+function AbaResumo({
+  processo,
+  onUpdateImovel,
+  isPendingImovel,
+}: {
+  processo: ReturnType<typeof useProcesso>['data'] & {}
+  onUpdateImovel: (campos: Record<string, unknown>) => void
+  isPendingImovel: boolean
+}) {
   if (!processo) return null
 
   const fmtMoeda = (v: number | null) =>
@@ -353,15 +367,11 @@ function AbaResumo({ processo }: { processo: ReturnType<typeof useProcesso>['dat
             </div>
           </div>
         ) : (
-          <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Imóvel</h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="col-span-2">
-                <Campo label="Descrição" valor={processo.nome_imovel} />
-              </div>
-              <Campo label="Valor" valor={fmtMoeda(processo.valor_imovel)} />
-            </div>
-          </div>
+          <BlocoImovel
+            processo={processo}
+            onUpdate={onUpdateImovel as any}
+            isPending={isPendingImovel}
+          />
         )}
 
         {/* Vendedores */}

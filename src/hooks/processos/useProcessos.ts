@@ -185,3 +185,42 @@ export function useAtualizarResponsaveis() {
     },
   })
 }
+
+export interface ImovelProcessoUpdate {
+  processoId: string
+  imovel_id: string | null
+  imovel_matricula?: string | null
+  imovel_tipo?: string | null
+  imovel_categoria?: string | null
+  imovel_area_construida?: number | null
+  imovel_area_terreno?: number | null
+  imovel_rua?: string | null
+  imovel_numero?: string | null
+  imovel_complemento?: string | null
+  imovel_bairro?: string | null
+  imovel_cidade?: string | null
+  imovel_uf?: string | null
+  imovel_registro_id?: string | null
+  nome_imovel?: string | null
+  valor_imovel?: number | null
+}
+
+export function useAtualizarImovelProcesso() {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ processoId, ...campos }: ImovelProcessoUpdate) => {
+      const { error } = await supabase
+        .from('processos')
+        .update(campos)
+        .eq('id', processoId)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['processos', vars.processoId] })
+      qc.invalidateQueries({ queryKey: ['processos'] })
+    },
+  })
+}

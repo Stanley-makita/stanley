@@ -47,6 +47,20 @@ export interface Processo {
   credito_desejado?: number | null
   carta_sugerida?: number | null
   justificativa_carta?: string | null
+  // Imóvel vinculado (referência + campos denormalizados editáveis por processo)
+  imovel_id?: string | null
+  imovel_matricula?: string | null
+  imovel_tipo?: string | null
+  imovel_categoria?: string | null
+  imovel_area_construida?: number | null
+  imovel_area_terreno?: number | null
+  imovel_rua?: string | null
+  imovel_numero?: string | null
+  imovel_complemento?: string | null
+  imovel_bairro?: string | null
+  imovel_cidade?: string | null
+  imovel_uf?: string | null
+  imovel_registro_id?: string | null
   // Fases e datas
   fase_atual_id: string | null
   data_inicio: string

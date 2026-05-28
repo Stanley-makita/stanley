@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Users, Layers, Smartphone, Calculator } from 'lucide-react'
+import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
 import { ProdutosLista } from './_components/produtos/ProdutosLista'
 import { UsuariosLista } from './_components/usuarios/UsuariosLista'
 import { InstanciasLista } from './_components/instancias/InstanciasLista'
 import { SimuladorConfigTab } from './_components/simulador/SimuladorConfigTab'
+import { RegistrosImoveisLista } from './_components/registros-imoveis/RegistrosImoveisLista'
 
 export default function ConfiguracoesPage() {
   return (
@@ -16,7 +17,7 @@ export default function ConfiguracoesPage() {
           <h1 className="text-xl font-semibold text-[#253B29]">Configurações</h1>
         </div>
         <p className="text-sm text-gray-500">
-          Gerencie fases do processo, bancos parceiros, produtos, usuários e instâncias WhatsApp.
+          Gerencie fases do processo, bancos parceiros, produtos, usuários, instâncias WhatsApp e registros de imóveis.
         </p>
       </div>
 
@@ -39,6 +40,9 @@ export default function ConfiguracoesPage() {
           </TabsTrigger>
           <TabsTrigger value="simulador" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
             <Calculator className="w-4 h-4 mr-1.5" /> Simulador
+          </TabsTrigger>
+          <TabsTrigger value="registros-imoveis" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
+            <Landmark className="w-4 h-4 mr-1.5" /> Reg. Imóveis
           </TabsTrigger>
         </TabsList>
 
@@ -85,6 +89,16 @@ export default function ConfiguracoesPage() {
             <h2 className="text-base font-medium text-gray-900 mb-1">Simulador de Custas</h2>
             <p className="text-sm text-gray-500 mb-6">Configure parâmetros de cálculo, tarifas bancárias e alíquotas de ITBI por município.</p>
             <SimuladorConfigTab />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="registros-imoveis">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-medium text-gray-900 mb-1">Registros de Imóveis</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Cadastre os cartórios de Registro de Imóveis utilizados nos processos. Exemplos: 1º RI Maringá, 2º RI Maringá, RI Sarandi.
+            </p>
+            <RegistrosImoveisLista />
           </div>
         </TabsContent>
       </Tabs>
