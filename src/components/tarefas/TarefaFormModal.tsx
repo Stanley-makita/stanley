@@ -186,10 +186,13 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
             <label className="text-xs font-medium text-gray-600 mb-1 block">
               Responsável <span className="text-gray-400 font-normal">(opcional)</span>
             </label>
-            <Select value={responsavel} onValueChange={setResponsavel}>
+            <Select
+              value={responsavel || '__none__'}
+              onValueChange={(v) => setResponsavel(v === '__none__' ? '' : v)}
+            >
               <SelectTrigger className="text-sm h-9"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Nenhum</SelectItem>
+                <SelectItem value="__none__">— Nenhum</SelectItem>
                 {membros.map(m => (
                   <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
                 ))}
