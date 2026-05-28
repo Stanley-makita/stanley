@@ -18,7 +18,7 @@ import { format, isPast, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Plus, CalendarClock, CheckCircle2, Circle, AlertCircle,
-  Loader2, Pencil, Trash2, MessageSquare, Send,
+  Loader2, Pencil, Trash2, MessageSquare, Send, Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
