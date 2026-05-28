@@ -23,9 +23,10 @@ const PRIORIDADE_COLOR: Record<PrioridadeTarefa, string> = {
 interface TarefaCardProps {
   tarefa: TarefaAgenda
   onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead') => void
+  onDetalhes?: (tarefaId: string, fonte: 'processo' | 'lead') => void
 }
 
-export function TarefaCard({ tarefa, onToggle }: TarefaCardProps) {
+export function TarefaCard({ tarefa, onToggle, onDetalhes }: TarefaCardProps) {
   const router = useRouter()
 
   const vencimento = tarefa.tarefa_vencimento ? parseISO(tarefa.tarefa_vencimento) : null
@@ -41,11 +42,17 @@ export function TarefaCard({ tarefa, onToggle }: TarefaCardProps) {
     : 'text-gray-500'
 
   return (
-    <div className={cn(
-      'flex items-start gap-3 p-3 rounded-lg border bg-white hover:shadow-sm transition-shadow',
-      tarefa.concluida && 'opacity-60',
-      estaVencida && !tarefa.concluida && 'border-red-200 bg-red-50/30'
-    )}>
+    <div
+      className={cn(
+        'flex items-start gap-3 p-3 rounded-lg border bg-white hover:shadow-sm transition-shadow cursor-pointer',
+        tarefa.concluida && 'opacity-60',
+        estaVencida && !tarefa.concluida && 'border-red-200 bg-red-50/30'
+      )}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('input,button,a')) return
+        onDetalhes?.(tarefa.tarefa_id, tarefa.fonte)
+      }}
+    >
       {/* Checkbox */}
       <input
         type="checkbox"

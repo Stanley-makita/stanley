@@ -77,7 +77,10 @@ export function useNegociosDashboard() {
           id, titulo, prioridade, concluida, concluida_em,
           data_prazo, vencimento, data_vencimento,
           responsavel_id, criado_por,
-          processo:processos!processo_id (id, nome_imovel, numero_processo)
+          processo:processos!processo_id (
+            id, nome_imovel, numero_processo,
+            compradores:processo_compradores(nome, principal)
+          )
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .eq('concluida', false)
@@ -89,21 +92,28 @@ export function useNegociosDashboard() {
 
       if (error) throw error
 
-      return (data ?? []).map((t: any): TarefaAgenda => ({
-        tarefa_id:            t.id,
-        tarefa_titulo:        t.titulo,
-        tarefa_vencimento:    t.data_prazo ?? t.vencimento ?? t.data_vencimento ?? null,
-        tarefa_prioridade:    t.prioridade,
-        concluida:            t.concluida,
-        concluida_em:         t.concluida_em,
-        processo_id:          t.processo?.id ?? null,
-        processo_nome_imovel: t.processo?.nome_imovel ?? '',
-        processo_numero:      t.processo?.numero_processo ?? '',
-        responsavel_id:       t.responsavel_id ?? t.criado_por,
-        responsavel_nome:     '',
-        fonte:                'processo',
-        lead_id:              null,
-      }))
+      return (data ?? []).map((t: any): TarefaAgenda => {
+        const p = t.processo
+        const nomeComprador =
+          p?.compradores?.find((c: any) => c.principal)?.nome ??
+          p?.compradores?.[0]?.nome ??
+          p?.nome_imovel ?? ''
+        return {
+          tarefa_id:            t.id,
+          tarefa_titulo:        t.titulo,
+          tarefa_vencimento:    t.data_prazo ?? t.vencimento ?? t.data_vencimento ?? null,
+          tarefa_prioridade:    t.prioridade,
+          concluida:            t.concluida,
+          concluida_em:         t.concluida_em,
+          processo_id:          p?.id ?? null,
+          processo_nome_imovel: nomeComprador,
+          processo_numero:      p?.numero_processo ?? '',
+          responsavel_id:       t.responsavel_id ?? t.criado_por,
+          responsavel_nome:     '',
+          fonte:                'processo',
+          lead_id:              null,
+        }
+      })
     },
   })
 

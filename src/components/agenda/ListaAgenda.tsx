@@ -23,6 +23,7 @@ interface ListaAgendaProps {
   onFiltroPrioridadeChange: (v: PrioridadeTarefa | 'todas') => void
   onFiltroPeriodoChange: (v: FiltroPeriodo) => void
   onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead') => void
+  onDetalhes?: (tarefaId: string, fonte: 'processo' | 'lead') => void
 }
 
 const PERIODOS: { value: FiltroPeriodo; label: string }[] = [
@@ -43,6 +44,7 @@ export function ListaAgenda({
   onFiltroPrioridadeChange,
   onFiltroPeriodoChange,
   onToggle,
+  onDetalhes,
 }: ListaAgendaProps) {
   const agora = new Date()
 
@@ -150,7 +152,7 @@ export function ListaAgenda({
           </div>
         ) : (
           filtradas.map((t) => (
-            <TarefaCard key={t.tarefa_id} tarefa={t} onToggle={onToggle} />
+            <TarefaCard key={t.tarefa_id} tarefa={t} onToggle={onToggle} onDetalhes={onDetalhes} />
           ))
         )}
       </div>

@@ -1,13 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { format, parseISO, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Home, CircleDollarSign, FileText, MapPin, AlertCircle, Clock } from 'lucide-react'
 import { useNegociosDashboard } from '@/hooks/negocios/useNegociosDashboard'
+import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
 import { cn } from '@/lib/utils'
 import type { PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
-import type { PrioridadeTarefa } from '@/types/agenda'
+import type { PrioridadeTarefa, TarefaAgenda } from '@/types/agenda'
 
 const PRIORIDADE_TAREFA_COR: Record<PrioridadeTarefa, string> = {
   urgente: 'bg-red-200 text-red-800',
@@ -83,6 +85,7 @@ function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading }: Mod
 export default function NegociosDashboardPage() {
   const { contagens, tarefasHoje, solicitacoes } = useNegociosDashboard()
   const c = contagens.data
+  const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
 
   return (
     <div className="p-6 space-y-6">
@@ -154,17 +157,21 @@ export default function NegociosDashboardPage() {
           ) : (
             <div className="space-y-2">
               {tarefasHoje.data?.map((t) => (
-                <div key={t.tarefa_id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                <button
+                  key={t.tarefa_id}
+                  onClick={() => setTarefaAberta({ id: t.tarefa_id, fonte: t.fonte })}
+                  className="w-full flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{t.tarefa_titulo}</p>
                     <p className="text-xs text-gray-400 truncate mt-0.5">
-                      #{t.processo_numero} · {t.processo_nome_imovel || 'Sem imóvel'}
+                      {t.processo_numero !== 'Lead' ? `#${t.processo_numero} · ` : ''}{t.processo_nome_imovel || 'Sem responsável'}
                     </p>
                   </div>
                   <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0', PRIORIDADE_TAREFA_COR[t.tarefa_prioridade])}>
                     {t.tarefa_prioridade}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -220,6 +227,14 @@ export default function NegociosDashboardPage() {
           )}
         </div>
       </div>
+
+      {tarefaAberta && (
+        <TarefaDetalheModal
+          tarefaId={tarefaAberta.id}
+          fonte={tarefaAberta.fonte}
+          onFechar={() => setTarefaAberta(null)}
+        />
+      )}
     </div>
   )
 }

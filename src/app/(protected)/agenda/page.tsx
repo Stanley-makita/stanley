@@ -13,6 +13,7 @@ import { useConcluirTarefa } from '@/hooks/useConcluirTarefa'
 import { useSolicitacoesFila } from '@/hooks/solicitacoes/useSolicitacoesFila'
 import { CalendarioMensal } from '@/components/agenda/CalendarioMensal'
 import { ListaAgenda, type FiltroPeriodo } from '@/components/agenda/ListaAgenda'
+import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
 import { PrioridadeTarefa } from '@/types/agenda'
 import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -55,6 +56,7 @@ export default function AgendaPage() {
   const [filtroStatus, setFiltroStatus] = useState<'pendentes' | 'concluidas' | 'todas'>('pendentes')
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeTarefa | 'todas'>('todas')
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('todos')
+  const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
 
   const responsavelId = filtroResponsavel === 'todos' ? undefined : filtroResponsavel
 
@@ -151,10 +153,19 @@ export default function AgendaPage() {
               onFiltroPrioridadeChange={setFiltroPrioridade}
               onFiltroPeriodoChange={setFiltroPeriodo}
               onToggle={handleToggle}
+              onDetalhes={(id, fonte) => setTarefaAberta({ id, fonte })}
             />
           )}
         </div>
       </div>
+
+      {tarefaAberta && (
+        <TarefaDetalheModal
+          tarefaId={tarefaAberta.id}
+          fonte={tarefaAberta.fonte}
+          onFechar={() => setTarefaAberta(null)}
+        />
+      )}
 
       {/* Painel operacional — só para perfil operacional */}
       {isOperacional && (

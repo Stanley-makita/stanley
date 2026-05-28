@@ -53,6 +53,8 @@ export function useCriarTarefa(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'tarefas'] })
+      queryClient.invalidateQueries({ queryKey: ['negocios', 'dashboard', 'tarefas-proximas'] })
+      queryClient.invalidateQueries({ queryKey: ['agenda-tarefas'] })
       toast.success('Tarefa criada.', {
         className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
       })

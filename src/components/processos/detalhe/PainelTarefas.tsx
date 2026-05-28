@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { CheckSquare, Plus, AlertTriangle, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
 
 const PRIORIDADE_CONFIG: Record<ProcessoTarefa['prioridade'], { label: string; className: string; icone: React.ElementType }> = {
   urgente: { label: 'Urgente', className: 'text-red-800 bg-red-100',   icone: AlertTriangle },
@@ -22,6 +23,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
   const { data: tarefas = [] } = useProcessoTarefas(processoId)
   const concluirTarefa = useConcluirTarefa(processoId)
   const [aba, setAba] = useState<'pendente' | 'concluida' | 'todas'>('pendente')
+  const [tarefaAbertas, setTarefaAberta] = useState<string | null>(null)
 
   const tarefasFiltradas = tarefas.filter((t) => {
     if (aba === 'todas') return true
@@ -72,6 +74,14 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
         })}
       </div>
 
+      {tarefaAbertas && (
+        <TarefaDetalheModal
+          tarefaId={tarefaAbertas}
+          fonte="processo"
+          onFechar={() => setTarefaAberta(null)}
+        />
+      )}
+
       {/* Lista */}
       <div className="space-y-2">
         {tarefasFiltradas.length === 0 ? (
@@ -83,10 +93,15 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
             return (
               <div
                 key={t.id}
-                className="flex items-start gap-2 p-2.5 bg-white border border-gray-100 rounded-lg"
+                className="flex items-start gap-2 p-2.5 bg-white border border-gray-100 rounded-lg hover:border-[#253B29]/20 cursor-pointer"
+                onClick={(e) => {
+                  // Não abre modal se clicou no checkbox
+                  if ((e.target as HTMLElement).closest('button')) return
+                  setTarefaAberta(t.id)
+                }}
               >
                 <button
-                  onClick={() => t.status !== 'concluida' && concluirTarefa.mutate(t.id)}
+                  onClick={(e) => { e.stopPropagation(); t.status !== 'concluida' && concluirTarefa.mutate(t.id) }}
                   className="mt-0.5 shrink-0"
                 >
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
