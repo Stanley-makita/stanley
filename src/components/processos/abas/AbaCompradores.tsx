@@ -81,7 +81,8 @@ export function AbaCompradores({ processoId }: Props) {
     if (!payload.nome) return
 
     if (editandoId) {
-      await editar.mutateAsync({ id: editandoId, ...payload })
+      const compradorAtual = compradores.find((c) => c.id === editandoId)
+      await editar.mutateAsync({ id: editandoId, pessoa_id: compradorAtual?.pessoa_id ?? null, ...payload })
     } else {
       await adicionar.mutateAsync(payload)
     }

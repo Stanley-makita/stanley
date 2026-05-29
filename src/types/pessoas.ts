@@ -1,4 +1,5 @@
 export type StatusIdentidade = 'provisoria' | 'confirmada' | 'duplicada' | 'arquivada'
+export type EstadoCivilPessoa = 'solteiro' | 'casado' | 'uniao_estavel' | 'divorciado' | 'viuvo'
 
 export type CanalOrigemDocumento = 'whatsapp' | 'upload_manual' | 'email' | 'outros'
 export type OcrStatus = 'pendente' | 'processando' | 'concluido' | 'erro' | 'ignorado'
@@ -15,9 +16,45 @@ export interface Pessoa {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  // Dados pessoais expandidos
+  rg: string | null
+  profissao: string | null
+  estado_civil: EstadoCivilPessoa | null
+  renda_formal: number | null
+  renda_informal: number | null
+  nacionalidade: string | null
+  // Endereço
+  endereco_rua: string | null
+  endereco_numero: string | null
+  endereco_bairro: string | null
+  endereco_cidade: string | null
+  endereco_uf: string | null
+  endereco_cep: string | null
+  // Cônjuge / Companheiro(a)
+  conjuge_nome: string | null
+  conjuge_cpf: string | null
+  conjuge_data_nascimento: string | null
+  conjuge_telefone: string | null
+  conjuge_profissao: string | null
+  conjuge_renda_formal: number | null
+  conjuge_renda_informal: number | null
+  regime_casamento: string | null
   // Joins opcionais
   telefones?: PessoaTelefone[]
   leads?: { id: string; nome: string; status: string; fase: { nome: string } | null }[]
+}
+
+export interface PessoaAlteracao {
+  id: string
+  pessoa_id: string
+  empresa_id: string
+  usuario_id: string | null
+  campos_alterados: string[]
+  valores_anteriores: Record<string, unknown>
+  valores_novos: Record<string, unknown>
+  origem: 'leads' | 'pessoas' | 'processos'
+  alterado_em: string
+  usuario?: { nome: string } | null
 }
 
 export interface PessoaTelefone {

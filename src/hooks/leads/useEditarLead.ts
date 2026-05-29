@@ -45,11 +45,40 @@ export function useEditarLead() {
 
       if (error) throw error
 
-      if (campos.cpf?.trim() && data.pessoa_id) {
-        await supabase
-          .from('pessoas')
-          .update({ cpf: campos.cpf.trim() })
-          .eq('id', data.pessoa_id)
+      // Sincronizar todos os campos sobrepostos com a tabela pessoas
+      if (data.pessoa_id) {
+        const pessoaPayload: Record<string, unknown> = {}
+        if (campos.nome        !== undefined) pessoaPayload.nome             = campos.nome
+        if (campos.email       !== undefined) pessoaPayload.email            = campos.email || null
+        if (campos.cpf         !== undefined) pessoaPayload.cpf              = campos.cpf?.trim() || null
+        if (campos.data_nascimento !== undefined) pessoaPayload.data_nascimento = campos.data_nascimento || null
+        if (campos.rg          !== undefined) pessoaPayload.rg               = campos.rg || null
+        if (campos.profissao   !== undefined) pessoaPayload.profissao        = campos.profissao || null
+        if (campos.estado_civil !== undefined) pessoaPayload.estado_civil    = campos.estado_civil || null
+        if (campos.renda_formal !== undefined) pessoaPayload.renda_formal    = campos.renda_formal ?? null
+        if (campos.renda_informal !== undefined) pessoaPayload.renda_informal = campos.renda_informal ?? null
+        if (campos.conjuge_nome !== undefined) pessoaPayload.conjuge_nome    = campos.conjuge_nome ?? null
+        if (campos.conjuge_cpf  !== undefined) pessoaPayload.conjuge_cpf     = campos.conjuge_cpf ?? null
+        if (campos.conjuge_data_nascimento !== undefined) pessoaPayload.conjuge_data_nascimento = campos.conjuge_data_nascimento ?? null
+        if (campos.regime_casamento !== undefined) pessoaPayload.regime_casamento = campos.regime_casamento ?? null
+
+        if (Object.keys(pessoaPayload).length > 0) {
+          await supabase.from('pessoas').update(pessoaPayload).eq('id', data.pessoa_id)
+
+          // Registrar auditoria
+          const camposAlterados = Object.keys(pessoaPayload)
+          if (camposAlterados.length > 0 && usuario?.id && usuario?.empresa_id) {
+            await supabase.from('pessoas_alteracoes').insert({
+              pessoa_id: data.pessoa_id,
+              empresa_id: usuario.empresa_id,
+              usuario_id: usuario.id,
+              campos_alterados: camposAlterados,
+              valores_anteriores: {},
+              valores_novos: pessoaPayload,
+              origem: 'leads',
+            })
+          }
+        }
       }
 
       return data
@@ -70,6 +99,7 @@ export function useEditarLead() {
       // Pessoas vinculadas ao lead podem ter nome/telefone copiados
       if (data.pessoa_id) {
         queryClient.invalidateQueries({ queryKey: ['pessoa', data.pessoa_id] })
+        queryClient.invalidateQueries({ queryKey: ['pessoas', data.pessoa_id, 'alteracoes'] })
         queryClient.invalidateQueries({ queryKey: ['pessoas', usuario?.empresa_id] })
       }
 

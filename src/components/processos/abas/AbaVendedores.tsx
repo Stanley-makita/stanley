@@ -136,7 +136,10 @@ export function AbaVendedores({ processoId }: Props) {
       conjuge_papel: casado ? ((form.conjuge_papel as 'conjuge' | 'proprietario') || null) : null,
     }
     if (!payload.nome) return
-    if (editandoId) await editar.mutateAsync({ id: editandoId, ...payload })
+    if (editandoId) {
+      const vendedorAtual = vendedores.find((v) => v.id === editandoId)
+      await editar.mutateAsync({ id: editandoId, pessoa_id: vendedorAtual?.pessoa_id ?? null, ...payload })
+    }
     else await adicionar.mutateAsync(payload)
     fecharForm()
   }

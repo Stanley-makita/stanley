@@ -44,14 +44,38 @@ export function useAdicionarComprador(processoId: string) {
 
 export function useEditarComprador(processoId: string) {
   const queryClient = useQueryClient()
+  const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ id, ...input }: Partial<ProcessoComprador> & { id: string }) => {
+    mutationFn: async ({ id, pessoa_id, ...input }: Partial<ProcessoComprador> & { id: string; pessoa_id?: string | null }) => {
       const { error } = await supabase
         .from('processo_compradores')
         .update(input)
         .eq('id', id)
       if (error) throw error
+
+      // Sincronizar campos compartilhados com pessoas
+      if (pessoa_id) {
+        const pessoaPayload: Record<string, unknown> = {}
+        if (input.nome  !== undefined) pessoaPayload.nome  = input.nome
+        if (input.cpf   !== undefined) pessoaPayload.cpf   = input.cpf || null
+        if (input.email !== undefined) pessoaPayload.email = input.email || null
+
+        if (Object.keys(pessoaPayload).length > 0) {
+          await supabase.from('pessoas').update(pessoaPayload).eq('id', pessoa_id)
+          if (usuario?.id && usuario?.empresa_id) {
+            await supabase.from('pessoas_alteracoes').insert({
+              pessoa_id,
+              empresa_id: usuario.empresa_id,
+              usuario_id: usuario.id,
+              campos_alterados: Object.keys(pessoaPayload),
+              valores_anteriores: {},
+              valores_novos: pessoaPayload,
+              origem: 'processos',
+            })
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })

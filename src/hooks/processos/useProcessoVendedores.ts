@@ -43,14 +43,45 @@ export function useAdicionarVendedor(processoId: string) {
 
 export function useEditarVendedor(processoId: string) {
   const queryClient = useQueryClient()
+  const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ id, ...input }: Partial<ProcessoVendedor> & { id: string }) => {
+    mutationFn: async ({ id, pessoa_id, ...input }: Partial<ProcessoVendedor> & { id: string; pessoa_id?: string | null }) => {
       const { error } = await supabase
         .from('processo_vendedores')
         .update(input)
         .eq('id', id)
       if (error) throw error
+
+      // Sincronizar campos compartilhados com pessoas
+      if (pessoa_id) {
+        const pessoaPayload: Record<string, unknown> = {}
+        if (input.nome          !== undefined) pessoaPayload.nome          = input.nome
+        if (input.cpf           !== undefined) pessoaPayload.cpf           = input.cpf || null
+        if (input.email         !== undefined) pessoaPayload.email         = input.email || null
+        if (input.estado_civil  !== undefined) pessoaPayload.estado_civil  = input.estado_civil || null
+        if (input.conjuge_nome  !== undefined) pessoaPayload.conjuge_nome  = input.conjuge_nome || null
+        if (input.conjuge_cpf   !== undefined) pessoaPayload.conjuge_cpf   = input.conjuge_cpf || null
+        if (input.conjuge_data_nasc !== undefined) pessoaPayload.conjuge_data_nascimento = input.conjuge_data_nasc || null
+        if (input.regime_casamento !== undefined) {
+          // processo_vendedores usa conjuge_papel mas pessoas usa regime_casamento via leads
+        }
+
+        if (Object.keys(pessoaPayload).length > 0) {
+          await supabase.from('pessoas').update(pessoaPayload).eq('id', pessoa_id)
+          if (usuario?.id && usuario?.empresa_id) {
+            await supabase.from('pessoas_alteracoes').insert({
+              pessoa_id,
+              empresa_id: usuario.empresa_id,
+              usuario_id: usuario.id,
+              campos_alterados: Object.keys(pessoaPayload),
+              valores_anteriores: {},
+              valores_novos: pessoaPayload,
+              origem: 'processos',
+            })
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'vendedores'] })

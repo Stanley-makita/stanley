@@ -154,6 +154,7 @@ export interface ProcessoVendedor {
   id: string
   processo_id: string
   empresa_id: string
+  pessoa_id?: string | null
   nome: string
   cpf: string | null
   email: string | null
