@@ -25,6 +25,13 @@ const ESTADO_CIVIL_LABELS: Record<string, string> = {
   viuvo:         'Viúvo(a)',
 }
 
+const REGIME_LABELS: Record<string, string> = {
+  comunhao_parcial:   'Comunhão Parcial de Bens',
+  comunhao_total:     'Comunhão Total de Bens',
+  separacao_total:    'Separação Total de Bens',
+  participacao_final: 'Participação Final nos Aquestos',
+}
+
 function fmtMoeda(v: number | null | undefined) {
   if (v == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -197,7 +204,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
                 new Date(lead.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR')
               } />
             )}
-            {lead.regime_casamento && <Campo label="Regime" valor={lead.regime_casamento} />}
+            {lead.regime_casamento && <Campo label="Regime" valor={REGIME_LABELS[lead.regime_casamento] ?? lead.regime_casamento} />}
           </div>
 
           {lead.conjuge_nome && (
