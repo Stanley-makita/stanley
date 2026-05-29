@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from '@/components/ui/sheet'
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -95,11 +95,11 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   }
 
   return (
-    <Sheet open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="text-[#253B29]">Editar Processo</SheetTitle>
-        </SheetHeader>
+    <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
+      <DialogContent className="max-w-md overflow-y-auto max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="text-[#253B29]">Dados do Negócio</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
           {/* Banco */}
@@ -201,7 +201,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             </Button>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

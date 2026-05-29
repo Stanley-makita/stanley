@@ -144,7 +144,7 @@ export default function ProcessoDetalhePage() {
                 className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
                 onClick={() => setNovaTarefaAberta(true)}
               >
-                <Plus className="h-3.5 w-3.5" /> + Tarefa
+                <Plus className="h-3.5 w-3.5" /> Tarefa
               </Button>
 
               {/* Editar Processo */}
@@ -155,7 +155,7 @@ export default function ProcessoDetalhePage() {
                 onClick={() => setEditarProcessoAberto(true)}
               >
                 <DollarSign className="h-3.5 w-3.5" />
-                $ Negócio
+                Negócio
               </Button>
 
               {/* Nova Solicitação */}
