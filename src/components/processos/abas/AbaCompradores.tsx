@@ -94,6 +94,7 @@ export function AbaCompradores({ processoId }: Props) {
   const isPending = adicionar.isPending || editar.isPending
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-[#253B29]">
@@ -256,12 +257,12 @@ export function AbaCompradores({ processoId }: Props) {
         </div>
       )}
     </div>
-
-      <CompletarDadosPessoaDrawer
-        pessoaId={completarDadosId}
-        open={!!completarDadosId}
-        onClose={() => setCompletarDadosId(null)}
-        origemAuditoria="processos"
-      />
+    <CompletarDadosPessoaDrawer
+      pessoaId={completarDadosId}
+      open={!!completarDadosId}
+      onClose={() => setCompletarDadosId(null)}
+      origemAuditoria="processos"
+    />
+    </>
   )
 }
