@@ -404,8 +404,8 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         const camposAlterados: string[] = []
 
         for (const campo of CAMPOS_AUDITADOS) {
-          const anterior = (pessoa as Record<string, unknown>)[campo] ?? null
-          const novo = (payload as Record<string, unknown>)[campo] ?? null
+          const anterior = (pessoa as unknown as Record<string, unknown>)[campo] ?? null
+          const novo = (payload as unknown as Record<string, unknown>)[campo] ?? null
           const anteriorStr = anterior != null ? String(anterior) : null
           const novoStr = novo != null ? String(novo) : null
           if (anteriorStr !== novoStr) {
