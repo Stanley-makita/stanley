@@ -17,6 +17,7 @@ import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
+import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
@@ -86,6 +87,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   const [novoProcessoAberto, setNovoProcessoAberto] = useState(false)
   const [editarAberto, setEditarAberto] = useState(false)
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
+  const [completarDadosAberto, setCompletarDadosAberto] = useState(false)
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
@@ -176,6 +178,17 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       Tarefa
                     </Button>
                   </div>
+                  {lead.pessoa_id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-7 text-xs gap-1 text-[#253B29] border-[#C2AA6A]/50 hover:bg-[#E7E0C4]/40"
+                      onClick={() => setCompletarDadosAberto(true)}
+                    >
+                      <ClipboardList className="h-3 w-3" />
+                      Completar dados
+                    </Button>
+                  )}
 
                   <Button
                     variant="outline"
@@ -319,6 +332,12 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             aberto={editarAberto}
             onFechar={() => setEditarAberto(false)}
             lead={lead}
+          />
+          <CompletarDadosPessoaDrawer
+            pessoaId={lead.pessoa_id ?? null}
+            open={completarDadosAberto}
+            onClose={() => setCompletarDadosAberto(false)}
+            origemAuditoria="leads"
           />
           <NovaSolicitacaoDrawer
             aberto={novaSolicitacaoAberta}

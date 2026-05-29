@@ -11,7 +11,8 @@ import { type ProcessoComprador } from '@/types/processos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, User, X, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, User, X, Check, ClipboardList } from 'lucide-react'
+import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 
 function mascaraCpf(cpf: string | null): string {
   if (!cpf) return '—'
@@ -42,6 +43,7 @@ export function AbaCompradores({ processoId }: Props) {
   const [exibirForm, setExibirForm] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [form, setForm] = useState<FormCompradorState>(FORM_VAZIO)
+  const [completarDadosId, setCompletarDadosId] = useState<string | null>(null)
 
   function abrirFormNovo() {
     setEditandoId(null)
@@ -221,6 +223,17 @@ export function AbaCompradores({ processoId }: Props) {
                 </div>
               </div>
               <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                {c.pessoa_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-[#253B29] hover:bg-[#E7E0C4]/50 gap-1"
+                    onClick={() => setCompletarDadosId(c.pessoa_id!)}
+                  >
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Completar dados
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -243,5 +256,12 @@ export function AbaCompradores({ processoId }: Props) {
         </div>
       )}
     </div>
+
+      <CompletarDadosPessoaDrawer
+        pessoaId={completarDadosId}
+        open={!!completarDadosId}
+        onClose={() => setCompletarDadosId(null)}
+        origemAuditoria="processos"
+      />
   )
 }

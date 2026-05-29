@@ -388,14 +388,39 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         .eq('empresa_id', usuario!.empresa_id)
       if (error) throw error
 
-      // Propagar CPF para leads vinculados
-      if (cpf) {
-        await supabase
-          .from('leads')
-          .update({ cpf })
-          .eq('pessoa_id', params.id)
-          .eq('empresa_id', usuario!.empresa_id)
-      }
+      // Propagar todos os campos compartilhados para leads vinculados
+      await supabase.from('leads').update({
+        nome:                    payload.nome,
+        email:                   payload.email,
+        cpf:                     payload.cpf,
+        data_nascimento:         payload.data_nascimento,
+        rg:                      payload.rg,
+        profissao:               payload.profissao,
+        estado_civil:            payload.estado_civil,
+        renda_formal:            payload.renda_formal,
+        renda_informal:          payload.renda_informal,
+        conjuge_nome:            payload.conjuge_nome,
+        conjuge_cpf:             payload.conjuge_cpf,
+        conjuge_data_nascimento: payload.conjuge_data_nascimento,
+        regime_casamento:        payload.regime_casamento,
+      }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
+
+      // Propagar nome, cpf, email para compradores vinculados
+      await supabase.from('processo_compradores').update({
+        nome:  payload.nome,
+        cpf:   payload.cpf,
+        email: payload.email,
+      }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
+
+      // Propagar para vendedores vinculados
+      await supabase.from('processo_vendedores').update({
+        nome:         payload.nome,
+        cpf:          payload.cpf,
+        email:        payload.email,
+        estado_civil: payload.estado_civil,
+        conjuge_nome: payload.conjuge_nome,
+        conjuge_cpf:  payload.conjuge_cpf,
+      }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
 
       // Registrar auditoria — calcular diff
       if (pessoa) {
@@ -432,6 +457,8 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
       qc.invalidateQueries({ queryKey: ['pessoa', params.id] })
       qc.invalidateQueries({ queryKey: ['pessoas', params.id, 'alteracoes'] })
       qc.invalidateQueries({ queryKey: ['pessoas'] })
+      qc.invalidateQueries({ queryKey: ['leads'] })
+      qc.invalidateQueries({ queryKey: ['processos'] })
       setEditando(false)
       toast.success('Dados atualizados com sucesso')
     },
