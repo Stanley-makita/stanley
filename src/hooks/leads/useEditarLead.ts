@@ -63,6 +63,13 @@ export function useEditarLead() {
         if (campos.regime_casamento !== undefined) pessoaPayload.regime_casamento = campos.regime_casamento ?? null
 
         if (Object.keys(pessoaPayload).length > 0) {
+          // Buscar dados atuais da pessoa para calcular diff real no audit
+          const { data: pessoaAtual } = await supabase
+            .from('pessoas')
+            .select('nome,email,cpf,data_nascimento,rg,profissao,estado_civil,renda_formal,renda_informal,conjuge_nome,conjuge_cpf,conjuge_data_nascimento,regime_casamento')
+            .eq('id', data.pessoa_id)
+            .single()
+
           await supabase.from('pessoas').update(pessoaPayload).eq('id', data.pessoa_id)
 
           // Propagar nome/cpf/email para compradores e vendedores vinculados
@@ -77,16 +84,29 @@ export function useEditarLead() {
               .update(compradorPayload).eq('pessoa_id', data.pessoa_id)
           }
 
-          // Registrar auditoria
-          const camposAlterados = Object.keys(pessoaPayload)
+          // Registrar auditoria — só campos que realmente mudaram
+          const anteriores: Record<string, unknown> = {}
+          const novos: Record<string, unknown> = {}
+          const camposAlterados: string[] = []
+          for (const [campo, novoValor] of Object.entries(pessoaPayload)) {
+            const anteriorValor = (pessoaAtual as Record<string, unknown> | null)?.[campo] ?? null
+            const anteriorStr = anteriorValor != null ? String(anteriorValor) : null
+            const novoStr = novoValor != null ? String(novoValor) : null
+            if (anteriorStr !== novoStr) {
+              camposAlterados.push(campo)
+              anteriores[campo] = anteriorValor
+              novos[campo] = novoValor
+            }
+          }
+
           if (camposAlterados.length > 0 && usuario?.id && usuario?.empresa_id) {
             await supabase.from('pessoas_alteracoes').insert({
               pessoa_id: data.pessoa_id,
               empresa_id: usuario.empresa_id,
               usuario_id: usuario.id,
               campos_alterados: camposAlterados,
-              valores_anteriores: {},
-              valores_novos: pessoaPayload,
+              valores_anteriores: anteriores,
+              valores_novos: novos,
               origem: 'leads',
             })
           }

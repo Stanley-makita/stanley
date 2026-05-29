@@ -102,6 +102,13 @@ export function useEditarComprador(processoId: string) {
 
         if (Object.keys(pessoaPayload).length > 0) {
           await supabase.from('pessoas').update(pessoaPayload).eq('id', resolvedPessoaId)
+
+          // Propagar para leads vinculados
+          await supabase.from('leads')
+            .update(pessoaPayload)
+            .eq('pessoa_id', resolvedPessoaId)
+            .eq('empresa_id', usuario!.empresa_id)
+
           if (usuario?.id && usuario?.empresa_id) {
             await supabase.from('pessoas_alteracoes').insert({
               pessoa_id:          resolvedPessoaId,
