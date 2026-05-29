@@ -117,7 +117,10 @@ export function useEditarComprador(processoId: string) {
       }
     },
     onSuccess: () => {
+      // Invalida compradores E o processo (cujo título lê compradores via JOIN)
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
       toast.success('Comprador atualizado.', { className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
     },
     onError: () => toast.error('Erro ao atualizar comprador.'),

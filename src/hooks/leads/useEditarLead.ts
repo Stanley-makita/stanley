@@ -65,6 +65,18 @@ export function useEditarLead() {
         if (Object.keys(pessoaPayload).length > 0) {
           await supabase.from('pessoas').update(pessoaPayload).eq('id', data.pessoa_id)
 
+          // Propagar nome/cpf/email para compradores e vendedores vinculados
+          const compradorPayload: Record<string, unknown> = {}
+          if (pessoaPayload.nome  !== undefined) compradorPayload.nome  = pessoaPayload.nome
+          if (pessoaPayload.cpf   !== undefined) compradorPayload.cpf   = pessoaPayload.cpf
+          if (pessoaPayload.email !== undefined) compradorPayload.email  = pessoaPayload.email
+          if (Object.keys(compradorPayload).length > 0) {
+            await supabase.from('processo_compradores')
+              .update(compradorPayload).eq('pessoa_id', data.pessoa_id)
+            await supabase.from('processo_vendedores')
+              .update(compradorPayload).eq('pessoa_id', data.pessoa_id)
+          }
+
           // Registrar auditoria
           const camposAlterados = Object.keys(pessoaPayload)
           if (camposAlterados.length > 0 && usuario?.id && usuario?.empresa_id) {
@@ -101,6 +113,8 @@ export function useEditarLead() {
         queryClient.invalidateQueries({ queryKey: ['pessoa', data.pessoa_id] })
         queryClient.invalidateQueries({ queryKey: ['pessoas', data.pessoa_id, 'alteracoes'] })
         queryClient.invalidateQueries({ queryKey: ['pessoas', usuario?.empresa_id] })
+        // Invalidar processos (o título lê compradores via JOIN)
+        queryClient.invalidateQueries({ queryKey: ['processos'] })
       }
 
       toast.success('Lead atualizado.', {
