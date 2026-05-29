@@ -283,7 +283,7 @@ function VendedorCard({ vendedor: v, onEditar, onRemover }: { vendedor: Processo
   const temConjuge = v.conjuge_nome || v.conjuge_cpf
 
   return (
-    <div className="flex items-start justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-colors">
+    <div className="flex items-start justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-colors cursor-pointer" onClick={onEditar}>
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
           <User className="h-4 w-4 text-gray-500" />
@@ -311,7 +311,7 @@ function VendedorCard({ vendedor: v, onEditar, onRemover }: { vendedor: Processo
           )}
         </div>
       </div>
-      <div className="flex gap-1">
+      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-[#253B29]" onClick={onEditar}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>

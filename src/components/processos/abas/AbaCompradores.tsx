@@ -195,7 +195,7 @@ export function AbaCompradores({ processoId }: Props) {
       ) : (
         <div className="space-y-3">
           {compradores.map((c) => (
-            <div key={c.id} className="flex items-start justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-colors">
+            <div key={c.id} className="flex items-start justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-colors cursor-pointer" onClick={() => abrirFormEditar(c)}>
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
                   <User className="h-4 w-4 text-white" />
@@ -219,7 +219,7 @@ export function AbaCompradores({ processoId }: Props) {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-1 shrink-0">
+              <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="icon"
