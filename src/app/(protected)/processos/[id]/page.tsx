@@ -171,6 +171,11 @@ export default function ProcessoDetalhePage() {
             </div>
           </div>
 
+          {processo.nome_imovel && (
+            <p className="text-sm text-[#253B29] ml-11 font-medium">
+              {processo.nome_imovel}
+            </p>
+          )}
           <p className="text-xs text-gray-400 ml-11">
             {processo.numero_processo}
             {processo.banco && ` • ${processo.banco.nome}`}

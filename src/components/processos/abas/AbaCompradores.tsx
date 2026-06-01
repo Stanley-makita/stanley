@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import {
   useProcessoCompradores,
   useAdicionarComprador,
@@ -50,7 +51,7 @@ export function AbaCompradores({ processoId }: Props) {
   const [pessoaId, setPessoaId] = useState<string | null>(null)
   const [novaPessoaAberta, setNovaPessoaAberta] = useState(false)
 
-  function aplicarPessoa(p: PessoaOpcao | PessoaCriada) {
+  async function aplicarPessoa(p: PessoaOpcao | PessoaCriada) {
     setPessoaSelecionada(p)
     setPessoaId(p.id)
     setForm((prev) => ({
@@ -60,6 +61,15 @@ export function AbaCompradores({ processoId }: Props) {
       email:    p.email    ?? prev.email,
       telefone: p.telefone ?? prev.telefone,
     }))
+    const { data } = await supabase
+      .from('pessoas')
+      .select('renda_formal, renda_informal')
+      .eq('id', p.id)
+      .maybeSingle()
+    if (data) {
+      const renda = (data.renda_formal ?? 0) + (data.renda_informal ?? 0)
+      if (renda > 0) setForm((prev) => ({ ...prev, renda_mensal: String(renda) }))
+    }
   }
 
   function abrirFormNovo() {
@@ -70,7 +80,7 @@ export function AbaCompradores({ processoId }: Props) {
     setExibirForm(true)
   }
 
-  function abrirFormEditar(c: ProcessoComprador) {
+  async function abrirFormEditar(c: ProcessoComprador) {
     setEditandoId(c.id)
     setForm({
       nome: c.nome,
@@ -81,6 +91,17 @@ export function AbaCompradores({ processoId }: Props) {
       principal: c.principal,
     })
     setExibirForm(true)
+    if (c.pessoa_id && !c.renda_mensal) {
+      const { data } = await supabase
+        .from('pessoas')
+        .select('renda_formal, renda_informal')
+        .eq('id', c.pessoa_id)
+        .maybeSingle()
+      if (data) {
+        const renda = (data.renda_formal ?? 0) + (data.renda_informal ?? 0)
+        if (renda > 0) setForm((prev) => ({ ...prev, renda_mensal: String(renda) }))
+      }
+    }
   }
 
   function fecharForm() {
