@@ -22,7 +22,7 @@ import {
   useAtualizarChecklistItem,
   useExcluirChecklistItem,
   useReordenarChecklistItens,
-} from '../../_hooks/useChecklistConfig'
+} from '@/hooks/configuracoes/useChecklistConfig'
 import type { ChecklistItemDB } from '@/hooks/processos/useChecklist'
 
 const MODULOS = [
