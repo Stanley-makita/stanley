@@ -78,7 +78,7 @@ export function useChecklistExecucoes(processoId: string) {
         .eq('empresa_id', usuario!.empresa_id)
 
       if (error) throw error
-      return (data ?? []) as ChecklistExecucao[]
+      return (data ?? []) as unknown as ChecklistExecucao[]
     },
   })
 }
