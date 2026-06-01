@@ -455,7 +455,7 @@ function ModalAdicionarCorretor({ open, processoId, onClose, onAdded }: ModalCor
                 <SelectContent>
                   {corretores.map(c => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.nome}{c.empresa ? ` — ${(c.empresa as any).nome}` : ' — Autônomo'}
+                      {c.nome}{c.imobiliaria ? ` — ${(c.imobiliaria as any).nome}` : ' — Autônomo'}
                     </SelectItem>
                   ))}
                 </SelectContent>
