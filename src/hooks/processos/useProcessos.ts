@@ -30,7 +30,9 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
           operacional:usuarios!operacional_id(id, nome, email),
           comercial:usuarios!comercial_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
-          compradores:processo_compradores(nome, cpf, principal)
+          compradores:processo_compradores(nome, cpf, principal),
+          corretores:processo_corretores(id, pessoa_id, nome, telefone, principal),
+          imobiliaria:pessoas!imobiliaria_id(id, nome)
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
@@ -88,7 +90,9 @@ export function useProcesso(processoId: string) {
           juridico:usuarios!juridico_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
           compradores:processo_compradores(id, nome, cpf, principal),
-          vendedores:processo_vendedores(id, nome, cpf)
+          vendedores:processo_vendedores(id, nome, cpf),
+          corretores:processo_corretores(id, pessoa_id, nome, telefone, principal),
+          imobiliaria:pessoas!imobiliaria_id(id, nome)
         `)
         .eq('id', processoId)
         .eq('empresa_id', usuario!.empresa_id)

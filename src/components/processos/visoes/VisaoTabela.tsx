@@ -28,15 +28,17 @@ function formatarCpf(cpf: string | null) {
 }
 
 const EXTRACTORS: Record<string, (p: Processo) => string> = {
-  Operacional: (p) => p.operacional?.nome ?? '',
-  Cliente:     (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
-  Modalidade:  (p) => p.modalidade,
-  Proposta:    (p) => p.numero_proposta ?? '',
-  Banco:       (p) => p.banco?.nome ?? '',
-  Comercial:   (p) => p.comercial?.nome ?? '',
-  Status:      (p) => p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido',
-  Chance:      (p) => p.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza',
-  Assessoria:  (p) => p.tem_assessoria ? 'Sim' : 'Não',
+  Operacional:  (p) => p.operacional?.nome ?? '',
+  Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
+  Modalidade:   (p) => p.modalidade,
+  Proposta:     (p) => p.numero_proposta ?? '',
+  Banco:        (p) => p.banco?.nome ?? '',
+  Comercial:    (p) => p.comercial?.nome ?? '',
+  Status:       (p) => p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido',
+  Chance:       (p) => p.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza',
+  Assessoria:   (p) => p.tem_assessoria ? 'Sim' : 'Não',
+  Corretor:     (p) => (p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.nome ?? '',
+  Imobiliária:  (p) => (p as any).imobiliaria?.nome ?? '',
 }
 
 function getUniqueValues(col: string, processos: Processo[]): string[] {
@@ -195,7 +197,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = 12 + (isGestor ? 2 : 0)
+  const totalColunas = 14 + (isGestor ? 2 : 0)
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos }
 
@@ -278,9 +280,11 @@ export function VisaoTabela({ produtoFixo }: Props) {
                 <FilterHead col="Banco"       {...filterProps}>Banco</FilterHead>
                 <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
                 <StaticHead>Entrada</StaticHead>
-                <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
-                <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
-                <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
+                <FilterHead col="Status"       {...filterProps}>Status</FilterHead>
+                <FilterHead col="Chance"       {...filterProps}>Chance</FilterHead>
+                <FilterHead col="Assessoria"   {...filterProps}>Assessoria</FilterHead>
+                <FilterHead col="Corretor"     {...filterProps}>Corretor</FilterHead>
+                <FilterHead col="Imobiliária"  {...filterProps}>Imobiliária</FilterHead>
                 {isGestor && (
                   <>
                     <StaticHead>Comissão Comercial</StaticHead>
@@ -330,6 +334,12 @@ export function VisaoTabela({ produtoFixo }: Props) {
                         <Badge variant="outline" className={p.tem_assessoria ? 'text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]' : 'text-xs bg-gray-50 text-gray-400'}>
                           {p.tem_assessoria ? 'Sim' : 'Não'}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">
+                        {(p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.nome ?? '—'}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">
+                        {(p as any).imobiliaria?.nome ?? '—'}
                       </TableCell>
                       {isGestor && (
                         <>
