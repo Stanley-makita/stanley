@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Building2, Plus } from 'lucide-react'
+import { Search, Building2, Plus, Pencil } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { ImovelCard } from '@/components/imoveis/ImovelCard'
 import { ImovelFormDrawer } from '@/components/imoveis/ImovelFormDrawer'
 import { useImoveis } from '@/hooks/imoveis/useImoveis'
 import type { Imovel, TipoImovel, CategoriaImovel } from '@/types/imoveis'
@@ -128,12 +128,12 @@ export default function ImoveisPage() {
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      {/* Tabela */}
+      <div className="flex-1 overflow-auto bg-white">
         {isLoading ? (
-          <div className="p-4 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="h-40 rounded-xl" />
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 rounded-lg" />
             ))}
           </div>
         ) : imoveis.length === 0 ? (
@@ -149,11 +149,82 @@ export default function ImoveisPage() {
             </p>
           </div>
         ) : (
-          <div className="p-4 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {imoveis.map((imovel) => (
-              <ImovelCard key={imovel.id} imovel={imovel} onClick={() => abrirEditar(imovel)} />
-            ))}
-          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                <th className="text-left px-4 py-3 font-medium">Endereço</th>
+                <th className="text-left px-4 py-3 font-medium">Tipo</th>
+                <th className="text-left px-4 py-3 font-medium">Categoria</th>
+                <th className="text-left px-4 py-3 font-medium">Condição</th>
+                <th className="text-left px-4 py-3 font-medium">Matrícula</th>
+                <th className="text-left px-4 py-3 font-medium">Área (m²)</th>
+                <th className="text-left px-4 py-3 font-medium">Último processo</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {imoveis.map((imovel) => {
+                const endereco = [
+                  imovel.rua,
+                  imovel.numero,
+                  imovel.bairro,
+                  imovel.cidade,
+                  imovel.uf,
+                ].filter(Boolean).join(', ') || '—'
+
+                return (
+                  <tr
+                    key={imovel.id}
+                    className="border-b hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => abrirEditar(imovel)}
+                  >
+                    <td className="px-4 py-3 max-w-[280px]">
+                      <p className="font-medium text-gray-900 truncate">{endereco}</p>
+                      {imovel.matricula && (
+                        <p className="text-xs text-gray-400 mt-0.5">Matrícula: {imovel.matricula}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {imovel.tipo ? (
+                        <Badge variant="outline" className="text-xs">
+                          {TIPO_IMOVEL_LABELS[imovel.tipo]}
+                        </Badge>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        {CATEGORIA_IMOVEL_LABELS[imovel.categoria]}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {imovel.condicao === 'novo' ? 'Novo' : imovel.condicao === 'usado' ? 'Usado' : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">
+                      {imovel.matricula ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {imovel.area_construida != null ? `${imovel.area_construida} m²` : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {imovel.ultimo_processo ? (
+                        <span className="text-xs text-[#253B29] font-medium">
+                          {imovel.ultimo_processo.numero_processo}
+                        </span>
+                      ) : <span className="text-gray-400 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => abrirEditar(imovel)}
+                        className="text-gray-400 hover:text-[#253B29] transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
