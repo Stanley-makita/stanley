@@ -38,6 +38,7 @@ const MODULO_POR_MODALIDADE: Record<ModalidadeProcesso, string> = {
 interface Props {
   processoId: string
   processo: Processo
+  itensObrigatoriosPendentes?: boolean
 }
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
@@ -133,7 +134,7 @@ function StepperFases({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AbaFases({ processoId, processo }: Props) {
+export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = false }: Props) {
   useAuth()
   const { pode } = usePermissao()
   const { data: historico = [], isLoading } = useProcessoFasesHistorico(processoId)
@@ -209,14 +210,22 @@ export function AbaFases({ processoId, processo }: Props) {
       {podeEditar && (
         <div className="flex items-center justify-between">
           {proximaFase ? (
-            <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
-              onClick={handleAvancar}
-              disabled={avancarFase.isPending}
-            >
-              <ChevronRight className="h-4 w-4" />
-              Avançar para <strong className="ml-0.5">{proximaFase.nome}</strong>
-            </Button>
+            <div className="space-y-1.5">
+              <Button
+                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleAvancar}
+                disabled={avancarFase.isPending || itensObrigatoriosPendentes}
+              >
+                <ChevronRight className="h-4 w-4" />
+                Avançar para <strong className="ml-0.5">{proximaFase.nome}</strong>
+              </Button>
+              {itensObrigatoriosPendentes && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  Complete os itens obrigatórios do checklist antes de avançar.
+                </p>
+              )}
+            </div>
           ) : fases.length > 0 ? (
             <p className="text-sm text-green-700 font-medium flex items-center gap-1.5">
               <Check className="h-4 w-4" /> Todas as fases concluídas
