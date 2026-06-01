@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ChanceBadge } from '../ChanceBadge'
@@ -14,8 +15,6 @@ import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X } from 'lucide-react'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
-const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
-
 function formatarMoeda(v: number | null) {
   if (v == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
@@ -28,7 +27,6 @@ function formatarCpf(cpf: string | null) {
   return cpf
 }
 
-// Extratores de valor por coluna (para filtro e listagem de opções)
 const EXTRACTORS: Record<string, (p: Processo) => string> = {
   Operacional: (p) => p.operacional?.nome ?? '',
   Cliente:     (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
@@ -48,56 +46,75 @@ function getUniqueValues(col: string, processos: Processo[]): string[] {
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
 }
 
-// Cabeçalho com dropdown de filtro
+type DropdownPos = { top: number; left: number }
+
 function FilterHead({
-  col, colFilters, setColFilters, openFilter, setOpenFilter, allProcessos, children,
+  col, colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos, children,
 }: {
   col: string
   colFilters: Record<string, string>
   setColFilters: React.Dispatch<React.SetStateAction<Record<string, string>>>
   openFilter: string | null
   setOpenFilter: (col: string | null) => void
+  dropdownPos: DropdownPos | null
+  setDropdownPos: (pos: DropdownPos | null) => void
   allProcessos: Processo[]
   children: React.ReactNode
 }) {
   const isActive = !!colFilters[col]
   const isOpen = openFilter === col
+  const btnRef = useRef<HTMLButtonElement>(null)
   const unique = useMemo(() => getUniqueValues(col, allProcessos), [col, allProcessos])
-  const ref = useRef<HTMLTableCellElement>(null)
+
+  function handleOpen(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (isOpen) {
+      setOpenFilter(null)
+      setDropdownPos(null)
+    } else {
+      const rect = btnRef.current?.getBoundingClientRect()
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      setOpenFilter(col)
+    }
+  }
 
   function select(val: string) {
     setColFilters(prev => ({ ...prev, [col]: val }))
     setOpenFilter(null)
+    setDropdownPos(null)
   }
-  function clear(e: React.MouseEvent) {
+
+  function clearFilter(e: React.MouseEvent) {
     e.stopPropagation()
     setColFilters(prev => ({ ...prev, [col]: '' }))
   }
 
   return (
-    <TableHead
-      ref={ref}
-      style={{ color: 'white', position: 'relative' }}
-      className="text-xs font-medium whitespace-nowrap"
-    >
+    <TableHead style={{ color: 'white' }} className="text-xs font-medium whitespace-nowrap">
       <button
-        onClick={(e) => { e.stopPropagation(); setOpenFilter(isOpen ? null : col) }}
+        ref={btnRef}
+        onClick={handleOpen}
         className={`flex items-center gap-1 transition-colors ${isActive ? 'text-[#C2AA6A]' : 'text-white hover:text-[#C2AA6A]'}`}
       >
-        {isActive ? <Filter className="h-3 w-3 shrink-0" /> : null}
-        <span>{isActive ? colFilters[col] : children}</span>
+        {isActive && <Filter className="h-3 w-3 shrink-0" />}
+        <span className="max-w-[120px] truncate">{isActive ? colFilters[col] : children}</span>
         {isActive
-          ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={clear} />
+          ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={clearFilter} />
           : <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
         }
       </button>
 
-      {isOpen && (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          <div className="py-1 max-h-56 overflow-y-auto">
+      {/* Dropdown renderizado via portal para não afetar o layout da tabela */}
+      {isOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+          className="min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="max-h-56 overflow-y-auto py-1">
             <button
               onClick={() => select('')}
-              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${!colFilters[col] ? 'text-[#253B29] font-semibold' : 'text-gray-500'}`}
+              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${!colFilters[col] ? 'text-[#253B29] font-semibold' : 'text-gray-500'}`}
             >
               Todos
             </button>
@@ -116,7 +133,8 @@ function FilterHead({
               ))
             }
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </TableHead>
   )
@@ -139,39 +157,36 @@ export function VisaoTabela({ produtoFixo }: Props) {
   const { usuario } = useAuth()
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
-  const [produtoFiltro] = useState<ProdutoFiltro>(produtoFixo ?? 'todos')
-  const [chanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
   const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [openFilter, setOpenFilter] = useState<string | null>(null)
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
     if (!openFilter) return
-    function handleClick() { setOpenFilter(null) }
+    function handleClick() { setOpenFilter(null); setDropdownPos(null) }
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
   }, [openFilter])
 
   const { data: processos = [], isLoading } = useProcessos({
     status: statusFiltro,
-    produto: produtoFiltro,
-    chance: chanceFiltro,
+    produto: produtoFixo ?? 'todos',
+    chance: 'todos',
     busca,
   })
 
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
-  // Aplicar filtros de coluna
   const filteredProcessos = useMemo(() => {
-    return processos.filter(p => {
-      return Object.entries(colFilters).every(([col, val]) => {
+    return processos.filter(p =>
+      Object.entries(colFilters).every(([col, val]) => {
         if (!val) return true
         const ext = EXTRACTORS[col]
-        if (!ext) return true
-        return ext(p) === val
+        return ext ? ext(p) === val : true
       })
-    })
+    )
   }, [processos, colFilters])
 
   const contagemStatus = processos.reduce((acc, p) => {
@@ -182,19 +197,19 @@ export function VisaoTabela({ produtoFixo }: Props) {
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
   const totalColunas = 12 + (isGestor ? 2 : 0)
 
-  const filterHeadProps = { colFilters, setColFilters, openFilter, setOpenFilter, allProcessos: processos }
+  const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos }
 
   return (
-    <div className="space-y-3" onClick={() => setOpenFilter(null)}>
-      {/* Filtros de status + busca */}
+    <div className="space-y-3">
+      {/* Barra de filtros */}
       <div className="flex items-center gap-1.5 flex-wrap">
         {([
-          { label: 'Todos',      value: 'todos' as const },
+          { label: 'Todos',      value: 'todos'      as const },
           { label: 'Em Análise', value: 'em_analise' as const },
-          { label: 'Aprovados',  value: 'aprovado' as const },
-          { label: 'Pendentes',  value: 'pendente' as const },
-          { label: 'Reprovados', value: 'reprovado' as const },
-        ] as const).map((f) => {
+          { label: 'Aprovados',  value: 'aprovado'   as const },
+          { label: 'Pendentes',  value: 'pendente'   as const },
+          { label: 'Reprovados', value: 'reprovado'  as const },
+        ]).map((f) => {
           const count = f.value === 'todos' ? processos.length : (contagemStatus[f.value] ?? 0)
           return (
             <button
@@ -211,17 +226,16 @@ export function VisaoTabela({ produtoFixo }: Props) {
 
         <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
 
-        <div className="relative flex-1 min-w-[160px] max-w-[260px]">
+        <div className="relative min-w-[160px] max-w-[260px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <Input
-            placeholder="Buscar por cliente, CPF ou proposta..."
+            placeholder="Buscar por cliente, CPF..."
             className="pl-8 h-7 text-xs"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
         </div>
 
-        {/* Chips dos filtros ativos */}
         {activeFilters.map(([col, val]) => (
           <span key={col} className="flex items-center gap-1 px-2 py-0.5 bg-[#E7E0C4] text-[#253B29] text-xs rounded-full border border-[#C2AA6A]">
             <span className="opacity-60">{col}:</span> {val}
@@ -232,10 +246,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
         ))}
 
         {activeFilters.length > 1 && (
-          <button
-            onClick={() => setColFilters({})}
-            className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
-          >
+          <button onClick={() => setColFilters({})} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1">
             Limpar tudo
           </button>
         )}
@@ -246,7 +257,6 @@ export function VisaoTabela({ produtoFixo }: Props) {
         </Button>
       </div>
 
-      {/* Contagem filtrada */}
       {activeFilters.length > 0 && (
         <p className="text-xs text-gray-500">
           Mostrando <strong>{filteredProcessos.length}</strong> de {processos.length} processos
@@ -258,23 +268,19 @@ export function VisaoTabela({ produtoFixo }: Props) {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow
-                style={{ backgroundColor: '#253B29' }}
-                className="hover:bg-[#253B29]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <FilterHead col="Operacional" {...filterHeadProps}>Operacional</FilterHead>
-                <FilterHead col="Cliente"     {...filterHeadProps}>Cliente</FilterHead>
+              <TableRow style={{ backgroundColor: '#253B29' }} className="hover:bg-[#253B29]">
+                <FilterHead col="Operacional" {...filterProps}>Operacional</FilterHead>
+                <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
                 <StaticHead>CPF</StaticHead>
-                <FilterHead col="Modalidade"  {...filterHeadProps}>Modalidade</FilterHead>
-                <FilterHead col="Proposta"    {...filterHeadProps}>Proposta</FilterHead>
+                <FilterHead col="Modalidade"  {...filterProps}>Modalidade</FilterHead>
+                <FilterHead col="Proposta"    {...filterProps}>Proposta</FilterHead>
                 <StaticHead>Valor Financiado</StaticHead>
-                <FilterHead col="Banco"       {...filterHeadProps}>Banco</FilterHead>
-                <FilterHead col="Comercial"   {...filterHeadProps}>Comercial</FilterHead>
+                <FilterHead col="Banco"       {...filterProps}>Banco</FilterHead>
+                <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
                 <StaticHead>Entrada</StaticHead>
-                <FilterHead col="Status"      {...filterHeadProps}>Status</FilterHead>
-                <FilterHead col="Chance"      {...filterHeadProps}>Chance</FilterHead>
-                <FilterHead col="Assessoria"  {...filterHeadProps}>Assessoria</FilterHead>
+                <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
+                <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
+                <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
                 {isGestor && (
                   <>
                     <StaticHead>Comissão Comercial</StaticHead>
@@ -286,15 +292,11 @@ export function VisaoTabela({ produtoFixo }: Props) {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">
-                    Carregando...
-                  </TableCell>
+                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">Carregando...</TableCell>
                 </TableRow>
               ) : filteredProcessos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">
-                    Nenhum processo encontrado.
-                  </TableCell>
+                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">Nenhum processo encontrado.</TableCell>
                 </TableRow>
               ) : (
                 filteredProcessos.map((p) => {
@@ -305,74 +307,37 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       className="cursor-pointer hover:bg-[#E7E0C4]/30 transition-colors"
                       onClick={() => router.push(`/processos/${p.id}`)}
                     >
-                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">
-                        {p.operacional?.nome ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium text-[#253B29] whitespace-nowrap max-w-[160px] truncate">
-                        {comprador?.nome ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap font-mono text-xs">
-                        {formatarCpf(comprador?.cpf ?? null)}
-                      </TableCell>
+                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-sm font-medium text-[#253B29] whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-sm text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
+                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
+                      <TableCell className="text-sm font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {p.modalidade}
-                        </Badge>
+                        {p.banco
+                          ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
+                          : <span className="text-gray-400 text-sm">—</span>}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">
-                        {p.numero_proposta ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium whitespace-nowrap">
-                        {formatarMoeda(p.valor_financiado)}
-                      </TableCell>
+                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-BR') : '—'}</TableCell>
                       <TableCell>
-                        {p.banco ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" />
-                            <span className="text-xs whitespace-nowrap">{p.banco.nome}</span>
-                          </div>
-                        ) : <span className="text-gray-400 text-sm">—</span>}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">
-                        {p.comercial?.nome ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">
-                        {p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-BR') : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={p.status_emissao === 'emitido'
-                            ? 'text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap'
-                            : 'text-xs bg-gray-50 text-gray-500 border-gray-200 whitespace-nowrap'}
-                        >
+                        <Badge variant="outline" className={p.status_emissao === 'emitido' ? 'text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap' : 'text-xs bg-gray-50 text-gray-500 border-gray-200 whitespace-nowrap'}>
                           {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
                         </Badge>
                       </TableCell>
+                      <TableCell><ChanceBadge chance={p.chance_emissao} /></TableCell>
                       <TableCell>
-                        <ChanceBadge chance={p.chance_emissao} />
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={p.tem_assessoria
-                            ? 'text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]'
-                            : 'text-xs bg-gray-50 text-gray-400'}
-                        >
+                        <Badge variant="outline" className={p.tem_assessoria ? 'text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]' : 'text-xs bg-gray-50 text-gray-400'}>
                           {p.tem_assessoria ? 'Sim' : 'Não'}
                         </Badge>
                       </TableCell>
                       {isGestor && (
                         <>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {p.comissao_comercial != null
-                              ? <span className="text-[#253B29] font-medium">{p.comissao_comercial}%</span>
-                              : <span className="text-gray-400">—</span>}
+                            {p.comissao_comercial != null ? <span className="text-[#253B29] font-medium">{p.comissao_comercial}%</span> : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {p.comissao_empresa != null
-                              ? <span className="text-[#C2AA6A] font-medium">{p.comissao_empresa}%</span>
-                              : <span className="text-gray-400">—</span>}
+                            {p.comissao_empresa != null ? <span className="text-[#C2AA6A] font-medium">{p.comissao_empresa}%</span> : <span className="text-gray-400">—</span>}
                           </TableCell>
                         </>
                       )}
