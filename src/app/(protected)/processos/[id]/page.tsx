@@ -171,7 +171,7 @@ export default function ProcessoDetalhePage() {
             </div>
           </div>
 
-          {processo.nome_imovel && (
+          {!processo.imovel_id && processo.nome_imovel && (
             <p className="text-sm text-[#253B29] ml-11 font-medium">
               {processo.nome_imovel}
             </p>
