@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ChanceBadge } from '../ChanceBadge'
@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
-import { Download, Search } from 'lucide-react'
-import { type StatusProcesso } from '@/types/processos'
+import { Download, Search, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { type StatusProcesso, type Processo } from '@/types/processos'
 
 const FILTROS_STATUS: { label: string; value: StatusProcesso | 'todos' }[] = [
   { label: 'Todos',      value: 'todos' },
@@ -36,6 +36,20 @@ const FILTROS_CHANCE = [
 
 const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
 
+type SortDir = 'asc' | 'desc'
+
+const SORT_KEYS: Record<string, (p: Processo) => string | number> = {
+  'Operacional':      (p) => p.operacional?.nome ?? '',
+  'Cliente':          (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
+  'Modalidade':       (p) => p.modalidade,
+  'Proposta':         (p) => p.numero_proposta ?? '',
+  'Banco':            (p) => p.banco?.nome ?? '',
+  'Comercial':        (p) => p.comercial?.nome ?? '',
+  'Status':           (p) => p.status_emissao,
+  'Chance':           (p) => p.chance_emissao,
+  'Valor Financiado': (p) => p.valor_financiado ?? 0,
+}
+
 function formatarMoeda(v: number | null) {
   if (v == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
@@ -48,14 +62,55 @@ function formatarCpf(cpf: string | null) {
   return cpf
 }
 
-export function VisaoTabela() {
+function SortableHead({ col, sortCol, sortDir, onSort, children }: {
+  col: string
+  sortCol: string | null
+  sortDir: SortDir
+  onSort: (col: string) => void
+  children: React.ReactNode
+}) {
+  const isActive = sortCol === col
+  return (
+    <TableHead
+      style={{ color: 'white' }}
+      className="text-xs font-medium whitespace-nowrap cursor-pointer select-none hover:bg-[#1a2b1e] transition-colors"
+      onClick={() => onSort(col)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {isActive
+          ? sortDir === 'asc'
+            ? <ChevronUp className="h-3 w-3 shrink-0" />
+            : <ChevronDown className="h-3 w-3 shrink-0" />
+          : <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40" />
+        }
+      </div>
+    </TableHead>
+  )
+}
+
+function StaticHead({ children }: { children: React.ReactNode }) {
+  return (
+    <TableHead style={{ color: 'white' }} className="text-xs font-medium whitespace-nowrap">
+      {children}
+    </TableHead>
+  )
+}
+
+interface Props {
+  produtoFixo?: ProdutoFiltro
+}
+
+export function VisaoTabela({ produtoFixo }: Props) {
   const router = useRouter()
   const { usuario } = useAuth()
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
-  const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>('todos')
+  const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>(produtoFixo ?? 'todos')
   const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
+  const [sortCol, setSortCol] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const { data: processos = [], isLoading } = useProcessos({
     status: statusFiltro,
@@ -65,6 +120,28 @@ export function VisaoTabela() {
   })
 
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+
+  function handleSort(col: string) {
+    if (!SORT_KEYS[col]) return
+    if (sortCol === col) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
+  }
+
+  const sortedProcessos = useMemo(() => {
+    if (!sortCol || !SORT_KEYS[sortCol]) return processos
+    return [...processos].sort((a, b) => {
+      const va = SORT_KEYS[sortCol](a)
+      const vb = SORT_KEYS[sortCol](b)
+      const cmp = typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base' })
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [processos, sortCol, sortDir])
 
   const contagemStatus = processos.reduce((acc, p) => {
     acc[p.status_processo] = (acc[p.status_processo] ?? 0) + 1
@@ -94,7 +171,7 @@ export function VisaoTabela() {
 
   return (
     <div className="space-y-3">
-      {/* Filtros em linha única + exportar */}
+      {/* Filtros */}
       <div className="flex items-center gap-1.5 flex-wrap">
 
         {/* Status */}
@@ -117,25 +194,28 @@ export function VisaoTabela() {
 
         <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
 
-        {/* Produto */}
-        {FILTROS_PRODUTO.map((f) => {
-          const count = contagemProduto[f.value] ?? 0
-          return (
-            <button
-              key={f.value}
-              onClick={() => setProdutoFiltro(produtoFiltro === f.value ? 'todos' : f.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                produtoFiltro === f.value
-                  ? 'bg-[#C2AA6A] text-[#253B29]'
-                  : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
-              }`}
-            >
-              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
-            </button>
-          )
-        })}
-
-        <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
+        {/* Produto — só mostra quando não tem produtoFixo */}
+        {!produtoFixo && (
+          <>
+            {FILTROS_PRODUTO.map((f) => {
+              const count = contagemProduto[f.value] ?? 0
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setProdutoFiltro(produtoFiltro === f.value ? 'todos' : f.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    produtoFiltro === f.value
+                      ? 'bg-[#C2AA6A] text-[#253B29]'
+                      : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
+                </button>
+              )
+            })}
+            <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
+          </>
+        )}
 
         {/* Chance */}
         {FILTROS_CHANCE.map((f) => {
@@ -181,11 +261,24 @@ export function VisaoTabela() {
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: '#253B29' }} className="hover:bg-[#253B29]">
-                {colunas.map((col) => (
-                  <TableHead key={col} style={{ color: 'white' }} className="text-xs font-medium whitespace-nowrap">
-                    {col}
-                  </TableHead>
-                ))}
+                <SortableHead col="Operacional" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Operacional</SortableHead>
+                <SortableHead col="Cliente"     sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Cliente</SortableHead>
+                <StaticHead>CPF</StaticHead>
+                <SortableHead col="Modalidade"       sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Modalidade</SortableHead>
+                <SortableHead col="Proposta"          sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Proposta</SortableHead>
+                <SortableHead col="Valor Financiado"  sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Valor Financiado</SortableHead>
+                <SortableHead col="Banco"             sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Banco</SortableHead>
+                <SortableHead col="Comercial"         sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Comercial</SortableHead>
+                <StaticHead>Entrada</StaticHead>
+                <SortableHead col="Status"  sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Status</SortableHead>
+                <SortableHead col="Chance"  sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Chance</SortableHead>
+                <StaticHead>Assessoria</StaticHead>
+                {isGestor && (
+                  <>
+                    <StaticHead>Comissão Comercial</StaticHead>
+                    <StaticHead>Comissão Empresa</StaticHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -195,14 +288,14 @@ export function VisaoTabela() {
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : processos.length === 0 ? (
+              ) : sortedProcessos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={colunas.length} className="text-center py-8 text-gray-400">
                     Nenhum processo encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                processos.map((p) => {
+                sortedProcessos.map((p) => {
                   const comprador = p.compradores?.find(c => c.principal) ?? p.compradores?.[0] ?? null
                   return (
                     <TableRow
