@@ -5,9 +5,9 @@
 
 // ── Empresas (imobiliárias + construtoras) ──────────────────
 
-export type TipoEmpresa = 'imobiliaria' | 'construtora' | 'ambos'
+export type TipoImobiliaria = 'imobiliaria' | 'construtora' | 'ambos'
 
-export interface Empresa {
+export interface Imobiliaria {
   id: string
   nome: string
   telefone?: string | null
@@ -20,12 +20,12 @@ export interface Empresa {
   atualizado_em: string
 }
 
-export interface EmpresaForm {
+export interface ImobiliariaForm {
   nome: string
   telefone?: string
   email?: string
   cnpj?: string
-  tipo: TipoEmpresa
+  tipo: TipoImobiliaria
   observacao?: string
 }
 
@@ -43,7 +43,7 @@ export interface Corretor {
   criado_em: string
   atualizado_em: string
   // join
-  empresa?: Pick<Empresa, 'id' | 'nome' | 'tipo'> | null
+  imobiliaria?: Pick<Imobiliaria, 'id' | 'nome' | 'tipo'> | null
 }
 
 export interface CorretorForm {
@@ -83,17 +83,17 @@ export interface ParceiroForm {
 
 // ── Vínculos com Processo ────────────────────────────────────
 
-export type PapelEmpresaProcesso = 'imobiliaria' | 'construtora' | 'vendedora'
+export type PapelImobiliariaProcesso = 'imobiliaria' | 'construtora' | 'vendedora'
 export type PapelCorretorProcesso = 'corretor_comprador' | 'corretor_vendedor' | 'corretor_parceiro'
 
-export interface ProcessoEmpresa {
+export interface ProcessoImobiliaria {
   id: string
   processo_id: string
-  empresa_id: string
-  papel: PapelEmpresaProcesso
+  imobiliaria_id: string
+  papel: PapelImobiliariaProcesso
   criado_em: string
   // join
-  empresa?: Empresa
+  imobiliaria?: Imobiliaria
 }
 
 export interface ProcessoCorretor {
@@ -120,20 +120,20 @@ export interface ProcessoParceiro {
 // ── View agregada para o formulário do processo ──────────────
 
 export interface ProcessoParceiroBloco {
-  empresas: ProcessoEmpresa[]
+  imobiliarias: ProcessoImobiliaria[]
   corretores: ProcessoCorretor[]
   parceiros: ProcessoParceiro[]
 }
 
 // ── Labels utilitários ───────────────────────────────────────
 
-export const TIPO_EMPRESA_LABEL: Record<TipoEmpresa, string> = {
+export const TIPO_IMOBILIARIA_LABEL: Record<TipoImobiliaria, string> = {
   imobiliaria: 'Imobiliária',
   construtora: 'Construtora',
   ambos: 'Imobiliária / Construtora',
 }
 
-export const PAPEL_EMPRESA_LABEL: Record<PapelEmpresaProcesso, string> = {
+export const PAPEL_IMOBILIARIA_LABEL: Record<PapelImobiliariaProcesso, string> = {
   imobiliaria: 'Imobiliária',
   construtora: 'Construtora',
   vendedora: 'Vendedora',

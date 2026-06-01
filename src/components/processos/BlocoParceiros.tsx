@@ -37,13 +37,13 @@ import {
 } from 'lucide-react'
 import type {
   Corretor,
-  Empresa,
+  Imobiliaria,
   Parceiro,
   ProcessoCorretor,
-  ProcessoEmpresa,
+  ProcessoImobiliaria,
   ProcessoParceiro,
   PapelCorretorProcesso,
-  PapelEmpresaProcesso,
+  PapelImobiliariaProcesso,
 } from '@/types/parceiros'
 
 // ── Props ────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ const PAPEL_CORRETOR_OPTIONS: { value: PapelCorretorProcesso; label: string }[] 
   { value: 'corretor_parceiro',  label: 'Corretor Parceiro' },
 ]
 
-const PAPEL_EMPRESA_OPTIONS: { value: PapelEmpresaProcesso; label: string }[] = [
+const PAPEL_IMOBILIARIA_OPTIONS: { value: PapelImobiliariaProcesso; label: string }[] = [
   { value: 'imobiliaria', label: 'Imobiliária' },
   { value: 'construtora', label: 'Construtora' },
   { value: 'vendedora',   label: 'Vendedora' },
@@ -73,15 +73,15 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
   const supabase = createClient()
 
   // Estado dos vínculos
-  const [corretores,  setCorretores]  = useState<ProcessoCorretor[]>([])
-  const [empresas,    setEmpresas]    = useState<ProcessoEmpresa[]>([])
-  const [parceiros,   setParceiros]   = useState<ProcessoParceiro[]>([])
+  const [corretores,    setCorretores]    = useState<ProcessoCorretor[]>([])
+  const [imobiliarias,  setImobiliarias]  = useState<ProcessoImobiliaria[]>([])
+  const [parceiros,     setParceiros]     = useState<ProcessoParceiro[]>([])
   const [loading,     setLoading]     = useState(true)
 
   // Estado dos modais
-  const [modalCorretor,  setModalCorretor]  = useState(false)
-  const [modalEmpresa,   setModalEmpresa]   = useState(false)
-  const [modalParceiro,  setModalParceiro]  = useState(false)
+  const [modalCorretor,    setModalCorretor]    = useState(false)
+  const [modalImobiliaria, setModalImobiliaria] = useState(false)
+  const [modalParceiro,    setModalParceiro]    = useState(false)
 
   // ── Busca os vínculos existentes ──────────────────────────
 
@@ -90,20 +90,20 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
     const [resCorr, resEmp, resPar] = await Promise.all([
       supabase
         .from('processo_corretores')
-        .select('*, corretor:corretores(id, nome, telefone, creci, empresa:empresas(id, nome))')
+        .select('*, corretor:corretores(id, nome, telefone, creci, imobiliaria:imobiliarias(id, nome))')
         .eq('processo_id', processoId),
       supabase
-        .from('processo_empresas')
-        .select('*, empresa:empresas(id, nome, tipo)')
+        .from('processo_imobiliarias')
+        .select('*, imobiliaria:imobiliarias(id, nome, tipo)')
         .eq('processo_id', processoId),
       supabase
         .from('processo_parceiros')
         .select('*, parceiro:parceiros(id, nome, telefone, tipo)')
         .eq('processo_id', processoId),
     ])
-    if (resCorr.data) setCorretores(resCorr.data as ProcessoCorretor[])
-    if (resEmp.data)  setEmpresas(resEmp.data as ProcessoEmpresa[])
-    if (resPar.data)  setParceiros(resPar.data as ProcessoParceiro[])
+    if (resCorr.data) setCorretores(resCorr.data as unknown as ProcessoCorretor[])
+    if (resEmp.data)  setImobiliarias(resEmp.data as unknown as ProcessoImobiliaria[])
+    if (resPar.data)  setParceiros(resPar.data as unknown as ProcessoParceiro[])
     setLoading(false)
   }, [processoId, supabase])
 
@@ -116,9 +116,9 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
     setCorretores(prev => prev.filter(c => c.id !== id))
   }
 
-  async function removerEmpresa(id: string) {
-    await supabase.from('processo_empresas').delete().eq('id', id)
-    setEmpresas(prev => prev.filter(e => e.id !== id))
+  async function removerImobiliaria(id: string) {
+    await supabase.from('processo_imobiliarias').delete().eq('id', id)
+    setImobiliarias(prev => prev.filter(e => e.id !== id))
   }
 
   async function removerParceiro(id: string) {
@@ -189,9 +189,9 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
                   <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{vc.corretor?.nome}</p>
-                    {vc.corretor?.empresa && (
+                    {vc.corretor?.imobiliaria && (
                       <p className="text-xs text-muted-foreground truncate">
-                        {(vc.corretor.empresa as any).nome}
+                        {(vc.corretor.imobiliaria as any).nome}
                       </p>
                     )}
                   </div>
@@ -241,18 +241,18 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
               variant="ghost"
               size="sm"
               className="h-7 text-xs gap-1 text-[#253B29]"
-              onClick={() => setModalEmpresa(true)}
+              onClick={() => setModalImobiliaria(true)}
             >
               <Plus className="h-3 w-3" /> Adicionar
             </Button>
           )}
         </div>
 
-        {empresas.length === 0 ? (
+        {imobiliarias.length === 0 ? (
           <p className="text-xs text-muted-foreground italic pl-1">Nenhuma empresa vinculada</p>
         ) : (
           <div className="space-y-1.5">
-            {empresas.map(ve => (
+            {imobiliarias.map(ve => (
               <div
                 key={ve.id}
                 className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2"
@@ -260,7 +260,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
                 <div className="flex items-center gap-2 min-w-0">
                   <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{ve.empresa?.nome}</p>
+                    <p className="text-sm font-medium truncate">{ve.imobiliaria?.nome}</p>
                     <p className="text-xs text-muted-foreground capitalize">{ve.papel}</p>
                   </div>
                 </div>
@@ -269,7 +269,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 shrink-0 ml-2 text-muted-foreground hover:text-destructive"
-                    onClick={() => removerEmpresa(ve.id)}
+                    onClick={() => removerImobiliaria(ve.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -339,10 +339,10 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
         onClose={() => setModalCorretor(false)}
         onAdded={carregarVinculos}
       />
-      <ModalAdicionarEmpresa
-        open={modalEmpresa}
+      <ModalAdicionarImobiliaria
+        open={modalImobiliaria}
         processoId={processoId}
-        onClose={() => setModalEmpresa(false)}
+        onClose={() => setModalImobiliaria(false)}
         onAdded={carregarVinculos}
       />
       <ModalAdicionarParceiro
@@ -383,7 +383,7 @@ function ModalAdicionarCorretor({ open, processoId, onClose, onAdded }: ModalCor
       .select('id, nome, telefone, creci, empresa:empresas(id, nome)')
       .eq('ativo', true)
       .order('nome')
-      .then(({ data }) => { if (data) setCorretores(data as Corretor[]) })
+      .then(({ data }) => { if (data) setCorretores(data as unknown as Corretor[]) })
   }, [open, supabase])
 
   async function salvar() {
@@ -500,18 +500,18 @@ function ModalAdicionarCorretor({ open, processoId, onClose, onAdded }: ModalCor
 // Modal: Adicionar Empresa (Imobiliária / Construtora)
 // ============================================================
 
-interface ModalEmpresaProps {
+interface ModalImobiliariaProps {
   open: boolean
   processoId: string
   onClose: () => void
   onAdded: () => void
 }
 
-function ModalAdicionarEmpresa({ open, processoId, onClose, onAdded }: ModalEmpresaProps) {
+function ModalAdicionarImobiliaria({ open, processoId, onClose, onAdded }: ModalImobiliariaProps) {
   const supabase = createClient()
-  const [empresas, setEmpresas] = useState<Empresa[]>([])
-  const [empresaId, setEmpresaId] = useState('')
-  const [papel, setPapel] = useState<PapelEmpresaProcesso>('imobiliaria')
+  const [imobiliarias, setImobiliarias] = useState<Imobiliaria[]>([])
+  const [imobiliariaId, setImobiliariaId] = useState('')
+  const [papel, setPapel] = useState<PapelImobiliariaProcesso>('imobiliaria')
   const [novoNome, setNovoNome] = useState('')
   const [novoTipo, setNovoTipo] = useState<'imobiliaria' | 'construtora' | 'ambos'>('imobiliaria')
   const [modo, setModo] = useState<'buscar' | 'novo'>('buscar')
@@ -519,28 +519,28 @@ function ModalAdicionarEmpresa({ open, processoId, onClose, onAdded }: ModalEmpr
 
   useEffect(() => {
     if (!open) return
-    supabase.from('empresas').select('id, nome, tipo').eq('ativo', true).order('nome')
-      .then(({ data }) => { if (data) setEmpresas(data as Empresa[]) })
+    supabase.from('imobiliarias').select('id, nome, tipo').eq('ativo', true).order('nome')
+      .then(({ data }) => { if (data) setImobiliarias(data as unknown as Imobiliaria[]) })
   }, [open, supabase])
 
   async function salvar() {
     setSaving(true)
     try {
-      let id = empresaId
+      let id = imobiliariaId
       if (modo === 'novo') {
         const { data, error } = await supabase
-          .from('empresas').insert({ nome: novoNome.trim(), tipo: novoTipo }).select('id').single()
+          .from('imobiliarias').insert({ nome: novoNome.trim(), tipo: novoTipo }).select('id').single()
         if (error || !data) throw error
         id = data.id
       }
       if (!id) return
-      await supabase.from('processo_empresas').insert({ processo_id: processoId, empresa_id: id, papel })
+      await supabase.from('processo_imobiliarias').insert({ processo_id: processoId, imobiliaria_id: id, papel })
       onAdded(); onClose(); resetForm()
     } finally { setSaving(false) }
   }
 
-  function resetForm() { setEmpresaId(''); setPapel('imobiliaria'); setNovoNome(''); setNovoTipo('imobiliaria'); setModo('buscar') }
-  const podeSalvar = modo === 'buscar' ? !!empresaId : novoNome.trim().length > 1
+  function resetForm() { setImobiliariaId(''); setPapel('imobiliaria'); setNovoNome(''); setNovoTipo('imobiliaria'); setModo('buscar') }
+  const podeSalvar = modo === 'buscar' ? !!imobiliariaId : novoNome.trim().length > 1
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); resetForm() } }}>
@@ -555,11 +555,11 @@ function ModalAdicionarEmpresa({ open, processoId, onClose, onAdded }: ModalEmpr
           </div>
           {modo === 'buscar' ? (
             <div className="space-y-2">
-              <Label>Empresa</Label>
-              <Select value={empresaId} onValueChange={setEmpresaId}>
+              <Label>Imobiliária / Construtora</Label>
+              <Select value={imobiliariaId} onValueChange={setImobiliariaId}>
                 <SelectTrigger><SelectValue placeholder="Selecione a empresa…" /></SelectTrigger>
                 <SelectContent>
-                  {empresas.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+                  {imobiliarias.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -583,7 +583,7 @@ function ModalAdicionarEmpresa({ open, processoId, onClose, onAdded }: ModalEmpr
             <Select value={papel} onValueChange={v => setPapel(v as PapelEmpresaProcesso)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PAPEL_EMPRESA_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                {PAPEL_IMOBILIARIA_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -623,7 +623,7 @@ function ModalAdicionarParceiro({ open, processoId, onClose, onAdded }: ModalPar
   useEffect(() => {
     if (!open) return
     supabase.from('parceiros').select('id, nome, telefone, tipo').eq('ativo', true).order('nome')
-      .then(({ data }) => { if (data) setParceiros(data as Parceiro[]) })
+      .then(({ data }) => { if (data) setParceiros(data as unknown as Parceiro[]) })
   }, [open, supabase])
 
   async function salvar() {
