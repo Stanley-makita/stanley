@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ChanceBadge } from '../ChanceBadge'
@@ -11,44 +11,10 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
-import { Download, Search, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { Download, Search, ChevronDown, Filter, X } from 'lucide-react'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
-const FILTROS_STATUS: { label: string; value: StatusProcesso | 'todos' }[] = [
-  { label: 'Todos',      value: 'todos' },
-  { label: 'Em Análise', value: 'em_analise' },
-  { label: 'Aprovados',  value: 'aprovado' },
-  { label: 'Pendentes',  value: 'pendente' },
-  { label: 'Reprovados', value: 'reprovado' },
-]
-
-const FILTROS_PRODUTO: { label: string; value: ProdutoFiltro }[] = [
-  { label: 'Financiamento', value: 'financiamento' },
-  { label: 'Consórcio',     value: 'consorcio' },
-  { label: 'CGI',           value: 'cgi' },
-  { label: 'Contrato',      value: 'contrato' },
-]
-
-const FILTROS_CHANCE = [
-  { label: 'Certeza',   value: 'certeza'   as const },
-  { label: 'Incerteza', value: 'incerteza' as const },
-]
-
 const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
-
-type SortDir = 'asc' | 'desc'
-
-const SORT_KEYS: Record<string, (p: Processo) => string | number> = {
-  'Operacional':      (p) => p.operacional?.nome ?? '',
-  'Cliente':          (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
-  'Modalidade':       (p) => p.modalidade,
-  'Proposta':         (p) => p.numero_proposta ?? '',
-  'Banco':            (p) => p.banco?.nome ?? '',
-  'Comercial':        (p) => p.comercial?.nome ?? '',
-  'Status':           (p) => p.status_emissao,
-  'Chance':           (p) => p.chance_emissao,
-  'Valor Financiado': (p) => p.valor_financiado ?? 0,
-}
 
 function formatarMoeda(v: number | null) {
   if (v == null) return '—'
@@ -62,29 +28,96 @@ function formatarCpf(cpf: string | null) {
   return cpf
 }
 
-function SortableHead({ col, sortCol, sortDir, onSort, children }: {
+// Extratores de valor por coluna (para filtro e listagem de opções)
+const EXTRACTORS: Record<string, (p: Processo) => string> = {
+  Operacional: (p) => p.operacional?.nome ?? '',
+  Cliente:     (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
+  Modalidade:  (p) => p.modalidade,
+  Proposta:    (p) => p.numero_proposta ?? '',
+  Banco:       (p) => p.banco?.nome ?? '',
+  Comercial:   (p) => p.comercial?.nome ?? '',
+  Status:      (p) => p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido',
+  Chance:      (p) => p.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza',
+  Assessoria:  (p) => p.tem_assessoria ? 'Sim' : 'Não',
+}
+
+function getUniqueValues(col: string, processos: Processo[]): string[] {
+  const ext = EXTRACTORS[col]
+  if (!ext) return []
+  const set = new Set(processos.map(ext).filter(Boolean))
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+}
+
+// Cabeçalho com dropdown de filtro
+function FilterHead({
+  col, colFilters, setColFilters, openFilter, setOpenFilter, allProcessos, children,
+}: {
   col: string
-  sortCol: string | null
-  sortDir: SortDir
-  onSort: (col: string) => void
+  colFilters: Record<string, string>
+  setColFilters: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  openFilter: string | null
+  setOpenFilter: (col: string | null) => void
+  allProcessos: Processo[]
   children: React.ReactNode
 }) {
-  const isActive = sortCol === col
+  const isActive = !!colFilters[col]
+  const isOpen = openFilter === col
+  const unique = useMemo(() => getUniqueValues(col, allProcessos), [col, allProcessos])
+  const ref = useRef<HTMLTableCellElement>(null)
+
+  function select(val: string) {
+    setColFilters(prev => ({ ...prev, [col]: val }))
+    setOpenFilter(null)
+  }
+  function clear(e: React.MouseEvent) {
+    e.stopPropagation()
+    setColFilters(prev => ({ ...prev, [col]: '' }))
+  }
+
   return (
     <TableHead
-      style={{ color: 'white' }}
-      className="text-xs font-medium whitespace-nowrap cursor-pointer select-none hover:bg-[#1a2b1e] transition-colors"
-      onClick={() => onSort(col)}
+      ref={ref}
+      style={{ color: 'white', position: 'relative' }}
+      className="text-xs font-medium whitespace-nowrap"
     >
-      <div className="flex items-center gap-1">
-        {children}
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpenFilter(isOpen ? null : col) }}
+        className={`flex items-center gap-1 transition-colors ${isActive ? 'text-[#C2AA6A]' : 'text-white hover:text-[#C2AA6A]'}`}
+      >
+        {isActive ? <Filter className="h-3 w-3 shrink-0" /> : null}
+        <span>{isActive ? colFilters[col] : children}</span>
         {isActive
-          ? sortDir === 'asc'
-            ? <ChevronUp className="h-3 w-3 shrink-0" />
-            : <ChevronDown className="h-3 w-3 shrink-0" />
-          : <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40" />
+          ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={clear} />
+          : <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
         }
-      </div>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 z-50 mt-1 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="py-1 max-h-56 overflow-y-auto">
+            <button
+              onClick={() => select('')}
+              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${!colFilters[col] ? 'text-[#253B29] font-semibold' : 'text-gray-500'}`}
+            >
+              Todos
+            </button>
+            {unique.length === 0
+              ? <p className="px-3 py-2 text-xs text-gray-400">Sem opções</p>
+              : unique.map(val => (
+                <button
+                  key={val}
+                  onClick={() => select(val)}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-[#E7E0C4]/40 transition-colors ${
+                    colFilters[col] === val ? 'text-[#253B29] font-semibold bg-[#E7E0C4]/30' : 'text-gray-700'
+                  }`}
+                >
+                  {val || '—'}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+      )}
     </TableHead>
   )
 }
@@ -106,11 +139,19 @@ export function VisaoTabela({ produtoFixo }: Props) {
   const { usuario } = useAuth()
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
-  const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>(produtoFixo ?? 'todos')
-  const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
+  const [produtoFiltro] = useState<ProdutoFiltro>(produtoFixo ?? 'todos')
+  const [chanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
-  const [sortCol, setSortCol] = useState<string | null>(null)
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [colFilters, setColFilters] = useState<Record<string, string>>({})
+  const [openFilter, setOpenFilter] = useState<string | null>(null)
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    if (!openFilter) return
+    function handleClick() { setOpenFilter(null) }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [openFilter])
 
   const { data: processos = [], isLoading } = useProcessos({
     status: statusFiltro,
@@ -121,70 +162,46 @@ export function VisaoTabela({ produtoFixo }: Props) {
 
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
-  function handleSort(col: string) {
-    if (!SORT_KEYS[col]) return
-    if (sortCol === col) {
-      setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortCol(col)
-      setSortDir('asc')
-    }
-  }
-
-  const sortedProcessos = useMemo(() => {
-    if (!sortCol || !SORT_KEYS[sortCol]) return processos
-    return [...processos].sort((a, b) => {
-      const va = SORT_KEYS[sortCol](a)
-      const vb = SORT_KEYS[sortCol](b)
-      const cmp = typeof va === 'number' && typeof vb === 'number'
-        ? va - vb
-        : String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base' })
-      return sortDir === 'asc' ? cmp : -cmp
+  // Aplicar filtros de coluna
+  const filteredProcessos = useMemo(() => {
+    return processos.filter(p => {
+      return Object.entries(colFilters).every(([col, val]) => {
+        if (!val) return true
+        const ext = EXTRACTORS[col]
+        if (!ext) return true
+        return ext(p) === val
+      })
     })
-  }, [processos, sortCol, sortDir])
+  }, [processos, colFilters])
 
   const contagemStatus = processos.reduce((acc, p) => {
     acc[p.status_processo] = (acc[p.status_processo] ?? 0) + 1
     return acc
   }, {} as Record<string, number>)
 
-  const contagemProduto = processos.reduce((acc, p) => {
-    const mod = p.modalidade
-    if (FINANCIAMENTO_MODS.has(mod)) acc.financiamento = (acc.financiamento ?? 0) + 1
-    else if (mod === 'Consorcio') acc.consorcio = (acc.consorcio ?? 0) + 1
-    else if (mod === 'CGI')       acc.cgi        = (acc.cgi        ?? 0) + 1
-    else if (mod === 'Contrato')  acc.contrato   = (acc.contrato   ?? 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
+  const totalColunas = 12 + (isGestor ? 2 : 0)
 
-  const contagemChance = processos.reduce((acc, p) => {
-    acc[p.chance_emissao] = (acc[p.chance_emissao] ?? 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const colunas = [
-    'Operacional', 'Cliente', 'CPF', 'Modalidade', 'Proposta',
-    'Valor Financiado', 'Banco', 'Comercial', 'Entrada',
-    'Status', 'Chance', 'Assessoria',
-    ...(isGestor ? ['Comissão Comercial', 'Comissão Empresa'] : []),
-  ]
+  const filterHeadProps = { colFilters, setColFilters, openFilter, setOpenFilter, allProcessos: processos }
 
   return (
-    <div className="space-y-3">
-      {/* Filtros */}
+    <div className="space-y-3" onClick={() => setOpenFilter(null)}>
+      {/* Filtros de status + busca */}
       <div className="flex items-center gap-1.5 flex-wrap">
-
-        {/* Status */}
-        {FILTROS_STATUS.map((f) => {
+        {([
+          { label: 'Todos',      value: 'todos' as const },
+          { label: 'Em Análise', value: 'em_analise' as const },
+          { label: 'Aprovados',  value: 'aprovado' as const },
+          { label: 'Pendentes',  value: 'pendente' as const },
+          { label: 'Reprovados', value: 'reprovado' as const },
+        ] as const).map((f) => {
           const count = f.value === 'todos' ? processos.length : (contagemStatus[f.value] ?? 0)
           return (
             <button
               key={f.value}
               onClick={() => setStatusFiltro(f.value)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                statusFiltro === f.value
-                  ? 'bg-[#253B29] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                statusFiltro === f.value ? 'bg-[#253B29] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
@@ -194,50 +211,6 @@ export function VisaoTabela({ produtoFixo }: Props) {
 
         <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
 
-        {/* Produto — só mostra quando não tem produtoFixo */}
-        {!produtoFixo && (
-          <>
-            {FILTROS_PRODUTO.map((f) => {
-              const count = contagemProduto[f.value] ?? 0
-              return (
-                <button
-                  key={f.value}
-                  onClick={() => setProdutoFiltro(produtoFiltro === f.value ? 'todos' : f.value)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                    produtoFiltro === f.value
-                      ? 'bg-[#C2AA6A] text-[#253B29]'
-                      : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
-                </button>
-              )
-            })}
-            <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
-          </>
-        )}
-
-        {/* Chance */}
-        {FILTROS_CHANCE.map((f) => {
-          const count = contagemChance[f.value] ?? 0
-          return (
-            <button
-              key={f.value}
-              onClick={() => setChanceFiltro(chanceFiltro === f.value ? 'todos' : f.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                chanceFiltro === f.value
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100'
-              }`}
-            >
-              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
-            </button>
-          )
-        })}
-
-        <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
-
-        {/* Busca */}
         <div className="relative flex-1 min-w-[160px] max-w-[260px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <Input
@@ -248,31 +221,60 @@ export function VisaoTabela({ produtoFixo }: Props) {
           />
         </div>
 
-        {/* Exportar */}
+        {/* Chips dos filtros ativos */}
+        {activeFilters.map(([col, val]) => (
+          <span key={col} className="flex items-center gap-1 px-2 py-0.5 bg-[#E7E0C4] text-[#253B29] text-xs rounded-full border border-[#C2AA6A]">
+            <span className="opacity-60">{col}:</span> {val}
+            <button onClick={() => setColFilters(prev => ({ ...prev, [col]: '' }))} className="ml-0.5 hover:text-red-500">
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+
+        {activeFilters.length > 1 && (
+          <button
+            onClick={() => setColFilters({})}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
+          >
+            Limpar tudo
+          </button>
+        )}
+
         <Button variant="outline" size="sm" className="gap-1.5 text-gray-600 h-7 text-xs ml-auto">
           <Download className="h-3.5 w-3.5" />
           Exportar
         </Button>
       </div>
 
+      {/* Contagem filtrada */}
+      {activeFilters.length > 0 && (
+        <p className="text-xs text-gray-500">
+          Mostrando <strong>{filteredProcessos.length}</strong> de {processos.length} processos
+        </p>
+      )}
+
       {/* Tabela */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow style={{ backgroundColor: '#253B29' }} className="hover:bg-[#253B29]">
-                <SortableHead col="Operacional" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Operacional</SortableHead>
-                <SortableHead col="Cliente"     sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Cliente</SortableHead>
+              <TableRow
+                style={{ backgroundColor: '#253B29' }}
+                className="hover:bg-[#253B29]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <FilterHead col="Operacional" {...filterHeadProps}>Operacional</FilterHead>
+                <FilterHead col="Cliente"     {...filterHeadProps}>Cliente</FilterHead>
                 <StaticHead>CPF</StaticHead>
-                <SortableHead col="Modalidade"       sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Modalidade</SortableHead>
-                <SortableHead col="Proposta"          sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Proposta</SortableHead>
-                <SortableHead col="Valor Financiado"  sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Valor Financiado</SortableHead>
-                <SortableHead col="Banco"             sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Banco</SortableHead>
-                <SortableHead col="Comercial"         sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Comercial</SortableHead>
+                <FilterHead col="Modalidade"  {...filterHeadProps}>Modalidade</FilterHead>
+                <FilterHead col="Proposta"    {...filterHeadProps}>Proposta</FilterHead>
+                <StaticHead>Valor Financiado</StaticHead>
+                <FilterHead col="Banco"       {...filterHeadProps}>Banco</FilterHead>
+                <FilterHead col="Comercial"   {...filterHeadProps}>Comercial</FilterHead>
                 <StaticHead>Entrada</StaticHead>
-                <SortableHead col="Status"  sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Status</SortableHead>
-                <SortableHead col="Chance"  sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Chance</SortableHead>
-                <StaticHead>Assessoria</StaticHead>
+                <FilterHead col="Status"      {...filterHeadProps}>Status</FilterHead>
+                <FilterHead col="Chance"      {...filterHeadProps}>Chance</FilterHead>
+                <FilterHead col="Assessoria"  {...filterHeadProps}>Assessoria</FilterHead>
                 {isGestor && (
                   <>
                     <StaticHead>Comissão Comercial</StaticHead>
@@ -284,18 +286,18 @@ export function VisaoTabela({ produtoFixo }: Props) {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={colunas.length} className="text-center py-8 text-gray-400">
+                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : sortedProcessos.length === 0 ? (
+              ) : filteredProcessos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={colunas.length} className="text-center py-8 text-gray-400">
+                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">
                     Nenhum processo encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedProcessos.map((p) => {
+                filteredProcessos.map((p) => {
                   const comprador = p.compradores?.find(c => c.principal) ?? p.compradores?.[0] ?? null
                   return (
                     <TableRow
@@ -335,18 +337,14 @@ export function VisaoTabela({ produtoFixo }: Props) {
                         {p.comercial?.nome ?? '—'}
                       </TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap">
-                        {p.data_inicio
-                          ? new Date(p.data_inicio).toLocaleDateString('pt-BR')
-                          : '—'}
+                        {p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-BR') : '—'}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={
-                            p.status_emissao === 'emitido'
-                              ? 'text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap'
-                              : 'text-xs bg-gray-50 text-gray-500 border-gray-200 whitespace-nowrap'
-                          }
+                          className={p.status_emissao === 'emitido'
+                            ? 'text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap'
+                            : 'text-xs bg-gray-50 text-gray-500 border-gray-200 whitespace-nowrap'}
                         >
                           {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
                         </Badge>
@@ -357,11 +355,9 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={
-                            p.tem_assessoria
-                              ? 'text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]'
-                              : 'text-xs bg-gray-50 text-gray-400'
-                          }
+                          className={p.tem_assessoria
+                            ? 'text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]'
+                            : 'text-xs bg-gray-50 text-gray-400'}
                         >
                           {p.tem_assessoria ? 'Sim' : 'Não'}
                         </Badge>
@@ -371,14 +367,12 @@ export function VisaoTabela({ produtoFixo }: Props) {
                           <TableCell className="text-sm whitespace-nowrap">
                             {p.comissao_comercial != null
                               ? <span className="text-[#253B29] font-medium">{p.comissao_comercial}%</span>
-                              : <span className="text-gray-400">—</span>
-                            }
+                              : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {p.comissao_empresa != null
                               ? <span className="text-[#C2AA6A] font-medium">{p.comissao_empresa}%</span>
-                              : <span className="text-gray-400">—</span>
-                            }
+                              : <span className="text-gray-400">—</span>}
                           </TableCell>
                         </>
                       )}
