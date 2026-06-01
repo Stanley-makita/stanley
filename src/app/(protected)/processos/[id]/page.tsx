@@ -7,13 +7,13 @@ import { ProcessoStatusBadge } from '@/components/processos/ProcessoStatusBadge'
 import { PainelComentarios } from '@/components/processos/detalhe/PainelComentarios'
 import { PainelTarefas } from '@/components/processos/detalhe/PainelTarefas'
 import { PainelPendencias } from '@/components/processos/detalhe/PainelPendencias'
-import { PainelChecklist, CHECKLISTS_POR_FASE } from '@/components/processos/detalhe/PainelChecklist'
+import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { EditarProcessoDrawer } from '@/components/processos/EditarProcessoDrawer'
@@ -47,14 +47,9 @@ export default function ProcessoDetalhePage() {
   const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
   const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState('resumo')
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
+  const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
-
-  // Resetar checklist sempre que a fase mudar
-  useEffect(() => {
-    setCheckedItems(new Set())
-  }, [processo?.fase_atual_id])
 
   if (carregando || isLoading) {
     return (
@@ -77,11 +72,6 @@ export default function ProcessoDetalhePage() {
   if (!processo) {
     return <div className="p-6 text-center py-16 text-gray-400">Processo não encontrado.</div>
   }
-
-  // Checklist: calcular pendências obrigatórias da fase atual
-  const faseNome = processo.fase_atual?.nome
-  const itensChecklist = faseNome ? (CHECKLISTS_POR_FASE[faseNome] ?? []) : []
-  const itensObrigatoriosPendentes = itensChecklist.some(i => i.obrigatorio && !checkedItems.has(i.id))
 
   const diasEmAndamento = processo.data_inicio
     ? differenceInDays(new Date(), new Date(processo.data_inicio))
@@ -343,13 +333,9 @@ export default function ProcessoDetalhePage() {
           <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
         </div>
         <PainelChecklist
-          faseNome={processo.fase_atual?.nome}
-          checkedItems={checkedItems}
-          onToggle={(itemId) => setCheckedItems(prev => {
-            const next = new Set(prev)
-            next.has(itemId) ? next.delete(itemId) : next.add(itemId)
-            return next
-          })}
+          processoId={id}
+          faseId={processo.fase_atual_id}
+          onPendenciasChange={setItensObrigatoriosPendentes}
         />
       </div>
     </div>
