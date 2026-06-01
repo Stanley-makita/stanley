@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useProcesso } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ProcessoStatusBadge } from '@/components/processos/ProcessoStatusBadge'
@@ -42,12 +42,13 @@ function formatarMoeda(v: number | null) {
 export default function ProcessoDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { carregando } = useAuth()
   const { data: processo, isLoading, error } = useProcesso(id)
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
   const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
-  const [abaAtiva, setAbaAtiva] = useState('resumo')
+  const [abaAtiva, setAbaAtiva] = useState(searchParams.get('aba') ?? 'resumo')
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { format, parseISO, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Home, CircleDollarSign, FileText, MapPin, AlertCircle, Clock } from 'lucide-react'
@@ -83,9 +84,18 @@ function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading }: Mod
 }
 
 export default function NegociosDashboardPage() {
+  const router = useRouter()
   const { contagens, tarefasHoje, solicitacoes } = useNegociosDashboard()
   const c = contagens.data
   const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
+
+  function navegarParaSolicitacao(s: { processo_id?: string | null; lead_id?: string | null }) {
+    if (s.processo_id) {
+      router.push(`/processos/${s.processo_id}?aba=solicitacoes`)
+    } else if (s.lead_id) {
+      router.push(`/leads?solicitacao=${s.lead_id}`)
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -205,7 +215,7 @@ export default function NegociosDashboardPage() {
                 const slaVencendo = s.sla_at ? isToday(parseISO(s.sla_at)) : false
                 const slaVencido  = s.sla_at ? parseISO(s.sla_at) < new Date() : false
                 return (
-                  <div key={s.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div key={s.id} onClick={() => navegarParaSolicitacao(s)} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-[#E7E0C4]/60 cursor-pointer transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{s.titulo}</p>
                       <p className="text-xs text-gray-400 mt-0.5">

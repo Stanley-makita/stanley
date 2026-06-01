@@ -124,7 +124,7 @@ export function useNegociosDashboard() {
     queryFn: async (): Promise<SolicitacaoOperacional[]> => {
       const { data, error } = await supabase
         .from('solicitacoes_operacionais')
-        .select('id, titulo, tipo, prioridade, status, sla_at, created_at, solicitante:usuarios!solicitante_id(id, nome)')
+        .select('id, titulo, tipo, prioridade, status, sla_at, created_at, lead_id, processo_id, solicitante:usuarios!solicitante_id(id, nome)')
         .eq('empresa_id', usuario!.empresa_id)
         .eq('responsavel_id', usuario!.id)
         .is('deleted_at', null)
