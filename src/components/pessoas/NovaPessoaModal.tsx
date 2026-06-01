@@ -26,12 +26,21 @@ const TIPOS = [
   { value: 'outro',      label: 'Outro' },
 ] as const
 
+export interface PessoaCriada {
+  id: string
+  nome: string
+  cpf: string | null
+  email: string | null
+  telefone: string | null
+}
+
 interface Props {
   aberto: boolean
   onFechar: () => void
+  onSucesso?: (pessoa: PessoaCriada) => void
 }
 
-export function NovaPessoaModal({ aberto, onFechar }: Props) {
+export function NovaPessoaModal({ aberto, onFechar, onSucesso }: Props) {
   const { usuario } = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
@@ -166,13 +175,23 @@ export function NovaPessoaModal({ aberto, onFechar }: Props) {
         if (errTel && errTel.code !== '23505') throw errTel
       }
 
-      return pessoa.id
+      return {
+        id: pessoa.id,
+        nome,
+        cpf:      form.cpf.trim()      || null,
+        email:    form.email.trim()    || null,
+        telefone: form.telefone.trim() || null,
+      } satisfies PessoaCriada
     },
-    onSuccess: (pessoaId) => {
+    onSuccess: (pessoa) => {
       qc.invalidateQueries({ queryKey: ['pessoas', usuario?.empresa_id] })
       toast.success('Pessoa criada com sucesso')
       onFechar()
-      router.push(`/pessoas/${pessoaId}`)
+      if (onSucesso) {
+        onSucesso(pessoa)
+      } else {
+        router.push(`/pessoas/${pessoa.id}`)
+      }
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)

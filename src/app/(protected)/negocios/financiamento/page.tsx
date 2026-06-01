@@ -5,6 +5,7 @@ import { VisaoCards } from '@/components/processos/visoes/VisaoCards'
 import { VisaoTabela } from '@/components/processos/visoes/VisaoTabela'
 import { VisaoEmissoes } from '@/components/processos/visoes/VisaoEmissoes'
 import { ResumoEstoque } from '@/components/processos/ResumoEstoque'
+import { NovoProcessoRapidoModal } from '@/components/processos/NovoProcessoRapidoModal'
 import { Button } from '@/components/ui/button'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { LayoutGrid, Table2, BarChart2, Plus } from 'lucide-react'
@@ -13,6 +14,7 @@ type Visao = 'cards' | 'tabela' | 'emissoes'
 
 export default function FinanciamentoPage() {
   const [visao, setVisao] = useState<Visao>('cards')
+  const [modalAberto, setModalAberto] = useState(false)
   const { pode } = usePermissao()
 
   return (
@@ -44,7 +46,7 @@ export default function FinanciamentoPage() {
           </div>
 
           {pode('processos.criar') && (
-            <Button className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5">
+            <Button className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5" onClick={() => setModalAberto(true)}>
               <Plus className="h-4 w-4" />
               Novo Processo
             </Button>
@@ -60,6 +62,12 @@ export default function FinanciamentoPage() {
           <VisaoEmissoes />
         </>
       )}
+
+      <NovoProcessoRapidoModal
+        aberto={modalAberto}
+        onFechar={() => setModalAberto(false)}
+        moduloInicial="financiamento"
+      />
     </div>
   )
 }
