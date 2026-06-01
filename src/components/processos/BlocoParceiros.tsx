@@ -580,7 +580,7 @@ function ModalAdicionarImobiliaria({ open, processoId, onClose, onAdded }: Modal
             </div>
           )}
           <div className="space-y-2"><Label>Papel no processo</Label>
-            <Select value={papel} onValueChange={v => setPapel(v as PapelEmpresaProcesso)}>
+            <Select value={papel} onValueChange={v => setPapel(v as PapelImobiliariaProcesso)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PAPEL_IMOBILIARIA_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
