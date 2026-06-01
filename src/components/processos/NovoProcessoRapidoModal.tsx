@@ -32,6 +32,14 @@ const MODALIDADE_POR_MODULO: Record<Modulo, ModalidadeProcesso> = {
   registro:      'Registro',
 }
 
+// Mapeia módulo da tela para o módulo de fases no banco
+const FASES_MODULO_POR_MODULO: Record<Modulo, string> = {
+  financiamento: 'processos',
+  consorcio:     'consorcio',
+  contrato:      'contrato',
+  registro:      'registro',
+}
+
 interface Props {
   aberto: boolean
   onFechar: () => void
@@ -69,6 +77,17 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
     const modalidade = MODALIDADE_POR_MODULO[modulo]
     const nomeUsado = nomeImovel.trim() || (pessoa ? `Processo de ${pessoa.nome}` : 'Novo Processo')
 
+    // Buscar primeira fase do módulo para posicionar o processo corretamente no kanban
+    const { data: primeiraFase } = await supabase
+      .from('fases')
+      .select('id')
+      .eq('empresa_id', usuario!.empresa_id)
+      .eq('modulo', FASES_MODULO_POR_MODULO[modulo])
+      .eq('ativo', true)
+      .order('ordem', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
     const processo = await criarProcesso.mutateAsync({
       lead_id:           null,
       pessoa_id:         pessoa?.id ?? null,
@@ -89,7 +108,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
       comercial_id:      comercialId   && comercialId   !== '__nenhum' ? comercialId   : null,
       corretor_nome:     null,
       corretor_creci:    null,
-      fase_atual_id:     null,
+      fase_atual_id:     primeiraFase?.id ?? null,
       data_inicio:       new Date().toISOString().split('T')[0],
     })
 
