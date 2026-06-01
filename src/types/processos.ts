@@ -37,8 +37,6 @@ export interface Processo {
   juridico_id?: string | null
   corretor_nome: string | null
   corretor_creci: string | null
-  // Parceiros
-  imobiliaria_id?: string | null
   // Consórcio
   administradora?: string | null
   grupo_consorcio?: string | null
@@ -77,19 +75,6 @@ export interface Processo {
   fase_atual?: { id: string; nome: string; cor: string | null } | null
   compradores?: { id: string; nome: string; cpf: string | null; principal: boolean }[]
   vendedores?:  { id: string; nome: string; cpf: string | null }[]
-  corretores?:  { id: string; pessoa_id: string | null; nome: string; telefone: string | null; principal: boolean }[]
-  imobiliaria?: { id: string; nome: string } | null
-}
-
-export interface ProcessoCorretor {
-  id: string
-  processo_id: string
-  pessoa_id: string | null
-  empresa_id: string
-  nome: string
-  telefone: string | null
-  principal: boolean
-  created_at: string
 }
 
 export interface ProcessoComentario {

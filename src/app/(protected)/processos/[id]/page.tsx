@@ -188,24 +188,6 @@ export default function ProcessoDetalhePage() {
               {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
             </span>
           </p>
-          {/* Corretor e Imobiliária no header */}
-          {(processo.corretores && processo.corretores.length > 0) || processo.imobiliaria ? (
-            <p className="text-xs text-gray-400 ml-11">
-              {processo.corretores && processo.corretores.length > 0 && (
-                <>
-                  Corretor: <span className="text-[#253B29] font-medium">
-                    {(processo.corretores.find(c => c.principal) ?? processo.corretores[0]).nome}
-                  </span>
-                </>
-              )}
-              {processo.corretores && processo.corretores.length > 0 && processo.imobiliaria && ' • '}
-              {processo.imobiliaria && (
-                <>
-                  Imobiliária: <span className="text-[#253B29] font-medium">{processo.imobiliaria.nome}</span>
-                </>
-              )}
-            </p>
-          ) : null}
         </div>
 
         {/* 4 KPIs */}
@@ -457,8 +439,8 @@ function AbaResumo({
         </div>
       </div>
 
-      {/* Row 3: Parceiros (Corretor + Imobiliária) */}
-      <BlocoParceiros processo={processo} />
+      {/* Row 3: Parceiros (Corretor, Imobiliária, Parceiro Comercial) */}
+      <BlocoParceiros processoId={processo.id} />
 
       {/* Row 4: Assessoria & Contrato + Responsáveis */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
