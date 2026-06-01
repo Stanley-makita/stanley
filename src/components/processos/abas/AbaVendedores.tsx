@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, User, X, Check } from 'lucide-react'
+import { PessoaBuscaCombobox, type PessoaOpcao } from '@/components/processos/PessoaBuscaCombobox'
+import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
 
 const ESTADOS_CIVIS = [
   'SOLTEIRO (A)',
@@ -66,6 +68,9 @@ export function AbaVendedores({ processoId }: Props) {
   const [exibirForm, setExibirForm] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [form, setForm] = useState<FormVendedorState>(FORM_VAZIO)
+  const [pessoaSelecionada, setPessoaSelecionada] = useState<PessoaOpcao | null>(null)
+  const [pessoaId, setPessoaId] = useState<string | null>(null)
+  const [novaPessoaAberta, setNovaPessoaAberta] = useState(false)
 
   const eCasado = ESTADOS_CASADO.has(form.estado_civil)
 
@@ -73,12 +78,23 @@ export function AbaVendedores({ processoId }: Props) {
     setForm((prev) => ({ ...prev, ...field }))
   }
 
+  function aplicarPessoa(p: PessoaOpcao | PessoaCriada) {
+    setPessoaSelecionada(p)
+    setPessoaId(p.id)
+    setForm((prev) => ({
+      ...prev,
+      nome:     p.nome     ?? prev.nome,
+      cpf:      p.cpf      ?? prev.cpf,
+      email:    p.email    ?? prev.email,
+      telefone: p.telefone ?? prev.telefone,
+    }))
+  }
+
   function handleEstadoCivil(valor: string) {
     const casado = ESTADOS_CASADO.has(valor)
     setForm((prev) => ({
       ...prev,
       estado_civil: valor,
-      // Limpa dados do cônjuge se mudar para estado não-casado
       ...((!casado) && {
         conjuge_nome: '', conjuge_cpf: '', conjuge_rg: '',
         conjuge_data_nasc: '', conjuge_papel: '',
@@ -89,6 +105,8 @@ export function AbaVendedores({ processoId }: Props) {
   function abrirFormNovo() {
     setEditandoId(null)
     setForm(FORM_VAZIO)
+    setPessoaSelecionada(null)
+    setPessoaId(null)
     setExibirForm(true)
   }
 
@@ -116,6 +134,8 @@ export function AbaVendedores({ processoId }: Props) {
     setExibirForm(false)
     setEditandoId(null)
     setForm(FORM_VAZIO)
+    setPessoaSelecionada(null)
+    setPessoaId(null)
   }
 
   async function salvar() {
@@ -139,8 +159,9 @@ export function AbaVendedores({ processoId }: Props) {
     if (editandoId) {
       const vendedorAtual = vendedores.find((v) => v.id === editandoId)
       await editar.mutateAsync({ id: editandoId, pessoa_id: vendedorAtual?.pessoa_id ?? null, ...payload })
+    } else {
+      await adicionar.mutateAsync({ ...payload, pessoa_id: pessoaId })
     }
-    else await adicionar.mutateAsync(payload)
     fecharForm()
   }
 
@@ -158,6 +179,18 @@ export function AbaVendedores({ processoId }: Props) {
       {exibirForm && (
         <div className="border border-[#C2AA6A] rounded-xl p-4 bg-[#E7E0C4]/20 space-y-4">
           <p className="text-xs font-semibold text-[#253B29]">{editandoId ? 'Editar vendedor' : 'Novo vendedor'}</p>
+
+          {/* Busca de pessoa — só no modo novo */}
+          {!editandoId && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Buscar pessoa cadastrada</label>
+              <PessoaBuscaCombobox
+                pessoaSelecionada={pessoaSelecionada}
+                onSelect={(p) => { if (p) aplicarPessoa(p); else { setPessoaSelecionada(null); setPessoaId(null) } }}
+                onCriarPessoa={() => setNovaPessoaAberta(true)}
+              />
+            </div>
+          )}
 
           {/* Dados pessoais */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -277,6 +310,12 @@ export function AbaVendedores({ processoId }: Props) {
           ))}
         </div>
       )}
+
+      <NovaPessoaModal
+        aberto={novaPessoaAberta}
+        onFechar={() => setNovaPessoaAberta(false)}
+        onSucesso={(p) => { aplicarPessoa(p); setNovaPessoaAberta(false) }}
+      />
     </div>
   )
 }

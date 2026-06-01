@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, User, X, Check, ClipboardList } from 'lucide-react'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
+import { PessoaBuscaCombobox, type PessoaOpcao } from '@/components/processos/PessoaBuscaCombobox'
+import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
 
 function mascaraCpf(cpf: string | null): string {
   if (!cpf) return '—'
@@ -44,10 +46,27 @@ export function AbaCompradores({ processoId }: Props) {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [form, setForm] = useState<FormCompradorState>(FORM_VAZIO)
   const [completarDadosId, setCompletarDadosId] = useState<string | null>(null)
+  const [pessoaSelecionada, setPessoaSelecionada] = useState<PessoaOpcao | null>(null)
+  const [pessoaId, setPessoaId] = useState<string | null>(null)
+  const [novaPessoaAberta, setNovaPessoaAberta] = useState(false)
+
+  function aplicarPessoa(p: PessoaOpcao | PessoaCriada) {
+    setPessoaSelecionada(p)
+    setPessoaId(p.id)
+    setForm((prev) => ({
+      ...prev,
+      nome:     p.nome     ?? prev.nome,
+      cpf:      p.cpf      ?? prev.cpf,
+      email:    p.email    ?? prev.email,
+      telefone: p.telefone ?? prev.telefone,
+    }))
+  }
 
   function abrirFormNovo() {
     setEditandoId(null)
     setForm(FORM_VAZIO)
+    setPessoaSelecionada(null)
+    setPessoaId(null)
     setExibirForm(true)
   }
 
@@ -68,6 +87,8 @@ export function AbaCompradores({ processoId }: Props) {
     setExibirForm(false)
     setEditandoId(null)
     setForm(FORM_VAZIO)
+    setPessoaSelecionada(null)
+    setPessoaId(null)
   }
 
   async function salvar() {
@@ -86,7 +107,7 @@ export function AbaCompradores({ processoId }: Props) {
       const compradorAtual = compradores.find((c) => c.id === editandoId)
       await editar.mutateAsync({ id: editandoId, pessoa_id: compradorAtual?.pessoa_id ?? null, ...payload })
     } else {
-      await adicionar.mutateAsync(payload)
+      await adicionar.mutateAsync({ ...payload, pessoa_id: pessoaId })
     }
     fecharForm()
   }
@@ -116,6 +137,19 @@ export function AbaCompradores({ processoId }: Props) {
           <p className="text-xs font-semibold text-[#253B29]">
             {editandoId ? 'Editar comprador' : 'Novo comprador'}
           </p>
+
+          {/* Busca de pessoa — só no modo novo */}
+          {!editandoId && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Buscar pessoa cadastrada</label>
+              <PessoaBuscaCombobox
+                pessoaSelecionada={pessoaSelecionada}
+                onSelect={(p) => { if (p) aplicarPessoa(p); else setPessoaSelecionada(null) }}
+                onCriarPessoa={() => setNovaPessoaAberta(true)}
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
               <label className="text-xs text-gray-500 mb-1 block">Nome *</label>
@@ -262,6 +296,11 @@ export function AbaCompradores({ processoId }: Props) {
       open={!!completarDadosId}
       onClose={() => setCompletarDadosId(null)}
       origemAuditoria="processos"
+    />
+    <NovaPessoaModal
+      aberto={novaPessoaAberta}
+      onFechar={() => setNovaPessoaAberta(false)}
+      onSucesso={(p) => { aplicarPessoa(p); setNovaPessoaAberta(false) }}
     />
     </>
   )
