@@ -13,7 +13,7 @@ export interface Imobiliaria {
   telefone?: string | null
   email?: string | null
   cnpj?: string | null
-  tipo: TipoEmpresa
+  tipo: TipoImobiliaria
   observacao?: string | null
   ativo: boolean
   criado_em: string
