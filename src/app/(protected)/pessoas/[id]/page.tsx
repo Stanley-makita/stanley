@@ -242,6 +242,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   const [abaAtiva, setAbaAtiva] = useState<'telefones' | 'leads' | 'conversas' | 'processos'>('telefones')
   const [editando, setEditando] = useState(false)
   const [form, setForm] = useState({
+    telefone: '',
     nome: '', email: '', cpf: '', data_nascimento: '', observacoes: '', tipo: '',
     rg: '', profissao: '', estado_civil: '', renda_formal: '', renda_informal: '',
     nacionalidade: '',
@@ -379,6 +380,25 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         conjuge_renda_formal:    eCasadoForm && dados.conjuge_renda_formal ? Number(dados.conjuge_renda_formal) : null,
         conjuge_renda_informal:  eCasadoForm && dados.conjuge_renda_informal ? Number(dados.conjuge_renda_informal) : null,
         regime_casamento:        eCasadoForm ? (dados.regime_casamento || null) : null,
+      }
+
+      // Atualizar telefone principal
+      const telefoneVal = dados.telefone.trim()
+      const telAtivos = (pessoa?.pessoa_telefones ?? []).filter((t) => t.ativo)
+      const telPrincipal = telAtivos.find((t) => t.principal) ?? telAtivos[0]
+      if (telefoneVal) {
+        if (telPrincipal) {
+          if (telPrincipal.telefone !== telefoneVal) {
+            await supabase.from('pessoa_telefones').update({ telefone: telefoneVal }).eq('id', telPrincipal.id)
+          }
+        } else {
+          await supabase.from('pessoa_telefones').insert({
+            pessoa_id: params.id, empresa_id: usuario!.empresa_id,
+            telefone: telefoneVal, principal: true, whatsapp: true, ativo: true,
+          })
+        }
+        await supabase.from('processo_compradores').update({ telefone: telefoneVal }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
+        await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
       }
 
       const { error } = await supabase
@@ -541,7 +561,10 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   function iniciarEdicao() {
     if (!pessoa) return
     const lead = pessoa.leads[0] ?? null
+    const telAtivos = pessoa.pessoa_telefones.filter((t) => t.ativo)
+    const telPrincipal = telAtivos.find((t) => t.principal) ?? telAtivos[0]
     setForm({
+      telefone: telPrincipal?.telefone ?? '',
       nome: pessoa.nome,
       email: pessoa.email ?? lead?.email ?? '',
       cpf: pessoa.cpf ?? lead?.cpf ?? '',
@@ -672,6 +695,10 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">E-mail</label>
                   <Input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="email@exemplo.com" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Telefone principal</label>
+                  <Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} placeholder="5544999990000" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">CPF</label>

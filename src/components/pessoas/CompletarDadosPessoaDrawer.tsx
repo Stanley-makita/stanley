@@ -29,6 +29,7 @@ const REGIMES = [
 ]
 
 type FormState = {
+  telefone: string
   nome: string; email: string; cpf: string; data_nascimento: string
   rg: string; profissao: string; estado_civil: string
   renda_formal: string; renda_informal: string; nacionalidade: string
@@ -41,6 +42,7 @@ type FormState = {
 }
 
 const VAZIO: FormState = {
+  telefone: '',
   nome: '', email: '', cpf: '', data_nascimento: '', rg: '', profissao: '',
   estado_civil: '', renda_formal: '', renda_informal: '', nacionalidade: '',
   endereco_rua: '', endereco_numero: '', endereco_bairro: '', endereco_cidade: '',
@@ -76,7 +78,8 @@ export function CompletarDadosPessoaDrawer({
           rg, profissao, estado_civil, renda_formal, renda_informal, nacionalidade,
           endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
           conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
-          conjuge_renda_formal, conjuge_renda_informal, regime_casamento`)
+          conjuge_renda_formal, conjuge_renda_informal, regime_casamento,
+          pessoa_telefones(id, telefone, principal, whatsapp, ativo)`)
         .eq('id', pessoaId!)
         .single()
       if (error) throw error
@@ -86,7 +89,11 @@ export function CompletarDadosPessoaDrawer({
 
   useEffect(() => {
     if (pessoa && open) {
+      const tels = (pessoa as any).pessoa_telefones ?? []
+      const telAtivos = tels.filter((t: any) => t.ativo)
+      const telPrincipal = telAtivos.find((t: any) => t.principal) ?? telAtivos[0]
       setForm({
+        telefone:                telPrincipal?.telefone ?? '',
         nome:                    pessoa.nome ?? '',
         email:                   pessoa.email ?? '',
         cpf:                     pessoa.cpf ?? '',
@@ -146,6 +153,27 @@ export function CompletarDadosPessoaDrawer({
         conjuge_renda_formal:    eCasado && form.conjuge_renda_formal ? Number(form.conjuge_renda_formal) : null,
         conjuge_renda_informal:  eCasado && form.conjuge_renda_informal ? Number(form.conjuge_renda_informal) : null,
         regime_casamento:        eCasado ? (form.regime_casamento || null) : null,
+      }
+
+      // 0. Atualizar telefone principal
+      const telefoneVal = form.telefone.trim()
+      if (telefoneVal) {
+        const tels = (pessoa as any)?.pessoa_telefones ?? []
+        const telAtivos = tels.filter((t: any) => t.ativo)
+        const telPrincipal = telAtivos.find((t: any) => t.principal) ?? telAtivos[0]
+        if (telPrincipal) {
+          if (telPrincipal.telefone !== telefoneVal) {
+            await supabase.from('pessoa_telefones').update({ telefone: telefoneVal }).eq('id', telPrincipal.id)
+          }
+        } else {
+          await supabase.from('pessoa_telefones').insert({
+            pessoa_id: pessoaId, empresa_id: usuario.empresa_id,
+            telefone: telefoneVal, principal: true, whatsapp: true, ativo: true,
+          })
+        }
+        // Propagar telefone para compradores e leads vinculados
+        await supabase.from('processo_compradores').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
+        await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
       }
 
       // 1. Atualizar pessoas
@@ -246,6 +274,10 @@ export function CompletarDadosPessoaDrawer({
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">E-mail</label>
                 <Input value={form.email} onChange={(e) => f({ email: e.target.value })} placeholder="email@exemplo.com" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Telefone principal</label>
+                <Input value={form.telefone} onChange={(e) => f({ telefone: e.target.value })} placeholder="5544999990000" />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Profissão</label>
