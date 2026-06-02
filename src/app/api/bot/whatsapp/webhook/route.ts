@@ -4,7 +4,8 @@ import { processarMensagem, gerarSaudacaoReativacao } from '@/lib/bot/agente'
 import type { MensagemHistorico } from '@/lib/bot/agente'
 import { processarEstado } from '@/lib/bot/state-machine'
 import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
-import { estaEmHorarioAtendimento } from '@/lib/horarioAtendimento'
+import { carregarBotConfig } from '@/lib/bot/bot-config'
+import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
 
 const supabase = createClient(
@@ -219,6 +220,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Configuração incompleta' }, { status: 500 })
   }
 
+  // Carrega configuração dinâmica do agente Fonti (fallback para defaults se não existir)
+  const botConfig = await carregarBotConfig(supabase, empresa_id)
+
   // ── Mensagens de grupo ──────────────────────────────────────────────────────
   if (msg?.isGroup) {
     const grupoId = msg.chatid ?? ''
@@ -321,7 +325,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Se humano assumiu mas está fora do horário de atendimento → bot reassume
-    if (!bot_ativo && !estaEmHorarioAtendimento()) {
+    if (!bot_ativo && !estaEmHorarioConfig(botConfig)) {
       await supabase.from('conversas')
         .update({ bot_ativo: true, status: 'ativo' })
         .eq('id', conversa_id)
@@ -403,7 +407,7 @@ export async function POST(request: NextRequest) {
 
   // Se bot foi reativado automaticamente, envia saudação contextualizada e encerra
   if (reativandoBot) {
-    const saudacao = await gerarSaudacaoReativacao(historico, nomeContato ?? 'cliente', texto.trim())
+    const saudacao = await gerarSaudacaoReativacao(historico, nomeContato ?? 'cliente', texto.trim(), botConfig)
     await supabase.from('mensagens').insert({ conversa_id, origem: 'bot', conteudo: saudacao })
     await enviarMensagemUazapi(telefone, saudacao)
     return NextResponse.json({ ok: true })
@@ -422,8 +426,11 @@ export async function POST(request: NextRequest) {
   const botEstadoAtual: BotEstado = (conversaExistente as { bot_estado?: string } | null)?.bot_estado as BotEstado ?? 'INICIO'
   const botDadosAtuais: BotDados = (conversaExistente as { bot_dados?: BotDados } | null)?.bot_dados ?? {}
 
+  // clienteNovo = não tem contexto carregado (nunca entrou em contato antes)
+  const clienteNovo = !contextoCliente
+
   // Roda a state machine de forma determinística
-  const transicao = processarEstado(botEstadoAtual, botDadosAtuais, texto.trim())
+  const transicao = processarEstado(botEstadoAtual, botDadosAtuais, texto.trim(), clienteNovo)
 
   // Extração teve sucesso se o estado ou o campo aguardado avançou
   const extraidoComSucesso =
@@ -453,7 +460,7 @@ export async function POST(request: NextRequest) {
   // Processa com agente Claude (gera texto natural baseado no estado)
   let resultado
   try {
-    resultado = await processarMensagem(texto.trim(), historico, telefone, contextoCliente, transicao, extraidoComSucesso)
+    resultado = await processarMensagem(texto.trim(), historico, telefone, contextoCliente, transicao, extraidoComSucesso, botConfig)
   } catch (err) {
     console.error('[whatsapp] Erro no agente:', err)
     return NextResponse.json({ ok: true })
@@ -546,9 +553,18 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Bot coletou nome real → confirma identidade da pessoa provisória
+        // Bot coletou nome real → confirma identidade e atualiza CPF/data_nascimento
         if (pessoaId) {
           await confirmarIdentidadePessoa(pessoaId, nome)
+
+          const camposExtras: Record<string, unknown> = {}
+          const { cpf, data_nascimento } = transicao.novosDados
+          if (cpf)             camposExtras.cpf             = cpf
+          if (data_nascimento) camposExtras.data_nascimento = data_nascimento
+
+          if (Object.keys(camposExtras).length > 0) {
+            await supabase.from('pessoas').update(camposExtras).eq('id', pessoaId)
+          }
         }
       } catch (err) {
         console.error('[whatsapp] Erro inesperado ao criar lead:', err)

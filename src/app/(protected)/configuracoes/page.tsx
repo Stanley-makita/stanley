@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck } from 'lucide-react'
+import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck, Bot } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
 import { ProdutosLista } from './_components/produtos/ProdutosLista'
@@ -8,6 +8,7 @@ import { InstanciasLista } from './_components/instancias/InstanciasLista'
 import { SimuladorConfigTab } from './_components/simulador/SimuladorConfigTab'
 import { RegistrosImoveisLista } from './_components/registros-imoveis/RegistrosImoveisLista'
 import { ChecklistsConfig } from './_components/checklists/ChecklistsConfig'
+import { AgenteFontiConfig } from './_components/bot/AgenteFontiConfig'
 
 export default function ConfiguracoesPage() {
   return (
@@ -47,6 +48,9 @@ export default function ConfiguracoesPage() {
           </TabsTrigger>
           <TabsTrigger value="checklists" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
             <ClipboardCheck className="w-4 h-4 mr-1.5" /> Checklists
+          </TabsTrigger>
+          <TabsTrigger value="agente-fonti" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
+            <Bot className="w-4 h-4 mr-1.5" /> Agente Fonti
           </TabsTrigger>
         </TabsList>
 
@@ -113,6 +117,16 @@ export default function ConfiguracoesPage() {
               Configure os itens de verificação de cada fase. Itens obrigatórios bloqueiam o avanço de fase no processo.
             </p>
             <ChecklistsConfig />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="agente-fonti">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-medium text-gray-900 mb-1">Agente Fonti</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Personalize o comportamento do assistente virtual no WhatsApp — nome, horário, produtos e mensagens.
+            </p>
+            <AgenteFontiConfig />
           </div>
         </TabsContent>
       </Tabs>

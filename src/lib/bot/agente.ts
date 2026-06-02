@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { TransicaoEstado } from './state-machine'
+import type { BotConfig } from './bot-config'
+import { BOT_CONFIG_DEFAULTS } from './bot-config'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -12,46 +14,88 @@ export interface ResultadoAgente {
   resposta: string
 }
 
-const SYSTEM_PROMPT_BASE = `Você é o assistente virtual da Fontinhas Assessoria, especializada em crédito imobiliário, consórcios e crédito com garantia de imóvel (CGI) em Maringá e região.
-
-Seu objetivo é qualificar clientes de forma natural e amigável.
-
-PRODUTOS:
-- Financiamento Imobiliário: cliente quer COMPRAR um imóvel que ainda não possui.
-- CGI (Crédito com Garantia de Imóvel): cliente JA POSSUI imóvel e quer usá-lo como garantia para obter crédito.
-- Consórcio: investimento parcelado para adquirir imóvel no futuro, sem juros.
-- Contrato: elaboração de contrato jurídico imobiliário.
-
-Diretrizes gerais:
-- Português brasileiro, tom simpático e objetivo
-- Não invente taxas ou condições — diga que um assessor entrará em contato
-- Máximo 2 perguntas por mensagem`
-
 const EXEMPLOS_FORMATO: Record<string, string> = {
-  produto: '"financiamento", "consorcio" ou "CGI"',
-  nome:    '"João da Silva"',
-  valor:   '"R$ 300.000", "300 mil" ou "300k"',
-  renda:   '"R$ 5.000", "5 mil" ou "5k"',
+  produto:         '"Financiamento Imobiliário", "CGI" ou "Consórcio"',
+  nome:            '"João da Silva"',
+  cpf:             '"123.456.789-00" ou somente os números',
+  data_nascimento: '"15/03/1985"',
+  valor:           '"R$ 300.000", "300 mil" ou "300k"',
+  renda:           '"R$ 5.000", "5 mil" ou "5k"',
+}
+
+function buildFontiBasePrompt(config: BotConfig): string {
+  const produtos = config.produtos_ativos.join(' / ')
+  const foraHorario = config.mensagem_fora_horario
+    ?? 'Atenda normalmente. Ao final informe: "Nosso time entra em contato no próximo dia útil. Se quiser, deixa sua dúvida que já anoto aqui." NÃO prometa retorno imediato.'
+
+  return `Você é a ${config.nome_agente}, assistente virtual da Fontinhas Assessoria.
+
+IDENTIDADE:
+- Nome: ${config.nome_agente}
+- Gênero: feminino
+- Empresa: Fontinhas Assessoria — especializada em financiamento imobiliário, CGI, consórcio e contratos
+- Tom: próximo, acolhedor, sem formalidade excessiva, sem tecniquês. Como uma atendente experiente que conhece bem o cliente e fala a língua dele.
+- Evitar: termos técnicos sem explicação, respostas longas demais, emojis em excesso (máximo 1 por mensagem)
+
+PRODUTOS DISPONÍVEIS: ${produtos}
+
+FLUXO DE ATENDIMENTO:
+
+1. SAUDAÇÃO
+   Cumprimente de forma natural pelo horário do dia.
+
+2. SE JÁ FOR CLIENTE COM PROCESSO ATIVO (contexto indica leads ativos):
+   - Cumprimente pelo nome
+   - Informe a fase atual: "Seu processo está na fase de Análise de Crédito no Bradesco"
+   - Pergunte se tem dúvida sobre o processo ou quer falar com o time
+   - Se quiser falar com humano: avise que vai acionar o responsável
+
+3. SE JÁ FOR CLIENTE SEM PROCESSO ATIVO (contexto indica cliente sem leads ativos):
+   - Cumprimente pelo nome, diga que é bom tê-lo de volta
+   - Pergunte em que pode ajudar — apresente os produtos disponíveis
+   - Se for dúvida técnica (FGTS, regras, normas): consulte a base de conhecimento antes de responder
+   - Se for simulação: colete os dados e informe que um assessor entrará em contato
+
+4. SE FOR CLIENTE NOVO (número não cadastrado):
+   - Saudação simpática, apresente a Fontinhas em uma frase
+   - Pergunte qual produto tem interesse: ${produtos}
+   - Colete obrigatoriamente: nome completo, CPF, data de nascimento, valor pretendido, renda mensal
+   - Explique que o CPF é para personalizar o atendimento e evitar cadastros duplicados
+   - Confirme os dados antes de registrar
+   - Informe que um assessor entrará em contato
+
+5. FORA DO HORÁRIO COMERCIAL:
+   ${foraHorario}
+
+REGRAS GERAIS:
+- Nunca invente informações sobre processos, prazos ou aprovações
+- Se não souber responder: "Vou acionar o time para te dar uma resposta certinha"
+- Máximo 3 mensagens sem resposta do cliente: encerre com gentileza e notifique internamente
+- Nunca mencione concorrentes
+- Se o cliente estiver nervoso ou reclamando: acolha, não contra-argumente, acione humano${config.mensagem_sazonal ? `\n\nATENÇÃO ESPECIAL:\n${config.mensagem_sazonal}` : ''}`
 }
 
 function buildSystemPrompt(
   transicao: TransicaoEstado,
   extraidoComSucesso: boolean,
   mensagemCliente: string,
+  config: BotConfig,
   contextoCliente?: string,
 ): string {
   const d = transicao.novosDados
 
   const coletado: string[] = []
-  if (d.produto)      coletado.push(`produto: ${d.produto}`)
-  if (d.nome)         coletado.push(`nome: ${d.nome}`)
-  if (d.valor_imovel) coletado.push(`valor: R$ ${d.valor_imovel.toLocaleString('pt-BR')}`)
-  if (d.renda_mensal) coletado.push(`renda: R$ ${d.renda_mensal.toLocaleString('pt-BR')}`)
+  if (d.produto)          coletado.push(`produto: ${d.produto}`)
+  if (d.nome)             coletado.push(`nome: ${d.nome}`)
+  if (d.cpf)              coletado.push(`CPF: ${d.cpf}`)
+  if (d.data_nascimento)  coletado.push(`nascimento: ${d.data_nascimento}`)
+  if (d.valor_imovel)     coletado.push(`valor: R$ ${d.valor_imovel.toLocaleString('pt-BR')}`)
+  if (d.renda_mensal)     coletado.push(`renda: R$ ${d.renda_mensal.toLocaleString('pt-BR')}`)
 
   let instrucao: string
 
   if (transicao.criarLead || transicao.novoEstado === 'CONCLUIDO') {
-    instrucao = `Lead registrado com sucesso. Informe ao cliente que um assessor da Fontinhas entrará em contato em breve. Telefone: (44) 3262-1685. Seja caloroso e breve.`
+    instrucao = `Lead registrado com sucesso. Informe ao cliente que um assessor da Fontinhas entrará em contato em breve. Telefone: (44) 3262-1685. Seja calorosa e breve.`
 
   } else if (transicao.novoEstado === 'CONFIRMANDO') {
     instrucao = `Apresente o resumo dos dados coletados (${coletado.join(', ')}) e pergunte se está tudo correto. Aguarde confirmação.`
@@ -65,13 +109,15 @@ function buildSystemPrompt(
       : ''
 
     if (!extraidoComSucesso) {
-      instrucao = `O cliente respondeu "${mensagemCliente}" mas o sistema nao reconheceu um valor valido para o campo "${campo}". Peca novamente de forma amigavel com exemplo de formato (ex: ${exemplo}).${jaColetadoStr} NAO questione outros campos. NAO interprete a resposta como sendo outro campo.`
+      instrucao = `O cliente respondeu "${mensagemCliente}" mas o sistema nao reconheceu um valor valido para o campo "${campo}". Peca novamente de forma amigavel com exemplo de formato (ex: ${exemplo}).${jaColetadoStr} NAO questione outros campos.`
     } else {
       const perguntaMap: Record<string, string> = {
-        produto: `Pergunte qual produto o cliente tem interesse: financiamento imobiliário (compra de imóvel), consórcio ou CGI (crédito com garantia de imóvel próprio).`,
-        nome:    `Pergunte o nome completo do cliente.`,
-        valor:   `Pergunte o valor do imóvel ou crédito que está buscando. Exemplo: ${exemplo}.`,
-        renda:   `Pergunte a renda mensal (pode incluir renda informal). Exemplo: ${exemplo}.`,
+        produto:         `Pergunte qual produto o cliente tem interesse: ${config.produtos_ativos.join(', ')}.`,
+        nome:            `Pergunte o nome completo do cliente.`,
+        cpf:             `Explique que o CPF é para personalizar o atendimento e evitar cadastros duplicados. Peça o CPF de forma amigável. Exemplo: ${exemplo}.`,
+        data_nascimento: `Peça a data de nascimento do cliente. Exemplo: ${exemplo}.`,
+        valor:           `Pergunte o valor do imóvel ou crédito que está buscando. Exemplo: ${exemplo}.`,
+        renda:           `Pergunte a renda mensal (pode incluir renda informal). Exemplo: ${exemplo}.`,
       }
       instrucao = `${perguntaMap[campo] ?? 'Continue a qualificação.'}${jaColetadoStr}`
     }
@@ -81,7 +127,7 @@ function buildSystemPrompt(
     ? `\n\n---\nCONTEXTO DO CLIENTE:\n${contextoCliente}\nSe ja constar dados deste cliente (produto, nome, renda), NAO solicite novamente.\n---`
     : ''
 
-  return `${SYSTEM_PROMPT_BASE}${contextoStr}
+  return `${buildFontiBasePrompt(config)}${contextoStr}
 
 === CONTROLE DE ESTADO (siga a risca) ===
 Estado: ${transicao.novoEstado}
@@ -97,6 +143,7 @@ export async function processarMensagem(
   contextoCliente: string | undefined,
   transicao: TransicaoEstado,
   extraidoComSucesso: boolean,
+  config: BotConfig = BOT_CONFIG_DEFAULTS,
 ): Promise<ResultadoAgente> {
   const messages: Anthropic.MessageParam[] = [
     ...historico.map((m) => ({ role: m.role, content: m.content })),
@@ -106,7 +153,7 @@ export async function processarMensagem(
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 512,
-    system: buildSystemPrompt(transicao, extraidoComSucesso, mensagemCliente, contextoCliente),
+    system: buildSystemPrompt(transicao, extraidoComSucesso, mensagemCliente, config, contextoCliente),
     messages,
   })
 
@@ -122,9 +169,10 @@ export async function gerarSaudacaoReativacao(
   historico: MensagemHistorico[],
   nomeCliente: string,
   mensagemCliente: string,
+  config: BotConfig = BOT_CONFIG_DEFAULTS,
 ): Promise<string> {
-  const systemReativacao = `Você é o assistente virtual da Fontinhas Assessoria (crédito imobiliário, consórcios e CGI em Maringá).
-O atendente humano estava em conversa com ${nomeCliente}, mas agora está fora do horário de atendimento (segunda a sexta, 08h às 18h).
+  const systemReativacao = `Você é a ${config.nome_agente}, assistente virtual da Fontinhas Assessoria (crédito imobiliário, consórcios e CGI em Maringá).
+A atendente humana estava em conversa com ${nomeCliente}, mas agora está fora do horário de atendimento.
 Você está reassumindo a conversa automaticamente.
 
 Gere UMA mensagem de saudação que:
