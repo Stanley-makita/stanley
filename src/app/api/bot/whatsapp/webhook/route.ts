@@ -46,12 +46,6 @@ interface UazapiPayload {
   token?: string
 }
 
-function parseMoeda(valor: string | number | undefined | null): number | null {
-  if (valor == null || valor === '') return null
-  const num = parseFloat(String(valor).replace(/[R$\s.]/g, '').replace(',', '.'))
-  return isNaN(num) ? null : num
-}
-
 function mapProduto(produto: string | undefined | null): string | null {
   if (!produto) return null
   const p = produto.toLowerCase()
@@ -439,6 +433,23 @@ export async function POST(request: NextRequest) {
 
   console.log('[BOT STATE]', transicao.novoEstado, JSON.stringify(transicao.novosDados), '| extraido:', extraidoComSucesso)
 
+  // Proteção anti-loop: encerra fluxo após MAX_TENTATIVAS no mesmo campo
+  if (transicao.forcarEncerramento) {
+    const msgFallback = `Não consegui entender sua resposta. Um de nossos assessores entrará em contato em breve! 📞 (44) 3262-1685`
+    await supabase.from('conversas')
+      .update({
+        bot_estado: transicao.novoEstado,
+        bot_dados: transicao.novosDados,
+        bot_ativo: false,
+        status: 'aguardando',
+      })
+      .eq('id', conversa_id)
+    await supabase.from('mensagens').insert({ conversa_id, origem: 'bot', conteudo: msgFallback })
+    await enviarMensagemUazapi(telefone, msgFallback)
+    console.warn('[BOT] Encerramento forçado por loop — conversa:', conversa_id, '| campo:', transicao.novosDados.aguardando)
+    return NextResponse.json({ ok: true })
+  }
+
   // Processa com agente Claude (gera texto natural baseado no estado)
   let resultado
   try {
@@ -466,64 +477,81 @@ export async function POST(request: NextRequest) {
   if (transicao.criarLead) {
     const { nome, produto, valor_imovel, renda_mensal } = transicao.novosDados
 
-    if (nome && produto) {
-      const webhookUrl = new URL('/api/leads/webhook', process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
-      webhookUrl.searchParams.set('source', 'whatsapp')
+    // Cria lead se tiver nome — produto é opcional (lead com status "novo" sem produto)
+    if (nome) {
+      try {
+        const produtoMapeado = mapProduto(produto ?? null)
 
-      await fetch(webhookUrl.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-webhook-secret': process.env.WEBHOOK_SECRET ?? '',
-        },
-        body: JSON.stringify({
-          nome,
-          telefone,
-          empresa_id,
-          origem: 'whatsapp',
-          produto_interesse: mapProduto(produto),
-          valor_pretendido:  parseMoeda(valor_imovel),
-          renda_formal:      parseMoeda(renda_mensal),
-        }),
-      })
+        // Busca primeira fase ativa da empresa
+        const { data: primeiraFase } = await supabase
+          .from('fases')
+          .select('id')
+          .eq('empresa_id', empresa_id)
+          .eq('ativo', true)
+          .order('ordem', { ascending: true })
+          .limit(1)
+          .maybeSingle()
 
-      // Bot coletou nome real → confirmar identidade da pessoa provisória
-      if (pessoaId) {
-        await confirmarIdentidadePessoa(pessoaId, nome)
-      }
+        if (!primeiraFase) {
+          console.error('[whatsapp] Empresa sem fases configuradas — lead não criado. empresa_id:', empresa_id)
+        } else {
+          // Deduplicação: mesma pessoa + mesmo produto = duplicata
+          let duplicado = false
+          if (pessoaId) {
+            let q = supabase.from('leads').select('id').eq('empresa_id', empresa_id).eq('pessoa_id', pessoaId).is('deleted_at', null)
+            if (produtoMapeado) q = q.eq('produto_interesse', produtoMapeado)
+            const { data: existente } = await q.maybeSingle()
+            duplicado = !!existente
+          }
 
-      // Busca o lead recém-criado para vincular à conversa e registrar o telefone
-      const { data: novoLead } = await supabase
-        .from('leads')
-        .select('id')
-        .eq('empresa_id', empresa_id)
-        .eq('telefone', telefone)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+          if (duplicado) {
+            console.log('[whatsapp] Lead já existe para pessoa + produto, ignorando duplicata')
+            await supabase.from('conversas').update({ status: 'qualificado', contato_nome: nome }).eq('id', conversa_id)
+          } else {
+            const { data: novoLead, error: leadErr } = await supabase
+              .from('leads')
+              .insert({
+                empresa_id,
+                nome: nome.trim(),
+                telefone,
+                fase_id: primeiraFase.id,
+                origem: 'whatsapp',
+                ordem_kanban: 0,
+                produto_interesse: produtoMapeado ?? null,
+                valor_pretendido: typeof valor_imovel === 'number' ? valor_imovel : null,
+                renda_formal:     typeof renda_mensal === 'number' ? renda_mensal : null,
+                pessoa_id: pessoaId ?? undefined,
+                atendente_id: atendente_id_instancia ?? undefined,
+              })
+              .select('id')
+              .single()
 
-      if (novoLead?.id) {
-        await Promise.all([
-          supabase.from('lead_telefones').upsert(
-            { lead_id: novoLead.id, empresa_id, telefone, principal: true },
-            { onConflict: 'lead_id,telefone' }
-          ),
-          supabase.from('conversas').update({
-            lead_id: novoLead.id,
-            status: 'qualificado',
-            contato_nome: nome,
-            ...(pessoaId ? { pessoa_id: pessoaId } : {}),
-          }).eq('id', conversa_id),
-          pessoaId
-            ? supabase.from('leads').update({ pessoa_id: pessoaId }).eq('id', novoLead.id)
-            : Promise.resolve(),
-        ])
-      } else {
-        await supabase
-          .from('conversas')
-          .update({ status: 'qualificado', contato_nome: nome })
-          .eq('id', conversa_id)
+            if (leadErr || !novoLead) {
+              console.error('[whatsapp] Erro ao criar lead:', leadErr)
+            } else {
+              console.log('[whatsapp] Lead criado:', novoLead.id)
+              await Promise.all([
+                supabase.from('lead_telefones').upsert(
+                  { lead_id: novoLead.id, empresa_id, telefone, principal: true },
+                  { onConflict: 'lead_id,telefone' }
+                ),
+                supabase.from('conversas').update({
+                  lead_id: novoLead.id,
+                  status: 'qualificado',
+                  contato_nome: nome,
+                  ...(pessoaId ? { pessoa_id: pessoaId } : {}),
+                }).eq('id', conversa_id),
+              ])
+            }
+          }
+        }
+
+        // Bot coletou nome real → confirma identidade da pessoa provisória
+        if (pessoaId) {
+          await confirmarIdentidadePessoa(pessoaId, nome)
+        }
+      } catch (err) {
+        console.error('[whatsapp] Erro inesperado ao criar lead:', err)
       }
     }
   }

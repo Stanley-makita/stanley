@@ -7,13 +7,17 @@ export interface BotDados {
   valor_imovel?: number
   renda_mensal?: number
   aguardando?: CampoAguardado
+  tentativas?: number   // contagem de extrações falhas consecutivas no mesmo campo
 }
 
 export interface TransicaoEstado {
   novoEstado: BotEstado
   novosDados: BotDados
   criarLead: boolean
+  forcarEncerramento?: boolean  // true quando tentativas >= 3 no mesmo campo
 }
+
+const MAX_TENTATIVAS = 3
 
 const AFIRMACOES = /\b(sim|s|ok|certo|correto|isso|pode|claro|perfeito|exato|confirmo|confirmado|tá|ta|tudo\s+certo|isso\s+mesmo|pode\s+ser)\b/i
 
@@ -73,34 +77,48 @@ export function processarEstado(
   // ─── COLETANDO_DADOS ───────────────────────────────────────────────────────
   if (estadoAtual === 'COLETANDO_DADOS') {
     const ag = dados.aguardando
+    let extraiu = false
 
     if (ag === 'produto') {
       const produto = extrairProduto(mensagem)
       if (produto) {
         dados.produto = produto
         dados.aguardando = 'nome'
+        extraiu = true
       }
-      // sem reconhecimento → mantém aguardando='produto'
     } else if (ag === 'nome') {
       const nome = mensagem.trim()
       if (nome.length >= 2) {
         dados.nome = nome
         dados.aguardando = 'valor'
+        extraiu = true
       }
     } else if (ag === 'valor') {
       const num = extrairNumero(mensagem)
       if (num !== null) {
         dados.valor_imovel = num
         dados.aguardando = 'renda'
+        extraiu = true
       }
     } else if (ag === 'renda') {
       const num = extrairNumero(mensagem)
       if (num !== null) {
         dados.renda_mensal = num
+        dados.tentativas = 0
         if (dados.produto && dados.nome) {
           dados.aguardando = 'confirmacao'
           return { novoEstado: 'CONFIRMANDO', novosDados: dados, criarLead: false }
         }
+        extraiu = true
+      }
+    }
+
+    if (extraiu) {
+      dados.tentativas = 0
+    } else {
+      dados.tentativas = (dados.tentativas ?? 0) + 1
+      if (dados.tentativas >= MAX_TENTATIVAS) {
+        return { novoEstado: 'COLETANDO_DADOS', novosDados: dados, criarLead: false, forcarEncerramento: true }
       }
     }
 
