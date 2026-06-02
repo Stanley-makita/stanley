@@ -121,13 +121,13 @@ async function baixarMidiaUazapi(messageid: string, tipoMidia: string): Promise<
   }
 }
 
-async function enviarMensagemUazapi(telefone: string, texto: string): Promise<void> {
+async function enviarMensagemUazapi(telefone: string, texto: string, token?: string): Promise<void> {
   const url = `${process.env.UAZAPI_API_URL}/send/text`
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'token': process.env.UAZAPI_INSTANCE_TOKEN ?? '',
+      'token': token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '',
     },
     body: JSON.stringify({
       number: telefone,
@@ -165,8 +165,54 @@ export async function POST(request: NextRequest) {
 
   const msg = payload.message
 
-  // Ignora mensagens enviadas pelo próprio número (exceto em grupos, onde fromMe = membro da equipe)
-  if (msg?.fromMe && !msg?.isGroup) return NextResponse.json({ ok: true })
+  // Detecta *fonti antes do filtro fromMe (comercial envia da conversa do cliente)
+  if (msg?.fromMe && !msg?.isGroup) {
+    const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
+    const textoNormFM = textoFromMe.slice(0, 12).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(12)
+
+    if (/^\*fonti\b/i.test(textoNormFM)) {
+      // Resolve empresa_id para autenticar o comercial
+      const fmToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+      const { data: fmInst } = await supabase
+        .from('instancias').select('id, empresa_id, atendente_id')
+        .eq('token', fmToken).eq('ativo', true).single()
+      const fmEmpresaId = fmInst?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
+      if (!fmEmpresaId) return NextResponse.json({ ok: true })
+
+      // owner = phone da instância (comercial); chatid = phone do cliente na conversa
+      const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
+      const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
+
+      let fmFileUrl: string | null = null
+      const fmTipoRaw = msg?.type ?? 'text'
+      const fmIsMidia = fmTipoRaw === 'media' || ['image','video','audio','document','ptt','sticker'].includes(fmTipoRaw)
+      if (fmIsMidia && msg?.messageid) {
+        fmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? fmTipoRaw)
+      }
+      const fmMediaContent = typeof msg?.content === 'object' && msg.content !== null
+        ? msg.content as UazapiMediaContent : null
+
+      const { processarComandoFonti: fmFonti } = await import('@/lib/bot/fonti-comandos')
+      const respostaFM = await fmFonti(textoNormFM.trim(), {
+        empresa_id: fmEmpresaId,
+        telefone_remetente: ownerPhone,
+        telefone_cliente: clientPhone || undefined,
+        supabase,
+        arquivos: fmFileUrl
+          ? [{ fileUrl: fmFileUrl, fileName: fmMediaContent?.fileName ?? null, mimeType: fmMediaContent?.mimetype ?? null }]
+          : [],
+      })
+
+      if (respostaFM) {
+        // Responde para o próprio comercial (self-message = nota privada)
+        await enviarMensagemUazapi(ownerPhone, respostaFM, fmToken)
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    // Não é *fonti → ignora (resposta do bot ou mensagem enviada pelo humano)
+    return NextResponse.json({ ok: true })
+  }
 
   // Uazapi: type="media" para toda mídia; tipo real fica em mediaType
   const tipoRaw = msg?.type ?? 'text'

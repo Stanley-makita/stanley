@@ -19,7 +19,8 @@ export interface FontiArquivo {
 
 export interface FontiContexto {
   empresa_id: string
-  telefone_remetente: string
+  telefone_remetente: string   // phone do comercial (para autenticar)
+  telefone_cliente?: string    // phone do cliente da conversa (cenário fromMe)
   supabase: SupabaseClient
   arquivos: FontiArquivo[]
 }
@@ -209,8 +210,30 @@ async function buscarEntidade(
   supabase: SupabaseClient,
   empresa_id: string,
   referencia: string,
+  telefoneCliente?: string,  // busca direta por phone (cenário fromMe)
 ): Promise<EntidadeEncontrada | null> {
   const ref = referencia.trim()
+
+  // Cenário fromMe: sem referência de nome, usa o telefone do cliente diretamente
+  if (!ref && telefoneCliente) {
+    const { data: pt } = await supabase
+      .from('pessoa_telefones')
+      .select('pessoa_id, pessoas(id, nome)')
+      .eq('empresa_id', empresa_id)
+      .eq('telefone', telefoneCliente)
+      .eq('ativo', true)
+      .limit(1)
+      .maybeSingle()
+
+    const pessoa = pt ? (Array.isArray(pt.pessoas) ? pt.pessoas[0] : pt.pessoas) as { id: string; nome: string } | null : null
+    if (pessoa) {
+      const { data: lead } = await supabase
+        .from('leads').select('id').eq('empresa_id', empresa_id).eq('pessoa_id', pessoa.id)
+        .is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      return { tipo: 'pessoa', id: pessoa.id, label: pessoa.nome, lead_id: lead?.id ?? undefined }
+    }
+    return null
+  }
 
   // Referência de processo: #proc-xxx ou #xxx (hex/uuid-prefix)
   const procMatch = ref.match(/^#(?:proc-)?([a-f0-9-]{4,36})/i)
@@ -371,11 +394,12 @@ export async function processarComandoFonti(
   if (corpoBaixo.startsWith('salva ') || corpoBaixo === 'salva') {
     const referencia = corpo.replace(/^salva\s*/i, '').trim()
 
-    if (!referencia) {
-      return '❌ Informe o nome do cliente ou referência do processo.\nEx: *fonti salva João da Silva'
+    // Sem referência: usa o telefone do cliente da conversa (cenário fromMe)
+    if (!referencia && !ctx.telefone_cliente) {
+      return '❌ Informe o nome do cliente.\nEx: *fonti salva João da Silva'
     }
 
-    const entidade = await buscarEntidade(supabase, empresa_id, referencia)
+    const entidade = await buscarEntidade(supabase, empresa_id, referencia, ctx.telefone_cliente)
     if (!entidade) {
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
