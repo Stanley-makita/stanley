@@ -132,6 +132,69 @@ async function salvarArquivo(
   }
 }
 
+// ── Vincula todos os docs não linkados da conversa do cliente ────────────────
+
+async function vincularDocumentosConversa(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  pessoa_id: string,
+  lead_id: string | null,
+): Promise<number> {
+  // 1. Telefone principal da pessoa
+  const { data: telefoneRow } = await supabase
+    .from('pessoa_telefones')
+    .select('telefone')
+    .eq('pessoa_id', pessoa_id)
+    .eq('ativo', true)
+    .limit(1)
+    .maybeSingle()
+
+  if (!telefoneRow?.telefone) return 0
+
+  // 2. Conversa WhatsApp da pessoa com o bot
+  const { data: conversa } = await supabase
+    .from('conversas')
+    .select('id')
+    .eq('empresa_id', empresa_id)
+    .eq('canal', 'whatsapp')
+    .eq('contato_telefone', telefoneRow.telefone)
+    .limit(1)
+    .maybeSingle()
+
+  if (!conversa?.id) return 0
+
+  // 3. Documentos da conversa ainda sem pessoa_id (últimos 90 dias)
+  const limite = new Date()
+  limite.setDate(limite.getDate() - 90)
+
+  const { data: docs } = await supabase
+    .from('documentos_clientes')
+    .select('id')
+    .eq('empresa_id', empresa_id)
+    .eq('conversa_id', conversa.id)
+    .is('deleted_at', null)
+    .is('pessoa_id', null)
+    .gte('created_at', limite.toISOString())
+
+  if (!docs?.length) return 0
+
+  // 4. Vincula todos de uma vez
+  const updates: Record<string, string | null> = { pessoa_id }
+  if (lead_id) updates.lead_id = lead_id
+
+  const { error } = await supabase
+    .from('documentos_clientes')
+    .update(updates)
+    .in('id', docs.map((d) => d.id))
+
+  if (error) {
+    console.error('[fonti] Erro ao vincular documentos da conversa:', error)
+    return 0
+  }
+
+  return docs.length
+}
+
 // ── Busca de entidade para *fonti salva ───────────────────────────────────────
 
 interface EntidadeEncontrada {
@@ -312,20 +375,23 @@ export async function processarComandoFonti(
       return '❌ Informe o nome do cliente ou referência do processo.\nEx: *fonti salva João da Silva'
     }
 
-    if (arquivos.length === 0) {
-      // Sem arquivo: apenas confirma que encontrou a entidade
-      const entidade = await buscarEntidade(supabase, empresa_id, referencia)
-      if (!entidade) {
-        return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
-      }
-      return `⚠️ Nenhum arquivo anexado. Encontrei: *${entidade.label}*\nEnvie um arquivo junto com o comando para salvar.`
-    }
-
     const entidade = await buscarEntidade(supabase, empresa_id, referencia)
     if (!entidade) {
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
 
+    // Vincula todos os docs não linkados da conversa do cliente (funciona sem arquivo anexado)
+    let vinculados = 0
+    if (entidade.tipo === 'pessoa') {
+      vinculados = await vincularDocumentosConversa(
+        supabase,
+        empresa_id,
+        entidade.id,
+        entidade.lead_id ?? null,
+      )
+    }
+
+    // Salva o arquivo novo enviado junto ao comando (se houver)
     let salvos = 0
     for (const arq of arquivos) {
       const ok = await salvarArquivo(supabase, arq, empresa_id, {
@@ -336,8 +402,15 @@ export async function processarComandoFonti(
       if (ok) salvos++
     }
 
-    if (salvos === 0) return `❌ Falha ao salvar arquivo(s) em *${entidade.label}*. Tente novamente.`
-    return `✅ ${salvos} arquivo(s) salvo(s) em *${entidade.label}*`
+    const total = vinculados + salvos
+    if (total === 0) {
+      return `⚠️ Nenhum documento encontrado para *${entidade.label}*.\nSe o cliente enviou arquivos, eles devem ter sido enviados para o número do bot.`
+    }
+
+    const partes: string[] = []
+    if (vinculados > 0) partes.push(`${vinculados} da conversa`)
+    if (salvos > 0) partes.push(`${salvos} novo${salvos > 1 ? 's' : ''}`)
+    return `✅ ${total} documento(s) vinculado(s) a *${entidade.label}* (${partes.join(' + ')})`
   }
 
   // ── *fonti novo lead / cria / cria novo cliente / etc. ───────────────────
