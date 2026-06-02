@@ -219,7 +219,11 @@ Produto null se não mencionado. Valor e renda como número inteiro (sem R$). Se
 
     const bloco = response.content[0]
     if (bloco?.type === 'text') {
-      const dados = JSON.parse(bloco.text.trim()) as DadosLead
+      // Claude às vezes envolve o JSON em ```json ... ``` — remove antes de parsear
+      const jsonText = bloco.text.trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+      const dados = JSON.parse(jsonText) as DadosLead
       return {
         nome:    dados.nome    ?? null,
         produto: dados.produto ?? produtoRapido,
