@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { Bot, Save } from 'lucide-react'
 
@@ -196,21 +195,18 @@ export function AgenteFontiConfig() {
           <Label>Dias de atendimento</Label>
           <div className="flex gap-2 flex-wrap">
             {DIAS.map((d) => (
-              <label
+              <button
                 key={d.value}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer select-none transition-colors ${
+                type="button"
+                onClick={() => toggleDia(d.value)}
+                className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer select-none transition-colors ${
                   form.dias_atendimento.includes(d.value)
                     ? 'bg-[#253B29] text-white border-[#253B29]'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <Checkbox
-                  checked={form.dias_atendimento.includes(d.value)}
-                  onCheckedChange={() => toggleDia(d.value)}
-                  className="hidden"
-                />
                 {d.label}
-              </label>
+              </button>
             ))}
           </div>
         </div>
@@ -231,9 +227,11 @@ export function AgenteFontiConfig() {
         <div className="space-y-2">
           {PRODUTOS.map((p) => (
             <label key={p} className="flex items-center gap-2.5 cursor-pointer">
-              <Checkbox
+              <input
+                type="checkbox"
                 checked={form.produtos_ativos.includes(p)}
-                onCheckedChange={() => toggleProduto(p)}
+                onChange={() => toggleProduto(p)}
+                className="w-4 h-4 rounded border-gray-300 accent-[#253B29] cursor-pointer"
               />
               <span className="text-sm text-gray-700">{p}</span>
             </label>
