@@ -46,6 +46,7 @@ interface UazapiPayload {
     wa_contactName?: string
   }
   token?: string
+  owner?: string
 }
 
 function mapProduto(produto: string | undefined | null): string | null {
