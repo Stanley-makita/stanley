@@ -210,9 +210,10 @@ export async function POST(request: NextRequest) {
           : [],
       })
 
-      // Responde para o próprio comercial (self-message); se null = não autorizado
-      const msgParaComercial = respostaFM ?? '❌ Não autorizado. Verifique se esta instância tem atendente configurado em Configurações → Instâncias.'
-      await enviarMensagemUazapi(ownerPhone, msgParaComercial, fmToken)
+      // Responde na conversa do cliente (onde o comercial está) — ambos veem a confirmação
+      const msgParaComercial = respostaFM ?? '❌ *fonti*: instância sem atendente configurado. Acesse Configurações → Instâncias e vincule um atendente.'
+      const destinoResposta = clientPhone || ownerPhone
+      await enviarMensagemUazapi(destinoResposta, msgParaComercial, fmToken)
       return NextResponse.json({ ok: true })
     }
 
