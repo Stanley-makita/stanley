@@ -208,8 +208,8 @@ Produto null se não mencionado. Valor e renda como número inteiro (sem R$). Se
   }
 
   // Fallback: extração manual básica
-  const valor = numerosEncontrados.length > 0 ? extrairNumero(numerosEncontrados[0]) : null
-  const renda = numerosEncontrados.length > 1 ? extrairNumero(numerosEncontrados[1]) : null
+  const valor = numerosEncontrados.length > 0 ? extrairNumero(numerosEncontrados[0]!) : null
+  const renda = numerosEncontrados.length > 1 ? extrairNumero(numerosEncontrados[1]!) : null
   // Nome: primeira sequência de palavras capitalizadas
   const nomeMatch = instrucao.match(/[A-ZÁÉÍÓÚÀÃÕÂÊÔÇ][a-záéíóúàãõâêôç]+(?:\s+[A-ZÁÉÍÓÚÀÃÕÂÊÔÇ][a-záéíóúàãõâêôç]+)+/)
   return {
