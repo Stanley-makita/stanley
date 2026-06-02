@@ -31,35 +31,51 @@ interface UsuarioInterno {
 
 // ── Verificação de usuário interno ────────────────────────────────────────────
 
+// Normaliza para os últimos 8 dígitos (número local brasileiro sem DDD/DDI).
+// Trata a variação do dígito 9 de celular: 5544984558946 ≡ 554484558946 ≡ 84558946
+function telLocal(digits: string): string {
+  return digits.replace(/\D/g, '').slice(-8)
+}
+
 export async function verificarUsuarioInterno(
   supabase: SupabaseClient,
   empresa_id: string,
   telefoneWA: string,
 ): Promise<UsuarioInterno | null> {
-  const { data: usuarios } = await supabase
+  // Tenta buscar com telefone_whatsapp; se a coluna não existir (migration pendente),
+  // faz fallback sem ela
+  let usuarios: Array<{ id: string; nome: string; telefone: string | null; telefone_whatsapp?: string | null }> | null = null
+
+  const { data: comWA, error: erroWA } = await supabase
     .from('usuarios')
     .select('id, nome, telefone, telefone_whatsapp')
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
     .is('deleted_at', null)
 
+  if (!erroWA) {
+    usuarios = comWA
+  } else {
+    // Fallback: migration 067 provavelmente não foi rodada ainda
+    console.warn('[fonti] telefone_whatsapp indisponível, usando fallback só com telefone:', erroWA.message)
+    const { data: semWA } = await supabase
+      .from('usuarios')
+      .select('id, nome, telefone')
+      .eq('empresa_id', empresa_id)
+      .eq('ativo', true)
+      .is('deleted_at', null)
+    usuarios = semWA
+  }
+
   if (!usuarios?.length) return null
 
-  // Normaliza o telefone WA (ex: "554484558946") para comparação
-  const waDigits = telefoneWA.replace(/\D/g, '')
+  const waLocal = telLocal(telefoneWA)
+  if (waLocal.length < 6) return null  // número inválido
 
   for (const u of usuarios) {
-    // Checa telefone_whatsapp primeiro (mais específico), depois telefone genérico
-    const phones = [
-      (u as unknown as { telefone_whatsapp?: string }).telefone_whatsapp,
-      u.telefone,
-    ].filter(Boolean) as string[]
-
+    const phones = [u.telefone_whatsapp, u.telefone].filter(Boolean) as string[]
     for (const phone of phones) {
-      const uDigits = phone.replace(/\D/g, '')
-      if (!uDigits) continue
-      // Match exato ou sufixo (acomoda variações de DDI)
-      if (waDigits.endsWith(uDigits) || uDigits.endsWith(waDigits.slice(-11))) {
+      if (telLocal(phone) === waLocal) {
         return { id: u.id, nome: u.nome }
       }
     }

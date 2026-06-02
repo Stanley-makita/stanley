@@ -282,8 +282,11 @@ export async function POST(request: NextRequest) {
   // ────────────────────────────────────────────────────────────────────────────
 
   // Comando interno *fonti — processa ANTES do fluxo de atendimento ao cliente
-  if (/^\*fonti\b/i.test(texto.trim())) {
-    const respostaFonti = await processarComandoFonti(texto.trim(), {
+  // Normaliza os primeiros chars: remove acentos (autocorrect coloca *Fontì com acento)
+  const textoParaFonti = texto.trim().slice(0, 12)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') + texto.trim().slice(12)
+  if (/^\*fonti\b/i.test(textoParaFonti)) {
+    const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
       telefone_remetente: telefone,
       supabase,
