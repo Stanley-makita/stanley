@@ -508,12 +508,13 @@ export async function POST(request: NextRequest) {
       try {
         const produtoMapeado = mapProduto(produto ?? null)
 
-        // Busca primeira fase ativa da empresa
+        // Busca primeira fase ativa do módulo leads
         const { data: primeiraFase } = await supabase
           .from('fases')
           .select('id')
           .eq('empresa_id', empresa_id)
           .eq('ativo', true)
+          .eq('modulo', 'leads')
           .order('ordem', { ascending: true })
           .limit(1)
           .maybeSingle()
@@ -546,8 +547,8 @@ export async function POST(request: NextRequest) {
                 produto_interesse: produtoMapeado ?? null,
                 valor_pretendido: typeof valor_imovel === 'number' ? valor_imovel : null,
                 renda_formal:     typeof renda_mensal === 'number' ? renda_mensal : null,
-                pessoa_id: pessoaId ?? undefined,
-                atendente_id: atendente_id_instancia ?? undefined,
+                pessoa_id:     pessoaId ?? undefined,
+                responsavel_id: atendente_id_instancia ?? undefined,
               })
               .select('id')
               .single()
@@ -556,7 +557,8 @@ export async function POST(request: NextRequest) {
               console.error('[whatsapp] Erro ao criar lead:', leadErr)
             } else {
               console.log('[whatsapp] Lead criado:', novoLead.id)
-              await Promise.all([
+
+              const ops: Promise<unknown>[] = [
                 supabase.from('lead_telefones').upsert(
                   { lead_id: novoLead.id, empresa_id, telefone, principal: true },
                   { onConflict: 'lead_id,telefone' }
@@ -567,7 +569,32 @@ export async function POST(request: NextRequest) {
                   contato_nome: nome,
                   ...(pessoaId ? { pessoa_id: pessoaId } : {}),
                 }).eq('id', conversa_id),
-              ])
+              ]
+
+              // Notifica o comercial responsável pela instância
+              if (atendente_id_instancia) {
+                const detalhes = [
+                  produtoMapeado,
+                  typeof valor_imovel === 'number'
+                    ? `R$ ${valor_imovel.toLocaleString('pt-BR')}` : null,
+                  typeof renda_mensal === 'number'
+                    ? `Renda R$ ${renda_mensal.toLocaleString('pt-BR')}` : null,
+                ].filter(Boolean).join(' · ')
+
+                ops.push(
+                  supabase.from('notificacoes').insert({
+                    empresa_id,
+                    usuario_id: atendente_id_instancia,
+                    tipo: 'lead_atribuido',
+                    titulo: `Novo lead via WhatsApp: ${nome.trim()}`,
+                    mensagem: detalhes || null,
+                    entidade: 'lead',
+                    entidade_id: novoLead.id,
+                  })
+                )
+              }
+
+              await Promise.all(ops)
             }
           }
         }
