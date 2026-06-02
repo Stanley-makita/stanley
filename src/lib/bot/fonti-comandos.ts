@@ -438,7 +438,7 @@ export async function processarComandoFonti(
   }
 
   // ── *fonti novo lead / cria / cria novo cliente / etc. ───────────────────
-  const PADRAO_LEAD = /^(?:novo\s+lead|novo\s+cliente|cria(?:\s+novo)?(?:\s+(?:lead|cliente))?|lead)\s*/i
+  const PADRAO_LEAD = /^(?:novo\s+lead|novo\s+cliente|criar?\s+(?:novo\s+)?(?:lead|cliente)|cria(?:\s+novo)?|lead)\s*/i
   if (PADRAO_LEAD.test(corpo)) {
     const instrucao = corpo.replace(PADRAO_LEAD, '').trim()
 
