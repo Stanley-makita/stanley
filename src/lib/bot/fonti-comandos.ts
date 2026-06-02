@@ -139,6 +139,7 @@ interface EntidadeEncontrada {
   id: string
   label: string
   pessoa_id?: string
+  lead_id?: string
 }
 
 async function buscarEntidade(
@@ -179,14 +180,28 @@ async function buscarEntidade(
     .ilike('nome', `%${ref}%`)
     .limit(3)
 
-  if (pessoas?.length === 1) {
-    return { tipo: 'pessoa', id: pessoas[0].id, label: pessoas[0].nome }
-  }
-  if (pessoas && pessoas.length > 1) {
-    // Retorna o mais exato (nome começa com a referência)
-    const exato = pessoas.find((p) => p.nome.toLowerCase().startsWith(ref.toLowerCase()))
-    const escolhido = exato ?? pessoas[0]
-    return { tipo: 'pessoa', id: escolhido.id, label: escolhido.nome }
+  if (pessoas && pessoas.length >= 1) {
+    const escolhido = pessoas.length === 1
+      ? pessoas[0]
+      : (pessoas.find((p) => p.nome.toLowerCase().startsWith(ref.toLowerCase())) ?? pessoas[0])
+
+    // Busca o lead mais recente da pessoa para incluir lead_id no documento
+    const { data: leadDaPessoa } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('empresa_id', empresa_id)
+      .eq('pessoa_id', escolhido.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    return {
+      tipo: 'pessoa',
+      id: escolhido.id,
+      label: escolhido.nome,
+      lead_id: leadDaPessoa?.id ?? undefined,
+    }
   }
 
   return null
@@ -315,6 +330,7 @@ export async function processarComandoFonti(
     for (const arq of arquivos) {
       const ok = await salvarArquivo(supabase, arq, empresa_id, {
         pessoa_id:   entidade.tipo === 'pessoa'   ? entidade.id : (entidade.pessoa_id ?? null),
+        lead_id:     entidade.lead_id ?? null,
         processo_id: entidade.tipo === 'processo' ? entidade.id : null,
       })
       if (ok) salvos++

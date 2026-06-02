@@ -40,7 +40,7 @@ interface Props {
   pessoaId?: string | null
 }
 
-export function AbaDocumentos({ leadId }: Props) {
+export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const { usuario } = useAuth()
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -51,15 +51,20 @@ export function AbaDocumentos({ leadId }: Props) {
   const [fazendoUpload, setFazendoUpload] = useState(false)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
 
-  const queryKey = ['documentos-clientes', 'lead', leadId]
+  const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
   const { data: documentos = [], isLoading } = useQuery({
     queryKey,
     queryFn: async (): Promise<DocumentoCliente[]> => {
+      // Busca por lead_id OU pessoa_id (cobre docs salvos via *fonti salva)
+      const filtro = pessoaId
+        ? `lead_id.eq.${leadId},pessoa_id.eq.${pessoaId}`
+        : `lead_id.eq.${leadId}`
+
       const { data, error } = await supabase
         .from('documentos_clientes')
         .select('id, nome_original, mime_type, tamanho_bytes, storage_path, classificacao, created_at')
-        .eq('lead_id', leadId)
+        .or(filtro)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
