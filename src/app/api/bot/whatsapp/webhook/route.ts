@@ -172,17 +172,22 @@ export async function POST(request: NextRequest) {
     const textoNormFM = textoFromMe.slice(0, 12).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(12)
 
     if (/^\*fonti\b/i.test(textoNormFM)) {
-      // Resolve empresa_id para autenticar o comercial
+      // Resolve instância pelo token (maybeSingle evita erro quando não encontra)
       const fmToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
       const { data: fmInst } = await supabase
-        .from('instancias').select('id, empresa_id, atendente_id')
-        .eq('token', fmToken).eq('ativo', true).single()
-      const fmEmpresaId = fmInst?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
-      if (!fmEmpresaId) return NextResponse.json({ ok: true })
+        .from('instancias').select('id, empresa_id, atendente_id, numero_telefone')
+        .eq('token', fmToken).eq('ativo', true).maybeSingle()
 
-      // owner = phone da instância (comercial); chatid = phone do cliente na conversa
+      const fmEmpresaId = fmInst?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
+
+      console.log('[fonti-fromMe] token:', fmToken, '| instancia:', fmInst?.id ?? 'NAO ENCONTRADA', '| atendente_id:', fmInst?.atendente_id ?? 'null', '| owner:', ownerPhone)
+
+      if (!fmEmpresaId) {
+        console.warn('[fonti-fromMe] empresa_id nao resolvido, ignorando')
+        return NextResponse.json({ ok: true })
+      }
 
       let fmFileUrl: string | null = null
       const fmTipoRaw = msg?.type ?? 'text'
@@ -198,7 +203,6 @@ export async function POST(request: NextRequest) {
         empresa_id: fmEmpresaId,
         telefone_remetente: ownerPhone,
         telefone_cliente: clientPhone || undefined,
-        // instância confiável: pula verificação de phone, usa atendente da instância
         atendente_id_override: fmInst?.atendente_id ?? undefined,
         supabase,
         arquivos: fmFileUrl
@@ -206,10 +210,9 @@ export async function POST(request: NextRequest) {
           : [],
       })
 
-      if (respostaFM) {
-        // Responde para o próprio comercial (self-message = nota privada)
-        await enviarMensagemUazapi(ownerPhone, respostaFM, fmToken)
-      }
+      // Responde para o próprio comercial (self-message); se null = não autorizado
+      const msgParaComercial = respostaFM ?? '❌ Não autorizado. Verifique se esta instância tem atendente configurado em Configurações → Instâncias.'
+      await enviarMensagemUazapi(ownerPhone, msgParaComercial, fmToken)
       return NextResponse.json({ ok: true })
     }
 
