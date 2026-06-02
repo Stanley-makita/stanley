@@ -304,12 +304,13 @@ export async function processarComandoFonti(
     return `✅ ${salvos} arquivo(s) salvo(s) em *${entidade.label}*`
   }
 
-  // ── *fonti novo lead [instrução livre] ───────────────────────────────────
-  if (corpoBaixo.startsWith('novo lead') || corpoBaixo.startsWith('lead')) {
-    const instrucao = corpo.replace(/^(?:novo\s+)?lead\s*/i, '').trim()
+  // ── *fonti novo lead / cria / cria novo cliente / etc. ───────────────────
+  const PADRAO_LEAD = /^(?:novo\s+lead|novo\s+cliente|cria(?:\s+novo)?(?:\s+(?:lead|cliente))?|lead)\s*/i
+  if (PADRAO_LEAD.test(corpo)) {
+    const instrucao = corpo.replace(PADRAO_LEAD, '').trim()
 
     if (!instrucao) {
-      return '❌ Descreva o lead.\nEx: *fonti novo lead João Silva, quer financiamento, renda 5k, valor 300k'
+      return '❌ Descreva o lead.\nEx: *fonti novo lead João Silva, financiamento, renda 5k, valor 300k'
     }
 
     const dados = await extrairDadosLead(instrucao)
