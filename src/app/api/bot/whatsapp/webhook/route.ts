@@ -300,6 +300,7 @@ export async function POST(request: NextRequest) {
       await enviarMensagemUazapi(telefone, respostaFonti)
       return NextResponse.json({ ok: true })
     }
+    console.warn('[fonti] Prefixo *fonti detectado mas remetente NAO é usuario interno. telefone:', telefone)
   }
 
   // Lookup antecipado: busca lead pelo telefone para auto-vincular
