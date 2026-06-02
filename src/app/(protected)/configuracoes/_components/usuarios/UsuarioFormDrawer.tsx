@@ -85,7 +85,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           funcao:            usuario.funcao ?? 'comercial',
           ativo:             usuario.ativo,
           telefone_whatsapp: (usuario as unknown as { telefone_whatsapp?: string }).telefone_whatsapp ?? '',
-        } as FormCriar)
+        } as unknown as FormCriar)
       } else {
         form.reset({
           nome:   '',
