@@ -7,6 +7,7 @@ import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
 import { carregarBotConfig } from '@/lib/bot/bot-config'
 import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
+import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -279,6 +280,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
   // ────────────────────────────────────────────────────────────────────────────
+
+  // Comando interno *fonti — processa ANTES do fluxo de atendimento ao cliente
+  if (/^\*fonti\b/i.test(texto.trim())) {
+    const respostaFonti = await processarComandoFonti(texto.trim(), {
+      empresa_id,
+      telefone_remetente: telefone,
+      supabase,
+      arquivos: fileUrl
+        ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
+        : [],
+    })
+
+    // null = remetente não é usuário interno → cai no fluxo normal de atendimento
+    if (respostaFonti !== null) {
+      await enviarMensagemUazapi(telefone, respostaFonti)
+      return NextResponse.json({ ok: true })
+    }
+  }
 
   // Lookup antecipado: busca lead pelo telefone para auto-vincular
   const { data: ltRow } = await supabase
