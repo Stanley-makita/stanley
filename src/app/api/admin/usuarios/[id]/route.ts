@@ -27,7 +27,7 @@ export async function PUT(
   if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const body = await request.json()
-  const { nome, perfil, funcao, ativo } = body
+  const { nome, perfil, funcao, ativo, telefone_whatsapp } = body
 
   // Busca o usuário alvo para verificar guards de segurança
   const { data: alvo } = await supabase
@@ -65,10 +65,11 @@ export async function PUT(
   }
 
   const update: Record<string, unknown> = {}
-  if (nome  !== undefined) update.nome  = nome?.trim() || undefined
-  if (perfil !== undefined) update.perfil = perfil
-  if (funcao !== undefined) update.funcao = funcao ?? null
-  if (ativo  !== undefined) update.ativo  = ativo
+  if (nome               !== undefined) update.nome               = nome?.trim() || undefined
+  if (perfil             !== undefined) update.perfil             = perfil
+  if (funcao             !== undefined) update.funcao             = funcao ?? null
+  if (ativo              !== undefined) update.ativo              = ativo
+  if (telefone_whatsapp  !== undefined) update.telefone_whatsapp  = telefone_whatsapp?.trim() || null
 
   const { data, error } = await supabase
     .from('usuarios')

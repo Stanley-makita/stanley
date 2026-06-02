@@ -51,6 +51,16 @@ export function extrairNumero(texto: string): number | null {
   return isNaN(num) || num < 100 ? null : num
 }
 
+// Valida se o texto parece um nome de pessoa real (rejeita comandos, números, símbolos)
+function validarNome(texto: string): boolean {
+  const t = texto.trim()
+  if (t.length < 3) return false
+  if (/^[*#\/\d@]/.test(t)) return false          // começa com símbolo ou dígito
+  if (!/[a-záéíóúàãõâêôçA-ZÁÉÍÓÚÀÃÕÂÊÔÇ]/.test(t)) return false  // sem letra
+  if (/^\d+$/.test(t.replace(/[\s.,]/g, ''))) return false          // só números
+  return true
+}
+
 export function extrairProduto(texto: string): string | null {
   const t = texto.toLowerCase()
   if (/\bcgi\b|garantia\s+de\s+im[oó]v|cr[eé]dito\s+(com|usando)\s+im[oó]v|im[oó]vel\s+como\s+garantia|empr[eé]stimo\s+(com\s+)?im[oó]v/.test(t)) return 'CGI'
@@ -115,7 +125,7 @@ export function processarEstado(
       }
     } else if (ag === 'nome') {
       const nome = mensagem.trim()
-      if (nome.length >= 2) {
+      if (validarNome(nome)) {
         dados.nome = nome
         // Clientes novos coletam CPF e data; retornantes vão direto para valor
         dados.aguardando = clienteNovo ? 'cpf' : 'valor'

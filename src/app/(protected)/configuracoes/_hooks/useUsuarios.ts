@@ -61,6 +61,7 @@ export function useAtualizarUsuario() {
       perfil?: UsuarioPerfil
       funcao?: string | null
       ativo?: boolean
+      telefone_whatsapp?: string | null
     }) => {
       const { id, ...rest } = payload
       const token = await getToken()

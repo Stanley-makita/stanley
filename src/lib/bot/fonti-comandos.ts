@@ -38,7 +38,7 @@ export async function verificarUsuarioInterno(
 ): Promise<UsuarioInterno | null> {
   const { data: usuarios } = await supabase
     .from('usuarios')
-    .select('id, nome, telefone')
+    .select('id, nome, telefone, telefone_whatsapp')
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
     .is('deleted_at', null)
@@ -49,11 +49,19 @@ export async function verificarUsuarioInterno(
   const waDigits = telefoneWA.replace(/\D/g, '')
 
   for (const u of usuarios) {
-    if (!u.telefone) continue
-    const uDigits = u.telefone.replace(/\D/g, '')
-    // Aceita match exato, ou se um termina com os dígitos do outro (DDI variável)
-    if (waDigits.endsWith(uDigits) || uDigits.endsWith(waDigits.slice(-11))) {
-      return { id: u.id, nome: u.nome }
+    // Checa telefone_whatsapp primeiro (mais específico), depois telefone genérico
+    const phones = [
+      (u as unknown as { telefone_whatsapp?: string }).telefone_whatsapp,
+      u.telefone,
+    ].filter(Boolean) as string[]
+
+    for (const phone of phones) {
+      const uDigits = phone.replace(/\D/g, '')
+      if (!uDigits) continue
+      // Match exato ou sufixo (acomoda variações de DDI)
+      if (waDigits.endsWith(uDigits) || uDigits.endsWith(waDigits.slice(-11))) {
+        return { id: u.id, nome: u.nome }
+      }
     }
   }
   return null

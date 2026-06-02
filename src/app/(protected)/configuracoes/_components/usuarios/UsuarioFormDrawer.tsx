@@ -36,10 +36,11 @@ const schemaCriar = z.object({
 })
 
 const schemaEditar = z.object({
-  nome:   z.string().min(2, 'Informe o nome completo'),
-  perfil: z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
-  funcao: z.string().min(1, 'Selecione a função'),
-  ativo:  z.boolean(),
+  nome:               z.string().min(2, 'Informe o nome completo'),
+  perfil:             z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
+  funcao:             z.string().min(1, 'Selecione a função'),
+  ativo:              z.boolean(),
+  telefone_whatsapp:  z.string().optional(),
 })
 
 type FormCriar  = z.infer<typeof schemaCriar>
@@ -79,10 +80,11 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
     if (aberto) {
       if (usuario) {
         form.reset({
-          nome:   usuario.nome,
-          perfil: PERFIS_ATIVOS.includes(usuario.perfil) ? usuario.perfil : 'comercial' as UsuarioPerfil,
-          funcao: usuario.funcao ?? 'comercial',
-          ativo:  usuario.ativo,
+          nome:              usuario.nome,
+          perfil:            PERFIS_ATIVOS.includes(usuario.perfil) ? usuario.perfil : 'comercial' as UsuarioPerfil,
+          funcao:            usuario.funcao ?? 'comercial',
+          ativo:             usuario.ativo,
+          telefone_whatsapp: (usuario as unknown as { telefone_whatsapp?: string }).telefone_whatsapp ?? '',
         } as FormCriar)
       } else {
         form.reset({
@@ -102,11 +104,12 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
     try {
       if (modoEdicao) {
         await atualizarUsuario.mutateAsync({
-          id:     usuario!.id,
-          nome:   data.nome,
-          perfil: data.perfil,
-          funcao: data.funcao,
-          ativo:  data.ativo,
+          id:               usuario!.id,
+          nome:             data.nome,
+          perfil:           data.perfil,
+          funcao:           data.funcao,
+          ativo:            data.ativo,
+          telefone_whatsapp: (data as unknown as { telefone_whatsapp?: string }).telefone_whatsapp?.trim() || null,
         })
         toast.success('Usuário atualizado')
       } else {
@@ -230,6 +233,26 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                   </FormItem>
                 )} />
               </div>
+
+              {modoEdicao && (
+                <FormField
+                  control={form.control}
+                  name={'telefone_whatsapp' as 'nome'}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>WhatsApp pessoal <span className="text-gray-400 font-normal text-xs">(para comandos *Fonti)</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="5544999990000 (com DDI)"
+                          {...field}
+                          value={(field.value as string) ?? ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField control={form.control} name="ativo" render={({ field }) => (
                 <FormItem>

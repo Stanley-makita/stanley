@@ -6,7 +6,7 @@ import { processarEstado } from '@/lib/bot/state-machine'
 import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
 import { carregarBotConfig } from '@/lib/bot/bot-config'
 import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
-import { buscarOuCriarPessoa, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
+import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 
 const supabase = createClient(
@@ -309,6 +309,10 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
   const leadIdVinculo = ltRow?.lead_id ?? null
 
+  // Verifica se pessoa já existia ANTES desta chamada (define clienteNovo corretamente)
+  // Deve ser feito antes de buscarOuCriarPessoa para não ser afetado pela criação
+  const pessoaPreExistente = await buscarPessoaPorTelefone(empresa_id, telefone)
+
   // Busca ou cria Pessoa (entidade central de deduplicação)
   let pessoaId: string | null = null
   try {
@@ -445,8 +449,8 @@ export async function POST(request: NextRequest) {
   const botEstadoAtual: BotEstado = (conversaExistente as { bot_estado?: string } | null)?.bot_estado as BotEstado ?? 'INICIO'
   const botDadosAtuais: BotDados = (conversaExistente as { bot_dados?: BotDados } | null)?.bot_dados ?? {}
 
-  // clienteNovo = não tem contexto carregado (nunca entrou em contato antes)
-  const clienteNovo = !contextoCliente
+  // clienteNovo = pessoa não existia antes desta chamada (não é afetado por buscarOuCriarPessoa)
+  const clienteNovo = !pessoaPreExistente
 
   // Roda a state machine de forma determinística
   const transicao = processarEstado(botEstadoAtual, botDadosAtuais, texto.trim(), clienteNovo)
