@@ -21,6 +21,7 @@ export interface FontiContexto {
   empresa_id: string
   telefone_remetente: string   // phone do comercial (para autenticar)
   telefone_cliente?: string    // phone do cliente da conversa (cenário fromMe)
+  atendente_id_override?: string  // fromMe via instância confiável — pula verificação de phone
   supabase: SupabaseClient
   arquivos: FontiArquivo[]
 }
@@ -375,9 +376,23 @@ export async function processarComandoFonti(
   const { empresa_id, telefone_remetente, supabase, arquivos } = ctx
 
   // Verifica se remetente é funcionário
-  const usuario = await verificarUsuarioInterno(supabase, empresa_id, telefone_remetente)
+  // fromMe via instância registrada: usa atendente_id diretamente (sem verificar phone)
+  let usuario: UsuarioInterno | null = null
+  if (ctx.atendente_id_override) {
+    const { data: u } = await supabase
+      .from('usuarios')
+      .select('id, nome')
+      .eq('id', ctx.atendente_id_override)
+      .eq('empresa_id', empresa_id)
+      .eq('ativo', true)
+      .maybeSingle()
+    usuario = u ? { id: u.id, nome: u.nome } : null
+  } else {
+    usuario = await verificarUsuarioInterno(supabase, empresa_id, telefone_remetente)
+  }
+
   if (!usuario) {
-    console.log('[fonti] Número não é usuário interno, ignorando prefixo *fonti:', telefone_remetente)
+    console.log('[fonti] Remetente não autorizado, ignorando *fonti. telefone:', telefone_remetente)
     return null
   }
 

@@ -198,6 +198,8 @@ export async function POST(request: NextRequest) {
         empresa_id: fmEmpresaId,
         telefone_remetente: ownerPhone,
         telefone_cliente: clientPhone || undefined,
+        // instância confiável: pula verificação de phone, usa atendente da instância
+        atendente_id_override: fmInst?.atendente_id ?? undefined,
         supabase,
         arquivos: fmFileUrl
           ? [{ fileUrl: fmFileUrl, fileName: fmMediaContent?.fileName ?? null, mimeType: fmMediaContent?.mimetype ?? null }]
