@@ -11,7 +11,7 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus } from 'lucide-react'
+import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
@@ -48,6 +48,26 @@ export default function ProcessoDetalhePage() {
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
   const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
+  const [gerandoFormularios, setGerandoFormularios] = useState(false)
+
+  async function gerarFormularios(banco: string) {
+    setGerandoFormularios(true)
+    try {
+      const res = await fetch(`/api/processos/${id}/formularios?banco=${banco}`)
+      if (!res.ok) throw new Error('Erro ao gerar formulários')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${banco}-formularios.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Erro ao gerar formulários. Tente novamente.')
+    } finally {
+      setGerandoFormularios(false)
+    }
+  }
   const [abaAtiva, setAbaAtiva] = useState(searchParams.get('aba') ?? 'resumo')
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
@@ -160,6 +180,18 @@ export default function ProcessoDetalhePage() {
               >
                 <DollarSign className="h-3.5 w-3.5" />
                 Negócio
+              </Button>
+
+              {/* Gerar Formulários */}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={gerandoFormularios}
+                className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                onClick={() => gerarFormularios(processo.banco?.nome?.toUpperCase().includes('BRADESCO') ? 'BRADESCO' : 'BRADESCO')}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {gerandoFormularios ? 'Gerando...' : 'Formulários'}
               </Button>
 
               {/* Nova Solicitação */}
