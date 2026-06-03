@@ -103,24 +103,35 @@ export async function GET(
     const erros: string[] = []
 
     for (const form of formularios) {
+      // --- 1. Gerar PDF ---
+      let pdfBytes: Uint8Array
       try {
-        // 1. Gerar PDF preenchido
         const mapa = form.mapa(dados)
-        const pdfBytes = await preencherPdf(form.template, mapa)
+        pdfBytes = await preencherPdf(form.template, mapa)
+      } catch (err: any) {
+        const msg = `PDF: ${err?.message ?? err}`
+        console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
+        erros.push(`${form.nomeArquivo} (${msg})`)
+        continue
+      }
 
-        // 2. Salvar no Storage (upsert via remove + upload)
-        const storagePath = `${dados.empresa_id}/formularios/${params.id}/${form.nomeArquivo}`
+      // --- 2. Upload Storage ---
+      const storagePath = `${dados.empresa_id}/formularios/${params.id}/${form.nomeArquivo}`
+      try {
         await sb.storage.from('documentos-clientes').remove([storagePath])
-
         const { error: uploadErr } = await sb.storage
           .from('documentos-clientes')
-          .upload(storagePath, pdfBytes, {
-            contentType: 'application/pdf',
-            upsert: false,
-          })
-        if (uploadErr) throw new Error(`Storage: ${uploadErr.message}`)
+          .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
+        if (uploadErr) throw uploadErr
+      } catch (err: any) {
+        const msg = `Storage: ${err?.message ?? err}`
+        console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
+        erros.push(`${form.nomeArquivo} (${msg})`)
+        continue
+      }
 
-        // 3. Registrar em documentos_clientes (remove anterior + insert)
+      // --- 3. Registrar no banco ---
+      try {
         await sb.from('documentos_clientes')
           .delete()
           .eq('processo_id', params.id)
@@ -136,14 +147,15 @@ export async function GET(
           storage_path:  storagePath,
           canal_origem:  'upload_manual',
         })
-        if (dbErr) throw new Error(`DB: ${dbErr.message}`)
-
-        salvos.push(form.nomeArquivo)
+        if (dbErr) throw dbErr
       } catch (err: any) {
-        const msg = err?.message ?? String(err)
-        console.error(`[formularios] Erro em ${form.nomeArquivo}: ${msg}`)
+        const msg = `DB: ${err?.message ?? err}`
+        console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
         erros.push(`${form.nomeArquivo} (${msg})`)
+        continue
       }
+
+      salvos.push(form.nomeArquivo)
     }
 
     return NextResponse.json({
