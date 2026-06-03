@@ -108,35 +108,41 @@ export async function GET(
         const mapa = form.mapa(dados)
         const pdfBytes = await preencherPdf(form.template, mapa)
 
-        // 2. Salvar no Storage
+        // 2. Salvar no Storage (upsert via remove + upload)
         const storagePath = `${dados.empresa_id}/formularios/${params.id}/${form.nomeArquivo}`
+        await sb.storage.from('documentos-clientes').remove([storagePath])
+
         const { error: uploadErr } = await sb.storage
           .from('documentos-clientes')
           .upload(storagePath, pdfBytes, {
             contentType: 'application/pdf',
-            upsert: true,
+            upsert: false,
           })
-        if (uploadErr) throw uploadErr
+        if (uploadErr) throw new Error(`Storage: ${uploadErr.message}`)
 
-        // 3. Registrar em documentos_clientes
-        const { error: dbErr } = await sb.from('documentos_clientes').upsert(
-          {
-            empresa_id:    dados.empresa_id,
-            processo_id:   params.id,
-            nome_original: form.nomeArquivo,
-            mime_type:     'application/pdf',
-            tamanho_bytes: pdfBytes.byteLength,
-            storage_path:  storagePath,
-            canal_origem:  'upload_manual',
-          },
-          { onConflict: 'storage_path' }
-        )
-        if (dbErr) throw dbErr
+        // 3. Registrar em documentos_clientes (remove anterior + insert)
+        await sb.from('documentos_clientes')
+          .delete()
+          .eq('processo_id', params.id)
+          .eq('nome_original', form.nomeArquivo)
+          .eq('empresa_id', dados.empresa_id)
+
+        const { error: dbErr } = await sb.from('documentos_clientes').insert({
+          empresa_id:    dados.empresa_id,
+          processo_id:   params.id,
+          nome_original: form.nomeArquivo,
+          mime_type:     'application/pdf',
+          tamanho_bytes: pdfBytes.byteLength,
+          storage_path:  storagePath,
+          canal_origem:  'upload_manual',
+        })
+        if (dbErr) throw new Error(`DB: ${dbErr.message}`)
 
         salvos.push(form.nomeArquivo)
-      } catch (err) {
-        console.error(`[formularios] Erro em ${form.nomeArquivo}:`, err)
-        erros.push(form.nomeArquivo)
+      } catch (err: any) {
+        const msg = err?.message ?? String(err)
+        console.error(`[formularios] Erro em ${form.nomeArquivo}: ${msg}`)
+        erros.push(`${form.nomeArquivo} (${msg})`)
       }
     }
 
