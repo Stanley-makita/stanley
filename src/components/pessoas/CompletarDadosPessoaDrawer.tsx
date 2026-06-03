@@ -31,26 +31,35 @@ const REGIMES = [
 type FormState = {
   telefone: string
   nome: string; email: string; cpf: string; data_nascimento: string
-  rg: string; profissao: string; estado_civil: string
+  rg: string; profissao: string; estado_civil: string; sexo: string
   renda_formal: string; renda_informal: string; nacionalidade: string
   endereco_rua: string; endereco_numero: string; endereco_bairro: string
   endereco_cidade: string; endereco_uf: string; endereco_cep: string
   conjuge_nome: string; conjuge_cpf: string; conjuge_data_nascimento: string
   conjuge_telefone: string; conjuge_profissao: string
   conjuge_renda_formal: string; conjuge_renda_informal: string
-  regime_casamento: string
+  regime_casamento: string; data_casamento: string
+  // Trabalho (FGTS)
+  empresa_nome: string; empresa_cnpj: string
+  municipio_trabalho: string; uf_trabalho: string
+  // Conta bancária (débito parcelas)
+  conta_bancaria_banco: string; conta_bancaria_agencia: string
+  conta_bancaria_numero: string; conta_bancaria_digito: string
 }
 
 const VAZIO: FormState = {
   telefone: '',
   nome: '', email: '', cpf: '', data_nascimento: '', rg: '', profissao: '',
-  estado_civil: '', renda_formal: '', renda_informal: '', nacionalidade: '',
+  estado_civil: '', sexo: '', renda_formal: '', renda_informal: '', nacionalidade: '',
   endereco_rua: '', endereco_numero: '', endereco_bairro: '', endereco_cidade: '',
   endereco_uf: '', endereco_cep: '',
   conjuge_nome: '', conjuge_cpf: '', conjuge_data_nascimento: '',
   conjuge_telefone: '', conjuge_profissao: '',
   conjuge_renda_formal: '', conjuge_renda_informal: '',
-  regime_casamento: '',
+  regime_casamento: '', data_casamento: '',
+  empresa_nome: '', empresa_cnpj: '', municipio_trabalho: '', uf_trabalho: '',
+  conta_bancaria_banco: '', conta_bancaria_agencia: '',
+  conta_bancaria_numero: '', conta_bancaria_digito: '',
 }
 
 interface Props {
@@ -75,10 +84,12 @@ export function CompletarDadosPessoaDrawer({
       const { data, error } = await supabase
         .from('pessoas')
         .select(`id, nome, cpf, email, data_nascimento,
-          rg, profissao, estado_civil, renda_formal, renda_informal, nacionalidade,
+          rg, profissao, estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
           endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
           conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
-          conjuge_renda_formal, conjuge_renda_informal, regime_casamento,
+          conjuge_renda_formal, conjuge_renda_informal, regime_casamento, data_casamento,
+          empresa_nome, empresa_cnpj, municipio_trabalho, uf_trabalho,
+          conta_bancaria_banco, conta_bancaria_agencia, conta_bancaria_numero, conta_bancaria_digito,
           pessoa_telefones(id, telefone, principal, whatsapp, ativo)`)
         .eq('id', pessoaId!)
         .single()
@@ -101,6 +112,7 @@ export function CompletarDadosPessoaDrawer({
         rg:                      pessoa.rg ?? '',
         profissao:               pessoa.profissao ?? '',
         estado_civil:            pessoa.estado_civil ?? '',
+        sexo:                    (pessoa as any).sexo ?? '',
         renda_formal:            pessoa.renda_formal != null ? String(pessoa.renda_formal) : '',
         renda_informal:          pessoa.renda_informal != null ? String(pessoa.renda_informal) : '',
         nacionalidade:           pessoa.nacionalidade ?? '',
@@ -118,6 +130,15 @@ export function CompletarDadosPessoaDrawer({
         conjuge_renda_formal:    pessoa.conjuge_renda_formal != null ? String(pessoa.conjuge_renda_formal) : '',
         conjuge_renda_informal:  pessoa.conjuge_renda_informal != null ? String(pessoa.conjuge_renda_informal) : '',
         regime_casamento:        pessoa.regime_casamento ?? '',
+        data_casamento:          (pessoa as any).data_casamento ?? '',
+        empresa_nome:            (pessoa as any).empresa_nome ?? '',
+        empresa_cnpj:            (pessoa as any).empresa_cnpj ?? '',
+        municipio_trabalho:      (pessoa as any).municipio_trabalho ?? '',
+        uf_trabalho:             (pessoa as any).uf_trabalho ?? '',
+        conta_bancaria_banco:    (pessoa as any).conta_bancaria_banco ?? '',
+        conta_bancaria_agencia:  (pessoa as any).conta_bancaria_agencia ?? '',
+        conta_bancaria_numero:   (pessoa as any).conta_bancaria_numero ?? '',
+        conta_bancaria_digito:   (pessoa as any).conta_bancaria_digito ?? '',
       })
     }
   }, [pessoa, open])
@@ -136,6 +157,7 @@ export function CompletarDadosPessoaDrawer({
         rg:                      form.rg.trim() || null,
         profissao:               form.profissao.trim() || null,
         estado_civil:            form.estado_civil || null,
+        sexo:                    form.sexo || null,
         renda_formal:            form.renda_formal ? Number(form.renda_formal) : null,
         renda_informal:          form.renda_informal ? Number(form.renda_informal) : null,
         nacionalidade:           form.nacionalidade.trim() || null,
@@ -153,6 +175,15 @@ export function CompletarDadosPessoaDrawer({
         conjuge_renda_formal:    eCasado && form.conjuge_renda_formal ? Number(form.conjuge_renda_formal) : null,
         conjuge_renda_informal:  eCasado && form.conjuge_renda_informal ? Number(form.conjuge_renda_informal) : null,
         regime_casamento:        eCasado ? (form.regime_casamento || null) : null,
+        data_casamento:          eCasado ? (form.data_casamento || null) : null,
+        empresa_nome:            form.empresa_nome.trim() || null,
+        empresa_cnpj:            form.empresa_cnpj.trim() || null,
+        municipio_trabalho:      form.municipio_trabalho.trim() || null,
+        uf_trabalho:             form.uf_trabalho.trim() || null,
+        conta_bancaria_banco:    form.conta_bancaria_banco.trim() || null,
+        conta_bancaria_agencia:  form.conta_bancaria_agencia.trim() || null,
+        conta_bancaria_numero:   form.conta_bancaria_numero.trim() || null,
+        conta_bancaria_digito:   form.conta_bancaria_digito.trim() || null,
       }
 
       // 0. Atualizar telefone principal
@@ -287,6 +318,18 @@ export function CompletarDadosPessoaDrawer({
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Nacionalidade</label>
                 <Input value={form.nacionalidade} onChange={(e) => f({ nacionalidade: e.target.value })} placeholder="Brasileiro(a)" />
               </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Sexo</label>
+                <select
+                  className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30"
+                  value={form.sexo}
+                  onChange={(e) => f({ sexo: e.target.value })}
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Feminino</option>
+                </select>
+              </div>
             </div>
 
             {/* Dados financeiros */}
@@ -358,7 +401,11 @@ export function CompletarDadosPessoaDrawer({
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Informal (R$)</label>
                       <Input type="number" value={form.conjuge_renda_informal} onChange={(e) => f({ conjuge_renda_informal: e.target.value })} placeholder="0" />
                     </div>
-                    <div className="col-span-2">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 mb-1 block">Data do Casamento/União</label>
+                      <Input type="date" value={form.data_casamento} onChange={(e) => f({ data_casamento: e.target.value })} />
+                    </div>
+                    <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Regime de Bens</label>
                       <select
                         className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30"
@@ -403,6 +450,52 @@ export function CompletarDadosPessoaDrawer({
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Cidade</label>
                   <Input value={form.endereco_cidade} onChange={(e) => f({ endereco_cidade: e.target.value })} placeholder="Maringá" />
+                </div>
+              </div>
+            </div>
+
+            {/* Trabalho / FGTS */}
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-[#253B29] mb-3">Trabalho (para FGTS)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Nome da Empresa</label>
+                  <Input value={form.empresa_nome} onChange={(e) => f({ empresa_nome: e.target.value })} placeholder="Razão Social da Empresa" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">CNPJ da Empresa</label>
+                  <Input value={form.empresa_cnpj} onChange={(e) => f({ empresa_cnpj: e.target.value })} placeholder="00.000.000/0001-00" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Município de Trabalho</label>
+                  <Input value={form.municipio_trabalho} onChange={(e) => f({ municipio_trabalho: e.target.value })} placeholder="Ex: Maringá" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">UF de Trabalho</label>
+                  <Input value={form.uf_trabalho} onChange={(e) => f({ uf_trabalho: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
+                </div>
+              </div>
+            </div>
+
+            {/* Conta bancária */}
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-[#253B29] mb-3">Conta Bancária (débito das parcelas)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Banco</label>
+                  <Input value={form.conta_bancaria_banco} onChange={(e) => f({ conta_bancaria_banco: e.target.value })} placeholder="Ex: Bradesco" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Agência</label>
+                  <Input value={form.conta_bancaria_agencia} onChange={(e) => f({ conta_bancaria_agencia: e.target.value })} placeholder="0000-0" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Conta</label>
+                  <Input value={form.conta_bancaria_numero} onChange={(e) => f({ conta_bancaria_numero: e.target.value })} placeholder="00000-0" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Dígito</label>
+                  <Input value={form.conta_bancaria_digito} onChange={(e) => f({ conta_bancaria_digito: e.target.value })} placeholder="0" maxLength={2} />
                 </div>
               </div>
             </div>

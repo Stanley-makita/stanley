@@ -24,6 +24,16 @@ const MODALIDADES = [
 
 const numField = z.number().or(z.nan()).nullable()
 
+const SISTEMAS_AMORTIZACAO = [
+  { value: 'SAC',   label: 'SAC — Sistema de Amortização Constante' },
+  { value: 'PRICE', label: 'PRICE — Tabela Price' },
+] as const
+
+const INDEXADORES = [
+  { value: 'TR',   label: 'TR — Taxa Referencial' },
+  { value: 'IPCA', label: 'IPCA — Índice de Preços' },
+] as const
+
 const schema = z.object({
   banco_id: z.string().nullable(),
   modalidade: z.string().min(1),
@@ -32,6 +42,13 @@ const schema = z.object({
   valor_financiado: numField,
   valor_entrada: numField,
   valor_imovel: numField,
+  valor_recursos_proprios: numField,
+  valor_fgts: numField,
+  prazo_amortizacao_meses: z.number().int().positive().nullable().or(z.nan().transform(() => null)),
+  dia_vencimento_parcela: z.number().int().min(1).max(28).nullable().or(z.nan().transform(() => null)),
+  sistema_amortizacao: z.enum(['SAC', 'PRICE']).nullable(),
+  indexador: z.enum(['TR', 'IPCA']).nullable(),
+  financiar_despesas_cartorariais: z.boolean(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -51,6 +68,8 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   const { data: bancos = [] } = useBancos()
   const { mutateAsync, isPending } = useAtualizarDadosProcesso()
 
+  const p = processo as any
+
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -61,6 +80,13 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       valor_financiado: processo.valor_financiado ?? null,
       valor_entrada: processo.valor_entrada ?? null,
       valor_imovel: processo.valor_imovel ?? null,
+      valor_recursos_proprios: p.valor_recursos_proprios ?? null,
+      valor_fgts: p.valor_fgts ?? null,
+      prazo_amortizacao_meses: p.prazo_amortizacao_meses ?? null,
+      dia_vencimento_parcela: p.dia_vencimento_parcela ?? null,
+      sistema_amortizacao: p.sistema_amortizacao ?? null,
+      indexador: p.indexador ?? null,
+      financiar_despesas_cartorariais: p.financiar_despesas_cartorariais ?? false,
     },
   })
 
@@ -76,6 +102,13 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         valor_financiado: processo.valor_financiado ?? null,
         valor_entrada: processo.valor_entrada ?? null,
         valor_imovel: processo.valor_imovel ?? null,
+        valor_recursos_proprios: p.valor_recursos_proprios ?? null,
+        valor_fgts: p.valor_fgts ?? null,
+        prazo_amortizacao_meses: p.prazo_amortizacao_meses ?? null,
+        dia_vencimento_parcela: p.dia_vencimento_parcela ?? null,
+        sistema_amortizacao: p.sistema_amortizacao ?? null,
+        indexador: p.indexador ?? null,
+        financiar_despesas_cartorariais: p.financiar_despesas_cartorariais ?? false,
       })
     }
   }, [aberto, processo, form])
@@ -90,7 +123,14 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       valor_financiado: normNum(dados.valor_financiado),
       valor_entrada: normNum(dados.valor_entrada),
       valor_imovel: normNum(dados.valor_imovel),
-    })
+      valor_recursos_proprios: normNum(dados.valor_recursos_proprios),
+      valor_fgts: normNum(dados.valor_fgts),
+      prazo_amortizacao_meses: dados.prazo_amortizacao_meses ?? null,
+      dia_vencimento_parcela: dados.dia_vencimento_parcela ?? null,
+      sistema_amortizacao: dados.sistema_amortizacao ?? null,
+      indexador: dados.indexador ?? null,
+      financiar_despesas_cartorariais: dados.financiar_despesas_cartorariais,
+    } as any)
     onFechar()
   }
 
@@ -143,26 +183,88 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Valor do Imóvel (R$)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                {...form.register('valor_imovel', { valueAsNumber: true })}
-              />
+              <Input type="number" placeholder="0" {...form.register('valor_imovel', { valueAsNumber: true })} />
             </div>
             <div className="space-y-1.5">
               <Label>Valor Financiado (R$)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                {...form.register('valor_financiado', { valueAsNumber: true })}
-              />
+              <Input type="number" placeholder="0" {...form.register('valor_financiado', { valueAsNumber: true })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Entrada (R$)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                {...form.register('valor_entrada', { valueAsNumber: true })}
+              <Label>Entrada / Recursos Próprios (R$)</Label>
+              <Input type="number" placeholder="0" {...form.register('valor_entrada', { valueAsNumber: true })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Valor FGTS (R$)</Label>
+              <Input type="number" placeholder="0" {...form.register('valor_fgts', { valueAsNumber: true })} />
+            </div>
+          </div>
+
+          {/* Condições de financiamento */}
+          <div className="rounded-lg border border-gray-200 p-4 space-y-4">
+            <p className="text-sm font-medium text-[#253B29]">Condições do Financiamento</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Prazo (meses)</Label>
+                <Input
+                  type="number"
+                  placeholder="360"
+                  min={1}
+                  {...form.register('prazo_amortizacao_meses', { valueAsNumber: true })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Dia vencimento (1-28)</Label>
+                <Input
+                  type="number"
+                  placeholder="5"
+                  min={1}
+                  max={28}
+                  {...form.register('dia_vencimento_parcela', { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Sistema de Amortização</Label>
+              <Select
+                value={form.watch('sistema_amortizacao') ?? '__nenhum__'}
+                onValueChange={(v) => form.setValue('sistema_amortizacao', v === '__nenhum__' ? null : v as 'SAC' | 'PRICE')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__nenhum__">Não definido</SelectItem>
+                  {SISTEMAS_AMORTIZACAO.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Indexador</Label>
+              <Select
+                value={form.watch('indexador') ?? '__nenhum__'}
+                onValueChange={(v) => form.setValue('indexador', v === '__nenhum__' ? null : v as 'TR' | 'IPCA')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__nenhum__">Não definido</SelectItem>
+                  {INDEXADORES.map((idx) => (
+                    <SelectItem key={idx.value} value={idx.value}>{idx.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label>Financiar despesas cartorárias</Label>
+              <Switch
+                checked={form.watch('financiar_despesas_cartorariais')}
+                onCheckedChange={(v) => form.setValue('financiar_despesas_cartorariais', v)}
               />
             </div>
           </div>
