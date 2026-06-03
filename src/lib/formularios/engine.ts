@@ -75,7 +75,12 @@ export async function preencherPdf(
   }
 
   // Achata o formulário para evitar campos editáveis no resultado
-  form.flatten()
+  // Alguns PDFs com campos obfuscados (Santander) lançam erro no flatten — nesses casos retorna sem achatar
+  try {
+    form.flatten()
+  } catch {
+    // PDF mantém campos editáveis mas é retornado sem crash
+  }
 
   return doc.save()
 }
