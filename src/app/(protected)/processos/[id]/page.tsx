@@ -15,6 +15,7 @@ import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
@@ -60,19 +61,17 @@ export default function ProcessoDetalhePage() {
     setGerandoFormularios(true)
     try {
       const res = await fetch(`/api/processos/${id}/formularios?banco=${encodeURIComponent(processo.banco.nome)}`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as any).error ?? 'Erro ao gerar formulários')
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${processo.banco.nome}-formularios.zip`
-      a.click()
-      URL.revokeObjectURL(url)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar formulários')
+
+      toast.success(json.mensagem, {
+        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        duration: 6000,
+      })
+      // Recarrega aba de documentos
+      setAbaAtiva('documentos')
     } catch (e: any) {
-      alert(e.message ?? 'Erro ao gerar formulários. Tente novamente.')
+      toast.error(e.message ?? 'Erro ao gerar formulários.')
     } finally {
       setGerandoFormularios(false)
     }
@@ -375,7 +374,7 @@ export default function ProcessoDetalhePage() {
             <span className="font-semibold text-[#253B29]">{processo.banco?.nome}</span>?
           </p>
           <p className="text-xs text-gray-400">
-            Os PDFs serão baixados em um arquivo ZIP com os dados do processo preenchidos.
+            Os PDFs serão gerados com os dados do processo e salvos na aba <strong>Documentos</strong>.
           </p>
           <DialogFooter className="gap-2 mt-2">
             <Button

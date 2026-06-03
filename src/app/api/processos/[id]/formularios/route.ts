@@ -1,7 +1,7 @@
-// API: GET /api/processos/[id]/formularios?banco=<nome do banco>
-// Retorna ZIP com PDFs preenchidos do banco identificado no processo
+// API: POST /api/processos/[id]/formularios?banco=<nome do banco>
+// Gera PDFs preenchidos e salva diretamente no CRM (documentos_clientes)
 import { NextRequest, NextResponse } from 'next/server'
-import JSZip from 'jszip'
+import { createClient } from '@supabase/supabase-js'
 import { buscarDadosFormulario } from '@/lib/formularios/dados'
 import { preencherPdf } from '@/lib/formularios/engine'
 
@@ -20,20 +20,19 @@ import { mapaCompradorBB }  from '@/lib/formularios/banco-do-brasil/comprador'
 import { mapaFgtsItau }     from '@/lib/formularios/itau/fgts'
 
 // Santander
-import { mapaFgtsSantander }         from '@/lib/formularios/santander/fgts'
-import { mapaAutorizacaoSantander }  from '@/lib/formularios/santander/autorizacao'
-import { mapaIqVendedorSantander }   from '@/lib/formularios/santander/iq-vendedor'
+import { mapaFgtsSantander }        from '@/lib/formularios/santander/fgts'
+import { mapaAutorizacaoSantander } from '@/lib/formularios/santander/autorizacao'
+import { mapaIqVendedorSantander }  from '@/lib/formularios/santander/iq-vendedor'
 
-const BANCOS_SUPORTADOS = ['BRADESCO', 'BANCO_DO_BRASIL', 'SANTANDER', 'ITAU', 'CAIXA'] as const
-type BancoSuportado = (typeof BANCOS_SUPORTADOS)[number]
+type BancoSuportado = 'BRADESCO' | 'BANCO_DO_BRASIL' | 'SANTANDER' | 'ITAU' | 'CAIXA'
 
 function normalizarBanco(nome: string): BancoSuportado | null {
   const n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  if (n.includes('bradesco'))                         return 'BRADESCO'
-  if (n.includes('brasil') || n.includes('bb'))      return 'BANCO_DO_BRASIL'
-  if (n.includes('santander'))                        return 'SANTANDER'
-  if (n.includes('itau') || n.includes('ita'))       return 'ITAU'
-  if (n.includes('caixa'))                            return 'CAIXA'
+  if (n.includes('bradesco'))                    return 'BRADESCO'
+  if (n.includes('brasil') || n === 'bb')       return 'BANCO_DO_BRASIL'
+  if (n.includes('santander'))                   return 'SANTANDER'
+  if (n.includes('itau') || n.includes('ita'))  return 'ITAU'
+  if (n.includes('caixa'))                       return 'CAIXA'
   return null
 }
 
@@ -44,98 +43,30 @@ type FormularioDef = {
 }
 
 const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
-
   BRADESCO: [
-    {
-      nomeArquivo: '1-Autorizacao.pdf',
-      template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf',
-      mapa: mapaAutorizacao,
-    },
-    {
-      nomeArquivo: '2-DPS.pdf',
-      template: 'BRADESCO/2-DPS.pdf',
-      mapa: mapaDps,
-    },
-    {
-      nomeArquivo: '3-Proposta de Financiamento.pdf',
-      template: 'BRADESCO/3-Proposta de Financiamento.pdf',
-      mapa: mapaProposta,
-    },
-    {
-      nomeArquivo: '4-Autorizacao FGTS.pdf',
-      template: 'BRADESCO/AUTORIZAÇÃO FGTS.pdf',
-      mapa: mapaFgts,
-    },
-    {
-      nomeArquivo: '5-Isencao IR.pdf',
-      template: 'BRADESCO/ISENÇÃO IR.pdf',
-      mapa: mapaIsencaoIr,
-    },
+    { nomeArquivo: '1-Autorizacao.pdf',             template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf', mapa: mapaAutorizacao },
+    { nomeArquivo: '2-DPS.pdf',                     template: 'BRADESCO/2-DPS.pdf',                     mapa: mapaDps },
+    { nomeArquivo: '3-Proposta de Financiamento.pdf', template: 'BRADESCO/3-Proposta de Financiamento.pdf', mapa: mapaProposta },
+    { nomeArquivo: '4-Autorizacao FGTS.pdf',        template: 'BRADESCO/AUTORIZAÇÃO FGTS.pdf',           mapa: mapaFgts },
+    { nomeArquivo: '5-Isencao IR.pdf',              template: 'BRADESCO/ISENÇÃO IR.pdf',                 mapa: mapaIsencaoIr },
   ],
-
   BANCO_DO_BRASIL: [
-    {
-      nomeArquivo: '1-Proposta Comprador.pdf',
-      template: 'BANCO_DO_BRASIL/1-Formulario comprador.pdf',
-      mapa: mapaCompradorBB,
-    },
-    {
-      nomeArquivo: '2-Autorizacao FGTS.pdf',
-      template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',
-      mapa: mapaFgtsBB,
-    },
-    // Formulários sem campos AcroForm são incluídos em branco para impressão
-    {
-      nomeArquivo: '3-Vendedor PF.pdf',
-      template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',
-      mapa: () => [],
-    },
-    {
-      nomeArquivo: '4-Isencao IR.pdf',
-      template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf',
-      mapa: () => [],
-    },
+    { nomeArquivo: '1-Proposta Comprador.pdf',      template: 'BANCO_DO_BRASIL/1-Formulario comprador.pdf',         mapa: mapaCompradorBB },
+    { nomeArquivo: '2-Autorizacao FGTS.pdf',        template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',     mapa: mapaFgtsBB },
+    { nomeArquivo: '3-Vendedor PF.pdf',             template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',                 mapa: () => [] },
+    { nomeArquivo: '4-Isencao IR.pdf',              template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf',    mapa: () => [] },
   ],
-
   SANTANDER: [
-    {
-      nomeArquivo: '1-Autorizacao Compradores.pdf',
-      template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',
-      mapa: mapaAutorizacaoSantander,
-    },
-    {
-      nomeArquivo: '2-DPS.pdf',
-      template: 'SANTANDER/2-DPS.pdf',
-      mapa: () => [],
-    },
-    {
-      nomeArquivo: '3-Declaracao SFH.pdf',
-      template: 'SANTANDER/3-Declaração SFH.pdf',
-      mapa: () => [],
-    },
-    {
-      nomeArquivo: '4-Autorizacao FGTS.pdf',
-      template: 'SANTANDER/Autorizacao FGTS atualizada.pdf',
-      mapa: mapaFgtsSantander,
-    },
-    {
-      nomeArquivo: '5-Autorizacao IQ Vendedor.pdf',
-      template: 'SANTANDER/Autorização IQ vendedor.pdf',
-      mapa: mapaIqVendedorSantander,
-    },
+    { nomeArquivo: '1-Autorizacao Compradores.pdf', template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                        mapa: mapaAutorizacaoSantander },
+    { nomeArquivo: '2-DPS.pdf',                     template: 'SANTANDER/2-DPS.pdf',                                mapa: () => [] },
+    { nomeArquivo: '3-Declaracao SFH.pdf',          template: 'SANTANDER/3-Declaração SFH.pdf',                     mapa: () => [] },
+    { nomeArquivo: '4-Autorizacao FGTS.pdf',        template: 'SANTANDER/Autorizacao FGTS atualizada.pdf',          mapa: mapaFgtsSantander },
+    { nomeArquivo: '5-Autorizacao IQ Vendedor.pdf', template: 'SANTANDER/Autorização IQ vendedor.pdf',              mapa: mapaIqVendedorSantander },
   ],
-
   ITAU: [
-    {
-      nomeArquivo: '1-Autorizacao FGTS.pdf',
-      template: 'ITAU/AUTORIZAÇÃO FGTS.pdf',
-      mapa: mapaFgtsItau,
-    },
+    { nomeArquivo: '1-Autorizacao FGTS.pdf',        template: 'ITAU/AUTORIZAÇÃO FGTS.pdf',                          mapa: mapaFgtsItau },
   ],
-
-  CAIXA: [
-    // Formulários Caixa estão em formato .dot e .html — implementação futura
-  ],
+  CAIXA: [],
 }
 
 export async function GET(
@@ -148,50 +79,79 @@ export async function GET(
 
     if (!banco) {
       return NextResponse.json(
-        { error: `Banco "${bancoParam}" não reconhecido. Verifique o banco definido no processo.` },
+        { error: `Banco "${bancoParam}" não reconhecido.` },
         { status: 400 }
       )
     }
 
     const formularios = FORMULARIOS[banco]
-    if (!formularios || formularios.length === 0) {
+    if (!formularios.length) {
       return NextResponse.json(
-        { error: `Os formulários do ${bancoParam} (Caixa) ainda estão em implementação. Disponíveis: Bradesco, BB, Santander, Itaú.` },
+        { error: `Formulários do ${bancoParam} (Caixa) ainda em implementação.` },
         { status: 400 }
       )
     }
 
     const dados = await buscarDadosFormulario(params.id)
-    const zip = new JSZip()
-    const pasta = zip.folder(`${bancoParam} - ${dados.numero_processo}`)!
+
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+
+    const salvos: string[] = []
+    const erros: string[] = []
 
     for (const form of formularios) {
       try {
+        // 1. Gerar PDF preenchido
         const mapa = form.mapa(dados)
         const pdfBytes = await preencherPdf(form.template, mapa)
-        pasta.file(form.nomeArquivo, pdfBytes)
+
+        // 2. Salvar no Storage
+        const storagePath = `${dados.empresa_id}/formularios/${params.id}/${form.nomeArquivo}`
+        const { error: uploadErr } = await sb.storage
+          .from('documentos-clientes')
+          .upload(storagePath, pdfBytes, {
+            contentType: 'application/pdf',
+            upsert: true,
+          })
+        if (uploadErr) throw uploadErr
+
+        // 3. Registrar em documentos_clientes
+        const { error: dbErr } = await sb.from('documentos_clientes').upsert(
+          {
+            empresa_id:    dados.empresa_id,
+            processo_id:   params.id,
+            nome_original: form.nomeArquivo,
+            mime_type:     'application/pdf',
+            tamanho_bytes: pdfBytes.byteLength,
+            storage_path:  storagePath,
+            canal_origem:  'upload_manual',
+          },
+          { onConflict: 'storage_path' }
+        )
+        if (dbErr) throw dbErr
+
+        salvos.push(form.nomeArquivo)
       } catch (err) {
-        console.error(`[formularios] Erro ao preencher ${form.nomeArquivo}:`, err)
-        // Inclui o template original sem preenchimento
-        const { readFileSync } = await import('fs')
-        const path = await import('path')
-        const templatePath = path.join(process.cwd(), 'public', 'formularios', form.template)
-        pasta.file(form.nomeArquivo, readFileSync(templatePath))
+        console.error(`[formularios] Erro em ${form.nomeArquivo}:`, err)
+        erros.push(form.nomeArquivo)
       }
     }
 
-    const zipUint8 = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })
-    const zipBuffer = zipUint8.buffer.slice(zipUint8.byteOffset, zipUint8.byteOffset + zipUint8.byteLength)
-
-    return new NextResponse(zipBuffer as ArrayBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${bancoParam}-${dados.numero_processo}.zip"`,
-      },
+    return NextResponse.json({
+      salvos,
+      erros,
+      mensagem: erros.length === 0
+        ? `${salvos.length} formulário(s) gerado(s) e salvos no processo.`
+        : `${salvos.length} formulário(s) salvos. ${erros.length} com erro: ${erros.join(', ')}`,
     })
-  } catch (err) {
+  } catch (err: any) {
     console.error('[formularios] Erro geral:', err)
-    return NextResponse.json({ error: 'Erro ao gerar formulários' }, { status: 500 })
+    return NextResponse.json(
+      { error: err?.message ?? 'Erro ao gerar formulários' },
+      { status: 500 }
+    )
   }
 }

@@ -1,11 +1,11 @@
 // Busca todos os dados necessários para preencher os formulários de um processo
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
 function getClient() {
-  return createClient(supabaseUrl, supabaseKey)
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
 }
 
 export type DadosPessoa = {
@@ -88,6 +88,7 @@ export type DadosFgts = {
 
 export type DadosProcesso = {
   id: string
+  empresa_id: string
   numero_processo: string
   banco_nome: string | null
   modalidade: string
@@ -114,7 +115,7 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
   const { data: proc, error: errProc } = await sb
     .from('processos')
     .select(`
-      id, numero_processo, modalidade,
+      id, empresa_id, numero_processo, modalidade,
       valor_imovel, valor_financiado, valor_entrada,
       valor_recursos_proprios, valor_fgts,
       prazo_amortizacao_meses, dia_vencimento_parcela,
@@ -193,6 +194,7 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
 
   return {
     id: proc.id,
+    empresa_id: proc.empresa_id,
     numero_processo: proc.numero_processo,
     banco_nome: (proc.banco as any)?.nome ?? null,
     modalidade: proc.modalidade,
