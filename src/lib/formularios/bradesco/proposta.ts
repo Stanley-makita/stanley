@@ -50,11 +50,11 @@ export function mapaProposta(d: DadosProcesso): MapaFormulario {
     const v = vendedores[i]
     if (!v) break
     campos.push({ tipo: 'texto', campo: vnomes[i],   valor: v.nome ?? '' })
-    campos.push({ tipo: 'texto', campo: vprofs[i],   valor: v.profissao ?? '' })
+    campos.push({ tipo: 'texto', campo: vprofs[i],   valor: '' })
     campos.push({ tipo: 'texto', campo: vemails[i],  valor: v.email ?? '' })
     campos.push({ tipo: 'texto', campo: vbancos[i],  valor: v.banco ?? '' })
     campos.push({ tipo: 'texto', campo: vagencias[i],valor: v.agencia ?? '' })
-    campos.push({ tipo: 'texto', campo: vdigitos[i], valor: v.digito ?? '' })
+    campos.push({ tipo: 'texto', campo: vdigitos[i], valor: '' })
     campos.push({ tipo: 'texto', campo: vcontas[i],  valor: v.conta ?? '' })
     campos.push({ tipo: 'texto', campo: vdigitosC[i],valor: '' })
   }

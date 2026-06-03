@@ -54,12 +54,11 @@ export type DadosVendedor = {
   nome: string
   cpf: string | null
   email: string | null
-  profissao: string | null
+  telefone: string | null
   estado_civil: string | null
   banco: string | null
   agencia: string | null
   conta: string | null
-  digito: string | null
   conjuge_nome: string | null
   conjuge_cpf: string | null
 }
@@ -203,7 +202,7 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
   // Buscar vendedores
   const { data: vendRows, error: errVend } = await sb
     .from('processo_vendedores')
-    .select('id, nome, cpf, email, profissao, estado_civil, banco, agencia, conta, digito, conjuge_nome, conjuge_cpf')
+    .select('id, nome, cpf, email, telefone, estado_civil, banco, agencia, conta, conjuge_nome, conjuge_cpf')
     .eq('processo_id', processoId)
     .order('created_at', { ascending: true })
   if (errVend) throw errVend

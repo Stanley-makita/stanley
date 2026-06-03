@@ -15,6 +15,8 @@ export function mapaIqVendedorSantander(d: DadosProcesso): MapaFormulario {
     { tipo: 'texto', campo: 'Nome do Vendedor', valor: v1?.nome ?? '' },
     { tipo: 'texto', campo: 'CPF',              valor: fmtCpf(v1?.cpf) },
     { tipo: 'texto', campo: 'RG',               valor: '' },
+    // Email do vendedor
+    { tipo: 'texto', campo: 'Email',            valor: v1?.email ?? '' },
     // Campo endereço do imóvel financiado
     { tipo: 'texto', campo: 'para fins da Proposta do Santander em qu', valor: endImovel },
   ]
