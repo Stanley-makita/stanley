@@ -10,8 +10,19 @@ import { mapaFgts }         from '@/lib/formularios/bradesco/fgts'
 import { mapaIsencaoIr }    from '@/lib/formularios/bradesco/isencao-ir'
 import { mapaDps }          from '@/lib/formularios/bradesco/dps'
 
-const BANCOS_SUPORTADOS = ['BRADESCO'] as const
+const BANCOS_SUPORTADOS = ['BRADESCO', 'BANCO_DO_BRASIL', 'SANTANDER', 'ITAU', 'CAIXA'] as const
 type BancoSuportado = (typeof BANCOS_SUPORTADOS)[number]
+
+// Normaliza o nome do banco como vem da tabela bancos → chave interna
+function normalizarBanco(nome: string): BancoSuportado | null {
+  const n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  if (n.includes('bradesco')) return 'BRADESCO'
+  if (n.includes('brasil') || n.includes('bb ') || n === 'bb') return 'BANCO_DO_BRASIL'
+  if (n.includes('santander')) return 'SANTANDER'
+  if (n.includes('itau') || n.includes('itaú')) return 'ITAU'
+  if (n.includes('caixa')) return 'CAIXA'
+  return null
+}
 
 type FormularioDef = {
   nomeArquivo: string
@@ -20,6 +31,12 @@ type FormularioDef = {
 }
 
 const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
+  // Bancos ainda não implementados (receberão mapeamentos nas próximas iterações)
+  BANCO_DO_BRASIL: [],
+  SANTANDER: [],
+  ITAU: [],
+  CAIXA: [],
+
   BRADESCO: [
     {
       nomeArquivo: '1-Autorizacao.pdf',
@@ -54,11 +71,23 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const banco = (request.nextUrl.searchParams.get('banco') ?? 'BRADESCO').toUpperCase() as BancoSuportado
+    const bancoParam = request.nextUrl.searchParams.get('banco') ?? ''
+    const banco = normalizarBanco(bancoParam)
 
-    if (!BANCOS_SUPORTADOS.includes(banco)) {
+    if (!banco) {
       return NextResponse.json(
-        { error: `Banco "${banco}" não suportado. Suportados: ${BANCOS_SUPORTADOS.join(', ')}` },
+        {
+          error: `Banco "${bancoParam}" ainda não tem formulários configurados no sistema. Bancos disponíveis: Bradesco.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    if (!FORMULARIOS[banco] || FORMULARIOS[banco].length === 0) {
+      return NextResponse.json(
+        {
+          error: `Formulários do ${bancoParam} estão em desenvolvimento. Disponível agora: Bradesco.`,
+        },
         { status: 400 }
       )
     }

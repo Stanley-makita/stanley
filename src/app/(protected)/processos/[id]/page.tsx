@@ -12,6 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import { differenceInDays } from 'date-fns'
 import { useState } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
@@ -48,22 +51,28 @@ export default function ProcessoDetalhePage() {
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [editarProcessoAberto, setEditarProcessoAberto] = useState(false)
   const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
+  const [confirmFormulariosAberto, setConfirmFormulariosAberto] = useState(false)
   const [gerandoFormularios, setGerandoFormularios] = useState(false)
 
-  async function gerarFormularios(banco: string) {
+  async function confirmarGerarFormularios() {
+    if (!processo?.banco?.nome) return
+    setConfirmFormulariosAberto(false)
     setGerandoFormularios(true)
     try {
-      const res = await fetch(`/api/processos/${id}/formularios?banco=${banco}`)
-      if (!res.ok) throw new Error('Erro ao gerar formulários')
+      const res = await fetch(`/api/processos/${id}/formularios?banco=${encodeURIComponent(processo.banco.nome)}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as any).error ?? 'Erro ao gerar formulários')
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${banco}-formularios.zip`
+      a.download = `${processo.banco.nome}-formularios.zip`
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      alert('Erro ao gerar formulários. Tente novamente.')
+    } catch (e: any) {
+      alert(e.message ?? 'Erro ao gerar formulários. Tente novamente.')
     } finally {
       setGerandoFormularios(false)
     }
@@ -186,9 +195,10 @@ export default function ProcessoDetalhePage() {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={gerandoFormularios}
-                className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-                onClick={() => gerarFormularios(processo.banco?.nome?.toUpperCase().includes('BRADESCO') ? 'BRADESCO' : 'BRADESCO')}
+                disabled={gerandoFormularios || !processo.banco?.nome}
+                title={!processo.banco?.nome ? 'Defina o banco do processo antes de gerar os formulários' : ''}
+                className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                onClick={() => setConfirmFormulariosAberto(true)}
               >
                 <Download className="h-3.5 w-3.5" />
                 {gerandoFormularios ? 'Gerando...' : 'Formulários'}
@@ -353,6 +363,39 @@ export default function ProcessoDetalhePage() {
         onOpenChange={setNovaTarefaAberta}
         processoId={id}
       />
+
+      {/* Confirmação de geração de formulários */}
+      <Dialog open={confirmFormulariosAberto} onOpenChange={setConfirmFormulariosAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[#253B29]">Gerar formulários</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 py-2">
+            Confirma o preenchimento automático dos formulários do{' '}
+            <span className="font-semibold text-[#253B29]">{processo.banco?.nome}</span>?
+          </p>
+          <p className="text-xs text-gray-400">
+            Os PDFs serão baixados em um arquivo ZIP com os dados do processo preenchidos.
+          </p>
+          <DialogFooter className="gap-2 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmFormulariosAberto(false)}
+            >
+              Não, cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              onClick={confirmarGerarFormularios}
+            >
+              <Download className="h-3.5 w-3.5 mr-1" />
+              Sim, gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Painel direito — sempre visível */}
       <div className="w-80 shrink-0 flex flex-col gap-4 overflow-y-auto">
