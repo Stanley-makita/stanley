@@ -47,7 +47,6 @@ export type DadosPessoa = {
 
 export type DadosComprador = DadosPessoa & {
   principal: boolean
-  ordem: number
 }
 
 export type DadosVendedor = {
@@ -131,8 +130,9 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
   const { data: compRows, error: errComp } = await sb
     .from('processo_compradores')
     .select(`
-      id, principal, ordem,
-      pessoa:pessoas!pessoa_id(
+      id, nome, cpf, email, telefone, renda_mensal, principal,
+      pessoa_id,
+      pessoa:pessoas!inner(
         id, nome, cpf, email, data_nascimento, rg, profissao,
         estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
         endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
@@ -144,18 +144,59 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
       )
     `)
     .eq('processo_id', processoId)
-    .order('ordem', { ascending: true })
-  if (errComp) throw errComp
+    .order('created_at', { ascending: true })
 
-  const compradores: DadosComprador[] = (compRows ?? []).map((r: any) => {
+  // Se o inner join falhar (compradores sem pessoa_id), busca sem o join
+  const { data: compRowsSimples } = errComp
+    ? await sb.from('processo_compradores')
+        .select('id, nome, cpf, email, telefone, renda_mensal, principal')
+        .eq('processo_id', processoId)
+        .order('created_at', { ascending: true })
+    : { data: null }
+
+  const rows = compRows ?? compRowsSimples ?? []
+
+  const compradores: DadosComprador[] = rows.map((r: any) => {
     const p = r.pessoa ?? {}
     const tels = (p.pessoa_telefones ?? []).filter((t: any) => t.ativo)
     const telPrincipal = tels.find((t: any) => t.principal) ?? tels[0]
+    // Prioriza dados da tabela pessoas; cai para dados diretos do comprador
     return {
-      ...p,
-      telefone: telPrincipal?.telefone ?? null,
-      principal: r.principal,
-      ordem: r.ordem ?? 0,
+      id:                       p.id ?? r.id,
+      nome:                     p.nome ?? r.nome ?? '',
+      cpf:                      p.cpf ?? r.cpf ?? null,
+      email:                    p.email ?? r.email ?? null,
+      telefone:                 telPrincipal?.telefone ?? r.telefone ?? null,
+      data_nascimento:          p.data_nascimento ?? null,
+      rg:                       p.rg ?? null,
+      profissao:                p.profissao ?? null,
+      estado_civil:             p.estado_civil ?? null,
+      sexo:                     p.sexo ?? null,
+      renda_formal:             p.renda_formal ?? r.renda_mensal ?? null,
+      renda_informal:           p.renda_informal ?? null,
+      nacionalidade:            p.nacionalidade ?? null,
+      endereco_rua:             p.endereco_rua ?? null,
+      endereco_numero:          p.endereco_numero ?? null,
+      endereco_bairro:          p.endereco_bairro ?? null,
+      endereco_cidade:          p.endereco_cidade ?? null,
+      endereco_uf:              p.endereco_uf ?? null,
+      endereco_cep:             p.endereco_cep ?? null,
+      regime_casamento:         p.regime_casamento ?? null,
+      data_casamento:           p.data_casamento ?? null,
+      conjuge_nome:             p.conjuge_nome ?? null,
+      conjuge_cpf:              p.conjuge_cpf ?? null,
+      conjuge_data_nascimento:  p.conjuge_data_nascimento ?? null,
+      conjuge_profissao:        p.conjuge_profissao ?? null,
+      conjuge_renda_formal:     p.conjuge_renda_formal ?? null,
+      empresa_nome:             p.empresa_nome ?? null,
+      empresa_cnpj:             p.empresa_cnpj ?? null,
+      municipio_trabalho:       p.municipio_trabalho ?? null,
+      uf_trabalho:              p.uf_trabalho ?? null,
+      conta_bancaria_banco:     p.conta_bancaria_banco ?? null,
+      conta_bancaria_agencia:   p.conta_bancaria_agencia ?? null,
+      conta_bancaria_numero:    p.conta_bancaria_numero ?? null,
+      conta_bancaria_digito:    p.conta_bancaria_digito ?? null,
+      principal:                r.principal ?? false,
     }
   })
 
