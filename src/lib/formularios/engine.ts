@@ -42,47 +42,49 @@ export async function preencherPdf(
 ): Promise<Uint8Array> {
   const absPath = path.join(process.cwd(), 'public', 'formularios', caminhoRelativo)
   const bytes = readFileSync(absPath)
-  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
-  const form = doc.getForm()
 
-  for (const campo of mapa) {
-    try {
-      if (campo.tipo === 'texto') {
-        const f = form.getTextField(campo.campo)
-        f.setText(campo.valor)
-        f.enableReadOnly()
-      } else if (campo.tipo === 'checkbox') {
-        const f = form.getCheckBox(campo.campo)
-        if (campo.marcar) f.check()
-        else f.uncheck()
-      } else if (campo.tipo === 'radio') {
-        const f = form.getRadioGroup(campo.campo)
-        const opcoes = f.getOptions()
-        if (opcoes.includes(campo.opcao)) {
-          f.select(campo.opcao)
-        }
-      } else if (campo.tipo === 'dropdown') {
-        const f = form.getDropdown(campo.campo)
-        const opcoes = f.getOptions()
-        const match = opcoes.find(
-          (o) => o.toLowerCase() === campo.opcao.toLowerCase()
-        )
-        if (match) f.select(match)
-      }
-    } catch {
-      // Campo não encontrado no PDF — ignora silenciosamente
-    }
+  // PDFs sem campos a preencher → retorna original sem processar
+  if (mapa.length === 0) {
+    return bytes
   }
 
-  // Achata o formulário para evitar campos editáveis no resultado
-  // Alguns PDFs com campos obfuscados (Santander) lançam erro no flatten — nesses casos retorna sem achatar
+  // PDFs com campos → tenta preencher; se o PDF for incompatível, retorna original
   try {
-    form.flatten()
-  } catch {
-    // PDF mantém campos editáveis mas é retornado sem crash
-  }
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+    const form = doc.getForm()
 
-  return doc.save()
+    for (const campo of mapa) {
+      try {
+        if (campo.tipo === 'texto') {
+          const f = form.getTextField(campo.campo)
+          f.setText(campo.valor)
+          f.enableReadOnly()
+        } else if (campo.tipo === 'checkbox') {
+          const f = form.getCheckBox(campo.campo)
+          if (campo.marcar) f.check()
+          else f.uncheck()
+        } else if (campo.tipo === 'radio') {
+          const f = form.getRadioGroup(campo.campo)
+          const opcoes = f.getOptions()
+          if (opcoes.includes(campo.opcao)) f.select(campo.opcao)
+        } else if (campo.tipo === 'dropdown') {
+          const f = form.getDropdown(campo.campo)
+          const opcoes = f.getOptions()
+          const match = opcoes.find((o) => o.toLowerCase() === campo.opcao.toLowerCase())
+          if (match) f.select(match)
+        }
+      } catch {
+        // Campo não encontrado ou incompatível — ignora
+      }
+    }
+
+    try { form.flatten() } catch { /* mantém editável se flatten falhar */ }
+
+    return doc.save()
+  } catch {
+    // PDF estruturalmente incompatível com pdf-lib — retorna original sem preenchimento
+    return bytes
+  }
 }
 
 /**
