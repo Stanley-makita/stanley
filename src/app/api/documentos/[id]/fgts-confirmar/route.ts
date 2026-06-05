@@ -30,14 +30,26 @@ export async function POST(
 
   const { data: doc } = await supabase
     .from('documentos_clientes')
-    .select('id, pessoa_id, ocr_dados, ocr_status')
+    .select('id, pessoa_id, lead_id, ocr_dados, ocr_status')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
 
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
-  if (!doc.pessoa_id) return NextResponse.json({ error: 'Documento sem pessoa vinculada' }, { status: 400 })
   if (doc.ocr_status !== 'concluido') return NextResponse.json({ error: 'OCR não concluído' }, { status: 400 })
+
+  // Resolve pessoa_id: direto no doc ou via lead
+  let pessoa_id: string | null = doc.pessoa_id ?? null
+  if (!pessoa_id && doc.lead_id) {
+    const { data: lead } = await supabase
+      .from('leads')
+      .select('pessoa_id')
+      .eq('id', doc.lead_id)
+      .maybeSingle()
+    pessoa_id = lead?.pessoa_id ?? null
+  }
+
+  if (!pessoa_id) return NextResponse.json({ error: 'Não foi possível encontrar a pessoa vinculada a este lead' }, { status: 400 })
 
   const body = await request.json() as {
     cod_empregador?: string
@@ -53,7 +65,7 @@ export async function POST(
     .from('pessoa_fgts_contas')
     .insert({
       empresa_id,
-      pessoa_id: doc.pessoa_id,
+      pessoa_id,
       cod_empregador:   body.cod_empregador   || null,
       nro_conta_fgts:   body.nro_conta_fgts   || null,
       pis_pasep:        body.pis_pasep         || null,
