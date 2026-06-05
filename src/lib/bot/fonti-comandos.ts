@@ -158,15 +158,17 @@ async function vincularDocumentosConversa(
 
 // Vincula docs não linkados de uma conversa identificada por telefone.
 // marcaAt: se fornecida, usada como início da janela (via *fonti inicio). Senão: now() - janela_minutos.
+// processo_id: se fornecido, filtra docs sem processo vinculado e seta processo_id (modo processo).
 // Retorna { count, ids } para que o caller possa disparar OCR nos docs vinculados.
 async function vincularDocumentosRecentesPorTelefone(
   supabase: SupabaseClient,
   empresa_id: string,
   telefoneConversa: string,
-  pessoa_id: string,
+  pessoa_id: string | null,
   lead_id: string | null,
   janela_minutos = 15,
   marcaAt?: Date,
+  processo_id?: string,
 ): Promise<{ count: number; ids: string[] }> {
   const { data: conversa } = await supabase
     .from('conversas')
@@ -185,19 +187,36 @@ async function vincularDocumentosRecentesPorTelefone(
     return d
   })()
 
-  const { data: docs } = await supabase
+  // Modo processo: busca docs sem processo vinculado
+  // Modo lead: busca docs sem lead vinculado (comportamento original)
+  let query = supabase
     .from('documentos_clientes')
     .select('id')
     .eq('empresa_id', empresa_id)
     .eq('conversa_id', conversa.id)
     .is('deleted_at', null)
-    .is('lead_id', null)
     .gte('created_at', limite.toISOString())
+
+  if (processo_id) {
+    query = query.is('processo_id', null)
+  } else {
+    query = query.is('lead_id', null)
+  }
+
+  const { data: docs } = await query
 
   if (!docs?.length) return { count: 0, ids: [] }
 
-  const updates: Record<string, string | null> = { pessoa_id }
-  if (lead_id) updates.lead_id = lead_id
+  const updates: Record<string, string | null> = {}
+  if (processo_id) {
+    if (pessoa_id) updates.pessoa_id = pessoa_id
+    updates.processo_id = processo_id
+  } else {
+    if (pessoa_id) updates.pessoa_id = pessoa_id
+    if (lead_id) updates.lead_id = lead_id
+  }
+
+  if (Object.keys(updates).length === 0) return { count: 0, ids: [] }
 
   const { error } = await supabase
     .from('documentos_clientes')
@@ -237,6 +256,166 @@ async function limparMarca(
     .delete()
     .eq('empresa_id', empresa_id)
     .eq('telefone_conversa', telefoneConversa)
+}
+
+// Retorna a sessão completa (incluindo processo_id se definido via *fonti processo)
+async function obterSessaoCompleta(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+): Promise<{ iniciado_at: string; processo_id: string | null; pessoa_id: string | null } | null> {
+  const { data } = await supabase
+    .from('fonti_marcas')
+    .select('iniciado_at, processo_id, pessoa_id')
+    .eq('empresa_id', empresa_id)
+    .eq('telefone_conversa', telefoneConversa)
+    .maybeSingle()
+  return data ?? null
+}
+
+// Grava sessão de processo em fonti_marcas
+async function gravarSessaoProcesso(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+  processo_id: string,
+  pessoa_id: string | null,
+): Promise<void> {
+  await supabase.from('fonti_marcas').upsert(
+    { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: new Date().toISOString(), processo_id, pessoa_id },
+    { onConflict: 'empresa_id,telefone_conversa' },
+  )
+}
+
+// ── Helpers para *fonti processo ─────────────────────────────────────────────
+
+// IMPORTANTE: usar blocklist (não allowlist) — novos status operacionais devem aceitar docs automaticamente.
+// Processo pode receber documentos até sua conclusão, incluindo fases pós-emissão:
+// assinatura, registro, exigências cartorárias/bancárias, FGTS complementar, ITBI, docs do vendedor.
+const STATUS_BLOQUEADOS_PROCESSO = ['concluido', 'cancelado', 'reprovado', 'arquivado']
+
+async function buscarProcessoPorNumero(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  numeroProcesso: string,
+) {
+  const { data } = await supabase
+    .from('processos')
+    .select('id, numero_processo, banco, valor_imovel')
+    .eq('empresa_id', empresa_id)
+    .eq('numero_processo', numeroProcesso)
+    .is('deleted_at', null)
+    .not('status_processo', 'in', `(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
+    .maybeSingle()
+  return data ?? null
+}
+
+async function buscarProcessosAtivos(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  pessoa_id: string,
+) {
+  const { data: compradorRows } = await supabase
+    .from('processo_compradores')
+    .select('processo_id')
+    .eq('empresa_id', empresa_id)
+    .eq('pessoa_id', pessoa_id)
+
+  if (!compradorRows?.length) return []
+
+  const processoIds = compradorRows.map((r) => r.processo_id)
+
+  const { data: processos } = await supabase
+    .from('processos')
+    .select('id, numero_processo, banco, valor_imovel')
+    .in('id', processoIds)
+    .is('deleted_at', null)
+    .not('status_processo', 'in', `(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
+    .order('created_at', { ascending: false })
+
+  return processos ?? []
+}
+
+async function buscarCompradorPrincipalProcesso(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  processo_id: string,
+) {
+  const { data } = await supabase
+    .from('processo_compradores')
+    .select('pessoa_id, nome')
+    .eq('empresa_id', empresa_id)
+    .eq('processo_id', processo_id)
+    .eq('principal', true)
+    .maybeSingle()
+  return data ?? null
+}
+
+function fmtValorProcesso(v: number | null): string {
+  if (!v) return 'valor não informado'
+  return `R$ ${v.toLocaleString('pt-BR')}`
+}
+
+// Vincula docs recentes da conversa a um processo (fluxo rápido ou por sessão).
+// processoRef pode ser: "003", "#proc-003", ou UUID completo (quando vem de sessao.processo_id).
+async function salvarParaProcesso(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  processoRef: string,
+  telefoneConversa: string,
+  arquivos: FontiArquivo[],
+  marcaAt?: Date | null,
+): Promise<string> {
+  type ProcessoRow = { id: string; numero_processo: string; banco: string | null; valor_imovel: number | null }
+  let processo: ProcessoRow | null = null
+
+  // UUID completo → busca direta por ID (usado quando vem de sessao.processo_id)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(processoRef)) {
+    const { data } = await supabase
+      .from('processos')
+      .select('id, numero_processo, banco, valor_imovel')
+      .eq('id', processoRef)
+      .eq('empresa_id', empresa_id)
+      .is('deleted_at', null)
+      .not('status_processo', 'in', `(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
+      .maybeSingle()
+    processo = data ?? null
+  } else {
+    // Número curto: 003, 3, proc-003, #proc-003
+    const numMatch = processoRef.match(/^#?(?:proc-)?0*(\d+)$/)
+    if (!numMatch) return `❌ Referência de processo inválida: "${processoRef}"\nEx: *fonti salva processo 003`
+    const numeroProcesso = `#proc-${numMatch[1].padStart(3, '0')}`
+    processo = await buscarProcessoPorNumero(supabase, empresa_id, numeroProcesso)
+  }
+
+  if (!processo) return `❌ Processo não encontrado ou já encerrado.`
+
+  const comprador = await buscarCompradorPrincipalProcesso(supabase, empresa_id, processo.id)
+  const pessoa_id = comprador?.pessoa_id ?? null
+
+  const { count: vinculados } = await vincularDocumentosRecentesPorTelefone(
+    supabase, empresa_id, telefoneConversa,
+    pessoa_id, null, 15, marcaAt ?? undefined, processo.id,
+  )
+
+  let salvos = 0
+  for (const arq of arquivos) {
+    const ok = await salvarArquivo(supabase, arq, empresa_id, { pessoa_id, processo_id: processo.id })
+    if (ok) salvos++
+  }
+
+  await limparMarca(supabase, empresa_id, telefoneConversa)
+
+  const total = vinculados + salvos
+  if (total === 0) {
+    const numExibir = processo.numero_processo.replace('#proc-', '')
+    return `⚠️ Nenhum documento recente encontrado para ${processo.numero_processo}.\nUse *fonti processo ${numExibir} para iniciar sessão, envie os arquivos e depois *fonti salva.`
+  }
+
+  const partes: string[] = []
+  if (vinculados > 0) partes.push(`${vinculados} da conversa`)
+  if (salvos > 0) partes.push(`${salvos} novo${salvos > 1 ? 's' : ''}`)
+  return `✅ ${total} documento(s) vinculado(s) ao processo ${processo.numero_processo} — ${processo.banco || 'banco não informado'} (${partes.join(' + ')})`
 }
 
 // ── Busca de entidade para *fonti salva ───────────────────────────────────────
@@ -417,21 +596,34 @@ Regras:
 
 const MSG_AJUDA = `*Fonti — Comandos internos*
 
+*Pessoa / Lead*
+
 *fonti inicio*
-  → Marca o início de uma sessão de docs para o próximo cliente.
-     Use antes de enviar os arquivos quando há múltiplos clientes em sequência.
+  → Marca início de sessão de docs para o próximo cliente.
 
 *fonti criar lead [descrição livre]*
-  + documentos enviados após *fonti inicio (ou últimos 15 min)
-  → Cria Pessoa + Lead e vincula os documentos
+  → Cria Pessoa + Lead e vincula documentos recentes
 
 *fonti atualiza [nome] [dados]*
-  → Atualiza CPF, nascimento, renda, estado civil, telefone de um lead existente
+  → Atualiza CPF, nascimento, renda, estado civil de um lead
      Também vincula docs recentes da conversa
 
-*fonti salva [nome ou #proc-id]*
-  + arquivo anexado
-  → Salva documento no processo ou pessoa
+*fonti salva [nome]*
+  → Vincula docs recentes à pessoa/lead informado
+
+*Processo*
+
+*fonti processo [nome ou número]*
+  → Inicia sessão de docs para um processo específico
+  Ex: *fonti processo Luciana
+  Ex: *fonti processo 003
+
+*fonti salva*
+  → (após *fonti processo) Vincula os docs ao processo da sessão
+
+*fonti salva processo [número]*
+  → Fluxo rápido: vincula direto sem abrir sessão prévia
+  Ex: *fonti salva processo 003
 
 *fonti ajuda*
   → Exibe esta lista
@@ -489,8 +681,35 @@ export async function processarComandoFonti(
   // ── *fonti salva [referencia] ────────────────────────────────────────────
   if (corpoBaixo.startsWith('salva ') || corpoBaixo === 'salva') {
     const referencia = corpo.replace(/^salva\s*/i, '').trim()
+    const telefoneConversaSalva = ctx.telefone_cliente ?? ctx.telefone_remetente
 
-    // Sem referência: usa o telefone do cliente da conversa (cenário fromMe)
+    // Fluxo rápido: *fonti salva processo 003
+    const processoShortMatch = referencia.match(/^processo\s+(.+)$/i)
+    if (processoShortMatch) {
+      return await salvarParaProcesso(supabase, empresa_id, processoShortMatch[1].trim(), telefoneConversaSalva, arquivos)
+    }
+
+    // Sem referência: verifica sessão ativa
+    if (!referencia) {
+      const sessao = await obterSessaoCompleta(supabase, empresa_id, telefoneConversaSalva)
+
+      // Modo processo — sessão tem processo_id definido
+      if (sessao?.processo_id) {
+        return await salvarParaProcesso(
+          supabase, empresa_id,
+          sessao.processo_id,   // passa o ID diretamente — buscarProcessoPorNumero aceita UUID
+          telefoneConversaSalva, arquivos,
+          sessao.iniciado_at ? new Date(sessao.iniciado_at) : null,
+        )
+      }
+
+      // Sem sessão alguma e sem telefone do cliente — orienta o operador
+      if (!sessao && !ctx.telefone_cliente) {
+        return 'Nenhuma sessão ativa encontrada.\nUse:\n• *fonti inicio — para vincular documentos a lead/pessoa\n• *fonti processo [número] — para vincular documentos a um processo'
+      }
+    }
+
+    // Fluxo lead/pessoa: busca entidade por nome ou #proc-id
     if (!referencia && !ctx.telefone_cliente) {
       return '❌ Informe o nome do cliente.\nEx: *fonti salva João da Silva'
     }
@@ -500,8 +719,6 @@ export async function processarComandoFonti(
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
 
-    // Vincula docs da conversa atual (usando marca de sessão se existir)
-    const telefoneConversaSalva = ctx.telefone_cliente ?? ctx.telefone_remetente
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
 
     let vinculados = 0
@@ -770,6 +987,62 @@ export async function processarComandoFonti(
       console.error('[fonti] Erro inesperado ao criar lead:', err)
       return '❌ Erro inesperado. Tente novamente.'
     }
+  }
+
+  // ── *fonti processo [nome ou número] ─────────────────────────────────────
+  const PADRAO_PROCESSO = /^processo\s*/i
+  if (PADRAO_PROCESSO.test(corpo)) {
+    const ref = corpo.replace(PADRAO_PROCESSO, '').trim()
+    const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
+
+    if (!ref) {
+      return '❌ Informe o nome do cliente ou número do processo.\nEx: *fonti processo Luciana\nEx: *fonti processo 003'
+    }
+
+    // Tenta como número de processo: 003, 3, proc-003, #proc-003
+    const numMatch = ref.match(/^#?(?:proc-)?0*(\d+)$/)
+    if (numMatch) {
+      const numeroProcesso = `#proc-${numMatch[1].padStart(3, '0')}`
+      const processo = await buscarProcessoPorNumero(supabase, empresa_id, numeroProcesso)
+      if (!processo) return `❌ Processo ${numeroProcesso} não encontrado ou já encerrado.`
+
+      const comprador = await buscarCompradorPrincipalProcesso(supabase, empresa_id, processo.id)
+      await gravarSessaoProcesso(supabase, empresa_id, telefoneConversa, processo.id, comprador?.pessoa_id ?? null)
+
+      const nomeComprador = comprador?.nome ? ` · ${comprador.nome}` : ''
+      return `✅ Sessão ativa para ${processo.numero_processo} — ${processo.banco || 'banco não informado'}${nomeComprador}.\n\nEnvie os documentos agora.\n\nFinalize com: *fonti salva`
+    }
+
+    // Tenta como nome de pessoa
+    const { data: pessoas } = await supabase
+      .from('pessoas')
+      .select('id, nome')
+      .eq('empresa_id', empresa_id)
+      .ilike('nome', `%${ref}%`)
+      .limit(3)
+
+    if (!pessoas?.length) return `❌ Não encontrei "${ref}" no sistema. Verifique o nome.`
+
+    const escolhida = pessoas.length === 1
+      ? pessoas[0]
+      : (pessoas.find((p) => p.nome.toLowerCase().startsWith(ref.toLowerCase())) ?? pessoas[0])
+
+    const processos = await buscarProcessosAtivos(supabase, empresa_id, escolhida.id)
+
+    if (processos.length === 0) return `❌ ${escolhida.nome} não tem processos aptos para receber documentos.`
+
+    // 1 processo — inicia sessão automaticamente (sem alternativa, confirmar seria só atrito)
+    if (processos.length === 1) {
+      const p = processos[0]
+      await gravarSessaoProcesso(supabase, empresa_id, telefoneConversa, p.id, escolhida.id)
+      return `✅ Encontrei 1 processo apto para ${escolhida.nome}:\n${p.numero_processo} — ${p.banco || '?'} — ${fmtValorProcesso(p.valor_imovel)}\n\nSessão iniciada. Envie os documentos agora.\n\nFinalize com: *fonti salva`
+    }
+
+    // 2+ processos — decisão deve ser humana e explícita
+    const lista = processos
+      .map((p) => `• ${p.numero_processo} — ${p.banco || '?'} — ${fmtValorProcesso(p.valor_imovel)}`)
+      .join('\n')
+    return `Encontrei ${processos.length} processos aptos para ${escolhida.nome}:\n${lista}\n\nPara qual deseja enviar os documentos?\nResponda com: *fonti processo [número]`
   }
 
   // Subcomando não reconhecido
