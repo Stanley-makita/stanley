@@ -36,7 +36,7 @@ export async function POST(
 
   const { data: doc } = await supabase
     .from('documentos_clientes')
-    .select('id, pessoa_id, lead_id, ocr_status')
+    .select('id, pessoa_id, lead_id, processo_id, ocr_status')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
@@ -44,7 +44,7 @@ export async function POST(
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
   if (doc.ocr_status !== 'concluido') return NextResponse.json({ error: 'OCR não concluído' }, { status: 400 })
 
-  // Resolve pessoa_id: direto no doc ou via lead
+  // Resolve pessoa_id: 1) direto no doc, 2) via lead, 3) via comprador principal do processo
   let pessoa_id: string | null = doc.pessoa_id ?? null
   if (!pessoa_id && doc.lead_id) {
     const { data: lead } = await supabase
@@ -54,8 +54,18 @@ export async function POST(
       .maybeSingle()
     pessoa_id = lead?.pessoa_id ?? null
   }
+  if (!pessoa_id && doc.processo_id) {
+    const { data: comprador } = await supabase
+      .from('processo_compradores')
+      .select('pessoa_id')
+      .eq('processo_id', doc.processo_id)
+      .eq('empresa_id', empresa_id)
+      .eq('principal', true)
+      .maybeSingle()
+    pessoa_id = comprador?.pessoa_id ?? null
+  }
 
-  if (!pessoa_id) return NextResponse.json({ error: 'Não foi possível encontrar a pessoa vinculada a este lead' }, { status: 400 })
+  if (!pessoa_id) return NextResponse.json({ error: 'Não foi possível encontrar a pessoa vinculada a este documento' }, { status: 400 })
 
   const body = await request.json() as {
     nome?: string
