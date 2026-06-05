@@ -157,7 +157,7 @@ async function vincularDocumentosConversa(
 }
 
 // Vincula docs não linkados de uma conversa identificada por telefone.
-// janela_minutos: quanto tempo para trás buscar (default 15 min para contexto imediato).
+// marcaAt: se fornecida, usada como início da janela (via *fonti inicio). Senão: now() - janela_minutos.
 async function vincularDocumentosRecentesPorTelefone(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -165,6 +165,7 @@ async function vincularDocumentosRecentesPorTelefone(
   pessoa_id: string,
   lead_id: string | null,
   janela_minutos = 15,
+  marcaAt?: Date,
 ): Promise<number> {
   const { data: conversa } = await supabase
     .from('conversas')
@@ -177,8 +178,11 @@ async function vincularDocumentosRecentesPorTelefone(
 
   if (!conversa?.id) return 0
 
-  const limite = new Date()
-  limite.setMinutes(limite.getMinutes() - janela_minutos)
+  const limite = marcaAt ?? (() => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - janela_minutos)
+    return d
+  })()
 
   const { data: docs } = await supabase
     .from('documentos_clientes')
@@ -206,6 +210,33 @@ async function vincularDocumentosRecentesPorTelefone(
   }
 
   return docs.length
+}
+
+// ── Marca de sessão *fonti inicio ─────────────────────────────────────────────
+
+async function obterMarcaInicio(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+): Promise<Date | null> {
+  const { data } = await supabase
+    .from('fonti_marcas')
+    .select('iniciado_at')
+    .eq('empresa_id', empresa_id)
+    .eq('telefone_conversa', telefoneConversa)
+    .maybeSingle()
+  return data?.iniciado_at ? new Date(data.iniciado_at) : null
+}
+
+async function limparMarca(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+): Promise<void> {
+  await supabase.from('fonti_marcas')
+    .delete()
+    .eq('empresa_id', empresa_id)
+    .eq('telefone_conversa', telefoneConversa)
 }
 
 // ── Busca de entidade para *fonti salva ───────────────────────────────────────
@@ -365,13 +396,17 @@ Produto null se não mencionado. Valor e renda como número inteiro (sem R$). Se
 
 const MSG_AJUDA = `*Fonti — Comandos internos*
 
+*fonti inicio*
+  → Marca o início de uma sessão de docs para o próximo cliente.
+     Use antes de enviar os arquivos quando há múltiplos clientes em sequência.
+
+*fonti criar lead [descrição livre]*
+  + documentos enviados após *fonti inicio (ou últimos 15 min)
+  → Cria Pessoa + Lead e vincula os documentos
+
 *fonti salva [nome ou #proc-id]*
   + arquivo anexado
   → Salva documento no processo ou pessoa
-
-*fonti novo lead [descrição livre]*
-  + documentos (opcional)
-  → Cria Pessoa + Lead a partir do texto
 
 *fonti ajuda*
   → Exibe esta lista
@@ -416,6 +451,16 @@ export async function processarComandoFonti(
     return MSG_AJUDA
   }
 
+  // ── *fonti inicio ────────────────────────────────────────────────────────
+  if (corpoBaixo === 'inicio' || corpoBaixo === 'start') {
+    const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
+    await supabase.from('fonti_marcas').upsert(
+      { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: new Date().toISOString() },
+      { onConflict: 'empresa_id,telefone_conversa' },
+    )
+    return '✅ Pronto! Envie os documentos do cliente agora.\nQuando terminar: *fonti criar lead [nome] [descrição]'
+  }
+
   // ── *fonti salva [referencia] ────────────────────────────────────────────
   if (corpoBaixo.startsWith('salva ') || corpoBaixo === 'salva') {
     const referencia = corpo.replace(/^salva\s*/i, '').trim()
@@ -430,16 +475,22 @@ export async function processarComandoFonti(
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
 
-    // Vincula todos os docs não linkados da conversa do cliente (funciona sem arquivo anexado)
+    // Vincula docs da conversa atual (usando marca de sessão se existir)
+    const telefoneConversaSalva = ctx.telefone_cliente ?? ctx.telefone_remetente
+    const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
+
     let vinculados = 0
     if (entidade.tipo === 'pessoa') {
-      vinculados = await vincularDocumentosConversa(
-        supabase,
-        empresa_id,
-        entidade.id,
-        entidade.lead_id ?? null,
+      vinculados = await vincularDocumentosRecentesPorTelefone(
+        supabase, empresa_id, telefoneConversaSalva,
+        entidade.id, entidade.lead_id ?? null,
+        15, marcaAtSalva ?? undefined,
       )
+      // Vincula também docs da conversa do próprio cliente (bot, 90 dias)
+      vinculados += await vincularDocumentosConversa(supabase, empresa_id, entidade.id, entidade.lead_id ?? null)
     }
+
+    if (marcaAtSalva) await limparMarca(supabase, empresa_id, telefoneConversaSalva)
 
     // Salva o arquivo novo enviado junto ao comando (se houver)
     let salvos = 0
@@ -454,7 +505,7 @@ export async function processarComandoFonti(
 
     const total = vinculados + salvos
     if (total === 0) {
-      return `⚠️ Nenhum documento encontrado para *${entidade.label}*.\nSe o cliente enviou arquivos, eles devem ter sido enviados para o número do bot.`
+      return `⚠️ Nenhum documento encontrado para *${entidade.label}*.\nEnvie os arquivos e use *fonti inicio antes para marcar o início da sessão.`
     }
 
     const partes: string[] = []
@@ -534,13 +585,14 @@ export async function processarComandoFonti(
         if (ok) arquivosSalvos++
       }
 
-      // Vincula docs enviados ANTES do comando na mesma conversa (últimos 15 min).
-      // Cobre o caso: corretor envia RG/CPF/renda em msgs separadas e depois digita *fonti criar lead.
-      // telefone_cliente = quem enviou os arquivos (corretor ou funcionário no chat onde o comando foi digitado).
+      // Vincula docs da conversa: usa marca de sessão (*fonti inicio) se existir, senão janela de 15 min.
       const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
+      const marcaAt = await obterMarcaInicio(supabase, empresa_id, telefoneConversa)
       const docsConversa = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversa, pessoa_id, novoLead.id,
+        15, marcaAt ?? undefined,
       )
+      if (marcaAt) await limparMarca(supabase, empresa_id, telefoneConversa)
 
       const produto = dados.produto ? ` — ${dados.produto}` : ''
       const extras: string[] = []
