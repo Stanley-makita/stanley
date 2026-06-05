@@ -20,7 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Plus, Pencil, Smartphone } from 'lucide-react'
+import { Plus, Pencil, Smartphone, Copy, Check } from 'lucide-react'
 import type { Usuario } from '@/types/auth'
 
 interface Instancia {
@@ -35,6 +35,11 @@ interface Instancia {
 }
 
 const EMPTY_FORM = { nome: '', token: '', numero_telefone: '', atendente_id: '' }
+
+function useWebhookUrl() {
+  if (typeof window === 'undefined') return ''
+  return `${window.location.origin}/api/bot/whatsapp/webhook`
+}
 
 function useInstancias() {
   return useQuery({
@@ -79,6 +84,14 @@ export function InstanciasLista() {
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<Instancia | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [copiado, setCopiado] = useState(false)
+  const webhookUrl = useWebhookUrl()
+
+  function copiarWebhook() {
+    navigator.clipboard.writeText(webhookUrl)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
 
   const podeGerenciar = pode('instancias.gerenciar')
 
@@ -91,49 +104,17 @@ export function InstanciasLista() {
         atendente_id: form.atendente_id && form.atendente_id !== 'none' ? form.atendente_id : null,
         empresa_id: usuario!.empresa_id,
       }
-      let instanciaId: string
       if (editando) {
         const { error } = await supabase.from('instancias').update(payload).eq('id', editando.id)
         if (error) throw error
-        instanciaId = editando.id
       } else {
-        const { data: inserted, error } = await supabase
-          .from('instancias')
-          .insert(payload)
-          .select('id')
-          .single()
+        const { error } = await supabase.from('instancias').insert(payload)
         if (error) throw error
-        instanciaId = inserted.id
       }
-
-      // Configura webhook no Uazapi automaticamente
-      const session = await supabase.auth.getSession()
-      const accessToken = session.data.session?.access_token
-      let webhookOk = false
-      if (accessToken) {
-        try {
-          const res = await fetch(`/api/instancias/${instanciaId}/configurar-webhook`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-          webhookOk = res.ok
-          if (!res.ok) console.warn('[instancias] Webhook não configurado automaticamente:', await res.text())
-        } catch (e) {
-          console.warn('[instancias] Falha ao configurar webhook:', e)
-        }
-      }
-
-      return { webhookOk }
     },
-    onSuccess: ({ webhookOk }) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['instancias'] })
-      if (webhookOk) {
-        toast.success(editando ? 'Instância atualizada. Webhook configurado.' : 'Instância cadastrada. Webhook configurado.')
-      } else {
-        toast.warning(
-          editando ? 'Instância atualizada, mas não foi possível configurar o webhook automaticamente.' : 'Instância cadastrada, mas não foi possível configurar o webhook automaticamente.',
-        )
-      }
+      toast.success(editando ? 'Instância atualizada.' : 'Instância cadastrada.')
       setModalAberto(false)
       setEditando(null)
       setForm(EMPTY_FORM)
@@ -282,6 +263,30 @@ export function InstanciasLista() {
                 value={form.numero_telefone}
                 onChange={(e) => setForm({ ...form, numero_telefone: e.target.value })}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>URL do Webhook (configure no Uazapi)</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={webhookUrl}
+                  className="font-mono text-xs text-gray-600 bg-gray-50 cursor-default"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={copiarWebhook}
+                  title="Copiar URL"
+                >
+                  {copiado ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-400">
+                Cole esta URL no campo Webhook do dashboard Uazapi, com os eventos: messages, messages_update, contacts, sender.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Atendente responsável</Label>
