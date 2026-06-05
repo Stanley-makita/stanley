@@ -17,11 +17,11 @@ const UAZAPI_TIPO_MAP: Record<TipoMidia, string> = {
   ptt:      'ptt',
 }
 
-async function enviarUazapi(telefone: string, tipo: TipoMidia, texto?: string, arquivo?: string, nomeArquivo?: string) {
+async function enviarUazapi(telefone: string, tipo: TipoMidia, instanceToken: string, texto?: string, arquivo?: string, nomeArquivo?: string) {
   if (tipo === 'text') {
     const res = await fetch(`${process.env.UAZAPI_API_URL}/send/text`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'token': process.env.UAZAPI_INSTANCE_TOKEN ?? '' },
+      headers: { 'Content-Type': 'application/json', 'token': instanceToken },
       body: JSON.stringify({ number: telefone, text: texto, track_source: 'crm-humano', delay: 800 }),
     })
     if (!res.ok) throw new Error(`Uazapi send/text: ${res.status} ${await res.text()}`)
@@ -39,7 +39,7 @@ async function enviarUazapi(telefone: string, tipo: TipoMidia, texto?: string, a
 
   const res = await fetch(`${process.env.UAZAPI_API_URL}/send/media`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'token': process.env.UAZAPI_INSTANCE_TOKEN ?? '' },
+    headers: { 'Content-Type': 'application/json', 'token': instanceToken },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Uazapi send/media: ${res.status} ${await res.text()}`)
@@ -92,19 +92,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Arquivo muito grande. Reduza o tamanho antes de enviar.' }, { status: 413 })
   }
 
-  // Verifica que a conversa pertence à empresa do atendente
+  // Verifica que a conversa pertence à empresa do atendente e busca instância
   const { data: conversa } = await supabaseService
     .from('conversas')
-    .select('id')
+    .select('id, instancia_id')
     .eq('id', conversa_id)
     .eq('empresa_id', usuario.empresa_id)
     .single()
   if (!conversa) return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 })
 
+  // Resolve token da instância correta (fallback para env se não tiver instância vinculada)
+  let instanceToken = process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+  if (conversa.instancia_id) {
+    const { data: instancia } = await supabaseService
+      .from('instancias')
+      .select('token')
+      .eq('id', conversa.instancia_id)
+      .eq('ativo', true)
+      .maybeSingle()
+    if (instancia?.token) instanceToken = instancia.token
+  }
+
   // Envia via Uazapi
   let uazapiResult
   try {
-    uazapiResult = await enviarUazapi(telefone, tipo, texto, arquivo, nome_arquivo)
+    uazapiResult = await enviarUazapi(telefone, tipo, instanceToken, texto, arquivo, nome_arquivo)
   } catch (err) {
     console.error('[send] Erro Uazapi:', err)
     return NextResponse.json({ error: 'Falha ao enviar mensagem. Tente novamente.' }, { status: 502 })
@@ -119,7 +131,7 @@ export async function POST(request: NextRequest) {
     try {
       const dlRes = await fetch(`${process.env.UAZAPI_API_URL}/message/download`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'token': process.env.UAZAPI_INSTANCE_TOKEN ?? '' },
+        headers: { 'Content-Type': 'application/json', 'token': instanceToken },
         body: JSON.stringify({
           id: uazapiResult.messageid,
           return_link: true,
