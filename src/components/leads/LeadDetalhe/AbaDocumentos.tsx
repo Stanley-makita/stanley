@@ -13,6 +13,7 @@ import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
+import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 
 const BUCKET = 'documentos-clientes'
 
@@ -21,6 +22,7 @@ const TIPOS_DOCUMENTO = [
   { value: 'cpf',                  label: 'CPF' },
   { value: 'comprovante_renda',    label: 'Comp. de Renda' },
   { value: 'comprovante_endereco', label: 'Comp. de Endereço' },
+  { value: 'extrato_fgts',         label: 'Extrato FGTS' },
   { value: 'outro',                label: 'Outro' },
 ] as const
 
@@ -54,6 +56,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [fazendoUpload, setFazendoUpload] = useState(false)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
   const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
+  const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
 
   const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
@@ -152,6 +155,26 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       toast.success('Documento enviado com sucesso.')
       setModalAberto(false)
       setArquivoSelecionado(null)
+
+      // Dispara OCR automaticamente para extrato FGTS
+      if (tipo === 'extrato_fgts') {
+        const { data: docInserido } = await supabase
+          .from('documentos_clientes')
+          .select('id')
+          .eq('empresa_id', usuario.empresa_id)
+          .eq('storage_path', storagePath)
+          .maybeSingle()
+        if (docInserido?.id) {
+          const { data: session } = await supabase.auth.getSession()
+          const token = session.session?.access_token
+          if (token) {
+            fetch(`/api/documentos/${docInserido.id}/ocr-iniciar`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` },
+            }).then(() => queryClient.invalidateQueries({ queryKey })).catch(console.error)
+          }
+        }
+      }
     } catch (err) {
       if (storagePath) supabase.storage.from(BUCKET).remove([storagePath])
       toast.error(`Erro: ${err instanceof Error ? err.message : String(err)}`)
@@ -267,7 +290,17 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {doc.ocr_status === 'concluido' && (
+                  {doc.ocr_status === 'concluido' && doc.classificacao === 'extrato_fgts' && (
+                    <button
+                      onClick={() => setDocFgtsRevisao(doc)}
+                      title="Revisar dados FGTS extraídos"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      FGTS
+                    </button>
+                  )}
+                  {doc.ocr_status === 'concluido' && doc.classificacao !== 'extrato_fgts' && (
                     <button
                       onClick={() => setDocOcrRevisao(doc)}
                       title="Revisar dados extraídos do documento"
@@ -311,13 +344,25 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         </div>
       )}
 
-      {/* Modal de revisão OCR */}
+      {/* Modal de revisão OCR (RG, CNH, comprovantes) */}
       {docOcrRevisao && (
         <DocumentoOcrRevisaoModal
           documento={docOcrRevisao}
           onClose={() => setDocOcrRevisao(null)}
           onConfirmado={() => {
             setDocOcrRevisao(null)
+            queryClient.invalidateQueries({ queryKey })
+          }}
+        />
+      )}
+
+      {/* Modal de revisão FGTS */}
+      {docFgtsRevisao && (
+        <DocumentoFgtsRevisaoModal
+          documento={docFgtsRevisao}
+          onClose={() => setDocFgtsRevisao(null)}
+          onConfirmado={() => {
+            setDocFgtsRevisao(null)
             queryClient.invalidateQueries({ queryKey })
           }}
         />

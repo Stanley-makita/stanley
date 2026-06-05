@@ -11,7 +11,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export interface OcrResultado {
-  tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'outro'
+  tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'extrato_fgts' | 'outro'
+  // Campos de RG / CNH / comprovantes
   nome?: string
   cpf?: string
   rg?: string
@@ -26,11 +27,19 @@ export interface OcrResultado {
   endereco_cidade?: string
   endereco_uf?: string
   endereco_cep?: string
+  // Campos exclusivos do extrato FGTS
+  cod_empregador?: string
+  nro_conta_fgts?: string
+  pis_pasep?: string
+  saldo_disponivel?: string   // valor numérico como texto, ex: "1234.56"
+  data_extrato?: string       // YYYY-MM-DD
   confianca: 'alta' | 'media' | 'baixa'
 }
 
 const SYSTEM_PROMPT = `Você é um extrator de dados de documentos brasileiros. Analise a imagem e extraia os dados em JSON.
-Responda SOMENTE com JSON válido, sem markdown, sem explicação:
+Responda SOMENTE com JSON válido, sem markdown, sem explicação.
+
+Para documentos comuns (RG, CNH, comprovante):
 {
   "tipo_documento": "rg|cnh|comprovante_endereco|comprovante_renda|outro",
   "nome": "nome completo ou null",
@@ -49,12 +58,27 @@ Responda SOMENTE com JSON válido, sem markdown, sem explicação:
   "endereco_cep": "8 dígitos sem traço ou null",
   "confianca": "alta|media|baixa"
 }
+
+Para extrato FGTS (Caixa Econômica, com saldo FGTS, conta vinculada, NIS/PIS):
+{
+  "tipo_documento": "extrato_fgts",
+  "nome": "nome do trabalhador ou null",
+  "cpf": "11 dígitos sem pontos/traços ou null",
+  "pis_pasep": "NIS/PIS/PASEP sem pontos/traços ou null",
+  "cod_empregador": "código do empregador ou CNPJ ou null",
+  "nro_conta_fgts": "número da conta FGTS ou null",
+  "saldo_disponivel": "valor numérico como texto ex: 1234.56 ou null",
+  "data_extrato": "YYYY-MM-DD da data de emissão do extrato ou null",
+  "confianca": "alta|media|baixa"
+}
+
 Regras:
-- cpf: apenas dígitos (ex: "012.625.478-45" → "01262547845")
+- cpf e pis_pasep: apenas dígitos
 - datas: converter qualquer formato para YYYY-MM-DD
-- confiança: alta se todos os campos visíveis foram lidos claramente; media se há campos incertos; baixa se documento ilegível ou parcialmente visível
-- campos ausentes no documento: null (não invente)
-- tipo_documento: baseie-se no layout e campos presentes`
+- saldo_disponivel: valor numérico como string, sem R$ ou pontos de milhar (ex: "1234.56")
+- confiança: alta se campos visíveis lidos claramente; media se incertos; baixa se ilegível
+- campos ausentes: null (não invente)
+- tipo_documento: baseie-se no layout — extrato FGTS tem "FGTS", "Saldo", "Conta Vinculada" visíveis`
 
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 const TIPOS_IMAGEM: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
