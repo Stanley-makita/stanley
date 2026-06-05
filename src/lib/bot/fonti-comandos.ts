@@ -186,11 +186,12 @@ async function vincularDocumentosRecentesPorTelefone(
     .eq('empresa_id', empresa_id)
     .eq('conversa_id', conversa.id)
     .is('deleted_at', null)
-    .is('pessoa_id', null)
+    .is('lead_id', null)   // docs ainda sem lead — pessoa_id pode estar preenchido (sender)
     .gte('created_at', limite.toISOString())
 
   if (!docs?.length) return 0
 
+  // Sobrescreve pessoa_id (corretor → cliente) e define lead_id
   const updates: Record<string, string | null> = { pessoa_id }
   if (lead_id) updates.lead_id = lead_id
 
