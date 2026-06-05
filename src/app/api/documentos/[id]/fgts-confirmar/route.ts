@@ -57,12 +57,30 @@ export async function POST(
   if (!pessoa_id && doc.processo_id) {
     const { data: comprador } = await supabase
       .from('processo_compradores')
-      .select('pessoa_id')
+      .select('pessoa_id, cpf, nome')
       .eq('processo_id', doc.processo_id)
       .eq('empresa_id', empresa_id)
       .eq('principal', true)
       .maybeSingle()
-    pessoa_id = comprador?.pessoa_id ?? null
+    if (comprador?.pessoa_id) {
+      pessoa_id = comprador.pessoa_id
+    } else if (comprador?.cpf) {
+      const { data: p } = await supabase
+        .from('pessoas')
+        .select('id')
+        .eq('empresa_id', empresa_id)
+        .eq('cpf', comprador.cpf)
+        .maybeSingle()
+      pessoa_id = p?.id ?? null
+    } else if (comprador?.nome) {
+      const { data: p } = await supabase
+        .from('pessoas')
+        .select('id')
+        .eq('empresa_id', empresa_id)
+        .ilike('nome', comprador.nome)
+        .maybeSingle()
+      pessoa_id = p?.id ?? null
+    }
   }
 
   if (!pessoa_id) return NextResponse.json({ error: 'Não foi possível encontrar a pessoa vinculada a este documento' }, { status: 400 })

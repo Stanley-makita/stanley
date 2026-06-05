@@ -108,14 +108,26 @@ export function AbaDocumentos({ processoId }: Props) {
     setFazendoUpload(true)
     let storagePath: string | null = null
     try {
-      // Busca pessoa_id do comprador principal para linkar o documento também à pessoa
+      // Busca pessoa_id do comprador principal — com fallback por CPF e nome
       const { data: comprador } = await supabase
         .from('processo_compradores')
-        .select('pessoa_id')
+        .select('pessoa_id, cpf, nome')
         .eq('processo_id', processoId)
         .eq('empresa_id', usuario.empresa_id)
         .eq('principal', true)
         .maybeSingle()
+
+      let pessoaIdUpload: string | null = comprador?.pessoa_id ?? null
+      if (!pessoaIdUpload && comprador?.cpf) {
+        const { data: p } = await supabase
+          .from('pessoas').select('id').eq('empresa_id', usuario.empresa_id).eq('cpf', comprador.cpf).maybeSingle()
+        pessoaIdUpload = p?.id ?? null
+      }
+      if (!pessoaIdUpload && comprador?.nome) {
+        const { data: p } = await supabase
+          .from('pessoas').select('id').eq('empresa_id', usuario.empresa_id).ilike('nome', comprador.nome).maybeSingle()
+        pessoaIdUpload = p?.id ?? null
+      }
 
       const ext = arquivoSelecionado.name.split('.').pop() ?? 'bin'
       storagePath = `${usuario.empresa_id}/${processoId}/${crypto.randomUUID()}.${ext}`
@@ -135,7 +147,7 @@ export function AbaDocumentos({ processoId }: Props) {
         .insert({
           empresa_id:    usuario.empresa_id,
           processo_id:   processoId,
-          pessoa_id:     comprador?.pessoa_id ?? null,
+          pessoa_id:     pessoaIdUpload,
           nome_original: arquivoSelecionado.name,
           mime_type:     arquivoSelecionado.type || null,
           tamanho_bytes: arquivoSelecionado.size,
