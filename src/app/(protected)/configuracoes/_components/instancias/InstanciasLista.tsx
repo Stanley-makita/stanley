@@ -91,17 +91,49 @@ export function InstanciasLista() {
         atendente_id: form.atendente_id && form.atendente_id !== 'none' ? form.atendente_id : null,
         empresa_id: usuario!.empresa_id,
       }
+      let instanciaId: string
       if (editando) {
         const { error } = await supabase.from('instancias').update(payload).eq('id', editando.id)
         if (error) throw error
+        instanciaId = editando.id
       } else {
-        const { error } = await supabase.from('instancias').insert(payload)
+        const { data: inserted, error } = await supabase
+          .from('instancias')
+          .insert(payload)
+          .select('id')
+          .single()
         if (error) throw error
+        instanciaId = inserted.id
       }
+
+      // Configura webhook no Uazapi automaticamente
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data.session?.access_token
+      let webhookOk = false
+      if (accessToken) {
+        try {
+          const res = await fetch(`/api/instancias/${instanciaId}/configurar-webhook`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          webhookOk = res.ok
+          if (!res.ok) console.warn('[instancias] Webhook não configurado automaticamente:', await res.text())
+        } catch (e) {
+          console.warn('[instancias] Falha ao configurar webhook:', e)
+        }
+      }
+
+      return { webhookOk }
     },
-    onSuccess: () => {
+    onSuccess: ({ webhookOk }) => {
       qc.invalidateQueries({ queryKey: ['instancias'] })
-      toast.success(editando ? 'Instância atualizada.' : 'Instância cadastrada.')
+      if (webhookOk) {
+        toast.success(editando ? 'Instância atualizada. Webhook configurado.' : 'Instância cadastrada. Webhook configurado.')
+      } else {
+        toast.warning(
+          editando ? 'Instância atualizada, mas não foi possível configurar o webhook automaticamente.' : 'Instância cadastrada, mas não foi possível configurar o webhook automaticamente.',
+        )
+      }
       setModalAberto(false)
       setEditando(null)
       setForm(EMPTY_FORM)
