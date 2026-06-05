@@ -153,21 +153,32 @@ async function vincularDocumentosConversa(
 
   if (!telefoneRow?.telefone) return 0
 
-  // 2. Conversa WhatsApp da pessoa com o bot
+  return vincularDocumentosRecentesPorTelefone(supabase, empresa_id, telefoneRow.telefone, pessoa_id, lead_id, 90 * 24 * 60)
+}
+
+// Vincula docs não linkados de uma conversa identificada por telefone.
+// janela_minutos: quanto tempo para trás buscar (default 15 min para contexto imediato).
+async function vincularDocumentosRecentesPorTelefone(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+  pessoa_id: string,
+  lead_id: string | null,
+  janela_minutos = 15,
+): Promise<number> {
   const { data: conversa } = await supabase
     .from('conversas')
     .select('id')
     .eq('empresa_id', empresa_id)
     .eq('canal', 'whatsapp')
-    .eq('contato_telefone', telefoneRow.telefone)
+    .eq('contato_telefone', telefoneConversa)
     .limit(1)
     .maybeSingle()
 
   if (!conversa?.id) return 0
 
-  // 3. Documentos da conversa ainda sem pessoa_id (últimos 90 dias)
   const limite = new Date()
-  limite.setDate(limite.getDate() - 90)
+  limite.setMinutes(limite.getMinutes() - janela_minutos)
 
   const { data: docs } = await supabase
     .from('documentos_clientes')
@@ -180,7 +191,6 @@ async function vincularDocumentosConversa(
 
   if (!docs?.length) return 0
 
-  // 4. Vincula todos de uma vez
   const updates: Record<string, string | null> = { pessoa_id }
   if (lead_id) updates.lead_id = lead_id
 
@@ -190,7 +200,7 @@ async function vincularDocumentosConversa(
     .in('id', docs.map((d) => d.id))
 
   if (error) {
-    console.error('[fonti] Erro ao vincular documentos da conversa:', error)
+    console.error('[fonti] Erro ao vincular documentos:', error)
     return 0
   }
 
@@ -513,7 +523,7 @@ export async function processarComandoFonti(
         return '❌ Erro ao criar o lead. Tente novamente.'
       }
 
-      // Salva arquivos vinculados ao lead
+      // Salva arquivo enviado junto ao próprio comando *fonti
       let arquivosSalvos = 0
       for (const arq of arquivos) {
         const ok = await salvarArquivo(supabase, arq, empresa_id, {
@@ -523,11 +533,20 @@ export async function processarComandoFonti(
         if (ok) arquivosSalvos++
       }
 
+      // Vincula docs enviados ANTES do comando na mesma conversa (últimos 15 min).
+      // Cobre o caso: corretor envia RG/CPF/renda em msgs separadas e depois digita *fonti criar lead.
+      // telefone_cliente = quem enviou os arquivos (corretor ou funcionário no chat onde o comando foi digitado).
+      const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
+      const docsConversa = await vincularDocumentosRecentesPorTelefone(
+        supabase, empresa_id, telefoneConversa, pessoa_id, novoLead.id,
+      )
+
       const produto = dados.produto ? ` — ${dados.produto}` : ''
       const extras: string[] = []
       if (dados.valor) extras.push(`R$ ${dados.valor.toLocaleString('pt-BR')}`)
       if (dados.renda) extras.push(`renda R$ ${dados.renda.toLocaleString('pt-BR')}`)
-      if (arquivosSalvos > 0) extras.push(`${arquivosSalvos} doc(s)`)
+      const totalDocs = arquivosSalvos + docsConversa
+      if (totalDocs > 0) extras.push(`${totalDocs} doc(s)`)
 
       return `✅ Lead criado: *${dados.nome}*${produto}${extras.length ? `\n${extras.join(' · ')}` : ''}`
     } catch (err) {
