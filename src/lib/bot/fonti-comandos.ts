@@ -343,36 +343,50 @@ interface DadosLead {
   produto: string | null
   valor: number | null
   renda: number | null
+  cpf: string | null
+  data_nascimento: string | null
+  estado_civil: 'solteiro' | 'casado' | 'uniao_estavel' | 'divorciado' | 'viuvo' | null
+  valor_entrada: number | null
 }
 
+const ESTADOS_CIVIS_VALIDOS = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo'] as const
+type EstadoCivil = typeof ESTADOS_CIVIS_VALIDOS[number]
+
 async function extrairDadosLead(instrucao: string): Promise<DadosLead> {
-  // Tenta extração rápida sem chamar a API
   const produtoRapido = extrairProduto(instrucao)
   const numerosEncontrados = instrucao.match(/R?\$?\s*[\d.,]+\s*(?:mil|k|m)?/gi) ?? []
 
-  // Usa Claude apenas se o texto for complexo o suficiente
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
+      max_tokens: 400,
       system: `Extraia dados de lead imobiliário do texto. Responda SOMENTE com JSON válido, sem markdown, sem explicação:
-{"nome": "...", "produto": "Financiamento Imobiliário|CGI|Consórcio|Contrato|null", "valor": número_ou_null, "renda": número_ou_null}
-Produto null se não mencionado. Valor e renda como número inteiro (sem R$). Se não mencionado, null.`,
+{"nome":"...","produto":"Financiamento Imobiliário|CGI|Consórcio|Contrato|null","valor":número_ou_null,"renda":número_ou_null,"cpf":"11digitos_ou_null","data_nascimento":"YYYY-MM-DD_ou_null","estado_civil":"solteiro|casado|uniao_estavel|divorciado|viuvo|null","valor_entrada":número_ou_null}
+Regras:
+- valor e renda: número inteiro sem R$ (ex: "750 mil" → 750000, "35 mi" → 35000, "35k" → 35000)
+- valor_entrada: valor de entrada/FGTS/recursos próprios mencionado (ex: "200 mil de entrada" → 200000)
+- cpf: apenas dígitos, sem pontos/traços (ex: "012.625.478-45" → "01262547845"). null se ausente.
+- data_nascimento: converter qualquer formato para YYYY-MM-DD. null se ausente.
+- estado_civil: "casado/a" → "casado", "solteiro/a" → "solteiro", "união estável" → "uniao_estavel", "divorciado/a" → "divorciado", "viúvo/a" → "viuvo". null se não mencionado.
+- Se não mencionado, use null.`,
       messages: [{ role: 'user', content: instrucao }],
     })
 
     const bloco = response.content[0]
     if (bloco?.type === 'text') {
-      // Claude às vezes envolve o JSON em ```json ... ``` — remove antes de parsear
       const jsonText = bloco.text.trim()
         .replace(/^```(?:json)?\s*/i, '')
         .replace(/\s*```$/, '')
-      const dados = JSON.parse(jsonText) as DadosLead
+      const d = JSON.parse(jsonText) as DadosLead
       return {
-        nome:    dados.nome    ?? null,
-        produto: dados.produto ?? produtoRapido,
-        valor:   typeof dados.valor === 'number' ? dados.valor : null,
-        renda:   typeof dados.renda === 'number' ? dados.renda : null,
+        nome:            d.nome    ?? null,
+        produto:         d.produto ?? produtoRapido,
+        valor:           typeof d.valor === 'number' ? d.valor : null,
+        renda:           typeof d.renda === 'number' ? d.renda : null,
+        cpf:             typeof d.cpf === 'string' && /^\d{11}$/.test(d.cpf) ? d.cpf : null,
+        data_nascimento: typeof d.data_nascimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.data_nascimento) ? d.data_nascimento : null,
+        estado_civil:    ESTADOS_CIVIS_VALIDOS.includes(d.estado_civil as EstadoCivil) ? d.estado_civil as EstadoCivil : null,
+        valor_entrada:   typeof d.valor_entrada === 'number' ? d.valor_entrada : null,
       }
     }
   } catch (err) {
@@ -382,13 +396,16 @@ Produto null se não mencionado. Valor e renda como número inteiro (sem R$). Se
   // Fallback: extração manual básica
   const valor = numerosEncontrados.length > 0 ? extrairNumero(numerosEncontrados[0]!) : null
   const renda = numerosEncontrados.length > 1 ? extrairNumero(numerosEncontrados[1]!) : null
-  // Nome: primeira sequência de palavras capitalizadas
   const nomeMatch = instrucao.match(/[A-ZÁÉÍÓÚÀÃÕÂÊÔÇ][a-záéíóúàãõâêôç]+(?:\s+[A-ZÁÉÍÓÚÀÃÕÂÊÔÇ][a-záéíóúàãõâêôç]+)+/)
   return {
     nome: nomeMatch?.[0] ?? null,
     produto: produtoRapido,
     valor,
     renda,
+    cpf: null,
+    data_nascimento: null,
+    estado_civil: null,
+    valor_entrada: null,
   }
 }
 
@@ -538,6 +555,16 @@ export async function processarComandoFonti(
 
       const pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome)
 
+      // Atualiza pessoa com campos extras extraídos do texto
+      const camposPessoa: Record<string, unknown> = {}
+      if (dados.cpf)             camposPessoa.cpf             = dados.cpf
+      if (dados.data_nascimento) camposPessoa.data_nascimento = dados.data_nascimento
+      if (dados.estado_civil)    camposPessoa.estado_civil    = dados.estado_civil
+      if (dados.renda)           camposPessoa.renda_formal    = dados.renda
+      if (Object.keys(camposPessoa).length > 0) {
+        await supabase.from('pessoas').update(camposPessoa).eq('id', pessoa_id)
+      }
+
       // Busca primeira fase
       const { data: primeiraFase } = await supabase
         .from('fases')
@@ -565,7 +592,10 @@ export async function processarComandoFonti(
           valor_pretendido:  dados.valor   ?? null,
           renda_formal:      dados.renda   ?? null,
           pessoa_id,
-          observacoes: `Criado via *fonti por ${usuario.nome}`,
+          observacoes: [
+            `Criado via *fonti por ${usuario.nome}`,
+            dados.valor_entrada ? `Entrada informada: R$ ${dados.valor_entrada.toLocaleString('pt-BR')}` : null,
+          ].filter(Boolean).join('\n'),
         })
         .select('id')
         .single()
@@ -595,13 +625,29 @@ export async function processarComandoFonti(
       if (marcaAt) await limparMarca(supabase, empresa_id, telefoneConversa)
 
       const produto = dados.produto ? ` — ${dados.produto}` : ''
-      const extras: string[] = []
-      if (dados.valor) extras.push(`R$ ${dados.valor.toLocaleString('pt-BR')}`)
-      if (dados.renda) extras.push(`renda R$ ${dados.renda.toLocaleString('pt-BR')}`)
+      const linha1: string[] = []
+      if (dados.valor) linha1.push(`R$ ${dados.valor.toLocaleString('pt-BR')}`)
+      if (dados.renda) linha1.push(`renda R$ ${dados.renda.toLocaleString('pt-BR')}`)
+      if (dados.valor_entrada) linha1.push(`entrada R$ ${dados.valor_entrada.toLocaleString('pt-BR')}`)
       const totalDocs = arquivosSalvos + docsConversa
-      if (totalDocs > 0) extras.push(`${totalDocs} doc(s)`)
+      if (totalDocs > 0) linha1.push(`${totalDocs} doc(s)`)
 
-      return `✅ Lead criado: *${dados.nome}*${produto}${extras.length ? `\n${extras.join(' · ')}` : ''}`
+      const linha2: string[] = []
+      if (dados.cpf) linha2.push('CPF ✓')
+      if (dados.data_nascimento) {
+        const [y, m, d] = dados.data_nascimento.split('-')
+        linha2.push(`Nasc. ${d}/${m}/${y}`)
+      }
+      if (dados.estado_civil) {
+        const labels: Record<string, string> = { solteiro: 'Solteiro', casado: 'Casado', uniao_estavel: 'União estável', divorciado: 'Divorciado', viuvo: 'Viúvo' }
+        linha2.push(labels[dados.estado_civil] ?? dados.estado_civil)
+      }
+
+      const linhas = [`✅ Lead criado: *${dados.nome}*${produto}`]
+      if (linha1.length) linhas.push(linha1.join(' · '))
+      if (linha2.length) linhas.push(linha2.join(' · '))
+
+      return linhas.join('\n')
     } catch (err) {
       console.error('[fonti] Erro inesperado ao criar lead:', err)
       return '❌ Erro inesperado. Tente novamente.'
