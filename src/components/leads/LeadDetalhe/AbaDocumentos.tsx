@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 
 const BUCKET = 'documentos-clientes'
 
@@ -32,6 +33,8 @@ interface DocumentoCliente {
   tamanho_bytes: number | null
   storage_path: string
   classificacao: string | null
+  ocr_status: string | null
+  ocr_dados: Record<string, unknown> | null
   created_at: string
 }
 
@@ -50,6 +53,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [tipo, setTipo] = useState<TipoDocumento>('outro')
   const [fazendoUpload, setFazendoUpload] = useState(false)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
+  const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
 
   const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
@@ -63,7 +67,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
 
       const { data, error } = await supabase
         .from('documentos_clientes')
-        .select('id, nome_original, mime_type, tamanho_bytes, storage_path, classificacao, created_at')
+        .select('id, nome_original, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at')
         .or(filtro)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
@@ -263,6 +267,16 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {doc.ocr_status === 'concluido' && (
+                    <button
+                      onClick={() => setDocOcrRevisao(doc)}
+                      title="Revisar dados extraídos do documento"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Revisar
+                    </button>
+                  )}
                   <button
                     onClick={() => handleVisualizar(doc)}
                     title="Abrir no navegador"
@@ -295,6 +309,18 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
             )
           })}
         </div>
+      )}
+
+      {/* Modal de revisão OCR */}
+      {docOcrRevisao && (
+        <DocumentoOcrRevisaoModal
+          documento={docOcrRevisao}
+          onClose={() => setDocOcrRevisao(null)}
+          onConfirmado={() => {
+            setDocOcrRevisao(null)
+            queryClient.invalidateQueries({ queryKey })
+          }}
+        />
       )}
 
       {/* Modal de classificação */}

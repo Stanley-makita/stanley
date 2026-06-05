@@ -153,11 +153,12 @@ async function vincularDocumentosConversa(
 
   if (!telefoneRow?.telefone) return 0
 
-  return vincularDocumentosRecentesPorTelefone(supabase, empresa_id, telefoneRow.telefone, pessoa_id, lead_id, 90 * 24 * 60)
+  return (await vincularDocumentosRecentesPorTelefone(supabase, empresa_id, telefoneRow.telefone, pessoa_id, lead_id, 90 * 24 * 60)).count
 }
 
 // Vincula docs não linkados de uma conversa identificada por telefone.
 // marcaAt: se fornecida, usada como início da janela (via *fonti inicio). Senão: now() - janela_minutos.
+// Retorna { count, ids } para que o caller possa disparar OCR nos docs vinculados.
 async function vincularDocumentosRecentesPorTelefone(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -166,7 +167,7 @@ async function vincularDocumentosRecentesPorTelefone(
   lead_id: string | null,
   janela_minutos = 15,
   marcaAt?: Date,
-): Promise<number> {
+): Promise<{ count: number; ids: string[] }> {
   const { data: conversa } = await supabase
     .from('conversas')
     .select('id')
@@ -176,7 +177,7 @@ async function vincularDocumentosRecentesPorTelefone(
     .limit(1)
     .maybeSingle()
 
-  if (!conversa?.id) return 0
+  if (!conversa?.id) return { count: 0, ids: [] }
 
   const limite = marcaAt ?? (() => {
     const d = new Date()
@@ -190,12 +191,11 @@ async function vincularDocumentosRecentesPorTelefone(
     .eq('empresa_id', empresa_id)
     .eq('conversa_id', conversa.id)
     .is('deleted_at', null)
-    .is('lead_id', null)   // docs ainda sem lead — pessoa_id pode estar preenchido (sender)
+    .is('lead_id', null)
     .gte('created_at', limite.toISOString())
 
-  if (!docs?.length) return 0
+  if (!docs?.length) return { count: 0, ids: [] }
 
-  // Sobrescreve pessoa_id (corretor → cliente) e define lead_id
   const updates: Record<string, string | null> = { pessoa_id }
   if (lead_id) updates.lead_id = lead_id
 
@@ -206,10 +206,10 @@ async function vincularDocumentosRecentesPorTelefone(
 
   if (error) {
     console.error('[fonti] Erro ao vincular documentos:', error)
-    return 0
+    return { count: 0, ids: [] }
   }
 
-  return docs.length
+  return { count: docs.length, ids: docs.map((d) => d.id) }
 }
 
 // ── Marca de sessão *fonti inicio ─────────────────────────────────────────────
@@ -425,6 +425,10 @@ const MSG_AJUDA = `*Fonti — Comandos internos*
   + documentos enviados após *fonti inicio (ou últimos 15 min)
   → Cria Pessoa + Lead e vincula os documentos
 
+*fonti atualiza [nome] [dados]*
+  → Atualiza CPF, nascimento, renda, estado civil, telefone de um lead existente
+     Também vincula docs recentes da conversa
+
 *fonti salva [nome ou #proc-id]*
   + arquivo anexado
   → Salva documento no processo ou pessoa
@@ -501,12 +505,15 @@ export async function processarComandoFonti(
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
 
     let vinculados = 0
+    let docsVinculadosIds: string[] = []
     if (entidade.tipo === 'pessoa') {
-      vinculados = await vincularDocumentosRecentesPorTelefone(
+      const res = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversaSalva,
         entidade.id, entidade.lead_id ?? null,
         15, marcaAtSalva ?? undefined,
       )
+      vinculados = res.count
+      docsVinculadosIds = res.ids
       // Vincula também docs da conversa do próprio cliente (bot, 90 dias)
       vinculados += await vincularDocumentosConversa(supabase, empresa_id, entidade.id, entidade.lead_id ?? null)
     }
@@ -533,6 +540,98 @@ export async function processarComandoFonti(
     if (vinculados > 0) partes.push(`${vinculados} da conversa`)
     if (salvos > 0) partes.push(`${salvos} novo${salvos > 1 ? 's' : ''}`)
     return `✅ ${total} documento(s) vinculado(s) a *${entidade.label}* (${partes.join(' + ')})`
+  }
+
+  // ── *fonti atualiza [nome] [dados] ──────────────────────────────────────
+  const PADRAO_ATUALIZA = /^(?:atualiza|update|edita)\s*/i
+  if (PADRAO_ATUALIZA.test(corpo)) {
+    const resto = corpo.replace(PADRAO_ATUALIZA, '').trim()
+
+    if (!resto) {
+      return '❌ Informe o nome do cliente e os dados.\nEx: *fonti atualiza Ana Maria, cpf 12345678901 nascimento 10/05/1990'
+    }
+
+    const dados = await extrairDadosLead(resto)
+    const nomeRef = dados.nome ?? resto.split(/[,\n]/)[0].trim()
+
+    if (!nomeRef) {
+      return '❌ Não consegui identificar o nome. Inclua o nome do cliente no início.\nEx: *fonti atualiza Ana Maria, cpf 123...'
+    }
+
+    const entidade = await buscarEntidade(supabase, empresa_id, nomeRef, ctx.telefone_cliente)
+    if (!entidade || entidade.tipo !== 'pessoa') {
+      return `❌ Não encontrei "${nomeRef}" no sistema. Verifique o nome.`
+    }
+
+    const pessoaId = entidade.id
+    const leadId   = entidade.lead_id ?? null
+
+    // Atualiza pessoa — só campos presentes no texto (nunca sobrescreve com null)
+    const camposPessoa: Record<string, unknown> = {}
+    if (dados.cpf)             camposPessoa.cpf             = dados.cpf
+    if (dados.data_nascimento) camposPessoa.data_nascimento = dados.data_nascimento
+    if (dados.estado_civil)    camposPessoa.estado_civil    = dados.estado_civil
+    if (dados.renda)           camposPessoa.renda_formal    = dados.renda
+    // Nome: atualiza só se veio mais completo (correção de nome)
+    if (dados.nome && dados.nome.trim().length > nomeRef.length) camposPessoa.nome = dados.nome.trim()
+    if (Object.keys(camposPessoa).length > 0) {
+      await supabase.from('pessoas').update(camposPessoa).eq('id', pessoaId)
+    }
+
+    // Atualiza lead
+    if (leadId) {
+      const camposLead: Record<string, unknown> = {}
+      if (dados.produto) camposLead.produto_interesse = dados.produto
+      if (dados.valor)   camposLead.valor_pretendido  = dados.valor
+      if (dados.renda)   camposLead.renda_formal      = dados.renda
+      if (dados.nome && dados.nome.trim().length > nomeRef.length) camposLead.nome = dados.nome.trim()
+      if (dados.valor_entrada) {
+        const { data: leadAtual } = await supabase.from('leads').select('observacoes').eq('id', leadId).single()
+        const obs = [leadAtual?.observacoes, `Entrada informada: R$ ${dados.valor_entrada.toLocaleString('pt-BR')}`]
+          .filter(Boolean).join('\n')
+        camposLead.observacoes = obs
+      }
+      if (Object.keys(camposLead).length > 0) {
+        await supabase.from('leads').update(camposLead).eq('id', leadId)
+      }
+    }
+
+    // Vincula docs recentes da conversa (usa marca de sessão se existir)
+    const telefoneConversaAtualiza = ctx.telefone_cliente ?? ctx.telefone_remetente
+    const marcaAtAtualiza = await obterMarcaInicio(supabase, empresa_id, telefoneConversaAtualiza)
+    const { count: docsAtualizaCount, ids: docsAtualizaIds } = await vincularDocumentosRecentesPorTelefone(
+      supabase, empresa_id, telefoneConversaAtualiza, pessoaId, leadId, 15, marcaAtAtualiza ?? undefined,
+    )
+    if (marcaAtAtualiza) await limparMarca(supabase, empresa_id, telefoneConversaAtualiza)
+
+    // Registra telefone novo se veio no texto
+    if (dados.telefone && leadId) {
+      await supabase.from('lead_telefones').upsert(
+        { lead_id: leadId, empresa_id, telefone: dados.telefone, principal: false },
+        { onConflict: 'lead_id,telefone' },
+      )
+    }
+
+    // Dispara OCR nos docs recém-vinculados
+    if (docsAtualizaIds.length > 0) {
+      import('@/lib/documentos/ocr').then(({ processarOcrDocumento }) => {
+        for (const id of docsAtualizaIds) {
+          processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
+        }
+      }).catch(console.error)
+    }
+
+    // Monta resposta
+    const camposNomes: Record<string, string> = {
+      cpf: 'CPF', data_nascimento: 'nascimento', estado_civil: 'estado civil',
+      renda_formal: 'renda', nome: 'nome',
+    }
+    const atualizados = Object.keys(camposPessoa).map((k) => camposNomes[k] ?? k).join(', ')
+    const linhas = [`✅ *${entidade.label}* atualizado`]
+    if (atualizados) linhas.push(atualizados)
+    if (docsAtualizaCount > 0) linhas.push(`${docsAtualizaCount} doc(s) vinculado(s)`)
+    if (dados.telefone) linhas.push(`Tel ${dados.telefone}`)
+    return linhas.join('\n')
   }
 
   // ── *fonti novo lead / cria / cria novo cliente / etc. ───────────────────
@@ -627,11 +726,20 @@ export async function processarComandoFonti(
       // Vincula docs da conversa: usa marca de sessão (*fonti inicio) se existir, senão janela de 15 min.
       const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
       const marcaAt = await obterMarcaInicio(supabase, empresa_id, telefoneConversa)
-      const docsConversa = await vincularDocumentosRecentesPorTelefone(
+      const { count: docsConversa, ids: docsIds } = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversa, pessoa_id, novoLead.id,
         15, marcaAt ?? undefined,
       )
       if (marcaAt) await limparMarca(supabase, empresa_id, telefoneConversa)
+
+      // Dispara OCR nos docs recém-vinculados (async, não bloqueia a resposta)
+      if (docsIds.length > 0) {
+        import('@/lib/documentos/ocr').then(({ processarOcrDocumento }) => {
+          for (const id of docsIds) {
+            processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
+          }
+        }).catch(console.error)
+      }
 
       const produto = dados.produto ? ` — ${dados.produto}` : ''
       const linha1: string[] = []
