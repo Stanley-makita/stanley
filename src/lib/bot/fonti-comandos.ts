@@ -347,6 +347,7 @@ interface DadosLead {
   data_nascimento: string | null
   estado_civil: 'solteiro' | 'casado' | 'uniao_estavel' | 'divorciado' | 'viuvo' | null
   valor_entrada: number | null
+  telefone: string | null  // apenas dígitos, com DDD
 }
 
 const ESTADOS_CIVIS_VALIDOS = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo'] as const
@@ -361,13 +362,14 @@ async function extrairDadosLead(instrucao: string): Promise<DadosLead> {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       system: `Extraia dados de lead imobiliário do texto. Responda SOMENTE com JSON válido, sem markdown, sem explicação:
-{"nome":"...","produto":"Financiamento Imobiliário|CGI|Consórcio|Contrato|null","valor":número_ou_null,"renda":número_ou_null,"cpf":"11digitos_ou_null","data_nascimento":"YYYY-MM-DD_ou_null","estado_civil":"solteiro|casado|uniao_estavel|divorciado|viuvo|null","valor_entrada":número_ou_null}
+{"nome":"...","produto":"Financiamento Imobiliário|CGI|Consórcio|Contrato|null","valor":número_ou_null,"renda":número_ou_null,"cpf":"11digitos_ou_null","data_nascimento":"YYYY-MM-DD_ou_null","estado_civil":"solteiro|casado|uniao_estavel|divorciado|viuvo|null","valor_entrada":número_ou_null,"telefone":"dígitos_com_DDD_ou_null"}
 Regras:
 - valor e renda: número inteiro sem R$ (ex: "750 mil" → 750000, "35 mi" → 35000, "35k" → 35000)
 - valor_entrada: valor de entrada/FGTS/recursos próprios mencionado (ex: "200 mil de entrada" → 200000)
 - cpf: apenas dígitos, sem pontos/traços (ex: "012.625.478-45" → "01262547845"). null se ausente.
 - data_nascimento: converter qualquer formato para YYYY-MM-DD. null se ausente.
 - estado_civil: "casado/a" → "casado", "solteiro/a" → "solteiro", "união estável" → "uniao_estavel", "divorciado/a" → "divorciado", "viúvo/a" → "viuvo". null se não mencionado.
+- telefone: número de celular/telefone do CLIENTE (não do corretor). Remover espaços, traços, parênteses. Manter DDD. Ex: "44 984557766" → "44984557766". null se ausente.
 - Se não mencionado, use null.`,
       messages: [{ role: 'user', content: instrucao }],
     })
@@ -387,6 +389,7 @@ Regras:
         data_nascimento: typeof d.data_nascimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.data_nascimento) ? d.data_nascimento : null,
         estado_civil:    ESTADOS_CIVIS_VALIDOS.includes(d.estado_civil as EstadoCivil) ? d.estado_civil as EstadoCivil : null,
         valor_entrada:   typeof d.valor_entrada === 'number' ? d.valor_entrada : null,
+        telefone:        typeof d.telefone === 'string' && /^\d{10,11}$/.test(d.telefone.replace(/\D/g, '')) ? d.telefone.replace(/\D/g, '') : null,
       }
     }
   } catch (err) {
@@ -406,6 +409,7 @@ Regras:
     data_nascimento: null,
     estado_civil: null,
     valor_entrada: null,
+    telefone: null,
   }
 }
 
@@ -548,10 +552,7 @@ export async function processarComandoFonti(
 
     // Cria Pessoa + Lead
     try {
-      // Usa telefone do remetente como telefone do lead? Não — remetente é funcionário.
-      // Usa um telefone fictício baseado no timestamp para não colidir.
-      // Na prática, o lead não tem telefone válido aqui (será complementado depois).
-      const telefoneTemp = `0000${Date.now().toString().slice(-9)}`
+      const telefoneTemp = dados.telefone ?? `0000${Date.now().toString().slice(-9)}`
 
       const pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome)
 
@@ -605,6 +606,14 @@ export async function processarComandoFonti(
         return '❌ Erro ao criar o lead. Tente novamente.'
       }
 
+      // Registra telefone real em lead_telefones (se não for o temp)
+      if (dados.telefone) {
+        await supabase.from('lead_telefones').upsert(
+          { lead_id: novoLead.id, empresa_id, telefone: dados.telefone, principal: true },
+          { onConflict: 'lead_id,telefone' },
+        )
+      }
+
       // Salva arquivo enviado junto ao próprio comando *fonti
       let arquivosSalvos = 0
       for (const arq of arquivos) {
@@ -642,6 +651,7 @@ export async function processarComandoFonti(
         const labels: Record<string, string> = { solteiro: 'Solteiro', casado: 'Casado', uniao_estavel: 'União estável', divorciado: 'Divorciado', viuvo: 'Viúvo' }
         linha2.push(labels[dados.estado_civil] ?? dados.estado_civil)
       }
+      if (dados.telefone) linha2.push(`Tel ${dados.telefone}`)
 
       const linhas = [`✅ Lead criado: *${dados.nome}*${produto}`]
       if (linha1.length) linhas.push(linha1.join(' · '))
