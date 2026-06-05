@@ -239,7 +239,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   const router = useRouter()
   const qc = useQueryClient()
 
-  const [abaAtiva, setAbaAtiva] = useState<'telefones' | 'leads' | 'conversas' | 'processos'>('telefones')
+  const [abaAtiva, setAbaAtiva] = useState<'telefones' | 'leads' | 'conversas' | 'processos' | 'fgts'>('telefones')
   const [editando, setEditando] = useState(false)
   const [form, setForm] = useState({
     telefone: '',
@@ -297,6 +297,37 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
       if (error || !p) throw new Error('Pessoa não encontrada')
       return { ...(p as unknown as Pessoa), leads: (leads ?? []) as unknown as LeadVinculado[], conversas: (conversas ?? []) as ConversaVinculada[] }
     },
+  })
+
+  // Contas FGTS
+  interface FgtsConta {
+    id: string
+    cod_empregador: string | null
+    nro_conta_fgts: string | null
+    pis_pasep: string | null
+    saldo_disponivel: number | null
+    data_extrato: string | null
+    created_at: string
+  }
+  const { data: fgtsContas = [], refetch: refetchFgts } = useQuery({
+    queryKey: ['pessoa-fgts', params.id, usuario?.empresa_id],
+    enabled: !!usuario?.empresa_id,
+    queryFn: async (): Promise<FgtsConta[]> => {
+      const { data } = await supabase
+        .from('pessoa_fgts_contas')
+        .select('id, cod_empregador, nro_conta_fgts, pis_pasep, saldo_disponivel, data_extrato, created_at')
+        .eq('pessoa_id', params.id)
+        .eq('empresa_id', usuario!.empresa_id)
+        .order('created_at', { ascending: false })
+      return (data ?? []) as FgtsConta[]
+    },
+  })
+
+  const mutExcluirFgts = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from('pessoa_fgts_contas').delete().eq('id', id)
+    },
+    onSuccess: () => refetchFgts(),
   })
 
   // Processos vinculados à pessoa (via pessoa_id direto ou via leads)
@@ -1011,6 +1042,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               { id: 'leads',      label: `Leads (${pessoa.leads.length})`,          icon: Briefcase },
               { id: 'conversas',  label: `Conversas (${pessoa.conversas.length})`,  icon: MessageSquare },
               { id: 'processos',  label: `Processos (${processos.length})`,         icon: FileText },
+              { id: 'fgts',       label: `FGTS (${fgtsContas.length})`,             icon: DollarSign },
             ] as const).map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -1244,6 +1276,50 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 </div>
               )
             })()}
+
+            {/* Aba FGTS */}
+            {abaAtiva === 'fgts' && (
+              <div className="space-y-3">
+                {fgtsContas.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <DollarSign className="h-10 w-10 text-gray-200 mb-3" />
+                    <p className="text-sm text-gray-400">Nenhuma conta FGTS registrada</p>
+                    <p className="text-xs text-gray-300 mt-1">Faça upload de um extrato FGTS na aba Documentos do lead</p>
+                  </div>
+                ) : fgtsContas.map((c) => (
+                  <div key={c.id} className="border border-gray-100 rounded-xl px-4 py-3 bg-gray-50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        {c.cod_empregador && (
+                          <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">Empregador:</span> {c.cod_empregador}</p>
+                        )}
+                        {c.nro_conta_fgts && (
+                          <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">Conta:</span> {c.nro_conta_fgts}</p>
+                        )}
+                        {c.pis_pasep && (
+                          <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">PIS/NIS:</span> {c.pis_pasep}</p>
+                        )}
+                        {c.saldo_disponivel != null && (
+                          <p className="text-sm font-semibold text-[#253B29]">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.saldo_disponivel)}
+                          </p>
+                        )}
+                        {c.data_extrato && (
+                          <p className="text-xs text-gray-400">Extrato de {format(new Date(c.data_extrato + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => mutExcluirFgts.mutate(c.id)}
+                        className="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                        title="Excluir conta FGTS"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

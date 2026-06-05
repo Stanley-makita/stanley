@@ -10,6 +10,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+export interface FgtsContaOcr {
+  cod_empregador?: string   // CNPJ ou código do empregador
+  nro_conta_fgts?: string   // Nº da conta FGTS
+  saldo_disponivel?: string  // valor numérico como texto, ex: "121507.82"
+}
+
 export interface OcrResultado {
   tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'extrato_fgts' | 'outro'
   // Campos de RG / CNH / comprovantes
@@ -27,12 +33,11 @@ export interface OcrResultado {
   endereco_cidade?: string
   endereco_uf?: string
   endereco_cep?: string
-  // Campos exclusivos do extrato FGTS
-  cod_empregador?: string
-  nro_conta_fgts?: string
+  // Campos do extrato FGTS — dados gerais do trabalhador
   pis_pasep?: string
-  saldo_disponivel?: string   // valor numérico como texto, ex: "1234.56"
   data_extrato?: string       // YYYY-MM-DD
+  // Array de contas (um PDF pode ter múltiplos empregadores)
+  contas_fgts?: FgtsContaOcr[]
   confianca: 'alta' | 'media' | 'baixa'
 }
 
@@ -59,26 +64,33 @@ Para documentos comuns (RG, CNH, comprovante):
   "confianca": "alta|media|baixa"
 }
 
-Para extrato FGTS (Caixa Econômica, com saldo FGTS, conta vinculada, NIS/PIS):
+Para extrato FGTS (Caixa Econômica Federal — pode ter um ou vários empregadores):
 {
   "tipo_documento": "extrato_fgts",
   "nome": "nome do trabalhador ou null",
   "cpf": "11 dígitos sem pontos/traços ou null",
-  "pis_pasep": "NIS/PIS/PASEP sem pontos/traços ou null",
-  "cod_empregador": "código do empregador ou CNPJ ou null",
-  "nro_conta_fgts": "número da conta FGTS ou null",
-  "saldo_disponivel": "valor numérico como texto ex: 1234.56 ou null",
-  "data_extrato": "YYYY-MM-DD da data de emissão do extrato ou null",
+  "pis_pasep": "NIS/PIS/PASEP sem pontos/traços/hífens ou null",
+  "data_extrato": "YYYY-MM-DD da data de emissão (campo 'Histórico emitido em' ou 'Data') ou null",
+  "contas_fgts": [
+    {
+      "cod_empregador": "CNPJ ou código de inscrição do empregador, sem pontos/traços ou null",
+      "nro_conta_fgts": "número da conta FGTS (campo 'Nº da Conta') ou null",
+      "saldo_disponivel": "último valor da coluna TOTAL no extrato desta conta, formato numérico sem R$ ex: '121507.82' ou null"
+    }
+  ],
   "confianca": "alta|media|baixa"
 }
 
-Regras:
-- cpf e pis_pasep: apenas dígitos
-- datas: converter qualquer formato para YYYY-MM-DD
-- saldo_disponivel: valor numérico como string, sem R$ ou pontos de milhar (ex: "1234.56")
-- confiança: alta se campos visíveis lidos claramente; media se incertos; baixa se ilegível
+Regras para extrato FGTS:
+- pis_pasep: apenas dígitos, sem pontos, traços ou hífens (ex: "13213913536")
+- cpf: apenas dígitos
+- datas: converter para YYYY-MM-DD (ex: "29/04/2026" → "2026-04-29")
+- saldo_disponivel: pegar o ÚLTIMO valor da coluna "TOTAL" das movimentações daquela conta (é o saldo atual); se houver campo "VALOR PARA FINS RESCISÓRIOS", usar esse valor como alternativa
+- cod_empregador: extrair do campo "INSCRIÇÃO DO EMPREGADOR" — apenas dígitos se for CNPJ
+- nro_conta_fgts: extrair do campo "Nº DA CONTA (COD. ESTABELECIMENTO/CONTA)"
+- Se o PDF tiver múltiplos empregadores/contas, incluir todos em contas_fgts
 - campos ausentes: null (não invente)
-- tipo_documento: baseie-se no layout — extrato FGTS tem "FGTS", "Saldo", "Conta Vinculada" visíveis`
+- tipo_documento: documento FGTS tem logo "FGTS" + "CAIXA" e campos de NIS/PIS, conta vinculada`
 
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 const TIPOS_IMAGEM: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']

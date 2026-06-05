@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-async function resolveUsuario(token: string): Promise<{ empresa_id: string; pessoa_id?: string } | null> {
+async function resolveUsuario(token: string): Promise<{ empresa_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
@@ -15,6 +15,12 @@ async function resolveUsuario(token: string): Promise<{ empresa_id: string; pess
     .eq('auth_user_id', user.id)
     .single()
   return usuario ? { empresa_id: usuario.empresa_id } : null
+}
+
+interface ContaFgts {
+  cod_empregador?: string
+  nro_conta_fgts?: string
+  saldo_disponivel?: string
 }
 
 export async function POST(
@@ -30,7 +36,7 @@ export async function POST(
 
   const { data: doc } = await supabase
     .from('documentos_clientes')
-    .select('id, pessoa_id, lead_id, ocr_dados, ocr_status')
+    .select('id, pessoa_id, lead_id, ocr_status')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
@@ -52,31 +58,53 @@ export async function POST(
   if (!pessoa_id) return NextResponse.json({ error: 'Não foi possível encontrar a pessoa vinculada a este lead' }, { status: 400 })
 
   const body = await request.json() as {
-    cod_empregador?: string
-    nro_conta_fgts?: string
+    nome?: string
     pis_pasep?: string
-    saldo_disponivel?: string
     data_extrato?: string
+    contas?: ContaFgts[]
   }
 
-  const saldo = body.saldo_disponivel ? parseFloat(body.saldo_disponivel.replace(',', '.')) : null
+  const contas = body.contas ?? []
+  const pis_pasep = body.pis_pasep || null
+  const data_extrato = body.data_extrato || null
 
-  const { error: insertError } = await supabase
-    .from('pessoa_fgts_contas')
-    .insert({
+  // Insere cada conta como uma linha em pessoa_fgts_contas
+  let salvas = 0
+  for (const conta of contas) {
+    const saldo = conta.saldo_disponivel
+      ? parseFloat(conta.saldo_disponivel.replace(',', '.'))
+      : null
+
+    const { error: insertError } = await supabase
+      .from('pessoa_fgts_contas')
+      .insert({
+        empresa_id,
+        pessoa_id,
+        cod_empregador:   conta.cod_empregador   || null,
+        nro_conta_fgts:   conta.nro_conta_fgts   || null,
+        pis_pasep,
+        saldo_disponivel: saldo != null && !isNaN(saldo) ? saldo : null,
+        data_extrato,
+        documento_id:     documentoId,
+      })
+
+    if (insertError) {
+      console.error('[fgts-confirmar] Erro ao inserir conta FGTS:', insertError)
+    } else {
+      salvas++
+    }
+  }
+
+  // Se não havia contas mas havia dados avulsos (formato antigo), insere uma linha
+  if (contas.length === 0) {
+    await supabase.from('pessoa_fgts_contas').insert({
       empresa_id,
       pessoa_id,
-      cod_empregador:   body.cod_empregador   || null,
-      nro_conta_fgts:   body.nro_conta_fgts   || null,
-      pis_pasep:        body.pis_pasep         || null,
-      saldo_disponivel: isNaN(saldo!) ? null : saldo,
-      data_extrato:     body.data_extrato      || null,
-      documento_id:     documentoId,
+      pis_pasep,
+      data_extrato,
+      documento_id: documentoId,
     })
-
-  if (insertError) {
-    console.error('[fgts-confirmar] Erro ao inserir conta FGTS:', insertError)
-    return NextResponse.json({ error: 'Erro ao salvar dados FGTS' }, { status: 500 })
+    salvas = 1
   }
 
   await supabase
@@ -84,7 +112,7 @@ export async function POST(
     .update({ ocr_status: 'revisado' })
     .eq('id', documentoId)
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, salvas })
 }
 
 export async function DELETE(
