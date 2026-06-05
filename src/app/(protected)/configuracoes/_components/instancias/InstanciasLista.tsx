@@ -37,6 +37,10 @@ interface Instancia {
 const EMPTY_FORM = { nome: '', token: '', numero_telefone: '', atendente_id: '' }
 
 function useWebhookUrl() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (appUrl && appUrl.startsWith('http') && !appUrl.includes('localhost')) {
+    return `${appUrl}/api/bot/whatsapp/webhook`
+  }
   if (typeof window === 'undefined') return ''
   return `${window.location.origin}/api/bot/whatsapp/webhook`
 }
