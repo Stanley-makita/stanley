@@ -33,13 +33,13 @@ const CAMPOS_PERMITIDOS = [
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { leadId: string } },
+  { params }: { params: { id: string } },
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const { leadId } = params
+  const leadId = params.id
 
   // Resolve pessoa_id do lead
   const { data: lead } = await supabase
@@ -90,9 +90,7 @@ export async function POST(
     // Mesmo valor — skip
     if (strAtual && strAtual.toLowerCase() === valor.trim().toLowerCase()) continue
 
-    // Campo vazio → aplica
-    // Campo diferente + confirmado → aplica
-    // Campo diferente + não confirmado → ignora
+    // Campo vazio → aplica; campo diferente + confirmado → aplica; diferente + não confirmado → ignora
     if (!strAtual || confirmado) {
       valoresAnteriores[campo] = valorAtual ?? null
       valoresNovos[campo] = valor.trim()
@@ -122,9 +120,9 @@ export async function POST(
       valores_anteriores: valoresAnteriores,
       valores_novos:      {
         ...valoresNovos,
-        documento_ids:        documentoIds,
-        usuario_confirmacao:  usuario.id,
-        data_confirmacao:     new Date().toISOString(),
+        documento_ids:       documentoIds,
+        usuario_confirmacao: usuario.id,
+        data_confirmacao:    new Date().toISOString(),
       },
     })
   }
