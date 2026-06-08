@@ -217,6 +217,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
+      // DEDUP: Uazapi dispara o mesmo webhook fromMe 2x. Garante processamento único via messageid.
+      const fmMessageId = msg?.messageid
+      if (fmMessageId) {
+        const { error: dedupErr } = await supabase
+          .from('fonti_events')
+          .insert({ messageid: fmMessageId, empresa_id: fmEmpresaId })
+        if (dedupErr) {
+          // Violação de PK = já está sendo/foi processado por outro webhook paralelo
+          console.log('[fonti-fromMe] messageid duplicado, ignorando:', fmMessageId)
+          return NextResponse.json({ ok: true })
+        }
+      }
+
+      // Para *fonti salva: aguarda 2.5s para que os webhooks de documentos (não-fromMe) completem
+      // antes de buscar os docs no banco — evita "Nenhum documento encontrado" por race condition
+      if (/^\*fonti\s+salva\b/i.test(textoNormFM)) {
+        await new Promise((r) => setTimeout(r, 2500))
+      }
+
       let fmFileUrl: string | null = null
       const fmTipoRaw = msg?.type ?? 'text'
       const fmIsMidia = fmTipoRaw === 'media' || ['image','video','audio','document','ptt','sticker'].includes(fmTipoRaw)
@@ -391,6 +410,21 @@ export async function POST(request: NextRequest) {
       // NUNCA cai no fluxo do bot para não confundir o atendimento ao cliente.
       console.warn('[fonti] Prefixo *fonti detectado mas remetente NAO é usuario interno. telefone:', telefone)
     }
+    return NextResponse.json({ ok: true })
+  }
+
+  // ECO: Uazapi às vezes ecoa mensagens enviadas pelo operador como se fossem não-fromMe.
+  // Se o telefone do remetente for uma instância CRM registrada, ignora para não acionar o bot.
+  const telefoneSufixo = telefone.slice(-10)
+  const { data: ehInstanciaEco } = await supabase
+    .from('instancias')
+    .select('id')
+    .eq('empresa_id', empresa_id)
+    .like('numero_telefone', `%${telefoneSufixo}`)
+    .eq('ativo', true)
+    .maybeSingle()
+  if (ehInstanciaEco) {
+    console.log('[whatsapp] eco de instância CRM ignorado, telefone:', telefone)
     return NextResponse.json({ ok: true })
   }
 
