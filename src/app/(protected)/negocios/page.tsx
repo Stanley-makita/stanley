@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { format, parseISO, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Home, CircleDollarSign, FileText, MapPin, AlertCircle, Clock } from 'lucide-react'
+import { Home, CircleDollarSign, FileText, MapPin, AlertCircle, Clock, LayoutList } from 'lucide-react'
 import { useNegociosDashboard } from '@/hooks/negocios/useNegociosDashboard'
 import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
 import { cn } from '@/lib/utils'
@@ -47,35 +47,41 @@ interface ModuloCardProps {
   linhaA: { label: string; valor: number }
   linhaB: { label: string; valor: number }
   isLoading?: boolean
+  destaque?: boolean
 }
 
-function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading }: ModuloCardProps) {
+function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading, destaque }: ModuloCardProps) {
   return (
     <Link
       href={href}
-      className="group flex flex-col gap-4 bg-white rounded-xl border border-gray-200 p-5 hover:border-[#253B29]/40 hover:shadow-md transition-all"
+      className={cn(
+        'group flex flex-col gap-4 rounded-xl border p-5 hover:shadow-md transition-all',
+        destaque
+          ? 'bg-[#253B29] border-[#253B29] hover:bg-[#1a2b1e]'
+          : 'bg-white border-gray-200 hover:border-[#253B29]/40',
+      )}
     >
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-[#E7E0C4] flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-[#253B29]" />
+        <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', destaque ? 'bg-white/15' : 'bg-[#E7E0C4]')}>
+          <Icon className={cn('h-4 w-4', destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]')} />
         </div>
-        <span className="font-semibold text-[#253B29] text-sm">{titulo}</span>
+        <span className={cn('font-semibold text-sm', destaque ? 'text-white' : 'text-[#253B29]')}>{titulo}</span>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-4 bg-gray-100 rounded animate-pulse" />
-          <div className="h-4 bg-gray-100 rounded animate-pulse w-3/4" />
+          <div className={cn('h-4 rounded animate-pulse', destaque ? 'bg-white/20' : 'bg-gray-100')} />
+          <div className={cn('h-4 rounded animate-pulse w-3/4', destaque ? 'bg-white/20' : 'bg-gray-100')} />
         </div>
       ) : (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">{linhaA.label}</span>
-            <span className="text-sm font-bold text-[#253B29]">{linhaA.valor}</span>
+            <span className={cn('text-xs', destaque ? 'text-white/70' : 'text-gray-500')}>{linhaA.label}</span>
+            <span className={cn('text-sm font-bold', destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]')}>{linhaA.valor}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">{linhaB.label}</span>
-            <span className="text-sm font-bold text-gray-600">{linhaB.valor}</span>
+            <span className={cn('text-xs', destaque ? 'text-white/70' : 'text-gray-500')}>{linhaB.label}</span>
+            <span className={cn('text-sm font-bold', destaque ? 'text-white' : 'text-gray-600')}>{linhaB.valor}</span>
           </div>
         </div>
       )}
@@ -104,8 +110,8 @@ export default function NegociosDashboardPage() {
         <p className="text-sm text-gray-500 mt-0.5">Visão geral dos módulos e da sua agenda</p>
       </div>
 
-      {/* Linha 1 — 4 cards de módulos */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Linha 1 — 5 cards de módulos */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <ModuloCard
           titulo="Financiamentos"
           href="/negocios/financiamento"
@@ -137,6 +143,15 @@ export default function NegociosDashboardPage() {
           linhaA={{ label: 'Protocolados', valor: c?.registro.protocolados ?? 0 }}
           linhaB={{ label: 'Preparando', valor: c?.registro.preparando ?? 0 }}
           isLoading={contagens.isLoading}
+        />
+        <ModuloCard
+          titulo="Todos os Negócios"
+          href="/negocios/todos"
+          icon={LayoutList}
+          linhaA={{ label: 'Concluídos neste mês', valor: c?.todos.concluidos ?? 0 }}
+          linhaB={{ label: 'Em andamento', valor: c?.todos.emAndamento ?? 0 }}
+          isLoading={contagens.isLoading}
+          destaque
         />
       </div>
 

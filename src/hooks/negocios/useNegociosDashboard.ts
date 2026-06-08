@@ -14,6 +14,7 @@ export interface NegociosContagens {
   consorcio:     { contratados: number; negociando: number }
   contrato:      { minutaPronta: number; elaborando: number }
   registro:      { protocolados: number; preparando: number }
+  todos:         { concluidos: number; emAndamento: number }
 }
 
 export function useNegociosDashboard() {
@@ -25,12 +26,23 @@ export function useNegociosDashboard() {
     enabled: !!usuario,
     staleTime: 1000 * 60 * 3,
     queryFn: async (): Promise<NegociosContagens> => {
-      const { data, error } = await supabase
-        .from('processos')
-        .select('modalidade, chance_emissao, status_processo')
-        .eq('empresa_id', usuario!.empresa_id)
-        .is('deleted_at', null)
-        .not('status_processo', 'in', '("cancelado","reprovado")')
+      const inicioMes = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
+
+      const [{ data, error }, { data: concluidos }] = await Promise.all([
+        supabase
+          .from('processos')
+          .select('modalidade, chance_emissao, status_processo')
+          .eq('empresa_id', usuario!.empresa_id)
+          .is('deleted_at', null)
+          .not('status_processo', 'in', '("cancelado","reprovado","concluido")'),
+        supabase
+          .from('processos')
+          .select('id', { count: 'exact', head: true })
+          .eq('empresa_id', usuario!.empresa_id)
+          .is('deleted_at', null)
+          .eq('status_processo', 'concluido')
+          .gte('updated_at', inicioMes),
+      ])
 
       if (error) throw error
 
@@ -39,9 +51,11 @@ export function useNegociosDashboard() {
         consorcio:     { contratados: 0, negociando: 0 },
         contrato:      { minutaPronta: 0, elaborando: 0 },
         registro:      { protocolados: 0, preparando: 0 },
+        todos:         { concluidos: (concluidos as any)?.count ?? 0, emAndamento: 0 },
       }
 
       for (const p of data ?? []) {
+        result.todos.emAndamento++
         if (FINANCIAMENTO_MODS.has(p.modalidade)) {
           if (p.chance_emissao === 'certeza') result.financiamento.certeza++
           else result.financiamento.incerteza++

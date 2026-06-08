@@ -55,7 +55,7 @@ export default function FinanciamentoPage() {
       </div>
 
       {visao === 'cards'    && <VisaoCards modulo="processos" />}
-      {visao === 'tabela'   && <VisaoTabela />}
+      {visao === 'tabela'   && <VisaoTabela produtoFixo="financiamento" />}
       {visao === 'emissoes' && (
         <>
           <ResumoEstoque />
