@@ -1,11 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
 import { useFases } from '@/hooks/configuracoes/useFases'
+import { usePermissao } from '@/hooks/auth/usePermissao'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
+import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { type Lead } from '@/types/leads'
 
 interface Props {
@@ -25,6 +29,10 @@ function fmtValor(v: number | null) {
 }
 
 export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props) {
+  const { pode } = usePermissao()
+  const podeExcluir = pode('leads.excluir')
+  const [leadParaExcluir, setLeadParaExcluir] = useState<{ id: string; faseId: string; nome: string } | null>(null)
+
   // Busca TODOS os leads (sem filtro de fase) para os contadores dos tabs
   const { data: todosLeads = [], isLoading } = useLeadsTodos(undefined, busca)
   const { data: fases = [] } = useFases('leads')
@@ -109,6 +117,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
                 <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Origem</th>
                 <th className="text-right text-xs font-medium text-gray-500 px-4 py-3">Valor pretendido</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Criado em</th>
+                {podeExcluir && <th className="w-10 px-2 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -116,18 +125,41 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
                 <LeadRow
                   key={lead.id}
                   lead={lead}
+                  podeExcluir={podeExcluir}
                   onClick={() => onAbrirLead(lead.id)}
+                  onExcluir={() => setLeadParaExcluir({ id: lead.id, faseId: lead.fase_id, nome: lead.nome })}
                 />
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {podeExcluir && leadParaExcluir && (
+        <ExcluirLeadDialog
+          aberto={!!leadParaExcluir}
+          onFechar={() => setLeadParaExcluir(null)}
+          leadId={leadParaExcluir.id}
+          faseId={leadParaExcluir.faseId}
+          nomeCliente={leadParaExcluir.nome}
+          onExcluido={() => setLeadParaExcluir(null)}
+        />
+      )}
     </div>
   )
 }
 
-function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+function LeadRow({
+  lead,
+  podeExcluir,
+  onClick,
+  onExcluir,
+}: {
+  lead: Lead
+  podeExcluir: boolean
+  onClick: () => void
+  onExcluir: () => void
+}) {
   return (
     <tr
       onClick={onClick}
@@ -183,6 +215,19 @@ function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
         {format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}
       </td>
+
+      {/* Ação excluir */}
+      {podeExcluir && (
+        <td className="px-2 py-3 text-center">
+          <button
+            onClick={(e) => { e.stopPropagation(); onExcluir() }}
+            title="Excluir lead"
+            className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </td>
+      )}
     </tr>
   )
 }

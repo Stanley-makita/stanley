@@ -25,9 +25,11 @@ import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
-  Plus, MessageCircle, Pencil, Loader2,
+  Plus, MessageCircle, Pencil, Loader2, Trash2,
   Phone, Mail, CreditCard, DollarSign, Calendar, CalendarClock, ClipboardList,
 } from 'lucide-react'
+import { usePermissao } from '@/hooks/auth/usePermissao'
+import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 
 type Aba = 'resumo' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
@@ -83,11 +85,13 @@ interface Props {
 
 export function LeadDetalheModal({ leadId, onFechar }: Props) {
   const router = useRouter()
+  const { pode } = usePermissao()
   const [abaAtiva, setAbaAtiva] = useState<Aba>('resumo')
   const [novoProcessoAberto, setNovoProcessoAberto] = useState(false)
   const [editarAberto, setEditarAberto] = useState(false)
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [completarDadosAberto, setCompletarDadosAberto] = useState(false)
+  const [excluirAberto, setExcluirAberto] = useState(false)
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
@@ -177,6 +181,17 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       <CalendarClock className="h-3 w-3" />
                       Tarefa
                     </Button>
+                    {pode('leads.excluir') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 shrink-0"
+                        title="Excluir lead"
+                        onClick={() => setExcluirAberto(true)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                   {lead.pessoa_id && (
                     <Button
@@ -344,6 +359,14 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             onFechar={() => setNovaSolicitacaoAberta(false)}
             leadId={lead.id}
             contexto={contextoSolicitacao}
+          />
+          <ExcluirLeadDialog
+            aberto={excluirAberto}
+            onFechar={() => setExcluirAberto(false)}
+            leadId={lead.id}
+            faseId={lead.fase_id}
+            nomeCliente={lead.nome}
+            onExcluido={fechar}
           />
         </>
       )}
