@@ -13,7 +13,7 @@ import { LayoutGrid, Table2, BarChart2, Plus } from 'lucide-react'
 type Visao = 'cards' | 'tabela' | 'emissoes'
 
 export default function FinanciamentoPage() {
-  const [visao, setVisao] = useState<Visao>('cards')
+  const [visao, setVisao] = useState<Visao>('tabela')
   const [modalAberto, setModalAberto] = useState(false)
   const { pode } = usePermissao()
 

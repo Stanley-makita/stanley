@@ -11,7 +11,7 @@ import { LayoutGrid, Table2, Plus } from 'lucide-react'
 type Visao = 'cards' | 'tabela'
 
 export default function RegistroPage() {
-  const [visao, setVisao] = useState<Visao>('cards')
+  const [visao, setVisao] = useState<Visao>('tabela')
   const [modalAberto, setModalAberto] = useState(false)
   const { pode } = usePermissao()
 
