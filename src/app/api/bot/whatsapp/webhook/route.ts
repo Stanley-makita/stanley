@@ -74,29 +74,41 @@ async function salvarDocumentoCliente(params: {
   const storagePath = `${empresa_id}/${conversa_id}/${crypto.randomUUID()}.${ext}`
   const nomeOriginal = fileName ?? `arquivo.${ext}`
 
-  const fileRes = await fetch(fileUrl, { signal: AbortSignal.timeout(20000) })
-  if (!fileRes.ok) throw new Error(`Download falhou: ${fileRes.status}`)
-
-  const fileBuffer = await fileRes.arrayBuffer()
-  const { error: uploadError } = await supabase.storage
-    .from('documentos-clientes')
-    .upload(storagePath, fileBuffer, {
-      contentType: mimeType ?? 'application/octet-stream',
-      upsert: false,
-    })
-
-  if (uploadError) throw new Error(`Storage upload falhou: ${uploadError.message}`)
-
-  await supabase.from('documentos_clientes').insert({
+  // Insere o registro no banco ANTES do upload para que *fonti vincular encontre imediatamente
+  const { error: insertError } = await supabase.from('documentos_clientes').insert({
     empresa_id,
     conversa_id,
     pessoa_id: pessoa_id ?? undefined,
     nome_original: nomeOriginal,
     mime_type: mimeType ?? null,
-    tamanho_bytes: fileBuffer.byteLength,
+    tamanho_bytes: 0,
     storage_path: storagePath,
     canal_origem: 'whatsapp',
   })
+  if (insertError) throw new Error(`DB insert falhou: ${insertError.message}`)
+
+  // Upload em background (não bloqueia — registro já existe no banco)
+  ;(async () => {
+    try {
+      const fileRes = await fetch(fileUrl, { signal: AbortSignal.timeout(20000) })
+      if (!fileRes.ok) throw new Error(`Download falhou: ${fileRes.status}`)
+      const fileBuffer = await fileRes.arrayBuffer()
+
+      const { error: uploadError } = await supabase.storage
+        .from('documentos-clientes')
+        .upload(storagePath, fileBuffer, {
+          contentType: mimeType ?? 'application/octet-stream',
+          upsert: false,
+        })
+      if (uploadError) throw new Error(`Storage upload falhou: ${uploadError.message}`)
+
+      await supabase.from('documentos_clientes')
+        .update({ tamanho_bytes: fileBuffer.byteLength })
+        .eq('storage_path', storagePath)
+    } catch (err) {
+      console.error('[whatsapp] Erro ao fazer upload de documento:', err)
+    }
+  })()
 }
 
 async function baixarMidiaUazapi(messageid: string, tipoMidia: string): Promise<string | null> {
@@ -211,9 +223,17 @@ export async function POST(request: NextRequest) {
       })
 
       // Responde na conversa do cliente (onde o comercial está) — ambos veem a confirmação
-      const msgParaComercial = respostaFM ?? '❌ *fonti*: instância sem atendente configurado. Acesse Configurações → Instâncias e vincule um atendente.'
       const destinoResposta = clientPhone || ownerPhone
-      await enviarMensagemUazapi(destinoResposta, msgParaComercial, fmToken)
+      if (respostaFM !== null) {
+        await enviarMensagemUazapi(destinoResposta, respostaFM, fmToken)
+      } else if (fmInst) {
+        // Instância encontrada mas autenticação falhou — informa o operador
+        const errMsg = fmInst.atendente_id
+          ? '❌ *fonti*: atendente da instância não encontrado no sistema. Verifique o cadastro em Configurações → Usuários.'
+          : '❌ *fonti*: instância sem atendente configurado. Acesse Configurações → Instâncias e vincule um atendente.'
+        await enviarMensagemUazapi(destinoResposta, errMsg, fmToken)
+      }
+      // fmInst null → instância não registrada/desativada, ignora silenciosamente (webhook duplicado)
       return NextResponse.json({ ok: true })
     }
 
@@ -348,12 +368,14 @@ export async function POST(request: NextRequest) {
         : [],
     })
 
-    // null = remetente não é usuário interno → cai no fluxo normal de atendimento
     if (respostaFonti !== null) {
       await enviarMensagemUazapi(telefone, respostaFonti)
-      return NextResponse.json({ ok: true })
+    } else {
+      // Remetente não é usuário interno — pode ser eco do Uazapi da mensagem do operador.
+      // NUNCA cai no fluxo do bot para não confundir o atendimento ao cliente.
+      console.warn('[fonti] Prefixo *fonti detectado mas remetente NAO é usuario interno. telefone:', telefone)
     }
-    console.warn('[fonti] Prefixo *fonti detectado mas remetente NAO é usuario interno. telefone:', telefone)
+    return NextResponse.json({ ok: true })
   }
 
   // Lookup antecipado: busca lead pelo telefone para auto-vincular
@@ -454,8 +476,9 @@ export async function POST(request: NextRequest) {
   })
 
   // Auto-save de arquivos no Supabase Storage (fora do bot — salva sempre)
+  // await garante que o registro existe no banco antes de retornar (vincular do *fonti depende disso)
   if (isMidia && fileUrl) {
-    salvarDocumentoCliente({
+    await salvarDocumentoCliente({
       empresa_id,
       conversa_id,
       pessoa_id: pessoaId,
