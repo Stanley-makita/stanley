@@ -60,6 +60,7 @@ export default function PessoasPage() {
         .from('pessoas')
         .select('tipo')
         .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
         .not('tipo', 'is', null)
 
       if (error) return []
@@ -76,6 +77,7 @@ export default function PessoasPage() {
         .from('pessoas')
         .select('id, nome, cpf, email, tipo, created_at, pessoa_telefones(id, telefone, principal, whatsapp, ativo)', { count: 'exact' })
         .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE - 1)
 

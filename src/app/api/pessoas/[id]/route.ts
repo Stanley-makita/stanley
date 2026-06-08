@@ -17,6 +17,18 @@ async function resolveEmpresa(token: string) {
   return usuario?.empresa_id ?? null
 }
 
+async function resolveUsuario(token: string) {
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+  if (error || !user) return null
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('empresa_id, perfil')
+    .eq('auth_user_id', user.id)
+    .eq('ativo', true)
+    .single()
+  return usuario ?? null
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -88,5 +100,47 @@ export async function PUT(
     .single()
 
   if (error || !data) return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
+  if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const usuario = await resolveUsuario(token)
+  if (!usuario) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
+
+  const PERFIS_COM_EXCLUSAO = ['admin', 'gerente', 'gestor']
+  if (!PERFIS_COM_EXCLUSAO.includes(usuario.perfil)) {
+    return NextResponse.json({ error: 'Sem permissão para excluir pessoas' }, { status: 403 })
+  }
+
+  const body = await request.json().catch(() => ({})) as { motivo?: string }
+  const motivo = body.motivo?.trim() ?? null
+
+  const { data: pessoa } = await supabase
+    .from('pessoas')
+    .select('id')
+    .eq('id', params.id)
+    .eq('empresa_id', usuario.empresa_id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (!pessoa) return NextResponse.json({ error: 'Pessoa não encontrada' }, { status: 404 })
+
+  const { error } = await supabase
+    .from('pessoas')
+    .update({ deleted_at: new Date().toISOString(), motivo_exclusao: motivo })
+    .eq('id', params.id)
+    .eq('empresa_id', usuario.empresa_id)
+
+  if (error) {
+    console.error('[DELETE /api/pessoas/[id]] erro:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
   return NextResponse.json({ ok: true })
 }

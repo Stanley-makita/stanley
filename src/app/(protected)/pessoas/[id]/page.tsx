@@ -14,6 +14,7 @@ import {
   CreditCard, Calendar, MapPin, DollarSign, History, Heart,
 } from 'lucide-react'
 import { usePessoaAlteracoes } from '@/hooks/pessoas/usePessoaAlteracoes'
+import { ExcluirPessoaDialog } from '@/components/pessoas/ExcluirPessoaDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -261,6 +262,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   const [modalTelefone, setModalTelefone] = useState(false)
   const [novoTelefone, setNovoTelefone] = useState({ telefone: '', whatsapp: true, principal: false })
   const [modalNovoProcesso, setModalNovoProcesso] = useState(false)
+  const [dialogExcluir, setDialogExcluir] = useState(false)
 
   // Dados da pessoa
   const { data: pessoa, isLoading } = useQuery({
@@ -708,6 +710,17 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
             <Button variant="outline" size="sm" onClick={() => setModalMerge(true)}>
               <GitMerge className="h-4 w-4 mr-1.5" />
               Mesclar
+            </Button>
+          )}
+          {pode('pessoas.excluir') && !editando && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+              onClick={() => setDialogExcluir(true)}
+              title="Excluir pessoa"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -1473,6 +1486,17 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Excluir pessoa */}
+      {pessoa && (
+        <ExcluirPessoaDialog
+          aberto={dialogExcluir}
+          onFechar={() => setDialogExcluir(false)}
+          pessoaId={pessoa.id}
+          nomePessoa={pessoa.nome}
+          onExcluido={() => router.push('/pessoas')}
+        />
+      )}
     </div>
   )
 }

@@ -9,7 +9,7 @@ const TODAS_ACOES: Acao[] = [
   'usuarios.convidar', 'usuarios.desativar',
   'conversas.ver_todas', 'conversas.transferir',
   'instancias.gerenciar',
-  'pessoas.ver', 'pessoas.editar', 'pessoas.merge',
+  'pessoas.ver', 'pessoas.editar', 'pessoas.merge', 'pessoas.excluir',
   'biblioteca.ver', 'biblioteca.publicar', 'biblioteca.excluir',
 ]
 
