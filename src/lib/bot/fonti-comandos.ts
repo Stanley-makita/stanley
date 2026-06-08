@@ -890,8 +890,8 @@ export async function processarComandoFonti(
       }
 
       // Prioridade 4: Criar nova Pessoa (sem identificador validado)
+      let telefoneTemp = dados.telefone ?? `0000${Date.now().toString().slice(-9)}`
       if (!pessoa_id) {
-        const telefoneTemp = dados.telefone ?? `0000${Date.now().toString().slice(-9)}`
         pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome, dados.cpf ?? undefined)
         pessoaCriada = true
       }

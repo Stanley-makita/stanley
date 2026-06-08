@@ -17,6 +17,9 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
+import { OcrEnriquecimentoCard } from '@/components/leads/OcrEnriquecimentoCard'
+import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModal'
+import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 10
@@ -65,6 +68,9 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
   const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
+  const [ocrModalAberto, setOcrModalAberto] = useState(false)
+
+  const ocrSugestoes = useOcrSugestoes(leadId)
 
   const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
@@ -322,6 +328,8 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         />
       </div>
 
+      <OcrEnriquecimentoCard sugestoes={ocrSugestoes} onAbrir={() => setOcrModalAberto(true)} />
+
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
@@ -394,6 +402,13 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
           ))}
         </div>
       )}
+
+      <OcrEnriquecimentoModal
+        aberto={ocrModalAberto}
+        leadId={leadId}
+        sugestoes={ocrSugestoes}
+        onFechar={() => setOcrModalAberto(false)}
+      />
 
       {docOcrRevisao && (
         <DocumentoOcrRevisaoModal
