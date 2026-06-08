@@ -22,6 +22,7 @@ export function useLeadsPorFase(faseId: string) {
         .eq('fase_id', faseId)
         .is('deleted_at', null)
         .order('ordem_kanban', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(50)
 
       if (error) throw error

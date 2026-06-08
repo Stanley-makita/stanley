@@ -8,6 +8,7 @@ import { carregarBotConfig } from '@/lib/bot/bot-config'
 import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
+import { obterOrdemTopo } from '@/lib/leads/ordem'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -634,6 +635,7 @@ export async function POST(request: NextRequest) {
             console.log('[whatsapp] Lead já existe para pessoa + produto, ignorando duplicata')
             await supabase.from('conversas').update({ status: 'qualificado', contato_nome: nome }).eq('id', conversa_id)
           } else {
+            const ordemTopo = await obterOrdemTopo(supabase, empresa_id, primeiraFase.id)
             const { data: novoLead, error: leadErr } = await supabase
               .from('leads')
               .insert({
@@ -642,7 +644,7 @@ export async function POST(request: NextRequest) {
                 telefone,
                 fase_id: primeiraFase.id,
                 origem: 'whatsapp',
-                ordem_kanban: 0,
+                ordem_kanban: ordemTopo,
                 produto_interesse: produtoMapeado ?? null,
                 valor_pretendido: typeof valor_imovel === 'number' ? valor_imovel : null,
                 renda_formal:     typeof renda_mensal === 'number' ? renda_mensal : null,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
+import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { type Lead } from '@/types/leads'
 
 const supabaseAdmin = createClient(
@@ -57,6 +58,9 @@ export async function POST(request: NextRequest) {
     console.error('[POST /api/leads] erro ao buscar/criar pessoa:', err)
   }
 
+  // Posiciona o novo lead no topo da fase (menor ordem_kanban que todos os existentes)
+  const ordemTopo = await obterOrdemTopo(supabaseAdmin, empresa_id, fase_id)
+
   // Insere o lead já com pessoa_id vinculado
   const { data: lead, error: leadError } = await supabaseAdmin
     .from('leads')
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
       origem,
       valor_pretendido: body.valor_pretendido ?? null,
       observacoes:      body.observacoes     || null,
-      ordem_kanban:     0,
+      ordem_kanban:     ordemTopo,
       pessoa_id,
     })
     .select(`

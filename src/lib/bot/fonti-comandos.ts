@@ -8,6 +8,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
 import { extrairProduto, extrairNumero } from './state-machine'
+import { obterOrdemTopo } from '@/lib/leads/ordem'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -896,6 +897,8 @@ export async function processarComandoFonti(
         return '❌ Empresa sem fases configuradas. Configure as fases em Configurações.'
       }
 
+      const ordemTopo = await obterOrdemTopo(supabase, empresa_id, primeiraFase.id)
+
       const { data: novoLead, error: leadErr } = await supabase
         .from('leads')
         .insert({
@@ -904,7 +907,7 @@ export async function processarComandoFonti(
           telefone:         telefoneTemp,
           fase_id:          primeiraFase.id,
           origem:           'whatsapp',
-          ordem_kanban:     0,
+          ordem_kanban:     ordemTopo,
           produto_interesse: dados.produto ?? null,
           valor_pretendido:  dados.valor   ?? null,
           renda_formal:      dados.renda   ?? null,
