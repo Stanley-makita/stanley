@@ -7,7 +7,7 @@ import { type Processo, type StatusProcesso } from '@/types/processos'
 
 export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato' | 'registro'
 
-const FINANCIAMENTO_MODALIDADES = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista']
+const FINANCIAMENTO_MODALIDADES = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI']
 
 interface FiltrosProcessos {
   status?: StatusProcesso | 'todos'
