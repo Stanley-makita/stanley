@@ -661,108 +661,24 @@ export async function POST(request: NextRequest) {
 
   await enviarMensagemUazapi(telefone, resultado.resposta)
 
-  // Cria lead quando state machine sinaliza CONCLUIDO
+  // Bot sinalizou que coletou dados suficientes (CONCLUIDO) → marca conversa como qualificada
+  // O Lead NÃO é criado automaticamente — o operador cria via *fonti cria lead
   if (transicao.criarLead) {
-    const { nome, produto, valor_imovel, renda_mensal } = transicao.novosDados
+    const { nome, cpf, data_nascimento } = transicao.novosDados
 
-    // Cria lead se tiver nome — produto é opcional (lead com status "novo" sem produto)
     if (nome) {
       try {
-        const produtoMapeado = mapProduto(produto ?? null)
+        await supabase.from('conversas').update({
+          status: 'qualificado',
+          contato_nome: nome,
+          ...(pessoaId ? { pessoa_id: pessoaId } : {}),
+        }).eq('id', conversa_id)
 
-        // Busca primeira fase ativa do módulo leads
-        const { data: primeiraFase } = await supabase
-          .from('fases')
-          .select('id')
-          .eq('empresa_id', empresa_id)
-          .eq('ativo', true)
-          .eq('modulo', 'leads')
-          .order('ordem', { ascending: true })
-          .limit(1)
-          .maybeSingle()
-
-        if (!primeiraFase) {
-          console.error('[whatsapp] Empresa sem fases configuradas — lead não criado. empresa_id:', empresa_id)
-        } else {
-          // Deduplicação: mesma pessoa + mesmo produto = duplicata
-          let duplicado = false
-          if (pessoaId) {
-            let q = supabase.from('leads').select('id').eq('empresa_id', empresa_id).eq('pessoa_id', pessoaId).is('deleted_at', null)
-            if (produtoMapeado) q = q.eq('produto_interesse', produtoMapeado)
-            const { data: existente } = await q.maybeSingle()
-            duplicado = !!existente
-          }
-
-          if (duplicado) {
-            console.log('[whatsapp] Lead já existe para pessoa + produto, ignorando duplicata')
-            await supabase.from('conversas').update({ status: 'qualificado', contato_nome: nome }).eq('id', conversa_id)
-          } else {
-            const ordemTopo = await obterOrdemTopo(supabase, empresa_id, primeiraFase.id)
-            const { data: novoLead, error: leadErr } = await supabase
-              .from('leads')
-              .insert({
-                empresa_id,
-                nome: nome.trim(),
-                telefone,
-                fase_id: primeiraFase.id,
-                origem: 'whatsapp',
-                ordem_kanban: ordemTopo,
-                produto_interesse: produtoMapeado ?? null,
-                valor_pretendido: typeof valor_imovel === 'number' ? valor_imovel : null,
-                renda_formal:     typeof renda_mensal === 'number' ? renda_mensal : null,
-                pessoa_id:     pessoaId ?? undefined,
-                responsavel_id: atendente_id_instancia ?? undefined,
-              })
-              .select('id')
-              .single()
-
-            if (leadErr || !novoLead) {
-              console.error('[whatsapp] Erro ao criar lead:', leadErr)
-            } else {
-              console.log('[whatsapp] Lead criado:', novoLead.id)
-
-              const detalhesNotif = [
-                produtoMapeado,
-                typeof valor_imovel === 'number'
-                  ? `R$ ${valor_imovel.toLocaleString('pt-BR')}` : null,
-                typeof renda_mensal === 'number'
-                  ? `Renda R$ ${renda_mensal.toLocaleString('pt-BR')}` : null,
-              ].filter(Boolean).join(' · ')
-
-              await Promise.all([
-                supabase.from('lead_telefones').upsert(
-                  { lead_id: novoLead.id, empresa_id, telefone, principal: true },
-                  { onConflict: 'lead_id,telefone' }
-                ),
-                supabase.from('conversas').update({
-                  lead_id: novoLead.id,
-                  status: 'qualificado',
-                  contato_nome: nome,
-                  ...(pessoaId ? { pessoa_id: pessoaId } : {}),
-                }).eq('id', conversa_id),
-                // Notifica o comercial responsável pela instância
-                ...(atendente_id_instancia ? [
-                  supabase.from('notificacoes').insert({
-                    empresa_id,
-                    usuario_id: atendente_id_instancia,
-                    tipo: 'lead_atribuido',
-                    titulo: `Novo lead via WhatsApp: ${nome.trim()}`,
-                    mensagem: detalhesNotif || null,
-                    entidade: 'lead',
-                    entidade_id: novoLead.id,
-                  }),
-                ] : []),
-              ])
-            }
-          }
-        }
-
-        // Bot coletou nome real → confirma identidade e atualiza CPF/data_nascimento
+        // Confirma identidade e enriquece Pessoa com CPF/data_nascimento coletados
         if (pessoaId) {
           await confirmarIdentidadePessoa(pessoaId, nome)
 
           const camposExtras: Record<string, unknown> = {}
-          const { cpf, data_nascimento } = transicao.novosDados
           if (cpf)             camposExtras.cpf             = cpf
           if (data_nascimento) camposExtras.data_nascimento = data_nascimento
 
@@ -771,7 +687,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (err) {
-        console.error('[whatsapp] Erro inesperado ao criar lead:', err)
+        console.error('[whatsapp] Erro ao atualizar conversa/pessoa após coleta de dados:', err)
       }
     }
   }

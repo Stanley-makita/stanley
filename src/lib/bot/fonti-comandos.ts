@@ -6,7 +6,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buscarOuCriarPessoa } from '@/lib/pessoa'
+import { buscarOuCriarPessoa, buscarPessoaPorCpf, buscarPessoaPorTelefone } from '@/lib/pessoa'
 import { extrairProduto, extrairNumero } from './state-machine'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 
@@ -869,11 +869,32 @@ export async function processarComandoFonti(
       return `❌ Não consegui identificar o nome do cliente no texto:\n"${instrucao}"\n\nTente incluir o nome completo.`
     }
 
-    // Cria Pessoa + Lead
+    // Localiza Pessoa existente ou cria nova (sem duplicar)
     try {
-      const telefoneTemp = dados.telefone ?? `0000${Date.now().toString().slice(-9)}`
+      // Prioridade 1: CPF extraído do texto
+      let pessoa_id: string | null = null
+      let pessoaCriada = false
 
-      const pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome)
+      if (dados.cpf) {
+        pessoa_id = await buscarPessoaPorCpf(empresa_id, dados.cpf) ?? null
+      }
+
+      // Prioridade 2: Pessoa já vinculada à conversa em andamento (telefone do cliente)
+      if (!pessoa_id && ctx.telefone_cliente) {
+        pessoa_id = await buscarPessoaPorTelefone(empresa_id, ctx.telefone_cliente) ?? null
+      }
+
+      // Prioridade 3: Telefone extraído do texto
+      if (!pessoa_id && dados.telefone) {
+        pessoa_id = await buscarPessoaPorTelefone(empresa_id, dados.telefone) ?? null
+      }
+
+      // Prioridade 4: Criar nova Pessoa (sem identificador validado)
+      if (!pessoa_id) {
+        const telefoneTemp = dados.telefone ?? `0000${Date.now().toString().slice(-9)}`
+        pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome, dados.cpf ?? undefined)
+        pessoaCriada = true
+      }
 
       // Atualiza pessoa com campos extras extraídos do texto
       const camposPessoa: Record<string, unknown> = {}
@@ -986,6 +1007,7 @@ export async function processarComandoFonti(
       const linhas = [`✅ Lead criado: *${dados.nome}*${produto}`]
       if (linha1.length) linhas.push(linha1.join(' · '))
       if (linha2.length) linhas.push(linha2.join(' · '))
+      if (pessoaCriada) linhas.push('⚠️ Pessoa criada sem identificador validado (sem CPF ou telefone). Verifique possível duplicidade.')
 
       return linhas.join('\n')
     } catch (err) {
