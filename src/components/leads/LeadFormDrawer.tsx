@@ -60,6 +60,9 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
 
   const [pessoaEncontrada, setPessoaEncontrada] = useState<{ id: string; nome: string } | null>(null)
   const [dialogCpfAberto, setDialogCpfAberto] = useState(false)
+  // Flag local para travar o botão imediatamente no primeiro clique,
+  // antes do React re-renderizar com criarLead.isPending=true
+  const [enviando, setEnviando] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
@@ -116,15 +119,21 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
   }
 
   async function onSubmit(data: FormData) {
-    const lead = await criarLead.mutateAsync({
-      ...data,
-      email: data.email || undefined,
-      cpf:   data.cpf   || undefined,
-    })
-    form.reset()
-    setPessoaEncontrada(null)
-    onFechar()
-    onCriado?.(lead)
+    if (enviando) return
+    setEnviando(true)
+    try {
+      const lead = await criarLead.mutateAsync({
+        ...data,
+        email: data.email || undefined,
+        cpf:   data.cpf   || undefined,
+      })
+      form.reset()
+      setPessoaEncontrada(null)
+      onFechar()
+      onCriado?.(lead)
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -266,9 +275,9 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                 <Button
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={criarLead.isPending}
+                  disabled={enviando || criarLead.isPending}
                 >
-                  {criarLead.isPending ? 'Salvando...' : 'Criar lead'}
+                  {enviando || criarLead.isPending ? 'Salvando...' : 'Criar lead'}
                 </Button>
               </div>
             </form>

@@ -58,6 +58,25 @@ export async function POST(request: NextRequest) {
     console.error('[POST /api/leads] erro ao buscar/criar pessoa:', err)
   }
 
+  // Deduplicação: mesma pessoa + mesma fase = lead duplicado
+  if (pessoa_id) {
+    const { data: leadExistente } = await supabaseAdmin
+      .from('leads')
+      .select('id, nome, fase_id')
+      .eq('empresa_id', empresa_id)
+      .eq('pessoa_id', pessoa_id)
+      .eq('fase_id', fase_id)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (leadExistente) {
+      return NextResponse.json(
+        { error: 'Lead duplicado', detail: 'Já existe um lead ativo para esta pessoa nesta fase.', lead_id: leadExistente.id },
+        { status: 409 }
+      )
+    }
+  }
+
   // Posiciona o novo lead no topo da fase (menor ordem_kanban que todos os existentes)
   const ordemTopo = await obterOrdemTopo(supabaseAdmin, empresa_id, fase_id)
 

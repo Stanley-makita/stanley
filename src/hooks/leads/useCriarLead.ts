@@ -31,6 +31,9 @@ export function useCriarLead() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        if (res.status === 409) {
+          throw new Error(err.detail ?? 'Lead duplicado: já existe um lead ativo para esta pessoa nesta fase.')
+        }
         throw new Error(err.error ?? `HTTP ${res.status}`)
       }
 
