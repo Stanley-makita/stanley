@@ -12,6 +12,10 @@ export function useEnviarParaRegistro() {
 
   return useMutation({
     mutationFn: async (origem: Processo) => {
+      const { data: primeiraFase } = await supabase.from('fases').select('id')
+        .eq('empresa_id', usuario!.empresa_id).eq('modulo', 'registro')
+        .eq('ativo', true).order('ordem', { ascending: true }).limit(1).maybeSingle()
+
       const { data, error } = await supabase
         .from('processos')
         .insert({
@@ -37,7 +41,7 @@ export function useEnviarParaRegistro() {
           corretor_nome: origem.corretor_nome,
           corretor_creci: origem.corretor_creci,
           data_inicio: new Date().toISOString().split('T')[0],
-          fase_atual_id: null,
+          fase_atual_id: primeiraFase?.id ?? null,
         })
         .select()
         .single()

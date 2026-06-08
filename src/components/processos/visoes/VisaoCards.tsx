@@ -283,14 +283,6 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
             />
           ))}
 
-          {(porFase['__sem_fase__']?.length ?? 0) > 0 && (
-            <KanbanColuna
-              nome="Sem fase"
-              cor="#9CA3AF"
-              count={porFase['__sem_fase__'].length}
-              processos={porFase['__sem_fase__']}
-            />
-          )}
         </div>
       )}
     </div>

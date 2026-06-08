@@ -12,7 +12,7 @@ import { LayoutGrid, Table2, BarChart2, Plus } from 'lucide-react'
 type Visao = 'cards' | 'tabela' | 'emissoes'
 
 export default function ProcessosPage() {
-  const [visao, setVisao] = useState<Visao>('cards')
+  const [visao, setVisao] = useState<Visao>('tabela')
   const { pode } = usePermissao()
 
   return (

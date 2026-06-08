@@ -214,6 +214,10 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
   async function handleCriar() {
     if (!bancoId || !modalidade || !valorImovel) return
 
+    const { data: primeiraFase } = await supabase.from('fases').select('id')
+      .eq('empresa_id', usuario!.empresa_id).eq('modulo', 'processos')
+      .eq('ativo', true).order('ordem', { ascending: true }).limit(1).maybeSingle()
+
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
@@ -234,7 +238,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    null,
       corretor_creci:   null,
-      fase_atual_id:    null,
+      fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
 
@@ -384,6 +388,10 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
   async function handleCriar() {
     if (!bancoId || !valorCredito) return
 
+    const { data: primeiraFase } = await supabase.from('fases').select('id')
+      .eq('empresa_id', usuario!.empresa_id).eq('modulo', 'processos')
+      .eq('ativo', true).order('ordem', { ascending: true }).limit(1).maybeSingle()
+
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
@@ -404,7 +412,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    null,
       corretor_creci:   null,
-      fase_atual_id:    null,
+      fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
 
@@ -516,6 +524,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
   onFechar: () => void
 }) {
   const router = useRouter()
+  const { usuario } = useAuth()
   const criarProcesso = useCriarProcesso()
   const { data: usuarios = [] } = useUsuariosEmpresa()
 
@@ -534,6 +543,10 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
 
   async function handleCriar() {
     if (!tipoContrato) return
+
+    const { data: primeiraFase } = await supabase.from('fases').select('id')
+      .eq('empresa_id', usuario!.empresa_id).eq('modulo', 'contrato')
+      .eq('ativo', true).order('ordem', { ascending: true }).limit(1).maybeSingle()
 
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
@@ -555,7 +568,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
       corretor_nome:    null,
       corretor_creci:   null,
       numero_contrato:  TIPO_CONTRATO_LABELS[tipoContrato],
-      fase_atual_id:    null,
+      fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
 
@@ -643,6 +656,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar }: {
   onFechar: () => void
 }) {
   const router = useRouter()
+  const { usuario } = useAuth()
   const criarProcesso = useCriarProcesso()
   const { data: usuarios = [] } = useUsuariosEmpresa()
 
@@ -666,6 +680,10 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar }: {
   async function handleCriar() {
     if (!tipoBem || !valorCarta) return
 
+    const { data: primeiraFase } = await supabase.from('fases').select('id')
+      .eq('empresa_id', usuario!.empresa_id).eq('modulo', 'consorcio')
+      .eq('ativo', true).order('ordem', { ascending: true }).limit(1).maybeSingle()
+
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
@@ -685,7 +703,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar }: {
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    administradoraFinal || null,
       corretor_creci:   null,
-      fase_atual_id:    null,
+      fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
 

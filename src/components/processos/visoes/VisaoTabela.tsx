@@ -32,6 +32,7 @@ const EXTRACTORS: Record<string, (p: Processo) => string> = {
   Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
   Modalidade:   (p) => p.modalidade,
   Proposta:     (p) => p.numero_proposta ?? '',
+  Fase:         (p) => p.fase_atual?.nome ?? '',
   Banco:        (p) => p.banco?.nome ?? '',
   Comercial:    (p) => p.comercial?.nome ?? '',
   Status:       (p) => p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido',
@@ -195,7 +196,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = 12 + (isGestor ? 2 : 0)
+  const totalColunas = 13 + (isGestor ? 2 : 0)
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos }
 
@@ -274,6 +275,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
                 <StaticHead>CPF</StaticHead>
                 <FilterHead col="Modalidade"  {...filterProps}>Modalidade</FilterHead>
                 <FilterHead col="Proposta"    {...filterProps}>Proposta</FilterHead>
+                <FilterHead col="Fase"        {...filterProps}>Fase</FilterHead>
                 <StaticHead>Valor Financiado</StaticHead>
                 <FilterHead col="Banco"       {...filterProps}>Banco</FilterHead>
                 <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
@@ -312,6 +314,11 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
+                      <TableCell>
+                        {p.fase_atual
+                          ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? '#C2AA6A' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
+                          : <span className="text-gray-400 text-sm">—</span>}
+                      </TableCell>
                       <TableCell className="text-sm font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
                       <TableCell>
                         {p.banco
