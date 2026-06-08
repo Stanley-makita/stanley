@@ -300,13 +300,15 @@ async function buscarProcessoPorNumero(
   empresa_id: string,
   numeroProcesso: string,
 ) {
+  // .not('in') exclui NULLs no PostgreSQL — processos novos sem status definido seriam ignorados.
+  // Usar .or() para aceitar NULL explicitamente.
   const { data } = await supabase
     .from('processos')
     .select('id, numero_processo, banco, valor_imovel')
     .eq('empresa_id', empresa_id)
     .eq('numero_processo', numeroProcesso)
     .is('deleted_at', null)
-    .not('status_processo', 'in', `(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
+    .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
     .maybeSingle()
   return data ?? null
 }
@@ -331,7 +333,7 @@ async function buscarProcessosAtivos(
     .select('id, numero_processo, banco, valor_imovel')
     .in('id', processoIds)
     .is('deleted_at', null)
-    .not('status_processo', 'in', `(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
+    .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
     .order('created_at', { ascending: false })
 
   return processos ?? []
@@ -378,7 +380,7 @@ async function salvarParaProcesso(
       .eq('id', processoRef)
       .eq('empresa_id', empresa_id)
       .is('deleted_at', null)
-      .not('status_processo', 'in', `(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
+      .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
       .maybeSingle()
     processo = data ?? null
   } else {

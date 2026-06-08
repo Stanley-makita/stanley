@@ -261,6 +261,17 @@ export async function POST(request: NextRequest) {
       const destinoResposta = clientPhone || ownerPhone
       if (respostaFM !== null) {
         await enviarMensagemUazapi(destinoResposta, respostaFM, fmToken)
+        // Salva resposta do *fonti em mensagens para que o eco do Uazapi seja detectado
+        // e ignorado antes de chegar ao state machine do bot do cliente
+        if (clientPhone) {
+          const { data: convFM } = await supabase
+            .from('conversas').select('id')
+            .eq('empresa_id', fmEmpresaId).eq('canal', 'whatsapp')
+            .eq('contato_telefone', clientPhone).maybeSingle()
+          if (convFM) {
+            await supabase.from('mensagens').insert({ conversa_id: convFM.id, origem: 'sistema', conteudo: respostaFM })
+          }
+        }
       } else if (fmInst) {
         // Instância encontrada mas autenticação falhou — informa o operador
         const errMsg = fmInst.atendente_id
@@ -541,6 +552,23 @@ export async function POST(request: NextRequest) {
   // Se humano assumiu, ou é mídia sem legenda, não responde com bot
   if (!bot_ativo || (isMidia && !texto.trim())) {
     return NextResponse.json({ ok: true })
+  }
+
+  // ECO: detecta se esta mensagem foi enviada pelo próprio sistema/bot recentemente
+  // Evita que respostas do *fonti (ex: "❌ Processo não encontrado") sejam reprocessadas
+  // como input do cliente quando o Uazapi reflete a mensagem de volta
+  if (texto.trim()) {
+    const { data: ecoSistema } = await supabase.from('mensagens')
+      .select('id')
+      .eq('conversa_id', conversa_id)
+      .in('origem', ['bot', 'sistema'])
+      .eq('conteudo', texto.trim())
+      .gte('created_at', new Date(Date.now() - 30000).toISOString())
+      .limit(1).maybeSingle()
+    if (ecoSistema) {
+      console.log('[whatsapp] eco de sistema detectado e ignorado:', texto.slice(0, 60))
+      return NextResponse.json({ ok: true })
+    }
   }
 
   // Carrega histórico (últimas 10)
