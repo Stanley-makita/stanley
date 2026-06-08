@@ -184,15 +184,30 @@ export async function POST(request: NextRequest) {
     const textoNormFM = textoFromMe.slice(0, 12).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(12)
 
     if (/^\*fonti\b/i.test(textoNormFM)) {
-      // Resolve instância pelo token (maybeSingle evita erro quando não encontra)
       const fmToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
-      const { data: fmInst } = await supabase
+      const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
+      const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
+
+      // 1ª tentativa: busca pelo token exato
+      let { data: fmInst } = await supabase
         .from('instancias').select('id, empresa_id, atendente_id, numero_telefone')
         .eq('token', fmToken).eq('ativo', true).maybeSingle()
 
+      // 2ª tentativa: fallback pelo número do owner (token pode diferir em formato)
+      if (!fmInst && ownerPhone.length >= 8) {
+        const ownerSuffix = ownerPhone.slice(-10)
+        const { data: instByPhone } = await supabase
+          .from('instancias').select('id, empresa_id, atendente_id, numero_telefone')
+          .eq('ativo', true)
+          .like('numero_telefone', `%${ownerSuffix}`)
+          .maybeSingle()
+        if (instByPhone) {
+          fmInst = instByPhone
+          console.log('[fonti-fromMe] instância resolvida pelo numero_telefone (token não bateu). owner:', ownerPhone)
+        }
+      }
+
       const fmEmpresaId = fmInst?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
-      const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
-      const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
 
       console.log('[fonti-fromMe] token:', fmToken, '| instancia:', fmInst?.id ?? 'NAO ENCONTRADA', '| atendente_id:', fmInst?.atendente_id ?? 'null', '| owner:', ownerPhone)
 
