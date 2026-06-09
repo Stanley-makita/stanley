@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import { Loader2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
@@ -19,6 +20,30 @@ interface Props {
   documento: DocumentoOcrProps
   onClose: () => void
   onConfirmado: () => void
+}
+
+const TIPOS_OPCOES = [
+  { value: 'cnh',                  label: 'CNH' },
+  { value: 'rg',                   label: 'RG / Doc. de Identidade' },
+  { value: 'cpf',                  label: 'CPF' },
+  { value: 'certidao_casamento',   label: 'Certidão de Casamento' },
+  { value: 'comprovante_endereco', label: 'Comprovante de Residência' },
+]
+
+const TIPOS_VALIDOS = new Set(TIPOS_OPCOES.map(t => t.value))
+
+const CAMPOS_POR_TIPO: Record<string, string[]> = {
+  cnh: [
+    'nome', 'cpf', 'data_nascimento', 'cidade_nascimento', 'data_emissao', 'orgao_emissor',
+    'filiacao_mae', 'filiacao_pai', 'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
+  ],
+  rg: [
+    'nome', 'cpf', 'rg', 'data_nascimento', 'cidade_nascimento', 'data_emissao',
+    'orgao_emissor', 'filiacao_mae', 'filiacao_pai',
+  ],
+  cpf: ['nome', 'cpf', 'data_nascimento', 'orgao_emissor'],
+  certidao_casamento:   ['estado_civil', 'regime_casamento', 'data_casamento'],
+  comprovante_endereco: ['endereco_rua', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_uf', 'endereco_cep'],
 }
 
 const CAMPOS_LABELS: Record<string, string> = {
@@ -45,14 +70,9 @@ const CAMPOS_LABELS: Record<string, string> = {
   endereco_cep:             'CEP',
 }
 
-const TIPO_LABELS: Record<string, string> = {
-  rg:                   'RG',
-  cnh:                  'CNH',
-  comprovante_endereco: 'Comprovante de Endereço',
-  comprovante_renda:    'Comprovante de Renda',
-  certidao_casamento:   'Certidão de Casamento',
-  outro:                'Documento',
-}
+const DATE_FIELDS = new Set([
+  'data_nascimento', 'data_emissao', 'data_casamento', 'validade_cnh', 'primeira_habilitacao_cnh',
+])
 
 async function getToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession()
@@ -63,6 +83,10 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
   const ocr = documento.ocr_dados as OcrResultado | null
   const ocrRaw = ocr as unknown as Record<string, unknown> | null
 
+  const tipoDetectado = ocr?.tipo_documento ?? ''
+  const tipoInicial = TIPOS_VALIDOS.has(tipoDetectado) ? tipoDetectado : 'cnh'
+
+  const [tipoSelecionado, setTipoSelecionado] = useState(tipoInicial)
   const [campos, setCampos] = useState<Record<string, string>>(() => {
     if (!ocrRaw) return {}
     const initial: Record<string, string> = {}
@@ -76,6 +100,8 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
   const [salvando, setSalvando] = useState(false)
   const [docUrl, setDocUrl] = useState<string | null>(null)
   const [carregandoUrl, setCarregandoUrl] = useState(false)
+
+  const camposVisiveis = CAMPOS_POR_TIPO[tipoSelecionado] ?? []
 
   async function abrirDocumento() {
     if (docUrl) { window.open(docUrl, '_blank'); return }
@@ -96,6 +122,15 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
     const token = await getToken()
     if (!token) return
     setSalvando(true)
+
+    // Apenas campos do tipo selecionado
+    const camposFiltrados: Record<string, string> = {}
+    for (const key of camposVisiveis) {
+      if (campos[key] != null && campos[key] !== '') {
+        camposFiltrados[key] = campos[key]
+      }
+    }
+
     try {
       const res = await fetch(`/api/documentos/${documento.id}/ocr-confirmar`, {
         method: 'POST',
@@ -103,7 +138,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ campos }),
+        body: JSON.stringify({ campos: camposFiltrados, tipo_confirmado: tipoSelecionado }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string; detail?: string }
@@ -130,7 +165,6 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
     onConfirmado()
   }
 
-  const tipoLabel = ocr ? (TIPO_LABELS[ocr.tipo_documento] ?? 'Documento') : 'Documento'
   const confiancaColor = { alta: 'text-green-600', media: 'text-amber-600', baixa: 'text-red-500' }[ocr?.confianca ?? 'media']
 
   return (
@@ -138,18 +172,29 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
       <DialogContent className="max-w-2xl p-0 flex flex-col overflow-hidden max-h-[90vh]">
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
               <h2 className="text-base font-semibold text-[#253B29]">Revisar dados extraídos</h2>
-              <p className="text-xs text-gray-400 mt-0.5">{documento.nome_original}</p>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{documento.nome_original}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {ocr?.confianca && (
                 <span className={`text-xs font-medium ${confiancaColor}`}>
                   Confiança {ocr.confianca}
                 </span>
               )}
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tipoLabel}</span>
+              <Select value={tipoSelecionado} onValueChange={setTipoSelecionado}>
+                <SelectTrigger className="h-7 text-xs w-[190px] bg-gray-50 border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_OPCOES.map(t => (
+                    <SelectItem key={t.value} value={t.value} className="text-xs">
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -170,9 +215,10 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
             </button>
           </div>
 
-          {Object.entries(CAMPOS_LABELS).map(([key, label]) => {
-            if (!(key in campos) && !(ocrRaw && ocrRaw[key])) return null
-            const isDate = ['data_nascimento', 'data_emissao', 'data_casamento', 'validade_cnh', 'primeira_habilitacao_cnh'].includes(key)
+          {camposVisiveis.map((key) => {
+            const label = CAMPOS_LABELS[key]
+            if (!label) return null
+            const isDate = DATE_FIELDS.has(key)
             return (
               <div key={key} className="mb-3">
                 <label className="text-xs font-medium text-gray-600 block mb-1">{label}</label>

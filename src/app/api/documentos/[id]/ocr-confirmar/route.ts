@@ -39,8 +39,8 @@ export async function POST(
   if (!doc.pessoa_id) return NextResponse.json({ error: 'Documento sem pessoa vinculada' }, { status: 400 })
   if (doc.ocr_status !== 'concluido') return NextResponse.json({ error: 'OCR não concluído' }, { status: 400 })
 
-  const body = await request.json() as { campos: Record<string, unknown> }
-  const { campos } = body
+  const body = await request.json() as { campos: Record<string, unknown>; tipo_confirmado?: string }
+  const { campos, tipo_confirmado } = body
 
   // Campos permitidos para atualização na pessoa
   const CAMPOS_PERMITIDOS = [
@@ -97,10 +97,13 @@ export async function POST(
     }
   }
 
-  // Marca documento como revisado
+  // Marca documento como revisado, atualizando classificacao se o usuário confirmou o tipo
   await supabase
     .from('documentos_clientes')
-    .update({ ocr_status: 'revisado' })
+    .update({
+      ocr_status: 'revisado',
+      ...(tipo_confirmado ? { classificacao: tipo_confirmado } : {}),
+    })
     .eq('id', documentoId)
 
   return NextResponse.json({ ok: true, cpf_divergente, camposSalvos: Object.keys(camposFiltrados) })
