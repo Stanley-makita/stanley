@@ -26,7 +26,8 @@ interface CampoOcr {
 
 const CAMPOS_PERMITIDOS = [
   'nome', 'cpf', 'rg', 'data_nascimento', 'orgao_emissor',
-  'filiacao_mae', 'filiacao_pai',
+  'filiacao_mae', 'filiacao_pai', 'cidade_nascimento', 'data_emissao',
+  'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
   'estado_civil', 'regime_casamento', 'data_casamento',
   'endereco_rua', 'endereco_numero', 'endereco_bairro',
   'endereco_cidade', 'endereco_uf', 'endereco_cep',
@@ -73,7 +74,7 @@ export async function POST(
   const camposAplicados: string[] = []
   const valoresAnteriores: Record<string, unknown> = {}
   const valoresNovos: Record<string, unknown> = {}
-  const CAMPOS_DATA = new Set(['data_nascimento', 'data_casamento'])
+  const CAMPOS_DATA = new Set(['data_nascimento', 'data_casamento', 'data_emissao', 'validade_cnh', 'primeira_habilitacao_cnh'])
   const ESTADO_CIVIL_VALIDOS = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo']
   const DDMMYYYY_RE = /^(\d{2})\/(\d{2})\/(\d{4})$/
   const YYYYMMDD_RE = /^\d{4}-\d{2}-\d{2}$/

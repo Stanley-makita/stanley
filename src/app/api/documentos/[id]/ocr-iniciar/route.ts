@@ -30,7 +30,7 @@ export async function POST(
 
   const { data: doc } = await supabase
     .from('documentos_clientes')
-    .select('id, ocr_status')
+    .select('id, ocr_status, classificacao')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
@@ -38,6 +38,15 @@ export async function POST(
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
   if (doc.ocr_status && doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro') {
     return NextResponse.json({ error: 'OCR já processado' }, { status: 400 })
+  }
+
+  const TIPOS_COM_OCR = new Set(['cnh', 'rg', 'cpf', 'comprovante_endereco', 'certidao_casamento', 'extrato_fgts', 'auto'])
+  const classificacao = doc.classificacao ?? null
+  if (classificacao && !TIPOS_COM_OCR.has(classificacao)) {
+    await supabase.from('documentos_clientes')
+      .update({ ocr_status: 'ignorado' })
+      .eq('id', documentoId)
+    return NextResponse.json({ ok: true, skipped: true })
   }
 
   await processarOcrDocumento(supabase, documentoId, empresa_id)

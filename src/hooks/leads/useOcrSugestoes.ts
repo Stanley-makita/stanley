@@ -23,22 +23,27 @@ export interface OcrSugestoesResult {
 }
 
 const CAMPO_LABELS: Record<string, string> = {
-  nome:             'Nome',
-  cpf:              'CPF',
-  rg:               'RG',
-  data_nascimento:  'Data de nascimento',
-  orgao_emissor:    'Órgão emissor',
-  filiacao_mae:     'Filiação (mãe)',
-  filiacao_pai:     'Filiação (pai)',
-  estado_civil:     'Estado civil',
-  regime_casamento: 'Regime de bens',
-  data_casamento:   'Data de casamento',
-  endereco_rua:     'Rua',
-  endereco_numero:  'Número',
-  endereco_bairro:  'Bairro',
-  endereco_cidade:  'Cidade',
-  endereco_uf:      'UF',
-  endereco_cep:     'CEP',
+  nome:                     'Nome',
+  cpf:                      'CPF',
+  rg:                       'RG',
+  data_nascimento:          'Data de nascimento',
+  data_emissao:             'Data de emissão',
+  cidade_nascimento:        'Cidade de nascimento',
+  orgao_emissor:            'Órgão emissor',
+  filiacao_mae:             'Filiação (mãe)',
+  filiacao_pai:             'Filiação (pai)',
+  registro_cnh:             'Nº Registro CNH',
+  validade_cnh:             'Validade da habilitação',
+  primeira_habilitacao_cnh: 'Primeira habilitação',
+  estado_civil:             'Estado civil',
+  regime_casamento:         'Regime de bens',
+  data_casamento:           'Data de casamento',
+  endereco_rua:             'Rua',
+  endereco_numero:          'Número',
+  endereco_bairro:          'Bairro',
+  endereco_cidade:          'Cidade',
+  endereco_uf:              'UF',
+  endereco_cep:             'CEP',
 }
 
 const CAMPOS_OCR = Object.keys(CAMPO_LABELS)
@@ -82,7 +87,7 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
 
       if (!docs || docs.length === 0) return []
 
-      const CAMPOS_DATA = new Set(['data_nascimento', 'data_casamento', 'data_emissao'])
+      const CAMPOS_DATA = new Set(['data_nascimento', 'data_casamento', 'data_emissao', 'validade_cnh', 'primeira_habilitacao_cnh'])
       const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
 
       function formatarValorExibicao(campo: string, valor: string): string {

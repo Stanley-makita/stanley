@@ -27,6 +27,7 @@ const TIPOS_DOCUMENTO = [
   { value: 'extrato_fgts',          label: 'Extrato FGTS' },
   { value: 'rg',                    label: 'RG' },
   { value: 'cnh',                   label: 'CNH' },
+  { value: 'cpf',                   label: 'CPF' },
   { value: 'comprovante_renda',     label: 'Comprovante de renda' },
   { value: 'comprovante_endereco',  label: 'Comprovante de endereço' },
   { value: 'certidao_casamento',    label: 'Certidão de Casamento' },
