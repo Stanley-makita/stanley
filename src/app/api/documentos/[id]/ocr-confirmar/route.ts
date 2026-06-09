@@ -51,11 +51,19 @@ export async function POST(
     'endereco_cidade', 'endereco_uf', 'endereco_cep',
   ]
 
+  const ESTADO_CIVIL_VALIDOS = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo']
+  const DATA_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
   const camposFiltrados: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(campos)) {
-    if (CAMPOS_PERMITIDOS.includes(k) && v !== null && v !== undefined && v !== '') {
-      camposFiltrados[k] = v
-    }
+    if (!CAMPOS_PERMITIDOS.includes(k)) continue
+    if (v === null || v === undefined || v === '') continue
+    const s = String(v).trim()
+    // Validações por campo para evitar rejeição no banco
+    if (k === 'cpf' && s.replace(/\D/g, '').length !== 11) continue
+    if ((k === 'data_nascimento' || k === 'data_casamento') && !DATA_REGEX.test(s)) continue
+    if (k === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) continue
+    camposFiltrados[k] = s
   }
 
   if (Object.keys(camposFiltrados).length > 0) {
@@ -65,8 +73,8 @@ export async function POST(
       .eq('id', doc.pessoa_id)
 
     if (error) {
-      console.error('[ocr-confirmar] Erro ao atualizar pessoa:', error)
-      return NextResponse.json({ error: 'Erro ao salvar dados' }, { status: 500 })
+      console.error('[ocr-confirmar] Erro ao atualizar pessoa:', error.message, '| campos:', Object.keys(camposFiltrados))
+      return NextResponse.json({ error: 'Erro ao salvar dados', detail: error.message }, { status: 500 })
     }
   }
 
