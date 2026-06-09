@@ -119,15 +119,30 @@ export async function POST(
     }
   }
 
-  // Aplica campos na Pessoa
+  // Aplica campos na Pessoa — CPF separado para isolar violação UNIQUE
   if (camposAplicados.length > 0) {
-    const update: Record<string, unknown> = {}
-    for (const c of camposAplicados) update[c] = valoresNovos[c]
+    const camposSemCpf = camposAplicados.filter(c => c !== 'cpf')
+    const updateSemCpf: Record<string, unknown> = {}
+    for (const c of camposSemCpf) updateSemCpf[c] = valoresNovos[c]
 
-    const { error } = await supabase.from('pessoas').update(update).eq('id', pessoaId)
-    if (error) {
-      console.error('[aplicar-ocr] Erro ao atualizar pessoa:', error)
-      return NextResponse.json({ error: 'Erro ao salvar dados' }, { status: 500 })
+    if (camposSemCpf.length > 0) {
+      const { error } = await supabase.from('pessoas').update(updateSemCpf).eq('id', pessoaId)
+      if (error) {
+        console.error('[aplicar-ocr] Erro ao atualizar pessoa:', error.message, '| campos:', camposSemCpf)
+        return NextResponse.json({ error: 'Erro ao salvar dados', detail: error.message }, { status: 500 })
+      }
+    }
+
+    // CPF: tenta separado — se falhar (UNIQUE), marca como divergente e segue
+    if (camposAplicados.includes('cpf')) {
+      const { error: errCpf } = await supabase.from('pessoas')
+        .update({ cpf: valoresNovos['cpf'] })
+        .eq('id', pessoaId)
+      if (errCpf) {
+        console.warn('[aplicar-ocr] CPF não salvo (possível conflito):', errCpf.message)
+        cpf_divergente = true
+        camposAplicados.splice(camposAplicados.indexOf('cpf'), 1)
+      }
     }
 
     // Audit trail
