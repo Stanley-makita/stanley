@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Check, ChevronRight, AlertTriangle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { fmtData } from '@/lib/utils'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 
 // ─── Modalidades de financiamento que disparam criação de Registro ────────────
@@ -276,9 +277,7 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
                         </span>
                       </div>
                       <p className="text-gray-400">
-                        por {item.usuario?.nome ?? 'Sistema'} · {new Date(item.entrou_em).toLocaleDateString('pt-BR', {
-                          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                        })}
+                        por {item.usuario?.nome ?? 'Sistema'} · {fmtData(item.entrou_em, true)}
                       </p>
                       {item.observacao && (
                         <p className="text-gray-600 mt-1.5 bg-gray-50 rounded-lg p-2">{item.observacao}</p>

@@ -947,7 +947,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                   { label: 'E-mail',     value: pessoa.email ?? lead0?.email ?? null, icon: Mail },
                   { label: 'CPF',        value: cpfEfetivo,   icon: CreditCard },
                   { label: 'Nascimento', value: nascEfetivo
-                      ? format(new Date(nascEfetivo + 'T12:00:00'), 'dd/MM/yyyy')
+                      ? format(new Date(nascEfetivo + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })
                       : null,                                  icon: Calendar },
                 ]
               })().map(({ label, value, icon: Icon }) => (

@@ -6,6 +6,7 @@ import { ProcessoStatusBadge } from '../ProcessoStatusBadge'
 import { ChanceBadge } from '../ChanceBadge'
 import { useSolicitacoesAbertasPorProcesso } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorProcesso'
 import { Building2, User, Calendar, Clock } from 'lucide-react'
+import { fmtData } from '@/lib/utils'
 
 interface Props { processo: Processo }
 
@@ -83,7 +84,7 @@ export function ProcessoCard({ processo }: Props) {
         {processo.data_inicio && (
           <div className="flex items-center gap-1 text-gray-400 text-xs">
             <Calendar className="h-3 w-3" />
-            {new Date(processo.data_inicio).toLocaleDateString('pt-BR')}
+            {fmtData(processo.data_inicio)}
           </div>
         )}
       </div>

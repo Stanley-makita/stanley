@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react'
+import { fmtData } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 function formatarMoeda(v: number) {
@@ -101,7 +102,7 @@ export function VisaoEmissoes() {
                     {formatarMoeda(semana.producao)}
                   </td>
                   <td className="py-2.5 pr-4 text-gray-500">
-                    {new Date(semana.emitidos_ate).toLocaleDateString('pt-BR')}
+                    {fmtData(semana.emitidos_ate)}
                   </td>
                   <td className="py-2.5 pr-4 text-gray-600">{semana.percentual_valor.toFixed(2)}%</td>
                   <td className="py-2.5 text-gray-600">{semana.percentual_contratos.toFixed(2)}%</td>

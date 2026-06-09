@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { CheckSquare, Plus, AlertTriangle, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { fmtData } from '@/lib/utils'
 import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
 
 const PRIORIDADE_CONFIG: Record<ProcessoTarefa['prioridade'], { label: string; className: string; icone: React.ElementType }> = {
@@ -130,7 +131,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
                     )}
                     {t.data_prazo && (
                       <span className={`text-xs ${atrasada ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                        {new Date(t.data_prazo).toLocaleDateString('pt-BR')}
+                        {fmtData(t.data_prazo)}
                       </span>
                     )}
                   </div>

@@ -2,12 +2,14 @@
 
 export function fmtData(iso: string | null | undefined): string {
   if (!iso) return ''
-  const d = new Date(iso + 'T12:00:00')
-  return d.toLocaleDateString('pt-BR')
+  const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso)
+  if (isNaN(d.getTime())) return iso
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
 }
 
 export function fmtDataHoje(): string {
-  return new Date().toLocaleDateString('pt-BR')
+  const d = new Date()
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
 }
 
 export function fmtMoeda(v: number | null | undefined): string {

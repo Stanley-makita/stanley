@@ -7,7 +7,7 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { formatDistanceToNow, differenceInDays, isPast, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { MessageSquare, Calendar, TrendingUp, Banknote, Users, ArrowRight, AlertCircle, Clock, CheckCircle2, CalendarClock } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, fmtData } from '@/lib/utils'
 import { useSolicitacoesAbertasPorLead } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorLead'
 
 const PRODUTO_LABELS: Record<string, string> = {
@@ -201,7 +201,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
             )}
             {lead.data_nascimento && (
               <Campo label="Data de Nascimento" valor={
-                new Date(lead.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR')
+                fmtData(lead.data_nascimento)
               } />
             )}
             {lead.regime_casamento && <Campo label="Regime" valor={REGIME_LABELS[lead.regime_casamento] ?? lead.regime_casamento} />}

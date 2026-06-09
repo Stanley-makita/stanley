@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { fmtData } from '@/lib/utils'
 import { useComissoes, useAtualizarComissao } from '@/hooks/financeiro/useComissoes'
 import { StatusComissaoBadge } from '../StatusComissaoBadge'
 import { type StatusComissao } from '@/types/financeiro'
@@ -94,7 +95,7 @@ export function VisaoComissoes({ mes, ano }: Props) {
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-600">{c.comercial?.nome ?? '—'}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                      {new Date(c.data_emissao).toLocaleDateString('pt-BR')}
+                      {fmtData(c.data_emissao)}
                     </td>
                     <td className="px-4 py-2.5 font-medium text-[#253B29] whitespace-nowrap">{fmtMoeda(c.valor_bruto)}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtMoeda(c.valor_empresa)}</td>

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { fmtData } from '@/lib/utils'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -222,7 +223,7 @@ export function formatarContextoParaBot(ctx: PessoaContexto): string {
   if (ctx.leads_ativos.length > 0) {
     linhas.push(`Leads ativos (${ctx.leads_ativos.length}):`)
     ctx.leads_ativos.forEach((l, i) => {
-      linhas.push(`  ${i + 1}. Fase: ${l.fase_nome} — criado em ${new Date(l.created_at).toLocaleDateString('pt-BR')}`)
+      linhas.push(`  ${i + 1}. Fase: ${l.fase_nome} — criado em ${fmtData(l.created_at)}`)
     })
     linhas.push('Este cliente já está sendo atendido. Não colete dados que já temos. Informe em qual fase está o processo.')
   } else {

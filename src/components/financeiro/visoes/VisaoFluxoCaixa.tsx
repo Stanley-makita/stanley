@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { fmtData } from '@/lib/utils'
 import { useLancamentos, useAdicionarLancamento, useRemoverLancamento } from '@/hooks/financeiro/useLancamentos'
 import { type TipoLancamento } from '@/types/financeiro'
 import { Button } from '@/components/ui/button'
@@ -136,7 +137,7 @@ export function VisaoFluxoCaixa({ mes, ano }: Props) {
               {lancamentos.map((l) => (
                 <tr key={l.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                    {new Date(l.data_lancamento).toLocaleDateString('pt-BR')}
+                    {fmtData(l.data_lancamento)}
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge

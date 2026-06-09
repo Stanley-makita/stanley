@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { fmtData } from '@/lib/utils'
 import { useProcessoCobranças, useAdicionarCobrança, useAtualizarStatusCobrança } from '@/hooks/processos/useProcessoCobranças'
 import { type ProcessoCobranca } from '@/types/processos'
 import { Button } from '@/components/ui/button'
@@ -121,10 +122,10 @@ export function AbaCobranças({ processoId }: Props) {
                   <td className="px-4 py-2.5 text-[#253B29]">{c.descricao}</td>
                   <td className="px-4 py-2.5 font-medium text-[#253B29]">{fmtMoeda(c.valor)}</td>
                   <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                    {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
+                    {fmtData(c.data_vencimento)}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                    {c.data_pagamento ? new Date(c.data_pagamento).toLocaleDateString('pt-BR') : '—'}
+                    {fmtData(c.data_pagamento)}
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge variant="outline" className={`text-xs ${statusClass(c.status, c.data_vencimento)}`}>

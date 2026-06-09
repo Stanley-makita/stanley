@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X } from 'lucide-react'
+import { fmtData } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
 function formatarMoeda(v: number | null) {
@@ -326,7 +327,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
                           : <span className="text-gray-400 text-sm">—</span>}
                       </TableCell>
                       <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={p.status_emissao === 'emitido' ? 'text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap' : 'text-xs bg-gray-50 text-gray-500 border-gray-200 whitespace-nowrap'}>
                           {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}

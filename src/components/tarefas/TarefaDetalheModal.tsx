@@ -285,7 +285,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
                           <div className="flex items-center justify-between mb-0.5">
                             <span className="text-xs font-medium text-gray-700">{c.usuario?.nome ?? 'Usuário'}</span>
                             <span className="text-[10px] text-gray-400">
-                              {format(parseISO(c.created_at), "dd/MM HH:mm")}
+                              {format(parseISO(c.created_at), "dd/MM HH:mm", { locale: ptBR })}
                             </span>
                           </div>
                           <p className="text-xs text-gray-600">{c.texto}</p>

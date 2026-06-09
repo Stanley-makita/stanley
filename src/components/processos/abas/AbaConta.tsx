@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { fmtData } from '@/lib/utils'
 import { useProcesso } from '@/hooks/processos/useProcessos'
 import { useProcessoContaMovimentos, useAdicionarMovimento } from '@/hooks/processos/useProcessoContaMovimentos'
 import { Button } from '@/components/ui/button'
@@ -125,7 +126,7 @@ export function AbaConta({ processoId }: Props) {
               {movimentos.map((m) => (
                 <tr key={m.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                    {new Date(m.data_movimento).toLocaleDateString('pt-BR')}
+                    {fmtData(m.data_movimento)}
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge

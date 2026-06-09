@@ -168,15 +168,16 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
 
           {Object.entries(CAMPOS_LABELS).map(([key, label]) => {
             if (!(key in campos) && !(ocrRaw && ocrRaw[key])) return null
+            const isDate = key === 'data_nascimento' || key === 'data_emissao' || key === 'data_casamento'
             return (
               <div key={key} className="mb-3">
                 <label className="text-xs font-medium text-gray-600 block mb-1">{label}</label>
                 <input
-                  type="text"
+                  type={isDate ? 'date' : 'text'}
                   value={campos[key] ?? ''}
                   onChange={(e) => setCampos((prev) => ({ ...prev, [key]: e.target.value }))}
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29]"
-                  placeholder={`${label}...`}
+                  placeholder={isDate ? undefined : `${label}...`}
                 />
               </div>
             )

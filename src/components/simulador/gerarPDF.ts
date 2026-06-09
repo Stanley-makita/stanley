@@ -147,7 +147,8 @@ export async function gerarPDFSimulacao(
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(255, 255, 255)
 
-  const dataHoje = new Date().toLocaleDateString('pt-BR')
+  const d = new Date()
+  const dataHoje = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
   const infoText = [
     options.numero ? `Nº ${options.numero}` : null,
     options.clienteNome ?? '',
