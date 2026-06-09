@@ -73,28 +73,48 @@ export async function POST(
   const camposAplicados: string[] = []
   const valoresAnteriores: Record<string, unknown> = {}
   const valoresNovos: Record<string, unknown> = {}
+  const CAMPOS_DATA = new Set(['data_nascimento', 'data_casamento'])
+  const ESTADO_CIVIL_VALIDOS = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo']
+  const DDMMYYYY_RE = /^(\d{2})\/(\d{2})\/(\d{4})$/
+  const YYYYMMDD_RE = /^\d{4}-\d{2}-\d{2}$/
+
+  function normalizarValor(campo: string, valor: string): string | null {
+    const s = valor.trim()
+    if (campo === 'cpf' && s.replace(/\D/g, '').length !== 11) return null
+    if (campo === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) return null
+    if (CAMPOS_DATA.has(campo)) {
+      const m = DDMMYYYY_RE.exec(s)
+      if (m) return `${m[3]}-${m[2]}-${m[1]}`  // DD/MM/YYYY → YYYY-MM-DD
+      if (!YYYYMMDD_RE.test(s)) return null
+    }
+    return s
+  }
+
   let cpf_divergente = false
 
   for (const { campo, valor, confirmado } of campos) {
     if (!CAMPOS_PERMITIDOS.includes(campo)) continue
     if (!valor || typeof valor !== 'string') continue
 
+    const valorNorm = normalizarValor(campo, valor)
+    if (valorNorm === null) continue
+
     const valorAtual = (pessoa as unknown as Record<string, unknown>)[campo]
     const strAtual = valorAtual ? String(valorAtual).trim() : null
 
     // CPF divergente — nunca sobrescreve
-    if (campo === 'cpf' && strAtual && strAtual !== valor.trim()) {
+    if (campo === 'cpf' && strAtual && strAtual !== valorNorm) {
       cpf_divergente = true
       continue
     }
 
     // Mesmo valor — skip
-    if (strAtual && strAtual.toLowerCase() === valor.trim().toLowerCase()) continue
+    if (strAtual && strAtual.toLowerCase() === valorNorm.toLowerCase()) continue
 
     // Campo vazio → aplica; campo diferente + confirmado → aplica; diferente + não confirmado → ignora
     if (!strAtual || confirmado) {
       valoresAnteriores[campo] = valorAtual ?? null
-      valoresNovos[campo] = valor.trim()
+      valoresNovos[campo] = valorNorm
       camposAplicados.push(campo)
     }
   }

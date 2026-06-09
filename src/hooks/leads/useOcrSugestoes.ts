@@ -82,6 +82,25 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
 
       if (!docs || docs.length === 0) return []
 
+      const CAMPOS_DATA = new Set(['data_nascimento', 'data_casamento', 'data_emissao'])
+      const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
+
+      function formatarValorExibicao(campo: string, valor: string): string {
+        if (CAMPOS_DATA.has(campo) && DATA_RE.test(valor)) {
+          const [y, m, d] = valor.split('-')
+          return `${d}/${m}/${y}`
+        }
+        return valor
+      }
+
+      function validarValor(campo: string, valor: string): boolean {
+        // CPF deve ter exatamente 11 dígitos
+        if (campo === 'cpf' && valor.replace(/\D/g, '').length !== 11) return false
+        // Datas devem estar no formato YYYY-MM-DD
+        if (CAMPOS_DATA.has(campo) && !DATA_RE.test(valor)) return false
+        return true
+      }
+
       // Agrega sugestões — último documento que tiver o campo vence (dedup por campo)
       const map = new Map<string, SugestaoOcr>()
 
@@ -93,10 +112,13 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
           const valorEncontrado = (ocr as unknown as Record<string, unknown>)[campo]
           if (!valorEncontrado || typeof valorEncontrado !== 'string') continue
 
+          const valorBruto = valorEncontrado.trim()
+          if (!validarValor(campo, valorBruto)) continue
+
           const valorAtual = (pessoa as unknown as Record<string, unknown>)[campo]
           const strAtual = valorAtual ? String(valorAtual).trim() : null
 
-          if (strAtual && strAtual.toLowerCase() === valorEncontrado.trim().toLowerCase()) continue
+          if (strAtual && strAtual.toLowerCase() === valorBruto.toLowerCase()) continue
 
           const categoria: 'novo' | 'conflito' = strAtual ? 'conflito' : 'novo'
 
@@ -105,12 +127,12 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
 
           map.set(campo, {
             campo,
-            label:          CAMPO_LABELS[campo] ?? campo,
-            valorAtual:     strAtual,
-            valorEncontrado: valorEncontrado.trim(),
+            label:           CAMPO_LABELS[campo] ?? campo,
+            valorAtual:      strAtual ? formatarValorExibicao(campo, strAtual) : null,
+            valorEncontrado: formatarValorExibicao(campo, valorBruto),
             categoria,
-            documento_id:   doc.id,
-            confianca:      ocr.confianca ?? 'media',
+            documento_id:    doc.id,
+            confianca:       ocr.confianca ?? 'media',
           })
         }
       }
