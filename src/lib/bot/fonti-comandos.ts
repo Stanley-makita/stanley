@@ -264,10 +264,10 @@ async function obterSessaoCompleta(
   supabase: SupabaseClient,
   empresa_id: string,
   telefoneConversa: string,
-): Promise<{ iniciado_at: string; processo_id: string | null; pessoa_id: string | null } | null> {
+): Promise<{ iniciado_at: string; processo_id: string | null; pessoa_id: string | null; candidatos_pendentes: { id: string; nome: string }[] | null } | null> {
   const { data } = await supabase
     .from('fonti_marcas')
-    .select('iniciado_at, processo_id, pessoa_id')
+    .select('iniciado_at, processo_id, pessoa_id, candidatos_pendentes')
     .eq('empresa_id', empresa_id)
     .eq('telefone_conversa', telefoneConversa)
     .maybeSingle()
@@ -433,7 +433,7 @@ interface EntidadeEncontrada {
 
 interface EntidadeAmbigua {
   tipo: 'ambiguo'
-  mensagem: string
+  candidatos: { id: string; nome: string }[]
 }
 
 async function buscarEntidade(
@@ -499,11 +499,7 @@ async function buscarEntidade(
   if (pessoas && pessoas.length >= 1) {
     // Ambiguidade: múltiplos clientes com o mesmo nome parcial
     if (pessoas.length > 1) {
-      const linhas = pessoas.map((p) => `• *${p.nome}* — use: *fonti salva #${p.id.slice(0, 8)}`).join('\n')
-      return {
-        tipo: 'ambiguo',
-        mensagem: `⚠️ Encontrei ${pessoas.length} clientes com "${ref}":\n${linhas}\n\nUse o nome completo ou o ID (#) para selecionar o correto.`,
-      }
+      return { tipo: 'ambiguo', candidatos: pessoas }
     }
 
     const escolhido = pessoas[0]
@@ -704,6 +700,27 @@ export async function processarComandoFonti(
       return await salvarParaProcesso(supabase, empresa_id, processoShortMatch[1].trim(), telefoneConversaSalva, arquivos)
     }
 
+    // Seleção numérica de ambiguidade pendente (ex: *fonti salva 1)
+    let entidadeResolvidaPorNumero: EntidadeEncontrada | null = null
+    if (/^\d+$/.test(referencia)) {
+      const sessao = await obterSessaoCompleta(supabase, empresa_id, telefoneConversaSalva)
+      const candidatos = sessao?.candidatos_pendentes
+      const idx = parseInt(referencia, 10) - 1
+      if (candidatos && candidatos[idx]) {
+        const escolhido = candidatos[idx]
+        await supabase.from('fonti_marcas').update({ candidatos_pendentes: null })
+          .eq('empresa_id', empresa_id).eq('telefone_conversa', telefoneConversaSalva)
+        const { data: lead } = await supabase.from('leads').select('id')
+          .eq('empresa_id', empresa_id).eq('pessoa_id', escolhido.id)
+          .is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        entidadeResolvidaPorNumero = {
+          tipo: 'pessoa', id: escolhido.id, label: escolhido.nome, lead_id: lead?.id ?? undefined,
+        }
+      } else {
+        return '❌ Número inválido. Tente *fonti salva [nome] novamente.'
+      }
+    }
+
     // Sem referência: verifica sessão ativa
     if (!referencia) {
       const sessao = await obterSessaoCompleta(supabase, empresa_id, telefoneConversaSalva)
@@ -729,12 +746,17 @@ export async function processarComandoFonti(
       return '❌ Informe o nome do cliente.\nEx: *fonti salva João da Silva'
     }
 
-    const entidade = await buscarEntidade(supabase, empresa_id, referencia, ctx.telefone_cliente)
+    const entidade = entidadeResolvidaPorNumero ?? await buscarEntidade(supabase, empresa_id, referencia, ctx.telefone_cliente)
     if (!entidade) {
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
     if (entidade.tipo === 'ambiguo') {
-      return entidade.mensagem
+      await supabase.from('fonti_marcas').upsert(
+        { empresa_id, telefone_conversa: telefoneConversaSalva, iniciado_at: new Date().toISOString(), candidatos_pendentes: entidade.candidatos },
+        { onConflict: 'empresa_id,telefone_conversa' },
+      )
+      const linhas = entidade.candidatos.map((c, i) => `${i + 1}. ${c.nome}`).join('\n')
+      return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${referencia}":\n\n${linhas}\n\nResponda com o número:\n*fonti salva 1`
     }
 
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
@@ -798,7 +820,8 @@ export async function processarComandoFonti(
       return `❌ Não encontrei "${nomeRef}" no sistema. Verifique o nome.`
     }
     if (entidade.tipo === 'ambiguo') {
-      return entidade.mensagem
+      const linhas = entidade.candidatos.map((c, i) => `${i + 1}. ${c.nome}`).join('\n')
+      return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${nomeRef}":\n\n${linhas}\n\nUse o nome completo para selecionar:\n*fonti atualiza Fabio Fontinhas, cpf...`
     }
     if (entidade.tipo !== 'pessoa') {
       return `❌ Não encontrei "${nomeRef}" no sistema. Verifique o nome.`
