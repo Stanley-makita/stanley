@@ -68,15 +68,32 @@ export async function POST(
     camposFiltrados[k] = s
   }
 
-  if (Object.keys(camposFiltrados).length > 0) {
+  // Salva todos os campos exceto CPF (para evitar que UNIQUE bloqueie tudo)
+  const camposSemCpf = { ...camposFiltrados }
+  delete camposSemCpf['cpf']
+
+  if (Object.keys(camposSemCpf).length > 0) {
     const { error } = await supabase
       .from('pessoas')
-      .update(camposFiltrados)
+      .update(camposSemCpf)
       .eq('id', doc.pessoa_id)
 
     if (error) {
-      console.error('[ocr-confirmar] Erro ao atualizar pessoa:', error.message, '| campos:', Object.keys(camposFiltrados))
+      console.error('[ocr-confirmar] Erro ao atualizar pessoa:', error.message, '| campos:', Object.keys(camposSemCpf))
       return NextResponse.json({ error: 'Erro ao salvar dados', detail: error.message }, { status: 500 })
+    }
+  }
+
+  // CPF separado: se violar UNIQUE (pertence a outra pessoa), ignora graciosamente
+  let cpf_divergente = false
+  if (camposFiltrados['cpf']) {
+    const { error: errCpf } = await supabase
+      .from('pessoas')
+      .update({ cpf: camposFiltrados['cpf'] })
+      .eq('id', doc.pessoa_id)
+    if (errCpf) {
+      console.warn('[ocr-confirmar] CPF não salvo (conflito UNIQUE):', errCpf.message)
+      cpf_divergente = true
     }
   }
 
@@ -86,7 +103,7 @@ export async function POST(
     .update({ ocr_status: 'revisado' })
     .eq('id', documentoId)
 
-  return NextResponse.json({ ok: true, camposSalvos: Object.keys(camposFiltrados) })
+  return NextResponse.json({ ok: true, cpf_divergente, camposSalvos: Object.keys(camposFiltrados) })
 }
 
 // Ignora o documento (não salva dados mas marca como revisado)

@@ -91,6 +91,12 @@ Regras para CNH:
 - rg: null para CNH (CNH não tem campo RG separado)
 - campos ausentes ou não aplicáveis ao tipo: null (não invente)
 
+Regras para comprovante_endereco:
+- cpf: null (NÃO extrair CPF de comprovante de endereço — foco é endereço)
+- rg: null, data_nascimento: null, filiacao_mae: null, filiacao_pai: null
+- orgao_emissor: nome da empresa emissora (ex: "COPEL", "SANEPAR", "CEMIG") ou null
+- data_emissao: data de emissão ou vencimento da conta, converter para YYYY-MM-DD ou null
+
 Para certidão de casamento:
 {
   "tipo_documento": "certidao_casamento",
