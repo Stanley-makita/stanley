@@ -771,7 +771,6 @@ export async function processarComandoFonti(
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
 
     let vinculados = 0
-    let docsVinculadosIds: string[] = []
     if (entidade.tipo === 'pessoa') {
       const res = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversaSalva,
@@ -779,7 +778,6 @@ export async function processarComandoFonti(
         15, marcaAtSalva ?? undefined,
       )
       vinculados = res.count
-      docsVinculadosIds = res.ids
       // Vincula também docs da conversa do próprio cliente (bot, 90 dias)
       vinculados += await vincularDocumentosConversa(supabase, empresa_id, entidade.id, entidade.lead_id ?? null)
     }
@@ -1005,6 +1003,17 @@ export async function processarComandoFonti(
       if (leadErr || !novoLead) {
         console.error('[fonti] Erro ao criar lead:', leadErr)
         return '❌ Erro ao criar o lead. Tente novamente.'
+      }
+
+      // Preserva a mensagem original do comercial como nota do lead
+      if (instrucao?.trim()) {
+        await supabase.from('lead_historico').insert({
+          lead_id:    novoLead.id,
+          empresa_id,
+          usuario_id: usuario.id,
+          tipo:       'comentario',
+          descricao:  `Mensagem original do comercial via *fonti:\n\n${instrucao.trim()}`,
+        })
       }
 
       // Registra telefone real em lead_telefones (se não for o temp)
