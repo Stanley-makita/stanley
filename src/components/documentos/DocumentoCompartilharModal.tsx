@@ -20,7 +20,10 @@ interface UsuarioInterno {
 
 interface Props {
   documento: { id: string; nome_original: string }
-  leadId: string
+  /** Usar quando o documento pertence a um lead */
+  leadId?: string
+  /** Usar quando o documento pertence a um processo */
+  processoId?: string
   onClose: () => void
   onEnviado: () => void
 }
@@ -30,10 +33,10 @@ async function getToken(): Promise<string | null> {
   return data.session?.access_token ?? null
 }
 
-export function DocumentoCompartilharModal({ documento, leadId, onClose, onEnviado }: Props) {
+export function DocumentoCompartilharModal({ documento, leadId, processoId, onClose, onEnviado }: Props) {
   const [opcoesFixas, setOpcoesFixas] = useState<OpcaoFixa[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioInterno[]>([])
-  const [destinatario, setDestinatario] = useState<string>('')  // telefone | 'usuario_interno' | 'outro'
+  const [destinatario, setDestinatario] = useState<string>('')
   const [usuarioId, setUsuarioId] = useState<string>('')
   const [outroTelefone, setOutroTelefone] = useState('')
   const [mensagem, setMensagem] = useState('Segue documento para sua conferência.')
@@ -45,29 +48,57 @@ export function DocumentoCompartilharModal({ documento, leadId, onClose, onEnvia
       setCarregando(true)
       const fixas: OpcaoFixa[] = []
 
-      // Lead → telefone do cliente
-      const { data: lead } = await supabase
-        .from('leads')
-        .select('telefone')
-        .eq('id', leadId)
-        .maybeSingle()
+      if (leadId) {
+        // Contexto de Lead
+        const { data: lead } = await supabase
+          .from('leads')
+          .select('telefone')
+          .eq('id', leadId)
+          .maybeSingle()
 
-      if (lead?.telefone) {
-        fixas.push({ label: `Cliente — ${lead.telefone}`, telefone: lead.telefone })
-      }
+        if (lead?.telefone) {
+          fixas.push({ label: `Cliente — ${lead.telefone}`, telefone: lead.telefone })
+        }
 
-      // Corretores via processo vinculado
-      const { data: processoRows } = await supabase
-        .from('processos')
-        .select('id')
-        .eq('lead_id', leadId)
-        .limit(1)
+        // Corretores via processo vinculado ao lead
+        const { data: processoRows } = await supabase
+          .from('processos')
+          .select('id')
+          .eq('lead_id', leadId)
+          .limit(1)
 
-      if (processoRows?.[0]?.id) {
+        if (processoRows?.[0]?.id) {
+          const { data: pcRows } = await supabase
+            .from('processo_corretores')
+            .select('corretor:corretores!corretor_id(nome, telefone)')
+            .eq('processo_id', processoRows[0].id)
+            .limit(3)
+
+          for (const row of pcRows ?? []) {
+            const c = Array.isArray(row.corretor) ? row.corretor[0] : row.corretor
+            if (c?.telefone) {
+              fixas.push({ label: `Corretor — ${c.nome} (${c.telefone})`, telefone: c.telefone })
+            }
+          }
+        }
+      } else if (processoId) {
+        // Contexto de Processo — busca lead vinculado para telefone do cliente
+        const { data: processo } = await supabase
+          .from('processos')
+          .select('lead:leads!lead_id(nome, telefone)')
+          .eq('id', processoId)
+          .maybeSingle()
+
+        const lead = Array.isArray(processo?.lead) ? processo.lead[0] : (processo as any)?.lead
+        if (lead?.telefone) {
+          fixas.push({ label: `Cliente — ${lead.nome ?? lead.telefone}`, telefone: lead.telefone })
+        }
+
+        // Corretores do processo
         const { data: pcRows } = await supabase
           .from('processo_corretores')
           .select('corretor:corretores!corretor_id(nome, telefone)')
-          .eq('processo_id', processoRows[0].id)
+          .eq('processo_id', processoId)
           .limit(3)
 
         for (const row of pcRows ?? []) {
@@ -81,7 +112,7 @@ export function DocumentoCompartilharModal({ documento, leadId, onClose, onEnvia
       setOpcoesFixas(fixas)
       if (fixas.length > 0) setDestinatario(fixas[0].telefone)
 
-      // Usuários internos com telefone preenchido
+      // Usuários internos com telefone preenchido (mesmos para lead e processo)
       const { data: usersData } = await supabase
         .from('usuarios')
         .select('id, nome, telefone_whatsapp, telefone')
@@ -103,7 +134,7 @@ export function DocumentoCompartilharModal({ documento, leadId, onClose, onEnvia
     }
 
     carregar()
-  }, [leadId])
+  }, [leadId, processoId])
 
   const usuarioSelecionado = usuarios.find(u => u.id === usuarioId)
 
@@ -113,10 +144,7 @@ export function DocumentoCompartilharModal({ documento, leadId, onClose, onEnvia
     return destinatario
   })()
 
-  const nomeDestino = (() => {
-    if (destinatario === 'usuario_interno') return usuarioSelecionado?.nome ?? null
-    return null
-  })()
+  const nomeDestino = destinatario === 'usuario_interno' ? (usuarioSelecionado?.nome ?? null) : null
 
   async function handleEnviar() {
     if (!telefoneEfetivo) {

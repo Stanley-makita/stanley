@@ -172,16 +172,29 @@ export async function POST(
     mensagem:         mensagem?.trim() ?? null,
   })
 
-  // Registra no histórico do lead (insert direto — RPC usa auth.uid() incompatível com service_role)
+  const destino = nome_destino?.trim() ? nome_destino.trim() : telefone
+  const textoHistorico = `Documento "${doc.nome_original}" enviado para ${destino}${mensagem?.trim() ? ` com mensagem: "${mensagem.trim()}"` : ''}.`
+
+  // Histórico do lead (insert direto — RPC usa auth.uid() incompatível com service_role)
   if (doc.lead_id) {
-    const destino = nome_destino?.trim() ? nome_destino.trim() : telefone
-    const descricao = `Documento "${doc.nome_original}" enviado para ${destino}${mensagem?.trim() ? ` com mensagem: "${mensagem.trim()}"` : ''}.`
     await supabase.from('lead_historico').insert({
       lead_id:    doc.lead_id,
       empresa_id: usuario.empresa_id,
       usuario_id: usuario.id,
       tipo:       'comentario',
-      descricao,
+      descricao:  textoHistorico,
+    })
+  }
+
+  // Timeline do processo
+  if (doc.processo_id) {
+    await supabase.from('processo_comentarios').insert({
+      empresa_id:        usuario.empresa_id,
+      processo_id:       doc.processo_id,
+      usuario_id:        usuario.id,
+      tipo:              'alteracao',
+      texto:             textoHistorico,
+      notificar_cliente: false,
     })
   }
 

@@ -11,12 +11,13 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2 } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
+import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 10
@@ -67,6 +68,7 @@ export function AbaDocumentos({ processoId }: Props) {
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
   const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
+  const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
 
   const queryKey = ['documentos-processo', processoId]
 
@@ -398,6 +400,13 @@ export function AbaDocumentos({ processoId }: Props) {
                   <Download className="h-3.5 w-3.5" />
                 </button>
                 <button
+                  onClick={() => setDocCompartilhando(doc)}
+                  title="Compartilhar via WhatsApp"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                </button>
+                <button
                   onClick={() => handleExcluir(doc.id)}
                   title={confirmandoExclusao === doc.id ? 'Clique novamente para confirmar' : 'Excluir'}
                   className={cn(
@@ -429,6 +438,15 @@ export function AbaDocumentos({ processoId }: Props) {
           documento={docFgtsRevisao}
           onClose={() => setDocFgtsRevisao(null)}
           onConfirmado={() => { setDocFgtsRevisao(null); queryClient.invalidateQueries({ queryKey }) }}
+        />
+      )}
+
+      {docCompartilhando && processoId && (
+        <DocumentoCompartilharModal
+          documento={docCompartilhando}
+          processoId={processoId}
+          onClose={() => setDocCompartilhando(null)}
+          onEnviado={() => setDocCompartilhando(null)}
         />
       )}
 
