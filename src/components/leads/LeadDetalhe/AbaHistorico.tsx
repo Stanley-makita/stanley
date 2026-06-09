@@ -3,15 +3,16 @@
 import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowRight, GitBranch, Plus, Edit, History } from 'lucide-react'
+import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare } from 'lucide-react'
 
 const ICONES = {
   criacao:      Plus,
   fase_mudanca: GitBranch,
   edicao:       Edit,
+  comentario:   MessageSquare,
 }
 
-const TIPOS_SISTEMA = ['criacao', 'fase_mudanca', 'edicao']
+const TIPOS_SISTEMA = ['criacao', 'fase_mudanca', 'edicao', 'comentario']
 
 interface Props { leadId: string }
 
