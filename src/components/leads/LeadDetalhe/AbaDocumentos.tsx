@@ -11,12 +11,13 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2 } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
+import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
 import { OcrEnriquecimentoCard } from '@/components/leads/OcrEnriquecimentoCard'
 import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModal'
 import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
@@ -69,6 +70,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
   const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
+  const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
   const [ocrModalAberto, setOcrModalAberto] = useState(false)
 
   const ocrSugestoes = useOcrSugestoes(leadId)
@@ -386,6 +388,13 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                   <Download className="h-3.5 w-3.5" />
                 </button>
                 <button
+                  onClick={() => setDocCompartilhando(doc)}
+                  title="Compartilhar via WhatsApp"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                </button>
+                <button
                   onClick={() => handleExcluir(doc.id)}
                   title={confirmandoExclusao === doc.id ? 'Clique novamente para confirmar' : 'Excluir'}
                   className={cn(
@@ -424,6 +433,15 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
           documento={docFgtsRevisao}
           onClose={() => setDocFgtsRevisao(null)}
           onConfirmado={() => { setDocFgtsRevisao(null); queryClient.invalidateQueries({ queryKey }) }}
+        />
+      )}
+
+      {docCompartilhando && (
+        <DocumentoCompartilharModal
+          documento={docCompartilhando}
+          leadId={leadId}
+          onClose={() => setDocCompartilhando(null)}
+          onEnviado={() => setDocCompartilhando(null)}
         />
       )}
 

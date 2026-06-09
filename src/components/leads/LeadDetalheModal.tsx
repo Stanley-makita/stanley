@@ -154,12 +154,12 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                         router.push(`/conversas?id=${conversaDoLead.id}`)
                       } else {
                         const tel = lead.telefone.replace(/\D/g, '')
-                        window.open(`https://wa.me/55${tel}`, '_blank')
+                        router.push(`/conversas?busca=${encodeURIComponent(tel)}`)
                       }
                     }}
                   >
                     <MessageCircle className="h-3 w-3" />
-                    {conversaDoLead?.id ? 'Abrir Conversa' : 'Abrir no WhatsApp'}
+                    Abrir Conversa
                   </Button>
 
                   <div className="flex gap-2">

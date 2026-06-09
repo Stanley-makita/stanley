@@ -179,6 +179,7 @@ export default function ConversasPage() {
   const [salvarTelefone, setSalvarTelefone] = useState(true)
   const redirectAposVincularRef = useRef<string | null>(null)
   const [agora, setAgora] = useState(() => Date.now())
+  const urlParamsHandledRef = useRef(false)
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro],
@@ -419,6 +420,29 @@ export default function ConversasPage() {
     const id = setInterval(() => setAgora(Date.now()), 60_000)
     return () => clearInterval(id)
   }, [])
+
+  // Lê parâmetros de URL: ?busca= pré-filtra pesquisa; ?id= seleciona conversa
+  useEffect(() => {
+    if (urlParamsHandledRef.current) return
+    const params = new URLSearchParams(window.location.search)
+    const busca = params.get('busca')
+    if (busca) setPesquisa(decodeURIComponent(busca))
+  }, [])
+
+  useEffect(() => {
+    if (urlParamsHandledRef.current || conversas.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const idParam = params.get('id')
+    if (idParam) {
+      const conversa = conversas.find(c => c.id === idParam)
+      if (conversa) {
+        setConversaSelecionada(conversa)
+        urlParamsHandledRef.current = true
+      }
+    } else if (params.get('busca')) {
+      urlParamsHandledRef.current = true
+    }
+  }, [conversas])
 
   // Realtime: atualiza lista de conversas
   useEffect(() => {
