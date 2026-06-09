@@ -226,6 +226,20 @@ export async function processarOcrDocumento(
 
     const resultado = JSON.parse(jsonText) as OcrResultado
 
+    const TIPOS_COM_DADOS = new Set([
+      'rg', 'cnh', 'comprovante_endereco', 'comprovante_renda',
+      'certidao_casamento', 'extrato_fgts',
+    ])
+
+    if (!TIPOS_COM_DADOS.has(resultado.tipo_documento)) {
+      await supabase.from('documentos_clientes').update({
+        ocr_status: 'ignorado',
+        classificacao: resultado.tipo_documento,
+      }).eq('id', documentoId)
+      console.log('[ocr] Tipo sem dados estruturados, ignorado:', documentoId, '| tipo:', resultado.tipo_documento)
+      return
+    }
+
     await supabase.from('documentos_clientes').update({
       ocr_status: 'concluido',
       ocr_dados: resultado,

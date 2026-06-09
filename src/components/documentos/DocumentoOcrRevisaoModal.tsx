@@ -106,8 +106,8 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
         body: JSON.stringify({ campos }),
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string }
-        toast.error(err.error ?? 'Erro ao salvar dados.')
+        const err = await res.json().catch(() => ({})) as { error?: string; detail?: string }
+        toast.error((err.error ?? 'Erro ao salvar dados.') + (err.detail ? ` (${err.detail})` : ''))
         return
       }
       toast.success('Dados confirmados e salvos no perfil do cliente.')
