@@ -38,11 +38,11 @@ export async function POST(
 
   const documentoId = params.id
 
-  let body: { telefone: string; mensagem?: string }
+  let body: { telefone: string; mensagem?: string; nome_destino?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
-  const { telefone, mensagem } = body
+  const { telefone, mensagem, nome_destino } = body
   if (!telefone) return NextResponse.json({ error: 'telefone é obrigatório' }, { status: 422 })
 
   // Busca documento
@@ -174,7 +174,8 @@ export async function POST(
 
   // Registra no histórico do lead
   if (doc.lead_id) {
-    const descricao = `Documento "${doc.nome_original}" enviado para ${telefone}${mensagem?.trim() ? ` com mensagem: "${mensagem.trim()}"` : ''}.`
+    const destino = nome_destino?.trim() ? nome_destino.trim() : telefone
+    const descricao = `Documento "${doc.nome_original}" enviado para ${destino}${mensagem?.trim() ? ` com mensagem: "${mensagem.trim()}"` : ''}.`
     await supabase.rpc('registrar_interacao_lead', {
       p_lead_id:   doc.lead_id,
       p_descricao: descricao,
