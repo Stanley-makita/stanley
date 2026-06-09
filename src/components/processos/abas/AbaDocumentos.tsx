@@ -87,6 +87,10 @@ export function AbaDocumentos({ processoId }: Props) {
       if (error) throw error
       return (data ?? []) as DocumentoCliente[]
     },
+    refetchInterval: (query) => {
+      const docs = (query.state.data as DocumentoCliente[] | undefined) ?? []
+      return docs.some(d => ['pendente', 'processando'].includes(d.ocr_status ?? '')) ? 5000 : false
+    },
   })
 
   const excluir = useMutation({

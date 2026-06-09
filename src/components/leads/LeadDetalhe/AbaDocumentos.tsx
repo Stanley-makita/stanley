@@ -97,6 +97,10 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       return data ?? []
     },
     enabled: !!usuario && !!leadId,
+    refetchInterval: (query) => {
+      const docs = (query.state.data as DocumentoCliente[] | undefined) ?? []
+      return docs.some(d => ['pendente', 'processando'].includes(d.ocr_status ?? '')) ? 5000 : false
+    },
   })
 
   const excluir = useMutation({
