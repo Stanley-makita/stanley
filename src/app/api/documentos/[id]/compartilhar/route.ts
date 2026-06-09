@@ -172,14 +172,16 @@ export async function POST(
     mensagem:         mensagem?.trim() ?? null,
   })
 
-  // Registra no histórico do lead
+  // Registra no histórico do lead (insert direto — RPC usa auth.uid() incompatível com service_role)
   if (doc.lead_id) {
     const destino = nome_destino?.trim() ? nome_destino.trim() : telefone
     const descricao = `Documento "${doc.nome_original}" enviado para ${destino}${mensagem?.trim() ? ` com mensagem: "${mensagem.trim()}"` : ''}.`
-    await supabase.rpc('registrar_interacao_lead', {
-      p_lead_id:   doc.lead_id,
-      p_descricao: descricao,
-      p_tipo:      'comentario',
+    await supabase.from('lead_historico').insert({
+      lead_id:    doc.lead_id,
+      empresa_id: usuario.empresa_id,
+      usuario_id: usuario.id,
+      tipo:       'comentario',
+      descricao,
     })
   }
 
