@@ -751,10 +751,19 @@ export async function processarComandoFonti(
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
     if (entidade.tipo === 'ambiguo') {
-      await supabase.from('fonti_marcas').upsert(
-        { empresa_id, telefone_conversa: telefoneConversaSalva, iniciado_at: new Date().toISOString(), candidatos_pendentes: entidade.candidatos },
-        { onConflict: 'empresa_id,telefone_conversa' },
-      )
+      // Atualiza só candidatos_pendentes — preserva iniciado_at do *fonti inicio caso já exista
+      const { data: linhasAtualizadas } = await supabase.from('fonti_marcas')
+        .update({ candidatos_pendentes: entidade.candidatos })
+        .eq('empresa_id', empresa_id)
+        .eq('telefone_conversa', telefoneConversaSalva)
+        .select('id')
+      if (!linhasAtualizadas?.length) {
+        await supabase.from('fonti_marcas').insert({
+          empresa_id, telefone_conversa: telefoneConversaSalva,
+          iniciado_at: new Date().toISOString(),
+          candidatos_pendentes: entidade.candidatos,
+        })
+      }
       const linhas = entidade.candidatos.map((c, i) => `${i + 1}. ${c.nome}`).join('\n')
       return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${referencia}":\n\n${linhas}\n\nResponda com o número:\n*fonti salva 1`
     }
