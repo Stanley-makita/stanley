@@ -869,13 +869,19 @@ export async function processarComandoFonti(
       }
     }
 
-    // Vincula docs recentes da conversa (usa marca de sessão se existir)
+    // Vincula docs da conversa apenas se houver *fonti inicio ativo
     const telefoneConversaAtualiza = ctx.telefone_cliente ?? ctx.telefone_remetente
     const marcaAtAtualiza = await obterMarcaInicio(supabase, empresa_id, telefoneConversaAtualiza)
-    const { count: docsAtualizaCount, ids: docsAtualizaIds } = await vincularDocumentosRecentesPorTelefone(
-      supabase, empresa_id, telefoneConversaAtualiza, pessoaId, leadId, 15, marcaAtAtualiza ?? undefined,
-    )
-    if (marcaAtAtualiza) await limparMarca(supabase, empresa_id, telefoneConversaAtualiza)
+    let docsAtualizaCount = 0
+    let docsAtualizaIds: string[] = []
+    if (marcaAtAtualiza) {
+      const res = await vincularDocumentosRecentesPorTelefone(
+        supabase, empresa_id, telefoneConversaAtualiza, pessoaId, leadId, 15, marcaAtAtualiza,
+      )
+      docsAtualizaCount = res.count
+      docsAtualizaIds = res.ids
+      await limparMarca(supabase, empresa_id, telefoneConversaAtualiza)
+    }
 
     // Registra telefone novo se veio no texto
     if (dados.telefone && leadId) {
