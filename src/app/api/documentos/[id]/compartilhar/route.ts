@@ -48,7 +48,7 @@ export async function POST(
   // Busca documento
   const { data: doc } = await supabase
     .from('documentos_clientes')
-    .select('id, nome_original, mime_type, storage_path, storage_bucket, lead_id, empresa_id')
+    .select('id, nome_original, mime_type, storage_path, storage_bucket, lead_id, processo_id, empresa_id')
     .eq('id', documentoId)
     .eq('empresa_id', usuario.empresa_id)
     .is('deleted_at', null)
