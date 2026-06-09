@@ -29,6 +29,7 @@ export function useLeadsPorFase(faseId: string) {
       return data
     },
     enabled: !!usuario && !!faseId,
+    refetchInterval: 30 * 1000,
   })
 }
 
