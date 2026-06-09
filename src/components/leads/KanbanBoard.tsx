@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -10,12 +10,15 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
+import { useQueryClient } from '@tanstack/react-query'
 import { type Lead } from '@/types/leads'
 import { KanbanColuna } from './KanbanColuna'
 import { KanbanCard } from './KanbanCard'
 import { useMoverLeadKanban } from '@/hooks/leads/useMoverLeadKanban'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useLeadsTarefasStatus } from '@/hooks/leads/useLeadsTarefasStatus'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2 } from 'lucide-react'
 
@@ -32,6 +35,21 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
   const tarefasStatus = useLeadsTarefasStatus()
   const [leadAtivo, setLeadAtivo] = useState<Lead | null>(null)
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false)
+  const queryClient = useQueryClient()
+  const { usuario } = useAuth()
+
+  useEffect(() => {
+    if (!usuario?.empresa_id) return
+    const channel = supabase
+      .channel('kanban-leads')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leads', filter: `empresa_id=eq.${usuario.empresa_id}` },
+        () => queryClient.invalidateQueries({ queryKey: ['leads', 'fase'] }),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [usuario?.empresa_id, queryClient])
 
   const fases = mostrarConcluidos
     ? todasFases

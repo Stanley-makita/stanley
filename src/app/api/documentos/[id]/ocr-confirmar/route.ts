@@ -44,15 +44,17 @@ export async function POST(
 
   // Campos permitidos para atualização na pessoa
   const CAMPOS_PERMITIDOS = [
-    'nome', 'cpf', 'rg', 'data_nascimento', 'orgao_emissor',
-    'filiacao_mae', 'filiacao_pai', 'estado_civil',
+    'nome', 'cpf', 'rg', 'data_nascimento', 'data_emissao', 'orgao_emissor',
+    'filiacao_mae', 'filiacao_pai', 'cidade_nascimento', 'estado_civil',
     'regime_casamento', 'data_casamento',
     'endereco_rua', 'endereco_numero', 'endereco_bairro',
     'endereco_cidade', 'endereco_uf', 'endereco_cep',
+    'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
   ]
 
   const ESTADO_CIVIL_VALIDOS = ['solteiro', 'casado', 'uniao_estavel', 'divorciado', 'viuvo']
   const DATA_REGEX = /^\d{4}-\d{2}-\d{2}$/
+  const DATA_FIELDS = ['data_nascimento', 'data_casamento', 'data_emissao', 'validade_cnh', 'primeira_habilitacao_cnh']
 
   const camposFiltrados: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(campos)) {
@@ -61,7 +63,7 @@ export async function POST(
     const s = String(v).trim()
     // Validações por campo para evitar rejeição no banco
     if (k === 'cpf' && s.replace(/\D/g, '').length !== 11) continue
-    if ((k === 'data_nascimento' || k === 'data_casamento') && !DATA_REGEX.test(s)) continue
+    if (DATA_FIELDS.includes(k) && !DATA_REGEX.test(s)) continue
     if (k === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) continue
     camposFiltrados[k] = s
   }

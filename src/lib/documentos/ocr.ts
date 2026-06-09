@@ -23,10 +23,15 @@ export interface OcrResultado {
   cpf?: string
   rg?: string
   data_nascimento?: string    // YYYY-MM-DD
+  cidade_nascimento?: string
   data_emissao?: string       // YYYY-MM-DD
   orgao_emissor?: string
   filiacao_mae?: string
   filiacao_pai?: string
+  // Campos específicos de CNH
+  registro_cnh?: string
+  validade_cnh?: string              // YYYY-MM-DD
+  primeira_habilitacao_cnh?: string  // YYYY-MM-DD
   endereco_rua?: string
   endereco_numero?: string
   endereco_bairro?: string
@@ -53,20 +58,38 @@ Para documentos comuns (RG, CNH, comprovante):
   "tipo_documento": "rg|cnh|comprovante_endereco|comprovante_renda|outro",
   "nome": "nome completo ou null",
   "cpf": "11 dígitos sem pontos/traços ou null",
-  "rg": "número do RG ou null",
+  "rg": "número completo do RG incluindo dígito verificador com traço (ex: 9755869-8) ou null",
   "data_nascimento": "YYYY-MM-DD ou null",
-  "data_emissao": "YYYY-MM-DD ou null",
-  "orgao_emissor": "ex: SSP/PR ou null",
+  "cidade_nascimento": "cidade/município de nascimento (campo NATURALIDADE ou LOCAL DE NASCIMENTO) ou null",
+  "data_emissao": "YYYY-MM-DD data de emissão do documento ou null",
+  "orgao_emissor": "órgão expedidor (ex: SESP/PR para RG, DETRAN/PR para CNH) ou null",
   "filiacao_mae": "nome da mãe ou null",
   "filiacao_pai": "nome do pai ou null",
-  "endereco_rua": "logradouro e número ou null",
+  "registro_cnh": "número de registro da CNH (campo REGISTRO, diferente do nº do documento) ou null",
+  "validade_cnh": "YYYY-MM-DD data de validade da habilitação ou null",
+  "primeira_habilitacao_cnh": "YYYY-MM-DD data da primeira habilitação (campo 1ª HABILITAÇÃO) ou null",
+  "endereco_rua": "logradouro ou null",
   "endereco_numero": "número ou null",
   "endereco_bairro": "bairro ou null",
-  "endereco_cidade": "cidade ou null",
+  "endereco_cidade": "cidade do endereço ou null",
   "endereco_uf": "UF 2 letras ou null",
   "endereco_cep": "8 dígitos sem traço ou null",
   "confianca": "alta|media|baixa"
 }
+
+Regras para RG / Novo Documento de Identidade:
+- rg: incluir SEMPRE o dígito verificador com traço (ex: "9755869-8"); nunca omitir o dígito
+- orgao_emissor: campo ÓRGÃO EXPEDIDOR ou SSP/SESP + UF (ex: "SESP/PR", "SSP/SP", "DETRAN/PR")
+- cidade_nascimento: campo NATURALIDADE
+- data_emissao: data de expedição do documento
+
+Regras para CNH:
+- registro_cnh: número no campo "REGISTRO" (geralmente 9-11 dígitos, diferente do nº do documento)
+- validade_cnh: data de VALIDADE da habilitação, converter para YYYY-MM-DD
+- primeira_habilitacao_cnh: campo "1ª HABILITAÇÃO" ou "PRIMEIRA HABILITAÇÃO", YYYY-MM-DD
+- orgao_emissor: usar "DETRAN/" + UF emissora (ex: "DETRAN/PR")
+- rg: null para CNH (CNH não tem campo RG separado)
+- campos ausentes ou não aplicáveis ao tipo: null (não invente)
 
 Para certidão de casamento:
 {
@@ -189,7 +212,7 @@ export async function processarOcrDocumento(
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
+      max_tokens: 700,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extraia os dados deste documento.' }] }],
     })

@@ -22,23 +22,27 @@ interface Props {
 }
 
 const CAMPOS_LABELS: Record<string, string> = {
-  nome:              'Nome completo',
-  cpf:               'CPF',
-  rg:                'RG',
-  data_nascimento:   'Data de nascimento',
-  data_emissao:      'Data de emissão',
-  orgao_emissor:     'Órgão emissor',
-  filiacao_mae:      'Nome da mãe',
-  filiacao_pai:      'Nome do pai',
-  estado_civil:      'Estado civil',
-  regime_casamento:  'Regime de bens',
-  data_casamento:    'Data de casamento',
-  endereco_rua:      'Logradouro',
-  endereco_numero:   'Número',
-  endereco_bairro:   'Bairro',
-  endereco_cidade:   'Cidade',
-  endereco_uf:       'UF',
-  endereco_cep:      'CEP',
+  nome:                     'Nome completo',
+  cpf:                      'CPF',
+  rg:                       'RG',
+  data_nascimento:          'Data de nascimento',
+  cidade_nascimento:        'Cidade de nascimento',
+  data_emissao:             'Data de emissão',
+  orgao_emissor:            'Órgão emissor',
+  filiacao_mae:             'Nome da mãe',
+  filiacao_pai:             'Nome do pai',
+  registro_cnh:             'Nº Registro CNH',
+  validade_cnh:             'Validade da habilitação',
+  primeira_habilitacao_cnh: 'Primeira habilitação',
+  estado_civil:             'Estado civil',
+  regime_casamento:         'Regime de bens',
+  data_casamento:           'Data de casamento',
+  endereco_rua:             'Logradouro',
+  endereco_numero:          'Número',
+  endereco_bairro:          'Bairro',
+  endereco_cidade:          'Cidade',
+  endereco_uf:              'UF',
+  endereco_cep:             'CEP',
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -168,7 +172,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
 
           {Object.entries(CAMPOS_LABELS).map(([key, label]) => {
             if (!(key in campos) && !(ocrRaw && ocrRaw[key])) return null
-            const isDate = key === 'data_nascimento' || key === 'data_emissao' || key === 'data_casamento'
+            const isDate = ['data_nascimento', 'data_emissao', 'data_casamento', 'validade_cnh', 'primeira_habilitacao_cnh'].includes(key)
             return (
               <div key={key} className="mb-3">
                 <label className="text-xs font-medium text-gray-600 block mb-1">{label}</label>
