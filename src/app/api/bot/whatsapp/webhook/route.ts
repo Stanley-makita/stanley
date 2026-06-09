@@ -290,7 +290,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // Não é *fonti → ignora (resposta do bot ou mensagem enviada pelo humano)
+    // Não é *fonti — salva mídia enviada pelo operador na conversa do cliente (ex: PDFs encaminhados)
+    const nmTipoRaw = msg?.type ?? 'text'
+    const nmIsMidia = nmTipoRaw === 'media' || ['image','video','audio','document','ptt','sticker'].includes(nmTipoRaw)
+    const nmClientPhone = (msg?.chatid ?? '').replace('@s.whatsapp.net', '')
+
+    if (nmIsMidia && nmClientPhone && msg?.messageid) {
+      const nmToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+      const nmOwnerPhone = (payload.owner ?? '').replace(/\D/g, '')
+
+      let nmEmpresaId: string | undefined
+      const { data: nmInst } = await supabase
+        .from('instancias').select('empresa_id')
+        .eq('token', nmToken).eq('ativo', true).maybeSingle()
+      nmEmpresaId = nmInst?.empresa_id
+
+      if (!nmEmpresaId && nmOwnerPhone.length >= 8) {
+        const { data: nmInstByPhone } = await supabase
+          .from('instancias').select('empresa_id')
+          .eq('ativo', true).like('numero_telefone', `%${nmOwnerPhone.slice(-10)}`).maybeSingle()
+        nmEmpresaId = nmInstByPhone?.empresa_id
+      }
+      nmEmpresaId = nmEmpresaId ?? process.env.UAZAPI_EMPRESA_ID
+
+      if (nmEmpresaId) {
+        const nmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? nmTipoRaw)
+        const nmMediaContent = typeof msg?.content === 'object' && msg.content !== null
+          ? msg.content as UazapiMediaContent : null
+
+        if (nmFileUrl) {
+          const { data: convNM } = await supabase
+            .from('conversas').select('id')
+            .eq('empresa_id', nmEmpresaId).eq('canal', 'whatsapp')
+            .eq('contato_telefone', nmClientPhone).maybeSingle()
+          if (convNM) {
+            await salvarDocumentoCliente({
+              empresa_id: nmEmpresaId,
+              conversa_id: convNM.id,
+              pessoa_id: null,
+              fileUrl: nmFileUrl,
+              fileName: nmMediaContent?.fileName ?? null,
+              mimeType: nmMediaContent?.mimetype ?? null,
+            }).catch(err => console.error('[fromMe-midia] Erro ao salvar doc:', err))
+          }
+        }
+      }
+    }
     return NextResponse.json({ ok: true })
   }
 

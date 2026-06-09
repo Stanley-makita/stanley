@@ -431,12 +431,17 @@ interface EntidadeEncontrada {
   lead_id?: string
 }
 
+interface EntidadeAmbigua {
+  tipo: 'ambiguo'
+  mensagem: string
+}
+
 async function buscarEntidade(
   supabase: SupabaseClient,
   empresa_id: string,
   referencia: string,
   telefoneCliente?: string,  // busca direta por phone (cenário fromMe)
-): Promise<EntidadeEncontrada | null> {
+): Promise<EntidadeEncontrada | EntidadeAmbigua | null> {
   const ref = referencia.trim()
 
   // Cenário fromMe: sem referência de nome, usa o telefone do cliente diretamente
@@ -492,9 +497,16 @@ async function buscarEntidade(
     .limit(3)
 
   if (pessoas && pessoas.length >= 1) {
-    const escolhido = pessoas.length === 1
-      ? pessoas[0]
-      : (pessoas.find((p) => p.nome.toLowerCase().startsWith(ref.toLowerCase())) ?? pessoas[0])
+    // Ambiguidade: múltiplos clientes com o mesmo nome parcial
+    if (pessoas.length > 1) {
+      const linhas = pessoas.map((p) => `• *${p.nome}* — use: *fonti salva #${p.id.slice(0, 8)}`).join('\n')
+      return {
+        tipo: 'ambiguo',
+        mensagem: `⚠️ Encontrei ${pessoas.length} clientes com "${ref}":\n${linhas}\n\nUse o nome completo ou o ID (#) para selecionar o correto.`,
+      }
+    }
+
+    const escolhido = pessoas[0]
 
     // Busca o lead mais recente da pessoa para incluir lead_id no documento
     const { data: leadDaPessoa } = await supabase
@@ -721,6 +733,9 @@ export async function processarComandoFonti(
     if (!entidade) {
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
+    if (entidade.tipo === 'ambiguo') {
+      return entidade.mensagem
+    }
 
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
 
@@ -779,7 +794,13 @@ export async function processarComandoFonti(
     }
 
     const entidade = await buscarEntidade(supabase, empresa_id, nomeRef, ctx.telefone_cliente)
-    if (!entidade || entidade.tipo !== 'pessoa') {
+    if (!entidade) {
+      return `❌ Não encontrei "${nomeRef}" no sistema. Verifique o nome.`
+    }
+    if (entidade.tipo === 'ambiguo') {
+      return entidade.mensagem
+    }
+    if (entidade.tipo !== 'pessoa') {
       return `❌ Não encontrei "${nomeRef}" no sistema. Verifique o nome.`
     }
 
