@@ -31,6 +31,7 @@ const TIPOS_DOCUMENTO = [
   { value: 'cnh',                   label: 'CNH' },
   { value: 'comprovante_renda',     label: 'Comprovante de renda' },
   { value: 'comprovante_endereco',  label: 'Comprovante de endereço' },
+  { value: 'certidao_casamento',    label: 'Certidão de Casamento' },
   { value: 'outro',                 label: 'Outro' },
 ] as const
 

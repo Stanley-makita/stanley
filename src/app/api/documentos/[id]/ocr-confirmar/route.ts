@@ -46,6 +46,7 @@ export async function POST(
   const CAMPOS_PERMITIDOS = [
     'nome', 'cpf', 'rg', 'data_nascimento', 'orgao_emissor',
     'filiacao_mae', 'filiacao_pai', 'estado_civil',
+    'regime_casamento', 'data_casamento',
     'endereco_rua', 'endereco_numero', 'endereco_bairro',
     'endereco_cidade', 'endereco_uf', 'endereco_cep',
   ]

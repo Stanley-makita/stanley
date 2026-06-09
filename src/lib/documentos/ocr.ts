@@ -17,7 +17,7 @@ export interface FgtsContaOcr {
 }
 
 export interface OcrResultado {
-  tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'extrato_fgts' | 'outro'
+  tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'extrato_fgts' | 'certidao_casamento' | 'outro'
   // Campos de RG / CNH / comprovantes
   nome?: string
   cpf?: string
@@ -33,6 +33,10 @@ export interface OcrResultado {
   endereco_cidade?: string
   endereco_uf?: string
   endereco_cep?: string
+  // Campos de certidão de casamento
+  estado_civil?: string       // sempre 'casado' para certidão de casamento
+  regime_casamento?: string   // ex: 'comunhao_parcial', 'comunhao_universal', 'separacao_total', 'participacao_final'
+  data_casamento?: string     // YYYY-MM-DD
   // Campos do extrato FGTS — dados gerais do trabalhador
   pis_pasep?: string
   data_extrato?: string       // YYYY-MM-DD
@@ -63,6 +67,30 @@ Para documentos comuns (RG, CNH, comprovante):
   "endereco_cep": "8 dígitos sem traço ou null",
   "confianca": "alta|media|baixa"
 }
+
+Para certidão de casamento:
+{
+  "tipo_documento": "certidao_casamento",
+  "nome": "nome do(a) cônjuge 1 ou null",
+  "cpf": "CPF do(a) cônjuge 1, 11 dígitos sem pontos/traços ou null",
+  "data_nascimento": "data de nascimento do(a) cônjuge 1, YYYY-MM-DD ou null",
+  "estado_civil": "casado",
+  "regime_casamento": "comunhao_parcial|comunhao_universal|separacao_total|participacao_final ou null",
+  "data_casamento": "YYYY-MM-DD ou null",
+  "confianca": "alta|media|baixa"
+}
+
+Regras para certidão de casamento:
+- tipo_documento: identificar pelo cabeçalho "CERTIDÃO DE CASAMENTO" ou "CERTIDÃO DE REGISTRO DE CASAMENTO"
+- regime_casamento: mapear texto livre para os valores padronizados:
+  "comunhão parcial de bens" → "comunhao_parcial"
+  "comunhão universal de bens" → "comunhao_universal"
+  "separação total de bens" / "separação de bens" → "separacao_total"
+  "participação final nos aquestos" → "participacao_final"
+- data_casamento: data da celebração do casamento, converter para YYYY-MM-DD
+- nome/cpf/data_nascimento: extrair dados do primeiro cônjuge listado
+- estado_civil: sempre "casado" para certidão de casamento
+- campos ausentes: null (não invente)
 
 Para extrato FGTS (Caixa Econômica Federal — pode ter um ou vários empregadores):
 {

@@ -75,41 +75,48 @@ async function salvarDocumentoCliente(params: {
   const storagePath = `${empresa_id}/${conversa_id}/${crypto.randomUUID()}.${ext}`
   const nomeOriginal = fileName ?? `arquivo.${ext}`
 
-  // Insere o registro no banco ANTES do upload para que *fonti vincular encontre imediatamente
+  // Download síncrono — URLs do Uazapi expiram rapidamente; se deixar em background
+  // o OCR dispara antes do arquivo chegar ao Storage e marca como erro.
+  let fileBuffer: ArrayBuffer | null = null
+  let tamanhoBytes = 0
+  let ocrStatus = 'pendente'
+
+  try {
+    const fileRes = await fetch(fileUrl, { signal: AbortSignal.timeout(20000) })
+    if (!fileRes.ok) throw new Error(`Download falhou: ${fileRes.status}`)
+    fileBuffer = await fileRes.arrayBuffer()
+    tamanhoBytes = fileBuffer.byteLength
+  } catch (err) {
+    console.error('[whatsapp] Download do arquivo falhou (arquivo não salvo no Storage):', err)
+    ocrStatus = 'ignorado'
+  }
+
+  // Upload síncrono ao Storage (antes de inserir no banco)
+  if (fileBuffer) {
+    const { error: uploadError } = await supabase.storage
+      .from('documentos-clientes')
+      .upload(storagePath, fileBuffer, {
+        contentType: mimeType ?? 'application/octet-stream',
+        upsert: false,
+      })
+    if (uploadError) {
+      console.error('[whatsapp] Storage upload falhou:', uploadError.message)
+      ocrStatus = 'ignorado'
+    }
+  }
+
   const { error: insertError } = await supabase.from('documentos_clientes').insert({
     empresa_id,
     conversa_id,
     pessoa_id: pessoa_id ?? undefined,
     nome_original: nomeOriginal,
     mime_type: mimeType ?? null,
-    tamanho_bytes: 0,
+    tamanho_bytes: tamanhoBytes,
     storage_path: storagePath,
     canal_origem: 'whatsapp',
+    ocr_status: ocrStatus,
   })
   if (insertError) throw new Error(`DB insert falhou: ${insertError.message}`)
-
-  // Upload em background (não bloqueia — registro já existe no banco)
-  ;(async () => {
-    try {
-      const fileRes = await fetch(fileUrl, { signal: AbortSignal.timeout(20000) })
-      if (!fileRes.ok) throw new Error(`Download falhou: ${fileRes.status}`)
-      const fileBuffer = await fileRes.arrayBuffer()
-
-      const { error: uploadError } = await supabase.storage
-        .from('documentos-clientes')
-        .upload(storagePath, fileBuffer, {
-          contentType: mimeType ?? 'application/octet-stream',
-          upsert: false,
-        })
-      if (uploadError) throw new Error(`Storage upload falhou: ${uploadError.message}`)
-
-      await supabase.from('documentos_clientes')
-        .update({ tamanho_bytes: fileBuffer.byteLength })
-        .eq('storage_path', storagePath)
-    } catch (err) {
-      console.error('[whatsapp] Erro ao fazer upload de documento:', err)
-    }
-  })()
 }
 
 async function baixarMidiaUazapi(messageid: string, tipoMidia: string): Promise<string | null> {

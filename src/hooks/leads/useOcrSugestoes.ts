@@ -23,19 +23,22 @@ export interface OcrSugestoesResult {
 }
 
 const CAMPO_LABELS: Record<string, string> = {
-  nome:            'Nome',
-  cpf:             'CPF',
-  rg:              'RG',
-  data_nascimento: 'Data de nascimento',
-  orgao_emissor:   'Órgão emissor',
-  filiacao_mae:    'Filiação (mãe)',
-  filiacao_pai:    'Filiação (pai)',
-  endereco_rua:    'Rua',
-  endereco_numero: 'Número',
-  endereco_bairro: 'Bairro',
-  endereco_cidade: 'Cidade',
-  endereco_uf:     'UF',
-  endereco_cep:    'CEP',
+  nome:             'Nome',
+  cpf:              'CPF',
+  rg:               'RG',
+  data_nascimento:  'Data de nascimento',
+  orgao_emissor:    'Órgão emissor',
+  filiacao_mae:     'Filiação (mãe)',
+  filiacao_pai:     'Filiação (pai)',
+  estado_civil:     'Estado civil',
+  regime_casamento: 'Regime de bens',
+  data_casamento:   'Data de casamento',
+  endereco_rua:     'Rua',
+  endereco_numero:  'Número',
+  endereco_bairro:  'Bairro',
+  endereco_cidade:  'Cidade',
+  endereco_uf:      'UF',
+  endereco_cep:     'CEP',
 }
 
 const CAMPOS_OCR = Object.keys(CAMPO_LABELS)

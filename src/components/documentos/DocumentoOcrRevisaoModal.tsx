@@ -22,28 +22,32 @@ interface Props {
 }
 
 const CAMPOS_LABELS: Record<string, string> = {
-  nome:            'Nome completo',
-  cpf:             'CPF',
-  rg:              'RG',
-  data_nascimento: 'Data de nascimento',
-  data_emissao:    'Data de emissão',
-  orgao_emissor:   'Órgão emissor',
-  filiacao_mae:    'Nome da mãe',
-  filiacao_pai:    'Nome do pai',
-  endereco_rua:    'Logradouro',
-  endereco_numero: 'Número',
-  endereco_bairro: 'Bairro',
-  endereco_cidade: 'Cidade',
-  endereco_uf:     'UF',
-  endereco_cep:    'CEP',
+  nome:              'Nome completo',
+  cpf:               'CPF',
+  rg:                'RG',
+  data_nascimento:   'Data de nascimento',
+  data_emissao:      'Data de emissão',
+  orgao_emissor:     'Órgão emissor',
+  filiacao_mae:      'Nome da mãe',
+  filiacao_pai:      'Nome do pai',
+  estado_civil:      'Estado civil',
+  regime_casamento:  'Regime de bens',
+  data_casamento:    'Data de casamento',
+  endereco_rua:      'Logradouro',
+  endereco_numero:   'Número',
+  endereco_bairro:   'Bairro',
+  endereco_cidade:   'Cidade',
+  endereco_uf:       'UF',
+  endereco_cep:      'CEP',
 }
 
 const TIPO_LABELS: Record<string, string> = {
-  rg:                  'RG',
-  cnh:                 'CNH',
+  rg:                   'RG',
+  cnh:                  'CNH',
   comprovante_endereco: 'Comprovante de Endereço',
-  comprovante_renda:   'Comprovante de Renda',
-  outro:               'Documento',
+  comprovante_renda:    'Comprovante de Renda',
+  certidao_casamento:   'Certidão de Casamento',
+  outro:                'Documento',
 }
 
 async function getToken(): Promise<string | null> {
