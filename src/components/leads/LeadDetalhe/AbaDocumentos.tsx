@@ -18,9 +18,11 @@ import { toast } from 'sonner'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
+import { ApuracaoRendaModal } from '@/components/documentos/ApuracaoRendaModal'
 import { OcrEnriquecimentoCard } from '@/components/leads/OcrEnriquecimentoCard'
 import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModal'
 import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
+import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 10
@@ -28,6 +30,7 @@ const LIMITE_ARQUIVOS_UPLOAD = 10
 const TIPOS_DOCUMENTO = [
   { value: 'auto',                  label: 'Detectar automaticamente' },
   { value: 'extrato_fgts',          label: 'Extrato FGTS' },
+  { value: 'extrato_bancario',      label: 'Extrato Bancário' },
   { value: 'rg',                    label: 'RG' },
   { value: 'cnh',                   label: 'CNH' },
   { value: 'cpf',                   label: 'CPF' },
@@ -73,8 +76,10 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
   const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
   const [ocrModalAberto, setOcrModalAberto] = useState(false)
+  const [analiseAberta, setAnaliseAberta] = useState(false)
 
   const ocrSugestoes = useOcrSugestoes(leadId)
+  const { ultima: ultimaApuracao } = useApuracaoRenda({ leadId })
 
   const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
@@ -259,6 +264,13 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   }
 
   function BadgeOcr({ doc }: { doc: DocumentoCliente }) {
+    if (doc.ocr_status === 'aguardando_apuracao') {
+      return (
+        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
+          Aguardando análise
+        </span>
+      )
+    }
     if (doc.ocr_status === 'erro') {
       return (
         <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200">
@@ -337,6 +349,22 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       </div>
 
       <OcrEnriquecimentoCard sugestoes={ocrSugestoes} onAbrir={() => setOcrModalAberto(true)} />
+
+      {documentos.some(d => d.classificacao === 'extrato_bancario') && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-blue-800">Análise de Extratos</span>
+            {ultimaApuracao && (
+              <span className="text-xs text-blue-500">
+                · última em {new Date(ultimaApuracao.created_at).toLocaleDateString('pt-BR')}
+              </span>
+            )}
+          </div>
+          <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-100 h-7 text-xs" onClick={() => setAnaliseAberta(true)}>
+            {ultimaApuracao ? 'Ver Análise' : 'Analisar Extratos'}
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -423,6 +451,15 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         leadId={leadId}
         sugestoes={ocrSugestoes}
         onFechar={() => setOcrModalAberto(false)}
+      />
+
+      <ApuracaoRendaModal
+        open={analiseAberta}
+        onClose={() => setAnaliseAberta(false)}
+        leadId={leadId}
+        processoId={null}
+        documentos={documentos.filter(d => d.classificacao === 'extrato_bancario')}
+        ultimaApuracao={ultimaApuracao}
       />
 
       {docOcrRevisao && (

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
+import { ApuracaoRendaCard } from '@/components/leads/ApuracaoRendaCard'
 import { type Lead } from '@/types/leads'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -347,6 +348,8 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                 )} />
               </div>
             </Secao>
+
+            <ApuracaoRendaCard leadId={lead.id} />
 
             {/* ── CLASSIFICAÇÃO ── */}
             <Secao titulo="Classificação">

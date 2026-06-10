@@ -28,6 +28,19 @@ const REGIMES = [
   { value: 'participacao_final', label: 'Participação Final nos Aquestos' },
 ]
 
+function formatarCpf(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+}
+
+function normalizarCpf(valor: string): string | null {
+  const d = valor.replace(/\D/g, '')
+  return d.length === 11 ? d : (d.length === 0 ? null : d)
+}
+
 type FormState = {
   telefone: string
   nome: string; email: string; cpf: string; data_nascimento: string
@@ -118,7 +131,7 @@ export function CompletarDadosPessoaDrawer({
         telefone:                telPrincipal?.telefone ?? '',
         nome:                    pessoa.nome ?? '',
         email:                   pessoa.email ?? '',
-        cpf:                     pessoa.cpf ?? '',
+        cpf:                     formatarCpf(pessoa.cpf ?? ''),
         data_nascimento:         pessoa.data_nascimento ?? '',
         rg:                      pessoa.rg ?? '',
         profissao:               pessoa.profissao ?? '',
@@ -143,7 +156,7 @@ export function CompletarDadosPessoaDrawer({
         endereco_uf:             pessoa.endereco_uf ?? '',
         endereco_cep:            pessoa.endereco_cep ?? '',
         conjuge_nome:            pessoa.conjuge_nome ?? '',
-        conjuge_cpf:             pessoa.conjuge_cpf ?? '',
+        conjuge_cpf:             formatarCpf(pessoa.conjuge_cpf ?? ''),
         conjuge_data_nascimento: pessoa.conjuge_data_nascimento ?? '',
         conjuge_telefone:        pessoa.conjuge_telefone ?? '',
         conjuge_profissao:       pessoa.conjuge_profissao ?? '',
@@ -172,7 +185,7 @@ export function CompletarDadosPessoaDrawer({
       const payload = {
         nome:                    form.nome.trim() || undefined,
         email:                   form.email.trim() || null,
-        cpf:                     form.cpf.trim() || null,
+        cpf:                     normalizarCpf(form.cpf) ?? null,
         data_nascimento:         form.data_nascimento || null,
         rg:                      form.rg.trim() || null,
         profissao:               form.profissao.trim() || null,
@@ -197,7 +210,7 @@ export function CompletarDadosPessoaDrawer({
         endereco_uf:             form.endereco_uf.trim() || null,
         endereco_cep:            form.endereco_cep.trim() || null,
         conjuge_nome:            eCasado ? (form.conjuge_nome.trim() || null) : null,
-        conjuge_cpf:             eCasado ? (form.conjuge_cpf.trim() || null) : null,
+        conjuge_cpf:             eCasado ? (normalizarCpf(form.conjuge_cpf) ?? null) : null,
         conjuge_data_nascimento: eCasado ? (form.conjuge_data_nascimento || null) : null,
         conjuge_telefone:        eCasado ? (form.conjuge_telefone.trim() || null) : null,
         conjuge_profissao:       eCasado ? (form.conjuge_profissao.trim() || null) : null,
@@ -321,7 +334,7 @@ export function CompletarDadosPessoaDrawer({
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">CPF</label>
-                <Input value={form.cpf} onChange={(e) => f({ cpf: e.target.value })} placeholder="000.000.000-00" />
+                <Input value={form.cpf} onChange={(e) => f({ cpf: formatarCpf(e.target.value) })} placeholder="000.000.000-00" />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">RG</label>
@@ -463,7 +476,7 @@ export function CompletarDadosPessoaDrawer({
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">CPF</label>
-                      <Input value={form.conjuge_cpf} onChange={(e) => f({ conjuge_cpf: e.target.value })} placeholder="000.000.000-00" />
+                      <Input value={form.conjuge_cpf} onChange={(e) => f({ conjuge_cpf: formatarCpf(e.target.value) })} placeholder="000.000.000-00" />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Nascimento</label>

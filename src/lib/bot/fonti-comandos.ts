@@ -83,6 +83,10 @@ export async function verificarUsuarioInterno(
       }
     }
   }
+
+  // Loga os números cadastrados para facilitar diagnóstico
+  const resumo = usuarios.map(u => `${u.nome}: wa=${u.telefone_whatsapp ?? 'null'} tel=${u.telefone ?? 'null'}`).join(' | ')
+  console.warn('[fonti] verificarUsuarioInterno: nenhum match para', telefoneWA, '(local:', waLocal, ') | cadastrados:', resumo)
   return null
 }
 
