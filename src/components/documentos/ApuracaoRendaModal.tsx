@@ -4,12 +4,8 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
-import {
-  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogFooter, AlertDialogCancel,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Loader2, TrendingUp, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
@@ -478,11 +474,11 @@ export function ApuracaoRendaModal({
       </Dialog>
 
       {/* ── Sub-modal: Confirmar aplicação na renda ────────────────── */}
-      <AlertDialog open={confirmarRendaAberto} onOpenChange={setConfirmarRendaAberto}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Resultado da Análise</AlertDialogTitle>
-          </AlertDialogHeader>
+      <Dialog open={confirmarRendaAberto} onOpenChange={setConfirmarRendaAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Resultado da Análise</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <p className="text-sm text-gray-500">Valor sugerido:</p>
@@ -514,15 +510,15 @@ export function ApuracaoRendaModal({
               </div>
             </div>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={salvandoRenda}>Cancelar</AlertDialogCancel>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmarRendaAberto(false)} disabled={salvandoRenda}>Cancelar</Button>
             <Button onClick={handleAplicarRenda} disabled={salvandoRenda}>
               {salvandoRenda ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Confirmar
             </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
