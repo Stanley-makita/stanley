@@ -61,6 +61,7 @@ Para documentos comuns (RG, CNH, comprovante):
   "rg": "número completo do RG incluindo dígito verificador com traço (ex: 9755869-8) ou null",
   "data_nascimento": "YYYY-MM-DD ou null",
   "cidade_nascimento": "cidade/município de nascimento (campo NATURALIDADE ou LOCAL DE NASCIMENTO) ou null",
+  "estado_nascimento": "UF (sigla 2 letras) do estado de nascimento, extraído do campo NATURALIDADE se contiver estado (ex: 'Maringá/PR' → 'PR') ou null",
   "data_emissao": "YYYY-MM-DD data de emissão do documento ou null",
   "orgao_emissor": "órgão expedidor (ex: SESP/PR para RG, DETRAN/PR para CNH) ou null",
   "filiacao_mae": "nome da mãe ou null",
@@ -80,7 +81,8 @@ Para documentos comuns (RG, CNH, comprovante):
 Regras para RG / Novo Documento de Identidade:
 - rg: incluir SEMPRE o dígito verificador com traço (ex: "9755869-8"); nunca omitir o dígito
 - orgao_emissor: campo ÓRGÃO EXPEDIDOR ou SSP/SESP + UF (ex: "SESP/PR", "SSP/SP", "DETRAN/PR")
-- cidade_nascimento: campo NATURALIDADE
+- cidade_nascimento: parte da cidade no campo NATURALIDADE (ex: "Maringá/PR" → cidade_nascimento: "Maringá")
+- estado_nascimento: parte da UF no campo NATURALIDADE (ex: "Maringá/PR" → estado_nascimento: "PR")
 - data_emissao: data de expedição do documento
 
 Regras para CNH:

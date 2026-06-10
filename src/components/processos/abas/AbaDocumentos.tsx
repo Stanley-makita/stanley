@@ -434,7 +434,10 @@ export function AbaDocumentos({ processoId }: Props) {
         <DocumentoOcrRevisaoModal
           documento={docOcrRevisao}
           onClose={() => setDocOcrRevisao(null)}
-          onConfirmado={() => { setDocOcrRevisao(null); queryClient.invalidateQueries({ queryKey }) }}
+          onConfirmado={() => {
+            setDocOcrRevisao(null)
+            queryClient.invalidateQueries({ queryKey })
+          }}
         />
       )}
 

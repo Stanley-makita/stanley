@@ -34,11 +34,11 @@ const TIPOS_VALIDOS = new Set(TIPOS_OPCOES.map(t => t.value))
 
 const CAMPOS_POR_TIPO: Record<string, string[]> = {
   cnh: [
-    'nome', 'cpf', 'data_nascimento', 'cidade_nascimento', 'data_emissao', 'orgao_emissor',
+    'nome', 'cpf', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento', 'data_emissao', 'orgao_emissor',
     'filiacao_mae', 'filiacao_pai', 'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
   ],
   rg: [
-    'nome', 'cpf', 'rg', 'data_nascimento', 'cidade_nascimento', 'data_emissao',
+    'nome', 'cpf', 'rg', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento', 'data_emissao',
     'orgao_emissor', 'filiacao_mae', 'filiacao_pai',
   ],
   cpf: ['nome', 'cpf', 'data_nascimento', 'orgao_emissor'],
@@ -52,6 +52,7 @@ const CAMPOS_LABELS: Record<string, string> = {
   rg:                       'RG',
   data_nascimento:          'Data de nascimento',
   cidade_nascimento:        'Cidade de nascimento',
+  estado_nascimento:        'UF de nascimento',
   data_emissao:             'Data de emissão',
   orgao_emissor:            'Órgão emissor',
   filiacao_mae:             'Nome da mãe',
@@ -145,7 +146,12 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
         toast.error((err.error ?? 'Erro ao salvar dados.') + (err.detail ? ` (${err.detail})` : ''))
         return
       }
-      toast.success('Dados confirmados e salvos no perfil do cliente.')
+      const result = await res.json().catch(() => ({})) as { cpf_divergente?: boolean }
+      if (result.cpf_divergente) {
+        toast.success('Dados salvos. O CPF encontrado já pertence a outro cliente — verifique manualmente.')
+      } else {
+        toast.success('Dados confirmados e salvos no perfil do cliente.')
+      }
       onConfirmado()
     } catch {
       toast.error('Erro inesperado. Tente novamente.')

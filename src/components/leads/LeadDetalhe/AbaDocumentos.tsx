@@ -429,7 +429,11 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         <DocumentoOcrRevisaoModal
           documento={docOcrRevisao}
           onClose={() => setDocOcrRevisao(null)}
-          onConfirmado={() => { setDocOcrRevisao(null); queryClient.invalidateQueries({ queryKey }) }}
+          onConfirmado={() => {
+            setDocOcrRevisao(null)
+            queryClient.invalidateQueries({ queryKey })
+            if (pessoaId) queryClient.invalidateQueries({ queryKey: ['pessoa-completa', pessoaId] })
+          }}
         />
       )}
 

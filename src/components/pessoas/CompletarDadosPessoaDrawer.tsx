@@ -34,7 +34,7 @@ type FormState = {
   rg: string; profissao: string; estado_civil: string; sexo: string
   renda_formal: string; renda_informal: string; nacionalidade: string
   // Documentos de identidade
-  orgao_emissor: string; data_emissao: string; cidade_nascimento: string
+  orgao_emissor: string; data_emissao: string; cidade_nascimento: string; estado_nascimento: string
   filiacao_mae: string; filiacao_pai: string
   // CNH
   registro_cnh: string; validade_cnh: string; primeira_habilitacao_cnh: string
@@ -56,7 +56,7 @@ const VAZIO: FormState = {
   telefone: '',
   nome: '', email: '', cpf: '', data_nascimento: '', rg: '', profissao: '',
   estado_civil: '', sexo: '', renda_formal: '', renda_informal: '', nacionalidade: '',
-  orgao_emissor: '', data_emissao: '', cidade_nascimento: '',
+  orgao_emissor: '', data_emissao: '', cidade_nascimento: '', estado_nascimento: '',
   filiacao_mae: '', filiacao_pai: '',
   registro_cnh: '', validade_cnh: '', primeira_habilitacao_cnh: '',
   endereco_rua: '', endereco_numero: '', endereco_bairro: '', endereco_cidade: '',
@@ -93,7 +93,7 @@ export function CompletarDadosPessoaDrawer({
         .from('pessoas')
         .select(`id, nome, cpf, email, data_nascimento,
           rg, profissao, estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
-          orgao_emissor, data_emissao, cidade_nascimento, filiacao_mae, filiacao_pai,
+          orgao_emissor, data_emissao, cidade_nascimento, estado_nascimento, filiacao_mae, filiacao_pai,
           registro_cnh, validade_cnh, primeira_habilitacao_cnh,
           endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
           conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
@@ -126,6 +126,7 @@ export function CompletarDadosPessoaDrawer({
         orgao_emissor:           (pessoa as any).orgao_emissor ?? '',
         data_emissao:            (pessoa as any).data_emissao ?? '',
         cidade_nascimento:       (pessoa as any).cidade_nascimento ?? '',
+        estado_nascimento:       (pessoa as any).estado_nascimento ?? '',
         filiacao_mae:            (pessoa as any).filiacao_mae ?? '',
         filiacao_pai:            (pessoa as any).filiacao_pai ?? '',
         registro_cnh:            (pessoa as any).registro_cnh ?? '',
@@ -179,6 +180,7 @@ export function CompletarDadosPessoaDrawer({
         orgao_emissor:           form.orgao_emissor.trim() || null,
         data_emissao:            form.data_emissao || null,
         cidade_nascimento:       form.cidade_nascimento.trim() || null,
+        estado_nascimento:       form.estado_nascimento.trim().toUpperCase().slice(0, 2) || null,
         filiacao_mae:            form.filiacao_mae.trim() || null,
         filiacao_pai:            form.filiacao_pai.trim() || null,
         registro_cnh:            form.registro_cnh.trim() || null,
@@ -361,38 +363,54 @@ export function CompletarDadosPessoaDrawer({
             {/* Documentos de identidade */}
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-[#253B29] mb-3">Documentos de Identidade</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Órgão emissor</label>
-                  <Input value={form.orgao_emissor} onChange={(e) => f({ orgao_emissor: e.target.value })} placeholder="Ex: SESP/PR, DETRAN/PR" />
+
+              {/* Sub-bloco RG / Identidade */}
+              <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 mb-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">RG / Identidade</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Órgão emissor</label>
+                    <Input value={form.orgao_emissor} onChange={(e) => f({ orgao_emissor: e.target.value })} placeholder="Ex: SESP/PR" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Data de emissão</label>
+                    <Input type="date" value={form.data_emissao} onChange={(e) => f({ data_emissao: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Cidade de nascimento</label>
+                    <Input value={form.cidade_nascimento} onChange={(e) => f({ cidade_nascimento: e.target.value })} placeholder="Ex: Maringá" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">UF de nascimento</label>
+                    <Input value={form.estado_nascimento} onChange={(e) => f({ estado_nascimento: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Nome da mãe</label>
+                    <Input value={form.filiacao_mae} onChange={(e) => f({ filiacao_mae: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Nome do pai</label>
+                    <Input value={form.filiacao_pai} onChange={(e) => f({ filiacao_pai: e.target.value })} />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Data de emissão</label>
-                  <Input type="date" value={form.data_emissao} onChange={(e) => f({ data_emissao: e.target.value })} />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Cidade de nascimento</label>
-                  <Input value={form.cidade_nascimento} onChange={(e) => f({ cidade_nascimento: e.target.value })} placeholder="Ex: Maringá" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Nome da mãe</label>
-                  <Input value={form.filiacao_mae} onChange={(e) => f({ filiacao_mae: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Nome do pai</label>
-                  <Input value={form.filiacao_pai} onChange={(e) => f({ filiacao_pai: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Nº Registro CNH</label>
-                  <Input value={form.registro_cnh} onChange={(e) => f({ registro_cnh: e.target.value })} placeholder="Ex: 00123456789" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Validade da habilitação</label>
-                  <Input type="date" value={form.validade_cnh} onChange={(e) => f({ validade_cnh: e.target.value })} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Primeira habilitação</label>
-                  <Input type="date" value={form.primeira_habilitacao_cnh} onChange={(e) => f({ primeira_habilitacao_cnh: e.target.value })} />
+              </div>
+
+              {/* Sub-bloco CNH */}
+              <div className="rounded-lg bg-blue-50/40 border border-blue-100 p-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">CNH</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Nº Registro CNH</label>
+                    <Input value={form.registro_cnh} onChange={(e) => f({ registro_cnh: e.target.value })} placeholder="Ex: 00123456789" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Validade da habilitação</label>
+                    <Input type="date" value={form.validade_cnh} onChange={(e) => f({ validade_cnh: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Primeira habilitação</label>
+                    <Input type="date" value={form.primeira_habilitacao_cnh} onChange={(e) => f({ primeira_habilitacao_cnh: e.target.value })} />
+                  </div>
                 </div>
               </div>
             </div>

@@ -26,7 +26,7 @@ interface CampoOcr {
 
 const CAMPOS_PERMITIDOS = [
   'nome', 'cpf', 'rg', 'data_nascimento', 'orgao_emissor',
-  'filiacao_mae', 'filiacao_pai', 'cidade_nascimento', 'data_emissao',
+  'filiacao_mae', 'filiacao_pai', 'cidade_nascimento', 'estado_nascimento', 'data_emissao',
   'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
   'estado_civil', 'regime_casamento', 'data_casamento',
   'endereco_rua', 'endereco_numero', 'endereco_bairro',

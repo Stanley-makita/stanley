@@ -45,7 +45,7 @@ export async function POST(
   // Campos permitidos para atualização na pessoa
   const CAMPOS_PERMITIDOS = [
     'nome', 'cpf', 'rg', 'data_nascimento', 'data_emissao', 'orgao_emissor',
-    'filiacao_mae', 'filiacao_pai', 'cidade_nascimento', 'estado_civil',
+    'filiacao_mae', 'filiacao_pai', 'cidade_nascimento', 'estado_nascimento', 'estado_civil',
     'regime_casamento', 'data_casamento',
     'endereco_rua', 'endereco_numero', 'endereco_bairro',
     'endereco_cidade', 'endereco_uf', 'endereco_cep',

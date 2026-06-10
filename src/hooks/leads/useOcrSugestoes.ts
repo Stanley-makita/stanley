@@ -29,6 +29,7 @@ const CAMPO_LABELS: Record<string, string> = {
   data_nascimento:          'Data de nascimento',
   data_emissao:             'Data de emissão',
   cidade_nascimento:        'Cidade de nascimento',
+  estado_nascimento:        'UF de nascimento',
   orgao_emissor:            'Órgão emissor',
   filiacao_mae:             'Filiação (mãe)',
   filiacao_pai:             'Filiação (pai)',
