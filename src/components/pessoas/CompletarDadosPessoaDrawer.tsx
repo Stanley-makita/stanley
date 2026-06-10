@@ -88,6 +88,7 @@ export function CompletarDadosPessoaDrawer({
   const { data: pessoa, isLoading } = useQuery({
     queryKey: ['pessoa-completa', pessoaId],
     enabled: !!pessoaId && open,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pessoas')

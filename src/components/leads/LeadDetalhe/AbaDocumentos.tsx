@@ -432,7 +432,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
           onConfirmado={() => {
             setDocOcrRevisao(null)
             queryClient.invalidateQueries({ queryKey })
-            if (pessoaId) queryClient.invalidateQueries({ queryKey: ['pessoa-completa', pessoaId] })
+            if (pessoaId) queryClient.refetchQueries({ queryKey: ['pessoa-completa', pessoaId] })
           }}
         />
       )}
