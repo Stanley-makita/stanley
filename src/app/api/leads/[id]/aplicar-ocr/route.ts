@@ -80,8 +80,11 @@ export async function POST(
   const YYYYMMDD_RE = /^\d{4}-\d{2}-\d{2}$/
 
   function normalizarValor(campo: string, valor: string): string | null {
-    const s = valor.trim()
-    if (campo === 'cpf' && s.replace(/\D/g, '').length !== 11) return null
+    let s = valor.trim()
+    if (campo === 'cpf') {
+      s = s.replace(/\D/g, '')  // normaliza para apenas dígitos
+      if (s.length !== 11) return null
+    }
     if (campo === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) return null
     if (CAMPOS_DATA.has(campo)) {
       const m = DDMMYYYY_RE.exec(s)

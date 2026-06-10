@@ -60,9 +60,12 @@ export async function POST(
   for (const [k, v] of Object.entries(campos)) {
     if (!CAMPOS_PERMITIDOS.includes(k)) continue
     if (v === null || v === undefined || v === '') continue
-    const s = String(v).trim()
+    let s = String(v).trim()
     // Validações por campo para evitar rejeição no banco
-    if (k === 'cpf' && s.replace(/\D/g, '').length !== 11) continue
+    if (k === 'cpf') {
+      s = s.replace(/\D/g, '')  // normaliza para apenas dígitos
+      if (s.length !== 11) continue
+    }
     if (DATA_FIELDS.includes(k) && !DATA_REGEX.test(s)) continue
     if (k === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) continue
     camposFiltrados[k] = s
