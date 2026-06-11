@@ -36,7 +36,7 @@ export async function POST(
     .maybeSingle()
 
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
-  if (doc.ocr_status && doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro') {
+  if (doc.ocr_status && doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro' && doc.ocr_status !== 'processando') {
     return NextResponse.json({ error: 'OCR já processado' }, { status: 400 })
   }
 

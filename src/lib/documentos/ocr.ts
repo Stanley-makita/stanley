@@ -162,7 +162,7 @@ const TIPOS_ESSENCIAIS = new Set([
 // Prompt mínimo só para classificar o tipo do documento
 const SYSTEM_PROMPT_CLASSIFICAR = `Você é um classificador de documentos brasileiros.
 Analise o documento e responda SOMENTE com JSON válido, sem markdown, sem explicação.
-{"tipo_documento":"rg|cnh|cpf|comprovante_endereco|comprovante_renda|extrato_fgts|certidao_casamento|outro","confianca":"alta|media|baixa"}`
+{"tipo_documento":"rg|cnh|cpf|comprovante_endereco|comprovante_renda|extrato_fgts|extrato_bancario|certidao_casamento|outro","confianca":"alta|media|baixa"}`
 
 function serviceSupabase() {
   return createClient(
@@ -208,7 +208,7 @@ export async function processarOcrDocumento(
     .eq('empresa_id', empresa_id)
     .maybeSingle()
 
-  if (!doc || (doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro')) return
+  if (!doc || (doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro' && doc.ocr_status !== 'processando')) return
 
   await supabase.from('documentos_clientes')
     .update({ ocr_status: 'processando' })
@@ -226,7 +226,8 @@ export async function processarOcrDocumento(
     if (!resp.ok) throw new Error(`Download falhou: ${resp.status}`)
 
     const base64 = Buffer.from(await resp.arrayBuffer()).toString('base64')
-    const mimeType = doc.mime_type ?? 'image/jpeg'
+    const rawMime = doc.mime_type ?? 'image/jpeg'
+    const mimeType = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime
 
     const contentBlock = montarContentBlock(base64, mimeType)
     if (!contentBlock) {
@@ -247,6 +248,16 @@ export async function processarOcrDocumento(
 
     const classificacao = JSON.parse(limparJson(blocoClass.text)) as { tipo_documento: string; confianca: string }
     const tipo = classificacao.tipo_documento
+
+    // Extrato bancário detectado em modo auto → encaminha para apuração de renda
+    if (tipo === 'extrato_bancario') {
+      await supabase.from('documentos_clientes').update({
+        ocr_status: 'aguardando_apuracao',
+        classificacao: 'extrato_bancario',
+      }).eq('id', documentoId)
+      console.log('[ocr] Extrato bancário detectado automaticamente:', documentoId)
+      return
+    }
 
     // Não é documento essencial — ignora sem extração
     if (!TIPOS_ESSENCIAIS.has(tipo)) {

@@ -180,6 +180,14 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
 
     if (uploadError) throw new Error(uploadError.message)
 
+    const rawMime = arquivo.type || ''
+    const fileExt = arquivo.name.split('.').pop()?.toLowerCase() ?? ''
+    const resolvedMime = rawMime === 'image/jpg'
+      ? 'image/jpeg'
+      : !rawMime && (fileExt === 'jpg' || fileExt === 'jpeg')
+        ? 'image/jpeg'
+        : rawMime || null
+
     const { data: docInserido, error: dbError } = await supabase
       .from('documentos_clientes')
       .insert({
@@ -188,7 +196,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         pessoa_id:      pessoaId ?? null,
         processo_id:    null,
         nome_original:  arquivo.name,
-        mime_type:      arquivo.type || null,
+        mime_type:      resolvedMime,
         tamanho_bytes:  arquivo.size,
         storage_bucket: BUCKET,
         storage_path:   storagePath,
@@ -314,10 +322,14 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
     }
     if (doc.classificacao !== 'auto' && doc.ocr_status === 'processando') {
       return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
+          title="Processando. Clique para forçar nova tentativa se estiver preso"
+        >
           <Loader2 className="h-3 w-3 animate-spin" />
           Processando...
-        </span>
+        </button>
       )
     }
     if (doc.ocr_status === 'concluido' && doc.classificacao === 'extrato_fgts') {
