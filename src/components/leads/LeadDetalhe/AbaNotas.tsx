@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { useRegistrarInteracao } from '@/hooks/leads/useRegistrarInteracao'
+import { supabase } from '@/lib/supabase'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { MessageSquare, Send, Loader2 } from 'lucide-react'
@@ -12,9 +14,24 @@ import { Textarea } from '@/components/ui/textarea'
 interface Props { leadId: string }
 
 export function AbaNotas({ leadId }: Props) {
+  const queryClient = useQueryClient()
   const { data: notas = [], isLoading } = useLeadHistorico(leadId, ['comentario'])
   const registrar = useRegistrarInteracao(leadId)
   const [texto, setTexto] = useState('')
+
+  // Realtime: invalida a query de notas quando outro usuário insere/altera/exclui
+  useEffect(() => {
+    const channel = supabase
+      .channel(`lead-historico-${leadId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_historico', filter: `lead_id=eq.${leadId}` },
+        () => { queryClient.invalidateQueries({ queryKey: ['leads', leadId, 'historico'] }) },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [leadId, queryClient])
 
   async function handleEnviar() {
     const nota = texto.trim()

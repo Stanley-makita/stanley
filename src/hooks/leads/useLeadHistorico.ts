@@ -28,5 +28,6 @@ export function useLeadHistorico(leadId: string, tipos?: string[]) {
       return data
     },
     enabled: !!leadId,
+    refetchInterval: 30000,
   })
 }
