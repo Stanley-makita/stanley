@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2, Pencil } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -125,7 +125,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
     enabled: !!usuario && !!leadId,
     refetchInterval: (query) => {
       const docs = (query.state.data as DocumentoCliente[] | undefined) ?? []
-      return docs.some(d => ['pendente', 'processando'].includes(d.ocr_status ?? '')) ? 5000 : false
+      return docs.some(d => d.ocr_status === 'processando') ? 3000 : false
     },
   })
 
@@ -409,12 +409,12 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       }
     }
 
-    // PDF/outros em pendente → aguardando leitura
+    // PDF/outros em pendente → aguardando leitura (estático, sem spinner)
     if (doc.ocr_status === 'pendente') {
       return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Aguardando leitura...
+        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200">
+          <Clock className="h-3 w-3" />
+          Aguardando leitura
         </span>
       )
     }
