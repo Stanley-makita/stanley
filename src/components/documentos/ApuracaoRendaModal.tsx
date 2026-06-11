@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import {
@@ -107,6 +107,20 @@ export function ApuracaoRendaModal({
   const [selecionados, setSelecionados] = useState<Set<string>>(
     () => new Set(documentos.filter(d => d.classificacao === 'extrato_bancario').map(d => d.id))
   )
+
+  // Sincroniza estado quando o modal abre — necessário porque o componente
+  // fica montado na árvore e o useState só captura o valor inicial do prop
+  useEffect(() => {
+    if (!open) return
+    if (ultimaApuracao) {
+      setApuracaoAtual(ultimaApuracao)
+      setEstado('resultado')
+    } else {
+      setApuracaoAtual(null)
+      setEstado('qualificando')
+    }
+    setSelecionados(new Set(documentos.filter(d => d.classificacao === 'extrato_bancario').map(d => d.id)))
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleDoc(id: string) {
     setSelecionados(prev => {
@@ -290,6 +304,14 @@ export function ApuracaoRendaModal({
                 <p className="font-medium text-gray-800">Analisando extratos com IA...</p>
                 <p className="text-sm text-gray-500 mt-1">Isso pode levar até 40 segundos.</p>
               </div>
+            </div>
+          )}
+
+          {/* ── ESTADO: resultado sem dados — fallback ──────────────── */}
+          {estado === 'resultado' && apuracaoAtual && !resultado && (
+            <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+              <p className="text-sm text-gray-500">Resultado não disponível. Execute uma nova análise.</p>
+              <Button variant="outline" onClick={() => setEstado('qualificando')}>Reanalisar Extratos</Button>
             </div>
           )}
 
