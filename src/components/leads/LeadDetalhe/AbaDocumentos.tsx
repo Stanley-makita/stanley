@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2 } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2, Pencil } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -38,6 +38,7 @@ const TIPOS_DOCUMENTO = [
   { value: 'comprovante_renda',     label: 'Comprovante de renda' },
   { value: 'comprovante_endereco',  label: 'Comprovante de endereço' },
   { value: 'certidao_casamento',    label: 'Certidão de Casamento' },
+  { value: 'certidao_nascimento',   label: 'Certidão de Nascimento' },
   { value: 'outro',                 label: 'Outro' },
 ] as const
 
@@ -46,6 +47,7 @@ type TipoDocumento = typeof TIPOS_DOCUMENTO[number]['value']
 interface DocumentoCliente {
   id: string
   nome_original: string
+  nome_exibicao: string | null
   mime_type: string | null
   tamanho_bytes: number | null
   storage_path: string
@@ -53,6 +55,20 @@ interface DocumentoCliente {
   ocr_status: string | null
   ocr_dados: Record<string, unknown> | null
   created_at: string
+}
+
+const LABELS_CLASSIFICACAO: Record<string, string> = {
+  rg:                   'RG / Doc. de Identidade',
+  cnh:                  'CNH',
+  cpf:                  'CPF',
+  comprovante_endereco: 'Comprovante de Residência',
+  comprovante_renda:    'Comprovante de Renda',
+  extrato_fgts:         'Extrato FGTS',
+  extrato_bancario:     'Extrato Bancário',
+  certidao_casamento:   'Certidão de Casamento',
+  certidao_nascimento:  'Certidão de Nascimento',
+  matricula:            'Matrícula do Imóvel',
+  contrato:             'Contrato',
 }
 
 interface Props {
@@ -80,6 +96,8 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [analiseAberta, setAnaliseAberta] = useState(false)
   const [extracaoAberta, setExtracaoAberta] = useState(false)
   const [extrairAposUpload, setExtrairAposUpload] = useState(true)
+  const [renomeando, setRenomeando] = useState<string | null>(null)
+  const [novoNome, setNovoNome] = useState('')
 
   const ocrSugestoes = useOcrSugestoes(leadId)
   const { ultima: ultimaApuracao } = useApuracaoRenda({ leadId })
@@ -95,7 +113,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
 
       const { data, error } = await supabase
         .from('documentos_clientes')
-        .select('id, nome_original, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at')
+        .select('id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at')
         .or(filtro)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
@@ -146,6 +164,21 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
     } catch {
       toast.error('Erro ao retentar OCR')
     }
+  }
+
+  async function handleRenomear(docId: string) {
+    const nome = novoNome.trim()
+    const doc = documentos.find(d => d.id === docId)
+    const nomeAtual = doc?.nome_exibicao ?? doc?.nome_original ?? ''
+    setRenomeando(null)
+    if (nome === nomeAtual) return
+    const { error } = await supabase
+      .from('documentos_clientes')
+      .update({ nome_exibicao: nome || null })
+      .eq('id', docId)
+      .eq('empresa_id', usuario!.empresa_id)
+    if (error) toast.error('Não foi possível renomear o arquivo.')
+    else queryClient.invalidateQueries({ queryKey })
   }
 
   function handleArquivoSelecionado(e: React.ChangeEvent<HTMLInputElement>) {
@@ -468,24 +501,92 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
               className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
             >
               <span className="text-xl shrink-0">{iconeParaMime(doc.mime_type ?? '')}</span>
-              <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => handleVisualizar(doc)}
-                  className="text-sm font-medium text-[#253B29] hover:underline truncate block text-left w-full"
-                  title="Abrir no navegador"
-                >
-                  {doc.nome_original}
-                </button>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span className="text-xs text-gray-400">{labelTipo(doc.classificacao)}</span>
-                  {doc.tamanho_bytes != null && (
-                    <span className="text-xs text-gray-300">· {formatarTamanho(doc.tamanho_bytes)}</span>
-                  )}
-                  <span className="text-xs text-gray-300">
-                    · {format(new Date(doc.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const classificacaoLabel = LABELS_CLASSIFICACAO[doc.classificacao ?? ''] ?? null
+                return (
+                  <div className="flex-1 min-w-0">
+                    {classificacaoLabel ? (
+                      <>
+                        <button
+                          onClick={() => handleVisualizar(doc)}
+                          className="text-sm font-semibold text-[#253B29] hover:underline block text-left w-full truncate"
+                          title="Abrir no navegador"
+                        >
+                          {classificacaoLabel}
+                        </button>
+                        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+                          {renomeando === doc.id ? (
+                            <input
+                              autoFocus
+                              value={novoNome}
+                              onChange={e => setNovoNome(e.target.value)}
+                              onBlur={() => handleRenomear(doc.id)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') e.currentTarget.blur()
+                                if (e.key === 'Escape') setRenomeando(null)
+                              }}
+                              className="text-xs text-gray-400 w-full border-b border-gray-300 outline-none bg-transparent"
+                            />
+                          ) : (
+                            <>
+                              <span className="text-xs text-gray-400 truncate">{doc.nome_exibicao ?? doc.nome_original}</span>
+                              <button
+                                onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? doc.nome_original) }}
+                                title="Renomear arquivo"
+                                className="shrink-0 p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-1 min-w-0">
+                        {renomeando === doc.id ? (
+                          <input
+                            autoFocus
+                            value={novoNome}
+                            onChange={e => setNovoNome(e.target.value)}
+                            onBlur={() => handleRenomear(doc.id)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') e.currentTarget.blur()
+                              if (e.key === 'Escape') setRenomeando(null)
+                            }}
+                            className="text-sm font-medium text-[#253B29] w-full border-b border-[#253B29] outline-none bg-transparent"
+                          />
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleVisualizar(doc)}
+                              className="text-sm font-medium text-[#253B29] hover:underline truncate block text-left"
+                              title="Abrir no navegador"
+                            >
+                              {doc.nome_exibicao ?? doc.nome_original}
+                            </button>
+                            <button
+                              onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? doc.nome_original) }}
+                              title="Renomear arquivo"
+                              className="shrink-0 p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {!classificacaoLabel && <span className="text-xs text-gray-400">{labelTipo(doc.classificacao)}</span>}
+                      {doc.tamanho_bytes != null && (
+                        <span className="text-xs text-gray-300">{classificacaoLabel ? '' : '· '}{formatarTamanho(doc.tamanho_bytes)}</span>
+                      )}
+                      <span className="text-xs text-gray-300">
+                        · {format(new Date(doc.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
               <div className="flex items-center gap-1 shrink-0">
                 <BadgeOcr doc={doc} />
                 <button

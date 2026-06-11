@@ -23,11 +23,12 @@ interface Props {
 }
 
 const TIPOS_OPCOES = [
-  { value: 'cnh',                  label: 'CNH' },
-  { value: 'rg',                   label: 'RG / Doc. de Identidade' },
-  { value: 'cpf',                  label: 'CPF' },
-  { value: 'certidao_casamento',   label: 'Certidão de Casamento' },
-  { value: 'comprovante_endereco', label: 'Comprovante de Residência' },
+  { value: 'cnh',                   label: 'CNH' },
+  { value: 'rg',                    label: 'RG / Doc. de Identidade' },
+  { value: 'cpf',                   label: 'CPF' },
+  { value: 'certidao_casamento',    label: 'Certidão de Casamento' },
+  { value: 'certidao_nascimento',   label: 'Certidão de Nascimento' },
+  { value: 'comprovante_endereco',  label: 'Comprovante de Residência' },
 ]
 
 const TIPOS_VALIDOS = new Set(TIPOS_OPCOES.map(t => t.value))
@@ -43,6 +44,7 @@ const CAMPOS_POR_TIPO: Record<string, string[]> = {
   ],
   cpf: ['nome', 'cpf', 'data_nascimento', 'orgao_emissor'],
   certidao_casamento:   ['estado_civil', 'regime_casamento', 'data_casamento'],
+  certidao_nascimento:  ['nome', 'cpf', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento', 'filiacao_mae', 'filiacao_pai', 'data_emissao', 'orgao_emissor'],
   comprovante_endereco: ['endereco_rua', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_uf', 'endereco_cep'],
 }
 

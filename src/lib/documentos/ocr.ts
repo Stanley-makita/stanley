@@ -17,7 +17,7 @@ export interface FgtsContaOcr {
 }
 
 export interface OcrResultado {
-  tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'extrato_fgts' | 'certidao_casamento' | 'outro'
+  tipo_documento: 'rg' | 'cnh' | 'comprovante_endereco' | 'comprovante_renda' | 'extrato_fgts' | 'certidao_casamento' | 'certidao_nascimento' | 'outro'
   // Campos de RG / CNH / comprovantes
   nome?: string
   cpf?: string
@@ -123,6 +123,31 @@ Regras para certidão de casamento:
 - estado_civil: sempre "casado" para certidão de casamento
 - campos ausentes: null (não invente)
 
+Para certidão de nascimento:
+{
+  "tipo_documento": "certidao_nascimento",
+  "nome": "nome completo do registrado ou null",
+  "cpf": "CPF se presente no documento, 11 dígitos sem pontos/traços ou null",
+  "data_nascimento": "YYYY-MM-DD data em que a pessoa nasceu ou null",
+  "cidade_nascimento": "município onde nasceu (campo MUNICÍPIO, NATURALIDADE ou COMARCA) ou null",
+  "estado_nascimento": "UF 2 letras do estado onde nasceu ou null",
+  "filiacao_mae": "nome da mãe ou null",
+  "filiacao_pai": "nome do pai ou null",
+  "data_emissao": "YYYY-MM-DD data de emissão da certidão (diferente da data de nascimento) ou null",
+  "orgao_emissor": "nome do cartório de registro civil ou null",
+  "confianca": "alta|media|baixa"
+}
+
+Regras para certidão de nascimento:
+- tipo_documento: identificar pelo cabeçalho "CERTIDÃO DE NASCIMENTO" ou "CERTIDÃO DE REGISTRO DE NASCIMENTO"
+- data_nascimento: data em que a pessoa nasceu, converter para YYYY-MM-DD
+- data_emissao: data em que o cartório emitiu a certidão (diferente da data de nascimento), converter para YYYY-MM-DD
+- cidade_nascimento: município de nascimento (campo MUNICÍPIO DE NASCIMENTO, NATURALIDADE ou COMARCA)
+- estado_nascimento: UF 2 letras (ex: "PR", "SP")
+- cpf: presente apenas em certidões mais recentes; se ausente, null
+- orgao_emissor: nome do cartório (ex: "1º Cartório de Registro Civil de Maringá")
+- campos ausentes: null (não invente)
+
 Para extrato FGTS (Caixa Econômica Federal — pode ter um ou vários empregadores):
 {
   "tipo_documento": "extrato_fgts",
@@ -156,13 +181,13 @@ const TIPOS_IMAGEM: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 
 
 // Tipos que vale fazer extração completa de dados
 const TIPOS_ESSENCIAIS = new Set([
-  'rg', 'cnh', 'cpf', 'comprovante_endereco', 'certidao_casamento', 'extrato_fgts',
+  'rg', 'cnh', 'cpf', 'comprovante_endereco', 'certidao_casamento', 'certidao_nascimento', 'extrato_fgts',
 ])
 
 // Prompt mínimo só para classificar o tipo do documento
 const SYSTEM_PROMPT_CLASSIFICAR = `Você é um classificador de documentos brasileiros.
 Analise o documento e responda SOMENTE com JSON válido, sem markdown, sem explicação.
-{"tipo_documento":"rg|cnh|cpf|comprovante_endereco|comprovante_renda|extrato_fgts|extrato_bancario|certidao_casamento|outro","confianca":"alta|media|baixa"}`
+{"tipo_documento":"rg|cnh|cpf|comprovante_endereco|comprovante_renda|extrato_fgts|extrato_bancario|certidao_casamento|certidao_nascimento|outro","confianca":"alta|media|baixa"}`
 
 function serviceSupabase() {
   return createClient(
