@@ -236,12 +236,15 @@ export async function processarOcrDocumento(
     }
 
     // ── Fase 1: classificação rápida ──────────────────────────────
-    const resClassificacao = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 120,
-      system: SYSTEM_PROMPT_CLASSIFICAR,
-      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Que tipo de documento é este?' }] }],
-    })
+    const resClassificacao = await anthropic.messages.create(
+      {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 120,
+        system: SYSTEM_PROMPT_CLASSIFICAR,
+        messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Que tipo de documento é este?' }] }],
+      },
+      { signal: AbortSignal.timeout(45000) },
+    )
 
     const blocoClass = resClassificacao.content[0]
     if (blocoClass?.type !== 'text') throw new Error('Resposta inesperada na classificação')
@@ -270,12 +273,15 @@ export async function processarOcrDocumento(
     }
 
     // ── Fase 2: extração completa (só para tipos essenciais) ──────
-    const resExtracao = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extraia os dados deste documento.' }] }],
-    })
+    const resExtracao = await anthropic.messages.create(
+      {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extraia os dados deste documento.' }] }],
+      },
+      { signal: AbortSignal.timeout(55000) },
+    )
 
     const blocoExt = resExtracao.content[0]
     if (blocoExt?.type !== 'text') throw new Error('Resposta inesperada na extração')

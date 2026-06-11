@@ -293,17 +293,21 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   }
 
   function BadgeOcr({ doc }: { doc: DocumentoCliente }) {
-    if (doc.ocr_status === 'ignorado' && doc.mime_type?.startsWith('image/')) {
-      return (
-        <button
-          onClick={() => handleRetryOcr(doc.id)}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
-          title="Clique para tentar extrair dados deste documento"
-        >
-          <Sparkles className="h-3 w-3" />
-          Extrair dados
-        </button>
-      )
+    if (doc.ocr_status === 'ignorado') {
+      const ext = doc.nome_original.split('.').pop()?.toLowerCase() ?? ''
+      const isImage = doc.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+      if (isImage) {
+        return (
+          <button
+            onClick={() => handleRetryOcr(doc.id)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
+            title="Clique para tentar extrair dados deste documento"
+          >
+            <Sparkles className="h-3 w-3" />
+            Extrair dados
+          </button>
+        )
+      }
     }
     if (doc.ocr_status === 'aguardando_apuracao') {
       return (
