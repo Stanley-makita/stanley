@@ -893,12 +893,16 @@ export async function processarComandoFonti(
       )
     }
 
-    // Dispara OCR nos docs recém-vinculados
+    // Dispara OCR nos docs recém-vinculados (sequencial, máx 10)
     if (docsAtualizaIds.length > 0) {
+      const LIMITE_OCR_AUTO = 10
+      const idsParaOcr = docsAtualizaIds.slice(0, LIMITE_OCR_AUTO)
       import('@/lib/documentos/ocr').then(({ processarOcrDocumento }) => {
-        for (const id of docsAtualizaIds) {
-          processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
-        }
+        ;(async () => {
+          for (const id of idsParaOcr) {
+            await processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
+          }
+        })()
       }).catch(console.error)
     }
 
@@ -1047,12 +1051,16 @@ export async function processarComandoFonti(
       )
       if (marcaAt) await limparMarca(supabase, empresa_id, telefoneConversa)
 
-      // Dispara OCR nos docs recém-vinculados (async, não bloqueia a resposta)
+      // Dispara OCR nos docs recém-vinculados (sequencial, máx 10)
       if (docsIds.length > 0) {
+        const LIMITE_OCR_AUTO = 10
+        const idsParaOcr = docsIds.slice(0, LIMITE_OCR_AUTO)
         import('@/lib/documentos/ocr').then(({ processarOcrDocumento }) => {
-          for (const id of docsIds) {
-            processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
-          }
+          ;(async () => {
+            for (const id of idsParaOcr) {
+              await processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
+            }
+          })()
         }).catch(console.error)
       }
 

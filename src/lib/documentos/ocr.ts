@@ -154,11 +154,44 @@ Regras para extrato FGTS:
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 const TIPOS_IMAGEM: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
+// Tipos que vale fazer extração completa de dados
+const TIPOS_ESSENCIAIS = new Set([
+  'rg', 'cnh', 'cpf', 'comprovante_endereco', 'certidao_casamento', 'extrato_fgts',
+])
+
+// Prompt mínimo só para classificar o tipo do documento
+const SYSTEM_PROMPT_CLASSIFICAR = `Você é um classificador de documentos brasileiros.
+Analise o documento e responda SOMENTE com JSON válido, sem markdown, sem explicação.
+{"tipo_documento":"rg|cnh|cpf|comprovante_endereco|comprovante_renda|extrato_fgts|certidao_casamento|outro","confianca":"alta|media|baixa"}`
+
 function serviceSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
+}
+
+function montarContentBlock(
+  base64: string,
+  mimeType: string,
+): Anthropic.Messages.ContentBlockParam | null {
+  if (TIPOS_IMAGEM.includes(mimeType as ImageMediaType)) {
+    return {
+      type: 'image',
+      source: { type: 'base64', media_type: mimeType as ImageMediaType, data: base64 },
+    }
+  }
+  if (mimeType === 'application/pdf') {
+    return {
+      type: 'document',
+      source: { type: 'base64', media_type: 'application/pdf', data: base64 },
+    } as unknown as Anthropic.Messages.ContentBlockParam
+  }
+  return null
+}
+
+function limparJson(texto: string): string {
+  return texto.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
 }
 
 export async function processarOcrDocumento(
@@ -168,7 +201,6 @@ export async function processarOcrDocumento(
 ): Promise<void> {
   const supabase = serviceSupabase()
 
-  // Busca e valida o documento
   const { data: doc } = await supabase
     .from('documentos_clientes')
     .select('id, storage_path, storage_bucket, mime_type, ocr_status, pessoa_id')
@@ -178,75 +210,66 @@ export async function processarOcrDocumento(
 
   if (!doc || (doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro')) return
 
-  // Marca como processando
   await supabase.from('documentos_clientes')
     .update({ ocr_status: 'processando' })
     .eq('id', documentoId)
 
   try {
-    // Gera URL assinada e baixa o arquivo
+    // Download único — reutilizado nas duas fases
     const { data: urlData } = await supabase.storage
       .from(doc.storage_bucket ?? 'documentos-clientes')
-      .createSignedUrl(doc.storage_path, 60)
+      .createSignedUrl(doc.storage_path, 120)
 
     if (!urlData?.signedUrl) throw new Error('Não foi possível gerar URL do documento')
 
     const resp = await fetch(urlData.signedUrl, { signal: AbortSignal.timeout(30000) })
     if (!resp.ok) throw new Error(`Download falhou: ${resp.status}`)
 
-    const buffer = await resp.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
+    const base64 = Buffer.from(await resp.arrayBuffer()).toString('base64')
     const mimeType = doc.mime_type ?? 'image/jpeg'
 
-    // Monta o content block correto para Claude
-    let contentBlock: Anthropic.Messages.ContentBlockParam
-    if (TIPOS_IMAGEM.includes(mimeType as ImageMediaType)) {
-      contentBlock = {
-        type: 'image',
-        source: { type: 'base64', media_type: mimeType as ImageMediaType, data: base64 },
-      }
-    } else if (mimeType === 'application/pdf') {
-      contentBlock = {
-        type: 'document',
-        source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-      } as unknown as Anthropic.Messages.ContentBlockParam
-    } else {
-      // Tipo não suportado
-      await supabase.from('documentos_clientes')
-        .update({ ocr_status: 'ignorado' })
-        .eq('id', documentoId)
+    const contentBlock = montarContentBlock(base64, mimeType)
+    if (!contentBlock) {
+      await supabase.from('documentos_clientes').update({ ocr_status: 'ignorado' }).eq('id', documentoId)
       return
     }
 
-    const response = await anthropic.messages.create({
+    // ── Fase 1: classificação rápida ──────────────────────────────
+    const resClassificacao = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 120,
+      system: SYSTEM_PROMPT_CLASSIFICAR,
+      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Que tipo de documento é este?' }] }],
+    })
+
+    const blocoClass = resClassificacao.content[0]
+    if (blocoClass?.type !== 'text') throw new Error('Resposta inesperada na classificação')
+
+    const classificacao = JSON.parse(limparJson(blocoClass.text)) as { tipo_documento: string; confianca: string }
+    const tipo = classificacao.tipo_documento
+
+    // Não é documento essencial — ignora sem extração
+    if (!TIPOS_ESSENCIAIS.has(tipo)) {
+      await supabase.from('documentos_clientes').update({
+        ocr_status: 'ignorado',
+        classificacao: tipo === 'outro' ? null : tipo,
+      }).eq('id', documentoId)
+      console.log('[ocr] Classificado como não-essencial, ignorado:', documentoId, '| tipo:', tipo)
+      return
+    }
+
+    // ── Fase 2: extração completa (só para tipos essenciais) ──────
+    const resExtracao = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extraia os dados deste documento.' }] }],
     })
 
-    const bloco = response.content[0]
-    if (bloco?.type !== 'text') throw new Error('Resposta inesperada do Claude')
+    const blocoExt = resExtracao.content[0]
+    if (blocoExt?.type !== 'text') throw new Error('Resposta inesperada na extração')
 
-    const jsonText = bloco.text.trim()
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```$/, '')
-
-    const resultado = JSON.parse(jsonText) as OcrResultado
-
-    const TIPOS_COM_DADOS = new Set([
-      'rg', 'cnh', 'comprovante_endereco', 'comprovante_renda',
-      'certidao_casamento', 'extrato_fgts',
-    ])
-
-    if (!TIPOS_COM_DADOS.has(resultado.tipo_documento)) {
-      await supabase.from('documentos_clientes').update({
-        ocr_status: 'ignorado',
-        classificacao: resultado.tipo_documento,
-      }).eq('id', documentoId)
-      console.log('[ocr] Tipo sem dados estruturados, ignorado:', documentoId, '| tipo:', resultado.tipo_documento)
-      return
-    }
+    const resultado = JSON.parse(limparJson(blocoExt.text)) as OcrResultado
 
     await supabase.from('documentos_clientes').update({
       ocr_status: 'concluido',
