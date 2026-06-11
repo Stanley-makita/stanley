@@ -19,10 +19,11 @@ import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRe
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
 import { ApuracaoRendaModal } from '@/components/documentos/ApuracaoRendaModal'
+import { ExtracaoDadosModal } from '@/components/documentos/ExtracaoDadosModal'
 import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
 
 const BUCKET = 'documentos-clientes'
-const LIMITE_ARQUIVOS_UPLOAD = 10
+const LIMITE_ARQUIVOS_UPLOAD = 30
 
 const TIPOS_DOCUMENTO = [
   { value: 'auto',                  label: 'Detectar automaticamente' },
@@ -74,6 +75,8 @@ export function AbaDocumentos({ processoId }: Props) {
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
   const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
   const [analiseAberta, setAnaliseAberta] = useState(false)
+  const [extracaoAberta, setExtracaoAberta] = useState(false)
+  const [extrairAposUpload, setExtrairAposUpload] = useState(true)
 
   const { ultima: ultimaApuracao } = useApuracaoRenda({ processoId })
   const queryKey = ['documentos-processo', processoId]
@@ -181,7 +184,13 @@ export function AbaDocumentos({ processoId }: Props) {
         pessoa_id:      pessoaId,
         lead_id:        null,
         nome_original:  arquivo.name,
-        mime_type:      arquivo.type || null,
+        mime_type:      (() => {
+          const raw = arquivo.type || ''
+          const fileExt = arquivo.name.split('.').pop()?.toLowerCase() ?? ''
+          return raw === 'image/jpg' ? 'image/jpeg'
+            : !raw && (fileExt === 'jpg' || fileExt === 'jpeg') ? 'image/jpeg'
+            : raw || null
+        })(),
         tamanho_bytes:  arquivo.size,
         storage_bucket: BUCKET,
         storage_path:   storagePath,
@@ -197,7 +206,7 @@ export function AbaDocumentos({ processoId }: Props) {
       throw new Error(dbError.message)
     }
 
-    if (docInserido?.id && token) {
+    if (docInserido?.id && token && extrairAposUpload) {
       fetch(`/api/documentos/${docInserido.id}/ocr-iniciar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -299,38 +308,13 @@ export function AbaDocumentos({ processoId }: Props) {
   }
 
   function BadgeOcr({ doc }: { doc: DocumentoCliente }) {
+    const ext = doc.nome_original.split('.').pop()?.toLowerCase() ?? ''
+    const isImage = doc.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+
     if (doc.ocr_status === 'aguardando_apuracao') {
       return (
         <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
           Aguardando análise
-        </span>
-      )
-    }
-    if (doc.ocr_status === 'erro') {
-      return (
-        <button
-          onClick={() => handleRetryOcr(doc.id)}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
-          title="Clique para retentar o OCR"
-        >
-          <AlertCircle className="h-3 w-3" />
-          Erro OCR — Retentar
-        </button>
-      )
-    }
-    if (doc.classificacao === 'auto' && (doc.ocr_status === 'pendente' || doc.ocr_status === 'processando')) {
-      return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Classificando...
-        </span>
-      )
-    }
-    if (doc.classificacao !== 'auto' && doc.ocr_status === 'processando') {
-      return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Processando...
         </span>
       )
     }
@@ -346,7 +330,7 @@ export function AbaDocumentos({ processoId }: Props) {
         </button>
       )
     }
-    if (doc.ocr_status === 'concluido' && doc.classificacao !== 'extrato_fgts') {
+    if (doc.ocr_status === 'concluido') {
       return (
         <button
           onClick={() => setDocOcrRevisao(doc)}
@@ -354,8 +338,52 @@ export function AbaDocumentos({ processoId }: Props) {
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
         >
           <Sparkles className="h-3 w-3" />
-          Revisar
+          Revisar dados extraídos
         </button>
+      )
+    }
+    if (doc.ocr_status === 'erro') {
+      return (
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
+          title="Clique para tentar novamente"
+        >
+          <AlertCircle className="h-3 w-3" />
+          Erro na leitura — Tentar novamente
+        </button>
+      )
+    }
+    if (doc.ocr_status === 'processando') {
+      return (
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
+          title="Lendo documento. Clique para forçar nova tentativa se estiver preso"
+        >
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Lendo documento...
+        </button>
+      )
+    }
+    if (isImage && (doc.ocr_status === 'pendente' || doc.ocr_status === 'ignorado' || !doc.ocr_status)) {
+      return (
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
+          title="Clique para extrair dados deste documento"
+        >
+          <Sparkles className="h-3 w-3" />
+          Extrair dados
+        </button>
+      )
+    }
+    if (doc.ocr_status === 'pendente') {
+      return (
+        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Aguardando leitura...
+        </span>
       )
     }
     return null
@@ -386,6 +414,21 @@ export function AbaDocumentos({ processoId }: Props) {
           onChange={handleArquivoSelecionado}
         />
       </div>
+
+      {(() => {
+        const pendentes = documentos.filter(d => d.ocr_status === 'pendente' || d.ocr_status === 'ignorado')
+        return pendentes.length > 0 ? (
+          <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-amber-800">
+              {pendentes.length} documento{pendentes.length !== 1 ? 's' : ''} aguardando extração de dados
+            </span>
+            <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-100 h-7 text-xs shrink-0" onClick={() => setExtracaoAberta(true)}>
+              <Sparkles className="h-3 w-3 mr-1" />
+              Extrair dados
+            </Button>
+          </div>
+        ) : null
+      })()}
 
       {documentos.some(d => d.classificacao === 'extrato_bancario') && (
         <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex items-center justify-between gap-3">
@@ -511,6 +554,13 @@ export function AbaDocumentos({ processoId }: Props) {
         />
       )}
 
+      <ExtracaoDadosModal
+        open={extracaoAberta}
+        onClose={() => setExtracaoAberta(false)}
+        documentos={documentos}
+        onAtualizado={() => queryClient.invalidateQueries({ queryKey })}
+      />
+
       <ApuracaoRendaModal
         open={analiseAberta}
         onClose={() => setAnaliseAberta(false)}
@@ -557,6 +607,19 @@ export function AbaDocumentos({ processoId }: Props) {
                 </div>
               )
             })}
+          </div>
+
+          <div className="px-6 py-3 border-t border-gray-100 shrink-0">
+            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={extrairAposUpload}
+                onChange={e => setExtrairAposUpload(e.target.checked)}
+                disabled={fazendoUpload}
+                className="rounded"
+              />
+              Tentar extrair dados automaticamente após o upload
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">

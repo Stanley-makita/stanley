@@ -19,13 +19,14 @@ import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRe
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
 import { ApuracaoRendaModal } from '@/components/documentos/ApuracaoRendaModal'
+import { ExtracaoDadosModal } from '@/components/documentos/ExtracaoDadosModal'
 import { OcrEnriquecimentoCard } from '@/components/leads/OcrEnriquecimentoCard'
 import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModal'
 import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
 import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
 
 const BUCKET = 'documentos-clientes'
-const LIMITE_ARQUIVOS_UPLOAD = 10
+const LIMITE_ARQUIVOS_UPLOAD = 30
 
 const TIPOS_DOCUMENTO = [
   { value: 'auto',                  label: 'Detectar automaticamente' },
@@ -77,6 +78,8 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
   const [ocrModalAberto, setOcrModalAberto] = useState(false)
   const [analiseAberta, setAnaliseAberta] = useState(false)
+  const [extracaoAberta, setExtracaoAberta] = useState(false)
+  const [extrairAposUpload, setExtrairAposUpload] = useState(true)
 
   const ocrSugestoes = useOcrSugestoes(leadId)
   const { ultima: ultimaApuracao } = useApuracaoRenda({ leadId })
@@ -212,7 +215,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       throw new Error(dbError.message)
     }
 
-    if (docInserido?.id && token) {
+    if (docInserido?.id && token && extrairAposUpload) {
       fetch(`/api/documentos/${docInserido.id}/ocr-iniciar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -324,7 +327,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
         >
           <Sparkles className="h-3 w-3" />
-          Revisar
+          Revisar dados extraídos
         </button>
       )
     }
@@ -335,10 +338,10 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         <button
           onClick={() => handleRetryOcr(doc.id)}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
-          title="Clique para retentar o OCR"
+          title="Clique para tentar novamente"
         >
           <AlertCircle className="h-3 w-3" />
-          Erro OCR — Retentar
+          Erro na leitura — Tentar novamente
         </button>
       )
     }
@@ -349,10 +352,10 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         <button
           onClick={() => handleRetryOcr(doc.id)}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
-          title="Processando. Clique para forçar nova tentativa se estiver preso"
+          title="Lendo documento. Clique para forçar nova tentativa se estiver preso"
         >
           <Loader2 className="h-3 w-3 animate-spin" />
-          Processando...
+          Lendo documento...
         </button>
       )
     }
@@ -373,12 +376,12 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       }
     }
 
-    // PDF/outros em pendente com classificacao auto → spinner
+    // PDF/outros em pendente → aguardando leitura
     if (doc.ocr_status === 'pendente') {
       return (
         <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
           <Loader2 className="h-3 w-3 animate-spin" />
-          Classificando...
+          Aguardando leitura...
         </span>
       )
     }
@@ -413,6 +416,21 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
       </div>
 
       <OcrEnriquecimentoCard sugestoes={ocrSugestoes} onAbrir={() => setOcrModalAberto(true)} />
+
+      {(() => {
+        const pendentes = documentos.filter(d => d.ocr_status === 'pendente' || d.ocr_status === 'ignorado')
+        return pendentes.length > 0 ? (
+          <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-amber-800">
+              {pendentes.length} documento{pendentes.length !== 1 ? 's' : ''} aguardando extração de dados
+            </span>
+            <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-100 h-7 text-xs shrink-0" onClick={() => setExtracaoAberta(true)}>
+              <Sparkles className="h-3 w-3 mr-1" />
+              Extrair dados
+            </Button>
+          </div>
+        ) : null
+      })()}
 
       {documentos.some(d => d.classificacao === 'extrato_bancario') && (
         <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex items-center justify-between gap-3">
@@ -517,6 +535,13 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         onFechar={() => setOcrModalAberto(false)}
       />
 
+      <ExtracaoDadosModal
+        open={extracaoAberta}
+        onClose={() => setExtracaoAberta(false)}
+        documentos={documentos}
+        onAtualizado={() => queryClient.invalidateQueries({ queryKey })}
+      />
+
       <ApuracaoRendaModal
         open={analiseAberta}
         onClose={() => setAnaliseAberta(false)}
@@ -592,6 +617,19 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                 </div>
               )
             })}
+          </div>
+
+          <div className="px-6 py-3 border-t border-gray-100 shrink-0">
+            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={extrairAposUpload}
+                onChange={e => setExtrairAposUpload(e.target.checked)}
+                disabled={fazendoUpload}
+                className="rounded"
+              />
+              Tentar extrair dados automaticamente após o upload
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
