@@ -176,7 +176,7 @@ export async function processarOcrDocumento(
     .eq('empresa_id', empresa_id)
     .maybeSingle()
 
-  if (!doc || doc.ocr_status !== 'pendente') return
+  if (!doc || (doc.ocr_status !== 'pendente' && doc.ocr_status !== 'erro')) return
 
   // Marca como processando
   await supabase.from('documentos_clientes')
@@ -220,7 +220,7 @@ export async function processarOcrDocumento(
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 700,
+      max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extraia os dados deste documento.' }] }],
     })

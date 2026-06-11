@@ -254,6 +254,27 @@ export function AbaDocumentos({ processoId }: Props) {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  async function handleRetryOcr(docId: string) {
+    const { data: session } = await supabase.auth.getSession()
+    const token = session.session?.access_token
+    if (!token) return
+    toast.info('Retentando OCR...')
+    try {
+      const res = await fetch(`/api/documentos/${docId}/ocr-iniciar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey })
+      } else {
+        const json = await res.json().catch(() => ({}))
+        toast.error(json.error ?? 'Erro ao retentar OCR')
+      }
+    } catch {
+      toast.error('Erro ao retentar OCR')
+    }
+  }
+
   async function handleDownload(doc: DocumentoCliente) {
     const url = await gerarSignedUrl(doc.storage_path)
     if (!url) { toast.error('Não foi possível baixar o documento.'); return }
@@ -287,10 +308,14 @@ export function AbaDocumentos({ processoId }: Props) {
     }
     if (doc.ocr_status === 'erro') {
       return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200">
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
+          title="Clique para retentar o OCR"
+        >
           <AlertCircle className="h-3 w-3" />
-          Erro OCR
-        </span>
+          Erro OCR — Retentar
+        </button>
       )
     }
     if (doc.classificacao === 'auto' && (doc.ocr_status === 'pendente' || doc.ocr_status === 'processando')) {
