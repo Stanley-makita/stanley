@@ -58,18 +58,19 @@ export function useBuscaGlobal() {
             .or(`nome.ilike.${q},telefone.ilike.${q},cpf.ilike.${q}`)
             .limit(10),
 
-          // Pessoas por nome ou cpf (sem filtro de status — registro permanente)
+          // Pessoas ativas por nome ou cpf
           supabase
             .from('pessoas')
             .select('id, nome, cpf, email, pessoa_telefones!inner(telefone, principal, ativo)')
             .eq('empresa_id', empresa)
+            .is('deleted_at', null)
             .or(`nome.ilike.${q},cpf.ilike.${q}`)
             .limit(5),
 
           // Pessoas por telefone (busca separada para suportar OR cross-table)
           supabase
             .from('pessoa_telefones')
-            .select('pessoa_id, telefone, pessoas!inner(id, nome, cpf, email)')
+            .select('pessoa_id, telefone, pessoas!inner(id, nome, cpf, email, deleted_at)')
             .eq('empresa_id', empresa)
             .eq('ativo', true)
             .ilike('telefone', q)
@@ -120,7 +121,7 @@ export function useBuscaGlobal() {
 
         for (const row of (telData ?? []) as any[]) {
           const p = Array.isArray(row.pessoas) ? row.pessoas[0] : row.pessoas
-          if (!p || pessoaMap.has(p.id)) continue
+          if (!p || p.deleted_at || pessoaMap.has(p.id)) continue
           pessoaMap.set(p.id, {
             tipo:      'pessoa' as const,
             id:        p.id,
