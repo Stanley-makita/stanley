@@ -491,7 +491,7 @@ export function AbaDocumentos({ processoId }: Props) {
         onClose={() => setAnaliseAberta(false)}
         leadId={null}
         processoId={processoId}
-        documentos={documentos.filter(d => d.classificacao === 'extrato_bancario')}
+        documentos={documentos}
         ultimaApuracao={ultimaApuracao}
       />
 

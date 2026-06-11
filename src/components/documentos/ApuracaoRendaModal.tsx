@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Loader2, TrendingUp, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, TrendingUp, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { ApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
@@ -29,7 +29,7 @@ interface Props {
   ultimaApuracao: ApuracaoRenda | null
 }
 
-type Estado = 'preview' | 'analisando' | 'resultado'
+type Estado = 'qualificando' | 'preview' | 'analisando' | 'resultado'
 
 const LABEL_IDENTIFICACAO: Record<string, string> = {
   possivel_salario:        'Possível salário',
@@ -97,17 +97,30 @@ export function ApuracaoRendaModal({
   open, onClose, leadId, processoId, documentos, ultimaApuracao,
 }: Props) {
   const queryClient = useQueryClient()
-  const [estado, setEstado] = useState<Estado>(ultimaApuracao ? 'resultado' : 'preview')
+  const [estado, setEstado] = useState<Estado>(ultimaApuracao ? 'resultado' : 'qualificando')
   const [apuracaoAtual, setApuracaoAtual] = useState<ApuracaoRenda | null>(ultimaApuracao)
   const [confirmarRendaAberto, setConfirmarRendaAberto] = useState(false)
   const [campoRenda, setCampoRenda] = useState<'renda_formal' | 'renda_informal'>('renda_formal')
   const [salvandoStatus, setSalvandoStatus] = useState(false)
   const [salvandoRenda, setSalvandoRenda] = useState(false)
   const [mostrarLancamentos, setMostrarLancamentos] = useState(false)
+  const [selecionados, setSelecionados] = useState<Set<string>>(
+    () => new Set(documentos.filter(d => d.classificacao === 'extrato_bancario').map(d => d.id))
+  )
 
-  const extratosBancarios = documentos.filter(d => d.classificacao === 'extrato_bancario')
+  function toggleDoc(id: string) {
+    setSelecionados(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   async function handleAnalisar() {
+    if (selecionados.size === 0) {
+      toast.error('Selecione ao menos um documento para analisar.')
+      return
+    }
     setEstado('analisando')
     try {
       const { data: session } = await supabase.auth.getSession()
@@ -119,7 +132,8 @@ export function ApuracaoRendaModal({
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ documento_ids: Array.from(selecionados) }),
       })
 
       const json = await res.json()
@@ -198,7 +212,7 @@ export function ApuracaoRendaModal({
   }
 
   function handleFechar() {
-    setEstado(ultimaApuracao ? 'resultado' : 'preview')
+    setEstado(ultimaApuracao ? 'resultado' : 'qualificando')
     setMostrarLancamentos(false)
     onClose()
   }
@@ -216,20 +230,35 @@ export function ApuracaoRendaModal({
             </DialogTitle>
           </DialogHeader>
 
-          {/* ── ESTADO: preview ─────────────────────────────────────── */}
-          {estado === 'preview' && (
+          {/* ── ESTADO: qualificando ────────────────────────────────── */}
+          {estado === 'qualificando' && (
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                {extratosBancarios.length} extrato{extratosBancarios.length !== 1 ? 's' : ''} bancário{extratosBancarios.length !== 1 ? 's' : ''} pronto{extratosBancarios.length !== 1 ? 's' : ''} para análise:
+                Selecione os documentos que são extratos bancários para análise de renda:
               </p>
-              <ul className="space-y-1">
-                {extratosBancarios.map(doc => (
-                  <li key={doc.id} className="flex items-center gap-2 text-sm text-gray-700">
-                    <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0" />
-                    {doc.nome_original}
-                  </li>
-                ))}
-              </ul>
+              {documentos.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">Nenhum documento anexado.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {documentos.map(doc => (
+                    <li key={doc.id}>
+                      <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(doc.id)}
+                          onChange={() => toggleDoc(doc.id)}
+                          className="h-4 w-4 accent-gray-800 shrink-0"
+                        />
+                        <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                        <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{doc.nome_original}</span>
+                        {doc.classificacao === 'extrato_bancario' && (
+                          <span className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 shrink-0">extrato</span>
+                        )}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {ultimaApuracao && (
                 <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm">
                   <p className="font-medium text-blue-800">Última análise: {format(new Date(ultimaApuracao.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
@@ -246,8 +275,8 @@ export function ApuracaoRendaModal({
                     Ver resultado anterior
                   </Button>
                 )}
-                <Button onClick={handleAnalisar}>
-                  {ultimaApuracao ? 'Reanalisar' : 'Analisar Extratos'}
+                <Button onClick={handleAnalisar} disabled={selecionados.size === 0}>
+                  {ultimaApuracao ? `Reanalisar (${selecionados.size})` : `Analisar Extratos (${selecionados.size})`}
                 </Button>
               </div>
             </div>
@@ -457,7 +486,7 @@ export function ApuracaoRendaModal({
               {/* Footer */}
               <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                 <div className="flex gap-2">
-                  <Button variant="ghost" onClick={() => setEstado('preview')}>Reanalisar</Button>
+                  <Button variant="ghost" onClick={() => setEstado('qualificando')}>Reanalisar</Button>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={handleFechar}>Fechar</Button>

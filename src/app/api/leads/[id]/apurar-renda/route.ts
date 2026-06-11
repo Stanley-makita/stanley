@@ -39,14 +39,24 @@ export async function POST(
 
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
 
-  // Busca todos os extratos bancários do lead
-  const { data: documentos } = await supabase
+  // Aceita lista explícita de IDs (seleção manual) ou fallback por classificação
+  const body = await request.json().catch(() => ({}))
+  const documentoIds: string[] | undefined = Array.isArray(body?.documento_ids) ? body.documento_ids : undefined
+
+  let query = supabase
     .from('documentos_clientes')
     .select('id, nome_original, storage_path, storage_bucket, mime_type')
     .eq('lead_id', leadId)
     .eq('empresa_id', empresa_id)
-    .eq('classificacao', 'extrato_bancario')
     .is('deleted_at', null)
+
+  if (documentoIds?.length) {
+    query = query.in('id', documentoIds)
+  } else {
+    query = query.eq('classificacao', 'extrato_bancario')
+  }
+
+  const { data: documentos } = await query
 
   if (!documentos?.length) {
     return NextResponse.json({ error: 'Nenhum extrato bancário encontrado para este lead' }, { status: 400 })
