@@ -249,9 +249,22 @@ export function CompletarDadosPessoaDrawer({
         await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
       }
 
-      // 1. Atualizar pessoas
-      const { error } = await supabase.from('pessoas').update(payload).eq('id', pessoaId)
+      // 1. Atualizar pessoas — CPF separado para não bloquear em caso de conflito UNIQUE
+      const payloadSemCpf = { ...payload }
+      delete (payloadSemCpf as Record<string, unknown>)['cpf']
+      delete (payloadSemCpf as Record<string, unknown>)['conjuge_cpf']
+
+      const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
+
+      if (payload.cpf) {
+        const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
+        if (errCpf) console.warn('[completar-dados] CPF não salvo (conflito):', errCpf.message)
+      }
+      if (payload.conjuge_cpf) {
+        const { error: errCpfC } = await supabase.from('pessoas').update({ conjuge_cpf: payload.conjuge_cpf }).eq('id', pessoaId)
+        if (errCpfC) console.warn('[completar-dados] CPF cônjuge não salvo (conflito):', errCpfC.message)
+      }
 
       // 2. Propagar para leads
       await supabase.from('leads').update({
