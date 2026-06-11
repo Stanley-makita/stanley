@@ -60,10 +60,7 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
     setEstado('selecionando')
     setResultados([])
     setProgresso({ atual: 0, total: 0 })
-    const presel = documentos
-      .filter(d => d.ocr_status === 'pendente' || d.ocr_status === 'ignorado')
-      .map(d => d.id)
-    setSelecionados(new Set(presel))
+    setSelecionados(new Set())
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleDoc(id: string) {
@@ -105,6 +102,9 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
         if (!res.ok && json.error === 'OCR já processado') {
           status = doc?.ocr_status ?? 'concluido'
           classificacao = doc?.classificacao ?? null
+        } else if (json.skipped && json.motivo) {
+          status = json.motivo
+          classificacao = null
         } else {
           status = json.ocr_status ?? (res.ok ? 'concluido' : 'erro')
           classificacao = json.classificacao ?? null

@@ -49,14 +49,6 @@ export async function POST(
     return NextResponse.json({ ok: true, skipped: true, motivo: 'aguardando_apuracao' })
   }
 
-  const TIPOS_COM_OCR = new Set(['cnh', 'rg', 'cpf', 'comprovante_endereco', 'certidao_casamento', 'certidao_nascimento', 'extrato_fgts', 'auto'])
-  if (classificacao && !TIPOS_COM_OCR.has(classificacao)) {
-    await supabase.from('documentos_clientes')
-      .update({ ocr_status: 'ignorado' })
-      .eq('id', documentoId)
-    return NextResponse.json({ ok: true, skipped: true })
-  }
-
   await processarOcrDocumento(supabase, documentoId, empresa_id)
 
   const { data: atualizado } = await supabase
