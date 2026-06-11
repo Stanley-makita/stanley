@@ -293,59 +293,15 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   }
 
   function BadgeOcr({ doc }: { doc: DocumentoCliente }) {
-    if (doc.ocr_status === 'ignorado') {
-      const ext = doc.nome_original.split('.').pop()?.toLowerCase() ?? ''
-      const isImage = doc.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
-      if (isImage) {
-        return (
-          <button
-            onClick={() => handleRetryOcr(doc.id)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
-            title="Clique para tentar extrair dados deste documento"
-          >
-            <Sparkles className="h-3 w-3" />
-            Extrair dados
-          </button>
-        )
-      }
-    }
+    const ext = doc.nome_original.split('.').pop()?.toLowerCase() ?? ''
+    const isImage = doc.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+
+    // Estados finais — mostrar ação apropriada
     if (doc.ocr_status === 'aguardando_apuracao') {
       return (
         <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
           Aguardando análise
         </span>
-      )
-    }
-    if (doc.ocr_status === 'erro') {
-      return (
-        <button
-          onClick={() => handleRetryOcr(doc.id)}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
-          title="Clique para retentar o OCR"
-        >
-          <AlertCircle className="h-3 w-3" />
-          Erro OCR — Retentar
-        </button>
-      )
-    }
-    if (doc.classificacao === 'auto' && (doc.ocr_status === 'pendente' || doc.ocr_status === 'processando')) {
-      return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Classificando...
-        </span>
-      )
-    }
-    if (doc.classificacao !== 'auto' && doc.ocr_status === 'processando') {
-      return (
-        <button
-          onClick={() => handleRetryOcr(doc.id)}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
-          title="Processando. Clique para forçar nova tentativa se estiver preso"
-        >
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Processando...
-        </button>
       )
     }
     if (doc.ocr_status === 'concluido' && doc.classificacao === 'extrato_fgts') {
@@ -360,7 +316,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         </button>
       )
     }
-    if (doc.ocr_status === 'concluido' && doc.classificacao !== 'extrato_fgts') {
+    if (doc.ocr_status === 'concluido') {
       return (
         <button
           onClick={() => setDocOcrRevisao(doc)}
@@ -372,6 +328,61 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         </button>
       )
     }
+
+    // Erro — sempre permite retry
+    if (doc.ocr_status === 'erro') {
+      return (
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
+          title="Clique para retentar o OCR"
+        >
+          <AlertCircle className="h-3 w-3" />
+          Erro OCR — Retentar
+        </button>
+      )
+    }
+
+    // Em processamento (com spinner)
+    if (doc.ocr_status === 'processando') {
+      return (
+        <button
+          onClick={() => handleRetryOcr(doc.id)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
+          title="Processando. Clique para forçar nova tentativa se estiver preso"
+        >
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Processando...
+        </button>
+      )
+    }
+
+    // Para imagens: qualquer outro estado (pendente, ignorado, null) → oferecer extração
+    if (isImage) {
+      if (doc.ocr_status === 'pendente' || doc.ocr_status === 'ignorado' || !doc.ocr_status) {
+        return (
+          <button
+            onClick={() => handleRetryOcr(doc.id)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors cursor-pointer"
+            title="Clique para extrair dados deste documento"
+          >
+            <Sparkles className="h-3 w-3" />
+            Extrair dados
+          </button>
+        )
+      }
+    }
+
+    // PDF/outros em pendente com classificacao auto → spinner
+    if (doc.ocr_status === 'pendente') {
+      return (
+        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Classificando...
+        </span>
+      )
+    }
+
     return null
   }
 

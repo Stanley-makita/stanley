@@ -208,7 +208,7 @@ export async function processarOcrDocumento(
     .eq('empresa_id', empresa_id)
     .maybeSingle()
 
-  if (!doc || !['pendente', 'erro', 'processando', 'ignorado'].includes(doc.ocr_status ?? '')) return
+  if (!doc || ['concluido', 'aguardando_apuracao'].includes(doc.ocr_status ?? '')) return
 
   await supabase.from('documentos_clientes')
     .update({ ocr_status: 'processando' })
