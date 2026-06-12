@@ -6,20 +6,21 @@ import { KanbanBoard } from '@/components/leads/KanbanBoard'
 import { LeadModal } from '@/components/leads/LeadModal'
 import { LeadListView } from '@/components/leads/LeadListView'
 import { LeadDetalheModal } from '@/components/leads/LeadDetalheModal'
+import { DashboardLeads } from '@/components/leads/DashboardLeads'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { UserPlus, LayoutGrid, List, Search } from 'lucide-react'
+import { UserPlus, LayoutGrid, List, Search, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type Visao = 'kanban' | 'lista'
+type Visao = 'dashboard' | 'kanban' | 'lista'
 
 function LeadsContent() {
   const { pode } = usePermissao()
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const [visao, setVisao] = useState<Visao>('kanban')
+  const [visao, setVisao] = useState<Visao>('dashboard')
   const [modalAberto, setModalAberto] = useState(false)
   const [faseIdNovo, setFaseIdNovo] = useState<string | undefined>()
   const [busca, setBusca] = useState('')
@@ -75,13 +76,25 @@ function LeadsContent() {
             </div>
           )}
 
-          {/* Toggle kanban / lista */}
+          {/* Toggle dashboard / kanban / lista */}
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setVisao('dashboard')}
+              title="Dashboard operacional"
+              className={cn(
+                'p-2 transition-colors',
+                visao === 'dashboard'
+                  ? 'bg-[#253B29] text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              )}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+            </button>
             <button
               onClick={() => setVisao('kanban')}
               title="Visão Kanban"
               className={cn(
-                'p-2 transition-colors',
+                'p-2 transition-colors border-l border-gray-200',
                 visao === 'kanban'
                   ? 'bg-[#253B29] text-white'
                   : 'bg-white text-gray-500 hover:bg-gray-50'
@@ -117,11 +130,15 @@ function LeadsContent() {
       </div>
 
       {/* Conteúdo */}
-      {visao === 'kanban' ? (
+      {visao === 'dashboard' && (
+        <DashboardLeads onAbrirLead={abrirDetalhe} />
+      )}
+      {visao === 'kanban' && (
         <div className="overflow-x-auto pb-4">
           <KanbanBoard onCriarLead={abrirModal} onAbrirLead={abrirDetalhe} />
         </div>
-      ) : (
+      )}
+      {visao === 'lista' && (
         <LeadListView
           busca={busca}
           faseId={faseIdFiltro}

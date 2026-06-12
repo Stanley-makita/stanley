@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { useAgendaBadge } from '@/hooks/useAgendaBadge'
+import { useLeadsBadge } from '@/hooks/leads/useLeadsBadge'
 
 const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
@@ -50,6 +51,7 @@ export function Sidebar() {
   const { data: usuario } = useUsuarioAtual()
   const { sair } = useAuth()
   const { data: agendaBadge = 0 } = useAgendaBadge()
+  const { data: leadsBadge = 0 } = useLeadsBadge()
 
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
@@ -71,20 +73,27 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItemsTop.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
+          const isLeads = href === '/leads'
           return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                active
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+            <div key={href} className="relative">
+              <Link
+                href={href}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </Link>
+              {isLeads && leadsBadge > 0 && (
+                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-[#C2AA6A] text-[#253B29] text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
+                  {leadsBadge > 99 ? '99+' : leadsBadge}
+                </span>
               )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
+            </div>
           )
         })}
 
