@@ -16,6 +16,7 @@ export function useLeadsPorFase(faseId: string) {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
+          responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor)
         `)
@@ -45,6 +46,7 @@ export function useLead(leadId: string) {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
+          responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor)
         `)
@@ -71,6 +73,7 @@ export function useLeadsTodos(faseId?: string, search?: string) {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
+          responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor)
         `)

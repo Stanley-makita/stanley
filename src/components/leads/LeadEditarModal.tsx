@@ -41,6 +41,7 @@ const schema = z.object({
   // CRM
   fase_id:        z.string().uuid(),
   responsavel_id: z.string().uuid().optional(),
+  responsavel_operacional_id: z.string().uuid().optional(),
   origem:         z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros', 'direto', 'corretor', 'imobiliaria', 'construtora', 'parceiro_comercial']),
   observacoes:    z.string().optional(),
 })
@@ -94,9 +95,10 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
         telefone:        data.telefone,
         email:           data.email || undefined,
         cpf:             data.cpf || undefined,
-        fase_id:         data.fase_id,
-        responsavel_id:  data.responsavel_id,
-        origem:          data.origem,
+        fase_id:                    data.fase_id,
+        responsavel_id:             data.responsavel_id,
+        responsavel_operacional_id: data.responsavel_operacional_id ?? null,
+        origem:                     data.origem,
         valor_pretendido: data.valor_pretendido ?? null,
         observacoes:     data.observacoes || null,
         // Campos novos: só enviados quando têm valor (undefined = ignorado pelo Supabase)
@@ -398,7 +400,24 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
 
                 <FormField control={form.control} name="responsavel_id" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Responsável <Opcional /></FormLabel>
+                    <FormLabel>Comercial <Opcional /></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Sem responsável" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {membros.map(m => (
+                          <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="responsavel_operacional_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Operacional <Opcional /></FormLabel>
                     <Select onValueChange={field.onChange} value={field.value ?? ''}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Sem responsável" /></SelectTrigger>
@@ -489,9 +508,10 @@ function leadToForm(lead: Lead): FormData {
     renda_informal:   lead.renda_informal ?? undefined,
     valor_pretendido: lead.valor_pretendido ?? undefined,
     produto_interesse: normalizarProduto(lead.produto_interesse),
-    fase_id:        lead.fase_id,
-    responsavel_id: lead.responsavel_id ?? undefined,
-    origem:         lead.origem,
+    fase_id:                    lead.fase_id,
+    responsavel_id:             lead.responsavel_id ?? undefined,
+    responsavel_operacional_id: lead.responsavel_operacional_id ?? undefined,
+    origem:                     lead.origem,
     observacoes:    lead.observacoes ?? '',
   }
 }

@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     cpf?: string
     fase_id: string
     responsavel_id?: string
+    responsavel_operacional_id?: string
     origem: Lead['origem']
     valor_pretendido?: number
     observacoes?: string
@@ -90,7 +91,8 @@ export async function POST(request: NextRequest) {
       email:            body.email?.trim()   || null,
       cpf:              body.cpf?.trim()     || null,
       fase_id,
-      responsavel_id:   body.responsavel_id  || null,
+      responsavel_id:            body.responsavel_id            || null,
+      responsavel_operacional_id: body.responsavel_operacional_id || null,
       origem,
       valor_pretendido: body.valor_pretendido ?? null,
       observacoes:      body.observacoes     || null,

@@ -50,6 +50,7 @@ export interface Lead {
   produto_interesse: ProdutoInteresse | null
   fase_id: string
   responsavel_id: string | null
+  responsavel_operacional_id: string | null
   pessoa_id: string | null
   origem: LeadOrigem
   valor_pretendido: number | null
@@ -74,6 +75,7 @@ export interface Lead {
   status_id: string | null
   // Joins
   responsavel?: { id: string; nome: string } | null
+  responsavel_operacional?: { id: string; nome: string } | null
   fase?: { id: string; nome: string; cor: string } | null
   status?: { id: string; nome: string; cor: string } | null
 }

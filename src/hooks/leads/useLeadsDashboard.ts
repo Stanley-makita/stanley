@@ -215,6 +215,7 @@ export function useLeadsInativos() {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
+          responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor)
         `)

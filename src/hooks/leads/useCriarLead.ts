@@ -12,6 +12,7 @@ interface CriarLeadInput {
   cpf?: string
   fase_id: string
   responsavel_id?: string
+  responsavel_operacional_id?: string
   origem: Lead['origem']
   valor_pretendido?: number
   observacoes?: string

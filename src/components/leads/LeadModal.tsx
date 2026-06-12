@@ -26,6 +26,7 @@ const schema = z.object({
   email: z.string().email('E-mail inválido').optional().or(z.literal('')),
   fase_id: z.string().uuid('Selecione uma fase'),
   responsavel_id: z.string().uuid().optional(),
+  responsavel_operacional_id: z.string().uuid().optional(),
   origem: z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros']),
   valor_pretendido: z.coerce.number().positive().optional(),
   observacoes: z.string().optional(),
@@ -72,6 +73,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
       await criarLead.mutateAsync({
         ...data,
         email: data.email || undefined,
+        responsavel_operacional_id: data.responsavel_operacional_id || undefined,
       })
       onFechar()
     } catch {
@@ -176,11 +178,30 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
               )} />
             </div>
 
-            {/* Responsável + Valor */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Responsáveis + Valor */}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <FormField control={form.control} name="responsavel_id" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Responsável <span className="text-gray-400 font-normal text-xs">(opcional)</span></FormLabel>
+                  <FormLabel>Comercial <span className="text-gray-400 font-normal text-xs">(opcional)</span></FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem responsável" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {membros.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="responsavel_operacional_id" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Operacional <span className="text-gray-400 font-normal text-xs">(opcional)</span></FormLabel>
                   <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl>
                       <SelectTrigger>

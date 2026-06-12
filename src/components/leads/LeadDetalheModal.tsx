@@ -10,7 +10,6 @@ import { AbaResumo } from './LeadDetalhe/AbaResumo'
 import { AbaNotas } from './LeadDetalhe/AbaNotas'
 import { AbaTarefas } from './LeadDetalhe/AbaTarefas'
 import { AbaProcessos } from './LeadDetalhe/AbaProcessos'
-import { AbaPipeline } from './LeadDetalhe/AbaPipeline'
 import { AbaSimulador } from './LeadDetalhe/AbaSimulador'
 import { AbaCredito } from './LeadDetalhe/AbaCredito'
 import { AbaDocumentos } from './LeadDetalhe/AbaDocumentos'
@@ -37,20 +36,9 @@ import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
+import { useConfigAbas } from '@/hooks/leads/useConfigAbas'
 
-type Aba = 'resumo' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
-
-const ABAS: { id: Aba; label: string }[] = [
-  { id: 'resumo',       label: 'Resumo' },
-  { id: 'credito',      label: 'Crédito' },
-  { id: 'formularios',  label: 'Formulários' },
-  { id: 'processos',    label: 'Processos' },
-  { id: 'pipeline',     label: 'Pipeline' },
-  { id: 'simulador',    label: 'Simulador' },
-  { id: 'solicitacoes', label: 'Solicitações' },
-  { id: 'historico',    label: 'Histórico' },
-  { id: 'documentos',   label: 'Documentos' },
-]
+type Aba = 'resumo' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
 function fmtMoeda(v: number | null) {
   if (v == null) return null
@@ -105,6 +93,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   const { data: fases = [] } = useFases('leads')
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
+  const abas = useConfigAbas()
 
   const contextoSolicitacao: ContextoSolicitacao | undefined = lead ? {
     nomeCliente: lead.nome,
@@ -340,10 +329,10 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
 
                 {/* Tab bar */}
                 <div className="flex border-b border-gray-100 bg-white px-1 shrink-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {ABAS.map((aba) => (
+                  {abas.map((aba) => (
                     <button
                       key={aba.id}
-                      onClick={() => setAbaAtiva(aba.id)}
+                      onClick={() => setAbaAtiva(aba.id as Aba)}
                       className={cn(
                         'px-4 py-3 text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap',
                         abaAtiva === aba.id
@@ -365,7 +354,6 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                   {abaAtiva === 'notas'        && <AbaNotas        leadId={lead.id} />}
                   {abaAtiva === 'tarefas'      && <AbaTarefas      leadId={lead.id} />}
                   {abaAtiva === 'processos'    && <AbaProcessos    leadId={lead.id} />}
-                  {abaAtiva === 'pipeline'     && <AbaPipeline     leadId={lead.id} />}
                   {abaAtiva === 'simulador'    && <AbaSimulador    leadId={lead.id} />}
                   {abaAtiva === 'solicitacoes' && (
                     <AbaSolicitacoes

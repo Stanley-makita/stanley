@@ -24,6 +24,7 @@ interface EditarLeadInput {
   renda_informal?: number | null
   produto_interesse?: Lead['produto_interesse'] | null
   responsavel_id?: string
+  responsavel_operacional_id?: string | null
   fase_id?: string
   origem?: Lead['origem']
   valor_pretendido?: number | null

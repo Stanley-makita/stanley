@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck, Bot } from 'lucide-react'
+import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck, Bot, LayoutTemplate } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
 import { ProdutosLista } from './_components/produtos/ProdutosLista'
@@ -9,6 +9,7 @@ import { SimuladorConfigTab } from './_components/simulador/SimuladorConfigTab'
 import { RegistrosImoveisLista } from './_components/registros-imoveis/RegistrosImoveisLista'
 import { ChecklistsConfig } from './_components/checklists/ChecklistsConfig'
 import { AgenteFontiConfig } from './_components/bot/AgenteFontiConfig'
+import { AbasConfigTab } from './_components/abas/AbasConfigTab'
 
 export default function ConfiguracoesPage() {
   return (
@@ -51,6 +52,9 @@ export default function ConfiguracoesPage() {
           </TabsTrigger>
           <TabsTrigger value="agente-fonti" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
             <Bot className="w-4 h-4 mr-1.5" /> Agente Fonti
+          </TabsTrigger>
+          <TabsTrigger value="abas-lead" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
+            <LayoutTemplate className="w-4 h-4 mr-1.5" /> Abas do Lead
           </TabsTrigger>
         </TabsList>
 
@@ -127,6 +131,16 @@ export default function ConfiguracoesPage() {
               Personalize o comportamento do assistente virtual no WhatsApp — nome, horário, produtos e mensagens.
             </p>
             <AgenteFontiConfig />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="abas-lead">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-medium text-gray-900 mb-1">Abas do Lead</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Defina a ordem das abas no modal de detalhe do lead. Apenas administradores podem alterar.
+            </p>
+            <AbasConfigTab />
           </div>
         </TabsContent>
       </Tabs>
