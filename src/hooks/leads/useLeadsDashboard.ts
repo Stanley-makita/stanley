@@ -169,7 +169,7 @@ export function useLeadsDashboardContagens() {
           .or(`ultimo_contato.lt.${seteAtrasStr},and(ultimo_contato.is.null,created_at.lt.${seteAtrasStr})`),
       ])
 
-      const creditoData = (leadsCredito.data ?? []) as Array<{ id: string; status: { nome: string } | null }>
+      const creditoData = (leadsCredito.data ?? []) as unknown as Array<{ id: string; status: { nome: string } | { nome: string }[] | null }>
       const inativosIds = (leadsInativosRes.data ?? []).map(r => r.id)
       const inativosReais = inativosIds.filter(id => !idsComTarefaFutura.has(id)).length
 
