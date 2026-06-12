@@ -70,9 +70,23 @@ export interface Lead {
   cidade_imovel: string | null
   renda_considerada: number | null
   status_analise: StatusAnalise
+  // Status configurável por fase
+  status_id: string | null
   // Joins
   responsavel?: { id: string; nome: string } | null
   fase?: { id: string; nome: string; cor: string } | null
+  status?: { id: string; nome: string; cor: string } | null
+}
+
+export interface FaseStatus {
+  id: string
+  fase_id: string
+  empresa_id: string
+  nome: string
+  cor: string
+  ordem: number
+  ativo: boolean
+  created_at: string
 }
 
 export interface LeadHistorico {
@@ -80,7 +94,7 @@ export interface LeadHistorico {
   lead_id: string
   empresa_id: string
   usuario_id: string
-  tipo: 'fase_mudanca' | 'criacao' | 'edicao' | 'comentario'
+  tipo: 'fase_mudanca' | 'criacao' | 'edicao' | 'comentario' | 'acao_operacional'
   fase_anterior_id: string | null
   fase_nova_id: string | null
   descricao: string | null

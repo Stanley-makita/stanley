@@ -16,7 +16,8 @@ export function useLeadsPorFase(faseId: string) {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
-          fase:fases!fase_id(id, nome, cor)
+          fase:fases!fase_id(id, nome, cor),
+          status:fase_statuses!status_id(id, nome, cor)
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .eq('fase_id', faseId)
@@ -44,7 +45,8 @@ export function useLead(leadId: string) {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
-          fase:fases!fase_id(id, nome, cor)
+          fase:fases!fase_id(id, nome, cor),
+          status:fase_statuses!status_id(id, nome, cor)
         `)
         .eq('id', leadId)
         .eq('empresa_id', usuario!.empresa_id)
@@ -69,7 +71,8 @@ export function useLeadsTodos(faseId?: string, search?: string) {
         .select(`
           *,
           responsavel:usuarios!responsavel_id(id, nome),
-          fase:fases!fase_id(id, nome, cor)
+          fase:fases!fase_id(id, nome, cor),
+          status:fase_statuses!status_id(id, nome, cor)
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)

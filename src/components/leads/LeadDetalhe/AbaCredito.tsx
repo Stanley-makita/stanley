@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
-import type { Lead } from '@/types/leads'
+import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
+import type { Lead, FaseStatus } from '@/types/leads'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -42,17 +43,6 @@ interface ParceiroVinculado {
 }
 
 // ── Constantes ────────────────────────────────────────────────
-
-const STATUS_ANALISE = [
-  { value: 'aguardando_documentos',  label: 'Aguardando Docs',  cls: 'bg-gray-100 text-gray-600 border-gray-300' },
-  { value: 'documentacao_recebida',  label: 'Docs Recebidos',   cls: 'bg-blue-50 text-blue-700 border-blue-300' },
-  { value: 'em_simulacao',           label: 'Em Simulação',     cls: 'bg-yellow-50 text-yellow-700 border-yellow-300' },
-  { value: 'em_analise_credito',     label: 'Em Análise',       cls: 'bg-orange-50 text-orange-700 border-orange-300' },
-  { value: 'pre_aprovado',           label: 'Pré-Aprovado',     cls: 'bg-teal-50 text-teal-700 border-teal-300' },
-  { value: 'aprovado',               label: 'Aprovado',         cls: 'bg-green-50 text-green-700 border-green-300' },
-  { value: 'reprovado',              label: 'Reprovado',        cls: 'bg-red-50 text-red-700 border-red-300' },
-  { value: 'convertido_em_processo', label: 'Em Processo',      cls: 'bg-purple-50 text-purple-700 border-purple-300' },
-]
 
 const BANCOS = [
   'Caixa Econômica Federal', 'Bradesco', 'Itaú', 'Santander', 'Banco do Brasil',
@@ -143,12 +133,8 @@ export function AbaCredito({ lead }: Props) {
   return (
     <div className="space-y-5">
 
-      {/* ── 1. Status da Análise ─────────────────────────── */}
-      <StatusAnalise
-        statusAtual={lead.status_analise ?? 'aguardando_documentos'}
-        onChange={(s) => editar.mutate({ id: lead.id, status_analise: s as Lead['status_analise'] })}
-        saving={editar.isPending}
-      />
+      {/* ── 1. Status da Fase (configurável) ─────────────── */}
+      <StatusFase lead={lead} saving={editar.isPending} />
 
       {/* ── 2. Dados do Cliente + Dados da Operação ──────── */}
       <div className="grid grid-cols-[55fr_45fr] gap-4">
@@ -173,40 +159,53 @@ export function AbaCredito({ lead }: Props) {
   )
 }
 
-// ── StatusAnalise ─────────────────────────────────────────────
+// ── StatusFase — status configurável via Configurações → Fases ─
 
-function StatusAnalise({
-  statusAtual, onChange, saving,
-}: {
-  statusAtual: string
-  onChange: (s: string) => void
-  saving: boolean
-}) {
-  const idx = STATUS_ANALISE.findIndex(s => s.value === statusAtual)
+function StatusFase({ lead, saving }: { lead: Lead; saving: boolean }) {
+  const editar = useEditarLead()
+  const { data: statuses = [], isLoading } = useFaseStatuses(lead.fase_id)
+
+  if (isLoading) return null
+
+  if (statuses.length === 0) {
+    return (
+      <div className="bg-white border border-gray-100 rounded-lg p-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Status da Fase</p>
+        <p className="text-xs text-gray-400 italic">
+          Nenhum status configurado para esta fase.{' '}
+          <a href="/configuracoes" className="text-[#C2AA6A] hover:underline">Configurar em Configurações → Fases</a>
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white border border-gray-100 rounded-lg p-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Status da Análise</p>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Status da Fase</p>
       <div className="flex flex-wrap gap-1.5">
-        {STATUS_ANALISE.map((s, i) => {
-          const isAtivo = s.value === statusAtual
-          const isPassado = i < idx
+        {statuses.map((s) => {
+          const isAtivo = s.id === lead.status_id
           return (
             <button
-              key={s.value}
-              onClick={() => onChange(s.value)}
-              disabled={saving}
+              key={s.id}
+              onClick={() => editar.mutate({ id: lead.id, status_id: s.id })}
+              disabled={saving || editar.isPending}
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-medium border transition-all',
                 isAtivo
-                  ? cn(s.cls, 'ring-2 ring-offset-1 ring-current')
-                  : isPassado
-                    ? 'bg-gray-50 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                  ? 'ring-2 ring-offset-1'
+                  : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
               )}
+              style={isAtivo ? {
+                backgroundColor: s.cor + '22',
+                borderColor: s.cor,
+                color: s.cor,
+                // @ts-ignore
+                '--tw-ring-color': s.cor,
+              } : undefined}
             >
               {isAtivo && <Check className="h-3 w-3 inline mr-1" />}
-              {s.label}
+              {s.nome}
             </button>
           )
         })}

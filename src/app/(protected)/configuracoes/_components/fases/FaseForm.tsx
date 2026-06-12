@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useCriarFase, useAtualizarFase, MODULOS_FASES } from '../../_hooks/useFases'
+import { FaseStatusesManager } from './FaseStatusesManager'
+import { FaseChecklistsManager } from './FaseChecklistsManager'
 import { toast } from 'sonner'
 import type { Fase } from '@/types/configuracoes'
 
@@ -36,6 +39,8 @@ interface FaseFormDrawerProps {
 export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads' }: FaseFormDrawerProps) {
   const criar    = useCriarFase()
   const atualizar = useAtualizarFase()
+  const [statusesAberto, setStatusesAberto] = useState(false)
+  const [checklistAberto, setChecklistAberto] = useState(false)
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -197,6 +202,45 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
             <Button type="button" variant="outline" onClick={onFechar}>Cancelar</Button>
           </DrawerFooter>
         </form>
+
+        {/* Seções adicionais — só mostram ao editar uma fase existente */}
+        {fase && (
+          <div className="border-t border-gray-100 px-6 py-4 space-y-3">
+            {/* Statuses */}
+            <div>
+              <button
+                type="button"
+                className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-gray-900 py-1"
+                onClick={() => setStatusesAberto((v) => !v)}
+              >
+                <span>Status desta fase</span>
+                {statusesAberto ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {statusesAberto && (
+                <div className="mt-2">
+                  <FaseStatusesManager faseId={fase.id} />
+                </div>
+              )}
+            </div>
+
+            {/* Checklist */}
+            <div>
+              <button
+                type="button"
+                className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-gray-900 py-1"
+                onClick={() => setChecklistAberto((v) => !v)}
+              >
+                <span>Checklist operacional</span>
+                {checklistAberto ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {checklistAberto && (
+                <div className="mt-2">
+                  <FaseChecklistsManager faseId={fase.id} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </DrawerContent>
     </Drawer>
   )

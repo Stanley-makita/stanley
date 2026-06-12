@@ -38,6 +38,7 @@ interface EditarLeadInput {
   cidade_imovel?: string | null
   renda_considerada?: number | null
   status_analise?: Lead['status_analise']
+  status_id?: string | null
 }
 
 export function useEditarLead() {

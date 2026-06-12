@@ -15,6 +15,8 @@ import { AbaSimulador } from './LeadDetalhe/AbaSimulador'
 import { AbaCredito } from './LeadDetalhe/AbaCredito'
 import { AbaDocumentos } from './LeadDetalhe/AbaDocumentos'
 import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
+import { AbaOperacional } from './LeadDetalhe/AbaOperacional'
+import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
@@ -32,11 +34,13 @@ import {
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 
-type Aba = 'resumo' | 'credito' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
+type Aba = 'resumo' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
 const ABAS: { id: Aba; label: string }[] = [
   { id: 'resumo',       label: 'Resumo' },
   { id: 'credito',      label: 'Crédito' },
+  { id: 'operacional',  label: 'Operacional' },
+  { id: 'formularios',  label: 'Formulários' },
   { id: 'notas',        label: 'Notas' },
   { id: 'tarefas',      label: 'Tarefas' },
   { id: 'processos',    label: 'Processos' },
@@ -142,6 +146,18 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                           style={{ backgroundColor: lead.fase.cor ?? '#253B29' }}
                         >
                           {lead.fase.nome}
+                        </span>
+                      )}
+                      {lead.status && (
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block border"
+                          style={{
+                            backgroundColor: lead.status.cor + '22',
+                            borderColor: lead.status.cor + '66',
+                            color: lead.status.cor,
+                          }}
+                        >
+                          {lead.status.nome}
                         </span>
                       )}
                     </div>
@@ -313,6 +329,8 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 <div className="flex-1 overflow-y-auto px-5 py-4">
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
                   {abaAtiva === 'credito'      && <AbaCredito      lead={lead} />}
+                  {abaAtiva === 'operacional'  && <AbaOperacional  lead={lead} />}
+                  {abaAtiva === 'formularios'  && <AbaFormularios  lead={lead} />}
                   {abaAtiva === 'notas'        && <AbaNotas        leadId={lead.id} />}
                   {abaAtiva === 'tarefas'      && <AbaTarefas      leadId={lead.id} />}
                   {abaAtiva === 'processos'    && <AbaProcessos    leadId={lead.id} />}
