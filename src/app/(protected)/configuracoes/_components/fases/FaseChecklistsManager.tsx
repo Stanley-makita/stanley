@@ -65,8 +65,10 @@ export function FaseChecklistsManager({ faseId }: Props) {
       setNovo(novoItemVazio())
       setAdicionando(false)
       toast.success('Item adicionado ao checklist.')
-    } catch {
-      toast.error('Erro ao adicionar item.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? String(err)
+      console.error('[FaseChecklistsManager] criar item:', err)
+      toast.error(`Erro ao adicionar item: ${msg}`)
     }
   }
 

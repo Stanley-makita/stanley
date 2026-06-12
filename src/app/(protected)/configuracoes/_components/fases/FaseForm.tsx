@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -96,13 +96,13 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
   }
 
   return (
-    <Drawer open={aberto} onOpenChange={onFechar}>
-      <DrawerContent className="max-w-md ml-auto h-full">
-        <DrawerHeader>
-          <DrawerTitle>{fase ? 'Editar fase' : 'Nova fase'}</DrawerTitle>
-        </DrawerHeader>
+    <Dialog open={aberto} onOpenChange={onFechar}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{fase ? 'Editar fase' : 'Nova fase'}</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 px-6 py-4 flex-1 overflow-y-auto">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 px-1 pb-2">
 
           {/* Módulo */}
           <div className="space-y-1.5">
@@ -191,21 +191,21 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
             </div>
           )}
 
-          <DrawerFooter className="px-0">
+          <div className="flex gap-2 pt-2">
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-[#253B29] hover:bg-[#C2AA6A] hover:text-[#253B29] text-white w-full"
+              className="bg-[#253B29] hover:bg-[#C2AA6A] hover:text-[#253B29] text-white flex-1"
             >
               {isSubmitting ? 'Salvando...' : fase ? 'Salvar alterações' : 'Criar fase'}
             </Button>
             <Button type="button" variant="outline" onClick={onFechar}>Cancelar</Button>
-          </DrawerFooter>
+          </div>
         </form>
 
         {/* Seções adicionais — só mostram ao editar uma fase existente */}
         {fase && (
-          <div className="border-t border-gray-100 px-6 py-4 space-y-3">
+          <div className="border-t border-gray-100 pt-4 space-y-3">
             {/* Statuses */}
             <div>
               <button
@@ -241,7 +241,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
             </div>
           </div>
         )}
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   )
 }
