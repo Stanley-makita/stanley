@@ -85,12 +85,26 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
         {lead.nome}
       </p>
 
-      {/* Badge de produto */}
-      {produto && (
-        <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-1.5 inline-block', produto.className)}>
-          {produto.label}
-        </span>
-      )}
+      {/* Badges linha */}
+      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+        {produto && (
+          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', produto.className)}>
+            {produto.label}
+          </span>
+        )}
+        {lead.status && (
+          <span
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border"
+            style={{
+              backgroundColor: lead.status.cor ? `${lead.status.cor}18` : '#f3f4f6',
+              borderColor:     lead.status.cor ? `${lead.status.cor}40` : '#e5e7eb',
+              color:           lead.status.cor ?? '#374151',
+            }}
+          >
+            {lead.status.nome}
+          </span>
+        )}
+      </div>
 
       {/* Rodapé: tarefas + responsável + dias */}
       <div className="flex items-center justify-between gap-1 mt-2">

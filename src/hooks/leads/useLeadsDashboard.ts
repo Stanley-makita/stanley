@@ -95,13 +95,14 @@ export function useLeadsDashboardContagens() {
       const uid = usuario!.id
       const eid = usuario!.empresa_id
 
-      // Fase "Novo" desta empresa
-      const { data: faseNovo } = await supabase
+      // Fase "Novo" desta empresa (módulo leads)
+      const { data: fasesNovo } = await supabase
         .from('fases')
         .select('id')
         .eq('empresa_id', eid)
+        .eq('modulo', 'leads')
         .ilike('nome', 'novo')
-        .maybeSingle()
+      const faseNovo = fasesNovo?.[0] ?? null
 
       // Lead IDs com tarefa futura (excluir dos inativos)
       const idsComTarefaFutura = await fetchIdsComTarefaFutura(supabase, eid, hoje)
@@ -157,9 +158,9 @@ export function useLeadsDashboardContagens() {
           : Promise.resolve({ count: 0, data: null, error: null }),
 
         supabase.from('leads')
-          .select('id, status_analise')
+          .select('id, status:fase_statuses!status_id(nome)')
           .eq('empresa_id', eid).is('deleted_at', null)
-          .in('status_analise', ['aprovado', 'reprovado']),
+          .not('status_id', 'is', null),
 
         // Busca IDs dos inativos para cruzar com tarefa futura
         supabase.from('leads')
@@ -168,9 +169,15 @@ export function useLeadsDashboardContagens() {
           .or(`ultimo_contato.lt.${seteAtrasStr},and(ultimo_contato.is.null,created_at.lt.${seteAtrasStr})`),
       ])
 
-      const creditoData = leadsCredito.data ?? []
+      const creditoData = (leadsCredito.data ?? []) as Array<{ id: string; status: { nome: string } | null }>
       const inativosIds = (leadsInativosRes.data ?? []).map(r => r.id)
       const inativosReais = inativosIds.filter(id => !idsComTarefaFutura.has(id)).length
+
+      const nomeAprov = (nome: string | undefined) => !!nome?.toLowerCase().includes('aprov')
+      const nomeNaoAprov = (nome: string | undefined) => {
+        const n = nome?.toLowerCase() ?? ''
+        return ['condicion', 'recus', 'reprov', 'não aprov', 'nao aprov'].some(k => n.includes(k))
+      }
 
       return {
         minhasPendencias: (minhasSolAbertas.count ?? 0) + (minhasTarefasAbertas.count ?? 0),
@@ -178,8 +185,8 @@ export function useLeadsDashboardContagens() {
         totalLeadsAtivos: totalAtivos.count ?? 0,
         totalLeadsConvertidos: totalConvertidos.count ?? 0,
         leadsNovos: leadsNovosRes.count ?? 0,
-        creditoAprovados: creditoData.filter(l => l.status_analise === 'aprovado').length,
-        creditoNaoAprovados: creditoData.filter(l => l.status_analise === 'reprovado').length,
+        creditoAprovados: creditoData.filter(l => nomeAprov((l.status as any)?.nome)).length,
+        creditoNaoAprovados: creditoData.filter(l => nomeNaoAprov((l.status as any)?.nome)).length,
         leadsInativos: inativosReais,
       }
     },
