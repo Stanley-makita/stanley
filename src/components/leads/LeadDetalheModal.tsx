@@ -292,7 +292,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
               <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
                 {/* Tab bar */}
-                <div className="flex border-b border-gray-100 bg-white px-1 shrink-0">
+                <div className="flex border-b border-gray-100 bg-white px-1 shrink-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {ABAS.map((aba) => (
                     <button
                       key={aba.id}
