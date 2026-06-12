@@ -44,7 +44,7 @@ type FormularioDef = {
   mapa: (d: DadosProcesso) => ReturnType<typeof mapaAutorizacao>
 }
 
-export const FORMULARIOS_POR_BANCO: Record<BancoSuportado, FormularioDef[]> = {
+const FORMULARIOS_POR_BANCO: Record<BancoSuportado, FormularioDef[]> = {
   BRADESCO: [
     { nomeArquivo: '1-Autorizacao.pdf',               label: 'Autorização (análise/avaliação)', template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf', mapa: mapaAutorizacao },
     { nomeArquivo: '2-DPS.pdf',                       label: 'DPS — Declaração Pessoal de Saúde', template: 'BRADESCO/2-DPS.pdf', mapa: mapaDps },
