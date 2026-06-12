@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Trash2 } from 'lucide-react'
+import { Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
 import { useFases } from '@/hooks/configuracoes/useFases'
@@ -19,6 +19,9 @@ interface Props {
   onAbrirLead: (id: string) => void
 }
 
+type ColKey = 'nome' | 'contato' | 'fase' | 'status' | 'origem' | 'valor' | 'criado_em'
+type SortDir = 'asc' | 'desc'
+
 function fmtValor(v: number | null) {
   if (!v) return '—'
   return new Intl.NumberFormat('pt-BR', {
@@ -28,23 +31,51 @@ function fmtValor(v: number | null) {
   }).format(v)
 }
 
+function sortLeads(leads: Lead[], col: ColKey, dir: SortDir): Lead[] {
+  return [...leads].sort((a, b) => {
+    let va: string | number = ''
+    let vb: string | number = ''
+    switch (col) {
+      case 'nome':      va = a.nome.toLowerCase();                  vb = b.nome.toLowerCase(); break
+      case 'contato':   va = a.telefone ?? '';                      vb = b.telefone ?? ''; break
+      case 'fase':      va = a.fase?.nome?.toLowerCase() ?? '';     vb = b.fase?.nome?.toLowerCase() ?? ''; break
+      case 'status':    va = a.status?.nome?.toLowerCase() ?? '';   vb = b.status?.nome?.toLowerCase() ?? ''; break
+      case 'origem':    va = a.origem?.toLowerCase() ?? '';         vb = b.origem?.toLowerCase() ?? ''; break
+      case 'valor':     va = a.valor_pretendido ?? 0;               vb = b.valor_pretendido ?? 0; break
+      case 'criado_em': va = a.created_at;                          vb = b.created_at; break
+    }
+    if (va < vb) return dir === 'asc' ? -1 : 1
+    if (va > vb) return dir === 'asc' ? 1 : -1
+    return 0
+  })
+}
+
 export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props) {
   const { pode } = usePermissao()
   const podeExcluir = pode('leads.excluir')
   const [leadParaExcluir, setLeadParaExcluir] = useState<{ id: string; faseId: string; nome: string } | null>(null)
+  const [sortCol, setSortCol] = useState<ColKey>('criado_em')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
-  // Busca TODOS os leads (sem filtro de fase) para os contadores dos tabs
   const { data: todosLeads = [], isLoading } = useLeadsTodos(undefined, busca)
   const { data: fases = [] } = useFases('leads')
 
-  // Filtra client-side para exibição na tabela
-  const leads = faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
+  const leadsBase = faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
+  const leads = sortLeads(leadsBase, sortCol, sortDir)
 
-  // Contadores sempre baseados em todos os leads — nunca zerados ao filtrar
   const totalPorFase = todosLeads.reduce<Record<string, number>>((acc, l) => {
     acc[l.fase_id] = (acc[l.fase_id] ?? 0) + 1
     return acc
   }, {})
+
+  function handleSort(col: ColKey) {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -74,10 +105,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
             )}
             style={faseId === f.id ? { backgroundColor: f.cor ?? '#253B29', borderColor: f.cor ?? '#253B29' } : undefined}
           >
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: f.cor ?? '#94a3b8' }}
-            />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.cor ?? '#94a3b8' }} />
             {f.nome}
             <span className={cn('ml-0.5', faseId === f.id ? 'opacity-80' : 'opacity-50')}>
               {totalPorFase[f.id] ?? 0}
@@ -86,7 +114,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
         ))}
       </div>
 
-      {/* Aviso quando há leads convertidos */}
+      {/* Aviso leads convertidos */}
       {leads.some(l => l.convertido_em) && (
         <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
           Leads com <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-1.5 py-0.5 rounded">Convertido</span> foram transformados em processo e não aparecem no Kanban.
@@ -111,12 +139,13 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Nome</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Contato</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Fase</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Origem</th>
-                <th className="text-right text-xs font-medium text-gray-500 px-4 py-3">Valor pretendido</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Criado em</th>
+                <ColHeader label="Nome"            col="nome"      active={sortCol} dir={sortDir} onSort={handleSort} />
+                <ColHeader label="Contato"         col="contato"   active={sortCol} dir={sortDir} onSort={handleSort} />
+                <ColHeader label="Fase"            col="fase"      active={sortCol} dir={sortDir} onSort={handleSort} />
+                <ColHeader label="Status"          col="status"    active={sortCol} dir={sortDir} onSort={handleSort} />
+                <ColHeader label="Origem"          col="origem"    active={sortCol} dir={sortDir} onSort={handleSort} />
+                <ColHeader label="Valor pretendido" col="valor"   active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                <ColHeader label="Criado em"       col="criado_em" active={sortCol} dir={sortDir} onSort={handleSort} />
                 {podeExcluir && <th className="w-10 px-2 py-3" />}
               </tr>
             </thead>
@@ -146,6 +175,39 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
         />
       )}
     </div>
+  )
+}
+
+function ColHeader({
+  label, col, active, dir, onSort, align = 'left',
+}: {
+  label: string
+  col: ColKey
+  active: ColKey
+  dir: SortDir
+  onSort: (col: ColKey) => void
+  align?: 'left' | 'right'
+}) {
+  const isActive = active === col
+  return (
+    <th className={cn('px-4 py-3', align === 'right' ? 'text-right' : 'text-left')}>
+      <button
+        onClick={() => onSort(col)}
+        className={cn(
+          'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
+          isActive ? 'text-[#253B29]' : 'text-gray-500 hover:text-gray-700',
+          align === 'right' && 'flex-row-reverse'
+        )}
+      >
+        {label}
+        {isActive
+          ? dir === 'asc'
+            ? <ArrowUp className="h-3 w-3" />
+            : <ArrowDown className="h-3 w-3" />
+          : <ArrowUpDown className="h-3 w-3 opacity-40" />
+        }
+      </button>
+    </th>
   )
 }
 
@@ -192,13 +254,28 @@ function LeadRow({
       <td className="px-4 py-3">
         {lead.fase ? (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700">
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: lead.fase.cor ?? '#94a3b8' }}
-            />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lead.fase.cor ?? '#94a3b8' }} />
             {lead.fase.nome}
           </span>
         ) : '—'}
+      </td>
+
+      {/* Status */}
+      <td className="px-4 py-3">
+        {lead.status ? (
+          <span
+            className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border"
+            style={{
+              backgroundColor: lead.status.cor ? `${lead.status.cor}18` : '#f3f4f6',
+              borderColor:     lead.status.cor ? `${lead.status.cor}40` : '#e5e7eb',
+              color:           lead.status.cor ?? '#374151',
+            }}
+          >
+            {lead.status.nome}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-300">—</span>
+        )}
       </td>
 
       {/* Origem */}
@@ -216,7 +293,7 @@ function LeadRow({
         {format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}
       </td>
 
-      {/* Ação excluir */}
+      {/* Excluir */}
       {podeExcluir && (
         <td className="px-2 py-3 text-center">
           <button
