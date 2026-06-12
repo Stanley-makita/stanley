@@ -154,8 +154,8 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
               <Circle className="h-3.5 w-3.5 text-gray-300 mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-700 truncate">{t.titulo}</p>
-                {t.data_vencimento && (
-                  <p className="text-[10px] text-gray-400">{format(new Date(t.data_vencimento), 'dd/MM', { locale: ptBR })}</p>
+                {t.data_prazo && (
+                  <p className="text-[10px] text-gray-400">{format(new Date(t.data_prazo), 'dd/MM', { locale: ptBR })}</p>
                 )}
               </div>
             </div>
