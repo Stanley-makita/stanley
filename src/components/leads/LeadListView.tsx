@@ -6,6 +6,7 @@ import { ptBR } from 'date-fns/locale'
 import { Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
+import { useLeadsInativos } from '@/hooks/leads/useLeadsDashboard'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
@@ -17,6 +18,7 @@ interface Props {
   faseId?: string
   onFaseChange: (faseId?: string) => void
   onAbrirLead: (id: string) => void
+  filtroEspecial?: 'inativos'
 }
 
 type ColKey = 'nome' | 'contato' | 'fase' | 'status' | 'origem' | 'valor' | 'criado_em'
@@ -50,17 +52,25 @@ function sortLeads(leads: Lead[], col: ColKey, dir: SortDir): Lead[] {
   })
 }
 
-export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props) {
+export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroEspecial }: Props) {
   const { pode } = usePermissao()
   const podeExcluir = pode('leads.excluir')
   const [leadParaExcluir, setLeadParaExcluir] = useState<{ id: string; faseId: string; nome: string } | null>(null)
   const [sortCol, setSortCol] = useState<ColKey>('criado_em')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
-  const { data: todosLeads = [], isLoading } = useLeadsTodos(undefined, busca)
+  const isInativos = filtroEspecial === 'inativos'
+
+  const { data: todosLeads = [], isLoading: carregandoTodos } = useLeadsTodos(undefined, isInativos ? '' : busca)
+  const { data: leadsInativos = [], isLoading: carregandoInativos } = useLeadsInativos()
   const { data: fases = [] } = useFases('leads')
 
-  const leadsBase = faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
+  const isLoading = isInativos ? carregandoInativos : carregandoTodos
+
+  const leadsBase = isInativos
+    ? leadsInativos.filter(l => !busca || l.nome.toLowerCase().includes(busca.toLowerCase()) || l.telefone?.includes(busca))
+    : faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
+
   const leads = sortLeads(leadsBase, sortCol, sortDir)
 
   const totalPorFase = todosLeads.reduce<Record<string, number>>((acc, l) => {
@@ -79,6 +89,15 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead }: Props
 
   return (
     <div className="space-y-4">
+      {/* Banner inativos */}
+      {isInativos && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+          <span className="text-amber-700 text-xs font-medium">
+            Leads sem contato há mais de 7 dias e sem tarefas agendadas — {leads.length} encontrado{leads.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
       {/* Filtros por fase */}
       <div className="flex gap-2 flex-wrap">
         <button

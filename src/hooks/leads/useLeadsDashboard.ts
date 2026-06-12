@@ -4,17 +4,18 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { format, isToday, isBefore, parseISO } from 'date-fns'
+import type { Lead } from '@/types/leads'
 
 export type PrioridadeFila = 'urgente' | 'alta' | 'normal' | 'baixa'
 
 export interface ContagemsLeadsDashboard {
   minhasPendencias: number
   minhasPendenciasVencidas: number
-  leadsAguardandoAcao: number
-  docsAguardandoConferencia: number
-  docsAguardandoExtracao: number
-  creditoEmAnalise: number
-  creditoPreAprovado: number
+  totalLeadsAtivos: number
+  totalLeadsConvertidos: number
+  leadsNovos: number
+  creditoAprovados: number
+  creditoNaoAprovados: number
   leadsInativos: number
 }
 
@@ -64,6 +65,18 @@ function normalizarPrioridade(p: string | null | undefined): PrioridadeFila {
   return 'normal'
 }
 
+// Helpers compartilhados entre hooks
+async function fetchIdsComTarefaFutura(supabase: ReturnType<typeof createClient>, eid: string, hoje: string) {
+  const { data } = await supabase
+    .from('lead_tarefas')
+    .select('lead_id')
+    .eq('empresa_id', eid)
+    .eq('concluida', false)
+    .gte('data_prazo', hoje)
+    .is('deleted_at', null)
+  return new Set((data ?? []).map(t => t.lead_id).filter(Boolean) as string[])
+}
+
 export function useLeadsDashboardContagens() {
   const supabase = createClient()
   const { usuario } = useAuth()
@@ -82,18 +95,27 @@ export function useLeadsDashboardContagens() {
       const uid = usuario!.id
       const eid = usuario!.empresa_id
 
+      // Fase "Novo" desta empresa
+      const { data: faseNovo } = await supabase
+        .from('fases')
+        .select('id')
+        .eq('empresa_id', eid)
+        .ilike('nome', 'novo')
+        .maybeSingle()
+
+      // Lead IDs com tarefa futura (excluir dos inativos)
+      const idsComTarefaFutura = await fetchIdsComTarefaFutura(supabase, eid, hoje)
+
       const [
         minhasSolAbertas,
         minhasTarefasAbertas,
         minhasSolVencidas,
         minhasTarefasVencidas,
-        todasSolLeadIds,
-        tarefasVencidasLeadIds,
-        docsOcrLeadIds,
-        docsConferencia,
-        docsExtracao,
+        totalAtivos,
+        totalConvertidos,
+        leadsNovosRes,
         leadsCredito,
-        leadsInativos,
+        leadsInativosRes,
       ] = await Promise.all([
         supabase.from('solicitacoes_operacionais')
           .select('id', { count: 'exact', head: true })
@@ -119,64 +141,85 @@ export function useLeadsDashboardContagens() {
           .eq('concluida', false).is('deleted_at', null)
           .not('data_prazo', 'is', null).lt('data_prazo', hoje),
 
-        // lead_ids de solicitações abertas (para contar distintos)
-        supabase.from('solicitacoes_operacionais')
-          .select('lead_id')
-          .eq('empresa_id', eid)
-          .not('status', 'in', '("concluido","cancelado")')
-          .not('lead_id', 'is', null).is('deleted_at', null),
-
-        // lead_ids de tarefas vencidas
-        supabase.from('lead_tarefas')
-          .select('lead_id')
-          .eq('empresa_id', eid).eq('concluida', false)
-          .not('data_prazo', 'is', null).lt('data_prazo', hoje).is('deleted_at', null),
-
-        // lead_ids de docs com OCR concluído (aguardando revisão)
-        supabase.from('documentos_clientes')
-          .select('lead_id')
-          .eq('empresa_id', eid).eq('ocr_status', 'concluido')
-          .not('lead_id', 'is', null).is('deleted_at', null),
-
-        supabase.from('documentos_clientes')
+        supabase.from('leads')
           .select('id', { count: 'exact', head: true })
-          .eq('empresa_id', eid).eq('ocr_status', 'concluido')
-          .not('lead_id', 'is', null).is('deleted_at', null),
-
-        supabase.from('documentos_clientes')
-          .select('id', { count: 'exact', head: true })
-          .eq('empresa_id', eid).in('ocr_status', ['pendente', 'processando'])
-          .not('lead_id', 'is', null).is('deleted_at', null),
+          .eq('empresa_id', eid).is('deleted_at', null).is('convertido_em', null),
 
         supabase.from('leads')
-          .select('status_analise')
+          .select('id', { count: 'exact', head: true })
+          .eq('empresa_id', eid).is('deleted_at', null).not('convertido_em', 'is', null),
+
+        faseNovo?.id
+          ? supabase.from('leads')
+              .select('id', { count: 'exact', head: true })
+              .eq('empresa_id', eid).eq('fase_id', faseNovo.id)
+              .is('deleted_at', null).is('convertido_em', null)
+          : Promise.resolve({ count: 0, data: null, error: null }),
+
+        supabase.from('leads')
+          .select('id, status_analise')
           .eq('empresa_id', eid).is('deleted_at', null)
-          .in('status_analise', ['em_analise_credito', 'pre_aprovado']),
+          .in('status_analise', ['aprovado', 'reprovado']),
 
+        // Busca IDs dos inativos para cruzar com tarefa futura
         supabase.from('leads')
-          .select('id', { count: 'exact', head: true })
+          .select('id')
           .eq('empresa_id', eid).is('deleted_at', null).is('convertido_em', null)
           .or(`ultimo_contato.lt.${seteAtrasStr},and(ultimo_contato.is.null,created_at.lt.${seteAtrasStr})`),
       ])
 
-      // Leads aguardando ação = leads distintos com qualquer pendência
-      const leadIdsAguardando = new Set<string>()
-      ;(todasSolLeadIds.data ?? []).forEach(r => { if (r.lead_id) leadIdsAguardando.add(r.lead_id) })
-      ;(tarefasVencidasLeadIds.data ?? []).forEach(r => { if (r.lead_id) leadIdsAguardando.add(r.lead_id) })
-      ;(docsOcrLeadIds.data ?? []).forEach(r => { if (r.lead_id) leadIdsAguardando.add(r.lead_id) })
-
       const creditoData = leadsCredito.data ?? []
+      const inativosIds = (leadsInativosRes.data ?? []).map(r => r.id)
+      const inativosReais = inativosIds.filter(id => !idsComTarefaFutura.has(id)).length
 
       return {
         minhasPendencias: (minhasSolAbertas.count ?? 0) + (minhasTarefasAbertas.count ?? 0),
         minhasPendenciasVencidas: (minhasSolVencidas.count ?? 0) + (minhasTarefasVencidas.count ?? 0),
-        leadsAguardandoAcao: leadIdsAguardando.size,
-        docsAguardandoConferencia: docsConferencia.count ?? 0,
-        docsAguardandoExtracao: docsExtracao.count ?? 0,
-        creditoEmAnalise: creditoData.filter(l => l.status_analise === 'em_analise_credito').length,
-        creditoPreAprovado: creditoData.filter(l => l.status_analise === 'pre_aprovado').length,
-        leadsInativos: leadsInativos.count ?? 0,
+        totalLeadsAtivos: totalAtivos.count ?? 0,
+        totalLeadsConvertidos: totalConvertidos.count ?? 0,
+        leadsNovos: leadsNovosRes.count ?? 0,
+        creditoAprovados: creditoData.filter(l => l.status_analise === 'aprovado').length,
+        creditoNaoAprovados: creditoData.filter(l => l.status_analise === 'reprovado').length,
+        leadsInativos: inativosReais,
       }
+    },
+  })
+}
+
+export function useLeadsInativos() {
+  const supabase = createClient()
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['leads', 'dashboard', 'inativos', usuario?.empresa_id],
+    enabled: !!usuario,
+    staleTime: 1000 * 60 * 3,
+    queryFn: async (): Promise<Lead[]> => {
+      const hoje = format(new Date(), 'yyyy-MM-dd')
+      const eid = usuario!.empresa_id
+      const seteAtras = new Date()
+      seteAtras.setDate(seteAtras.getDate() - 7)
+      const seteAtrasStr = seteAtras.toISOString()
+
+      const idsComTarefaFutura = await fetchIdsComTarefaFutura(supabase, eid, hoje)
+
+      const { data, error } = await supabase
+        .from('leads')
+        .select(`
+          *,
+          responsavel:usuarios!responsavel_id(id, nome),
+          fase:fases!fase_id(id, nome, cor),
+          status:fase_statuses!status_id(id, nome, cor)
+        `)
+        .eq('empresa_id', eid)
+        .is('deleted_at', null)
+        .is('convertido_em', null)
+        .or(`ultimo_contato.lt.${seteAtrasStr},and(ultimo_contato.is.null,created_at.lt.${seteAtrasStr})`)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      return ((data ?? []) as Lead[]).filter(l => !idsComTarefaFutura.has(l.id))
     },
   })
 }
@@ -212,12 +255,8 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
         .limit(50)
 
       const [solRes, tarefaRes] = await Promise.all([
-        todasDaEmpresa
-          ? solQueryBase
-          : solQueryBase.eq('responsavel_id', uid),
-        todasDaEmpresa
-          ? tarefaQueryBase
-          : tarefaQueryBase.eq('responsavel_id', uid),
+        todasDaEmpresa ? solQueryBase : solQueryBase.eq('responsavel_id', uid),
+        todasDaEmpresa ? tarefaQueryBase : tarefaQueryBase.eq('responsavel_id', uid),
       ])
 
       const items: FilaItem[] = []
@@ -230,18 +269,12 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
         const venceHoje = prazoDate ? isToday(prazoDate) : false
         const vencido = prazoDate ? isBefore(prazoDate, new Date()) && !venceHoje : false
         items.push({
-          id: s.id,
-          tipo: 'solicitacao',
+          id: s.id, tipo: 'solicitacao',
           tipoLabel: TIPO_SOL_LABEL[s.tipo] ?? s.tipo,
           tipoCss: TIPO_SOL_CSS[s.tipo] ?? 'bg-gray-100 text-gray-600',
-          leadId: lead.id,
-          leadNome: lead.nome,
-          titulo: s.titulo,
+          leadId: lead.id, leadNome: lead.nome, titulo: s.titulo,
           prioridade: normalizarPrioridade(s.prioridade),
-          prazo: prazoStr,
-          vencido,
-          venceHoje,
-          createdAt: s.created_at,
+          prazo: prazoStr, vencido, venceHoje, createdAt: s.created_at,
         })
       }
 
@@ -252,22 +285,14 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
         const venceHoje = prazoStr ? prazoStr === hoje : false
         const vencido = prazoStr ? prazoStr < hoje && !venceHoje : false
         items.push({
-          id: t.id,
-          tipo: 'tarefa',
-          tipoLabel: 'Tarefa',
-          tipoCss: 'bg-gray-100 text-gray-600',
-          leadId: lead.id,
-          leadNome: lead.nome,
-          titulo: t.titulo,
+          id: t.id, tipo: 'tarefa',
+          tipoLabel: 'Tarefa', tipoCss: 'bg-gray-100 text-gray-600',
+          leadId: lead.id, leadNome: lead.nome, titulo: t.titulo,
           prioridade: normalizarPrioridade(t.prioridade),
-          prazo: prazoStr,
-          vencido,
-          venceHoje,
-          createdAt: t.created_at,
+          prazo: prazoStr, vencido, venceHoje, createdAt: t.created_at,
         })
       }
 
-      // Ordenar: vencidos → hoje → pendentes; dentro de cada grupo, mais antigos primeiro
       items.sort((a, b) => {
         const urgA = a.vencido ? 0 : a.venceHoje ? 1 : 2
         const urgB = b.vencido ? 0 : b.venceHoje ? 1 : 2
@@ -275,7 +300,7 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       })
 
-      return items.slice(0, 30)
+      return items.slice(0, 60)
     },
   })
 }
