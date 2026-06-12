@@ -176,7 +176,7 @@ export function useLeadsDashboardContagens() {
       const nomeAprov = (nome: string | undefined) => !!nome?.toLowerCase().includes('aprov')
       const nomeNaoAprov = (nome: string | undefined) => {
         const n = nome?.toLowerCase() ?? ''
-        return ['condicion', 'recus', 'reprov', 'não aprov', 'nao aprov'].some(k => n.includes(k))
+        return ['condicion', 'recus', 'reprov', 'pendente', 'não aprov', 'nao aprov'].some(k => n.includes(k))
       }
 
       return {
