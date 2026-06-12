@@ -10,7 +10,7 @@ import { DashboardLeads } from '@/components/leads/DashboardLeads'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { UserPlus, LayoutGrid, List, Search, LayoutDashboard } from 'lucide-react'
+import { UserPlus, Columns, List, Search, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Visao = 'dashboard' | 'kanban' | 'lista'
@@ -100,7 +100,7 @@ function LeadsContent() {
                   : 'bg-white text-gray-500 hover:bg-gray-50'
               )}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <Columns className="h-4 w-4" />
             </button>
             <button
               onClick={() => setVisao('lista')}

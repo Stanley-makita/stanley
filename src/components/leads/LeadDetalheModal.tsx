@@ -29,10 +29,12 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Plus, MessageCircle, Pencil, Loader2, Trash2,
-  Phone, Mail, CreditCard, DollarSign, Calendar, CalendarClock, ClipboardList,
+  Phone, Mail, CreditCard, DollarSign, Calendar, CalendarClock, ClipboardList, ChevronRight,
 } from 'lucide-react'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
+import { useFases } from '@/hooks/configuracoes/useFases'
+import { useEditarLead } from '@/hooks/leads/useEditarLead'
 
 type Aba = 'resumo' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
@@ -101,6 +103,8 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
+  const { data: fases = [] } = useFases('leads')
+  const editarLead = useEditarLead()
 
   const contextoSolicitacao: ContextoSolicitacao | undefined = lead ? {
     nomeCliente: lead.nome,
@@ -292,7 +296,27 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
 
                 {/* Ação principal */}
-                <div className="p-4 border-t border-gray-200">
+                <div className="p-4 border-t border-gray-200 space-y-2">
+                  {(() => {
+                    const idx = fases.findIndex(f => f.id === lead.fase_id)
+                    const proxFase = idx >= 0 && idx < fases.length - 1 ? fases[idx + 1] : null
+                    if (!proxFase) return null
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8 text-xs gap-1.5 text-[#253B29] border-[#253B29]/30 hover:bg-[#253B29]/5"
+                        disabled={editarLead.isPending}
+                        onClick={() => editarLead.mutate({ id: lead.id, fase_id: proxFase.id })}
+                      >
+                        {editarLead.isPending
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <ChevronRight className="h-3 w-3" />
+                        }
+                        Avançar → {proxFase.nome}
+                      </Button>
+                    )
+                  })()}
                   <Button
                     size="sm"
                     className="w-full h-8 text-xs gap-1.5 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
