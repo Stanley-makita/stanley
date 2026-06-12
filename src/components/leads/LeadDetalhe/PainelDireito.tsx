@@ -119,7 +119,11 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
   const concluidas = tarefas.filter(t => t.concluida)
 
   async function handleCriar(data: TarefaFormData) {
-    await criar.mutateAsync(data)
+    await criar.mutateAsync({
+      ...data,
+      horario_inicio: data.horario_inicio ?? undefined,
+      horario_termino: data.horario_termino ?? undefined,
+    })
     setNovaAberta(false)
   }
 
