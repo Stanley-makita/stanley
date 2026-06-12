@@ -145,15 +145,15 @@ export function useCompletarChecklistItem() {
           .single()
         if (error) throw error
 
-        // Registrar no historico do lead
+        // Registrar no historico do lead (não bloqueia se falhar)
         if (input.concluido) {
-          await supabase.from('lead_historico').insert({
+          supabase.from('lead_historico').insert({
             lead_id:    input.lead_id,
             empresa_id: usuario!.empresa_id,
             usuario_id: usuario!.id,
             tipo:       'acao_operacional',
             descricao:  `Item do checklist concluído${input.resultado ? ': ' + input.resultado : ''}`,
-          }).throwOnError()
+          }).then(({ error }) => { if (error) console.warn('[checklist] histórico:', error.message) })
         }
 
         return data
