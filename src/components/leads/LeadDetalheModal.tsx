@@ -17,6 +17,8 @@ import { AbaDocumentos } from './LeadDetalhe/AbaDocumentos'
 import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { AbaOperacional } from './LeadDetalhe/AbaOperacional'
 import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
+import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
+import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
@@ -41,10 +43,7 @@ type Aba = 'resumo' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tar
 const ABAS: { id: Aba; label: string }[] = [
   { id: 'resumo',       label: 'Resumo' },
   { id: 'credito',      label: 'Crédito' },
-  { id: 'operacional',  label: 'Operacional' },
   { id: 'formularios',  label: 'Formulários' },
-  { id: 'notas',        label: 'Notas' },
-  { id: 'tarefas',      label: 'Tarefas' },
   { id: 'processos',    label: 'Processos' },
   { id: 'pipeline',     label: 'Pipeline' },
   { id: 'simulador',    label: 'Simulador' },
@@ -105,6 +104,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
   const { data: fases = [] } = useFases('leads')
   const editarLead = useEditarLead()
+  const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
 
   const contextoSolicitacao: ContextoSolicitacao | undefined = lead ? {
     nomeCliente: lead.nome,
@@ -125,7 +125,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   return (
     <>
       <Dialog open={aberto} onOpenChange={fechar}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogContent className="max-w-[96vw] w-[96vw] max-h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
           {isLoading || !lead ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-6 w-6 animate-spin text-[#253B29]" />
@@ -301,12 +301,19 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                     const idx = fases.findIndex(f => f.id === lead.fase_id)
                     const proxFase = idx >= 0 && idx < fases.length - 1 ? fases[idx + 1] : null
                     if (!proxFase) return null
+                    const temBloqueio = itensChecklist.some(i => i.bloqueia_avanco && !i.concluido)
                     return (
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full h-8 text-xs gap-1.5 text-[#253B29] border-[#253B29]/30 hover:bg-[#253B29]/5"
-                        disabled={editarLead.isPending}
+                        title={temBloqueio ? 'Conclua os itens obrigatórios antes de avançar' : undefined}
+                        className={cn(
+                          'w-full h-8 text-xs gap-1.5',
+                          temBloqueio
+                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100 cursor-not-allowed'
+                            : 'text-[#253B29] border-[#253B29]/30 hover:bg-[#253B29]/5'
+                        )}
+                        disabled={editarLead.isPending || temBloqueio}
                         onClick={() => editarLead.mutate({ id: lead.id, fase_id: proxFase.id })}
                       >
                         {editarLead.isPending
@@ -328,7 +335,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
               </div>
 
-              {/* ── Painel Direito: Abas de Interação ── */}
+              {/* ── Centro: Abas de Interação ── */}
               <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
                 {/* Tab bar */}
@@ -374,6 +381,11 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                     />
                   )}
                 </div>
+              </div>
+
+              {/* ── Painel Direito: Notas + Tarefas + Checklist ── */}
+              <div className="w-72 shrink-0 border-l border-gray-100 bg-white overflow-y-auto">
+                <PainelDireitoLead lead={lead} />
               </div>
 
             </div>
