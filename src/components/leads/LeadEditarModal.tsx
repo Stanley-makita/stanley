@@ -41,7 +41,7 @@ const schema = z.object({
   // CRM
   fase_id:        z.string().uuid(),
   responsavel_id: z.string().uuid().optional(),
-  origem:         z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros']),
+  origem:         z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros', 'direto', 'corretor', 'imobiliaria', 'construtora', 'parceiro_comercial']),
   observacoes:    z.string().optional(),
 })
 

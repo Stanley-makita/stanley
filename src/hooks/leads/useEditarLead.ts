@@ -22,12 +22,22 @@ interface EditarLeadInput {
   conjuge_data_nascimento?: string | null
   renda_formal?: number | null
   renda_informal?: number | null
-  produto_interesse?: Lead['produto_interesse']
+  produto_interesse?: Lead['produto_interesse'] | null
   responsavel_id?: string
   fase_id?: string
   origem?: Lead['origem']
   valor_pretendido?: number | null
   observacoes?: string | null
+  // Crédito
+  banco_pretendido?: string | null
+  valor_imovel?: number | null
+  entrada?: number | null
+  prazo_meses?: number | null
+  finalidade?: string | null
+  tipo_imovel?: string | null
+  cidade_imovel?: string | null
+  renda_considerada?: number | null
+  status_analise?: Lead['status_analise']
 }
 
 export function useEditarLead() {

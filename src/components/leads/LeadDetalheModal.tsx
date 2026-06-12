@@ -12,6 +12,7 @@ import { AbaTarefas } from './LeadDetalhe/AbaTarefas'
 import { AbaProcessos } from './LeadDetalhe/AbaProcessos'
 import { AbaPipeline } from './LeadDetalhe/AbaPipeline'
 import { AbaSimulador } from './LeadDetalhe/AbaSimulador'
+import { AbaCredito } from './LeadDetalhe/AbaCredito'
 import { AbaDocumentos } from './LeadDetalhe/AbaDocumentos'
 import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { NovoProcessoModal } from './NovoProcessoModal'
@@ -31,10 +32,11 @@ import {
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 
-type Aba = 'resumo' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
+type Aba = 'resumo' | 'credito' | 'notas' | 'tarefas' | 'processos' | 'pipeline' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
 const ABAS: { id: Aba; label: string }[] = [
   { id: 'resumo',       label: 'Resumo' },
+  { id: 'credito',      label: 'Crédito' },
   { id: 'notas',        label: 'Notas' },
   { id: 'tarefas',      label: 'Tarefas' },
   { id: 'processos',    label: 'Processos' },
@@ -310,6 +312,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 {/* Conteúdo da aba */}
                 <div className="flex-1 overflow-y-auto px-5 py-4">
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
+                  {abaAtiva === 'credito'      && <AbaCredito      lead={lead} />}
                   {abaAtiva === 'notas'        && <AbaNotas        leadId={lead.id} />}
                   {abaAtiva === 'tarefas'      && <AbaTarefas      leadId={lead.id} />}
                   {abaAtiva === 'processos'    && <AbaProcessos    leadId={lead.id} />}

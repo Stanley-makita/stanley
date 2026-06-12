@@ -5,6 +5,21 @@ export type LeadOrigem =
   | 'instagram'
   | 'facebook'
   | 'outros'
+  | 'direto'
+  | 'corretor'
+  | 'imobiliaria'
+  | 'construtora'
+  | 'parceiro_comercial'
+
+export type StatusAnalise =
+  | 'aguardando_documentos'
+  | 'documentacao_recebida'
+  | 'em_simulacao'
+  | 'em_analise_credito'
+  | 'pre_aprovado'
+  | 'aprovado'
+  | 'reprovado'
+  | 'convertido_em_processo'
 
 export type EstadoCivil =
   | 'solteiro'
@@ -45,6 +60,16 @@ export interface Lead {
   updated_at: string
   deleted_at: string | null
   convertido_em: string | null
+  // Crédito
+  banco_pretendido: string | null
+  valor_imovel: number | null
+  entrada: number | null
+  prazo_meses: number | null
+  finalidade: string | null
+  tipo_imovel: string | null
+  cidade_imovel: string | null
+  renda_considerada: number | null
+  status_analise: StatusAnalise
   // Joins
   responsavel?: { id: string; nome: string } | null
   fase?: { id: string; nome: string; cor: string } | null

@@ -32,7 +32,7 @@ const schema = z.object({
   cpf: z.string().optional(),
   fase_id: z.string().uuid('Selecione uma fase'),
   responsavel_id: z.string().uuid().optional(),
-  origem: z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros']),
+  origem: z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros', 'direto', 'corretor', 'imobiliaria', 'construtora', 'parceiro_comercial']),
   valor_pretendido: z.coerce.number().positive().optional(),
   observacoes: z.string().optional(),
 })
