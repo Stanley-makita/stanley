@@ -49,8 +49,7 @@ export function useLead(leadId: string) {
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor),
-          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf),
-          vendedor_pessoa:pessoas!vendedor_pessoa_id(id, nome, cpf)
+          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)
         `)
         .eq('id', leadId)
         .eq('empresa_id', usuario!.empresa_id)
