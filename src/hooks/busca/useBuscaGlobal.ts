@@ -48,7 +48,7 @@ export function useBuscaGlobal() {
         const q = `%${termo}%`
         const empresa = usuario.empresa_id
 
-        const [{ data: leadsData }, { data: pessoasData }, { data: telData }, { data: processosData }, { data: conjugeData }] = await Promise.all([
+        const [{ data: leadsData }, { data: pessoasData }, { data: telData }, { data: processosData }] = await Promise.all([
           // Leads ativos por nome, telefone ou cpf (com fase para filtrar client-side)
           supabase
             .from('leads')
@@ -85,16 +85,17 @@ export function useBuscaGlobal() {
             .not('status_processo', 'in', '("reprovado","cancelado")')
             .or(`nome_imovel.ilike.${q},numero_processo.ilike.${q}`)
             .limit(5),
-
-          // Leads encontrados via cônjuge vinculado
-          supabase
-            .from('leads')
-            .select('id, nome, telefone, cpf, fase:fases!fase_id(nome, cor), conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)')
-            .eq('empresa_id', empresa)
-            .is('deleted_at', null)
-            .not('conjuge_pessoa_id', 'is', null)
-            .limit(6),
         ])
+
+        // Busca via cônjuge — requer migration 094 aplicada no Supabase
+        const { data: conjugeData } = await supabase
+          .from('leads')
+          .select('id, nome, telefone, cpf, fase:fases!fase_id(nome, cor), conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)')
+          .eq('empresa_id', empresa)
+          .is('deleted_at', null)
+          .not('conjuge_pessoa_id', 'is', null)
+          .limit(6)
+          .then(r => r.error ? { data: null } : r)
 
         // Leads: mapear e filtrar fases avançadas client-side
         const leads: ResultadoBusca[] = (leadsData ?? [])
