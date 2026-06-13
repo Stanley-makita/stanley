@@ -53,6 +53,7 @@ export interface Lead {
   vendedor_nome: string | null
   vendedor_cpf: string | null
   vendedor_telefone: string | null
+  vendedor_pessoa_id: string | null
   produto_interesse: ProdutoInteresse | null
   fase_id: string
   responsavel_id: string | null
@@ -85,6 +86,7 @@ export interface Lead {
   fase?: { id: string; nome: string; cor: string } | null
   status?: { id: string; nome: string; cor: string } | null
   conjuge_pessoa?: { id: string; nome: string; cpf: string | null } | null
+  vendedor_pessoa?: { id: string; nome: string; cpf: string | null } | null
 }
 
 export interface FaseStatus {
