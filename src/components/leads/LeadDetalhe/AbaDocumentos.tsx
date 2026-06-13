@@ -507,14 +507,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                   <div className="flex-1 min-w-0">
                     {classificacaoLabel ? (
                       <>
-                        <button
-                          onClick={() => handleVisualizar(doc)}
-                          className="text-sm font-semibold text-[#253B29] hover:underline block text-left w-full truncate"
-                          title="Abrir no navegador"
-                        >
-                          {classificacaoLabel}
-                        </button>
-                        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+                        <div className="flex items-center gap-1 min-w-0">
                           {renomeando === doc.id ? (
                             <input
                               autoFocus
@@ -525,13 +518,19 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                                 if (e.key === 'Enter') e.currentTarget.blur()
                                 if (e.key === 'Escape') setRenomeando(null)
                               }}
-                              className="text-xs text-gray-400 w-full border-b border-gray-300 outline-none bg-transparent"
+                              className="text-sm font-semibold text-[#253B29] w-full border-b border-[#253B29] outline-none bg-transparent"
                             />
                           ) : (
                             <>
-                              <span className="text-xs text-gray-400 truncate">{doc.nome_exibicao ?? doc.nome_original}</span>
                               <button
-                                onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? doc.nome_original) }}
+                                onClick={() => handleVisualizar(doc)}
+                                className="text-sm font-semibold text-[#253B29] hover:underline block text-left truncate"
+                                title="Abrir no navegador"
+                              >
+                                {doc.nome_exibicao ?? classificacaoLabel}
+                              </button>
+                              <button
+                                onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? classificacaoLabel) }}
                                 title="Renomear arquivo"
                                 className="shrink-0 p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
                               >
@@ -540,6 +539,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                             </>
                           )}
                         </div>
+                        <span className="text-xs text-gray-400 truncate mt-0.5 block">{doc.nome_original}</span>
                       </>
                     ) : (
                       <div className="flex items-center gap-1 min-w-0">
