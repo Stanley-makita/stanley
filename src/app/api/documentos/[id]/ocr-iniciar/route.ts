@@ -49,13 +49,19 @@ export async function POST(
     return NextResponse.json({ ok: true, skipped: true, motivo: 'aguardando_apuracao' })
   }
 
-  await processarOcrDocumento(supabase, documentoId, empresa_id)
+  const { erro } = await processarOcrDocumento(supabase, documentoId, empresa_id)
 
   const { data: atualizado } = await supabase
     .from('documentos_clientes')
-    .select('ocr_status, ocr_dados, classificacao')
+    .select('ocr_status, ocr_dados, classificacao, mime_type')
     .eq('id', documentoId)
     .single()
 
-  return NextResponse.json({ ok: true, ocr_status: atualizado?.ocr_status, classificacao: atualizado?.classificacao })
+  return NextResponse.json({
+    ok: true,
+    ocr_status: atualizado?.ocr_status,
+    classificacao: atualizado?.classificacao,
+    mime_type: atualizado?.mime_type,
+    ...(erro ? { ocr_erro: erro } : {}),
+  })
 }

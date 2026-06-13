@@ -28,6 +28,7 @@ interface ResultadoItem {
   nome: string
   status: string
   classificacao: string | null
+  ocr_erro?: string
 }
 
 function badgeStatusDoc(doc: DocumentoCliente) {
@@ -110,9 +111,9 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
           classificacao = json.classificacao ?? null
         }
 
-        items.push({ id, nome: doc?.nome_original ?? id, status, classificacao })
-      } catch {
-        items.push({ id, nome: doc?.nome_original ?? id, status: 'erro', classificacao: null })
+        items.push({ id, nome: doc?.nome_original ?? id, status, classificacao, ocr_erro: json.ocr_erro })
+      } catch (e) {
+        items.push({ id, nome: doc?.nome_original ?? id, status: 'erro', classificacao: null, ocr_erro: String(e) })
       }
 
       onAtualizado()
@@ -239,9 +240,14 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
                   </p>
                   <div className="space-y-1.5">
                     {comErro.map(r => (
-                      <div key={r.id} className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-100">
-                        <span className="flex-1 text-xs text-gray-700 truncate">{r.nome}</span>
-                        <span className="text-xs text-red-500 font-medium shrink-0">Erro na leitura</span>
+                      <div key={r.id} className="px-3 py-2 bg-red-50 rounded-lg border border-red-100">
+                        <div className="flex items-center gap-2">
+                          <span className="flex-1 text-xs text-gray-700 truncate">{r.nome}</span>
+                          <span className="text-xs text-red-500 font-medium shrink-0">Erro na leitura</span>
+                        </div>
+                        {r.ocr_erro && (
+                          <p className="text-xs text-red-400 mt-1 break-all">{r.ocr_erro}</p>
+                        )}
                       </div>
                     ))}
                   </div>

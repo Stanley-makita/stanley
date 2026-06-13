@@ -223,7 +223,7 @@ export async function processarOcrDocumento(
   supabaseCliente: SupabaseClient,
   documentoId: string,
   empresa_id: string,
-): Promise<void> {
+): Promise<{ erro?: string }> {
   const supabase = serviceSupabase()
 
   const { data: doc } = await supabase
@@ -233,7 +233,7 @@ export async function processarOcrDocumento(
     .eq('empresa_id', empresa_id)
     .maybeSingle()
 
-  if (!doc || ['concluido', 'aguardando_apuracao'].includes(doc.ocr_status ?? '')) return
+  if (!doc || ['concluido', 'aguardando_apuracao'].includes(doc.ocr_status ?? '')) return {}
 
   await supabase.from('documentos_clientes')
     .update({ ocr_status: 'processando' })
@@ -257,7 +257,8 @@ export async function processarOcrDocumento(
     const contentBlock = montarContentBlock(base64, mimeType)
     if (!contentBlock) {
       await supabase.from('documentos_clientes').update({ ocr_status: 'ignorado' }).eq('id', documentoId)
-      return
+      console.log('[ocr] mime_type não suportado, ignorado:', documentoId, '| mime:', mimeType)
+      return {}
     }
 
     // ── Fase 1: classificação rápida ──────────────────────────────
@@ -284,7 +285,7 @@ export async function processarOcrDocumento(
         classificacao: 'extrato_bancario',
       }).eq('id', documentoId)
       console.log('[ocr] Extrato bancário detectado automaticamente:', documentoId)
-      return
+      return {}
     }
 
     // Não é documento essencial — ignora sem extração
@@ -294,7 +295,7 @@ export async function processarOcrDocumento(
         classificacao: tipo === 'outro' ? null : tipo,
       }).eq('id', documentoId)
       console.log('[ocr] Classificado como não-essencial, ignorado:', documentoId, '| tipo:', tipo)
-      return
+      return {}
     }
 
     // ── Fase 2: extração completa (só para tipos essenciais) ──────
@@ -320,10 +321,13 @@ export async function processarOcrDocumento(
     }).eq('id', documentoId)
 
     console.log('[ocr] Documento processado:', documentoId, '| tipo:', resultado.tipo_documento, '| confiança:', resultado.confianca)
+    return {}
   } catch (err) {
-    console.error('[ocr] Erro ao processar documento:', documentoId, err)
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ocr] Erro ao processar documento:', documentoId, msg)
     await supabase.from('documentos_clientes')
       .update({ ocr_status: 'erro' })
       .eq('id', documentoId)
+    return { erro: msg }
   }
 }
