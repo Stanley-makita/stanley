@@ -181,7 +181,7 @@ const TIPOS_IMAGEM: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 
 
 // Tipos que vale fazer extração completa de dados
 const TIPOS_ESSENCIAIS = new Set([
-  'rg', 'cnh', 'cpf', 'comprovante_endereco', 'certidao_casamento', 'certidao_nascimento', 'extrato_fgts',
+  'rg', 'cnh', 'cpf', 'comprovante_endereco', 'comprovante_renda', 'certidao_casamento', 'certidao_nascimento', 'extrato_fgts',
 ])
 
 // Prompt mínimo só para classificar o tipo do documento

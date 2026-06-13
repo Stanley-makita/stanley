@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, Sparkles, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { Loader2, Sparkles, AlertCircle, CheckCircle2, Clock, MinusCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface DocumentoCliente {
@@ -127,6 +127,7 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
   const lidos = resultados.filter(r => r.status === 'concluido')
   const comErro = resultados.filter(r => r.status === 'erro')
   const aguardandoAnalise = resultados.filter(r => r.status === 'aguardando_apuracao')
+  const ignorados = resultados.filter(r => r.status === 'ignorado')
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v && estado !== 'processando') onClose() }}>
@@ -241,6 +242,23 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
                       <div key={r.id} className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-100">
                         <span className="flex-1 text-xs text-gray-700 truncate">{r.nome}</span>
                         <span className="text-xs text-red-500 font-medium shrink-0">Erro na leitura</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {ignorados.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
+                    <MinusCircle className="h-3.5 w-3.5" />
+                    Não reconhecidos ({ignorados.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {ignorados.map(r => (
+                      <div key={r.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
+                        <span className="flex-1 text-xs text-gray-700 truncate">{r.nome}</span>
+                        <span className="text-xs text-gray-400 font-medium shrink-0">Tipo não suportado</span>
                       </div>
                     ))}
                   </div>
