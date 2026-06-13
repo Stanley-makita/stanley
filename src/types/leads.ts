@@ -45,6 +45,7 @@ export interface Lead {
   conjuge_nome: string | null
   conjuge_cpf: string | null
   conjuge_data_nascimento: string | null
+  conjuge_pessoa_id: string | null
   renda_formal: number | null
   renda_informal: number | null
   produto_interesse: ProdutoInteresse | null
@@ -78,6 +79,7 @@ export interface Lead {
   responsavel_operacional?: { id: string; nome: string } | null
   fase?: { id: string; nome: string; cor: string } | null
   status?: { id: string; nome: string; cor: string } | null
+  conjuge_pessoa?: { id: string; nome: string; cpf: string | null } | null
 }
 
 export interface FaseStatus {

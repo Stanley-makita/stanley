@@ -48,7 +48,7 @@ export function useBuscaGlobal() {
         const q = `%${termo}%`
         const empresa = usuario.empresa_id
 
-        const [{ data: leadsData }, { data: pessoasData }, { data: telData }, { data: processosData }] = await Promise.all([
+        const [{ data: leadsData }, { data: pessoasData }, { data: telData }, { data: processosData }, { data: conjugeData }] = await Promise.all([
           // Leads ativos por nome, telefone ou cpf (com fase para filtrar client-side)
           supabase
             .from('leads')
@@ -85,6 +85,15 @@ export function useBuscaGlobal() {
             .not('status_processo', 'in', '("reprovado","cancelado")')
             .or(`nome_imovel.ilike.${q},numero_processo.ilike.${q}`)
             .limit(5),
+
+          // Leads encontrados via cônjuge vinculado
+          supabase
+            .from('leads')
+            .select('id, nome, telefone, cpf, fase:fases!fase_id(nome, cor), conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)')
+            .eq('empresa_id', empresa)
+            .is('deleted_at', null)
+            .not('conjuge_pessoa_id', 'is', null)
+            .limit(6),
         ])
 
         // Leads: mapear e filtrar fases avançadas client-side
@@ -147,7 +156,38 @@ export function useBuscaGlobal() {
           }
         })
 
-        const todas = [...leads, ...Array.from(pessoaMap.values()), ...processos]
+        // Leads encontrados via cônjuge: filtrar client-side pelo termo
+        const termoLower = termo.toLowerCase()
+        const leadsViaConjuge: ResultadoBusca[] = (conjugeData ?? [])
+          .filter((l: any) => {
+            const c = Array.isArray(l.conjuge_pessoa) ? l.conjuge_pessoa[0] : l.conjuge_pessoa
+            if (!c) return false
+            return (
+              c.nome?.toLowerCase().includes(termoLower) ||
+              c.cpf?.includes(termo.replace(/\D/g, ''))
+            )
+          })
+          .filter((l: any) => {
+            const faseNome = Array.isArray(l.fase) ? l.fase[0]?.nome : l.fase?.nome
+            return !faseExcluida(faseNome)
+          })
+          .map((l: any) => {
+            const c = Array.isArray(l.conjuge_pessoa) ? l.conjuge_pessoa[0] : l.conjuge_pessoa
+            const faseNome = Array.isArray(l.fase) ? l.fase[0]?.nome : l.fase?.nome
+            const faseCor  = Array.isArray(l.fase) ? l.fase[0]?.cor  : l.fase?.cor
+            // Não duplicar com leads já encontrados pela query principal
+            return {
+              tipo:      'lead' as const,
+              id:        l.id,
+              titulo:    l.nome,
+              subtitulo: `via cônjuge: ${c?.nome ?? ''}`,
+              fase:      faseNome,
+              faseCor,
+            }
+          })
+          .filter((r: ResultadoBusca) => !leads.find(l => l.id === r.id))
+
+        const todas = [...leads, ...leadsViaConjuge, ...Array.from(pessoaMap.values()), ...processos]
         setResultados(todas)
         setAberto(todas.length > 0)
       } finally {

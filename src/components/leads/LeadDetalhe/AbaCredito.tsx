@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
@@ -130,8 +131,39 @@ interface Props {
 
 export function AbaCredito({ lead }: Props) {
   const editar = useEditarLead()
+  const qc = useQueryClient()
   const [completarPessoaAberto, setCompletarPessoaAberto] = useState(false)
   const [completarConjugeAberto, setCompletarConjugeAberto] = useState(false)
+  const [conjugePessoaDrawer, setConjugePessoaDrawer] = useState<string | null>(null)
+
+  async function vincularCriarConjuge() {
+    const { data: session } = await supabase.auth.getSession()
+    const token = session.session?.access_token
+    if (!token) return
+    const res = await fetch(`/api/leads/${lead.id}/vincular-conjuge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ criar_de_lead: true }),
+    })
+    const json = await res.json()
+    if (res.ok && json.conjuge_pessoa_id) {
+      qc.invalidateQueries({ queryKey: ['leads', lead.id] })
+      setCompletarConjugeAberto(false)
+      setConjugePessoaDrawer(json.conjuge_pessoa_id)
+    }
+  }
+
+  async function desvincularConjuge() {
+    const { data: session } = await supabase.auth.getSession()
+    const token = session.session?.access_token
+    if (!token) return
+    await fetch(`/api/leads/${lead.id}/vincular-conjuge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ desvincular: true }),
+    })
+    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
+  }
 
   return (
     <div className="space-y-5">
@@ -144,7 +176,10 @@ export function AbaCredito({ lead }: Props) {
         <DadosCliente
           lead={lead}
           onCompletarPessoa={lead.pessoa_id ? () => setCompletarPessoaAberto(true) : undefined}
-          onCompletarConjuge={lead.conjuge_nome ? () => setCompletarConjugeAberto(true) : undefined}
+          onCompletarConjuge={() => setCompletarConjugeAberto(true)}
+          onAbrirConjugePessoa={lead.conjuge_pessoa_id ? () => setConjugePessoaDrawer(lead.conjuge_pessoa_id) : undefined}
+          onDesvincularConjuge={lead.conjuge_pessoa_id ? desvincularConjuge : undefined}
+          onVincularCriarConjuge={vincularCriarConjuge}
         />
         <DadosOperacao lead={lead} />
       </div>
@@ -170,11 +205,20 @@ export function AbaCredito({ lead }: Props) {
         origemAuditoria="leads"
       />
 
-      {/* Dialog inline para editar dados do cônjuge */}
-      {completarConjugeAberto && (
+      {/* Drawer cadastro cônjuge (pessoa vinculada) */}
+      <CompletarDadosPessoaDrawer
+        pessoaId={conjugePessoaDrawer}
+        open={!!conjugePessoaDrawer}
+        onClose={() => setConjugePessoaDrawer(null)}
+        origemAuditoria="leads"
+      />
+
+      {/* Dialog inline editar dados básicos do cônjuge (sem pessoa vinculada) */}
+      {completarConjugeAberto && !lead.conjuge_pessoa_id && (
         <ConjugeEditarDialog
           lead={lead}
           onClose={() => setCompletarConjugeAberto(false)}
+          onCriarPessoa={vincularCriarConjuge}
         />
       )}
 
@@ -239,10 +283,13 @@ function StatusFase({ lead, saving }: { lead: Lead; saving: boolean }) {
 
 // ── DadosCliente ──────────────────────────────────────────────
 
-function DadosCliente({ lead, onCompletarPessoa, onCompletarConjuge }: {
+function DadosCliente({ lead, onCompletarPessoa, onCompletarConjuge, onAbrirConjugePessoa, onDesvincularConjuge, onVincularCriarConjuge }: {
   lead: Lead
   onCompletarPessoa?: () => void
   onCompletarConjuge?: () => void
+  onAbrirConjugePessoa?: () => void
+  onDesvincularConjuge?: () => void
+  onVincularCriarConjuge?: () => void
 }) {
   const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0) || null
   const casado = lead.estado_civil === 'casado' || lead.estado_civil === 'uniao_estavel'
@@ -296,30 +343,81 @@ function DadosCliente({ lead, onCompletarPessoa, onCompletarConjuge }: {
         <div className="border-t border-gray-100 pt-3 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cônjuge</p>
-            <button
-              onClick={onCompletarConjuge}
-              className="flex items-center gap-1 text-xs text-[#253B29] hover:underline"
-            >
-              <ClipboardList className="h-3 w-3" />
-              {lead.conjuge_nome ? 'Editar dados' : 'Completar Cadastro'}
-            </button>
-          </div>
-          {lead.conjuge_nome || lead.conjuge_cpf ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <div>
-                <p className="text-xs text-gray-400 mb-0.5">Nome</p>
-                <button onClick={onCompletarConjuge} className="text-sm font-medium text-[#253B29] hover:underline text-left flex items-center gap-1">
-                  {lead.conjuge_nome || <span className="text-gray-300">—</span>}
-                  {lead.conjuge_nome && <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />}
+            {/* Estado B — com pessoa vinculada */}
+            {lead.conjuge_pessoa_id ? (
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <Check className="h-3 w-3" /> Cadastrado
+                </span>
+                <button onClick={onDesvincularConjuge} className="text-xs text-gray-400 hover:text-red-500">
+                  Desvincular
                 </button>
               </div>
-              <Campo label="CPF" valor={lead.conjuge_cpf} />
-              {lead.conjuge_data_nascimento && (
-                <Campo label="Data de Nascimento" valor={fmtData(lead.conjuge_data_nascimento)} />
-              )}
-            </div>
+            ) : (
+              /* Estado A — apenas campos de texto */
+              <button onClick={onCompletarConjuge} className="flex items-center gap-1 text-xs text-[#253B29] hover:underline">
+                <ClipboardList className="h-3 w-3" />
+                {lead.conjuge_nome ? 'Editar dados' : 'Completar Cadastro'}
+              </button>
+            )}
+          </div>
+
+          {/* Estado B — pessoa vinculada: card clicável */}
+          {lead.conjuge_pessoa_id ? (
+            <button
+              onClick={onAbrirConjugePessoa}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-green-100 bg-green-50 hover:bg-green-100 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center shrink-0">
+                <span className="text-xs font-bold text-white">
+                  {(lead.conjuge_pessoa?.nome ?? lead.conjuge_nome ?? '?').split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[#253B29] truncate">
+                  {lead.conjuge_pessoa?.nome ?? lead.conjuge_nome ?? '—'}
+                </p>
+                {(lead.conjuge_pessoa?.cpf ?? lead.conjuge_cpf) && (
+                  <p className="text-xs text-gray-500">{lead.conjuge_pessoa?.cpf ?? lead.conjuge_cpf}</p>
+                )}
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            </button>
+          ) : lead.conjuge_nome || lead.conjuge_cpf ? (
+            /* Estado A — apenas texto */
+            <>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Nome</p>
+                  <button onClick={onCompletarConjuge} className="text-sm font-medium text-[#253B29] hover:underline text-left flex items-center gap-1">
+                    {lead.conjuge_nome}
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                  </button>
+                </div>
+                <Campo label="CPF" valor={lead.conjuge_cpf} />
+                {lead.conjuge_data_nascimento && (
+                  <Campo label="Data de Nascimento" valor={fmtData(lead.conjuge_data_nascimento)} />
+                )}
+              </div>
+              <button
+                onClick={onVincularCriarConjuge}
+                className="mt-1 flex items-center gap-1 text-xs text-[#253B29] font-medium hover:underline"
+              >
+                <Plus className="h-3 w-3" />
+                Criar cadastro completo do cônjuge
+              </button>
+            </>
           ) : (
-            <p className="text-xs text-gray-400 italic">Nenhum dado do cônjuge cadastrado.</p>
+            <div className="space-y-1">
+              <p className="text-xs text-gray-400 italic">Nenhum dado do cônjuge cadastrado.</p>
+              <button
+                onClick={onCompletarConjuge}
+                className="flex items-center gap-1 text-xs text-[#253B29] font-medium hover:underline"
+              >
+                <Plus className="h-3 w-3" />
+                Adicionar dados do cônjuge
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -834,7 +932,7 @@ function ParceirosSecao({
 
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
-function ConjugeEditarDialog({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+function ConjugeEditarDialog({ lead, onClose, onCriarPessoa }: { lead: Lead; onClose: () => void; onCriarPessoa?: () => void }) {
   const editar = useEditarLead()
   const [form, setForm] = useState({
     conjuge_nome:            lead.conjuge_nome ?? '',
@@ -871,12 +969,20 @@ function ConjugeEditarDialog({ lead, onClose }: { lead: Lead; onClose: () => voi
             <Input className="h-8 text-sm mt-1" type="date" value={form.conjuge_data_nascimento} onChange={e => setForm(f => ({ ...f, conjuge_data_nascimento: e.target.value }))} />
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={salvar} disabled={editar.isPending}>
-            {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
-            Salvar
-          </Button>
+        <div className="flex justify-between items-center mt-5">
+          {onCriarPessoa && (
+            <Button variant="outline" size="sm" className="text-xs gap-1 text-[#253B29] border-[#253B29]/30" onClick={() => { salvar(); onCriarPessoa() }}>
+              <Plus className="h-3 w-3" />
+              Criar cadastro completo
+            </Button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={salvar} disabled={editar.isPending}>
+              {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+              Salvar
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

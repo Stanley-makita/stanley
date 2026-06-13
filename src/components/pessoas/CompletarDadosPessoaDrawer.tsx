@@ -114,6 +114,8 @@ export function CompletarDadosPessoaDrawer({
           conjuge_renda_formal, conjuge_renda_informal, regime_casamento, data_casamento,
           empresa_nome, empresa_cnpj, municipio_trabalho, uf_trabalho,
           conta_bancaria_banco, conta_bancaria_agencia, conta_bancaria_numero, conta_bancaria_digito,
+          conjuge_pessoa_id,
+          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf),
           pessoa_telefones(id, telefone, principal, whatsapp, ativo)`)
         .eq('id', pessoaId!)
         .single()
@@ -482,6 +484,22 @@ export function CompletarDadosPessoaDrawer({
               {eCasado && (
                 <div className="mt-3 p-3 bg-[#E7E0C4]/20 border border-[#C2AA6A]/40 rounded-xl space-y-3">
                   <p className="text-xs font-semibold text-[#253B29]">Cônjuge / Companheiro(a)</p>
+                  {/* Card se cônjuge já é uma pessoa vinculada */}
+                  {(() => {
+                    const cp = (pessoa as any)?.conjuge_pessoa
+                    const cpObj = Array.isArray(cp) ? cp[0] : cp
+                    if (!cpObj) return null
+                    return (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                        <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-green-800">{cpObj.nome}</p>
+                          {cpObj.cpf && <p className="text-xs text-green-600">{cpObj.cpf}</p>}
+                        </div>
+                        <span className="text-xs text-green-600 font-medium shrink-0">Cadastrado</span>
+                      </div>
+                    )
+                  })()}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>

@@ -18,7 +18,8 @@ export function useLeadsPorFase(faseId: string) {
           responsavel:usuarios!responsavel_id(id, nome),
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
-          status:fase_statuses!status_id(id, nome, cor)
+          status:fase_statuses!status_id(id, nome, cor),
+          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .eq('fase_id', faseId)
@@ -48,7 +49,8 @@ export function useLead(leadId: string) {
           responsavel:usuarios!responsavel_id(id, nome),
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
-          status:fase_statuses!status_id(id, nome, cor)
+          status:fase_statuses!status_id(id, nome, cor),
+          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)
         `)
         .eq('id', leadId)
         .eq('empresa_id', usuario!.empresa_id)
@@ -75,7 +77,8 @@ export function useLeadsTodos(faseId?: string, search?: string) {
           responsavel:usuarios!responsavel_id(id, nome),
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
-          status:fase_statuses!status_id(id, nome, cor)
+          status:fase_statuses!status_id(id, nome, cor),
+          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
