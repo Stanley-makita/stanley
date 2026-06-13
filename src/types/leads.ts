@@ -46,8 +46,13 @@ export interface Lead {
   conjuge_cpf: string | null
   conjuge_data_nascimento: string | null
   conjuge_pessoa_id: string | null
+  conjuge_renda_formal: number | null
+  conjuge_renda_informal: number | null
   renda_formal: number | null
   renda_informal: number | null
+  vendedor_nome: string | null
+  vendedor_cpf: string | null
+  vendedor_telefone: string | null
   produto_interesse: ProdutoInteresse | null
   fase_id: string
   responsavel_id: string | null

@@ -20,8 +20,13 @@ interface EditarLeadInput {
   conjuge_nome?: string | null
   conjuge_cpf?: string | null
   conjuge_data_nascimento?: string | null
+  conjuge_renda_formal?: number | null
+  conjuge_renda_informal?: number | null
   renda_formal?: number | null
   renda_informal?: number | null
+  vendedor_nome?: string | null
+  vendedor_cpf?: string | null
+  vendedor_telefone?: string | null
   produto_interesse?: Lead['produto_interesse'] | null
   responsavel_id?: string
   responsavel_operacional_id?: string | null
