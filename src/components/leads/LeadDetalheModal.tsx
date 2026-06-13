@@ -180,17 +180,8 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       className="flex-1 h-7 text-xs gap-1"
                       onClick={() => setEditarAberto(true)}
                     >
-                      <Pencil className="h-3 w-3" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-7 text-xs gap-1"
-                      onClick={() => setAbaAtiva('tarefas')}
-                    >
-                      <CalendarClock className="h-3 w-3" />
-                      Tarefa
+                      <DollarSign className="h-3 w-3" />
+                      Dados
                     </Button>
                     {pode('leads.excluir') && (
                       <Button
@@ -212,7 +203,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       onClick={() => setCompletarDadosAberto(true)}
                     >
                       <ClipboardList className="h-3 w-3" />
-                      Completar dados
+                      Completar Cadastro
                     </Button>
                   )}
 
@@ -258,12 +249,23 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                   </div>
                   {lead.responsavel && (
                     <div>
-                      <p className="text-xs text-gray-400 mb-1">Responsável</p>
+                      <p className="text-xs text-gray-400 mb-1">Comercial</p>
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
                           <span className="text-xs font-bold text-white">{iniciais(lead.responsavel.nome)}</span>
                         </div>
                         <span className="text-sm text-[#253B29] font-medium truncate">{lead.responsavel.nome}</span>
+                      </div>
+                    </div>
+                  )}
+                  {lead.responsavel_operacional && (
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Operacional</p>
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                          <span className="text-xs font-bold text-white">{iniciais(lead.responsavel_operacional.nome)}</span>
+                        </div>
+                        <span className="text-sm text-blue-700 font-medium truncate">{lead.responsavel_operacional.nome}</span>
                       </div>
                     </div>
                   )}

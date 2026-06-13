@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { Save, User, Building2, Handshake, Loader2, X, Plus, Check } from 'lucide-react'
+import { Save, User, Building2, Handshake, Loader2, X, Plus, Check, ClipboardList, ExternalLink } from 'lucide-react'
+import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 
 // ── Tipos internos ────────────────────────────────────────────
 
@@ -129,6 +130,8 @@ interface Props {
 
 export function AbaCredito({ lead }: Props) {
   const editar = useEditarLead()
+  const [completarPessoaAberto, setCompletarPessoaAberto] = useState(false)
+  const [completarConjugeAberto, setCompletarConjugeAberto] = useState(false)
 
   return (
     <div className="space-y-5">
@@ -138,7 +141,11 @@ export function AbaCredito({ lead }: Props) {
 
       {/* ── 2. Dados do Cliente + Dados da Operação ──────── */}
       <div className="grid grid-cols-[55fr_45fr] gap-4">
-        <DadosCliente lead={lead} />
+        <DadosCliente
+          lead={lead}
+          onCompletarPessoa={lead.pessoa_id ? () => setCompletarPessoaAberto(true) : undefined}
+          onCompletarConjuge={lead.conjuge_nome ? () => setCompletarConjugeAberto(true) : undefined}
+        />
         <DadosOperacao lead={lead} />
       </div>
 
@@ -154,6 +161,22 @@ export function AbaCredito({ lead }: Props) {
         />
         <BlocoParceirosLead leadId={lead.id} />
       </div>
+
+      {/* Drawer cadastro proponente */}
+      <CompletarDadosPessoaDrawer
+        pessoaId={lead.pessoa_id ?? null}
+        open={completarPessoaAberto}
+        onClose={() => setCompletarPessoaAberto(false)}
+        origemAuditoria="leads"
+      />
+
+      {/* Dialog inline para editar dados do cônjuge */}
+      {completarConjugeAberto && (
+        <ConjugeEditarDialog
+          lead={lead}
+          onClose={() => setCompletarConjugeAberto(false)}
+        />
+      )}
 
     </div>
   )
@@ -216,16 +239,41 @@ function StatusFase({ lead, saving }: { lead: Lead; saving: boolean }) {
 
 // ── DadosCliente ──────────────────────────────────────────────
 
-function DadosCliente({ lead }: { lead: Lead }) {
+function DadosCliente({ lead, onCompletarPessoa, onCompletarConjuge }: {
+  lead: Lead
+  onCompletarPessoa?: () => void
+  onCompletarConjuge?: () => void
+}) {
   const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0) || null
   const casado = lead.estado_civil === 'casado' || lead.estado_civil === 'uniao_estavel'
 
   return (
     <div className="bg-white border border-gray-100 rounded-lg p-4 space-y-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Dados do Cliente</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Dados do Cliente</p>
+        {onCompletarPessoa && (
+          <button
+            onClick={onCompletarPessoa}
+            className="flex items-center gap-1 text-xs text-[#253B29] hover:underline"
+          >
+            <ClipboardList className="h-3 w-3" />
+            Completar Cadastro
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-        <Campo label="Nome" valor={lead.nome} />
+        <div>
+          <p className="text-xs text-gray-400 mb-0.5">Nome</p>
+          {onCompletarPessoa ? (
+            <button onClick={onCompletarPessoa} className="text-sm font-medium text-[#253B29] hover:underline text-left flex items-center gap-1">
+              {lead.nome}
+              <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+            </button>
+          ) : (
+            <p className="text-sm text-gray-800 font-medium">{lead.nome}</p>
+          )}
+        </div>
         <Campo label="CPF" valor={lead.cpf} />
         <Campo label="RG" valor={lead.rg} />
         <Campo label="Data de Nascimento" valor={fmtData(lead.data_nascimento)} />
@@ -244,16 +292,35 @@ function DadosCliente({ lead }: { lead: Lead }) {
         <Campo label="E-mail" valor={lead.email} />
       </div>
 
-      {casado && (lead.conjuge_nome || lead.conjuge_cpf) && (
+      {casado && (
         <div className="border-t border-gray-100 pt-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cônjuge</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            <Campo label="Nome" valor={lead.conjuge_nome} />
-            <Campo label="CPF" valor={lead.conjuge_cpf} />
-            {lead.conjuge_data_nascimento && (
-              <Campo label="Data de Nascimento" valor={fmtData(lead.conjuge_data_nascimento)} />
-            )}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cônjuge</p>
+            <button
+              onClick={onCompletarConjuge}
+              className="flex items-center gap-1 text-xs text-[#253B29] hover:underline"
+            >
+              <ClipboardList className="h-3 w-3" />
+              {lead.conjuge_nome ? 'Editar dados' : 'Completar Cadastro'}
+            </button>
           </div>
+          {lead.conjuge_nome || lead.conjuge_cpf ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Nome</p>
+                <button onClick={onCompletarConjuge} className="text-sm font-medium text-[#253B29] hover:underline text-left flex items-center gap-1">
+                  {lead.conjuge_nome || <span className="text-gray-300">—</span>}
+                  {lead.conjuge_nome && <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />}
+                </button>
+              </div>
+              <Campo label="CPF" valor={lead.conjuge_cpf} />
+              {lead.conjuge_data_nascimento && (
+                <Campo label="Data de Nascimento" valor={fmtData(lead.conjuge_data_nascimento)} />
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 italic">Nenhum dado do cônjuge cadastrado.</p>
+          )}
         </div>
       )}
 
@@ -760,5 +827,58 @@ function ParceirosSecao({
         </div>
       )}
     </div>
+  )
+}
+
+// ── ConjugeEditarDialog ───────────────────────────────────────
+
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+
+function ConjugeEditarDialog({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  const editar = useEditarLead()
+  const [form, setForm] = useState({
+    conjuge_nome:            lead.conjuge_nome ?? '',
+    conjuge_cpf:             lead.conjuge_cpf ?? '',
+    conjuge_data_nascimento: lead.conjuge_data_nascimento ?? '',
+    conjuge_renda_formal:    fmtMoedaInput((lead as any).conjuge_renda_formal),
+    conjuge_renda_informal:  fmtMoedaInput((lead as any).conjuge_renda_informal),
+  })
+
+  function salvar() {
+    editar.mutate({
+      id:                      lead.id,
+      conjuge_nome:            form.conjuge_nome || null,
+      conjuge_cpf:             form.conjuge_cpf.replace(/\D/g, '') || null,
+      conjuge_data_nascimento: form.conjuge_data_nascimento || null,
+    }, { onSuccess: onClose })
+  }
+
+  return (
+    <Dialog open onOpenChange={v => { if (!v) onClose() }}>
+      <DialogContent className="max-w-sm p-6">
+        <h2 className="text-base font-semibold text-[#253B29] mb-4">Dados do Cônjuge</h2>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-gray-500">Nome completo</Label>
+            <Input className="h-8 text-sm mt-1" value={form.conjuge_nome} onChange={e => setForm(f => ({ ...f, conjuge_nome: e.target.value }))} />
+          </div>
+          <div>
+            <Label className="text-xs text-gray-500">CPF</Label>
+            <Input className="h-8 text-sm mt-1" placeholder="000.000.000-00" value={form.conjuge_cpf} onChange={e => setForm(f => ({ ...f, conjuge_cpf: e.target.value }))} />
+          </div>
+          <div>
+            <Label className="text-xs text-gray-500">Data de Nascimento</Label>
+            <Input className="h-8 text-sm mt-1" type="date" value={form.conjuge_data_nascimento} onChange={e => setForm(f => ({ ...f, conjuge_data_nascimento: e.target.value }))} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={salvar} disabled={editar.isPending}>
+            {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+            Salvar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -535,7 +535,8 @@ async function buscarEntidade(
 interface DadosLead {
   nome: string | null
   produto: string | null
-  valor: number | null
+  valor_imovel: number | null
+  valor_financiamento: number | null
   renda: number | null
   cpf: string | null
   data_nascimento: string | null
@@ -556,9 +557,11 @@ async function extrairDadosLead(instrucao: string): Promise<DadosLead> {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       system: `Extraia dados de lead imobiliário do texto. Responda SOMENTE com JSON válido, sem markdown, sem explicação:
-{"nome":"...","produto":"Financiamento Imobiliário|CGI|Consórcio|Contrato|null","valor":número_ou_null,"renda":número_ou_null,"cpf":"11digitos_ou_null","data_nascimento":"YYYY-MM-DD_ou_null","estado_civil":"solteiro|casado|uniao_estavel|divorciado|viuvo|null","valor_entrada":número_ou_null,"telefone":"dígitos_com_DDD_ou_null"}
+{"nome":"...","produto":"Financiamento Imobiliário|CGI|Consórcio|Contrato|null","valor_imovel":número_ou_null,"valor_financiamento":número_ou_null,"renda":número_ou_null,"cpf":"11digitos_ou_null","data_nascimento":"YYYY-MM-DD_ou_null","estado_civil":"solteiro|casado|uniao_estavel|divorciado|viuvo|null","valor_entrada":número_ou_null,"telefone":"dígitos_com_DDD_ou_null"}
 Regras:
-- valor e renda: número inteiro sem R$ (ex: "750 mil" → 750000, "35 mi" → 35000, "35k" → 35000)
+- valor_imovel: valor do imóvel/compra e venda. Se o comercial mencionar apenas "valor X" sem especificar se é imóvel ou financiamento, colocar em valor_imovel. Se ficar claro que é "financiando X" ou "valor a financiar X", colocar em valor_financiamento.
+- valor_financiamento: valor que o cliente quer financiar (quando explicitamente mencionado como financiamento)
+- renda e valores: número inteiro sem R$ (ex: "750 mil" → 750000, "35 mi" → 35000, "35k" → 35000)
 - valor_entrada: valor de entrada/FGTS/recursos próprios mencionado (ex: "200 mil de entrada" → 200000)
 - cpf: apenas dígitos, sem pontos/traços (ex: "012.625.478-45" → "01262547845"). null se ausente.
 - data_nascimento: converter qualquer formato para YYYY-MM-DD. null se ausente.
@@ -575,15 +578,16 @@ Regras:
         .replace(/\s*```$/, '')
       const d = JSON.parse(jsonText) as DadosLead
       return {
-        nome:            d.nome    ?? null,
-        produto:         d.produto ?? produtoRapido,
-        valor:           typeof d.valor === 'number' ? d.valor : null,
-        renda:           typeof d.renda === 'number' ? d.renda : null,
-        cpf:             typeof d.cpf === 'string' && /^\d{11}$/.test(d.cpf) ? d.cpf : null,
-        data_nascimento: typeof d.data_nascimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.data_nascimento) ? d.data_nascimento : null,
-        estado_civil:    ESTADOS_CIVIS_VALIDOS.includes(d.estado_civil as EstadoCivil) ? d.estado_civil as EstadoCivil : null,
-        valor_entrada:   typeof d.valor_entrada === 'number' ? d.valor_entrada : null,
-        telefone:        typeof d.telefone === 'string' && /^\d{10,11}$/.test(d.telefone.replace(/\D/g, '')) ? d.telefone.replace(/\D/g, '') : null,
+        nome:                d.nome    ?? null,
+        produto:             d.produto ?? produtoRapido,
+        valor_imovel:        typeof d.valor_imovel === 'number' ? d.valor_imovel : null,
+        valor_financiamento: typeof d.valor_financiamento === 'number' ? d.valor_financiamento : null,
+        renda:               typeof d.renda === 'number' ? d.renda : null,
+        cpf:                 typeof d.cpf === 'string' && /^\d{11}$/.test(d.cpf) ? d.cpf : null,
+        data_nascimento:     typeof d.data_nascimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.data_nascimento) ? d.data_nascimento : null,
+        estado_civil:        ESTADOS_CIVIS_VALIDOS.includes(d.estado_civil as EstadoCivil) ? d.estado_civil as EstadoCivil : null,
+        valor_entrada:       typeof d.valor_entrada === 'number' ? d.valor_entrada : null,
+        telefone:            typeof d.telefone === 'string' && /^\d{10,11}$/.test(d.telefone.replace(/\D/g, '')) ? d.telefone.replace(/\D/g, '') : null,
       }
     }
   } catch (err) {
@@ -597,7 +601,8 @@ Regras:
   return {
     nome: nomeMatch?.[0] ?? null,
     produto: produtoRapido,
-    valor,
+    valor_imovel: valor,
+    valor_financiamento: null,
     renda,
     cpf: null,
     data_nascimento: null,
@@ -856,9 +861,10 @@ export async function processarComandoFonti(
     // Atualiza lead
     if (leadId) {
       const camposLead: Record<string, unknown> = {}
-      if (dados.produto) camposLead.produto_interesse = dados.produto
-      if (dados.valor)   camposLead.valor_pretendido  = dados.valor
-      if (dados.renda)   camposLead.renda_formal      = dados.renda
+      if (dados.produto)             camposLead.produto_interesse = dados.produto
+      if (dados.valor_imovel)        camposLead.valor_imovel      = dados.valor_imovel
+      if (dados.valor_financiamento) camposLead.valor_pretendido  = dados.valor_financiamento
+      if (dados.renda)               camposLead.renda_formal      = dados.renda
       if (dados.nome && dados.nome.trim().length > nomeRef.length) camposLead.nome = dados.nome.trim()
       if (dados.valor_entrada) {
         const { data: leadAtual } = await supabase.from('leads').select('observacoes').eq('id', leadId).single()
@@ -997,8 +1003,9 @@ export async function processarComandoFonti(
           origem:           'whatsapp',
           ordem_kanban:     ordemTopo,
           produto_interesse: dados.produto ?? null,
-          valor_pretendido:  dados.valor   ?? null,
-          renda_formal:      dados.renda   ?? null,
+          valor_imovel:      dados.valor_imovel        ?? null,
+          valor_pretendido:  dados.valor_financiamento ?? null,
+          renda_formal:      dados.renda               ?? null,
           pessoa_id,
           observacoes: [
             `Criado via *fonti por ${usuario.nome}`,
@@ -1053,7 +1060,8 @@ export async function processarComandoFonti(
 
       const produto = dados.produto ? ` — ${dados.produto}` : ''
       const linha1: string[] = []
-      if (dados.valor) linha1.push(`R$ ${dados.valor.toLocaleString('pt-BR')}`)
+      if (dados.valor_imovel) linha1.push(`imóvel R$ ${dados.valor_imovel.toLocaleString('pt-BR')}`)
+      if (dados.valor_financiamento) linha1.push(`financ. R$ ${dados.valor_financiamento.toLocaleString('pt-BR')}`)
       if (dados.renda) linha1.push(`renda R$ ${dados.renda.toLocaleString('pt-BR')}`)
       if (dados.valor_entrada) linha1.push(`entrada R$ ${dados.valor_entrada.toLocaleString('pt-BR')}`)
       const totalDocs = arquivosSalvos + docsConversa
