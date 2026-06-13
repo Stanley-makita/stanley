@@ -301,20 +301,24 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
   const editar = useEditarLead()
   const casado = lead.estado_civil === 'casado' || lead.estado_civil === 'uniao_estavel'
 
+  // Se há pessoa vinculada como cônjuge, a renda vem dela; caso contrário usa leads.conjuge_renda_*
+  const rendaConjugeFonteFormal   = lead.conjuge_pessoa?.renda_formal   ?? lead.conjuge_renda_formal
+  const rendaConjugeFonteInformal = lead.conjuge_pessoa?.renda_informal ?? lead.conjuge_renda_informal
+
   // Sincroniza estado local quando o lead prop muda (após save ou refetch)
-  const [conjFormal,   setConjFormal]   = useState(fmtMoedaInput(lead.conjuge_renda_formal))
-  const [conjInformal, setConjInformal] = useState(fmtMoedaInput(lead.conjuge_renda_informal))
+  const [conjFormal,   setConjFormal]   = useState(fmtMoedaInput(rendaConjugeFonteFormal))
+  const [conjInformal, setConjInformal] = useState(fmtMoedaInput(rendaConjugeFonteInformal))
   const [conjDirty,    setConjDirty]    = useState(false)
   const [rendaConsiderada, setRendaConsiderada] = useState(fmtMoedaInput(lead.renda_considerada))
   const [rcDirty, setRcDirty] = useState(false)
 
-  // Resincroniza quando os valores do lead mudam sem o usuário ter editado
+  // Resincroniza quando os valores mudam (da pessoa vinculada ou dos campos do lead)
   useEffect(() => {
     if (!conjDirty) {
-      setConjFormal(fmtMoedaInput(lead.conjuge_renda_formal))
-      setConjInformal(fmtMoedaInput(lead.conjuge_renda_informal))
+      setConjFormal(fmtMoedaInput(rendaConjugeFonteFormal))
+      setConjInformal(fmtMoedaInput(rendaConjugeFonteInformal))
     }
-  }, [lead.conjuge_renda_formal, lead.conjuge_renda_informal])
+  }, [rendaConjugeFonteFormal, rendaConjugeFonteInformal])
 
   useEffect(() => {
     if (!rcDirty) setRendaConsiderada(fmtMoedaInput(lead.renda_considerada))
@@ -456,23 +460,35 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                   </div>
                 </div>
 
-                {/* Renda cônjuge — editável inline */}
+                {/* Renda cônjuge */}
                 <div className="ml-12 mt-2 grid grid-cols-3 gap-2">
-                  <RendaCampoEditavel
-                    label="Formal"
-                    value={conjFormal}
-                    onChange={v => { setConjFormal(v); setConjDirty(true) }}
-                    onBlur={() => { if (conjDirty) salvarRendaConjuge() }}
-                  />
-                  <RendaCampoEditavel
-                    label="Informal"
-                    value={conjInformal}
-                    onChange={v => { setConjInformal(v); setConjDirty(true) }}
-                    onBlur={() => { if (conjDirty) salvarRendaConjuge() }}
-                  />
-                  <RendaCampo label="Total" valor={fmtMoedaValor(totalConjuge || null)} destaque />
+                  {lead.conjuge_pessoa_id ? (
+                    // Pessoa vinculada: renda vem do cadastro dela (somente leitura aqui)
+                    <>
+                      <RendaCampo label="Formal"   valor={fmtMoedaValor(rendaConjugeFonteFormal   || null)} />
+                      <RendaCampo label="Informal" valor={fmtMoedaValor(rendaConjugeFonteInformal || null)} />
+                      <RendaCampo label="Total"    valor={fmtMoedaValor(totalConjuge || null)} destaque />
+                    </>
+                  ) : (
+                    // Sem pessoa vinculada: editável nos campos do lead
+                    <>
+                      <RendaCampoEditavel
+                        label="Formal"
+                        value={conjFormal}
+                        onChange={v => { setConjFormal(v); setConjDirty(true) }}
+                        onBlur={() => { if (conjDirty) salvarRendaConjuge() }}
+                      />
+                      <RendaCampoEditavel
+                        label="Informal"
+                        value={conjInformal}
+                        onChange={v => { setConjInformal(v); setConjDirty(true) }}
+                        onBlur={() => { if (conjDirty) salvarRendaConjuge() }}
+                      />
+                      <RendaCampo label="Total" valor={fmtMoedaValor(totalConjuge || null)} destaque />
+                    </>
+                  )}
                 </div>
-                {conjDirty && (
+                {conjDirty && !lead.conjuge_pessoa_id && (
                   <div className="ml-12 mt-1">
                     <button onClick={salvarRendaConjuge} className="flex items-center gap-1 text-[10px] text-[#253B29] hover:underline">
                       {editar.isPending
@@ -482,6 +498,11 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                       Salvar renda
                     </button>
                   </div>
+                )}
+                {lead.conjuge_pessoa_id && (rendaConjugeFonteFormal == null && rendaConjugeFonteInformal == null) && (
+                  <p className="ml-12 mt-1 text-[10px] text-gray-400 italic">
+                    Cadastre a renda no perfil do cônjuge (clique no nome acima)
+                  </p>
                 )}
               </>
             ) : (
