@@ -221,7 +221,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
-      nome_imovel:      clienteNome,
+      nome_imovel:      '',
       modalidade:       modalidade as any,
       banco_id:         bancoId,
       valor_imovel:     parseMoeda(valorImovel),
@@ -395,7 +395,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
-      nome_imovel:      clienteNome,
+      nome_imovel:      '',
       modalidade:       'CGI',
       banco_id:         bancoId,
       valor_imovel:     parseMoeda(valorGarantia) || null,
@@ -551,7 +551,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
     const processo = await criarProcesso.mutateAsync({
       lead_id:          lead?.id ?? null,
       pessoa_id:        pessoa?.id ?? null,
-      nome_imovel:      clienteNome,
+      nome_imovel:      '',
       modalidade:       'Contrato',
       banco_id:         null,
       valor_imovel:     null,
