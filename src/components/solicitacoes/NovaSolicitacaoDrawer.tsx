@@ -7,7 +7,7 @@ import {
   TIPO_LABELS, SLA_HORAS_PADRAO,
   type TipoSolicitacao, type PrioridadeSolicitacao, type ContextoSolicitacao,
 } from '@/types/solicitacoes-operacionais'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -145,11 +145,11 @@ export function NovaSolicitacaoDrawer({
   }
 
   return (
-    <Sheet open={aberto} onOpenChange={(o) => !o && onFechar()}>
-      <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
-        <SheetHeader className="px-6 pt-6 pb-4 border-b">
-          <SheetTitle className="text-[#253B29]">Nova Solicitação Operacional</SheetTitle>
-        </SheetHeader>
+    <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent className="sm:max-w-md flex flex-col gap-0 p-0 max-h-[90vh]">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle className="text-[#253B29]">Nova Solicitação Operacional</DialogTitle>
+        </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Para quem? */}
@@ -232,7 +232,7 @@ export function NovaSolicitacaoDrawer({
             {criar.isPending ? 'Criando...' : 'Criar Solicitação'}
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
