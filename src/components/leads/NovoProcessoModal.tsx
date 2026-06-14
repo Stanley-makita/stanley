@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User } from 'lucide-react'
+import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Lead } from '@/types/leads'
 import { useBancos } from '@/hooks/useBancos'
@@ -16,8 +16,53 @@ import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
+import {
+  inferirValidade, preSelecionar,
+  calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE,
+  type StatusValidade,
+} from '@/lib/documentos'
 
 type TipoProcesso = 'financiamento' | 'consorcio' | 'cgi' | 'contrato' | 'credito_pj'
+
+interface DocumentoParaVincular {
+  id: string
+  nome_original: string
+  nome_exibicao: string | null
+  classificacao: string | null
+  permanente: boolean | null
+  validade_data: string | null
+  validade_dias: number | null
+  created_at: string
+  pessoa_id: string | null
+}
+
+interface ProcessoCriadoPayload {
+  processoId: string
+  empresaId: string
+  pessoaIdComprador: string | null
+  nomeComprador: string
+  pessoaIdConjuge: string | null
+  nomeConjuge: string | null
+}
+
+interface VinculacaoState extends ProcessoCriadoPayload {
+  docs: DocumentoParaVincular[]
+}
+
+const LABELS_CLASSIFICACAO_MODAL: Record<string, string> = {
+  rg:                   'RG / Doc. Identidade',
+  cnh:                  'CNH',
+  cpf:                  'CPF',
+  comprovante_endereco: 'Comp. Residência',
+  comprovante_renda:    'Comp. Renda',
+  extrato_fgts:         'Extrato FGTS',
+  extrato_bancario:     'Extrato Bancário',
+  certidao_casamento:   'Certidão Casamento',
+  certidao_nascimento:  'Certidão Nascimento',
+  certidao_divorcio:    'Certidão Divórcio',
+  matricula:            'Matrícula Imóvel',
+  contrato:             'Contrato',
+}
 
 export interface PessoaMinima {
   id: string
@@ -74,35 +119,83 @@ interface Props {
 }
 
 export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
+  const router = useRouter()
+  const { usuario } = useAuth()
   const [tipo, setTipo] = useState<TipoProcesso | null>(null)
+  const [vinculacao, setVinculacao] = useState<VinculacaoState | null>(null)
+  const [buscandoDocs, setBuscandoDocs] = useState(false)
 
   function fechar() {
     setTipo(null)
+    setVinculacao(null)
     onFechar()
   }
 
+  async function handleProcessoCriado(payload: ProcessoCriadoPayload) {
+    const pessoaIds = [payload.pessoaIdComprador, payload.pessoaIdConjuge].filter((id): id is string => !!id)
+
+    if (pessoaIds.length > 0) {
+      setBuscandoDocs(true)
+      const { data: docs } = await supabase
+        .from('documentos_clientes')
+        .select('id, nome_original, nome_exibicao, classificacao, permanente, validade_data, validade_dias, created_at, pessoa_id')
+        .in('pessoa_id', pessoaIds)
+        .eq('empresa_id', payload.empresaId)
+        .is('deleted_at', null)
+        .order('classificacao', { ascending: true })
+      setBuscandoDocs(false)
+
+      if (docs && docs.length > 0) {
+        setVinculacao({ ...payload, docs: docs as DocumentoParaVincular[] })
+        return
+      }
+    }
+
+    router.push(`/processos/${payload.processoId}`)
+    fechar()
+  }
+
+  const tituloHeader = vinculacao
+    ? 'Vincular documentos ao processo'
+    : !tipo
+    ? 'Novo Processo'
+    : `Novo Processo de ${PRODUTOS.find(p => p.id === tipo)?.nome}`
+
+  const subtituloHeader = vinculacao
+    ? 'Selecione quais documentos existentes devem ser aproveitados neste processo'
+    : !tipo
+    ? 'Selecione o tipo de processo para o cliente'
+    : 'Preencha os dados do processo'
+
   return (
     <Dialog open={aberto} onOpenChange={fechar}>
-      <DialogContent className={cn('p-0 gap-0 overflow-hidden', tipo ? 'max-w-lg' : 'max-w-sm')}>
+      <DialogContent className={cn('p-0 gap-0 overflow-hidden', vinculacao || tipo ? 'max-w-lg' : 'max-w-sm')}>
         <DialogHeader className="px-5 pt-5 pb-4 border-b border-gray-100">
-          <DialogTitle className="text-sm font-semibold text-[#253B29]">
-            {!tipo ? 'Novo Processo' : `Novo Processo de ${PRODUTOS.find(p => p.id === tipo)?.nome}`}
-          </DialogTitle>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {!tipo ? 'Selecione o tipo de processo para o cliente' : 'Preencha os dados do processo'}
-          </p>
+          <DialogTitle className="text-sm font-semibold text-[#253B29]">{tituloHeader}</DialogTitle>
+          <p className="text-xs text-gray-400 mt-0.5">{subtituloHeader}</p>
         </DialogHeader>
 
-        {!tipo ? (
+        {buscandoDocs ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
+          </div>
+        ) : vinculacao ? (
+          <VincularStep
+            vinculacao={vinculacao}
+            usuario={usuario}
+            onConcluir={(processoId) => { router.push(`/processos/${processoId}`); fechar() }}
+            onPular={(processoId) => { router.push(`/processos/${processoId}`); fechar() }}
+          />
+        ) : !tipo ? (
           <SeletorTipo lead={lead} pessoa={pessoa} onSelecionar={setTipo} onFechar={fechar} />
         ) : tipo === 'financiamento' ? (
-          <FormFinanciamento lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} />
+          <FormFinanciamento lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
         ) : tipo === 'consorcio' ? (
-          <FormConsorcio lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} />
+          <FormConsorcio lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
         ) : tipo === 'cgi' ? (
-          <FormCGI lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} />
+          <FormCGI lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
         ) : tipo === 'contrato' ? (
-          <FormContrato lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} />
+          <FormContrato lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -185,13 +278,13 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
 }
 
 /* ── Formulário Financiamento ── */
-function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
+function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   lead: Lead | null
   pessoa?: PessoaMinima | null
   onVoltar: () => void
   onFechar: () => void
+  onProcessoCriado: (payload: ProcessoCriadoPayload) => Promise<void>
 }) {
-  const router = useRouter()
   const { usuario } = useAuth()
   const { data: bancos = [] } = useBancos()
   const { data: usuarios = [] } = useUsuariosEmpresa()
@@ -255,8 +348,15 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
     }
 
     if (lead) await marcarLeadConvertido(lead.id)
-    router.push(`/processos/${processo.id}`)
-    onFechar()
+
+    await onProcessoCriado({
+      processoId:        processo.id,
+      empresaId:         processo.empresa_id,
+      pessoaIdComprador: lead?.pessoa_id ?? pessoa?.id ?? null,
+      nomeComprador:     clienteNome,
+      pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
+      nomeConjuge:       lead?.conjuge_nome ?? null,
+    })
   }
 
   return (
@@ -362,13 +462,13 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar }: {
 }
 
 /* ── Formulário CGI ── */
-function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
+function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   lead: Lead | null
   pessoa?: PessoaMinima | null
   onVoltar: () => void
   onFechar: () => void
+  onProcessoCriado: (payload: ProcessoCriadoPayload) => Promise<void>
 }) {
-  const router = useRouter()
   const { usuario } = useAuth()
   const { data: bancos = [] } = useBancos()
   const { data: usuarios = [] } = useUsuariosEmpresa()
@@ -429,8 +529,15 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar }: {
     }
 
     if (lead) await marcarLeadConvertido(lead.id)
-    router.push(`/processos/${processo.id}`)
-    onFechar()
+
+    await onProcessoCriado({
+      processoId:        processo.id,
+      empresaId:         processo.empresa_id,
+      pessoaIdComprador: lead?.pessoa_id ?? pessoa?.id ?? null,
+      nomeComprador:     clienteNome,
+      pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
+      nomeConjuge:       lead?.conjuge_nome ?? null,
+    })
   }
 
   return (
@@ -517,13 +624,13 @@ const TIPO_CONTRATO_LABELS: Record<TipoContrato, string> = {
   juridico_externo:   'Jurídico / Externo',
 }
 
-function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
+function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   lead: Lead | null
   pessoa?: PessoaMinima | null
   onVoltar: () => void
   onFechar: () => void
+  onProcessoCriado: (payload: ProcessoCriadoPayload) => Promise<void>
 }) {
-  const router = useRouter()
   const { usuario } = useAuth()
   const criarProcesso = useCriarProcesso()
   const { data: usuarios = [] } = useUsuariosEmpresa()
@@ -585,8 +692,15 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
     }
 
     if (lead) await marcarLeadConvertido(lead.id)
-    router.push(`/processos/${processo.id}`)
-    onFechar()
+
+    await onProcessoCriado({
+      processoId:        processo.id,
+      empresaId:         processo.empresa_id,
+      pessoaIdComprador: lead?.pessoa_id ?? pessoa?.id ?? null,
+      nomeComprador:     clienteNome,
+      pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
+      nomeConjuge:       lead?.conjuge_nome ?? null,
+    })
   }
 
   return (
@@ -649,13 +763,13 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar }: {
 }
 
 /* ── Formulário Consórcio ── */
-function FormConsorcio({ lead, pessoa, onVoltar, onFechar }: {
+function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   lead: Lead | null
   pessoa?: PessoaMinima | null
   onVoltar: () => void
   onFechar: () => void
+  onProcessoCriado: (payload: ProcessoCriadoPayload) => Promise<void>
 }) {
-  const router = useRouter()
   const { usuario } = useAuth()
   const criarProcesso = useCriarProcesso()
   const { data: usuarios = [] } = useUsuariosEmpresa()
@@ -735,8 +849,15 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar }: {
     }
 
     if (lead) await marcarLeadConvertido(lead.id)
-    router.push(`/processos/${processo.id}`)
-    onFechar()
+
+    await onProcessoCriado({
+      processoId:        processo.id,
+      empresaId:         processo.empresa_id,
+      pessoaIdComprador: lead?.pessoa_id ?? pessoa?.id ?? null,
+      nomeComprador:     clienteNome,
+      pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
+      nomeConjuge:       lead?.conjuge_nome ?? null,
+    })
   }
 
   return (
@@ -847,6 +968,157 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar }: {
         <Button size="sm" className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !tipoBem || !valorCarta}>
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+/* ── Etapa de vinculação de documentos ── */
+function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
+  vinculacao: VinculacaoState
+  usuario: ReturnType<typeof useAuth>['usuario']
+  onConcluir: (processoId: string) => void
+  onPular: (processoId: string) => void
+}) {
+  const { processoId, empresaId, docs, pessoaIdComprador, nomeComprador, pessoaIdConjuge, nomeConjuge } = vinculacao
+
+  const [selecionados, setSelecionados] = useState<Set<string>>(() => {
+    const pre = new Set<string>()
+    docs.forEach(d => { if (preSelecionar(d)) pre.add(d.id) })
+    return pre
+  })
+  const [vinculando, setVinculando] = useState(false)
+
+  function toggle(id: string) {
+    setSelecionados(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selecionados.size === docs.length) {
+      setSelecionados(new Set())
+    } else {
+      setSelecionados(new Set(docs.map(d => d.id)))
+    }
+  }
+
+  async function handleVincular(ids: Set<string>) {
+    if (ids.size === 0) { onPular(processoId); return }
+    setVinculando(true)
+    const rows = Array.from(ids).map(docId => ({
+      empresa_id:   empresaId,
+      documento_id: docId,
+      processo_id:  processoId,
+      vinculado_por: usuario?.id ?? null,
+    }))
+    await supabase.from('documento_processo_vinculos').upsert(rows, { onConflict: 'documento_id,processo_id' })
+    setVinculando(false)
+    onConcluir(processoId)
+  }
+
+  const docsComprador = docs.filter(d => d.pessoa_id === pessoaIdComprador)
+  const docsConjuge   = docs.filter(d => d.pessoa_id === pessoaIdConjuge)
+
+  return (
+    <div className="flex flex-col overflow-hidden max-h-[70vh]">
+      <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <p className="text-xs text-gray-500">
+          {docs.length} documento{docs.length !== 1 ? 's' : ''} encontrado{docs.length !== 1 ? 's' : ''}
+        </p>
+        <button onClick={toggleAll} className="text-xs text-[#253B29] hover:underline font-medium">
+          {selecionados.size === docs.length ? 'Desmarcar todos' : 'Selecionar todos'}
+        </button>
+      </div>
+
+      <div className="overflow-y-auto px-5 py-4 space-y-4">
+        <GrupoDocumentos
+          titulo={nomeComprador}
+          docs={docsComprador}
+          selecionados={selecionados}
+          onToggle={toggle}
+        />
+        {pessoaIdConjuge && docsConjuge.length > 0 && (
+          <GrupoDocumentos
+            titulo={`Cônjuge — ${nomeConjuge ?? 'Cônjuge'}`}
+            docs={docsConjuge}
+            selecionados={selecionados}
+            onToggle={toggle}
+          />
+        )}
+      </div>
+
+      <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5 text-gray-500"
+          onClick={() => onPular(processoId)}
+          disabled={vinculando}
+        >
+          <SkipForward className="h-3.5 w-3.5" />
+          Pular
+        </Button>
+        <Button
+          size="sm"
+          className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 min-w-[150px]"
+          onClick={() => handleVincular(selecionados)}
+          disabled={vinculando}
+        >
+          {vinculando
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <><Link2 className="h-3.5 w-3.5" />Vincular {selecionados.size} selecionado{selecionados.size !== 1 ? 's' : ''}</>
+          }
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function GrupoDocumentos({ titulo, docs, selecionados, onToggle }: {
+  titulo: string
+  docs: DocumentoParaVincular[]
+  selecionados: Set<string>
+  onToggle: (id: string) => void
+}) {
+  if (docs.length === 0) return null
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{titulo}</p>
+      <div className="space-y-1.5">
+        {docs.map(doc => {
+          const status = calcularStatusValidade(doc)
+          const label  = LABELS_CLASSIFICACAO_MODAL[doc.classificacao ?? ''] ?? doc.nome_exibicao ?? doc.nome_original
+          return (
+            <label
+              key={doc.id}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors',
+                selecionados.has(doc.id)
+                  ? 'border-[#253B29]/20 bg-[#E7E0C4]/30'
+                  : 'border-gray-100 bg-white hover:bg-gray-50'
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={selecionados.has(doc.id)}
+                onChange={() => onToggle(doc.id)}
+                className="rounded accent-[#253B29] shrink-0"
+              />
+              <span className="flex-1 text-sm font-medium text-[#253B29] truncate">{label}</span>
+              {status && (
+                <span className={cn(
+                  'text-xs px-2 py-0.5 rounded-full border font-medium shrink-0',
+                  CORES_VALIDADE[status]
+                )}>
+                  {ICONES_VALIDADE[status]} {LABELS_VALIDADE[status]}
+                </span>
+              )}
+            </label>
+          )
+        })}
       </div>
     </div>
   )

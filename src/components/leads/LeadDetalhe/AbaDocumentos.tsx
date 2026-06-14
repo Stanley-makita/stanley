@@ -15,6 +15,7 @@ import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, 
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { inferirValidade } from '@/lib/documentos'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
@@ -224,6 +225,8 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         ? 'image/jpeg'
         : rawMime || null
 
+    const validade = tipoArquivo !== 'auto' ? inferirValidade(tipoArquivo) : { permanente: false, validade_dias: null }
+
     const { data: docInserido, error: dbError } = await supabase
       .from('documentos_clientes')
       .insert({
@@ -239,6 +242,8 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
         canal_origem:   'upload_manual',
         classificacao:  tipoArquivo,
         ocr_status:     'pendente',
+        permanente:     validade.permanente,
+        validade_dias:  validade.validade_dias,
       })
       .select('id')
       .single()

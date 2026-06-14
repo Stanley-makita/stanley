@@ -11,10 +11,11 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2 } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { inferirValidade, calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE } from '@/lib/documentos'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
@@ -54,6 +55,10 @@ interface DocumentoCliente {
   ocr_status: string | null
   ocr_dados: Record<string, unknown> | null
   created_at: string
+  permanente?: boolean | null
+  validade_data?: string | null
+  validade_dias?: number | null
+  vinculado?: boolean
 }
 
 const LABELS_CLASSIFICACAO: Record<string, string> = {
@@ -99,19 +104,40 @@ export function AbaDocumentos({ processoId }: Props) {
   const { ultima: ultimaApuracao } = useApuracaoRenda({ processoId })
   const queryKey = ['documentos-processo', processoId]
 
+  const CAMPOS_DOC = 'id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at, permanente, validade_data, validade_dias'
+
   const { data: documentos = [], isLoading } = useQuery({
     queryKey,
     enabled: !!usuario && !!processoId,
     queryFn: async (): Promise<DocumentoCliente[]> => {
-      const { data, error } = await supabase
-        .from('documentos_clientes')
-        .select('id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at')
-        .eq('processo_id', processoId!)
-        .eq('empresa_id', usuario!.empresa_id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return (data ?? []) as DocumentoCliente[]
+      const [resDiretos, resVinculos] = await Promise.all([
+        supabase
+          .from('documentos_clientes')
+          .select(CAMPOS_DOC)
+          .eq('processo_id', processoId!)
+          .eq('empresa_id', usuario!.empresa_id)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('documento_processo_vinculos')
+          .select(`documento:documentos_clientes!documento_id(${CAMPOS_DOC})`)
+          .eq('processo_id', processoId!)
+          .eq('empresa_id', usuario!.empresa_id),
+      ])
+
+      if (resDiretos.error) throw resDiretos.error
+
+      const diretos = (resDiretos.data ?? []).map(d => ({ ...d, vinculado: false })) as DocumentoCliente[]
+      const diretosIds = new Set(diretos.map(d => d.id))
+
+      const vinculados: DocumentoCliente[] = (resVinculos.data ?? [])
+        .map(v => v.documento as unknown as DocumentoCliente)
+        .filter(d => d && d.id && !diretosIds.has(d.id))
+        .map(d => ({ ...d, vinculado: true }))
+
+      return [...diretos, ...vinculados].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
     },
     refetchInterval: (query) => {
       const docs = (query.state.data as DocumentoCliente[] | undefined) ?? []
@@ -194,6 +220,8 @@ export function AbaDocumentos({ processoId }: Props) {
 
     if (uploadError) throw new Error(uploadError.message)
 
+    const validade = tipoArquivo !== 'auto' ? inferirValidade(tipoArquivo) : { permanente: false, validade_dias: null }
+
     const { data: docInserido, error: dbError } = await supabase
       .from('documentos_clientes')
       .insert({
@@ -215,6 +243,8 @@ export function AbaDocumentos({ processoId }: Props) {
         canal_origem:   'upload_manual',
         classificacao:  tipoArquivo,
         ocr_status:     'pendente',
+        permanente:     validade.permanente,
+        validade_dias:  validade.validade_dias,
       })
       .select('id')
       .single()
@@ -422,6 +452,16 @@ export function AbaDocumentos({ processoId }: Props) {
     return null
   }
 
+  function BadgeValidade({ doc }: { doc: DocumentoCliente }) {
+    const status = calcularStatusValidade(doc)
+    if (!status) return null
+    return (
+      <span className={cn('flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border', CORES_VALIDADE[status])}>
+        {ICONES_VALIDADE[status]} {LABELS_VALIDADE[status]}
+      </span>
+    )
+  }
+
   const total = arquivosSelecionados.length
 
   return (
@@ -585,7 +625,14 @@ export function AbaDocumentos({ processoId }: Props) {
                   </div>
                 )
               })()}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                {doc.vinculado && (
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                    <Link2 className="h-3 w-3" />
+                    Compartilhado
+                  </span>
+                )}
+                <BadgeValidade doc={doc} />
                 <BadgeOcr doc={doc} />
                 <button
                   onClick={() => handleVisualizar(doc)}
