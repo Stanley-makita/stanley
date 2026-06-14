@@ -44,6 +44,7 @@ export async function POST(
   // Aceita lista explícita de IDs (seleção manual) ou fallback por classificação
   const body = await request.json().catch(() => ({}))
   const documentoIds: string[] | undefined = Array.isArray(body?.documento_ids) ? body.documento_ids : undefined
+  const faturamentoDeclarado: number | undefined = typeof body?.faturamento_declarado === 'number' ? body.faturamento_declarado : undefined
 
   let query = supabase
     .from('documentos_clientes')
@@ -65,7 +66,7 @@ export async function POST(
   }
 
   try {
-    const resultado = await analisarExtratosRenda(supabase, documentos)
+    const resultado = await analisarExtratosRenda(supabase, documentos, { faturamentoDeclarado })
 
     const { data: apuracao, error: insertError } = await supabase
       .from('apuracoes_renda')
