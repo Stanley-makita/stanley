@@ -102,6 +102,7 @@ interface Props {
   valorFinanciadoInicial?: number
   clienteNome?: string
   responsavelNome?: string
+  modoAvulso?: boolean  // Central de Simulações: oculta aba Histórico e botão Salvar interno
 }
 
 // ── Currency input ────────────────────────────────────────────────────────────
@@ -257,6 +258,7 @@ export function SimuladorCustas({
   valorFinanciadoInicial = 0,
   clienteNome,
   responsavelNome,
+  modoAvulso = false,
 }: Props) {
   const { data: itbiConfigs = [] } = useItbiConfig()
   const { data: custasConfigs = [] } = useCustasConfig()
@@ -374,26 +376,31 @@ export function SimuladorCustas({
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
-        {(['simulador', 'historico'] as const).map((tab) => (
+        <button
+          onClick={() => setAbaAtiva('simulador')}
+          className={`px-4 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${
+            abaAtiva === 'simulador'
+              ? 'border-[#253B29] text-[#253B29]'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <span className="flex items-center gap-1.5"><Calculator className="h-3.5 w-3.5" />Simulador</span>
+        </button>
+        {!modoAvulso && (
           <button
-            key={tab}
-            onClick={() => setAbaAtiva(tab)}
+            onClick={() => setAbaAtiva('historico')}
             className={`px-4 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${
-              abaAtiva === tab
+              abaAtiva === 'historico'
                 ? 'border-[#253B29] text-[#253B29]'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            {tab === 'simulador' ? (
-              <span className="flex items-center gap-1.5"><Calculator className="h-3.5 w-3.5" />Simulador</span>
-            ) : (
-              <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Histórico ({historico.length})</span>
-            )}
+            <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Histórico ({historico.length})</span>
           </button>
-        ))}
+        )}
       </div>
 
-      {abaAtiva === 'historico' && (
+      {!modoAvulso && abaAtiva === 'historico' && (
         <PainelHistorico historico={historico} clienteNome={clienteNome} responsavelNome={responsavelNome} />
       )}
 
@@ -627,15 +634,17 @@ export function SimuladorCustas({
               )}
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs border-[#C2AA6A] text-[#253B29] hover:bg-[#E7E0C4] gap-1"
-                onClick={salvarSimulacao}
-                disabled={!resultado || salvar.isPending}
-              >
-                <Save className="h-3 w-3" /> Salvar
-              </Button>
+              {!modoAvulso && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-[#C2AA6A] text-[#253B29] hover:bg-[#E7E0C4] gap-1"
+                  onClick={salvarSimulacao}
+                  disabled={!resultado || salvar.isPending}
+                >
+                  <Save className="h-3 w-3" /> Salvar
+                </Button>
+              )}
               <Button
                 size="sm"
                 className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1"

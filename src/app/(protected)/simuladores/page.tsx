@@ -148,6 +148,7 @@ export default function SimuladoresPage() {
   const [clienteNome, setClienteNome] = useState('')
   const [clienteCpf, setClienteCpf]   = useState('')
   const [simulacaoVer, setSimulacaoVer] = useState<SimulacaoCentral | null>(null)
+  const [custaVer, setCustaVer]         = useState<SimulacaoCentral | null>(null)
 
   const { data: simulacoes = [], isLoading, error: erroLista, refetch } = useSimulacoesCentral()
   const salvar      = useSalvarSimulacaoCentral()
@@ -274,9 +275,9 @@ export default function SimuladoresPage() {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => setSimulacaoVer(s)}
+                        onClick={() => s.tipo === 'custas' ? setCustaVer(s) : setSimulacaoVer(s)}
                         className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Ver simulação"
+                        title={s.tipo === 'custas' ? 'Abrir simulador' : 'Ver simulação'}
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -375,7 +376,43 @@ export default function SimuladoresPage() {
             </Button>
           </div>
           <div className="flex-1 overflow-auto min-h-0">
-            <SimuladorCustas />
+            <SimuladorCustas modoAvulso />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Re-simular custas (olho na linha de custas) ────────── */}
+      <Dialog open={!!custaVer} onOpenChange={(o) => !o && setCustaVer(null)}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden"
+          style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 16px)' }}
+        >
+          <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Building2 className="w-4 h-4 text-blue-500" />
+              Simulador de Custas
+              {custaVer?.nome_cliente && (
+                <span className="text-xs font-normal text-gray-400">— {custaVer.nome_cliente}</span>
+              )}
+            </DialogTitle>
+            <Button
+              size="sm"
+              className="ml-auto h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 shrink-0"
+              onClick={() => salvarCustas.mutateAsync({
+                nomeCliente: custaVer?.nome_cliente ?? undefined,
+                cpfCliente: custaVer?.cpf_cliente ?? undefined,
+              }).then(() => { toast.success('Salvo no histórico'); setCustaVer(null) }).catch(() => toast.error('Erro ao salvar'))}
+              disabled={salvarCustas.isPending}
+            >
+              <Save className="w-3 h-3" />
+              {salvarCustas.isPending ? 'Salvando...' : 'Salvar no histórico'}
+            </Button>
+          </div>
+          <div className="flex-1 overflow-auto min-h-0">
+            <SimuladorCustas
+              modoAvulso
+              clienteNome={custaVer?.nome_cliente ?? undefined}
+            />
           </div>
         </DialogContent>
       </Dialog>
