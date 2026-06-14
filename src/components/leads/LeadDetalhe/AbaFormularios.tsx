@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FileDown, ExternalLink, Loader2, CheckSquare, Square, FileText, ChevronDown, ChevronUp } from 'lucide-react'
+import { FileDown, ExternalLink, Loader2, CheckSquare, Square, FileText, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -52,7 +52,18 @@ const ATALHOS = [
   },
 ]
 
+function dadosIncompletos(lead: Lead) {
+  const faltando: string[] = []
+  if (!lead.nome?.trim())             faltando.push('nome completo')
+  if (!lead.cpf?.trim())              faltando.push('CPF')
+  if (!lead.data_nascimento?.trim())  faltando.push('data de nascimento')
+  return faltando
+}
+
 export function AbaFormularios({ lead }: Props) {
+  const camposFaltando = dadosIncompletos(lead)
+  const dadosBloqueados = camposFaltando.length > 0
+
   const [banco, setBanco] = useState<string>(lead.banco_pretendido ?? '')
   const [formularios, setFormularios] = useState<FormDef[]>([])
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
@@ -130,11 +141,24 @@ export function AbaFormularios({ lead }: Props) {
       <section className="bg-white border border-gray-100 rounded-lg p-4 space-y-4">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Gerar Formulários</p>
 
+        {/* Alerta de dados incompletos */}
+        {dadosBloqueados && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">Complete os dados do cliente</p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Preencha {camposFaltando.join(', ')} antes de gerar formulários.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Seletor de banco */}
-        <div className="flex gap-3 items-end">
+        <div className={cn('flex gap-3 items-end', dadosBloqueados && 'opacity-40 pointer-events-none select-none')}>
           <div className="flex-1 space-y-1.5">
             <label className="text-xs text-gray-500">Banco</label>
-            <Select value={banco} onValueChange={handleBancoChange}>
+            <Select value={banco} onValueChange={handleBancoChange} disabled={dadosBloqueados}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder="Selecionar banco..." />
               </SelectTrigger>

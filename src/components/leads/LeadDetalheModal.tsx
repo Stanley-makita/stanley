@@ -26,6 +26,7 @@ import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -292,20 +293,29 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                     const idx = fases.findIndex(f => f.id === lead.fase_id)
                     const proxFase = idx >= 0 && idx < fases.length - 1 ? fases[idx + 1] : null
                     if (!proxFase) return null
-                    const temBloqueio = itensChecklist.some(i => i.bloqueia_avanco && !i.concluido)
+                    const itensBloqueadores = itensChecklist.filter(i => i.bloqueia_avanco && !i.concluido)
+                    const temBloqueio = itensBloqueadores.length > 0
                     return (
                       <Button
                         variant="outline"
                         size="sm"
-                        title={temBloqueio ? 'Conclua os itens obrigatórios antes de avançar' : undefined}
                         className={cn(
                           'w-full h-8 text-xs gap-1.5',
                           temBloqueio
-                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100 cursor-not-allowed'
+                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
                             : 'text-[#253B29] border-[#253B29]/30 hover:bg-[#253B29]/5'
                         )}
-                        disabled={editarLead.isPending || temBloqueio}
-                        onClick={() => editarLead.mutate({ id: lead.id, fase_id: proxFase.id })}
+                        disabled={editarLead.isPending}
+                        onClick={() => {
+                          if (temBloqueio) {
+                            const pendentes = itensBloqueadores.map(i => i.descricao ?? 'item').join(', ')
+                            toast.error('Checklist obrigatório pendente', {
+                              description: `Conclua antes de avançar: ${pendentes}`,
+                            })
+                            return
+                          }
+                          editarLead.mutate({ id: lead.id, fase_id: proxFase.id })
+                        }}
                       >
                         {editarLead.isPending
                           ? <Loader2 className="h-3 w-3 animate-spin" />
