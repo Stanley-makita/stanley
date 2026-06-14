@@ -48,6 +48,13 @@ export function fmtCpf(cpf: string | null): string {
   return `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6,9)}-${n.slice(9)}`
 }
 
+export function fmtCnpj(cnpj: string | null): string {
+  if (!cnpj) return ''
+  const n = cnpj.replace(/\D/g, '')
+  if (n.length !== 14) return cnpj ?? ''
+  return `${n.slice(0,2)}.${n.slice(2,5)}.${n.slice(5,8)}/${n.slice(8,12)}-${n.slice(12)}`
+}
+
 export function localPadrao(): string {
   return 'Maringá - PR'
 }

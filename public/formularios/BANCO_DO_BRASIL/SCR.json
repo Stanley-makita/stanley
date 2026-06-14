@@ -1,0 +1,32 @@
+{
+  "campos": [
+    {
+      "tipo": "texto_flat",
+      "campo": "local_data",
+      "pagina": 0,
+      "x": 64,
+      "y": 212,
+      "tamanho": 10,
+      "valor": "@local_data"
+    },
+    {
+      "tipo": "texto_flat",
+      "campo": "nome_cliente",
+      "pagina": 0,
+      "x": 319,
+      "y": 169,
+      "tamanho": 10,
+      "valor": "comprador_principal.nome"
+    },
+    {
+      "tipo": "texto_flat",
+      "campo": "cpf_cliente",
+      "pagina": 0,
+      "x": 253,
+      "y": 147,
+      "tamanho": 10,
+      "valor": "comprador_principal.cpf",
+      "formatador": "cpf"
+    }
+  ]
+}

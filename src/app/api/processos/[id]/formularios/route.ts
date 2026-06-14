@@ -15,6 +15,7 @@ import { mapaDps }          from '@/lib/formularios/bradesco/dps'
 // Banco do Brasil
 import { mapaFgtsBB }       from '@/lib/formularios/banco-do-brasil/fgts'
 import { mapaCompradorBB }  from '@/lib/formularios/banco-do-brasil/comprador'
+import { mapaScrBB }        from '@/lib/formularios/banco-do-brasil/scr'
 
 // Itaú
 import { mapaFgtsItau }     from '@/lib/formularios/itau/fgts'
@@ -55,6 +56,7 @@ const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
     { nomeArquivo: '2-Autorizacao FGTS.pdf',        template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',     mapa: mapaFgtsBB },
     { nomeArquivo: '3-Vendedor PF.pdf',             template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',                 mapa: () => [] },
     { nomeArquivo: '4-Isencao IR.pdf',              template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf',    mapa: () => [] },
+    { nomeArquivo: '5-SCR.pdf',                     template: 'BANCO_DO_BRASIL/SCR - Preenchida.pdf',               mapa: mapaScrBB },
   ],
   SANTANDER: [
     { nomeArquivo: '1-Autorizacao Compradores.pdf', template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                        mapa: mapaAutorizacaoSantander },
