@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Calculator, Plus, Building2, TrendingUp, CheckCircle2, Clock } from 'lucide-react'
+import { Calculator, Plus, Building2, TrendingUp, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -59,20 +61,35 @@ function BadgeStatus({ status }: { status: 'aguardando' | 'concluida' }) {
 }
 
 export default function SimuladoresPage() {
-  const [modal, setModal] = useState<TipoModal>(null)
-  const { data: simulacoes = [], isLoading } = useSimulacoesCentral()
+  const [modal, setModal]         = useState<TipoModal>(null)
+  const [clienteNome, setClienteNome] = useState('')
+  const [clienteCpf, setClienteCpf]   = useState('')
+
+  const { data: simulacoes = [], isLoading, error: erroLista, refetch } = useSimulacoesCentral()
   const salvar = useSalvarSimulacaoCentral()
 
   const total      = simulacoes.length
   const aguardando = simulacoes.filter((s) => s.status === 'aguardando').length
   const concluidas = simulacoes.filter((s) => s.status === 'concluida').length
 
+  function abrirTipo(tipo: 'custas' | 'financiamento') {
+    setModal(tipo)
+  }
+
+  function fecharSimulador() {
+    setModal(null)
+    setClienteNome('')
+    setClienteCpf('')
+  }
+
   async function handleSalvarFinanciamento(resultado: ResultadoCompleto) {
     try {
       await salvar.mutateAsync(resultado)
       toast.success('Simulação salva no histórico')
-      setModal(null)
-    } catch {
+      await refetch()
+      fecharSimulador()
+    } catch (err) {
+      console.error('[simulacoes-central] erro ao salvar:', err)
       toast.error('Erro ao salvar simulação')
     }
   }
@@ -114,6 +131,11 @@ export default function SimuladoresPage() {
 
         {isLoading ? (
           <div className="px-4 py-8 text-center text-sm text-gray-400">Carregando...</div>
+        ) : erroLista ? (
+          <div className="flex items-center gap-2 px-4 py-6 text-sm text-amber-700">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Erro ao carregar histórico. Recarregue a página.
+          </div>
         ) : simulacoes.length === 0 ? (
           <div className="px-4 py-12 text-center">
             <Calculator className="w-10 h-10 text-gray-200 mx-auto mb-3" />
@@ -159,17 +181,43 @@ export default function SimuladoresPage() {
         )}
       </div>
 
-      {/* Modal: escolha de tipo */}
+      {/* ── Modal: escolha de tipo + dados do cliente ─────────────────── */}
       <Dialog open={modal === 'escolha'} onOpenChange={(o) => !o && setModal(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Nova Simulação</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-500 mb-4">Escolha o tipo de simulação:</p>
+
+          {/* Dados avulsos do cliente */}
+          <div className="space-y-3 pb-2">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Cliente (opcional)</p>
+            <div className="space-y-2">
+              <div>
+                <Label className="text-xs text-gray-500">Nome completo</Label>
+                <Input
+                  className="mt-1 text-sm"
+                  placeholder="Ex: João Silva"
+                  value={clienteNome}
+                  onChange={(e) => setClienteNome(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">CPF</Label>
+                <Input
+                  className="mt-1 text-sm"
+                  placeholder="000.000.000-00"
+                  value={clienteCpf}
+                  onChange={(e) => setClienteCpf(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400 mb-2">Escolha o tipo:</p>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setModal('custas')}
+              onClick={() => abrirTipo('custas')}
               className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-[#253B29] hover:bg-[#253B29]/5 transition-all group"
             >
               <Building2 className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
@@ -180,7 +228,7 @@ export default function SimuladoresPage() {
             </button>
             <button
               type="button"
-              onClick={() => setModal('financiamento')}
+              onClick={() => abrirTipo('financiamento')}
               className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-[#253B29] hover:bg-[#253B29]/5 transition-all group"
             >
               <TrendingUp className="w-8 h-8 text-green-500 group-hover:scale-110 transition-transform" />
@@ -193,34 +241,50 @@ export default function SimuladoresPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: SimuladorCustas */}
-      <Dialog open={modal === 'custas'} onOpenChange={(o) => !o && setModal(null)}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="px-6 pt-5 pb-4 border-b">
+      {/* ── Modal: SimuladorCustas ─────────────────────────────────────── */}
+      <Dialog open={modal === 'custas'} onOpenChange={(o) => !o && fecharSimulador()}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden"
+          style={{ maxWidth: '90vw', width: '1100px', height: '90vh' }}
+        >
+          <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-blue-500" />
               Simulador de Custas
+              {clienteNome && (
+                <span className="text-sm font-normal text-gray-400 ml-1">— {clienteNome}</span>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <div className="px-6 py-4">
+          <div className="flex-1 overflow-hidden px-4 py-4">
             <SimuladorCustas />
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modal: SimuladorFinanciamento */}
-      <Dialog open={modal === 'financiamento'} onOpenChange={(o) => !o && setModal(null)}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+      {/* ── Modal: SimuladorFinanciamento ──────────────────────────────── */}
+      <Dialog open={modal === 'financiamento'} onOpenChange={(o) => !o && fecharSimulador()}>
+        <DialogContent
+          className="flex flex-col overflow-hidden"
+          style={{ maxWidth: '90vw', width: '1100px', maxHeight: '90vh' }}
+        >
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-500" />
-              Simulador de Financiamento Bancário
+              Simulador de Financiamento
+              {clienteNome && (
+                <span className="text-sm font-normal text-gray-400 ml-1">— {clienteNome}</span>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <SimuladorFinanciamento
-            onSalvar={handleSalvarFinanciamento}
-            salvando={salvar.isPending}
-          />
+          <div className="flex-1 overflow-y-auto">
+            <SimuladorFinanciamento
+              nomeCliente={clienteNome || undefined}
+              cpfCliente={clienteCpf || undefined}
+              onSalvar={handleSalvarFinanciamento}
+              salvando={salvar.isPending}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -2,16 +2,24 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 
 export function useSalvarSimulacaoCentral() {
   const qc = useQueryClient()
-  const { data: usuario } = useUsuarioAtual()
 
   return useMutation({
     mutationFn: async (resultado: ResultadoCompleto) => {
-      if (!usuario?.empresa_id) throw new Error('Usuário não autenticado')
+      // Obtém usuário e empresa_id em tempo real (sem depender de hook assíncrono)
+      const { data: { user }, error: authErr } = await supabase.auth.getUser()
+      if (authErr || !user) throw new Error('Não autenticado')
+
+      const { data: usuario, error: uErr } = await supabase
+        .from('usuarios')
+        .select('id, empresa_id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (uErr || !usuario) throw new Error('Usuário não encontrado')
 
       const melhor = resultado.bancos.find((b) => b.elegivel)
 
