@@ -5,7 +5,7 @@ import { Calculator, Plus, Building2, TrendingUp, CheckCircle2, Clock, AlertTria
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -353,39 +353,30 @@ export default function SimuladoresPage() {
       <Dialog open={modal === 'custas'} onOpenChange={(o) => !o && fecharSimulador()}>
         <DialogContent
           className="p-0 flex flex-col overflow-hidden"
-          style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 40px)' }}
+          style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 16px)' }}
         >
-          <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0">
-            <DialogTitle className="flex items-center gap-2">
+          {/* Barra slim: título + "Salvar no histórico" (X do shadcn fica absolute top-4 right-4) */}
+          <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <Building2 className="w-4 h-4 text-blue-500" />
               Simulador de Custas
               {clienteNome && (
-                <span className="text-sm font-normal text-gray-400 ml-1">— {clienteNome}</span>
+                <span className="text-xs font-normal text-gray-400">— {clienteNome}</span>
               )}
             </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto">
-            <SimuladorCustas />
-          </div>
-          <DialogFooter className="px-6 py-4 border-t shrink-0">
-            <p className="text-xs text-gray-400 mr-auto">
-              Use o botão &quot;Salvar&quot; interno para gravar a simulação detalhada. Clique abaixo para registrar no histórico da Central.
-            </p>
             <Button
-              variant="outline"
-              onClick={fecharSimulador}
-            >
-              Fechar
-            </Button>
-            <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-2"
+              size="sm"
+              className="ml-auto h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 shrink-0"
               onClick={handleSalvarCustas}
               disabled={salvarCustas.isPending}
             >
-              <Save className="w-4 h-4" />
+              <Save className="w-3 h-3" />
               {salvarCustas.isPending ? 'Salvando...' : 'Salvar no histórico'}
             </Button>
-          </DialogFooter>
+          </div>
+          <div className="flex-1 overflow-auto min-h-0">
+            <SimuladorCustas />
+          </div>
         </DialogContent>
       </Dialog>
 
