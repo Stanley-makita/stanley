@@ -313,9 +313,12 @@ export function AbaDocumentos({ processoId }: Props) {
   }
 
   async function handleVisualizar(doc: DocumentoCliente) {
+    // Abre janela antes do await — evita bloqueio de popup do browser
+    const win = window.open('', '_blank', 'noopener,noreferrer')
     const url = await gerarSignedUrl(doc.storage_path)
-    if (!url) { toast.error('Não foi possível abrir o documento.'); return }
-    window.open(url, '_blank', 'noopener,noreferrer')
+    if (!url) { toast.error('Não foi possível abrir o documento.'); win?.close(); return }
+    if (win) win.location.href = url
+    else window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   async function handleRenomear(docId: string) {
@@ -355,12 +358,15 @@ export function AbaDocumentos({ processoId }: Props) {
   }
 
   async function handleDownload(doc: DocumentoCliente) {
-    const url = await gerarSignedUrl(doc.storage_path)
-    if (!url) { toast.error('Não foi possível baixar o documento.'); return }
+    // { download } força Content-Disposition: attachment no Supabase — evita abrir no viewer do browser
+    const { data } = await supabase.storage.from(BUCKET).createSignedUrl(doc.storage_path, 3600, { download: doc.nome_exibicao || doc.nome_original })
+    if (!data?.signedUrl) { toast.error('Não foi possível baixar o documento.'); return }
     const link = document.createElement('a')
-    link.href = url
-    link.download = doc.nome_original
+    link.href = data.signedUrl
+    link.download = doc.nome_exibicao || doc.nome_original
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
   }
 
   function handleExcluir(id: string) {

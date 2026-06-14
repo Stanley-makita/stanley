@@ -24,10 +24,14 @@ export function DocumentoItem({ documento, onExcluir, podeExcluir }: DocumentoIt
     try {
       const { data, error } = await supabase.storage
         .from('documentos')
-        .createSignedUrl(documento.storage_path, 3600)
+        .createSignedUrl(documento.storage_path, 3600, { download: documento.nome })
       if (error) throw error
-      // Abre em nova aba — o browser dispara o download se for PDF inline ou força para outros tipos
-      window.open(data.signedUrl, '_blank')
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = documento.nome
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } finally {
       setBaixando(false)
     }
