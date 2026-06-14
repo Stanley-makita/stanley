@@ -297,16 +297,23 @@ export function calcularAnalise(
   const elegiveis = resultados.filter((r) => r.elegivel)
   const melhor = elegiveis[0]
 
+  // Para métricas de display, usa banco elegível, senão banco com parcela calculada (bloqueado por renda),
+  // senão o primeiro resultado disponível
+  const melhorParaMetricas = elegiveis[0]
+    ?? resultados.find((r) => !r.elegivel && r.maxFinanciavel30 > 0)
+    ?? resultados[0]
+
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const ltv = (input.valorImovel - input.valorEntrada) / input.valorImovel
-  const comprometimentoRenda = melhor
-    ? (melhor.primeiraParcela / input.rendaMensal) * 100
+
+  const comprometimentoRenda = (melhorParaMetricas?.primeiraParcela ?? 0) > 0
+    ? (melhorParaMetricas!.primeiraParcela / input.rendaMensal) * 100
     : 100
 
-  const maxFinanciavel = melhor?.maxFinanciavel30 ?? 0
+  const maxFinanciavel = melhorParaMetricas?.maxFinanciavel30 ?? 0
 
-  const rendaMinimaNecessaria = melhor
-    ? melhor.primeiraParcela / 0.30
+  const rendaMinimaNecessaria = (melhorParaMetricas?.primeiraParcela ?? 0) > 0
+    ? melhorParaMetricas!.primeiraParcela / 0.30
     : 0
 
   const fatores: AnalisePredicativa['fatores'] = []

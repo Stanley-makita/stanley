@@ -15,6 +15,15 @@ function fmtPct(v: number, casas = 2) {
   return `${(v * 100).toFixed(casas)}%`
 }
 
+const NOME_ABREV: Record<string, string> = {
+  caixa: 'Caixa', itau: 'Itaú', bradesco: 'Bradesco',
+  santander: 'Santander', bb: 'BB', inter: 'Inter', daycoval: 'Daycoval',
+}
+
+function nomeAbrev(r: ResultadoBanco): string {
+  return NOME_ABREV[r.bancoId] ?? r.bancoNome.split(' ')[0]
+}
+
 export function ResultadosFinanciamento({ resultados }: Props) {
   const elegiveis = resultados.filter((r) => r.elegivel)
   const inaplicaveis = resultados.filter((r) => !r.elegivel)
@@ -77,7 +86,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
                           style={{ backgroundColor: r.corBanco }}
                         />
                         <span className="font-medium text-gray-800 whitespace-nowrap">
-                          {r.bancoNome.split(' ')[0]}
+                          {nomeAbrev(r)}
                           {i === 0 && (
                             <span className="ml-1 text-[10px] text-[#253B29] font-bold">★</span>
                           )}
@@ -141,7 +150,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: r.corBanco }}
                 />
-                <span className="font-medium">{r.bancoNome.split(' ')[0]}:</span>
+                <span className="font-medium">{nomeAbrev(r)}:</span>
                 <span>{r.motivoInelegivel}</span>
               </div>
             ))}
