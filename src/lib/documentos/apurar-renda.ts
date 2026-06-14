@@ -11,11 +11,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-// pdf-parse é externalizado via serverComponentsExternalPackages — não é bundled pelo webpack,
-// Node.js resolve diretamente em runtime. Usar require (não import) para evitar problema de ESM.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer, options?: object) => Promise<{ text: string; numpages: number }>
-
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
@@ -140,6 +135,9 @@ async function extrairLancamentos(
     if (doc.mimeType === 'application/pdf') {
       let localText: string | null = null
       try {
+        // require lazy dentro do try — se o módulo não carregar, cai no fallback Vision sem derrubar o handler
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require('pdf-parse') as (b: Buffer) => Promise<{ text: string }>
         const parsed = await pdfParse(doc.buffer)
         const texto = (parsed.text ?? '').trim()
         if (texto.length >= MIN_CHARS_PDF_PARSE) {
