@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
     const textoNormFM = textoFromMe.slice(0, 12).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(12)
 
-    if (/^\*fonti\b/i.test(textoNormFM)) {
+    if (/^\*(?:fonti|inicio|cria\s+cliente|salva|atualiza|processo)\b/i.test(textoNormFM)) {
       const fmToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
 
       // Para *fonti salva: aguarda 2.5s para que os webhooks de documentos (não-fromMe) completem
       // antes de buscar os docs no banco — evita "Nenhum documento encontrado" por race condition
-      if (/^\*fonti\s+salva\b/i.test(textoNormFM)) {
+      if (/^\*(?:fonti\s+salva|salva)\b/i.test(textoNormFM)) {
         await new Promise((r) => setTimeout(r, 2500))
       }
 
@@ -456,7 +456,7 @@ export async function POST(request: NextRequest) {
   // Normaliza os primeiros chars: remove acentos (autocorrect coloca *Fontì com acento)
   const textoParaFonti = texto.trim().slice(0, 12)
     .normalize('NFD').replace(/[̀-ͯ]/g, '') + texto.trim().slice(12)
-  if (/^\*fonti\b/i.test(textoParaFonti)) {
+  if (/^\*(?:fonti|inicio|cria\s+cliente|salva|atualiza|processo)\b/i.test(textoParaFonti)) {
     const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
       telefone_remetente: telefone,

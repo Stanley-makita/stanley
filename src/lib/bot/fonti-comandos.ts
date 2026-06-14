@@ -614,32 +614,32 @@ Regras:
 
 // ── Mensagem de ajuda ─────────────────────────────────────────────────────────
 
-const MSG_AJUDA = `*Fonti — Comandos internos*
+const MSG_AJUDA = `*Fonti — Comandos*
 
 *Pessoa / Lead*
 
-*fonti inicio*
+*inicio*  _(ou *fonti inicio*)_
   → Marca início de sessão de docs para o próximo cliente.
 
-*fonti criar lead [descrição livre]*
+*cria cliente [descrição livre]*  _(ou *fonti cria ...*)_
   → Cria Pessoa + Lead e vincula documentos recentes
 
-*fonti atualiza [nome] [dados]*
+*atualiza [nome] [dados]*  _(ou *fonti atualiza ...*)_
   → Atualiza CPF, nascimento, renda, estado civil de um lead
      Também vincula docs recentes da conversa
 
-*fonti salva [nome]*
+*salva [nome]*  _(ou *fonti salva ...*)_
   → Vincula docs recentes à pessoa/lead informado
 
 *Processo*
 
-*fonti processo [nome ou número]*
+*processo [nome ou número]*  _(ou *fonti processo ...*)_
   → Inicia sessão de docs para um processo específico
-  Ex: *fonti processo Luciana
-  Ex: *fonti processo 003
+  Ex: *processo Luciana
+  Ex: *processo 003
 
-*fonti salva*
-  → (após *fonti processo) Vincula os docs ao processo da sessão
+*salva*  _(após *processo)_
+  → Vincula os docs ao processo da sessão
 
 *fonti salva processo [número]*
   → Fluxo rápido: vincula direto sem abrir sessão prévia
@@ -679,8 +679,16 @@ export async function processarComandoFonti(
     return null
   }
 
+  // Normaliza atalhos curtos para o padrão *fonti [subcomando]
+  let _texto = textoCompleto
+  if      (/^\*inicio\b/i.test(_texto))           _texto = '*fonti inicio'
+  else if (/^\*cria\s+cliente\b/i.test(_texto))   _texto = _texto.replace(/^\*cria\s+cliente\b/i, '*fonti cria cliente')
+  else if (/^\*salva\b/i.test(_texto))            _texto = _texto.replace(/^\*salva\b/i, '*fonti salva')
+  else if (/^\*atualiza\b/i.test(_texto))         _texto = _texto.replace(/^\*atualiza\b/i, '*fonti atualiza')
+  else if (/^\*processo\b/i.test(_texto))         _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
+
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
-  const corpo = textoCompleto.replace(/^\*fonti\s*/i, '').trim()
+  const corpo = _texto.replace(/^\*fonti\s*/i, '').trim()
   const corpoBaixo = corpo.toLowerCase()
 
   // ── *fonti ajuda ─────────────────────────────────────────────────────────
@@ -695,7 +703,7 @@ export async function processarComandoFonti(
       { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: new Date().toISOString() },
       { onConflict: 'empresa_id,telefone_conversa' },
     )
-    return '✅ Pronto! Envie os documentos do cliente agora.\nQuando terminar: *fonti criar lead [nome] [descrição]'
+    return '✅ Pronto! Envie os documentos do cliente agora.\nQuando terminar: *cria cliente [nome] [descrição]'
   }
 
   // ── *fonti salva [referencia] ────────────────────────────────────────────
@@ -931,7 +939,7 @@ export async function processarComandoFonti(
     const instrucao = corpo.replace(PADRAO_LEAD, '').trim()
 
     if (!instrucao) {
-      return '❌ Descreva o lead.\nEx: *fonti novo lead João Silva, financiamento, renda 5k, valor 300k'
+      return '❌ Descreva o lead.\nEx: *cria cliente João Silva, financiamento, renda 5k, valor 300k'
     }
 
     const dados = await extrairDadosLead(instrucao)
