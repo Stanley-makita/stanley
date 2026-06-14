@@ -110,30 +110,37 @@ export function AbaDocumentos({ processoId }: Props) {
     queryKey,
     enabled: !!usuario && !!processoId,
     queryFn: async (): Promise<DocumentoCliente[]> => {
-      const [resDiretos, resVinculos] = await Promise.all([
-        supabase
-          .from('documentos_clientes')
-          .select(CAMPOS_DOC)
-          .eq('processo_id', processoId!)
-          .eq('empresa_id', usuario!.empresa_id)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('documento_processo_vinculos')
-          .select(`documento:documentos_clientes!documento_id(${CAMPOS_DOC})`)
-          .eq('processo_id', processoId!)
-          .eq('empresa_id', usuario!.empresa_id),
-      ])
+      const { data: resDiretos, error } = await supabase
+        .from('documentos_clientes')
+        .select(CAMPOS_DOC)
+        .eq('processo_id', processoId!)
+        .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
 
-      if (resDiretos.error) throw resDiretos.error
+      if (error) throw error
 
-      const diretos = (resDiretos.data ?? []).map(d => ({ ...d, vinculado: false })) as DocumentoCliente[]
+      const diretos = (resDiretos ?? []).map(d => ({ ...d, vinculado: false })) as DocumentoCliente[]
       const diretosIds = new Set(diretos.map(d => d.id))
 
-      const vinculados: DocumentoCliente[] = (resVinculos.data ?? [])
-        .map(v => v.documento as unknown as DocumentoCliente)
-        .filter(d => d && d.id && !diretosIds.has(d.id))
-        .map(d => ({ ...d, vinculado: true }))
+      // Buscar IDs dos docs vinculados via junction table
+      const { data: vinculos } = await supabase
+        .from('documento_processo_vinculos')
+        .select('documento_id')
+        .eq('processo_id', processoId!)
+        .eq('empresa_id', usuario!.empresa_id)
+
+      const vinculoIds = (vinculos ?? []).map(v => v.documento_id).filter(id => !diretosIds.has(id))
+
+      let vinculados: DocumentoCliente[] = []
+      if (vinculoIds.length > 0) {
+        const { data: docsVinculados } = await supabase
+          .from('documentos_clientes')
+          .select(CAMPOS_DOC)
+          .in('id', vinculoIds)
+          .is('deleted_at', null)
+        vinculados = (docsVinculados ?? []).map(d => ({ ...d, vinculado: true })) as DocumentoCliente[]
+      }
 
       return [...diretos, ...vinculados].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

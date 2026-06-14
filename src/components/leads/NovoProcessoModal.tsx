@@ -16,6 +16,7 @@ import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import {
   inferirValidade, preSelecionar,
   calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE,
@@ -1009,13 +1010,20 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
     if (ids.size === 0) { onPular(processoId); return }
     setVinculando(true)
     const rows = Array.from(ids).map(docId => ({
-      empresa_id:   empresaId,
-      documento_id: docId,
-      processo_id:  processoId,
+      empresa_id:    empresaId,
+      documento_id:  docId,
+      processo_id:   processoId,
       vinculado_por: usuario?.id ?? null,
     }))
-    await supabase.from('documento_processo_vinculos').upsert(rows, { onConflict: 'documento_id,processo_id' })
+    const { error } = await supabase
+      .from('documento_processo_vinculos')
+      .upsert(rows, { onConflict: 'documento_id,processo_id' })
     setVinculando(false)
+    if (error) {
+      console.error('[VincularStep] erro ao vincular documentos:', error)
+      toast.error(`Erro ao vincular documentos: ${error.message}`)
+      return
+    }
     onConcluir(processoId)
   }
 
