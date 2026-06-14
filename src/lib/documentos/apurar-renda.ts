@@ -11,10 +11,10 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-// pdf-parse/lib/pdf-parse.js evita o problema do index.js que tenta ler
-// arquivos de teste com fs.readFileSync e quebra em ambientes serverless
+// pdf-parse é externalizado via serverComponentsExternalPackages — não é bundled pelo webpack,
+// Node.js resolve diretamente em runtime. Usar require (não import) para evitar problema de ESM.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buffer: Buffer, options?: object) => Promise<{ text: string; numpages: number }>
+const pdfParse = require('pdf-parse') as (buffer: Buffer, options?: object) => Promise<{ text: string; numpages: number }>
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
