@@ -79,7 +79,7 @@ Regras:
 - Identifique movimentações entre contas próprias (PIX para mesmo CPF/CNPJ, TED própria)
 - Gere alertas para situações que merecem atenção do analista
 - O campo renda_apurada deve refletir a média de entradas recorrentes (excluindo extraordinários quando identificados)
-- Para cada lançamento identificado como relevante, inclua em lancamentos[]
+- Em lancamentos[], inclua APENAS os lançamentos mais relevantes: salários, entradas recorrentes, créditos extraordinários e débitos atípicos. Máximo de 30 lançamentos no total. NÃO liste lançamentos cotidianos como alimentação, streaming, etc.
 - Seja conservador: na dúvida, use confianca "media" ou "baixa"
 - Se o extrato for ilegível ou incompleto, use confianca "baixa" e inclua alerta extrato_incompleto
 
@@ -135,35 +135,40 @@ export async function analisarExtratosRenda(
     throw new Error('Nenhum documento fornecido para análise')
   }
 
-  // Monta content blocks para cada documento
+  // Baixa todos os documentos em paralelo
+  type BlocoDoc = { label: string; base64: string; mimeType: string } | null
+
+  const resultados = await Promise.all(
+    documentos.map(async (doc): Promise<BlocoDoc> => {
+      const bucket = doc.storage_bucket ?? 'documentos-clientes'
+      const { data: urlData } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(doc.storage_path, 120)
+
+      if (!urlData?.signedUrl) {
+        console.warn('[apurar-renda] URL não gerada para:', doc.nome_original)
+        return null
+      }
+
+      const resp = await fetch(urlData.signedUrl, { signal: AbortSignal.timeout(60000) })
+      if (!resp.ok) {
+        console.warn('[apurar-renda] Download falhou para:', doc.nome_original, resp.status)
+        return null
+      }
+
+      const buffer = await resp.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      return { label: doc.nome_original, base64, mimeType: doc.mime_type ?? 'application/pdf' }
+    })
+  )
+
   const contentBlocks: Anthropic.Messages.ContentBlockParam[] = []
 
-  for (const doc of documentos) {
-    const bucket = doc.storage_bucket ?? 'documentos-clientes'
-    const { data: urlData } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(doc.storage_path, 60)
+  for (const item of resultados) {
+    if (!item) continue
+    const { label, base64, mimeType } = item
 
-    if (!urlData?.signedUrl) {
-      console.warn('[apurar-renda] URL não gerada para:', doc.nome_original)
-      continue
-    }
-
-    const resp = await fetch(urlData.signedUrl, { signal: AbortSignal.timeout(30000) })
-    if (!resp.ok) {
-      console.warn('[apurar-renda] Download falhou para:', doc.nome_original, resp.status)
-      continue
-    }
-
-    const buffer = await resp.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
-    const mimeType = doc.mime_type ?? 'application/pdf'
-
-    // Adiciona label antes de cada documento para ajudar o Claude a identificar
-    contentBlocks.push({
-      type: 'text',
-      text: `=== Documento: ${doc.nome_original} ===`,
-    })
+    contentBlocks.push({ type: 'text', text: `=== Documento: ${label} ===` })
 
     if (TIPOS_IMAGEM.includes(mimeType as ImageMediaType)) {
       contentBlocks.push({
@@ -176,7 +181,7 @@ export async function analisarExtratosRenda(
         source: { type: 'base64', media_type: 'application/pdf', data: base64 },
       } as unknown as Anthropic.Messages.ContentBlockParam)
     } else {
-      console.warn('[apurar-renda] Tipo de mídia não suportado:', mimeType, 'doc:', doc.nome_original)
+      console.warn('[apurar-renda] Tipo de mídia não suportado:', mimeType, 'doc:', label)
     }
   }
 
@@ -201,9 +206,20 @@ export async function analisarExtratosRenda(
     throw new Error('Resposta inesperada do Claude')
   }
 
+  // Detecta resposta truncada (atingiu max_tokens)
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error('Resposta truncada por limite de tokens. Tente com menos documentos ou extratos menores.')
+  }
+
   const textoLimpo = bloco.text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '')
 
-  const resultado = JSON.parse(textoLimpo) as ResultadoApuracao
+  let resultado: ResultadoApuracao
+  try {
+    resultado = JSON.parse(textoLimpo) as ResultadoApuracao
+  } catch {
+    console.error('[apurar-renda] JSON inválido. stop_reason:', response.stop_reason, 'preview:', textoLimpo.slice(-200))
+    throw new Error('A IA retornou um resultado incompleto. Tente novamente.')
+  }
 
   // Garante campos obrigatórios com defaults
   resultado.documentos_analisados = resultado.documentos_analisados ?? []

@@ -280,7 +280,7 @@ export function ApuracaoRendaModal({
                 </div>
               )}
               <p className="text-xs text-gray-500">
-                A análise pode levar até 40 segundos. O resultado será salvo e reutilizável.
+                A análise pode levar 1 a 3 minutos. O resultado é salvo e reutilizável.
               </p>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={handleFechar}>Cancelar</Button>
@@ -302,7 +302,7 @@ export function ApuracaoRendaModal({
               <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
               <div className="text-center">
                 <p className="font-medium text-gray-800">Analisando extratos com IA...</p>
-                <p className="text-sm text-gray-500 mt-1">Isso pode levar até 40 segundos.</p>
+                <p className="text-sm text-gray-500 mt-1">Isso pode levar 1 a 3 minutos dependendo do tamanho dos extratos.</p>
               </div>
             </div>
           )}
