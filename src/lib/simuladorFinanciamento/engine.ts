@@ -240,7 +240,7 @@ function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
   )
   if (faixaMcmv.length > 0) {
     const f = faixaMcmv[0]
-    results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', MIP_RATE_MCMV))
+    results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', f.mipSubsidizado ? MIP_RATE_MCMV : undefined))
   }
 
   // SBPE — sempre presente como alternativa
