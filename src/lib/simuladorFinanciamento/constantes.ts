@@ -38,8 +38,8 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Itaú',
     cor: '#EC7000',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1170, // 11,70% a.a. + TR
-    taxaAnualCorrentista: 0.1170, // sem tabela diferenciada formal
+    taxaAnualBase:        0.1160, // 11,60% a.a. + TR
+    taxaAnualCorrentista: 0.1160, // sem tabela diferenciada formal
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -66,8 +66,8 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Santander',
     cor: '#EC0000',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1199, // 11,99% a.a. + TR (balcão)
-    taxaAnualCorrentista: 0.1169, // 11,69% a.a. (clientes de relacionamento — fonte: larya/spimovel 2026)
+    taxaAnualBase:        0.1249, // 12,49% a.a. + TR (taxa praticada nas simulações)
+    taxaAnualCorrentista: 0.1169, // 11,69% a.a. (mínimo para clientes de relacionamento)
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -81,8 +81,8 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Banco do Brasil',
     cor: '#FDCA00',
     corTexto: '#000000',
-    taxaAnualBase:        0.1200, // 12,00% a.a. + TR (fonte: larya/spimovel 2026)
-    taxaAnualCorrentista: 0.1180, // 11,80% a.a. (correntista com conta ativa)
+    taxaAnualBase:        0.1174, // 11,74% a.a. + TR
+    taxaAnualCorrentista: 0.1160, // 11,60% a.a. (correntista com conta ativa)
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -149,18 +149,19 @@ export const DFI_RATE_MENSAL = 0.0000663 // 0,00663% ao mês sobre VALOR DO IMÓ
 // MCMV — Minha Casa Minha Vida (Caixa, novas condições vigentes desde 22/04/2026)
 // Fonte: Portaria MCID n° 333/2026, caixanoticias, infomoney, gov.br
 // mipSubsidizado: Faixas 1-3 usam MIP_RATE_MCMV; Faixa 4 usa MIP normal (produto SBPE com juros reduzidos)
+// mipSubsidizado: Faixas 1-3 e Classe Média usam MIP_RATE_MCMV (seguro subsidiado Caixa)
+// Classe Média calibrado do simulador oficial Caixa: P=400k/420mo/8%aa → 1ª parcela R$3.565
 export const MCMV_FAIXAS: Array<{ rendaMax: number; taxaAnual: number; programa: string; tetoImovel: number; mipSubsidizado: boolean }> = [
-  { rendaMax: 3_200,  taxaAnual: 0.0450, programa: 'MCMV Faixa 1', tetoImovel: 270_000,  mipSubsidizado: true  },
-  { rendaMax: 5_000,  taxaAnual: 0.0650, programa: 'MCMV Faixa 2', tetoImovel: 350_000,  mipSubsidizado: true  },
-  { rendaMax: 9_600,  taxaAnual: 0.0816, programa: 'MCMV Faixa 3', tetoImovel: 400_000,  mipSubsidizado: true  },
-  { rendaMax: 13_000, taxaAnual: 0.1050, programa: 'MCMV Classe Média', tetoImovel: 600_000, mipSubsidizado: false },
+  { rendaMax: 3_200,  taxaAnual: 0.0400, programa: 'MCMV Faixa 1', tetoImovel: 270_000,  mipSubsidizado: true },
+  { rendaMax: 5_000,  taxaAnual: 0.0650, programa: 'MCMV Faixa 2', tetoImovel: 350_000,  mipSubsidizado: true },
+  { rendaMax: 9_600,  taxaAnual: 0.0766, programa: 'MCMV Faixa 3', tetoImovel: 400_000,  mipSubsidizado: true },
+  { rendaMax: 13_000, taxaAnual: 0.0800, programa: 'MCMV Classe Média', tetoImovel: 600_000, mipSubsidizado: true },
 ]
 
-// Caixa Pró-Cotista FGTS (imóveis até R$500k, mín. 36 meses FGTS)
-// Fonte: Portaria MCID n° 333/2026 — teto elevado de R$350k para R$500k
+// Caixa Pró-Cotista FGTS (imóveis até R$350k, mín. 36 meses FGTS)
 export const CAIXA_PRO_COTISTA = {
   taxaAnual: 0.0866,   // 8,66% a.a. + TR
-  maxValorImovel: 500_000,
+  maxValorImovel: 350_000,
   programa: 'Pró-Cotista FGTS',
 }
 
