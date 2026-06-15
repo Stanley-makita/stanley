@@ -11,7 +11,7 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download } from 'lucide-react'
+import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -35,6 +35,7 @@ import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
 import { AbaCustas } from '@/components/processos/abas/AbaCustas'
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialog'
+import { ModalConfirmacaoValores } from '@/components/processos/ModalConfirmacaoValores'
 
 const MODALIDADES_COM_CUSTAS = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'] as const
 
@@ -54,6 +55,7 @@ export default function ProcessoDetalhePage() {
   const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
   const [confirmFormulariosAberto, setConfirmFormulariosAberto] = useState(false)
   const [gerandoFormularios, setGerandoFormularios] = useState(false)
+  const [confirmacaoValoresAberto, setConfirmacaoValoresAberto] = useState(false)
 
   async function confirmarGerarFormularios() {
     if (!processo?.banco?.nome) return
@@ -203,6 +205,19 @@ export default function ProcessoDetalhePage() {
               >
                 <Download className="h-3.5 w-3.5" />
                 {gerandoFormularios ? 'Gerando...' : 'Formulários'}
+              </Button>
+
+              {/* Confirmação de Valores */}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!processo.banco?.nome}
+                title={!processo.banco?.nome ? 'Defina o banco do processo antes de enviar a confirmação' : 'Enviar confirmação de valores por e-mail'}
+                className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+                onClick={() => setConfirmacaoValoresAberto(true)}
+              >
+                <Mail className="h-3.5 w-3.5" />
+                Confirmar Valores
               </Button>
 
               {/* Nova Solicitação */}
@@ -363,6 +378,12 @@ export default function ProcessoDetalhePage() {
         open={novaTarefaAberta}
         onOpenChange={setNovaTarefaAberta}
         processoId={id}
+      />
+
+      <ModalConfirmacaoValores
+        processoId={id}
+        aberto={confirmacaoValoresAberto}
+        onFechar={() => setConfirmacaoValoresAberto(false)}
       />
 
       {/* Confirmação de geração de formulários */}
