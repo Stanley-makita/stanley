@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Mail, Send, Loader2, X } from 'lucide-react'
+import { Mail, Send, Loader2, X, Code, Eye } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -31,6 +31,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
   const [paraEmail, setParaEmail] = useState('')
   const [assunto, setAssunto] = useState('')
   const [corpo, setCorpo] = useState('')
+  const [modoEdicao, setModoEdicao] = useState(false)
 
   // Dispara ao abrir (onOpenChange do Radix não dispara para open externo)
   useEffect(() => {
@@ -40,6 +41,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
 
   async function carregarPrevia() {
     setEtapa('carregando')
+    setModoEdicao(false)
     try {
       const res = await fetch(`/api/processos/${processoId}/emails/confirmacao-valores/preview`, {
         method: 'POST',
@@ -94,6 +96,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
     setAssunto('')
     setCorpo('')
     setEtapa('carregando')
+    setModoEdicao(false)
     onFechar()
   }
 
@@ -115,7 +118,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
         )}
 
         {(etapa === 'previa' || etapa === 'enviando') && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs text-gray-500">Destinatário</Label>
               <Input
@@ -138,21 +141,40 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
               />
             </div>
 
+            {/* Área do corpo — preview visual ou editor HTML */}
             <div className="space-y-1">
-              <Label className="text-xs text-gray-500">
-                Corpo do e-mail{' '}
-                <span className="text-gray-400 font-normal">(HTML — edite conforme necessário)</span>
-              </Label>
-              <textarea
-                value={corpo}
-                onChange={e => setCorpo(e.target.value)}
-                rows={14}
-                disabled={etapa === 'enviando'}
-                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30 resize-y disabled:opacity-60"
-              />
-              <p className="text-[11px] text-gray-400">
-                O corpo é HTML. Você pode ajustar valores, remover seções ou adicionar observações antes de enviar.
-              </p>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-gray-500">Corpo do e-mail</Label>
+                <button
+                  type="button"
+                  onClick={() => setModoEdicao(v => !v)}
+                  className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {modoEdicao
+                    ? <><Eye className="h-3 w-3" /> Ver prévia</>
+                    : <><Code className="h-3 w-3" /> Editar HTML</>
+                  }
+                </button>
+              </div>
+
+              {modoEdicao ? (
+                <textarea
+                  value={corpo}
+                  onChange={e => setCorpo(e.target.value)}
+                  rows={16}
+                  disabled={etapa === 'enviando'}
+                  className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30 resize-y disabled:opacity-60"
+                />
+              ) : (
+                <div className="rounded-md border border-gray-200 overflow-hidden" style={{ height: 340 }}>
+                  <iframe
+                    srcDoc={corpo}
+                    title="Prévia do e-mail"
+                    className="w-full h-full"
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              )}
             </div>
 
             {!paraEmail.trim() && (
