@@ -175,6 +175,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const expectedWebhookToken = process.env.UAZAPI_WEBHOOK_TOKEN
+  if (!expectedWebhookToken) {
+    console.error('[whatsapp-webhook] UAZAPI_WEBHOOK_TOKEN não configurado')
+    return NextResponse.json({ error: 'Webhook não configurado' }, { status: 500 })
+  }
+
+  const webhookToken = request.headers.get('x-webhook-token') ?? request.nextUrl.searchParams.get('token')
+  if (webhookToken !== expectedWebhookToken) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  }
+
   let payload: UazapiPayload
   try {
     payload = await request.json()
@@ -182,7 +193,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  console.log('[whatsapp-webhook] payload recebido:', JSON.stringify(payload, null, 2))
+  console.log('[whatsapp-webhook] recebido:', {
+    eventType: payload.EventType,
+    chatSource: payload.chatSource,
+    messageType: payload.message?.type,
+    mediaType: payload.message?.mediaType,
+    fromMe: payload.message?.fromMe,
+    isGroup: payload.message?.isGroup,
+    hasToken: Boolean(payload.token),
+    hasMessageId: Boolean(payload.message?.messageid),
+  })
 
   const msg = payload.message
 

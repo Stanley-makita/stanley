@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  }
+
   const allCookies = request.cookies.getAll()
 
   const supabase = createServerClient(
@@ -16,10 +20,12 @@ export async function GET(request: NextRequest) {
   )
 
   const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  }
 
   return NextResponse.json({
     cookieNames: allCookies.map(c => c.name),
-    user: user?.email ?? null,
-    error: error?.message ?? null,
+    user: user.email ?? null,
   })
 }

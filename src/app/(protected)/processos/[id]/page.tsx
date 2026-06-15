@@ -60,7 +60,9 @@ export default function ProcessoDetalhePage() {
     setConfirmFormulariosAberto(false)
     setGerandoFormularios(true)
     try {
-      const res = await fetch(`/api/processos/${id}/formularios?banco=${encodeURIComponent(processo.banco.nome)}`)
+      const res = await fetch(`/api/processos/${id}/formularios?banco=${encodeURIComponent(processo.banco.nome)}`, {
+        method: 'POST',
+      })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar formulários')
 

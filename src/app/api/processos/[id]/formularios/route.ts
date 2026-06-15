@@ -1,7 +1,9 @@
 // API: POST /api/processos/[id]/formularios?banco=<nome do banco>
 // Gera PDFs preenchidos e salva diretamente no CRM (documentos_clientes)
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { podeExecutar } from '@/lib/auth/permissions'
 import { buscarDadosFormulario } from '@/lib/formularios/dados'
 import { preencherPdf } from '@/lib/formularios/engine'
 
@@ -26,6 +28,26 @@ import { mapaAutorizacaoSantander } from '@/lib/formularios/santander/autorizaca
 import { mapaIqVendedorSantander }  from '@/lib/formularios/santander/iq-vendedor'
 
 type BancoSuportado = 'BRADESCO' | 'BANCO_DO_BRASIL' | 'SANTANDER' | 'ITAU' | 'CAIXA'
+
+const supabaseAdmin = createSupabaseAdmin(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+)
+
+async function resolverUsuario() {
+  const supabase = await createServerClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) return null
+
+  const { data: usuario } = await supabaseAdmin
+    .from('usuarios')
+    .select('empresa_id, perfil')
+    .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+    .eq('ativo', true)
+    .single()
+
+  return usuario
+}
 
 function normalizarBanco(nome: string): BancoSuportado | null {
   const n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -71,11 +93,26 @@ const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
   CAIXA: [],
 }
 
-export async function GET(
+export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const usuario = await resolverUsuario()
+    if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    if (!podeExecutar(usuario.perfil, 'processos.editar')) {
+      return NextResponse.json({ error: 'Sem permissão para gerar formulários do processo' }, { status: 403 })
+    }
+
+    const { data: processo } = await supabaseAdmin
+      .from('processos')
+      .select('id')
+      .eq('id', params.id)
+      .eq('empresa_id', usuario.empresa_id)
+      .maybeSingle()
+
+    if (!processo) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
+
     const bancoParam = request.nextUrl.searchParams.get('banco') ?? ''
     const banco = normalizarBanco(bancoParam)
 
@@ -96,11 +133,6 @@ export async function GET(
 
     const dados = await buscarDadosFormulario(params.id)
 
-    const sb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-
     const salvos: string[] = []
     const erros: string[] = []
 
@@ -120,8 +152,8 @@ export async function GET(
       // --- 2. Upload Storage ---
       const storagePath = `${dados.empresa_id}/formularios/${params.id}/${form.nomeArquivo}`
       try {
-        await sb.storage.from('documentos-clientes').remove([storagePath])
-        const { error: uploadErr } = await sb.storage
+        await supabaseAdmin.storage.from('documentos-clientes').remove([storagePath])
+        const { error: uploadErr } = await supabaseAdmin.storage
           .from('documentos-clientes')
           .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
         if (uploadErr) throw uploadErr
@@ -134,13 +166,13 @@ export async function GET(
 
       // --- 3. Registrar no banco ---
       try {
-        await sb.from('documentos_clientes')
+        await supabaseAdmin.from('documentos_clientes')
           .delete()
           .eq('processo_id', params.id)
           .eq('nome_original', form.nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
-        const { error: dbErr } = await sb.from('documentos_clientes').insert({
+        const { error: dbErr } = await supabaseAdmin.from('documentos_clientes').insert({
           empresa_id:    dados.empresa_id,
           processo_id:   params.id,
           nome_original: form.nomeArquivo,

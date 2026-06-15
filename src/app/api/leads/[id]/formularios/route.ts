@@ -1,7 +1,9 @@
 // API: GET /api/leads/[id]/formularios?banco=<nome>&formularios=arq1,arq2
 // Gera PDFs selecionados e salva em documentos_clientes vinculados ao lead
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { podeExecutar } from '@/lib/auth/permissions'
 import { buscarDadosFormularioLead } from '@/lib/formularios/dados-lead'
 import { preencherPdf } from '@/lib/formularios/engine'
 
@@ -27,6 +29,26 @@ import { mapaAutorizacaoSantander } from '@/lib/formularios/santander/autorizaca
 import type { DadosProcesso } from '@/lib/formularios/dados'
 
 type BancoSuportado = 'BRADESCO' | 'BANCO_DO_BRASIL' | 'SANTANDER' | 'ITAU' | 'CAIXA'
+
+const supabaseAdmin = createSupabaseAdmin(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+)
+
+async function resolverUsuario() {
+  const supabase = await createServerClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) return null
+
+  const { data: usuario } = await supabaseAdmin
+    .from('usuarios')
+    .select('empresa_id, perfil')
+    .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
+    .eq('ativo', true)
+    .single()
+
+  return usuario
+}
 
 function normalizarBanco(nome: string): BancoSuportado | null {
   const n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -101,6 +123,22 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const usuario = await resolverUsuario()
+    if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    if (!podeExecutar(usuario.perfil, 'leads.editar')) {
+      return NextResponse.json({ error: 'Sem permissão para gerar formulários do lead' }, { status: 403 })
+    }
+
+    const { data: lead } = await supabaseAdmin
+      .from('leads')
+      .select('id')
+      .eq('id', params.id)
+      .eq('empresa_id', usuario.empresa_id)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+
     const body = await request.json() as { banco: string; formularios: string[] }
     const banco = normalizarBanco(body.banco ?? '')
 
@@ -124,11 +162,6 @@ export async function POST(
 
     const dados = await buscarDadosFormularioLead(params.id)
 
-    const sb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-
     const salvos: string[] = []
     const erros: string[] = []
 
@@ -144,8 +177,8 @@ export async function POST(
 
       const storagePath = `${dados.empresa_id}/formularios/lead_${params.id}/${form.nomeArquivo}`
       try {
-        await sb.storage.from('documentos-clientes').remove([storagePath])
-        const { error: uploadErr } = await sb.storage
+        await supabaseAdmin.storage.from('documentos-clientes').remove([storagePath])
+        const { error: uploadErr } = await supabaseAdmin.storage
           .from('documentos-clientes')
           .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
         if (uploadErr) throw uploadErr
@@ -155,13 +188,13 @@ export async function POST(
       }
 
       try {
-        await sb.from('documentos_clientes')
+        await supabaseAdmin.from('documentos_clientes')
           .delete()
           .eq('lead_id', params.id)
           .eq('nome_original', form.nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
-        const { error: dbErr } = await sb.from('documentos_clientes').insert({
+        const { error: dbErr } = await supabaseAdmin.from('documentos_clientes').insert({
           empresa_id:    dados.empresa_id,
           lead_id:       params.id,
           nome_original: form.nomeArquivo,
