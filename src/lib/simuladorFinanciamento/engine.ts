@@ -135,8 +135,14 @@ export function calcularMaxFinanciavel(
   return Math.floor((lo + hi) / 2)
 }
 
-export function simularBanco(bancoId: BancoId, input: InputFinanciamento): ResultadoBanco {
-  const cfg = BANCOS_CONFIG[bancoId]
+// Núcleo do cálculo: recebe taxa e programa já resolvidos
+function simularBancoComTaxa(
+  cfg: BancoConfig,
+  input: InputFinanciamento,
+  taxaAnual: number,
+  programa: string,
+  resultadoId: string,
+): ResultadoBanco {
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const prazo = calcularPrazoMaximo(input.dataNascimento, cfg.prazoMaximoMeses)
   const mip = getMipRate(idadeAnos)
@@ -147,48 +153,25 @@ export function simularBanco(bancoId: BancoId, input: InputFinanciamento): Resul
 
   // ── Verificações de elegibilidade ────────────────────────────────
   if (idadeAnos >= 80) {
-    return inelegivel(cfg, valorFinanciado, input, prazo, 'Idade máxima de 80 anos atingida')
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Idade máxima de 80 anos atingida')
   }
   if (prazo < 12) {
-    return inelegivel(cfg, valorFinanciado, input, prazo, 'Prazo insuficiente — mutuário muito próximo dos 80 anos')
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Prazo insuficiente — mutuário muito próximo dos 80 anos')
   }
   if (valorFinanciado <= 0) {
-    return inelegivel(cfg, valorFinanciado, input, prazo, 'Valor de entrada maior ou igual ao valor do imóvel')
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Valor de entrada maior ou igual ao valor do imóvel')
   }
   if (valorFinanciado > maxLtvValue) {
     return inelegivel(
-      cfg, valorFinanciado, input, prazo,
+      cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId,
       `Financiamento (${fmtMoeda(valorFinanciado)}) excede ${Math.round(maxLtv * 100)}% do imóvel`
     )
   }
   if (cfg.maxValorImovel > 0 && input.valorImovel > cfg.maxValorImovel) {
     return inelegivel(
-      cfg, valorFinanciado, input, prazo,
+      cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId,
       `Imóvel acima do teto ${cfg.nome}: ${fmtMoeda(cfg.maxValorImovel)}`
     )
-  }
-
-  // ── Escolha de programa / taxa ────────────────────────────────────
-  let programa = cfg.programa
-  let taxaAnual = input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase
-
-  // Caixa: verificar MCMV e Pró-Cotista antes do SBPE padrão
-  if (bancoId === 'caixa') {
-    // Pró-Cotista (prioridade sobre MCMV para cotistas com renda até R$350k em imóvel elegível)
-    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
-      taxaAnual = CAIXA_PRO_COTISTA.taxaAnual
-      programa = CAIXA_PRO_COTISTA.programa
-    }
-
-    // MCMV (sobrescreve Pró-Cotista se renda se enquadrar na faixa)
-    const faixaMcmv = MCMV_FAIXAS.filter(
-      (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
-    )
-    if (faixaMcmv.length > 0) {
-      const melhor = faixaMcmv[0] // menor renda = melhor taxa
-      taxaAnual = melhor.taxaAnual
-      programa = melhor.programa
-    }
   }
 
   const taxaMensal = taxaAnualParaMensal(taxaAnual)
@@ -201,19 +184,69 @@ export function simularBanco(bancoId: BancoId, input: InputFinanciamento): Resul
       ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
       : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
 
-  // Verificar comprometimento de renda (30%)
   if (calc.primeiraParcela > input.rendaMensal * 0.30) {
     return {
-      ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc),
+      ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
       elegivel: false,
       motivoInelegivel: `1ª parcela (${fmtMoeda(calc.primeiraParcela)}) > 30% da renda (${fmtMoeda(input.rendaMensal * 0.30)})`,
     }
   }
 
   return {
-    ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc),
+    ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
     elegivel: true,
   }
+}
+
+export function simularBanco(bancoId: BancoId, input: InputFinanciamento): ResultadoBanco {
+  const cfg = BANCOS_CONFIG[bancoId]
+  let programa = cfg.programa
+  let taxaAnual = input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase
+
+  // Caixa: programa único (Pró-Cotista ou MCMV) — SBPE é tratado por simularCaixaDuplo
+  if (bancoId === 'caixa') {
+    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
+      taxaAnual = CAIXA_PRO_COTISTA.taxaAnual
+      programa = CAIXA_PRO_COTISTA.programa
+    }
+    const faixaMcmv = MCMV_FAIXAS.filter(
+      (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
+    )
+    if (faixaMcmv.length > 0) {
+      taxaAnual = faixaMcmv[0].taxaAnual
+      programa = faixaMcmv[0].programa
+    }
+  }
+
+  return simularBancoComTaxa(cfg, input, taxaAnual, programa, bancoId)
+}
+
+// Caixa retorna dois resultados: MCMV (se elegível) + SBPE (sempre)
+function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
+  const cfg = BANCOS_CONFIG['caixa']
+  const results: ResultadoBanco[] = []
+
+  // Pró-Cotista (imóveis até R$350k)
+  if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
+    results.push(
+      simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista')
+    )
+  }
+
+  // MCMV (se renda e imóvel se enquadram)
+  const faixaMcmv = MCMV_FAIXAS.filter(
+    (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
+  )
+  if (faixaMcmv.length > 0) {
+    const f = faixaMcmv[0]
+    results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv'))
+  }
+
+  // SBPE — sempre presente como alternativa
+  const taxaSbpe = input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase
+  results.push(simularBancoComTaxa(cfg, input, taxaSbpe, 'SBPE', 'caixa-sbpe'))
+
+  return results
 }
 
 function baseResult(
@@ -225,9 +258,11 @@ function baseResult(
   taxaMensal: number,
   prazo: number,
   maxFinanciavel30: number,
-  calc: ResultadoCalculo
+  calc: ResultadoCalculo,
+  resultadoId: string,
 ): ResultadoBanco {
   return {
+    resultadoId,
     bancoId: cfg.id,
     bancoNome: cfg.nome,
     corBanco: cfg.cor,
@@ -251,15 +286,18 @@ function inelegivel(
   cfg: BancoConfig,
   valorFinanciado: number,
   input: InputFinanciamento,
+  taxaAnual: number,
+  programa: string,
   prazo: number,
+  resultadoId: string,
   motivoInelegivel: string
 ): ResultadoBanco {
-  const taxaAnual = input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase
   return {
+    resultadoId,
     bancoId: cfg.id,
     bancoNome: cfg.nome,
     corBanco: cfg.cor,
-    programa: cfg.programa,
+    programa,
     valorFinanciado,
     maxFinanciavel30: 0,
     parcelas: prazo,
@@ -281,13 +319,21 @@ function fmtMoeda(v: number): string {
 }
 
 export function simularTodosBancos(input: InputFinanciamento): ResultadoBanco[] {
-  return input.bancosIds
-    .map((id) => simularBanco(id, input))
-    .sort((a, b) => {
-      if (a.elegivel && !b.elegivel) return -1
-      if (!a.elegivel && b.elegivel) return 1
-      return a.primeiraParcela - b.primeiraParcela
-    })
+  const todos: ResultadoBanco[] = []
+
+  for (const id of input.bancosIds) {
+    if (id === 'caixa') {
+      todos.push(...simularCaixaDuplo(input))
+    } else {
+      todos.push(simularBanco(id, input))
+    }
+  }
+
+  return todos.sort((a, b) => {
+    if (a.elegivel && !b.elegivel) return -1
+    if (!a.elegivel && b.elegivel) return 1
+    return a.primeiraParcela - b.primeiraParcela
+  })
 }
 
 export function calcularAnalise(
@@ -354,16 +400,17 @@ export function calcularAnalise(
     fatores.push({ descricao: `Idade ${idadeAnos} anos reduz prazo disponível`, impacto: 'negativo' })
   }
 
-  // Nº de bancos elegíveis
-  if (elegiveis.length >= 4) {
+  // Nº de bancos elegíveis — conta bancos únicos (não linhas)
+  const bancosElegiveis = new Set(elegiveis.map((r) => r.bancoId))
+  if (bancosElegiveis.size >= 4) {
     score += 10
-    fatores.push({ descricao: `${elegiveis.length} bancos elegíveis — boa capacidade de negociação`, impacto: 'positivo' })
+    fatores.push({ descricao: `${bancosElegiveis.size} bancos elegíveis — boa capacidade de negociação`, impacto: 'positivo' })
   } else if (elegiveis.length === 0) {
     score = Math.min(score, 20)
     fatores.push({ descricao: 'Nenhum banco elegível com os parâmetros atuais', impacto: 'critico' })
-  } else if (elegiveis.length <= 2) {
+  } else if (bancosElegiveis.size <= 2) {
     score -= 5
-    fatores.push({ descricao: `Apenas ${elegiveis.length} banco(s) elegível(is) — opções limitadas`, impacto: 'negativo' })
+    fatores.push({ descricao: `Apenas ${bancosElegiveis.size} banco(s) elegível(is) — opções limitadas`, impacto: 'negativo' })
   }
 
   // Correntista

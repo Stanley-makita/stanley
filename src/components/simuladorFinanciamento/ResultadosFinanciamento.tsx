@@ -76,7 +76,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
               <tbody className="divide-y divide-gray-50">
                 {elegiveis.map((r, i) => (
                   <tr
-                    key={r.bancoId}
+                    key={r.resultadoId}
                     className={cn('transition-colors', i === 0 ? 'bg-[#253B29]/5' : 'hover:bg-gray-50')}
                   >
                     <td className="px-3 py-2.5">
@@ -112,7 +112,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {elegiveis.map((r) => (
           <div
-            key={r.bancoId}
+            key={r.resultadoId}
             className="rounded-xl border border-gray-100 bg-white overflow-hidden"
           >
             <div
@@ -145,7 +145,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
           </summary>
           <div className="px-4 pb-3 space-y-1">
             {inaplicaveis.map((r) => (
-              <div key={r.bancoId} className="flex items-center gap-2 text-xs text-gray-500">
+              <div key={r.resultadoId} className="flex items-center gap-2 text-xs text-gray-500">
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: r.corBanco }}

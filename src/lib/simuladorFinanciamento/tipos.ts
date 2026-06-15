@@ -22,6 +22,7 @@ export interface InputFinanciamento {
 }
 
 export interface ResultadoBanco {
+  resultadoId: string
   bancoId: BancoId
   bancoNome: string
   corBanco: string

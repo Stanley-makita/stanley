@@ -147,7 +147,7 @@ export const MCMV_FAIXAS = [
   { rendaMax: 3_200,  taxaAnual: 0.0400, programa: 'MCMV Faixa 1', tetoImovel: 270_000  },
   { rendaMax: 5_000,  taxaAnual: 0.0650, programa: 'MCMV Faixa 2', tetoImovel: 350_000  },
   { rendaMax: 9_600,  taxaAnual: 0.0766, programa: 'MCMV Faixa 3', tetoImovel: 400_000  },
-  { rendaMax: 13_000, taxaAnual: 0.1000, programa: 'MCMV Classe Média', tetoImovel: 600_000 },
+  { rendaMax: 13_000, taxaAnual: 0.0800, programa: 'MCMV Classe Média', tetoImovel: 600_000 },
 ]
 
 // Caixa Pró-Cotista FGTS (imóveis até R$350k, mín. 36 meses FGTS)
