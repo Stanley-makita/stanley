@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 interface SalvarCustasParams {
   nomeCliente?: string
   cpfCliente?: string
+  resultadoJson?: Record<string, unknown>
 }
 
 export function useSalvarCustasCentral() {
@@ -32,6 +33,7 @@ export function useSalvarCustasCentral() {
           status:        'concluida',
           nome_cliente:  params.nomeCliente ?? null,
           cpf_cliente:   params.cpfCliente ?? null,
+          resultado_json: params.resultadoJson ?? null,
           responsavel_id: usuario.id,
         })
         .select()

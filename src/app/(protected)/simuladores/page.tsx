@@ -18,6 +18,7 @@ import { useSimulacoesCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 import { useSalvarCustasCentral } from '@/hooks/simulacoes/useSalvarCustasCentral'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
+import type { ResultadoSimulador, EntradaSimulador } from '@/types/simulador'
 import type { SimulacaoCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 
 type TipoModal = null | 'escolha' | 'custas' | 'financiamento'
@@ -147,8 +148,10 @@ export default function SimuladoresPage() {
   const [modal, setModal]         = useState<TipoModal>(null)
   const [clienteNome, setClienteNome] = useState('')
   const [clienteCpf, setClienteCpf]   = useState('')
-  const [simulacaoVer, setSimulacaoVer] = useState<SimulacaoCentral | null>(null)
-  const [custaVer, setCustaVer]         = useState<SimulacaoCentral | null>(null)
+  const [simulacaoVer, setSimulacaoVer]       = useState<SimulacaoCentral | null>(null)
+  const [custaVer, setCustaVer]               = useState<SimulacaoCentral | null>(null)
+  const [custasResultado, setCustasResultado] = useState<ResultadoSimulador | null>(null)
+  const [custaVerResultado, setCustaVerResultado] = useState<ResultadoSimulador | null>(null)
 
   const { data: simulacoes = [], isLoading, error: erroLista, refetch } = useSimulacoesCentral()
   const salvar      = useSalvarSimulacaoCentral()
@@ -166,6 +169,7 @@ export default function SimuladoresPage() {
     setModal(null)
     setClienteNome('')
     setClienteCpf('')
+    setCustasResultado(null)
   }
 
   async function handleSalvarFinanciamento(resultado: ResultadoCompleto) {
@@ -182,7 +186,11 @@ export default function SimuladoresPage() {
 
   async function handleSalvarCustas() {
     try {
-      await salvarCustas.mutateAsync({ nomeCliente: clienteNome || undefined, cpfCliente: clienteCpf || undefined })
+      await salvarCustas.mutateAsync({
+        nomeCliente: clienteNome || undefined,
+        cpfCliente: clienteCpf || undefined,
+        resultadoJson: custasResultado as unknown as Record<string, unknown> ?? undefined,
+      })
       toast.success('Simulação de custas salva no histórico')
       await refetch()
       fecharSimulador()
@@ -375,8 +383,8 @@ export default function SimuladoresPage() {
               {salvarCustas.isPending ? 'Salvando...' : 'Salvar no histórico'}
             </Button>
           </div>
-          <div className="flex-1 overflow-auto min-h-0">
-            <SimuladorCustas modoAvulso />
+          <div className="flex-1 overflow-hidden min-h-0">
+            <SimuladorCustas modoAvulso onResultadoChange={setCustasResultado} />
           </div>
         </DialogContent>
       </Dialog>
@@ -401,17 +409,21 @@ export default function SimuladoresPage() {
               onClick={() => salvarCustas.mutateAsync({
                 nomeCliente: custaVer?.nome_cliente ?? undefined,
                 cpfCliente: custaVer?.cpf_cliente ?? undefined,
-              }).then(() => { toast.success('Salvo no histórico'); setCustaVer(null) }).catch(() => toast.error('Erro ao salvar'))}
+                resultadoJson: custaVerResultado as unknown as Record<string, unknown> ?? undefined,
+              }).then(() => { toast.success('Salvo no histórico'); setCustaVer(null); setCustaVerResultado(null) }).catch(() => toast.error('Erro ao salvar'))}
               disabled={salvarCustas.isPending}
             >
               <Save className="w-3 h-3" />
               {salvarCustas.isPending ? 'Salvando...' : 'Salvar no histórico'}
             </Button>
           </div>
-          <div className="flex-1 overflow-auto min-h-0">
+          <div className="flex-1 overflow-hidden min-h-0">
             <SimuladorCustas
+              key={custaVer?.id}
               modoAvulso
               clienteNome={custaVer?.nome_cliente ?? undefined}
+              entradaInicial={(custaVer?.resultado_json as ResultadoSimulador | null)?.entrada as EntradaSimulador | undefined}
+              onResultadoChange={setCustaVerResultado}
             />
           </div>
         </DialogContent>

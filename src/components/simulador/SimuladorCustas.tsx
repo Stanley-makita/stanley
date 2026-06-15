@@ -102,6 +102,8 @@ interface Props {
   valorFinanciadoInicial?: number
   clienteNome?: string
   responsavelNome?: string
+  entradaInicial?: EntradaSimulador
+  onResultadoChange?: (r: ResultadoSimulador | null) => void
   modoAvulso?: boolean  // Central de Simulações: oculta aba Histórico e botão Salvar interno
 }
 
@@ -258,6 +260,8 @@ export function SimuladorCustas({
   valorFinanciadoInicial = 0,
   clienteNome,
   responsavelNome,
+  entradaInicial,
+  onResultadoChange,
   modoAvulso = false,
 }: Props) {
   const { data: itbiConfigs = [] } = useItbiConfig()
@@ -265,12 +269,13 @@ export function SimuladorCustas({
   const { data: historico = [] } = useHistoricoSimulacoes(processoId, leadId)
   const salvar = useSalvarSimulacao()
 
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState<FormState>(() => ({
     ...FORM_VAZIO,
     banco: bancoNomeInicial,
     valorCV: valorCVInicial ? fmtInput(valorCVInicial) : '',
     valorFinanciado: valorFinanciadoInicial ? fmtInput(valorFinanciadoInicial) : '',
-  })
+    ...(entradaInicial ? entradaParaForm(entradaInicial) : {}),
+  }))
   const [abaAtiva, setAbaAtiva] = useState<'simulador' | 'historico'>('simulador')
   const jaCarregouHistorico = useRef(false)
 
@@ -348,6 +353,9 @@ export function SimuladorCustas({
     return calcularCustas(entrada, itbiSelecionado, custasDosBanco)
   }, [form, isTC, iofVisivel, itbiSelecionado, custasDosBanco])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onResultadoChange?.(resultado) }, [resultado])
+
   const linhasVisiveis = resultado?.linhas.filter((l) => l.visivel) ?? []
 
   async function salvarSimulacao() {
@@ -373,9 +381,9 @@ export function SimuladorCustas({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={modoAvulso ? 'h-full flex flex-col' : 'space-y-4'}>
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-gray-200 shrink-0">
         <button
           onClick={() => setAbaAtiva('simulador')}
           className={`px-4 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${
@@ -405,7 +413,7 @@ export function SimuladorCustas({
       )}
 
       {abaAtiva === 'simulador' && (
-        <div className="rounded-2xl border-2 border-[#253B29] overflow-hidden">
+        <div className={`rounded-2xl border-2 border-[#253B29] overflow-hidden${modoAvulso ? ' flex-1 min-h-0 flex flex-col' : ''}`}>
 
           {/* ── Cabeçalho ─────────────────────────────────────────── */}
           <div className="flex items-center justify-between gap-4 px-5 py-3 bg-white border-b border-gray-100">
@@ -426,7 +434,7 @@ export function SimuladorCustas({
           </div>
 
           {/* ── Corpo: formulário | resultados ────────────────────── */}
-          <div className="flex min-h-0">
+          <div className={`flex min-h-0${modoAvulso ? ' flex-1 overflow-y-auto' : ''}`}>
 
             {/* Formulário: col labels + col inputs */}
             <div
@@ -600,7 +608,7 @@ export function SimuladorCustas({
               </div>
 
               {/* Estimativas de Despesas */}
-              <div className="bg-[#253B29] px-4 py-3 flex items-center justify-between gap-4">
+              <div className="bg-[#253B29] px-4 py-3 flex items-center justify-between gap-4 shrink-0">
                 <p className="text-xs font-bold text-white uppercase tracking-wide">Estimativas de Despesas</p>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
@@ -621,7 +629,7 @@ export function SimuladorCustas({
           </div>
 
           {/* ── Rodapé: percentuais + botões ──────────────────────── */}
-          <div className="flex items-center justify-between gap-3 px-5 py-2.5 bg-[#F2F0E8] border-t border-[#D5CFA8]">
+          <div className="flex items-center justify-between gap-3 px-5 py-2.5 bg-[#F2F0E8] border-t border-[#D5CFA8] shrink-0">
             <div className="flex items-center gap-3 text-xs text-[#5B8C5A] font-medium flex-wrap">
               {resultado ? (
                 <>
