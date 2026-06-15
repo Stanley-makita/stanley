@@ -135,6 +135,11 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
   { idadeMin: 71, idadeMax: 80, taxa: 0.002800 }, // 0,2800% a.m.
 ]
 
+// MIP subsidiado para programas MCMV — taxa muito menor que SBPE (seguro habitacional governamental)
+// Derivado do simulador oficial Caixa: P=400k/420mo/8%aa → 1ª prestação R$3.565,17
+// MIP_MCMV = (3565,17 - 952,38 - 2573,60 - 33,15) / 400000 ≈ 0,0000151
+export const MIP_RATE_MCMV = 0.0000151
+
 // DFI — Danos Físicos ao Imóvel
 // IMPORTANTE: calculado sobre o VALOR DO IMÓVEL (não sobre o saldo devedor)
 // Taxa fixa durante todo o contrato

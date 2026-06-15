@@ -1,5 +1,5 @@
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA } from './constantes'
 import type { BancoConfig } from './constantes'
 
 export function taxaAnualParaMensal(taxaAnual: number): number {
@@ -142,10 +142,11 @@ function simularBancoComTaxa(
   taxaAnual: number,
   programa: string,
   resultadoId: string,
+  mipOverride?: number,
 ): ResultadoBanco {
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const prazo = calcularPrazoMaximo(input.dataNascimento, cfg.prazoMaximoMeses)
-  const mip = getMipRate(idadeAnos)
+  const mip = mipOverride ?? getMipRate(idadeAnos)
 
   const valorFinanciado = input.valorImovel - input.valorEntrada
   const maxLtv = input.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv
@@ -229,7 +230,7 @@ function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
   // Pró-Cotista (imóveis até R$350k)
   if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
     results.push(
-      simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista')
+      simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista', MIP_RATE_MCMV)
     )
   }
 
@@ -239,7 +240,7 @@ function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
   )
   if (faixaMcmv.length > 0) {
     const f = faixaMcmv[0]
-    results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv'))
+    results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', MIP_RATE_MCMV))
   }
 
   // SBPE — sempre presente como alternativa
