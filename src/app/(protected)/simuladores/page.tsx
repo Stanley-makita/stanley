@@ -432,10 +432,10 @@ export default function SimuladoresPage() {
       {/* ── Modal: SimuladorFinanciamento ──────────────────────────────── */}
       <Dialog open={modal === 'financiamento'} onOpenChange={(o) => !o && fecharSimulador()}>
         <DialogContent
-          className="flex flex-col overflow-hidden"
+          className="p-0 flex flex-col overflow-hidden"
           style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 40px)' }}
         >
-          <DialogHeader className="shrink-0">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-500" />
               Simulador de Financiamento

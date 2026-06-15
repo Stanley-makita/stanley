@@ -139,7 +139,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
 
       {/* Inelegíveis */}
       {inaplicaveis.length > 0 && (
-        <details className="rounded-xl border border-gray-100">
+        <details className="rounded-xl border border-gray-100" open={elegiveis.length === 0}>
           <summary className="px-4 py-3 text-xs text-gray-400 cursor-pointer select-none">
             {inaplicaveis.length} banco(s) não elegível(is) — clique para ver motivos
           </summary>

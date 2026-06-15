@@ -38,7 +38,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
 
   if (resultado) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 p-4">
         {/* Header com voltar */}
         <div className="flex items-center justify-between">
           <button
@@ -74,11 +74,13 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   }
 
   return (
-    <FormFinanciamento
-      onSimular={handleSimular}
-      loading={loading}
-      nomeCliente={nomeCliente}
-      cpfCliente={cpfCliente}
-    />
+    <div className="max-w-lg mx-auto p-4">
+      <FormFinanciamento
+        onSimular={handleSimular}
+        loading={loading}
+        nomeCliente={nomeCliente}
+        cpfCliente={cpfCliente}
+      />
+    </div>
   )
 }
