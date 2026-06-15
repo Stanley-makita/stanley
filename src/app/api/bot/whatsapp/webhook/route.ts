@@ -175,13 +175,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const expectedWebhookToken = process.env.UAZAPI_WEBHOOK_TOKEN
+  const expectedWebhookToken = process.env.UAZAPI_WEBHOOK_TOKEN?.trim()
   if (!expectedWebhookToken) {
     console.error('[whatsapp-webhook] UAZAPI_WEBHOOK_TOKEN não configurado')
     return NextResponse.json({ error: 'Webhook não configurado' }, { status: 500 })
   }
 
-  const webhookToken = request.headers.get('x-webhook-token') ?? request.nextUrl.searchParams.get('token')
+  const webhookToken = (request.headers.get('x-webhook-token') ?? request.nextUrl.searchParams.get('token'))?.trim()
   if (webhookToken !== expectedWebhookToken) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
