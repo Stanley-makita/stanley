@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Mail, Send, Loader2, X } from 'lucide-react'
 import {
@@ -31,6 +31,12 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
   const [paraEmail, setParaEmail] = useState('')
   const [assunto, setAssunto] = useState('')
   const [corpo, setCorpo] = useState('')
+
+  // Dispara ao abrir (onOpenChange do Radix não dispara para open externo)
+  useEffect(() => {
+    if (aberto) carregarPrevia()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto])
 
   async function carregarPrevia() {
     setEtapa('carregando')
@@ -91,16 +97,8 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
     onFechar()
   }
 
-  function aoAbrirChange(open: boolean) {
-    if (open) {
-      carregarPrevia()
-    } else {
-      fechar()
-    }
-  }
-
   return (
-    <Dialog open={aberto} onOpenChange={aoAbrirChange}>
+    <Dialog open={aberto} onOpenChange={(open) => { if (!open) fechar() }}>
       <DialogContent className="max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#253B29]">

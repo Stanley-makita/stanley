@@ -42,14 +42,12 @@ export async function POST(
     }
 
     // Verifica que o processo pertence à empresa
-    const { data: processo } = await supabaseAdmin
+    const { data: processo, error: errProcesso } = await supabaseAdmin
       .from('processos')
       .select(`
         id, modalidade, valor_imovel, valor_financiado, valor_entrada,
         valor_fgts, valor_recursos_proprios,
-        prazo_amortizacao_meses, sistema_amortizacao, indexador,
-        financiar_despesas_cartorariais,
-        campos_formularios_bancarios,
+        prazo_amortizacao_meses, sistema_amortizacao,
         banco:bancos!banco_id(id, nome),
         compradores:processo_compradores(nome, email, principal)
       `)
@@ -57,6 +55,10 @@ export async function POST(
       .eq('empresa_id', usuario.empresa_id)
       .maybeSingle()
 
+    if (errProcesso) {
+      console.error('[confirmacao-valores/preview] erro ao buscar processo:', errProcesso)
+      return NextResponse.json({ error: errProcesso.message }, { status: 500 })
+    }
     if (!processo) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
 
     const bancoNome: string = (processo.banco as any)?.nome ?? ''
@@ -72,30 +74,27 @@ export async function POST(
       ?? (processo.compradores as any[])?.[0]
     const paraEmail: string = compradorPrincipal?.email ?? ''
 
-    // Campos extras do processo (financiamento bancário)
-    const extras: Record<string, any> = (processo.campos_formularios_bancarios as any) ?? {}
-
     const dados: DadosConfirmacaoValores = {
-      cliente_nome:          compradorPrincipal?.nome ?? 'Cliente',
-      banco_nome:            bancoNome,
-      engenharia_laudo:      extras.engenharia_laudo ?? processo.valor_imovel,
-      compra_venda:          extras.compra_venda ?? processo.valor_imovel,
-      entrada:               processo.valor_entrada,
-      fgts:                  processo.valor_fgts,
-      subsidio:              extras.subsidio ?? null,
-      valor_financiado:      processo.valor_financiado,
-      despesas_financiadas:  extras.despesas_financiadas ?? null,
-      valor_total_financiado: extras.valor_total_financiado ?? processo.valor_financiado,
-      prazo_meses:           processo.prazo_amortizacao_meses,
-      modalidade:            processo.modalidade,
-      amortizacao:           processo.sistema_amortizacao,
-      taxa:                  extras.taxa ?? null,
-      iof:                   extras.iof ?? null,
-      tarifa_banco:          extras.tarifa_banco ?? null,
-      observacoes:           extras.observacoes_confirmacao ?? null,
-      usuario_nome:          usuario.nome,
-      usuario_funcao:        usuario.perfil,
-      usuario_email:         usuario.email,
+      cliente_nome:           compradorPrincipal?.nome ?? 'Cliente',
+      banco_nome:             bancoNome,
+      engenharia_laudo:       (processo as any).valor_imovel,
+      compra_venda:           (processo as any).valor_imovel,
+      entrada:                (processo as any).valor_entrada,
+      fgts:                   (processo as any).valor_fgts,
+      subsidio:               null,
+      valor_financiado:       (processo as any).valor_financiado,
+      despesas_financiadas:   null,
+      valor_total_financiado: (processo as any).valor_financiado,
+      prazo_meses:            (processo as any).prazo_amortizacao_meses,
+      modalidade:             (processo as any).modalidade,
+      amortizacao:            (processo as any).sistema_amortizacao,
+      taxa:                   null,
+      iof:                    null,
+      tarifa_banco:           null,
+      observacoes:            null,
+      usuario_nome:           usuario.nome,
+      usuario_funcao:         usuario.perfil,
+      usuario_email:          usuario.email,
       usuario_telefone_whatsapp: (usuario as any).telefone_whatsapp ?? null,
     }
 
