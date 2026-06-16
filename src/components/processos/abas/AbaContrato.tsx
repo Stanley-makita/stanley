@@ -5,6 +5,10 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { TableCell } from '@tiptap/extension-table-cell'
 import { Button } from '@/components/ui/button'
 import {
   Bold, Italic, UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
@@ -67,11 +71,15 @@ export function AbaContrato({ processoId, processo }: Props) {
       StarterKit,
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: '',
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none min-h-[600px] p-6 focus:outline-none font-serif text-sm leading-relaxed',
+        class: 'prose prose-sm max-w-none min-h-[600px] p-6 focus:outline-none font-serif text-sm leading-relaxed [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2 [&_th]:border [&_th]:border-gray-300 [&_th]:p-2 [&_th]:bg-gray-100 [&_th]:text-left',
       },
     },
   })
@@ -196,8 +204,10 @@ export function AbaContrato({ processoId, processo }: Props) {
     li { margin-bottom: 0.3em; }
     strong { font-weight: bold; }
     em { font-style: italic; }
-    table { border-collapse: collapse; width: 100%; }
-    td { padding: 3px 0; vertical-align: top; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+    th, td { border: 1px solid #ccc; padding: 6px 10px; vertical-align: top; }
+    th { background: #f0f0f0; font-weight: bold; text-align: left; }
+    hr { border: none; border-top: 1px solid #555; margin: 1em 0; }
     @page { size: A4; margin: 0; }
     @media print { body { padding: 2.5cm 3cm; } }
   </style>

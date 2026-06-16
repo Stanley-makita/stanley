@@ -21,7 +21,7 @@ function val(v: string | null | undefined): string {
 }
 
 function check(marcado: boolean): string {
-  return marcado ? '(X)' : '( )'
+  return marcado ? '☑' : '☐'
 }
 
 const UNIDADES = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
@@ -233,6 +233,8 @@ export function substituirVariaveis(
     valor_total_servicos_extenso: opcoes?.valor_servicos
       ? valorPorExtenso(opcoes.valor_servicos)
       : '[A PREENCHER]',
+    plataforma_assinatura: '[A PREENCHER]',
+    cidade_foro: 'Maringá/PR',
   }
 
   return html.replace(/\{\{(\w+)\}\}/g, (_, chave) => variaveis[chave] ?? `[A PREENCHER]`)
