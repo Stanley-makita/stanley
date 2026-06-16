@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    if (event === 'close' || event === 'envelope_closed') {
+    if (event === 'close' || event === 'auto_close' || event === 'envelope_closed') {
       const { data: contrato, error: findError } = await supabaseAdmin
         .from('processo_contratos')
         .select('id, clicksign_document_id')
