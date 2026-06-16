@@ -1,5 +1,5 @@
-const BASE_URL = process.env.CLICKSIGN_API_URL ?? 'https://sandbox.clicksign.com/api/v3'
-const TOKEN = process.env.CLICKSIGN_API_TOKEN ?? ''
+const BASE_URL = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com/api/v3').replace(/\/$/, '')
+const TOKEN = process.env.CLICKSIGN_API_TOKEN || ''
 
 function headers() {
   return {
