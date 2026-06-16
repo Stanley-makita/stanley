@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import {
   Bold, Italic, UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   AlignJustify, Undo, Redo, FileText, Printer, Save, ChevronLeft,
+  Send, CheckCircle, Clock, Download, Loader2,
 } from 'lucide-react'
 import { useProcessoContrato, useSalvarContrato } from '@/hooks/processos/useProcessoContrato'
 import { useProcessoCompradores } from '@/hooks/processos/useProcessoCompradores'
@@ -29,6 +30,7 @@ import {
 import type { Processo } from '@/types/processos'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useContratoClicksign } from '@/hooks/processos/useContratoClicksign'
 
 const TEMPLATES_MAP = {
   compra_venda: TEMPLATE_COMPRA_VENDA,
@@ -65,6 +67,9 @@ export function AbaContrato({ processoId, processo }: Props) {
   const [checkJuridico, setCheckJuridico] = useState(false)
   const [valorServicos, setValorServicos] = useState('')
   const [gerando, setGerando] = useState(false)
+  const [enviandoClicksign, setEnviandoClicksign] = useState(false)
+
+  const { data: csStatus, invalidar: invalidarClicksign } = useContratoClicksign(contrato?.id ?? null)
 
   const editor = useEditor({
     extensions: [
@@ -153,6 +158,96 @@ export function AbaContrato({ processoId, processo }: Props) {
       console.error('[AbaContrato] erro ao gerar contrato de assessoria:', err)
     } finally {
       setGerando(false)
+    }
+  }
+
+  async function handleEnviarClicksign() {
+    if (!editor || !contrato?.id) return
+
+    const comprador = compradores[0]
+    if (!comprador?.email) {
+      alert('O comprador não tem e-mail cadastrado. Cadastre o e-mail antes de enviar para assinatura.')
+      return
+    }
+
+    setEnviandoClicksign(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const html2canvas = (await import('html2canvas')).default
+
+      const conteudo = editor.getHTML()
+      const container = document.createElement('div')
+      container.style.cssText = [
+        'position:absolute',
+        'left:-9999px',
+        'top:0',
+        'width:794px',
+        'padding:60px 72px',
+        'font-family:Arial,Helvetica,sans-serif',
+        'font-size:14.67px',
+        'line-height:1.6',
+        'color:#000',
+        'background:white',
+      ].join(';')
+
+      // Aplicar estilos de tabela inline para html2canvas
+      const style = document.createElement('style')
+      style.textContent = 'table{border-collapse:collapse;width:100%;margin:.5em 0}th,td{border:1px solid #aaa;padding:7px 12px;vertical-align:top}th{background:#eee;font-weight:bold;text-align:left}hr{border:none;border-top:1px solid #555;margin:1.2em 0}'
+      container.appendChild(style)
+
+      const body = document.createElement('div')
+      body.innerHTML = conteudo
+      container.appendChild(body)
+      document.body.appendChild(container)
+
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+      const A4_WIDTH_MM = 210
+      const A4_HEIGHT_MM = 297
+      const pxPerMm = container.offsetWidth / A4_WIDTH_MM
+
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#fff' })
+
+      const imgWidth = A4_WIDTH_MM
+      const imgHeight = (canvas.height * A4_WIDTH_MM) / canvas.width
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+
+      let yPos = 0
+      let pageNum = 0
+      while (yPos < imgHeight) {
+        if (pageNum > 0) pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', 0, -yPos, imgWidth, imgHeight)
+        yPos += A4_HEIGHT_MM
+        pageNum++
+      }
+
+      document.body.removeChild(container)
+
+      const pdfBase64 = pdf.output('datauristring').split(',')[1]
+      const filename = `${tituloAtivo || 'contrato'}.pdf`
+
+      const res = await fetch('/api/clicksign/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          processo_contrato_id: contrato.id,
+          pdf_base64: pdfBase64,
+          filename,
+          signatario_nome: comprador.nome,
+          signatario_email: comprador.email,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error ?? 'Erro ao enviar para Clicksign')
+      }
+
+      invalidarClicksign()
+    } catch (err: any) {
+      console.error('[Clicksign]', err)
+      alert(`Erro ao enviar para Clicksign: ${err.message}`)
+    } finally {
+      setEnviandoClicksign(false)
     }
   }
 
@@ -509,6 +604,66 @@ export function AbaContrato({ processoId, processo }: Props) {
       <p className="text-xs text-gray-400">
         Campos marcados como <span className="font-mono text-amber-600">[A PREENCHER]</span> precisam ser preenchidos manualmente antes de exportar.
       </p>
+
+      {/* Painel de Assinatura Eletrônica */}
+      {contrato?.id && (
+        <div className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
+          <p className="text-xs font-semibold text-[#253B29] uppercase tracking-wide">Assinatura Eletrônica</p>
+
+          {csStatus?.clicksign_status === 'closed' ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-green-700">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                <span>
+                  Assinado em{' '}
+                  {csStatus.clicksign_assinado_em
+                    ? format(new Date(csStatus.clicksign_assinado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                    : '—'}
+                </span>
+              </div>
+              {csStatus.clicksign_signed_url && (
+                <a
+                  href={csStatus.clicksign_signed_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-3 py-1.5 hover:bg-[#E7E0C4] transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Baixar PDF assinado
+                </a>
+              )}
+            </div>
+          ) : csStatus?.clicksign_status === 'running' ? (
+            <div className="flex items-center gap-2 text-sm text-amber-700">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>
+                Aguardando assinatura — enviado em{' '}
+                {csStatus.clicksign_enviado_em
+                  ? format(new Date(csStatus.clicksign_enviado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                  : '—'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500">
+                Salve o contrato e clique em "Enviar para Clicksign" para solicitar assinatura eletrônica.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                onClick={handleEnviarClicksign}
+                disabled={enviandoClicksign}
+              >
+                {enviandoClicksign
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Enviando...</>
+                  : <><Send className="h-3.5 w-3.5" />Enviar para Clicksign</>
+                }
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
