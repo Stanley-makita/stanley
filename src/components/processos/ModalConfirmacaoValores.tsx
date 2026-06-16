@@ -21,6 +21,7 @@ interface Previa {
   assunto: string
   corpo: string
   template: string
+  dados: Record<string, unknown> | null
 }
 
 type Etapa = 'carregando' | 'previa' | 'enviando'
@@ -75,6 +76,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
           assunto: assunto.trim(),
           corpo,
           template: previa.template,
+          dados: previa.dados ?? null,
         }),
       })
       const json = await res.json()

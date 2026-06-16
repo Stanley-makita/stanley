@@ -47,6 +47,24 @@ export function layoutEmail(titulo: string, corpo: string, assinaturaHtml: strin
 </html>`
 }
 
+export function blocoConfirmacao(url: string): string {
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+  <tr>
+    <td style="border-top:1px solid #e5e5e5;padding-top:20px;text-align:center;">
+      <p style="font-size:13px;color:#555;margin:0 0 14px;line-height:1.5;">
+        Para confirmar o recebimento e ciência dos valores apresentados,<br>clique no botão abaixo:
+      </p>
+      <a href="${url}" style="display:inline-block;background:#253B29;color:#C2AA6A;font-size:14px;font-weight:bold;padding:12px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.3px;">
+        Confirmar ciência e aceite
+      </a>
+      <p style="font-size:11px;color:#aaa;margin:12px 0 0;">
+        Este link é individual e de uso único.
+      </p>
+    </td>
+  </tr>
+</table>`
+}
+
 export function tabelaValores(linhas: [string, string][]): string {
   const rows = linhas
     .map(([label, valor]) => `

@@ -36,6 +36,7 @@ import { AbaCustas } from '@/components/processos/abas/AbaCustas'
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialog'
 import { ModalConfirmacaoValores } from '@/components/processos/ModalConfirmacaoValores'
+import { EmailConfirmacaoBadge } from '@/components/processos/EmailConfirmacaoBadge'
 
 const MODALIDADES_COM_CUSTAS = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'] as const
 
@@ -147,6 +148,7 @@ export default function ProcessoDetalhePage() {
                 Assessoria
               </Badge>
             )}
+            <EmailConfirmacaoBadge processoId={id} />
             <div className="ml-auto flex items-center gap-2">
               {/* Toggle Certeza / Incerteza */}
               <Button

@@ -1,10 +1,12 @@
 // POST /api/processos/[id]/emails/confirmacao-valores/send
 // Envia o e-mail de confirmação de valores e registra em email_envios.
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { sendEmail } from '@/lib/email/sendEmail'
+import { blocoConfirmacao } from '@/lib/email/templates/confirmacaoValores/_helpers'
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,11 +40,12 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { para_email, assunto, corpo, template } = body as {
+    const { para_email, assunto, corpo, template, dados } = body as {
       para_email: string
       assunto: string
       corpo: string
       template: string
+      dados?: Record<string, unknown> | null
     }
 
     if (!para_email || !assunto || !corpo || !template) {
@@ -59,7 +62,19 @@ export async function POST(
 
     if (!processo) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
 
-    // Registra como pendente antes de enviar
+    // Gera token único para a página de confirmação
+    const token = randomUUID()
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const urlConfirmacao = `${appUrl}/confirmar/${token}`
+
+    // Injeta botão de confirmação antes do rodapé do e-mail
+    const blocoHtml = blocoConfirmacao(urlConfirmacao)
+    const corpoFinal = corpo.replace(
+      /(<\/td>(\s*)<\/tr>(\s*)<tr>(\s*)<td[^>]*f9f9f6[^>]*>)/,
+      `${blocoHtml}\n$1`
+    )
+
+    // Registra como pendente com token e dados_json
     const { data: registro } = await supabaseAdmin
       .from('email_envios')
       .insert({
@@ -70,16 +85,18 @@ export async function POST(
         usuario_id:  usuario.id,
         para_email,
         assunto,
-        corpo,
+        corpo:       corpoFinal,
         template,
-        status: 'pendente',
+        status:      'pendente',
+        token,
+        dados_json:  dados ?? null,
       })
       .select('id')
       .single()
 
     // Envia o e-mail
     const replyTo = usuario.email ?? process.env.EMAIL_FROM
-    const resultado = await sendEmail({ to: para_email, subject: assunto, html: corpo, replyTo })
+    const resultado = await sendEmail({ to: para_email, subject: assunto, html: corpoFinal, replyTo })
 
     const agora = new Date().toISOString()
 
@@ -95,7 +112,7 @@ export async function POST(
         empresa_id:       usuario.empresa_id,
         usuario_id:       usuario.id,
         tipo:             'observacao',
-        texto:            `E-mail de confirmação de valores enviado para ${para_email} (template: ${template}).`,
+        texto:            `E-mail de confirmação de valores enviado para ${para_email} (template: ${template}). Aguardando aceite do cliente.`,
         notificar_cliente: false,
       })
 

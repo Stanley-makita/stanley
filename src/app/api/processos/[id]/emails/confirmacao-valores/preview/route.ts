@@ -105,6 +105,7 @@ export async function POST(
       assunto,
       corpo,
       template: bancoTemplate,
+      dados,
     })
   } catch (err: any) {
     console.error('[confirmacao-valores/preview]', err)

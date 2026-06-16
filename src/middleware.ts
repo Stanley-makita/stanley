@@ -32,6 +32,11 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Páginas públicas: acessíveis sem autenticação (links enviados para clientes)
+  if (pathname.startsWith('/confirmar')) {
+    return supabaseResponse
+  }
+
   // Páginas de auth: se já logado, redireciona para dashboard
   const authPages = ['/login', '/esqueci-senha', '/redefinir-senha', '/convite']
   if (authPages.some((r) => pathname.startsWith(r))) {
