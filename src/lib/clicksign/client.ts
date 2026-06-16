@@ -1,11 +1,13 @@
 const BASE_URL = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com/api/v3').replace(/\/$/, '')
-const TOKEN = process.env.CLICKSIGN_API_TOKEN || ''
+const TOKEN = (process.env.CLICKSIGN_API_TOKEN || '').trim()
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  // Clicksign v3 aceita token via query param E via header Authorization
   const url = `${BASE_URL}${path}?access_token=${TOKEN}`
   const res = await fetch(url, {
     method,
     headers: {
+      Authorization: TOKEN,
       'Content-Type': 'application/vnd.api+json',
       Accept: 'application/vnd.api+json',
     },
@@ -13,6 +15,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   })
   const text = await res.text()
   if (!res.ok) {
+    // Loga token parcial para diagnóstico sem expor completo
+    console.error(`[Clicksign] ${method} ${path} → ${res.status} | token_prefix=${TOKEN.slice(0, 8)} | body=${text}`)
     throw new Error(`Clicksign ${method} ${path} → ${res.status}: ${text}`)
   }
   return text ? JSON.parse(text) : ({} as T)
