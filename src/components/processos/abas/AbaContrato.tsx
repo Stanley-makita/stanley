@@ -14,6 +14,7 @@ import { useProcessoContrato, useSalvarContrato } from '@/hooks/processos/usePro
 import { useProcessoCompradores } from '@/hooks/processos/useProcessoCompradores'
 import { useProcessoVendedores } from '@/hooks/processos/useProcessoVendedores'
 import { substituirVariaveis } from '@/lib/contratos/substituirVariaveis'
+import type { ContratoAssessoriaOpcoes } from '@/lib/contratos/substituirVariaveis'
 import {
   TEMPLATE_COMPRA_VENDA,
   TEMPLATE_DISTRATO_LOCACAO,
@@ -22,6 +23,8 @@ import {
   TODOS_TEMPLATES,
 } from '@/lib/contratos/templates'
 import type { Processo } from '@/types/processos'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 const TEMPLATES_MAP = {
   compra_venda: TEMPLATE_COMPRA_VENDA,
@@ -35,14 +38,29 @@ interface Props {
   processo: Processo
 }
 
+type Tela = 'selecao' | 'configurando_assessoria' | 'editor'
+
 export function AbaContrato({ processoId, processo }: Props) {
   const { data: contrato, isLoading } = useProcessoContrato(processoId)
   const { data: compradores = [] } = useProcessoCompradores(processoId)
   const { data: vendedores = [] } = useProcessoVendedores(processoId)
   const salvar = useSalvarContrato(processoId)
 
+  const [tela, setTela] = useState<Tela>('selecao')
   const [modeloAtivo, setModeloAtivo] = useState<string | null>(null)
   const [tituloAtivo, setTituloAtivo] = useState('')
+
+  // Estado do painel de configuração de assessoria
+  const [numeroPrevia, setNumeroPrevia] = useState('')
+  const [dataContrato, setDataContrato] = useState(
+    format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+  )
+  const [checkFinanciamento, setCheckFinanciamento] = useState(false)
+  const [checkItbi, setCheckItbi] = useState(false)
+  const [checkRegistro, setCheckRegistro] = useState(false)
+  const [checkJuridico, setCheckJuridico] = useState(false)
+  const [valorServicos, setValorServicos] = useState('')
+  const [gerando, setGerando] = useState(false)
 
   const editor = useEditor({
     extensions: [
@@ -64,17 +82,83 @@ export function AbaContrato({ processoId, processo }: Props) {
       editor.commands.setContent(contrato.conteudo_html)
       setModeloAtivo(contrato.tipo_modelo)
       setTituloAtivo(contrato.titulo)
+      setTela('editor')
     }
   }, [contrato, editor])
 
+  async function abrirConfiguracaoAssessoria() {
+    // Pré-preencher com dados do processo
+    setCheckFinanciamento(processo.tem_assessoria ?? false)
+    setCheckItbi(processo.tem_assessoria ?? false)
+    setCheckRegistro(processo.tem_assessoria ?? false)
+    setCheckJuridico(false)
+
+    const va = (processo as any).valor_assessoria
+    setValorServicos(va ? String(va) : '')
+
+    // Buscar prévia do número (sem consumir)
+    try {
+      const res = await fetch('/api/contratos/proximo-numero')
+      const json = await res.json()
+      setNumeroPrevia(json.numero ?? '')
+    } catch {
+      setNumeroPrevia('')
+    }
+
+    setTela('configurando_assessoria')
+  }
+
+  async function handleGerarAssessoria() {
+    if (!editor) return
+    setGerando(true)
+    try {
+      // Reservar o número definitivo
+      const res = await fetch('/api/contratos/proximo-numero', { method: 'POST' })
+      const json = await res.json()
+      const numeroDefinitivo: string = json.numero ?? numeroPrevia
+
+      const valorNum = valorServicos ? parseFloat(valorServicos.replace(',', '.')) : null
+
+      const opcoes: ContratoAssessoriaOpcoes = {
+        numero_contrato_assessoria: numeroDefinitivo,
+        check_financiamento: checkFinanciamento,
+        check_itbi: checkItbi,
+        check_registro: checkRegistro,
+        check_juridico: checkJuridico,
+        valor_servicos: valorNum,
+      }
+
+      const htmlPreenchido = substituirVariaveis(
+        TEMPLATE_PRESTACAO_SERVICOS.conteudo,
+        processo,
+        compradores,
+        vendedores,
+        opcoes,
+      )
+
+      editor.commands.setContent(htmlPreenchido)
+      setModeloAtivo('prestacao_servicos')
+      setTituloAtivo(TEMPLATE_PRESTACAO_SERVICOS.titulo)
+      setTela('editor')
+    } catch (err) {
+      console.error('[AbaContrato] erro ao gerar contrato de assessoria:', err)
+    } finally {
+      setGerando(false)
+    }
+  }
+
   function selecionarModelo(id: string) {
+    if (id === 'prestacao_servicos') {
+      abrirConfiguracaoAssessoria()
+      return
+    }
     const template = TEMPLATES_MAP[id as keyof typeof TEMPLATES_MAP]
     if (!template || !editor) return
-
     const htmlPreenchido = substituirVariaveis(template.conteudo, processo, compradores, vendedores)
     editor.commands.setContent(htmlPreenchido)
     setModeloAtivo(id)
     setTituloAtivo(template.titulo)
+    setTela('editor')
   }
 
   function handleSalvar() {
@@ -112,6 +196,8 @@ export function AbaContrato({ processoId, processo }: Props) {
     li { margin-bottom: 0.3em; }
     strong { font-weight: bold; }
     em { font-style: italic; }
+    table { border-collapse: collapse; width: 100%; }
+    td { padding: 3px 0; vertical-align: top; }
     @page { size: A4; margin: 0; }
     @media print { body { padding: 2.5cm 3cm; } }
   </style>
@@ -130,6 +216,7 @@ export function AbaContrato({ processoId, processo }: Props) {
     if (!confirmado) return
     setModeloAtivo(null)
     setTituloAtivo('')
+    setTela('selecao')
     editor?.commands.clearContent()
   }
 
@@ -142,8 +229,8 @@ export function AbaContrato({ processoId, processo }: Props) {
     )
   }
 
-  // Estado A — seleção de modelo
-  if (!modeloAtivo) {
+  // Tela A — seleção de modelo
+  if (tela === 'selecao') {
     return (
       <div className="space-y-5">
         <div>
@@ -175,7 +262,120 @@ export function AbaContrato({ processoId, processo }: Props) {
     )
   }
 
-  // Estado B/C — editor ativo
+  // Tela B — painel de configuração de assessoria
+  if (tela === 'configurando_assessoria') {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTela('selecao')}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Voltar
+          </button>
+          <span className="text-gray-300">|</span>
+          <p className="text-sm font-semibold text-[#253B29]">Configurar Contrato de Assessoria</p>
+        </div>
+
+        <div className="border border-gray-200 rounded-xl p-5 space-y-5 bg-white">
+          {/* Número e data */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Nº do contrato</label>
+              <input
+                type="text"
+                value={numeroPrevia}
+                onChange={(e) => setNumeroPrevia(e.target.value)}
+                placeholder="78/2026"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C2AA6A]"
+              />
+              <p className="text-xs text-gray-400 mt-1">Número gerado automaticamente ao confirmar</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Data</label>
+              <input
+                type="text"
+                value={dataContrato}
+                onChange={(e) => setDataContrato(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C2AA6A]"
+              />
+            </div>
+          </div>
+
+          {/* Serviços */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Serviços contratados</label>
+            <div className="space-y-2">
+              {[
+                { label: 'Formalização do Financiamento Imobiliário', value: checkFinanciamento, set: setCheckFinanciamento },
+                { label: 'Assessoria de ITBI', value: checkItbi, set: setCheckItbi },
+                { label: 'Assessoria Registro', value: checkRegistro, set: setCheckRegistro },
+                { label: 'Contrato / Jurídico', value: checkJuridico, set: setCheckJuridico },
+              ].map(({ label, value, set }) => (
+                <label key={label} className="flex items-center gap-2.5 cursor-pointer group">
+                  <div
+                    onClick={() => set(!value)}
+                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                      value
+                        ? 'bg-[#253B29] border-[#253B29]'
+                        : 'border-gray-300 group-hover:border-[#253B29]'
+                    }`}
+                  >
+                    {value && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Valor */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Valor total dos serviços (R$)</label>
+            <input
+              type="text"
+              value={valorServicos}
+              onChange={(e) => setValorServicos(e.target.value)}
+              placeholder="3500.00"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C2AA6A]"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              {(processo as any).valor_assessoria
+                ? `Valor do processo: R$ ${Number((processo as any).valor_assessoria).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                : 'Nenhum valor de assessoria cadastrado no processo'}
+            </p>
+          </div>
+        </div>
+
+        {/* Ações */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTela('selecao')}
+            className="text-xs border-gray-200 text-gray-600"
+          >
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleGerarAssessoria}
+            disabled={gerando}
+            className="gap-1.5 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+          >
+            {gerando ? 'Gerando...' : 'Gerar Contrato'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Tela C — editor ativo
   return (
     <div className="space-y-3">
       {/* Cabeçalho do editor */}

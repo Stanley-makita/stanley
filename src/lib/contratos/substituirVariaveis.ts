@@ -2,6 +2,15 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Processo, ProcessoComprador, ProcessoVendedor } from '@/types/processos'
 
+export interface ContratoAssessoriaOpcoes {
+  numero_contrato_assessoria: string
+  check_financiamento: boolean
+  check_itbi: boolean
+  check_registro: boolean
+  check_juridico: boolean
+  valor_servicos: number | null
+}
+
 function fmtMoeda(v: number | null | undefined): string {
   if (!v) return '[A PREENCHER]'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -11,11 +20,59 @@ function val(v: string | null | undefined): string {
   return v?.trim() || '[A PREENCHER]'
 }
 
+function check(marcado: boolean): string {
+  return marcado ? '(X)' : '( )'
+}
+
+const UNIDADES = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
+  'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove']
+const DEZENAS = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa']
+const CENTENAS = ['', 'cem', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
+  'seiscentos', 'setecentos', 'oitocentos', 'novecentos']
+
+function centenasExtenso(n: number): string {
+  if (n === 0) return ''
+  if (n === 100) return 'cem'
+  const c = Math.floor(n / 100)
+  const resto = n % 100
+  const centena = CENTENAS[c]
+  if (resto === 0) return centena
+  const dezena = resto < 20 ? UNIDADES[resto] : DEZENAS[Math.floor(resto / 10)] + (resto % 10 !== 0 ? ' e ' + UNIDADES[resto % 10] : '')
+  return centena + ' e ' + dezena
+}
+
+function milharExtenso(n: number): string {
+  if (n === 0) return ''
+  if (n === 1) return 'mil'
+  return centenasExtenso(n) + ' mil'
+}
+
+function inteiroExtenso(n: number): string {
+  if (n === 0) return 'zero'
+  const milhar = Math.floor(n / 1000)
+  const resto = n % 1000
+  const partes: string[] = []
+  if (milhar > 0) partes.push(milharExtenso(milhar))
+  if (resto > 0) partes.push(centenasExtenso(resto))
+  return partes.join(' e ')
+}
+
+export function valorPorExtenso(valor: number): string {
+  if (!valor || valor <= 0) return '[A PREENCHER]'
+  const reais = Math.floor(valor)
+  const centavos = Math.round((valor - reais) * 100)
+  const parteReais = inteiroExtenso(reais) + (reais === 1 ? ' real' : ' reais')
+  if (centavos === 0) return parteReais
+  const parteCentavos = inteiroExtenso(centavos) + (centavos === 1 ? ' centavo' : ' centavos')
+  return parteReais + ' e ' + parteCentavos
+}
+
 export function substituirVariaveis(
   html: string,
   processo: Processo,
   compradores: ProcessoComprador[],
   vendedores: ProcessoVendedor[],
+  opcoes?: ContratoAssessoriaOpcoes,
 ): string {
   const comprador = compradores[0]
   const vendedor = vendedores[0]
@@ -158,13 +215,24 @@ export function substituirVariaveis(
     administradora_cpf: '[A PREENCHER]',
     administradora_endereco: '[A PREENCHER]',
 
-    // Prestação de serviços
+    // Prestação de serviços (template antigo — mantido por compatibilidade)
     numero_contrato: processo.numero_processo || '[A PREENCHER]',
     banco_instituicao: val(processo.banco?.nome),
     servicos_contratados: '<li>[A PREENCHER — liste os serviços contratados]</li>',
     valor_honorarios: '[A PREENCHER]',
     valor_honorarios_extenso: '[A PREENCHER]',
     momento_pagamento: '[A PREENCHER]',
+
+    // Prestação de serviços de assessoria (novo template)
+    numero_contrato_assessoria: opcoes?.numero_contrato_assessoria ?? '[A PREENCHER]',
+    check_financiamento: check(opcoes?.check_financiamento ?? false),
+    check_itbi: check(opcoes?.check_itbi ?? false),
+    check_registro: check(opcoes?.check_registro ?? false),
+    check_juridico: check(opcoes?.check_juridico ?? false),
+    valor_total_servicos: fmtMoeda(opcoes?.valor_servicos ?? null),
+    valor_total_servicos_extenso: opcoes?.valor_servicos
+      ? valorPorExtenso(opcoes.valor_servicos)
+      : '[A PREENCHER]',
   }
 
   return html.replace(/\{\{(\w+)\}\}/g, (_, chave) => variaveis[chave] ?? `[A PREENCHER]`)

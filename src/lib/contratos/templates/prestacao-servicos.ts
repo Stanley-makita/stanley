@@ -1,64 +1,109 @@
 export const TEMPLATE_PRESTACAO_SERVICOS = {
   id: 'prestacao_servicos',
   titulo: 'Prestação de Serviços',
-  descricao: 'Contrato de prestação de serviços de assessoria imobiliária ou jurídica.',
-  conteudo: `<h2 style="text-align:center">INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS</h2>
-
-<p style="text-align:center">Contrato nº {{numero_contrato}}</p>
-
-<p style="text-align:center">{{cidade}}, {{data_extenso}}</p>
-
-<p>Pelo presente instrumento particular, as partes abaixo qualificadas:</p>
-
-<p><strong>CONTRATANTE:</strong> {{contratante_nome}}, {{contratante_nacionalidade}}, {{contratante_estado_civil}}, {{contratante_profissao}}, portador(a) da CNH nº {{contratante_cnh}}, CPF nº {{contratante_cpf}}, residente e domiciliado(a) em {{contratante_endereco}}.</p>
-
-<p><strong>CONTRATADA:</strong> Fontinhas e Fontinhas Ltda, CNPJ nº 77.543.700/0001-57, estabelecida na Av. Dr. Gastão Vidigal, 938 – Zona 08, Maringá – PR, 87.050-440, neste ato representada por seus sócios-administradores.</p>
-
-<p>Têm entre si, justo e acordado, o presente contrato de prestação de serviços, mediante as cláusulas e condições seguintes:</p>
-
-<h3>CLÁUSULA 1ª — DO OBJETO</h3>
-
-<p>A CONTRATADA obriga-se a prestar ao(à) CONTRATANTE, junto à instituição financeira {{banco_instituicao}}, os seguintes serviços:</p>
-
-<ul>{{servicos_contratados}}</ul>
-
-<h3>CLÁUSULA 2ª — DOS HONORÁRIOS</h3>
-
-<p>Pelos serviços prestados, o(a) CONTRATANTE pagará à CONTRATADA a importância de {{valor_honorarios}} ({{valor_honorarios_extenso}}), {{momento_pagamento}}.</p>
-
-<p>O não pagamento nos prazos estipulados implicará em multa de 2% (dois por cento) sobre o valor total, acrescida de juros de mora de 1% (um por cento) ao mês, calculados pro rata die, sem prejuízo das demais disposições legais aplicáveis.</p>
-
-<h3>CLÁUSULA 3ª — DAS OBRIGAÇÕES DA CONTRATANTE</h3>
-
-<p>O(A) CONTRATANTE obriga-se a:</p>
-<ul>
-  <li>Fornecer à CONTRATADA todos os documentos necessários para a prestação dos serviços, na forma e nos prazos estabelecidos;</li>
-  <li>Atender prontamente às convocações da CONTRATADA e das instituições financeiras envolvidas;</li>
-  <li>Comunicar imediatamente qualquer alteração em sua situação cadastral, financeira ou patrimonial que possa influenciar no andamento dos serviços.</li>
-</ul>
-
-<h3>CLÁUSULA 4ª — DAS OBRIGAÇÕES DA CONTRATADA</h3>
-
-<p>A CONTRATADA obriga-se a:</p>
-<ul>
-  <li>Empregar seus melhores esforços para a consecução do objeto deste contrato;</li>
-  <li>Manter o(a) CONTRATANTE informado(a) sobre o andamento dos serviços;</li>
-  <li>Guardar sigilo sobre todas as informações e documentos do(a) CONTRATANTE.</li>
-</ul>
-
-<h3>CLÁUSULA 5ª — DA RESCISÃO</h3>
-
-<p>O presente contrato poderá ser rescindido, a qualquer tempo, por mútuo acordo das partes, mediante notificação por escrito com antecedência mínima de 15 (quinze) dias. Em caso de rescisão unilateral pelo(a) CONTRATANTE após o início efetivo dos serviços, serão devidos honorários proporcionais ao trabalho realizado até a data da rescisão.</p>
-
-<h3>CLÁUSULA 6ª — DO FORO</h3>
-
-<p>As partes elegem o foro da Comarca de {{foro_comarca}} para dirimir eventuais dúvidas ou litígios decorrentes do presente instrumento, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
-
-<br/><br/>
-
-<p style="text-align:center">{{cidade}}, {{data_extenso}}</p>
+  descricao: 'Contrato de prestação de serviços de assessoria imobiliária.',
+  conteudo: `
+<p style="text-align:center"><strong>CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE ASSESSORIA</strong></p>
+<p style="text-align:center"><strong>Nº {{numero_contrato_assessoria}}</strong></p>
 
 <br/>
+
+<p>Pelo presente instrumento particular, as partes abaixo qualificadas celebram o presente Contrato de Prestação de Serviços de Assessoria, que se regerá pelas seguintes cláusulas e condições:</p>
+
+<br/>
+
+<p><strong>1. DAS PARTES</strong></p>
+
+<br/>
+
+<p><strong>CONTRATANTE:</strong> {{contratante_nome}}, CPF nº {{contratante_cpf}}.</p>
+
+<br/>
+
+<p><strong>CONTRATADA:</strong> <strong>FONTINHAS E FONTINHAS LTDA</strong>, CNPJ nº 77.543.700/0001-57, estabelecida na Av. Dr. Gastão Vidigal, 938 – Zona 08, Maringá – PR, CEP 87.050-440, neste ato representada por seus sócios-administradores.</p>
+
+<br/>
+
+<p><strong>2. OBJETO DO CONTRATO / SERVIÇOS CONTRATADOS</strong></p>
+
+<br/>
+
+<p>A CONTRATADA prestará ao CONTRATANTE os seguintes serviços de assessoria:</p>
+
+<br/>
+
+<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+  <tr>
+    <td style="width:48px;padding:4px 0;vertical-align:top;font-family:'Courier New',monospace;font-size:13px;">{{check_financiamento}}</td>
+    <td style="padding:4px 0;font-size:13px;">Formalização do Financiamento Imobiliário</td>
+  </tr>
+  <tr>
+    <td style="width:48px;padding:4px 0;vertical-align:top;font-family:'Courier New',monospace;font-size:13px;">{{check_itbi}}</td>
+    <td style="padding:4px 0;font-size:13px;">Assessoria de ITBI</td>
+  </tr>
+  <tr>
+    <td style="width:48px;padding:4px 0;vertical-align:top;font-family:'Courier New',monospace;font-size:13px;">{{check_registro}}</td>
+    <td style="padding:4px 0;font-size:13px;">Assessoria Registro</td>
+  </tr>
+  <tr>
+    <td style="width:48px;padding:4px 0;vertical-align:top;font-family:'Courier New',monospace;font-size:13px;">{{check_juridico}}</td>
+    <td style="padding:4px 0;font-size:13px;">Contrato / Jurídico</td>
+  </tr>
+</table>
+
+<br/>
+
+<p><strong>3. VALOR E FORMA DE PAGAMENTO</strong></p>
+
+<br/>
+
+<p>Pelos serviços contratados, o CONTRATANTE pagará à CONTRATADA o valor total de <strong>{{valor_total_servicos}}</strong> ({{valor_total_servicos_extenso}}).</p>
+
+<br/>
+
+<p><strong>4. DAS OBRIGAÇÕES DA CONTRATANTE</strong></p>
+
+<br/>
+
+<p>O CONTRATANTE obriga-se a:</p>
+
+<p>a) Fornecer à CONTRATADA todos os documentos necessários para a prestação dos serviços, nos prazos estabelecidos;</p>
+<p>b) Atender prontamente às convocações da CONTRATADA e das instituições financeiras envolvidas;</p>
+<p>c) Comunicar imediatamente qualquer alteração em sua situação cadastral, financeira ou patrimonial que possa influenciar no andamento dos serviços.</p>
+
+<br/>
+
+<p><strong>5. DAS OBRIGAÇÕES DA CONTRATADA</strong></p>
+
+<br/>
+
+<p>A CONTRATADA obriga-se a:</p>
+
+<p>a) Empregar seus melhores esforços para a consecução do objeto deste contrato;</p>
+<p>b) Manter o CONTRATANTE informado sobre o andamento dos serviços;</p>
+<p>c) Guardar sigilo sobre todas as informações e documentos do CONTRATANTE.</p>
+
+<br/>
+
+<p><strong>6. DA RESCISÃO</strong></p>
+
+<br/>
+
+<p>O presente contrato poderá ser rescindido, a qualquer tempo, por mútuo acordo das partes, mediante notificação por escrito com antecedência mínima de 15 (quinze) dias. Em caso de rescisão unilateral pelo CONTRATANTE após o início efetivo dos serviços, serão devidos honorários proporcionais ao trabalho realizado até a data da rescisão.</p>
+
+<br/>
+
+<p><strong>7. DO FORO</strong></p>
+
+<br/>
+
+<p>As partes elegem o foro da Comarca de Maringá/PR para dirimir eventuais dúvidas ou litígios decorrentes do presente instrumento, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+
+<br/>
+
+<p>Maringá/PR, {{data_extenso}}.</p>
+
+<br/><br/>
 
 <p>________________________________________<br/>
 <strong>{{contratante_nome}}</strong><br/>
