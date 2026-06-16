@@ -1,18 +1,14 @@
 const BASE_URL = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com/api/v3').replace(/\/$/, '')
 const TOKEN = process.env.CLICKSIGN_API_TOKEN || ''
 
-function headers() {
-  return {
-    Authorization: TOKEN,
-    'Content-Type': 'application/vnd.api+json',
-    Accept: 'application/vnd.api+json',
-  }
-}
-
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const url = `${BASE_URL}${path}?access_token=${TOKEN}`
+  const res = await fetch(url, {
     method,
-    headers: headers(),
+    headers: {
+      'Content-Type': 'application/vnd.api+json',
+      Accept: 'application/vnd.api+json',
+    },
     body: body ? JSON.stringify(body) : undefined,
   })
   const text = await res.text()
