@@ -136,7 +136,18 @@ export function substituirVariaveis(
     contratante_estado_civil: '[A PREENCHER]',
     contratante_profissao: '[A PREENCHER]',
     contratante_cnh: '[A PREENCHER]',
-    contratante_endereco: '[A PREENCHER]',
+    contratante_endereco: (() => {
+      const p = comprador?.pessoa
+      if (!p) return '[A PREENCHER]'
+      const partes = [
+        p.endereco_rua,
+        p.endereco_numero ? `nº ${p.endereco_numero}` : null,
+        p.endereco_bairro,
+        p.endereco_cidade && p.endereco_uf ? `${p.endereco_cidade}/${p.endereco_uf}` : (p.endereco_cidade ?? null),
+        p.endereco_cep ? `CEP ${p.endereco_cep}` : null,
+      ].filter(Boolean)
+      return partes.length > 0 ? partes.join(', ') : '[A PREENCHER]'
+    })(),
 
     // Fiador — não há tabela de fiadores no sistema ainda
     fiador_nome: '[A PREENCHER]',

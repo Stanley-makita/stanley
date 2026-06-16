@@ -134,6 +134,15 @@ export interface ProcessoComprador {
   renda_mensal: number | null
   principal: boolean
   created_at: string
+  // Campos de endereço vindos do join com pessoas
+  pessoa?: {
+    endereco_rua: string | null
+    endereco_numero: string | null
+    endereco_bairro: string | null
+    endereco_cidade: string | null
+    endereco_uf: string | null
+    endereco_cep: string | null
+  } | null
 }
 
 export interface ProcessoFinanceiro {
