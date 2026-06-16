@@ -4,7 +4,26 @@ export interface SendEmailParams {
   to: string
   subject: string
   html: string
+  text?: string
   replyTo?: string
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/td>/gi, '  ')
+    .replace(/<\/th>/gi, '  ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 export interface SendEmailResult {
@@ -42,6 +61,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       to: params.to,
       subject: params.subject,
       html: params.html,
+      text: params.text ?? htmlToText(params.html),
       replyTo: params.replyTo ?? fromEmail,
     })
     return { ok: true }
