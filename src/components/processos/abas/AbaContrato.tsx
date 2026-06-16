@@ -79,7 +79,8 @@ export function AbaContrato({ processoId, processo }: Props) {
     content: '',
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none min-h-[600px] p-6 focus:outline-none font-serif text-sm leading-relaxed [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2 [&_th]:border [&_th]:border-gray-300 [&_th]:p-2 [&_th]:bg-gray-100 [&_th]:text-left',
+        class: 'prose prose-sm max-w-none min-h-[600px] p-6 focus:outline-none text-sm leading-relaxed [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2 [&_th]:border [&_th]:border-gray-300 [&_th]:p-2 [&_th]:bg-gray-100 [&_th]:text-left',
+        style: 'font-family: Arial, Helvetica, sans-serif;',
       },
     },
   })
@@ -191,23 +192,24 @@ export function AbaContrato({ processoId, processo }: Props) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Times New Roman', serif;
-      font-size: 12pt;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
       line-height: 1.6;
       color: #000;
       padding: 2.5cm 3cm;
     }
-    h2 { font-size: 13pt; margin-bottom: 1em; }
-    h3 { font-size: 12pt; margin-top: 1.5em; margin-bottom: 0.5em; }
+    h2 { font-size: 12pt; margin-bottom: 1em; }
+    h3 { font-size: 11pt; margin-top: 1.5em; margin-bottom: 0.5em; }
     p { margin-bottom: 0.8em; text-align: justify; }
     ul { margin: 0.5em 0 0.8em 1.5em; }
     li { margin-bottom: 0.3em; }
     strong { font-weight: bold; }
     em { font-style: italic; }
     table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-    th, td { border: 1px solid #ccc; padding: 6px 10px; vertical-align: top; }
-    th { background: #f0f0f0; font-weight: bold; text-align: left; }
-    hr { border: none; border-top: 1px solid #555; margin: 1em 0; }
+    th, td { border: 1px solid #aaa; padding: 7px 12px; vertical-align: top; }
+    th { background: #eeeeee; font-weight: bold; text-align: left; }
+    hr { border: none; border-top: 1px solid #555; margin: 1.2em 0; }
+    .sig-table td { border: 1px solid #aaa; padding: 14px 16px; vertical-align: top; width: 50%; }
     @page { size: A4; margin: 0; }
     @media print { body { padding: 2.5cm 3cm; } }
   </style>

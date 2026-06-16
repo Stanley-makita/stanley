@@ -223,20 +223,18 @@ export const TEMPLATE_PRESTACAO_SERVICOS = {
 
 <br/>
 
-<table style="width:100%;border-collapse:collapse;">
+<table class="sig-table" style="width:100%;border-collapse:collapse;table-layout:fixed;">
   <tbody>
     <tr>
-      <td style="border:1px solid #ccc;padding:12px 10px;width:50%;text-align:center;vertical-align:top;">
-        <p><strong>CONTRATANTE: {{contratante_nome}}</strong></p>
-        <br/><br/>
-        <p>________________________________________</p>
-        <p>Assinatura</p>
+      <td style="border:1px solid #aaa;padding:12px 16px;width:50%;vertical-align:top;">
+        <p style="font-size:10pt;color:#555;margin-bottom:60px;">CONTRATANTE</p>
+        <p style="border-top:1px solid #333;padding-top:6px;font-weight:bold;">{{contratante_nome}}</p>
+        <p style="font-size:10pt;color:#555;">CPF: {{contratante_cpf}}</p>
       </td>
-      <td style="border:1px solid #ccc;padding:12px 10px;text-align:center;vertical-align:top;">
-        <p><strong>CONTRATADA: FONTINHAS &amp; FONTINHAS LTDA</strong></p>
-        <br/><br/>
-        <p>________________________________________</p>
-        <p>Assinatura</p>
+      <td style="border:1px solid #aaa;padding:12px 16px;vertical-align:top;">
+        <p style="font-size:10pt;color:#555;margin-bottom:60px;">CONTRATADA</p>
+        <p style="border-top:1px solid #333;padding-top:6px;font-weight:bold;">FONTINHAS &amp; FONTINHAS LTDA</p>
+        <p style="font-size:10pt;color:#555;">CNPJ: 77.543.700/0001-57</p>
       </td>
     </tr>
   </tbody>
