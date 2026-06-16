@@ -24,7 +24,7 @@ export function layoutEmail(titulo: string, corpo: string, assinaturaHtml: strin
       <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
         <tr>
           <td style="background:#253B29;padding:20px 32px;">
-            <span style="color:#C2AA6A;font-size:20px;font-weight:bold;">Credifon</span>
+            <span style="color:#C2AA6A;font-size:20px;font-weight:bold;">Fontinhas Assessoria</span>
             <span style="color:#E7E0C4;font-size:14px;margin-left:12px;">Confirmação de Valores — ${titulo}</span>
           </td>
         </tr>
@@ -51,8 +51,8 @@ export function tabelaValores(linhas: [string, string][]): string {
   const rows = linhas
     .map(([label, valor]) => `
       <tr>
-        <td style="padding:7px 12px;font-size:13px;color:#555;border-bottom:1px solid #f0f0f0;">${label}</td>
-        <td style="padding:7px 12px;font-size:13px;color:#253B29;font-weight:600;text-align:right;border-bottom:1px solid #f0f0f0;">${valor}</td>
+        <td style="padding:4px 12px;font-size:13px;color:#555;border-bottom:1px solid #f0f0f0;">${label}</td>
+        <td style="padding:4px 12px;font-size:13px;color:#253B29;font-weight:600;text-align:right;border-bottom:1px solid #f0f0f0;">${valor}</td>
       </tr>`)
     .join('')
   return `
