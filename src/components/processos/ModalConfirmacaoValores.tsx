@@ -192,12 +192,16 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                           <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Confirmado em</th>
                           <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Protocolo</th>
                           <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">IP / Dispositivo</th>
-                          <th className="px-3 py-2.5" />
                         </tr>
                       </thead>
                       <tbody>
                         {confirmacoes.map((c) => (
-                          <tr key={c.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+                          <tr
+                            key={c.id}
+                            className="border-b border-gray-50 last:border-0 hover:bg-[#E7E0C4]/30 cursor-pointer transition-colors"
+                            title={c.corpo ? 'Clique para ver o e-mail enviado' : undefined}
+                            onClick={() => c.corpo && setVerEmailCorpo(c.corpo)}
+                          >
                             <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDataHora(c.sent_at)}</td>
                             <td className="px-3 py-3 text-xs text-gray-700">{c.para_email}</td>
                             <td className="px-3 py-3">
@@ -217,18 +221,6 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                               {c.confirmado_em
                                 ? <span title={c.confirmacao_ip ?? ''}>{mascararIp(c.confirmacao_ip)} · {resumirDispositivo(c.confirmacao_user_agent)}</span>
                                 : '—'}
-                            </td>
-                            <td className="px-3 py-3">
-                              {c.corpo && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2 text-xs text-gray-500 hover:text-[#253B29] gap-1"
-                                  onClick={() => setVerEmailCorpo(c.corpo!)}
-                                >
-                                  <Eye className="h-3 w-3" /> Ver e-mail
-                                </Button>
-                              )}
                             </td>
                           </tr>
                         ))}
