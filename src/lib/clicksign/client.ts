@@ -119,9 +119,21 @@ export async function buscarDocumento(
 ): Promise<{ status: string; signed_url: string | null }> {
   const res = await request<any>('GET', `/envelopes/${envelopeId}/documents/${documentId}`)
   const attrs = res.data?.attributes ?? {}
+
+  // Log completo para diagnóstico — remover após confirmar campo correto
+  console.log('[buscarDocumento] attrs:', JSON.stringify(attrs))
+
+  // Tenta múltiplos caminhos possíveis do PDF assinado na API Clicksign v3
+  const signed_url =
+    attrs.downloads?.signed_file_url ??
+    attrs.downloads?.file_url ??
+    attrs.signed_file_url ??
+    attrs.file_url ??
+    null
+
   return {
     status: attrs.status ?? '',
-    signed_url: attrs.downloads?.signed_file_url ?? null,
+    signed_url,
   }
 }
 
