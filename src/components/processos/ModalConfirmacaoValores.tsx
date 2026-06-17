@@ -150,6 +150,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
     setCorpo('')
     setEtapa('carregando')
     setModoEdicao(false)
+    setTela('lista')
     onFechar()
   }
 
