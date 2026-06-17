@@ -12,7 +12,7 @@ export function useProcessoCompradores(processoId: string) {
     queryFn: async (): Promise<ProcessoComprador[]> => {
       const { data, error } = await supabase
         .from('processo_compradores')
-        .select('*, pessoa:pessoas(endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep)')
+        .select('*, pessoa:pessoas(rg, profissao, nacionalidade, data_nascimento, data_emissao, orgao_emissor, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep)')
         .eq('processo_id', processoId)
         .order('principal', { ascending: false })
         .order('created_at', { ascending: true })

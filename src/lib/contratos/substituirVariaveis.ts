@@ -67,6 +67,18 @@ export function valorPorExtenso(valor: number): string {
   return parteReais + ' e ' + parteCentavos
 }
 
+function buildEndereco(p: { endereco_rua?: string | null; endereco_numero?: string | null; endereco_bairro?: string | null; endereco_cidade?: string | null; endereco_uf?: string | null; endereco_cep?: string | null } | null | undefined): string {
+  if (!p) return '[A PREENCHER]'
+  const partes = [
+    p.endereco_rua,
+    p.endereco_numero ? `nº ${p.endereco_numero}` : null,
+    p.endereco_bairro,
+    p.endereco_cidade && p.endereco_uf ? `${p.endereco_cidade}/${p.endereco_uf}` : (p.endereco_cidade ?? null),
+    p.endereco_cep ? `CEP ${p.endereco_cep}` : null,
+  ].filter(Boolean)
+  return partes.length > 0 ? partes.join(', ') : '[A PREENCHER]'
+}
+
 export function substituirVariaveis(
   html: string,
   processo: Processo,
@@ -76,8 +88,15 @@ export function substituirVariaveis(
 ): string {
   const comprador = compradores[0]
   const vendedor = vendedores[0]
+  const cp = comprador?.pessoa  // dados detalhados do comprador (pessoas)
+  const vp = vendedor?.pessoa   // dados detalhados do vendedor (pessoas)
 
   const hoje = new Date()
+
+  // Cônjuge do vendedor: prefere dado da tabela processo_vendedores, fallback para pessoas
+  const vendedorConjugeNome = vendedor?.conjuge_nome ?? vp?.conjuge_nome
+  // Cônjuge do comprador: vem de pessoas (comprador não tem coluna conjuge_nome)
+  const compradorConjugeNome = cp?.conjuge_nome
 
   const variaveis: Record<string, string> = {
     // Data e localização
@@ -85,69 +104,56 @@ export function substituirVariaveis(
     cidade_comarca: 'Maringá/PR',
     cidade: 'Maringá',
 
-    // Comprador (campos disponíveis no banco)
+    // Comprador
     comprador_nome: val(comprador?.nome),
     comprador_cpf: val(comprador?.cpf),
     comprador_email: val(comprador?.email),
     comprador_telefone: val(comprador?.telefone),
-    // Campos não disponíveis no banco de compradores — usuário preenche no editor
-    comprador_nacionalidade: '[A PREENCHER]',
-    comprador_estado_civil: '[A PREENCHER]',
-    comprador_profissao: '[A PREENCHER]',
+    comprador_rg: val(cp?.rg),
+    comprador_nacionalidade: val(cp?.nacionalidade),
+    comprador_estado_civil: val(cp?.estado_civil),
+    comprador_profissao: val(cp?.profissao),
     comprador_cnh: '[A PREENCHER]',
-    comprador_rg: '[A PREENCHER]',
-    comprador_endereco: '[A PREENCHER]',
+    comprador_endereco: buildEndereco(cp),
 
-    // Vendedor (campos disponíveis no banco após migration 049)
+    // Vendedor
     vendedor_nome: val(vendedor?.nome),
     vendedor_cpf: val(vendedor?.cpf),
     vendedor_email: val(vendedor?.email),
-    vendedor_estado_civil: val(vendedor?.estado_civil),
+    vendedor_estado_civil: val(vendedor?.estado_civil ?? vp?.estado_civil),
     vendedor_banco: val(vendedor?.banco),
     vendedor_agencia: val(vendedor?.agencia),
     vendedor_conta: val(vendedor?.conta),
-    // Campos não disponíveis
-    vendedor_nacionalidade: '[A PREENCHER]',
-    vendedor_profissao: '[A PREENCHER]',
+    vendedor_rg: val(vp?.rg),
+    vendedor_nacionalidade: val(vp?.nacionalidade),
+    vendedor_profissao: val(vp?.profissao),
     vendedor_cnh: '[A PREENCHER]',
-    vendedor_rg: '[A PREENCHER]',
-    vendedor_endereco: '[A PREENCHER]',
+    vendedor_endereco: buildEndereco(vp),
 
     // Locador/Locatário — mesmos dados do vendedor/comprador para locação
     locador_nome: val(vendedor?.nome),
     locador_cpf: val(vendedor?.cpf),
-    locador_rg: '[A PREENCHER]',
+    locador_rg: val(vp?.rg),
     locador_cnh: '[A PREENCHER]',
-    locador_profissao: '[A PREENCHER]',
-    locador_endereco: '[A PREENCHER]',
-    locador_conjuge: vendedor?.conjuge_nome ? `, cônjuge ${vendedor.conjuge_nome}` : '',
+    locador_profissao: val(vp?.profissao),
+    locador_endereco: buildEndereco(vp),
+    locador_conjuge: vendedorConjugeNome ? `, cônjuge ${vendedorConjugeNome}` : '',
 
     locatario_nome: val(comprador?.nome),
     locatario_cpf: val(comprador?.cpf),
-    locatario_rg: '[A PREENCHER]',
-    locatario_profissao: '[A PREENCHER]',
-    locatario_endereco: '[A PREENCHER]',
-    locatario_conjuge: '[A PREENCHER]',
+    locatario_rg: val(cp?.rg),
+    locatario_profissao: val(cp?.profissao),
+    locatario_endereco: buildEndereco(cp),
+    locatario_conjuge: compradorConjugeNome ? `, cônjuge ${compradorConjugeNome}` : '',
 
     // Contratante (prestação de serviços) — usa comprador
     contratante_nome: val(comprador?.nome),
     contratante_cpf: val(comprador?.cpf),
-    contratante_nacionalidade: '[A PREENCHER]',
-    contratante_estado_civil: '[A PREENCHER]',
-    contratante_profissao: '[A PREENCHER]',
+    contratante_nacionalidade: val(cp?.nacionalidade),
+    contratante_estado_civil: val(cp?.estado_civil),
+    contratante_profissao: val(cp?.profissao),
     contratante_cnh: '[A PREENCHER]',
-    contratante_endereco: (() => {
-      const p = comprador?.pessoa
-      if (!p) return '[A PREENCHER]'
-      const partes = [
-        p.endereco_rua,
-        p.endereco_numero ? `nº ${p.endereco_numero}` : null,
-        p.endereco_bairro,
-        p.endereco_cidade && p.endereco_uf ? `${p.endereco_cidade}/${p.endereco_uf}` : (p.endereco_cidade ?? null),
-        p.endereco_cep ? `CEP ${p.endereco_cep}` : null,
-      ].filter(Boolean)
-      return partes.length > 0 ? partes.join(', ') : '[A PREENCHER]'
-    })(),
+    contratante_endereco: buildEndereco(cp),
 
     // Fiador — não há tabela de fiadores no sistema ainda
     fiador_nome: '[A PREENCHER]',

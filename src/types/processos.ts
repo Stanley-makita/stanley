@@ -122,6 +122,27 @@ export interface ProcessoCobranca {
   created_at: string
 }
 
+interface PessoaDetalhes {
+  rg: string | null
+  profissao: string | null
+  nacionalidade: string | null
+  data_nascimento: string | null
+  data_emissao: string | null
+  orgao_emissor: string | null
+  estado_civil: string | null
+  regime_casamento: string | null
+  data_casamento: string | null
+  conjuge_nome: string | null
+  conjuge_cpf: string | null
+  conjuge_data_nascimento: string | null
+  endereco_rua: string | null
+  endereco_numero: string | null
+  endereco_bairro: string | null
+  endereco_cidade: string | null
+  endereco_uf: string | null
+  endereco_cep: string | null
+}
+
 export interface ProcessoComprador {
   id: string
   processo_id: string
@@ -134,15 +155,7 @@ export interface ProcessoComprador {
   renda_mensal: number | null
   principal: boolean
   created_at: string
-  // Campos de endereço vindos do join com pessoas
-  pessoa?: {
-    endereco_rua: string | null
-    endereco_numero: string | null
-    endereco_bairro: string | null
-    endereco_cidade: string | null
-    endereco_uf: string | null
-    endereco_cep: string | null
-  } | null
+  pessoa?: PessoaDetalhes | null
 }
 
 export interface ProcessoFinanceiro {
@@ -179,6 +192,7 @@ export interface ProcessoVendedor {
   conjuge_data_nasc: string | null
   conjuge_papel: 'conjuge' | 'proprietario' | null
   created_at: string
+  pessoa?: PessoaDetalhes | null
 }
 
 export interface ProcessoSimulacao {

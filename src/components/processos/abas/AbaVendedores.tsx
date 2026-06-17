@@ -11,9 +11,10 @@ import { type ProcessoVendedor } from '@/types/processos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, User, X, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, User, X, Check, ClipboardList } from 'lucide-react'
 import { PessoaBuscaCombobox, type PessoaOpcao } from '@/components/processos/PessoaBuscaCombobox'
 import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
+import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 
 const ESTADOS_CIVIS = [
   'SOLTEIRO (A)',
@@ -71,6 +72,7 @@ export function AbaVendedores({ processoId }: Props) {
   const [pessoaSelecionada, setPessoaSelecionada] = useState<PessoaOpcao | null>(null)
   const [pessoaId, setPessoaId] = useState<string | null>(null)
   const [novaPessoaAberta, setNovaPessoaAberta] = useState(false)
+  const [completarDadosId, setCompletarDadosId] = useState<string | null>(null)
 
   const eCasado = ESTADOS_CASADO.has(form.estado_civil)
 
@@ -306,7 +308,7 @@ export function AbaVendedores({ processoId }: Props) {
       ) : (
         <div className="space-y-3">
           {vendedores.map((v) => (
-            <VendedorCard key={v.id} vendedor={v} onEditar={() => abrirFormEditar(v)} onRemover={() => remover.mutate(v.id)} />
+            <VendedorCard key={v.id} vendedor={v} onEditar={() => abrirFormEditar(v)} onRemover={() => remover.mutate(v.id)} onCompletarDados={setCompletarDadosId} />
           ))}
         </div>
       )}
@@ -316,11 +318,17 @@ export function AbaVendedores({ processoId }: Props) {
         onFechar={() => setNovaPessoaAberta(false)}
         onSucesso={(p) => { aplicarPessoa(p); setNovaPessoaAberta(false) }}
       />
+      <CompletarDadosPessoaDrawer
+        pessoaId={completarDadosId}
+        open={!!completarDadosId}
+        onClose={() => setCompletarDadosId(null)}
+        origemAuditoria="processos"
+      />
     </div>
   )
 }
 
-function VendedorCard({ vendedor: v, onEditar, onRemover }: { vendedor: ProcessoVendedor; onEditar: () => void; onRemover: () => void }) {
+function VendedorCard({ vendedor: v, onEditar, onRemover, onCompletarDados }: { vendedor: ProcessoVendedor; onEditar: () => void; onRemover: () => void; onCompletarDados: (pessoaId: string) => void }) {
   const temBanco = v.banco || v.agencia || v.conta
   const temConjuge = v.conjuge_nome || v.conjuge_cpf
 
@@ -353,7 +361,18 @@ function VendedorCard({ vendedor: v, onEditar, onRemover }: { vendedor: Processo
           )}
         </div>
       </div>
-      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+      <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+        {v.pessoa_id && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-[#253B29] hover:bg-[#E7E0C4]/50 gap-1"
+            onClick={() => onCompletarDados(v.pessoa_id!)}
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            Completar dados
+          </Button>
+        )}
         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-[#253B29]" onClick={onEditar}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
