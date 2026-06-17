@@ -152,7 +152,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
     <>
       {/* Dialog principal */}
       <Dialog open={aberto} onOpenChange={(open) => { if (!open) fechar() }}>
-        <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-5xl w-full max-h-[90vh] flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2 text-[#253B29]">
               <Mail className="h-4 w-4 text-[#C2AA6A]" />
@@ -186,12 +186,12 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Data envio</th>
-                          <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Destinatário</th>
-                          <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Status</th>
-                          <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Confirmado em</th>
-                          <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">Protocolo</th>
-                          <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-500">IP / Dispositivo</th>
+                          <th className="text-left px-2 py-2.5 text-xs font-medium text-gray-500 whitespace-nowrap">Data envio</th>
+                          <th className="text-left px-2 py-2.5 text-xs font-medium text-gray-500">Destinatário</th>
+                          <th className="text-left px-2 py-2.5 text-xs font-medium text-gray-500">Status</th>
+                          <th className="text-left px-2 py-2.5 text-xs font-medium text-gray-500 whitespace-nowrap">Confirmado em</th>
+                          <th className="text-left px-2 py-2.5 text-xs font-medium text-gray-500">Protocolo</th>
+                          <th className="text-left px-2 py-2.5 text-xs font-medium text-gray-500 whitespace-nowrap">IP / Dispositivo</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -202,22 +202,22 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                             title={c.corpo ? 'Clique para ver o e-mail enviado' : undefined}
                             onClick={() => c.corpo && setVerEmailCorpo(c.corpo)}
                           >
-                            <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDataHora(c.sent_at)}</td>
-                            <td className="px-3 py-3 text-xs text-gray-700">{c.para_email}</td>
-                            <td className="px-3 py-3">
+                            <td className="px-2 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDataHora(c.sent_at)}</td>
+                            <td className="px-2 py-3 text-xs text-gray-700 max-w-[180px] truncate" title={c.para_email}>{c.para_email}</td>
+                            <td className="px-2 py-3">
                               {c.confirmado_em ? (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 whitespace-nowrap">
                                   <CheckCircle2 className="h-3 w-3" /> Confirmado
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">
                                   <Clock className="h-3 w-3" /> Aguardando
                                 </span>
                               )}
                             </td>
-                            <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDataHora(c.confirmado_em)}</td>
-                            <td className="px-3 py-3 text-xs font-mono text-gray-500">{c.numero_protocolo ?? '—'}</td>
-                            <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">
+                            <td className="px-2 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDataHora(c.confirmado_em)}</td>
+                            <td className="px-2 py-3 text-xs font-mono text-gray-500 max-w-[120px] truncate" title={c.numero_protocolo ?? ''}>{c.numero_protocolo ?? '—'}</td>
+                            <td className="px-2 py-3 text-xs text-gray-500 whitespace-nowrap">
                               {c.confirmado_em
                                 ? <span title={c.confirmacao_ip ?? ''}>{mascararIp(c.confirmacao_ip)} · {resumirDispositivo(c.confirmacao_user_agent)}</span>
                                 : '—'}
