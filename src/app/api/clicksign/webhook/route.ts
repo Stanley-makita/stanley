@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
+    // TODO: reduzir este log após estabilização do webhook em produção
+    console.log('[Clicksign webhook] payload recebido:', JSON.stringify(body))
+
     const envelopeId: string | undefined =
       body?.data?.id ??
       body?.envelope?.id ??

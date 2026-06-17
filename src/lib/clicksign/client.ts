@@ -124,3 +124,10 @@ export async function buscarDocumento(
     signed_url: attrs.downloads?.signed_file_url ?? null,
   }
 }
+
+export async function buscarEnvelope(envelopeId: string): Promise<{ status: string }> {
+  const res = await request<any>('GET', `/envelopes/${envelopeId}`)
+  return {
+    status: res.data?.attributes?.status ?? '',
+  }
+}

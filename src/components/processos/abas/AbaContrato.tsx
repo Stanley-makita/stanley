@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import {
   Bold, Italic, UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   AlignJustify, Undo, Redo, FileText, Printer, Save, ChevronLeft,
-  Send, CheckCircle, Clock, Download, Loader2,
+  Send, CheckCircle, Clock, Download, Loader2, RefreshCw,
 } from 'lucide-react'
 import { useProcessoContrato, useSalvarContrato } from '@/hooks/processos/useProcessoContrato'
 import { useProcessoCompradores } from '@/hooks/processos/useProcessoCompradores'
@@ -68,6 +68,7 @@ export function AbaContrato({ processoId, processo }: Props) {
   const [valorServicos, setValorServicos] = useState('')
   const [gerando, setGerando] = useState(false)
   const [enviandoClicksign, setEnviandoClicksign] = useState(false)
+  const [verificandoClicksign, setVerificandoClicksign] = useState(false)
 
   const { data: csStatus, invalidar: invalidarClicksign } = useContratoClicksign(contrato?.id ?? null)
 
@@ -161,6 +162,35 @@ export function AbaContrato({ processoId, processo }: Props) {
     }
   }
 
+  function gerarHtmlImpressao(conteudo: string, titulo: string): string {
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${titulo}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; padding: 2.5cm 3cm; }
+    h2 { font-size: 12pt; margin-bottom: 1em; }
+    h3 { font-size: 11pt; margin-top: 1.5em; margin-bottom: 0.5em; }
+    p { margin-bottom: 0.8em; text-align: justify; }
+    ul { margin: 0.5em 0 0.8em 1.5em; }
+    li { margin-bottom: 0.3em; }
+    strong { font-weight: bold; }
+    em { font-style: italic; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+    th, td { border: 1px solid #aaa; padding: 7px 12px; vertical-align: top; }
+    th { background: #eeeeee; font-weight: bold; text-align: left; }
+    hr { border: none; border-top: 1px solid #555; margin: 1.2em 0; }
+    .sig-table td { border: 1px solid #aaa; padding: 14px 16px; vertical-align: top; width: 50%; }
+    @page { size: A4; margin: 0; }
+    @media print { body { padding: 2.5cm 3cm; } }
+  </style>
+</head>
+<body>${conteudo}</body>
+</html>`
+  }
+
   async function handleEnviarClicksign() {
     if (!editor || !contrato?.id) return
 
@@ -171,41 +201,43 @@ export function AbaContrato({ processoId, processo }: Props) {
     }
 
     setEnviandoClicksign(true)
+    let iframe: HTMLIFrameElement | null = null
+
     try {
       const { jsPDF } = await import('jspdf')
       const html2canvas = (await import('html2canvas')).default
 
-      const conteudo = editor.getHTML()
-      const container = document.createElement('div')
-      container.style.cssText = [
-        'position:absolute',
-        'left:-9999px',
-        'top:0',
-        'width:794px',
-        'padding:60px 72px',
-        'font-family:Arial,Helvetica,sans-serif',
-        'font-size:14.67px',
-        'line-height:1.6',
-        'color:#000',
-        'background:white',
-      ].join(';')
+      const htmlCompleto = gerarHtmlImpressao(editor.getHTML(), tituloAtivo)
 
-      // Aplicar estilos de tabela inline para html2canvas
-      const style = document.createElement('style')
-      style.textContent = 'table{border-collapse:collapse;width:100%;margin:.5em 0}th,td{border:1px solid #aaa;padding:7px 12px;vertical-align:top}th{background:#eee;font-weight:bold;text-align:left}hr{border:none;border-top:1px solid #555;margin:1.2em 0}'
-      container.appendChild(style)
+      // Iframe oculto garante contexto de renderização isolado, CSS no <head> e fontes carregadas
+      iframe = document.createElement('iframe')
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1;'
+      document.body.appendChild(iframe)
 
-      const body = document.createElement('div')
-      body.innerHTML = conteudo
-      container.appendChild(body)
-      document.body.appendChild(container)
+      // Aguardar carregamento completo do iframe
+      await new Promise<void>((resolve) => {
+        iframe!.onload = () => resolve()
+        iframe!.srcdoc = htmlCompleto
+      })
+
+      // Aguardar fontes carregarem quando disponível
+      if (iframe.contentDocument?.fonts?.ready) {
+        await iframe.contentDocument.fonts.ready
+      }
+
+      // Garantir que o browser terminou a pintura antes de capturar
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
       const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
       const A4_WIDTH_MM = 210
       const A4_HEIGHT_MM = 297
-      const pxPerMm = container.offsetWidth / A4_WIDTH_MM
 
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#fff' })
+      const canvas = await html2canvas(iframe.contentDocument!.body, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#fff',
+        windowWidth: 794,
+      })
 
       const imgWidth = A4_WIDTH_MM
       const imgHeight = (canvas.height * A4_WIDTH_MM) / canvas.width
@@ -219,8 +251,6 @@ export function AbaContrato({ processoId, processo }: Props) {
         yPos += A4_HEIGHT_MM
         pageNum++
       }
-
-      document.body.removeChild(container)
 
       const pdfBase64 = pdf.output('datauristring').split(',')[1]
       const filename = `${tituloAtivo || 'contrato'}.pdf`
@@ -247,7 +277,32 @@ export function AbaContrato({ processoId, processo }: Props) {
       console.error('[Clicksign]', err)
       alert(`Erro ao enviar para Clicksign: ${err.message}`)
     } finally {
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
+      }
       setEnviandoClicksign(false)
+    }
+  }
+
+  async function handleVerificarClicksign() {
+    if (!contrato?.id) return
+    setVerificandoClicksign(true)
+    try {
+      const res = await fetch('/api/clicksign/atualizar-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ processo_contrato_id: contrato.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error ?? 'Erro ao verificar status')
+      }
+      invalidarClicksign()
+    } catch (err: any) {
+      console.error('[Clicksign verificar]', err)
+      alert(`Erro ao verificar: ${err.message}`)
+    } finally {
+      setVerificandoClicksign(false)
     }
   }
 
@@ -276,44 +331,16 @@ export function AbaContrato({ processoId, processo }: Props) {
 
   function handleExportarPdf() {
     if (!editor) return
-    const conteudo = editor.getHTML()
     const janela = window.open('', '_blank')
     if (!janela) return
-    janela.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>${tituloAtivo}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #000;
-      padding: 2.5cm 3cm;
+    const blob = new Blob([gerarHtmlImpressao(editor.getHTML(), tituloAtivo)], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    janela.location.href = url
+    janela.onload = () => {
+      URL.revokeObjectURL(url)
+      janela.focus()
+      janela.print()
     }
-    h2 { font-size: 12pt; margin-bottom: 1em; }
-    h3 { font-size: 11pt; margin-top: 1.5em; margin-bottom: 0.5em; }
-    p { margin-bottom: 0.8em; text-align: justify; }
-    ul { margin: 0.5em 0 0.8em 1.5em; }
-    li { margin-bottom: 0.3em; }
-    strong { font-weight: bold; }
-    em { font-style: italic; }
-    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-    th, td { border: 1px solid #aaa; padding: 7px 12px; vertical-align: top; }
-    th { background: #eeeeee; font-weight: bold; text-align: left; }
-    hr { border: none; border-top: 1px solid #555; margin: 1.2em 0; }
-    .sig-table td { border: 1px solid #aaa; padding: 14px 16px; vertical-align: top; width: 50%; }
-    @page { size: A4; margin: 0; }
-    @media print { body { padding: 2.5cm 3cm; } }
-  </style>
-</head>
-<body>${conteudo}</body>
-</html>`)
-    janela.document.close()
-    janela.focus()
-    setTimeout(() => janela.print(), 250)
   }
 
   function handleTrocarModelo() {
@@ -634,14 +661,28 @@ export function AbaContrato({ processoId, processo }: Props) {
               )}
             </div>
           ) : csStatus?.clicksign_status === 'running' ? (
-            <div className="flex items-center gap-2 text-sm text-amber-700">
-              <Clock className="h-4 w-4 shrink-0" />
-              <span>
-                Aguardando assinatura — enviado em{' '}
-                {csStatus.clicksign_enviado_em
-                  ? format(new Date(csStatus.clicksign_enviado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                  : '—'}
-              </span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-amber-700">
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>
+                  Aguardando assinatura — enviado em{' '}
+                  {csStatus.clicksign_enviado_em
+                    ? format(new Date(csStatus.clicksign_enviado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                    : '—'}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5 text-xs border-gray-200 text-gray-600 hover:bg-gray-100"
+                onClick={handleVerificarClicksign}
+                disabled={verificandoClicksign}
+              >
+                {verificandoClicksign
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Verificando...</>
+                  : <><RefreshCw className="h-3.5 w-3.5" />Verificar assinaturas</>
+                }
+              </Button>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
