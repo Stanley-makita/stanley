@@ -120,8 +120,13 @@ export async function buscarDocumento(
   const res = await request<any>('GET', `/envelopes/${envelopeId}/documents/${documentId}`)
   const attrs = res.data?.attributes ?? {}
 
-  // Log completo para diagnóstico — remover após confirmar campo correto
-  console.log('[buscarDocumento] attrs:', JSON.stringify(attrs))
+  // Log em partes para evitar truncamento no Vercel
+  console.log('[buscarDocumento] status:', attrs.status)
+  console.log('[buscarDocumento] downloads:', JSON.stringify(attrs.downloads))
+  console.log('[buscarDocumento] metadata keys:', JSON.stringify(Object.keys(attrs.metadata ?? {})))
+  console.log('[buscarDocumento] top-level keys:', JSON.stringify(Object.keys(attrs)))
+  console.log('[buscarDocumento] res.data keys:', JSON.stringify(Object.keys(res.data ?? {})))
+  console.log('[buscarDocumento] links:', JSON.stringify(res.data?.links))
 
   // Tenta múltiplos caminhos possíveis do PDF assinado na API Clicksign v3
   const signed_url =
@@ -129,6 +134,7 @@ export async function buscarDocumento(
     attrs.downloads?.file_url ??
     attrs.signed_file_url ??
     attrs.file_url ??
+    res.data?.links?.self ??
     null
 
   return {
