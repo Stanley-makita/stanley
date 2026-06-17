@@ -21,16 +21,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export async function criarEnvelope(nome: string): Promise<string> {
-  const webhookUrl = process.env.CLICKSIGN_WEBHOOK_URL
-    ?? `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/clicksign/webhook`
-
   const res = await request<any>('POST', '/envelopes', {
     data: {
       type: 'envelopes',
       attributes: {
         name: nome,
         auto_close: true,
-        ...(webhookUrl ? { notification_url: webhookUrl } : {}),
       },
     },
   })
