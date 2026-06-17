@@ -15,7 +15,9 @@ export async function POST(req: NextRequest) {
     // TODO: reduzir este log após estabilização do webhook em produção
     console.log('[Clicksign webhook] payload recebido:', JSON.stringify(body))
 
+    // Clicksign v3: { event: { name, data: { envelope: { id } } } }
     const envelopeId: string | undefined =
+      body?.event?.data?.envelope?.id ??
       body?.data?.id ??
       body?.envelope?.id ??
       body?.id
