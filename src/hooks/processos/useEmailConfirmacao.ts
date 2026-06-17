@@ -31,6 +31,7 @@ export interface EmailConfirmacao {
   template: string | null
   confirmacao_ip: string | null
   confirmacao_user_agent: string | null
+  corpo: string | null
 }
 
 export function useEmailConfirmacoes(processoId: string) {
@@ -55,7 +56,7 @@ export function useEmailConfirmacoes(processoId: string) {
     queryFn: async () => {
       const { data } = await supabase
         .from('email_envios')
-        .select('id, sent_at, confirmado_em, numero_protocolo, para_email, template, confirmacao_ip, confirmacao_user_agent')
+        .select('id, sent_at, confirmado_em, numero_protocolo, para_email, template, confirmacao_ip, confirmacao_user_agent, corpo')
         .eq('processo_id', processoId)
         .eq('status', 'enviado')
         .order('sent_at', { ascending: false })
