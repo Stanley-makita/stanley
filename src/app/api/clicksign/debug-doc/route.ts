@@ -24,7 +24,19 @@ export async function GET(req: NextRequest) {
     .maybeSingle()
 
   if (!contrato?.clicksign_envelope_id) {
-    return NextResponse.json({ error: 'Contrato sem envelope Clicksign' }, { status: 404 })
+    // Listar todos os contratos com Clicksign para ajudar a encontrar o ID correto
+    const { data: todos } = await supabaseAdmin
+      .from('processo_contratos')
+      .select('id, titulo, clicksign_status, clicksign_envelope_id, clicksign_signed_url')
+      .not('clicksign_envelope_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    return NextResponse.json({
+      error: 'ID não encontrado ou sem envelope Clicksign',
+      contrato_id_recebido: contratoId,
+      contratos_com_clicksign: todos ?? [],
+    }, { status: 404 })
   }
 
   const results: Record<string, any> = {
