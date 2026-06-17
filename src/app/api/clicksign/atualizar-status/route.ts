@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Buscar contrato e validar que pertence à empresa do usuário logado
     const { data: contrato, error: contratoError } = await supabaseAdmin
       .from('processo_contratos')
-      .select('id, empresa_id, clicksign_envelope_id, clicksign_document_id, clicksign_status')
+      .select('id, empresa_id, clicksign_envelope_id, clicksign_document_id, clicksign_status, clicksign_signed_url')
       .eq('id', processo_contrato_id)
       .eq('empresa_id', usuario.empresa_id)
       .maybeSingle()
@@ -53,7 +53,11 @@ export async function POST(req: NextRequest) {
     // Consultar status atual do envelope diretamente no Clicksign
     const envelope = await buscarEnvelope(contrato.clicksign_envelope_id)
 
-    if (envelope.status === 'closed' && contrato.clicksign_status !== 'closed') {
+    const jaFechado = envelope.status === 'closed'
+    const semUrlStorage = !contrato.clicksign_signed_url || contrato.clicksign_signed_url.includes('clicksign')
+    const deveAtualizar = jaFechado && (contrato.clicksign_status !== 'closed' || semUrlStorage)
+
+    if (deveAtualizar) {
       let signedUrl: string | null = null
 
       if (contrato.clicksign_document_id) {

@@ -776,17 +776,32 @@ export function AbaContrato({ processoId, processo }: Props) {
                     : '—'}
                 </span>
               </div>
-              {csStatus.clicksign_signed_url && (
-                <a
-                  href={csStatus.clicksign_signed_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-3 py-1.5 hover:bg-[#E7E0C4] transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Ver contrato assinado
-                </a>
-              )}
+              <div className="flex items-center gap-2">
+                {csStatus.clicksign_signed_url ? (
+                  <a
+                    href={csStatus.clicksign_signed_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-3 py-1.5 hover:bg-[#E7E0C4] transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Ver contrato assinado
+                  </a>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1.5 text-xs border-gray-200 text-gray-600 hover:bg-gray-100"
+                    onClick={handleVerificarClicksign}
+                    disabled={verificandoClicksign}
+                  >
+                    {verificandoClicksign
+                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Buscando PDF...</>
+                      : <><Download className="h-3.5 w-3.5" />Buscar PDF assinado</>
+                    }
+                  </Button>
+                )}
+              </div>
             </div>
           ) : csStatus?.clicksign_status === 'running' ? (
             <div className="flex items-center justify-between gap-3">
