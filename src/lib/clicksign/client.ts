@@ -39,7 +39,7 @@ export async function uploadDocumento(
       type: 'documents',
       attributes: {
         filename,
-        content_base64: pdfBase64,
+        content_base64: pdfBase64.startsWith('data:') ? pdfBase64 : `data:application/pdf;base64,${pdfBase64}`,
       },
     },
   })
