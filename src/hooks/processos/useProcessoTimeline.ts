@@ -1,12 +1,29 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { type TimelineItem, type ProcessoComentario, type ProcessoFaseHistorico, type ProcessoTarefa } from '@/types/processos'
 
 export function useProcessoTimeline(processoId: string) {
+  const queryClient = useQueryClient()
+  const queryKey = ['processos', processoId, 'timeline']
+
+  useEffect(() => {
+    if (!processoId) return
+    const channel = supabase
+      .channel(`processo_timeline_${processoId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'processo_comentarios', filter: `processo_id=eq.${processoId}` },
+        () => { queryClient.invalidateQueries({ queryKey }) },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [processoId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return useQuery({
-    queryKey: ['processos', processoId, 'timeline'],
+    queryKey,
     queryFn: async (): Promise<TimelineItem[]> => {
       const [comentariosRes, fasesRes, tarefasRes] = await Promise.all([
         supabase
