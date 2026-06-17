@@ -12,42 +12,66 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
-    // TODO: reduzir este log após estabilização do webhook em produção
     console.log('[Clicksign webhook] payload recebido:', JSON.stringify(body))
-
-    // Clicksign v3: { event: { name, data: { envelope: { id } } } }
-    const envelopeId: string | undefined =
-      body?.event?.data?.envelope?.id ??
-      body?.data?.id ??
-      body?.envelope?.id ??
-      body?.id
 
     const event: string | undefined =
       body?.event?.name ??
       body?.name ??
       body?.type
 
-    if (!envelopeId) {
+    // Clicksign v3 envia eventos de DOCUMENTO — chave em event.data.document.id
+    const documentKey: string | undefined =
+      body?.event?.data?.document?.id ??
+      body?.event?.data?.document?.key ??
+      body?.document?.id ??
+      body?.document?.key
+
+    // Fallback: evento de envelope
+    const envelopeKey: string | undefined =
+      body?.event?.data?.envelope?.id ??
+      body?.data?.id ??
+      body?.envelope?.id ??
+      body?.id
+
+    console.log('[Clicksign webhook] event:', event, '| documentKey:', documentKey, '| envelopeKey:', envelopeKey)
+
+    if (!documentKey && !envelopeKey) {
       return NextResponse.json({ ok: true })
     }
 
-    if (event === 'close' || event === 'auto_close' || event === 'envelope_closed') {
-      const { data: contrato, error: findError } = await supabaseAdmin
-        .from('processo_contratos')
-        .select('id, empresa_id, clicksign_document_id')
-        .eq('clicksign_envelope_id', envelopeId)
-        .maybeSingle()
+    if (event === 'close' || event === 'auto_close' || event === 'document_closed') {
+      // Busca por document_id primeiro (evento de documento), fallback por envelope_id
+      let contrato: { id: string; empresa_id: string; clicksign_document_id: string | null; clicksign_envelope_id?: string | null } | null = null
 
-      if (findError || !contrato) {
-        console.warn('Webhook Clicksign: envelope não encontrado:', envelopeId)
+      if (documentKey) {
+        const res = await supabaseAdmin
+          .from('processo_contratos')
+          .select('id, empresa_id, clicksign_document_id, clicksign_envelope_id')
+          .eq('clicksign_document_id', documentKey)
+          .maybeSingle()
+        contrato = res.data
+      }
+
+      if (!contrato && envelopeKey) {
+        const res = await supabaseAdmin
+          .from('processo_contratos')
+          .select('id, empresa_id, clicksign_document_id, clicksign_envelope_id')
+          .eq('clicksign_envelope_id', envelopeKey)
+          .maybeSingle()
+        contrato = res.data
+      }
+
+      if (!contrato) {
+        console.warn('[Clicksign webhook] contrato não encontrado. documentKey:', documentKey, 'envelopeKey:', envelopeKey)
         return NextResponse.json({ ok: true })
       }
 
+      const envelopeIdParaBusca = contrato.clicksign_envelope_id ?? envelopeKey ?? ''
       let signedUrl: string | null = null
 
-      if (contrato.clicksign_document_id) {
+      if (contrato.clicksign_document_id && envelopeIdParaBusca) {
         try {
-          const doc = await buscarDocumento(envelopeId, contrato.clicksign_document_id)
+          const doc = await buscarDocumento(envelopeIdParaBusca, contrato.clicksign_document_id)
           if (doc.signed_url) {
             try {
               signedUrl = await salvarPdfAssinadoEmStorage(
@@ -73,6 +97,8 @@ export async function POST(req: NextRequest) {
           ...(signedUrl ? { clicksign_signed_url: signedUrl } : {}),
         })
         .eq('id', contrato.id)
+
+      console.log('[Clicksign webhook] contrato atualizado:', contrato.id)
     }
 
     return NextResponse.json({ ok: true })
