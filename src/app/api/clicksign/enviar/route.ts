@@ -4,7 +4,8 @@ import {
   criarEnvelope,
   uploadDocumento,
   adicionarSignatario,
-  adicionarRequirement,
+  adicionarRequistoQualificacao,
+  adicionarRequisitoAutenticacao,
   ativarEnvelope,
   notificarSignatarios,
 } from '@/lib/clicksign/client'
@@ -53,9 +54,11 @@ export async function POST(req: NextRequest) {
       email: empresaEmail,
     })
 
-    // 4. Requisitos com ordem sequencial: cliente (1) → empresa (2)
-    await adicionarRequirement(envelopeId, documentId, signerClienteId, 1)
-    await adicionarRequirement(envelopeId, documentId, signerEmpresaId, 2)
+    // 4. Requisitos: qualificação (assinar) + autenticação (e-mail) para cada signatário
+    await adicionarRequistoQualificacao(envelopeId, documentId, signerClienteId)
+    await adicionarRequisitoAutenticacao(envelopeId, documentId, signerClienteId)
+    await adicionarRequistoQualificacao(envelopeId, documentId, signerEmpresaId)
+    await adicionarRequisitoAutenticacao(envelopeId, documentId, signerEmpresaId)
 
     // 5. Ativar e notificar
     await ativarEnvelope(envelopeId)

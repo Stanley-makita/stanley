@@ -1,8 +1,7 @@
-const BASE_URL = (process.env.CLICKSIGN_API_URL || 'https://sandbox.clicksign.com/api/v3').replace(/\/$/, '')
+const BASE_URL = (process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com/api/v3').replace(/\/$/, '')
 const TOKEN = (process.env.CLICKSIGN_API_TOKEN || '').trim()
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  // Clicksign v3 aceita token via query param E via header Authorization
   const url = `${BASE_URL}${path}?access_token=${TOKEN}`
   const res = await fetch(url, {
     method,
@@ -15,8 +14,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   })
   const text = await res.text()
   if (!res.ok) {
-    // Loga token parcial para diagnóstico sem expor completo
-    console.error(`[Clicksign] ${method} ${path} → ${res.status} | token_prefix=${TOKEN.slice(0, 8)} | body=${text}`)
+    console.error(`[Clicksign] ${method} ${path} → ${res.status} | body=${text}`)
     throw new Error(`Clicksign ${method} ${path} → ${res.status}: ${text}`)
   }
   return text ? JSON.parse(text) : ({} as T)
@@ -59,16 +57,16 @@ export async function adicionarSignatario(
   return res.data.id as string
 }
 
-export async function adicionarRequirement(
+// Requisito de qualificação: o signatário deve aceitar/assinar
+export async function adicionarRequistoQualificacao(
   envelopeId: string,
   documentId: string,
   signerId: string,
-  order: number,
 ): Promise<void> {
   await request('POST', `/envelopes/${envelopeId}/requirements`, {
     data: {
       type: 'requirements',
-      attributes: { action: 'agree' },
+      attributes: { action: 'agree', role: 'sign' },
       relationships: {
         document: { data: { type: 'documents', id: documentId } },
         signer: { data: { type: 'signers', id: signerId } },
@@ -77,9 +75,32 @@ export async function adicionarRequirement(
   })
 }
 
+// Requisito de autenticação: valida identidade via e-mail (obrigatório para ativar)
+export async function adicionarRequisitoAutenticacao(
+  envelopeId: string,
+  documentId: string,
+  signerId: string,
+): Promise<void> {
+  await request('POST', `/envelopes/${envelopeId}/requirements`, {
+    data: {
+      type: 'requirements',
+      attributes: { action: 'provide_evidence', auth: 'email' },
+      relationships: {
+        document: { data: { type: 'documents', id: documentId } },
+        signer: { data: { type: 'signers', id: signerId } },
+      },
+    },
+  })
+}
+
+// Ativa o envelope: muda status de draft → running via PATCH
 export async function ativarEnvelope(envelopeId: string): Promise<void> {
-  await request('POST', `/envelopes/${envelopeId}/activate`, {
-    data: { type: 'envelopes' },
+  await request('PATCH', `/envelopes/${envelopeId}`, {
+    data: {
+      id: envelopeId,
+      type: 'envelopes',
+      attributes: { status: 'running' },
+    },
   })
 }
 
@@ -87,7 +108,7 @@ export async function notificarSignatarios(envelopeId: string): Promise<void> {
   await request('POST', `/envelopes/${envelopeId}/notifications`, {
     data: {
       type: 'notifications',
-      attributes: { type: 'signature_request' },
+      attributes: { message: null },
     },
   })
 }
