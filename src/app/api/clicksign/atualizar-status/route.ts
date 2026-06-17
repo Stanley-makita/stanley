@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { buscarDocumento, buscarEnvelope } from '@/lib/clicksign/client'
+import { salvarPdfAssinadoEmStorage } from '@/lib/clicksign/storage'
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,7 +59,18 @@ export async function POST(req: NextRequest) {
       if (contrato.clicksign_document_id) {
         try {
           const doc = await buscarDocumento(contrato.clicksign_envelope_id, contrato.clicksign_document_id)
-          signedUrl = doc.signed_url
+          if (doc.signed_url) {
+            try {
+              signedUrl = await salvarPdfAssinadoEmStorage(
+                doc.signed_url,
+                contrato.id,
+                contrato.empresa_id,
+              )
+            } catch (storageErr) {
+              console.error('[atualizar-status] Erro ao salvar PDF no Storage, usando URL original:', storageErr)
+              signedUrl = doc.signed_url
+            }
+          }
         } catch (e) {
           console.error('[atualizar-status] Erro ao buscar documento assinado:', e)
         }

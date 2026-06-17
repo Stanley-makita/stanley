@@ -13,9 +13,10 @@ import { Button } from '@/components/ui/button'
 import {
   Bold, Italic, UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   AlignJustify, Undo, Redo, FileText, Printer, Save, ChevronLeft,
-  Send, CheckCircle, Clock, Download, Loader2, RefreshCw,
+  Send, CheckCircle, Clock, Download, Loader2, RefreshCw, Plus,
 } from 'lucide-react'
-import { useProcessoContrato, useSalvarContrato } from '@/hooks/processos/useProcessoContrato'
+import { useProcessoContratos, useSalvarContrato } from '@/hooks/processos/useProcessoContrato'
+import type { ProcessoContrato } from '@/hooks/processos/useProcessoContrato'
 import { useProcessoCompradores } from '@/hooks/processos/useProcessoCompradores'
 import { useProcessoVendedores } from '@/hooks/processos/useProcessoVendedores'
 import { substituirVariaveis } from '@/lib/contratos/substituirVariaveis'
@@ -44,15 +45,41 @@ interface Props {
   processo: Processo
 }
 
-type Tela = 'selecao' | 'configurando_assessoria' | 'editor'
+type Tela = 'lista' | 'selecao' | 'configurando_assessoria' | 'editor'
+
+function badgeStatus(status: string | null) {
+  if (status === 'closed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+        <CheckCircle className="h-3 w-3" />
+        Assinado
+      </span>
+    )
+  }
+  if (status === 'running') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+        <Clock className="h-3 w-3" />
+        Enviado
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
+      Rascunho
+    </span>
+  )
+}
 
 export function AbaContrato({ processoId, processo }: Props) {
-  const { data: contrato, isLoading } = useProcessoContrato(processoId)
+  const { data: contratos = [], isLoading } = useProcessoContratos(processoId)
   const { data: compradores = [] } = useProcessoCompradores(processoId)
   const { data: vendedores = [] } = useProcessoVendedores(processoId)
   const salvar = useSalvarContrato(processoId)
 
   const [tela, setTela] = useState<Tela>('selecao')
+  const [initialized, setInitialized] = useState(false)
+  const [contratoAtivoId, setContratoAtivoId] = useState<string | null>(null)
   const [modeloAtivo, setModeloAtivo] = useState<string | null>(null)
   const [tituloAtivo, setTituloAtivo] = useState('')
 
@@ -70,7 +97,7 @@ export function AbaContrato({ processoId, processo }: Props) {
   const [enviandoClicksign, setEnviandoClicksign] = useState(false)
   const [verificandoClicksign, setVerificandoClicksign] = useState(false)
 
-  const { data: csStatus, invalidar: invalidarClicksign } = useContratoClicksign(contrato?.id ?? null)
+  const { data: csStatus, invalidar: invalidarClicksign } = useContratoClicksign(contratoAtivoId)
 
   const editor = useEditor({
     extensions: [
@@ -91,18 +118,27 @@ export function AbaContrato({ processoId, processo }: Props) {
     },
   })
 
-  // Ao carregar, se já existe contrato salvo, abre direto no editor
+  // Ao carregar, decide a tela inicial baseada nos contratos existentes
   useEffect(() => {
-    if (contrato && editor && !editor.isDestroyed) {
-      editor.commands.setContent(contrato.conteudo_html)
-      setModeloAtivo(contrato.tipo_modelo)
-      setTituloAtivo(contrato.titulo)
-      setTela('editor')
+    if (!isLoading && !initialized) {
+      setInitialized(true)
+      if (contratos.length > 0) {
+        setTela('lista')
+      }
     }
-  }, [contrato, editor])
+  }, [contratos, isLoading, initialized])
+
+  function abrirContratoNoEditor(contrato: ProcessoContrato) {
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setContent(contrato.conteudo_html)
+    }
+    setContratoAtivoId(contrato.id)
+    setModeloAtivo(contrato.tipo_modelo)
+    setTituloAtivo(contrato.titulo)
+    setTela('editor')
+  }
 
   async function abrirConfiguracaoAssessoria() {
-    // Pré-preencher com dados do processo
     setCheckFinanciamento(processo.tem_assessoria ?? false)
     setCheckItbi(processo.tem_assessoria ?? false)
     setCheckRegistro(processo.tem_assessoria ?? false)
@@ -111,7 +147,6 @@ export function AbaContrato({ processoId, processo }: Props) {
     const va = (processo as any).valor_assessoria
     setValorServicos(va ? String(va) : '')
 
-    // Buscar prévia do número (sem consumir)
     try {
       const res = await fetch('/api/contratos/proximo-numero')
       const json = await res.json()
@@ -127,7 +162,6 @@ export function AbaContrato({ processoId, processo }: Props) {
     if (!editor) return
     setGerando(true)
     try {
-      // Reservar o número definitivo
       const res = await fetch('/api/contratos/proximo-numero', { method: 'POST' })
       const json = await res.json()
       const numeroDefinitivo: string = json.numero ?? numeroPrevia
@@ -152,6 +186,7 @@ export function AbaContrato({ processoId, processo }: Props) {
       )
 
       editor.commands.setContent(htmlPreenchido)
+      setContratoAtivoId(null)
       setModeloAtivo('prestacao_servicos')
       setTituloAtivo(TEMPLATE_PRESTACAO_SERVICOS.titulo)
       setTela('editor')
@@ -192,7 +227,7 @@ export function AbaContrato({ processoId, processo }: Props) {
   }
 
   async function handleEnviarClicksign() {
-    if (!editor || !contrato?.id) return
+    if (!editor || !contratoAtivoId) return
 
     const comprador = compradores[0]
     if (!comprador?.email) {
@@ -214,18 +249,15 @@ export function AbaContrato({ processoId, processo }: Props) {
       iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1;'
       document.body.appendChild(iframe)
 
-      // Aguardar carregamento completo do iframe
       await new Promise<void>((resolve) => {
         iframe!.onload = () => resolve()
         iframe!.srcdoc = htmlCompleto
       })
 
-      // Aguardar fontes carregarem quando disponível
       if (iframe.contentDocument?.fonts?.ready) {
         await iframe.contentDocument.fonts.ready
       }
 
-      // Garantir que o browser terminou a pintura antes de capturar
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
       const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
@@ -259,7 +291,7 @@ export function AbaContrato({ processoId, processo }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          processo_contrato_id: contrato.id,
+          processo_contrato_id: contratoAtivoId,
           pdf_base64: pdfBase64,
           filename,
           signatario_nome: comprador.nome,
@@ -285,13 +317,13 @@ export function AbaContrato({ processoId, processo }: Props) {
   }
 
   async function handleVerificarClicksign() {
-    if (!contrato?.id) return
+    if (!contratoAtivoId) return
     setVerificandoClicksign(true)
     try {
       const res = await fetch('/api/clicksign/atualizar-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ processo_contrato_id: contrato.id }),
+        body: JSON.stringify({ processo_contrato_id: contratoAtivoId }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -315,18 +347,23 @@ export function AbaContrato({ processoId, processo }: Props) {
     if (!template || !editor) return
     const htmlPreenchido = substituirVariaveis(template.conteudo, processo, compradores, vendedores)
     editor.commands.setContent(htmlPreenchido)
+    setContratoAtivoId(null)
     setModeloAtivo(id)
     setTituloAtivo(template.titulo)
     setTela('editor')
   }
 
-  function handleSalvar() {
+  async function handleSalvar() {
     if (!editor || !modeloAtivo) return
-    salvar.mutate({
+    const novoId = await salvar.mutateAsync({
+      id: contratoAtivoId ?? undefined,
       tipo_modelo: modeloAtivo,
       titulo: tituloAtivo,
       conteudo_html: editor.getHTML(),
     })
+    if (!contratoAtivoId && novoId) {
+      setContratoAtivoId(novoId)
+    }
   }
 
   function handleExportarPdf() {
@@ -343,15 +380,24 @@ export function AbaContrato({ processoId, processo }: Props) {
     }
   }
 
+  function voltarDaEdicao() {
+    if (contratos.length > 0) {
+      setTela('lista')
+    } else {
+      setTela('selecao')
+    }
+    setContratoAtivoId(null)
+    setModeloAtivo(null)
+    setTituloAtivo('')
+    editor?.commands.clearContent()
+  }
+
   function handleTrocarModelo() {
     const confirmado = window.confirm(
       'Ao trocar o modelo o rascunho atual não será salvo automaticamente. Deseja continuar?'
     )
     if (!confirmado) return
-    setModeloAtivo(null)
-    setTituloAtivo('')
-    setTela('selecao')
-    editor?.commands.clearContent()
+    voltarDaEdicao()
   }
 
   if (isLoading) {
@@ -363,10 +409,88 @@ export function AbaContrato({ processoId, processo }: Props) {
     )
   }
 
-  // Tela A — seleção de modelo
+  // Tela A — lista de contratos
+  if (tela === 'lista') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-[#253B29]">Contratos</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{contratos.length} contrato{contratos.length !== 1 ? 's' : ''} neste processo</p>
+          </div>
+          <Button
+            size="sm"
+            className="gap-1.5 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            onClick={() => {
+              setContratoAtivoId(null)
+              setModeloAtivo(null)
+              setTituloAtivo('')
+              editor?.commands.clearContent()
+              setTela('selecao')
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Novo contrato
+          </Button>
+        </div>
+
+        <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+          {contratos.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-center justify-between gap-3 p-4 bg-white hover:bg-gray-50 transition-colors"
+            >
+              <button
+                className="flex items-start gap-3 text-left flex-1 min-w-0"
+                onClick={() => abrirContratoNoEditor(c)}
+              >
+                <div className="w-8 h-8 shrink-0 bg-[#E7E0C4] rounded-lg flex items-center justify-center mt-0.5">
+                  <FileText className="h-3.5 w-3.5 text-[#253B29]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[#253B29] truncate">{c.titulo}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    v{c.versao} · {format(new Date(c.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                  </p>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {badgeStatus(c.clicksign_status)}
+                {c.clicksign_signed_url && (
+                  <a
+                    href={c.clicksign_signed_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-2.5 py-1 hover:bg-[#E7E0C4] transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Download className="h-3 w-3" />
+                    Assinado
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Tela B — seleção de modelo
   if (tela === 'selecao') {
     return (
       <div className="space-y-5">
+        {contratos.length > 0 && (
+          <button
+            onClick={() => setTela('lista')}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Voltar para contratos
+          </button>
+        )}
+
         <div>
           <h3 className="text-sm font-semibold text-[#253B29]">Selecione um modelo de contrato</h3>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -396,7 +520,7 @@ export function AbaContrato({ processoId, processo }: Props) {
     )
   }
 
-  // Tela B — painel de configuração de assessoria
+  // Tela C — painel de configuração de assessoria
   if (tela === 'configurando_assessoria') {
     return (
       <div className="space-y-5">
@@ -509,7 +633,7 @@ export function AbaContrato({ processoId, processo }: Props) {
     )
   }
 
-  // Tela C — editor ativo
+  // Tela D — editor ativo
   return (
     <div className="space-y-3">
       {/* Cabeçalho do editor */}
@@ -520,10 +644,14 @@ export function AbaContrato({ processoId, processo }: Props) {
             className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-            Trocar modelo
+            {contratos.length > 0 ? 'Contratos' : 'Trocar modelo'}
           </button>
           <span className="text-gray-300">|</span>
           <p className="text-sm font-semibold text-[#253B29]">{tituloAtivo}</p>
+          {contratoAtivoId && (() => {
+            const c = contratos.find((x) => x.id === contratoAtivoId)
+            return c ? <span className="text-xs text-gray-400">v{c.versao}</span> : null
+          })()}
         </div>
 
         <div className="flex items-center gap-2">
@@ -633,7 +761,7 @@ export function AbaContrato({ processoId, processo }: Props) {
       </p>
 
       {/* Painel de Assinatura Eletrônica */}
-      {contrato?.id && (
+      {contratoAtivoId && (
         <div className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
           <p className="text-xs font-semibold text-[#253B29] uppercase tracking-wide">Assinatura Eletrônica</p>
 
@@ -656,7 +784,7 @@ export function AbaContrato({ processoId, processo }: Props) {
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-3 py-1.5 hover:bg-[#E7E0C4] transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Baixar PDF assinado
+                  Ver contrato assinado
                 </a>
               )}
             </div>
