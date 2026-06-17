@@ -68,7 +68,7 @@ export async function adicionarRequirement(
   await request('POST', `/envelopes/${envelopeId}/requirements`, {
     data: {
       type: 'requirements',
-      attributes: { action: 'sign' },
+      attributes: { action: 'agree' },
       relationships: {
         document: { data: { type: 'documents', id: documentId } },
         signer: { data: { type: 'signers', id: signerId } },
