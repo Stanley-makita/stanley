@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 const FASE_CONCLUIDO = 'Concluído'
 
@@ -67,13 +68,14 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
   }, [])
 
   const onDragEnd = useCallback(
-    (event: DragEndEvent) => {
+    async (event: DragEndEvent) => {
       setLeadAtivo(null)
       const { active, over } = event
 
       if (!over) return
 
       const leadId = active.id as string
+      const lead = active.data.current?.lead as Lead | undefined
 
       // over.id pode ser um faseId (solto na área vazia da coluna)
       // ou um leadId (solto sobre outro card) — nesse caso usamos o containerId do SortableContext
@@ -86,13 +88,57 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
       // Não mover se for para a mesma fase E mesmo card
       if (leadId === overId && ehFase === false) return
 
+      // Verifica bloqueadores do checklist apenas se avançando de fase
+      if (lead?.fase_id && faseDestinoId !== lead.fase_id) {
+        const faseAtual  = fases.find(f => f.id === lead.fase_id)
+        const faseDestino = fases.find(f => f.id === faseDestinoId)
+
+        if (faseAtual && faseDestino && faseDestino.ordem > faseAtual.ordem) {
+          // Busca itens bloqueadores não concluídos para este lead na fase atual
+          const { data: template } = await supabase
+            .from('checklist_templates')
+            .select('id')
+            .eq('fase_id', lead.fase_id)
+            .eq('empresa_id', usuario!.empresa_id)
+            .maybeSingle()
+
+          if (template) {
+            const { data: itens } = await supabase
+              .from('checklist_items')
+              .select('id, descricao')
+              .eq('template_id', template.id)
+              .eq('bloqueia_avanco', true)
+              .eq('ativo', true)
+
+            if (itens && itens.length > 0) {
+              const itemIds = itens.map(i => i.id)
+              const { data: execucoes } = await supabase
+                .from('checklist_execucoes')
+                .select('item_id, marcado')
+                .eq('lead_id', leadId)
+                .in('item_id', itemIds)
+
+              const concluidos = new Set(execucoes?.filter(e => e.marcado).map(e => e.item_id) ?? [])
+              const bloqueadores = itens.filter(i => !concluidos.has(i.id))
+
+              if (bloqueadores.length > 0) {
+                toast.error('Checklist obrigatório pendente', {
+                  description: `Conclua antes de avançar: ${bloqueadores.map(b => b.descricao).join(', ')}`,
+                })
+                return
+              }
+            }
+          }
+        }
+      }
+
       moverLead.mutate({
         lead_id: leadId,
         fase_id_destino: faseDestinoId,
         ordem_destino: 0,
       })
     },
-    [moverLead, fases]
+    [moverLead, fases, usuario]
   )
 
   const temConcluido = todasFases.some((f) => f.nome === FASE_CONCLUIDO)
