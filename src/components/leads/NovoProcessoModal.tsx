@@ -291,34 +291,56 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const { data: bancos = [] } = useBancos()
   const { data: usuarios = [] } = useUsuariosEmpresa()
   const criarProcesso = useCriarProcesso()
-
-  const clienteNome    = lead?.nome     ?? pessoa?.nome     ?? ''
-  const clienteCpf     = lead?.cpf      ?? pessoa?.cpf      ?? null
-  const clienteEmail   = lead?.email    ?? pessoa?.email    ?? null
-  const clienteTelefone= lead?.telefone ?? pessoa?.telefone ?? null
-
   const { data: comissoesPadrao = [] } = useComissoesPadrao()
-  const [valorImovel, setValorImovel] = useState('')
-  const [bancoId, setBancoId] = useState('')
+
+  // Dados do cliente (editáveis se vazios)
+  const [nome, setNome]         = useState(lead?.nome ?? pessoa?.nome ?? '')
+  const [cpf, setCpf]           = useState(lead?.cpf ?? pessoa?.cpf ?? '')
+  const [telefone, setTelefone] = useState(lead?.telefone ?? pessoa?.telefone ?? '')
+  const [email, setEmail]       = useState(lead?.email ?? pessoa?.email ?? '')
+
+  // Financiamento
+  const [bancoId, setBancoId]               = useState('')
   const [comissaoComercial, setComissaoComercial] = useState<number | null>(null)
-  const [comissaoEmpresa, setComissaoEmpresa] = useState<number | null>(null)
-  const [modalidade, setModalidade] = useState('')
+  const [comissaoEmpresa, setComissaoEmpresa]     = useState<number | null>(null)
+  const [modalidade, setModalidade]         = useState('')
+  const [valorImovel, setValorImovel]       = useState('')
   const [valorFinanciar, setValorFinanciar] = useState('')
-  const [temFgts, setTemFgts] = useState(false)
+
+  // FGTS: null = não escolhido, true = sim, false = não
+  const [fgts, setFgts]         = useState<boolean | null>(null)
   const [valorFgts, setValorFgts] = useState('')
-  const [temAssessoria, setTemAssessoria] = useState(true)
+
+  // Assessoria: null = não escolhido, true = com, false = sem
+  const [assessoria, setAssessoria]         = useState<boolean | null>(null)
   const [valorAssessoria, setValorAssessoria] = useState('')
+
+  // Responsáveis
   const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
-  const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? usuario?.id ?? '')
+  const [comercialId, setComercialId]     = useState(lead?.responsavel_id ?? usuario?.id ?? '')
+
   const [erros, setErros] = useState<Record<string, string>>({})
+
+  function clr(...keys: string[]) {
+    setErros(p => { const n = { ...p }; keys.forEach(k => delete n[k]); return n })
+  }
 
   function validar() {
     const e: Record<string, string> = {}
-    if (!bancoId)        e.bancoId       = 'Selecione o banco'
-    if (!modalidade)     e.modalidade    = 'Selecione a modalidade'
-    if (!valorImovel || parseMoeda(valorImovel) <= 0) e.valorImovel = 'Informe o valor do imóvel'
+    if (!nome.trim())     e.nome     = 'Informe o nome do cliente'
+    if (!cpf.trim())      e.cpf      = 'Informe o CPF'
+    if (!telefone.trim()) e.telefone = 'Informe o telefone'
+    if (!email.trim())    e.email    = 'Informe o e-mail'
+    if (!bancoId)         e.bancoId  = 'Selecione o banco'
+    if (!modalidade)      e.modalidade = 'Selecione a modalidade'
+    if (!valorImovel || parseMoeda(valorImovel) <= 0)   e.valorImovel   = 'Informe o valor do imóvel'
     if (!valorFinanciar || parseMoeda(valorFinanciar) <= 0) e.valorFinanciar = 'Informe o valor a financiar'
-    if (temFgts && (!valorFgts || parseMoeda(valorFgts) <= 0)) e.valorFgts = 'Informe o valor do FGTS'
+    if (fgts === null)    e.fgts     = 'Selecione uma opção'
+    if (fgts && (!valorFgts || parseMoeda(valorFgts) <= 0)) e.valorFgts = 'Informe o valor do FGTS'
+    if (assessoria === null) e.assessoria = 'Selecione uma opção'
+    if (assessoria && (!valorAssessoria || parseMoeda(valorAssessoria) <= 0)) e.valorAssessoria = 'Informe o valor da assessoria'
+    if (!operacionalId || operacionalId === '__nenhum') e.operacionalId = 'Selecione o operacional'
+    if (!comercialId   || comercialId   === '__nenhum') e.comercialId   = 'Selecione o comercial'
     setErros(e)
     return Object.keys(e).length === 0
   }
@@ -339,30 +361,30 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       valor_imovel:     parseMoeda(valorImovel),
       valor_financiado: parseMoeda(valorFinanciar) || null,
       valor_entrada:    null,
-      valor_fgts:       temFgts ? parseMoeda(valorFgts) : null,
+      valor_fgts:       fgts ? parseMoeda(valorFgts) : null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'incerteza',
       status_processo:  'em_analise',
-      tem_assessoria:   temAssessoria,
-      valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
+      tem_assessoria:   assessoria === true,
+      valor_assessoria: assessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
       comissao_comercial: comissaoComercial,
       comissao_empresa:   comissaoEmpresa,
-      operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
-      comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
+      operacional_id:   operacionalId,
+      comercial_id:     comercialId,
       corretor_nome:    null,
       corretor_creci:   null,
       fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
 
-    if (clienteNome) {
+    if (nome.trim()) {
       await supabase.from('processo_compradores').insert({
         processo_id: processo.id,
         empresa_id:  processo.empresa_id,
-        nome:        clienteNome,
-        cpf:         clienteCpf,
-        email:       clienteEmail,
-        telefone:    clienteTelefone,
+        nome:        nome.trim(),
+        cpf:         cpf.trim() || null,
+        email:       email.trim() || null,
+        telefone:    telefone.trim() || null,
         principal:   true,
       })
     }
@@ -373,7 +395,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       processoId:        processo.id,
       empresaId:         processo.empresa_id,
       pessoaIdComprador: lead?.pessoa_id ?? pessoa?.id ?? null,
-      nomeComprador:     clienteNome,
+      nomeComprador:     nome.trim(),
       pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
       nomeConjuge:       lead?.conjuge_nome ?? null,
     })
@@ -383,10 +405,42 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
     <div className="overflow-y-auto max-h-[75vh] px-5 py-5 space-y-5">
       <Secao titulo="Dados do Cliente">
         <div className="grid grid-cols-2 gap-3">
-          <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
-          <Campo label="CPF"><Input value={clienteCpf ?? '—'} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
-          <Campo label="Telefone"><Input value={clienteTelefone ?? '—'} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
-          <Campo label="Email"><Input value={clienteEmail ?? ''} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
+          <Campo label="Nome *">
+            <Input
+              value={nome}
+              onChange={e => { setNome(e.target.value); clr('nome') }}
+              className={cn('h-9 text-sm', erros.nome && 'border-red-400')}
+              readOnly={!!nome && !!lead}
+            />
+            {erros.nome && <p className="text-xs text-red-500 mt-0.5">{erros.nome}</p>}
+          </Campo>
+          <Campo label="CPF *">
+            <Input
+              value={cpf}
+              onChange={e => { setCpf(e.target.value); clr('cpf') }}
+              className={cn('h-9 text-sm', erros.cpf && 'border-red-400')}
+              placeholder="000.000.000-00"
+            />
+            {erros.cpf && <p className="text-xs text-red-500 mt-0.5">{erros.cpf}</p>}
+          </Campo>
+          <Campo label="Telefone *">
+            <Input
+              value={telefone}
+              onChange={e => { setTelefone(e.target.value); clr('telefone') }}
+              className={cn('h-9 text-sm', erros.telefone && 'border-red-400')}
+              placeholder="(44) 99999-9999"
+            />
+            {erros.telefone && <p className="text-xs text-red-500 mt-0.5">{erros.telefone}</p>}
+          </Campo>
+          <Campo label="E-mail *">
+            <Input
+              value={email}
+              onChange={e => { setEmail(e.target.value); clr('email') }}
+              className={cn('h-9 text-sm', erros.email && 'border-red-400')}
+              placeholder="email@exemplo.com"
+            />
+            {erros.email && <p className="text-xs text-red-500 mt-0.5">{erros.email}</p>}
+          </Campo>
         </div>
       </Secao>
 
@@ -394,8 +448,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Banco *" className="col-span-2">
             <Select value={bancoId} onValueChange={(v) => {
-              setBancoId(v)
-              setErros(p => ({ ...p, bancoId: '' }))
+              setBancoId(v); clr('bancoId')
               const cp = comissoesPadrao.find(c => c.banco_id === v)
               setComissaoComercial(cp?.comissao_comercial ?? null)
               setComissaoEmpresa(cp?.comissao_empresa ?? null)
@@ -415,74 +468,90 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
             {erros.bancoId && <p className="text-xs text-red-500 mt-0.5">{erros.bancoId}</p>}
           </Campo>
           <Campo label="Modalidade *">
-            <Select value={modalidade} onValueChange={(v) => { setModalidade(v); setErros(p => ({ ...p, modalidade: '' })) }}>
+            <Select value={modalidade} onValueChange={(v) => { setModalidade(v); clr('modalidade') }}>
               <SelectTrigger className={cn('h-9 text-sm', erros.modalidade && 'border-red-400')}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>{MODALIDADES.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
             </Select>
             {erros.modalidade && <p className="text-xs text-red-500 mt-0.5">{erros.modalidade}</p>}
           </Campo>
           <Campo label="Valor do Imóvel *">
-            <Input
-              placeholder="R$ 0,00"
-              value={valorImovel}
-              onChange={e => { setValorImovel(e.target.value); setErros(p => ({ ...p, valorImovel: '' })) }}
+            <Input placeholder="R$ 0,00" value={valorImovel}
+              onChange={e => { setValorImovel(e.target.value); clr('valorImovel') }}
               onBlur={e => setValorImovel(formatMoedaInput(e.target.value))}
-              className={cn('h-9 text-sm', erros.valorImovel && 'border-red-400')}
-            />
+              className={cn('h-9 text-sm', erros.valorImovel && 'border-red-400')} />
             {erros.valorImovel && <p className="text-xs text-red-500 mt-0.5">{erros.valorImovel}</p>}
           </Campo>
           <Campo label="Valor a Financiar *">
-            <Input
-              placeholder="R$ 0,00"
-              value={valorFinanciar}
-              onChange={e => { setValorFinanciar(e.target.value); setErros(p => ({ ...p, valorFinanciar: '' })) }}
+            <Input placeholder="R$ 0,00" value={valorFinanciar}
+              onChange={e => { setValorFinanciar(e.target.value); clr('valorFinanciar') }}
               onBlur={e => setValorFinanciar(formatMoedaInput(e.target.value))}
-              className={cn('h-9 text-sm', erros.valorFinanciar && 'border-red-400')}
-            />
+              className={cn('h-9 text-sm', erros.valorFinanciar && 'border-red-400')} />
             {erros.valorFinanciar && <p className="text-xs text-red-500 mt-0.5">{erros.valorFinanciar}</p>}
           </Campo>
         </div>
 
-        {/* Toggle FGTS */}
-        <div className="mt-3 space-y-2">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <div
-              onClick={() => { setTemFgts(!temFgts); setErros(p => ({ ...p, valorFgts: '' })) }}
-              className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temFgts ? 'bg-[#253B29]' : 'bg-gray-200')}
-            >
-              <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temFgts ? 'translate-x-4' : 'translate-x-0')} />
-            </div>
-            <span className="text-sm text-gray-700">Vai usar FGTS</span>
-          </label>
-          {temFgts && (
+        {/* FGTS — radio obrigatório */}
+        <div className="mt-4 space-y-2">
+          <p className={cn('text-xs font-medium', erros.fgts ? 'text-red-500' : 'text-gray-700')}>
+            Vai usar FGTS? *{erros.fgts && <span className="ml-1 font-normal">{erros.fgts}</span>}
+          </p>
+          <div className="flex gap-4">
+            {([true, false] as const).map(val => (
+              <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
+                <div
+                  onClick={() => { setFgts(val); clr('fgts', 'valorFgts') }}
+                  className={cn(
+                    'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer',
+                    fgts === val ? 'border-[#253B29]' : erros.fgts ? 'border-red-400' : 'border-gray-300'
+                  )}
+                >
+                  {fgts === val && <div className="w-2 h-2 rounded-full bg-[#253B29]" />}
+                </div>
+                <span className="text-sm text-gray-700">{val ? 'Sim' : 'Não'}</span>
+              </label>
+            ))}
+          </div>
+          {fgts === true && (
             <Campo label="Valor do FGTS *">
-              <Input
-                placeholder="R$ 0,00"
-                value={valorFgts}
-                onChange={e => { setValorFgts(e.target.value); setErros(p => ({ ...p, valorFgts: '' })) }}
+              <Input placeholder="R$ 0,00" value={valorFgts}
+                onChange={e => { setValorFgts(e.target.value); clr('valorFgts') }}
                 onBlur={e => setValorFgts(formatMoedaInput(e.target.value))}
-                className={cn('h-9 text-sm', erros.valorFgts && 'border-red-400')}
-              />
+                className={cn('h-9 text-sm', erros.valorFgts && 'border-red-400')} />
               {erros.valorFgts && <p className="text-xs text-red-500 mt-0.5">{erros.valorFgts}</p>}
             </Campo>
           )}
         </div>
       </Secao>
 
+      {/* Assessoria — radio obrigatório */}
       <Secao titulo="Assessoria">
-        <div className="space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <div
-              onClick={() => setTemAssessoria(!temAssessoria)}
-              className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-[#253B29]' : 'bg-gray-200')}
-            >
-              <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temAssessoria ? 'translate-x-4' : 'translate-x-0')} />
-            </div>
-            <span className="text-sm text-gray-700">Processo inclui Assessoria</span>
-          </label>
-          {temAssessoria && (
-            <Campo label="Valor da Assessoria negociado">
-              <Input placeholder="R$ 0,00" value={valorAssessoria} onChange={e => setValorAssessoria(e.target.value)} onBlur={e => setValorAssessoria(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
+        <div className="space-y-2">
+          <p className={cn('text-xs font-medium', erros.assessoria ? 'text-red-500' : 'text-gray-700')}>
+            Processo inclui assessoria? *{erros.assessoria && <span className="ml-1 font-normal">{erros.assessoria}</span>}
+          </p>
+          <div className="flex gap-4">
+            {([true, false] as const).map(val => (
+              <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
+                <div
+                  onClick={() => { setAssessoria(val); clr('assessoria', 'valorAssessoria') }}
+                  className={cn(
+                    'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer',
+                    assessoria === val ? 'border-[#253B29]' : erros.assessoria ? 'border-red-400' : 'border-gray-300'
+                  )}
+                >
+                  {assessoria === val && <div className="w-2 h-2 rounded-full bg-[#253B29]" />}
+                </div>
+                <span className="text-sm text-gray-700">{val ? 'Com Assessoria' : 'Sem Assessoria'}</span>
+              </label>
+            ))}
+          </div>
+          {assessoria === true && (
+            <Campo label="Valor da Assessoria *">
+              <Input placeholder="R$ 0,00" value={valorAssessoria}
+                onChange={e => { setValorAssessoria(e.target.value); clr('valorAssessoria') }}
+                onBlur={e => setValorAssessoria(formatMoedaInput(e.target.value))}
+                className={cn('h-9 text-sm', erros.valorAssessoria && 'border-red-400')} />
+              {erros.valorAssessoria && <p className="text-xs text-red-500 mt-0.5">{erros.valorAssessoria}</p>}
             </Campo>
           )}
         </div>
@@ -490,23 +559,23 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
 
       <Secao titulo="Responsáveis">
         <div className="grid grid-cols-2 gap-3">
-          <Campo label="Operacional">
-            <Select value={operacionalId} onValueChange={setOperacionalId}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+          <Campo label="Operacional *">
+            <Select value={operacionalId} onValueChange={(v) => { setOperacionalId(v); clr('operacionalId') }}>
+              <SelectTrigger className={cn('h-9 text-sm', erros.operacionalId && 'border-red-400')}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__nenhum">Nenhum</SelectItem>
                 {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
               </SelectContent>
             </Select>
+            {erros.operacionalId && <p className="text-xs text-red-500 mt-0.5">{erros.operacionalId}</p>}
           </Campo>
-          <Campo label="Comercial">
-            <Select value={comercialId} onValueChange={setComercialId}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+          <Campo label="Comercial *">
+            <Select value={comercialId} onValueChange={(v) => { setComercialId(v); clr('comercialId') }}>
+              <SelectTrigger className={cn('h-9 text-sm', erros.comercialId && 'border-red-400')}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__nenhum">Nenhum</SelectItem>
                 {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
               </SelectContent>
             </Select>
+            {erros.comercialId && <p className="text-xs text-red-500 mt-0.5">{erros.comercialId}</p>}
           </Campo>
         </div>
       </Secao>
