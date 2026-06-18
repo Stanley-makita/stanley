@@ -92,6 +92,9 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   const [excluirAberto, setExcluirAberto] = useState(false)
   const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
   const [msgInicial, setMsgInicial] = useState('')
+  const [consultaRestritivosAberto, setConsultaRestritivosAberto] = useState(false)
+  const [consultaRestritivosRespondido, setConsultaRestritivosRespondido] = useState(false)
+  const [temRestricao, setTemRestricao] = useState<boolean | null>(null)
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
@@ -349,7 +352,13 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                   {abas.map((aba) => (
                     <button
                       key={aba.id}
-                      onClick={() => setAbaAtiva(aba.id as Aba)}
+                      onClick={() => {
+                        if (aba.id === 'credito' && !consultaRestritivosRespondido) {
+                          setConsultaRestritivosAberto(true)
+                          return
+                        }
+                        setAbaAtiva(aba.id as Aba)
+                      }}
                       className={cn(
                         'px-4 py-3 text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap',
                         abaAtiva === aba.id
@@ -430,6 +439,55 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             nomeCliente={lead.nome}
             onExcluido={fechar}
           />
+
+          {/* Dialog: Consulta de Restritivos */}
+          <Dialog open={consultaRestritivosAberto} onOpenChange={(o) => { if (!o) setConsultaRestritivosAberto(false) }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-[#253B29] text-base">Consulta de Restritivos</DialogTitle>
+              </DialogHeader>
+              <div className="py-3 space-y-4">
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  Antes de avaliar o crédito, <strong>consulte os restritivos dos participantes</strong> (CPF, CNPJ, SCR e demais restrições).
+                </p>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">O cliente possui restrição?</p>
+                  <div className="flex gap-3">
+                    {([true, false] as const).map(val => (
+                      <button
+                        key={String(val)}
+                        onClick={() => setTemRestricao(val)}
+                        className={cn(
+                          'flex-1 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                          temRestricao === val
+                            ? val
+                              ? 'border-red-400 bg-red-50 text-red-700'
+                              : 'border-green-400 bg-green-50 text-green-700'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                        )}
+                      >
+                        {val ? 'Sim, tem restrição' : 'Não tem restrição'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  size="sm"
+                  disabled={temRestricao === null}
+                  className="w-full bg-[#253B29] hover:bg-[#1a2b1e] text-white disabled:opacity-40"
+                  onClick={() => {
+                    setConsultaRestritivosRespondido(true)
+                    setConsultaRestritivosAberto(false)
+                    setAbaAtiva('credito')
+                  }}
+                >
+                  Confirmar e abrir Crédito
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Dialog: Iniciar nova conversa */}
           <Dialog open={iniciarConversaAberto} onOpenChange={(o) => { if (!o) setIniciarConversaAberto(false) }}>
