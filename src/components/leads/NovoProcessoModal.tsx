@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { type Lead } from '@/types/leads'
 import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
+import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -296,8 +297,11 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const clienteEmail   = lead?.email    ?? pessoa?.email    ?? null
   const clienteTelefone= lead?.telefone ?? pessoa?.telefone ?? null
 
+  const { data: comissoesPadrao = [] } = useComissoesPadrao()
   const [valorImovel, setValorImovel] = useState('')
   const [bancoId, setBancoId] = useState('')
+  const [comissaoComercial, setComissaoComercial] = useState<number | null>(null)
+  const [comissaoEmpresa, setComissaoEmpresa] = useState<number | null>(null)
   const [modalidade, setModalidade] = useState('')
   const [valorFinanciar, setValorFinanciar] = useState('')
   const [temAssessoria, setTemAssessoria] = useState(true)
@@ -326,8 +330,8 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       status_processo:  'em_analise',
       tem_assessoria:   temAssessoria,
       valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
-      comissao_comercial: null,
-      comissao_empresa:   null,
+      comissao_comercial: comissaoComercial,
+      comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    null,
@@ -374,7 +378,12 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       <Secao titulo="Dados do Financiamento">
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Banco *" className="col-span-2">
-            <Select value={bancoId} onValueChange={setBancoId}>
+            <Select value={bancoId} onValueChange={(v) => {
+              setBancoId(v)
+              const cp = comissoesPadrao.find(c => c.banco_id === v)
+              setComissaoComercial(cp?.comissao_comercial ?? null)
+              setComissaoEmpresa(cp?.comissao_empresa ?? null)
+            }}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o banco" /></SelectTrigger>
               <SelectContent>
                 {bancos.map(b => (
@@ -478,9 +487,12 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   const clienteNome    = lead?.nome ?? pessoa?.nome ?? ''
   const clienteCpf     = lead?.cpf  ?? pessoa?.cpf  ?? null
 
+  const { data: comissoesPadrao = [] } = useComissoesPadrao()
   const [valorCredito, setValorCredito] = useState('')
   const [valorGarantia, setValorGarantia] = useState('')
   const [bancoId, setBancoId] = useState('')
+  const [comissaoComercial, setComissaoComercial] = useState<number | null>(null)
+  const [comissaoEmpresa, setComissaoEmpresa] = useState<number | null>(null)
   const [temAssessoria, setTemAssessoria] = useState(true)
   const [valorAssessoria, setValorAssessoria] = useState('')
   const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
@@ -507,8 +519,8 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       status_processo:  'em_analise',
       tem_assessoria:   temAssessoria,
       valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
-      comissao_comercial: null,
-      comissao_empresa:   null,
+      comissao_comercial: comissaoComercial,
+      comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
       corretor_nome:    null,
@@ -553,7 +565,12 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       <Secao titulo="Dados do Crédito">
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Banco *" className="col-span-2">
-            <Select value={bancoId} onValueChange={setBancoId}>
+            <Select value={bancoId} onValueChange={(v) => {
+              setBancoId(v)
+              const cp = comissoesPadrao.find(c => c.banco_id === v)
+              setComissaoComercial(cp?.comissao_comercial ?? null)
+              setComissaoEmpresa(cp?.comissao_empresa ?? null)
+            }}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o banco" /></SelectTrigger>
               <SelectContent>{bancos.map(b => <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>)}</SelectContent>
             </Select>

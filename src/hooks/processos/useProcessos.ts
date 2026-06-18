@@ -135,6 +135,8 @@ export interface DadosProcessoUpdate {
   valor_financiado: number | null
   valor_entrada: number | null
   valor_imovel: number | null
+  comissao_comercial?: number | null
+  comissao_empresa?: number | null
 }
 
 export function useAtualizarDadosProcesso() {

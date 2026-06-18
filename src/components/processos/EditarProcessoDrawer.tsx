@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,6 +16,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { useBancos } from '@/hooks/useBancos'
 import { useAtualizarDadosProcesso } from '@/hooks/processos/useProcessos'
+import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
 import type { Processo } from '@/types/processos'
 
 const MODALIDADES = [
@@ -66,9 +67,11 @@ interface Props {
 
 export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   const { data: bancos = [] } = useBancos()
+  const { data: comissoesPadrao = [] } = useComissoesPadrao()
   const { mutateAsync, isPending } = useAtualizarDadosProcesso()
-
   const p = processo as any
+  const [comissaoComercial, setComissaoComercial] = useState<number | null>((p.comissao_comercial as number | null) ?? null)
+  const [comissaoEmpresa, setComissaoEmpresa] = useState<number | null>((p.comissao_empresa as number | null) ?? null)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -94,6 +97,8 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   useEffect(() => {
     if (aberto) {
+      setComissaoComercial((p.comissao_comercial as number | null) ?? null)
+      setComissaoEmpresa((p.comissao_empresa as number | null) ?? null)
       form.reset({
         banco_id: processo.banco_id,
         modalidade: processo.modalidade,
@@ -123,6 +128,8 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       valor_financiado: normNum(dados.valor_financiado),
       valor_entrada: normNum(dados.valor_entrada),
       valor_imovel: normNum(dados.valor_imovel),
+      comissao_comercial: comissaoComercial,
+      comissao_empresa: comissaoEmpresa,
       valor_recursos_proprios: normNum(dados.valor_recursos_proprios),
       valor_fgts: normNum(dados.valor_fgts),
       prazo_amortizacao_meses: dados.prazo_amortizacao_meses ?? null,
@@ -147,7 +154,18 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             <Label>Banco</Label>
             <Select
               value={form.watch('banco_id') ?? '__nenhum__'}
-              onValueChange={(v) => form.setValue('banco_id', v === '__nenhum__' ? null : v)}
+              onValueChange={(v) => {
+                const bancoSelecionado = v === '__nenhum__' ? null : v
+                form.setValue('banco_id', bancoSelecionado)
+                if (bancoSelecionado) {
+                  const cp = comissoesPadrao.find(c => c.banco_id === bancoSelecionado)
+                  setComissaoComercial(cp?.comissao_comercial ?? null)
+                  setComissaoEmpresa(cp?.comissao_empresa ?? null)
+                } else {
+                  setComissaoComercial(null)
+                  setComissaoEmpresa(null)
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecionar banco" />
