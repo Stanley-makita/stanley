@@ -304,13 +304,27 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const [comissaoEmpresa, setComissaoEmpresa] = useState<number | null>(null)
   const [modalidade, setModalidade] = useState('')
   const [valorFinanciar, setValorFinanciar] = useState('')
+  const [temFgts, setTemFgts] = useState(false)
+  const [valorFgts, setValorFgts] = useState('')
   const [temAssessoria, setTemAssessoria] = useState(true)
   const [valorAssessoria, setValorAssessoria] = useState('')
   const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
   const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? usuario?.id ?? '')
+  const [erros, setErros] = useState<Record<string, string>>({})
+
+  function validar() {
+    const e: Record<string, string> = {}
+    if (!bancoId)        e.bancoId       = 'Selecione o banco'
+    if (!modalidade)     e.modalidade    = 'Selecione a modalidade'
+    if (!valorImovel || parseMoeda(valorImovel) <= 0) e.valorImovel = 'Informe o valor do imóvel'
+    if (!valorFinanciar || parseMoeda(valorFinanciar) <= 0) e.valorFinanciar = 'Informe o valor a financiar'
+    if (temFgts && (!valorFgts || parseMoeda(valorFgts) <= 0)) e.valorFgts = 'Informe o valor do FGTS'
+    setErros(e)
+    return Object.keys(e).length === 0
+  }
 
   async function handleCriar() {
-    if (!bancoId || !modalidade || !valorImovel) return
+    if (!validar()) return
 
     const { data: primeiraFase } = await supabase.from('fases').select('id')
       .eq('empresa_id', usuario!.empresa_id).eq('modulo', 'processos')
@@ -325,6 +339,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       valor_imovel:     parseMoeda(valorImovel),
       valor_financiado: parseMoeda(valorFinanciar) || null,
       valor_entrada:    null,
+      valor_fgts:       temFgts ? parseMoeda(valorFgts) : null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'incerteza',
       status_processo:  'em_analise',
@@ -380,11 +395,12 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
           <Campo label="Banco *" className="col-span-2">
             <Select value={bancoId} onValueChange={(v) => {
               setBancoId(v)
+              setErros(p => ({ ...p, bancoId: '' }))
               const cp = comissoesPadrao.find(c => c.banco_id === v)
               setComissaoComercial(cp?.comissao_comercial ?? null)
               setComissaoEmpresa(cp?.comissao_empresa ?? null)
             }}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o banco" /></SelectTrigger>
+              <SelectTrigger className={cn('h-9 text-sm', erros.bancoId && 'border-red-400')}><SelectValue placeholder="Selecione o banco" /></SelectTrigger>
               <SelectContent>
                 {bancos.map(b => (
                   <SelectItem key={b.id} value={b.id}>
@@ -396,19 +412,60 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
                 ))}
               </SelectContent>
             </Select>
+            {erros.bancoId && <p className="text-xs text-red-500 mt-0.5">{erros.bancoId}</p>}
           </Campo>
           <Campo label="Modalidade *">
-            <Select value={modalidade} onValueChange={setModalidade}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <Select value={modalidade} onValueChange={(v) => { setModalidade(v); setErros(p => ({ ...p, modalidade: '' })) }}>
+              <SelectTrigger className={cn('h-9 text-sm', erros.modalidade && 'border-red-400')}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>{MODALIDADES.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
             </Select>
+            {erros.modalidade && <p className="text-xs text-red-500 mt-0.5">{erros.modalidade}</p>}
           </Campo>
           <Campo label="Valor do Imóvel *">
-            <Input placeholder="R$ 0,00" value={valorImovel} onChange={e => setValorImovel(e.target.value)} onBlur={e => setValorImovel(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
+            <Input
+              placeholder="R$ 0,00"
+              value={valorImovel}
+              onChange={e => { setValorImovel(e.target.value); setErros(p => ({ ...p, valorImovel: '' })) }}
+              onBlur={e => setValorImovel(formatMoedaInput(e.target.value))}
+              className={cn('h-9 text-sm', erros.valorImovel && 'border-red-400')}
+            />
+            {erros.valorImovel && <p className="text-xs text-red-500 mt-0.5">{erros.valorImovel}</p>}
           </Campo>
-          <Campo label="Valor a Financiar">
-            <Input placeholder="R$ 0,00" value={valorFinanciar} onChange={e => setValorFinanciar(e.target.value)} onBlur={e => setValorFinanciar(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
+          <Campo label="Valor a Financiar *">
+            <Input
+              placeholder="R$ 0,00"
+              value={valorFinanciar}
+              onChange={e => { setValorFinanciar(e.target.value); setErros(p => ({ ...p, valorFinanciar: '' })) }}
+              onBlur={e => setValorFinanciar(formatMoedaInput(e.target.value))}
+              className={cn('h-9 text-sm', erros.valorFinanciar && 'border-red-400')}
+            />
+            {erros.valorFinanciar && <p className="text-xs text-red-500 mt-0.5">{erros.valorFinanciar}</p>}
           </Campo>
+        </div>
+
+        {/* Toggle FGTS */}
+        <div className="mt-3 space-y-2">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              onClick={() => { setTemFgts(!temFgts); setErros(p => ({ ...p, valorFgts: '' })) }}
+              className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temFgts ? 'bg-[#253B29]' : 'bg-gray-200')}
+            >
+              <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temFgts ? 'translate-x-4' : 'translate-x-0')} />
+            </div>
+            <span className="text-sm text-gray-700">Vai usar FGTS</span>
+          </label>
+          {temFgts && (
+            <Campo label="Valor do FGTS *">
+              <Input
+                placeholder="R$ 0,00"
+                value={valorFgts}
+                onChange={e => { setValorFgts(e.target.value); setErros(p => ({ ...p, valorFgts: '' })) }}
+                onBlur={e => setValorFgts(formatMoedaInput(e.target.value))}
+                className={cn('h-9 text-sm', erros.valorFgts && 'border-red-400')}
+              />
+              {erros.valorFgts && <p className="text-xs text-red-500 mt-0.5">{erros.valorFgts}</p>}
+            </Campo>
+          )}
         </div>
       </Secao>
 
@@ -462,7 +519,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
           size="sm"
           className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]"
           onClick={handleCriar}
-          disabled={criarProcesso.isPending || !bancoId || !modalidade || !valorImovel}
+          disabled={criarProcesso.isPending}
         >
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>

@@ -21,6 +21,7 @@ export interface Processo {
   valor_imovel: number | null
   valor_financiado: number | null
   valor_entrada: number | null
+  valor_fgts?: number | null
   // Banco
   banco_id: string | null
   // Contrato
