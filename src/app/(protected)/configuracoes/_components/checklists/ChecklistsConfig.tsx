@@ -12,6 +12,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { ChevronDown, ChevronRight, GripVertical, Pencil, Plus, Trash2, Check, X, Loader2, Circle, CircleDot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -76,6 +79,9 @@ function ChecklistItemRow({
         : <Circle    className="h-3.5 w-3.5 shrink-0 text-gray-300" />
       }
       <span className="flex-1 text-sm text-gray-700 truncate">{item.descricao}</span>
+      {item.acao_ao_completar === 'emitido' && (
+        <span className="text-[10px] font-medium text-green-600 shrink-0">🎉 Emitido</span>
+      )}
       <span className={cn(
         'text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0',
         item.obrigatorio ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'
@@ -104,16 +110,17 @@ function ChecklistItemRow({
 // ── Formulário inline de item ─────────────────────────────────────────────────
 
 function ItemForm({ onSalvar, onCancelar, inicial }: {
-  onSalvar: (descricao: string, obrigatorio: boolean) => void
+  onSalvar: (descricao: string, obrigatorio: boolean, acao_ao_completar: string | null) => void
   onCancelar: () => void
-  inicial?: { descricao: string; obrigatorio: boolean }
+  inicial?: { descricao: string; obrigatorio: boolean; acao_ao_completar?: string | null }
 }) {
   const [descricao, setDescricao] = useState(inicial?.descricao ?? '')
   const [obrigatorio, setObrigatorio] = useState(inicial?.obrigatorio ?? false)
+  const [acao, setAcao] = useState(inicial?.acao_ao_completar ?? '')
 
   function handleSalvar() {
     if (!descricao.trim()) return
-    onSalvar(descricao, obrigatorio)
+    onSalvar(descricao, obrigatorio, acao || null)
   }
 
   return (
@@ -126,7 +133,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
         onKeyDown={(e) => { if (e.key === 'Enter') handleSalvar(); if (e.key === 'Escape') onCancelar() }}
         className="h-8 text-sm"
       />
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -134,21 +141,30 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
             onChange={(e) => setObrigatorio(e.target.checked)}
             className="accent-red-500"
           />
-          <span className="text-xs text-gray-600">Item obrigatório <span className="text-red-500">*</span></span>
+          <span className="text-xs text-gray-600">Obrigatório <span className="text-red-500">*</span></span>
         </label>
-        <div className="flex gap-1.5">
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onCancelar}>
-            <X className="h-3.5 w-3.5 mr-1" /> Cancelar
-          </Button>
-          <Button
-            size="sm"
-            className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
-            onClick={handleSalvar}
-            disabled={!descricao.trim()}
-          >
-            <Check className="h-3.5 w-3.5 mr-1" /> Salvar
-          </Button>
-        </div>
+        <Select value={acao || 'none'} onValueChange={(v) => setAcao(v === 'none' ? '' : v)}>
+          <SelectTrigger className="h-7 text-xs w-52 flex-shrink-0">
+            <SelectValue placeholder="Nenhuma ação ao completar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nenhuma ação</SelectItem>
+            <SelectItem value="emitido">🎉 Marcar como Emitido</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex justify-end gap-1.5">
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onCancelar}>
+          <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+          onClick={handleSalvar}
+          disabled={!descricao.trim()}
+        >
+          <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+        </Button>
       </div>
     </div>
   )
@@ -192,12 +208,13 @@ function FaseSection({
     return id
   }
 
-  async function handleSalvarNovoItem(descricao: string, obrigatorio: boolean) {
+  async function handleSalvarNovoItem(descricao: string, obrigatorio: boolean, acao_ao_completar: string | null) {
     const templateId = await getOuCriarTemplateId()
     await criarItem.mutateAsync({
       templateId,
       descricao,
       obrigatorio,
+      acao_ao_completar,
       ordem: itensLocais.length,
       modulo,
     })
@@ -205,9 +222,9 @@ function FaseSection({
     toast.success('Item adicionado.')
   }
 
-  async function handleSalvarEdicao(descricao: string, obrigatorio: boolean) {
+  async function handleSalvarEdicao(descricao: string, obrigatorio: boolean, acao_ao_completar: string | null) {
     if (!editandoItem) return
-    await atualizarItem.mutateAsync({ itemId: editandoItem.id, descricao, obrigatorio, modulo })
+    await atualizarItem.mutateAsync({ itemId: editandoItem.id, descricao, obrigatorio, acao_ao_completar, modulo })
     setEditandoItem(null)
     toast.success('Item atualizado.')
   }
@@ -264,7 +281,7 @@ function FaseSection({
                 editandoItem?.id === item.id ? (
                   <ItemForm
                     key={item.id}
-                    inicial={{ descricao: item.descricao, obrigatorio: item.obrigatorio }}
+                    inicial={{ descricao: item.descricao, obrigatorio: item.obrigatorio, acao_ao_completar: item.acao_ao_completar }}
                     onSalvar={handleSalvarEdicao}
                     onCancelar={() => setEditandoItem(null)}
                   />

@@ -45,7 +45,7 @@ export function useChecklistTemplates(modulo: string) {
       if (templateIds.length > 0) {
         const { data: itensData, error: iErr } = await supabase
           .from('checklist_items')
-          .select('id, template_id, descricao, obrigatorio, ordem, ativo')
+          .select('id, template_id, descricao, obrigatorio, ordem, ativo, acao_ao_completar')
           .in('template_id', templateIds)
           .eq('ativo', true)
           .order('ordem', { ascending: true })
@@ -116,8 +116,8 @@ export function useCriarChecklistItem() {
 
   return useMutation({
     mutationFn: async ({
-      templateId, descricao, obrigatorio, ordem, modulo,
-    }: { templateId: string; descricao: string; obrigatorio: boolean; ordem: number; modulo: string }) => {
+      templateId, descricao, obrigatorio, ordem, modulo, acao_ao_completar,
+    }: { templateId: string; descricao: string; obrigatorio: boolean; ordem: number; modulo: string; acao_ao_completar?: string | null }) => {
       const { error } = await supabase
         .from('checklist_items')
         .insert({
@@ -125,6 +125,7 @@ export function useCriarChecklistItem() {
           empresa_id:  usuario!.empresa_id,
           descricao:   descricao.trim(),
           obrigatorio,
+          acao_ao_completar: acao_ao_completar || null,
           ordem,
           ativo:       true,
         })
@@ -144,11 +145,11 @@ export function useAtualizarChecklistItem() {
 
   return useMutation({
     mutationFn: async ({
-      itemId, descricao, obrigatorio, modulo,
-    }: { itemId: string; descricao: string; obrigatorio: boolean; modulo: string }) => {
+      itemId, descricao, obrigatorio, modulo, acao_ao_completar,
+    }: { itemId: string; descricao: string; obrigatorio: boolean; modulo: string; acao_ao_completar?: string | null }) => {
       const { error } = await supabase
         .from('checklist_items')
-        .update({ descricao: descricao.trim(), obrigatorio })
+        .update({ descricao: descricao.trim(), obrigatorio, acao_ao_completar: acao_ao_completar || null })
         .eq('id', itemId)
       if (error) throw error
       return modulo
