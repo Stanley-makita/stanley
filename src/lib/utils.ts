@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function formatarMoeda(valor: number | null | undefined): string {
+  if (valor == null) return '—'
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 2,
+  }).format(valor)
+}
+
 /**
  * Formata uma data para exibição no padrão brasileiro DD/MM/YYYY.
  * Aceita string ISO (YYYY-MM-DD), Date, ou timestamp ISO completo.
