@@ -210,7 +210,7 @@ export default function ProcessoDetalhePage() {
               </Button>
 
               {/* Confirmação de Valores — apenas na fase Análise Jurídica */}
-              {processo.fase_atual?.nome?.toLowerCase().includes('jurídica') && (
+              {processo.fase_atual?.nome?.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes('juridica') && (
                 <Button
                   size="sm"
                   variant="outline"
