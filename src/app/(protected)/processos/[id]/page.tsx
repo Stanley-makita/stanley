@@ -423,9 +423,11 @@ export default function ProcessoDetalhePage() {
 
       {/* Painel direito — sempre visível */}
       <div className="w-80 shrink-0 flex flex-col gap-4 overflow-y-auto">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex-1">
-          <PainelComentarios processoId={id} />
-        </div>
+        <PainelChecklist
+          processoId={id}
+          faseId={processo.fase_atual_id}
+          onPendenciasChange={setItensObrigatoriosPendentes}
+        />
         <PainelPendencias
           processoId={id}
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
@@ -433,11 +435,9 @@ export default function ProcessoDetalhePage() {
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
         </div>
-        <PainelChecklist
-          processoId={id}
-          faseId={processo.fase_atual_id}
-          onPendenciasChange={setItensObrigatoriosPendentes}
-        />
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <PainelComentarios processoId={id} />
+        </div>
       </div>
     </div>
   )

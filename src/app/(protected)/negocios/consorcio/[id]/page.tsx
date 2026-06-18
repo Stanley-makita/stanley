@@ -236,15 +236,15 @@ export default function ConsorcioDetalhePage() {
 
       {/* ── Painel direito ── */}
       <div className="w-80 shrink-0 flex flex-col gap-4 overflow-y-auto">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex-1">
-          <PainelComentarios processoId={id} />
-        </div>
         <PainelPendencias
           processoId={id}
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
         />
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <PainelTarefas processoId={id} />
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <PainelComentarios processoId={id} />
         </div>
       </div>
 
