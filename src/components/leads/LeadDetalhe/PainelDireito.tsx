@@ -92,7 +92,7 @@ function SecaoNotas({ leadId }: { leadId: string }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="bg-white border border-[#E7E0C4] rounded-lg px-2.5 py-1.5">
-                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed line-clamp-4">{item.descricao}</p>
+                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-0.5 ml-0.5">
                   <span className="font-medium text-gray-500">{item.usuario?.nome}</span>

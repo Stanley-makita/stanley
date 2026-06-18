@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { type Lead } from '@/types/leads'
 import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { useLeadTarefas } from '@/hooks/leads/useLeadTarefas'
@@ -227,13 +228,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           </p>
           <div className="space-y-2.5">
             {notas.slice(0, 3).map((nota) => (
-              <div key={nota.id} className="bg-[#F9F7F2] rounded-lg px-3 py-2.5 border border-[#E7E0C4]">
-                <p className="text-sm text-gray-700 leading-snug line-clamp-2">{nota.descricao}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {nota.usuario?.nome} ·{' '}
-                  {formatDistanceToNow(new Date(nota.created_at), { addSuffix: true, locale: ptBR })}
-                </p>
-              </div>
+              <NotaExpandivel key={nota.id} nota={nota} />
             ))}
             {notas.length > 3 && (
               <p className="text-xs text-gray-400 text-center pt-1">
@@ -338,6 +333,32 @@ function Campo({ label, valor }: { label: string; valor: string }) {
     <div>
       <p className="text-xs text-gray-400">{label}</p>
       <p className="text-sm font-medium text-gray-800">{valor}</p>
+    </div>
+  )
+}
+
+function NotaExpandivel({ nota }: { nota: { id: string; descricao: string; created_at: string; usuario?: { nome: string } | null } }) {
+  const [expandida, setExpandida] = useState(false)
+  const LIMITE = 120
+  const longa = nota.descricao.length > LIMITE
+
+  return (
+    <div className="bg-[#F9F7F2] rounded-lg px-3 py-2.5 border border-[#E7E0C4]">
+      <p className="text-sm text-gray-700 leading-snug whitespace-pre-wrap">
+        {expandida || !longa ? nota.descricao : nota.descricao.slice(0, LIMITE) + '…'}
+      </p>
+      {longa && (
+        <button
+          onClick={() => setExpandida(v => !v)}
+          className="text-xs text-[#253B29] font-medium mt-1 hover:underline"
+        >
+          {expandida ? 'ver menos' : 'ver mais'}
+        </button>
+      )}
+      <p className="text-xs text-gray-400 mt-1">
+        {nota.usuario?.nome} ·{' '}
+        {formatDistanceToNow(new Date(nota.created_at), { addSuffix: true, locale: ptBR })}
+      </p>
     </div>
   )
 }
