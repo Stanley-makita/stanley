@@ -25,6 +25,8 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { useAgendaBadge } from '@/hooks/useAgendaBadge'
 import { useLeadsBadge } from '@/hooks/leads/useLeadsBadge'
+import { useSolicitacoesBadge } from '@/hooks/solicitacoes/useSolicitacoesBadge'
+import { useConversasBadge } from '@/hooks/conversas/useConversasBadge'
 
 const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
@@ -54,6 +56,8 @@ export function Sidebar() {
   const { sair } = useAuth()
   const { data: agendaBadge = 0 } = useAgendaBadge()
   const { data: leadsBadge = 0 } = useLeadsBadge()
+  const { data: operacionalBadge = 0 } = useSolicitacoesBadge()
+  const { data: conversasBadge = 0 } = useConversasBadge()
 
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
@@ -123,6 +127,8 @@ export function Sidebar() {
         {navItemsBottom.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isAgenda = href === '/agenda'
+          const isOperacional = href === '/operacional'
+          const isConversas = href === '/conversas'
           return (
             <div key={href} className="relative">
               <Link
@@ -140,6 +146,16 @@ export function Sidebar() {
               {isAgenda && agendaBadge > 0 && (
                 <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
                   {agendaBadge > 99 ? '99+' : agendaBadge}
+                </span>
+              )}
+              {isOperacional && operacionalBadge > 0 && (
+                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
+                  {operacionalBadge > 99 ? '99+' : operacionalBadge}
+                </span>
+              )}
+              {isConversas && conversasBadge > 0 && (
+                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-[#C2AA6A] text-[#253B29] text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
+                  {conversasBadge > 99 ? '99+' : conversasBadge}
                 </span>
               )}
             </div>
