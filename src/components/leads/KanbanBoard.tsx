@@ -80,25 +80,30 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
       // over.id pode ser um faseId (solto na área vazia da coluna)
       // ou um leadId (solto sobre outro card) — nesse caso usamos o containerId do SortableContext
       const overId = over.id as string
-      const ehFase = fases.some((f) => f.id === overId)
-      const faseDestinoId = ehFase
+      const ehFaseDestino = todasFases.some((f) => f.id === overId)
+      const faseDestinoId = ehFaseDestino
         ? overId
         : (over.data.current?.sortable?.containerId as string | undefined) ?? overId
 
       // Não mover se for para a mesma fase E mesmo card
-      if (leadId === overId && ehFase === false) return
+      if (leadId === overId && ehFaseDestino === false) return
 
-      // Verifica bloqueadores do checklist apenas se avançando de fase
-      if (lead?.fase_id && faseDestinoId !== lead.fase_id) {
-        const faseAtual  = fases.find(f => f.id === lead.fase_id)
-        const faseDestino = fases.find(f => f.id === faseDestinoId)
+      // Fase de origem: usa o containerId do SortableContext (mais confiável que lead.fase_id)
+      const faseOrigemId =
+        (active.data.current?.sortable?.containerId as string | undefined) ??
+        lead?.fase_id
 
-        if (faseAtual && faseDestino && faseDestino.ordem > faseAtual.ordem) {
-          // Busca itens bloqueadores não concluídos para este lead na fase atual
+      // Verifica bloqueadores do checklist ao avançar de fase
+      if (faseOrigemId && faseDestinoId && faseDestinoId !== faseOrigemId) {
+        const faseOrigem  = todasFases.find(f => f.id === faseOrigemId)
+        const faseDestino = todasFases.find(f => f.id === faseDestinoId)
+
+        if (faseOrigem && faseDestino && faseDestino.ordem > faseOrigem.ordem) {
+          // Busca template da fase de origem
           const { data: template } = await supabase
             .from('checklist_templates')
             .select('id')
-            .eq('fase_id', lead.fase_id)
+            .eq('fase_id', faseOrigemId)
             .eq('empresa_id', usuario!.empresa_id)
             .maybeSingle()
 
@@ -138,7 +143,7 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
         ordem_destino: 0,
       })
     },
-    [moverLead, fases, usuario]
+    [moverLead, todasFases, usuario]
   )
 
   const temConcluido = todasFases.some((f) => f.nome === FASE_CONCLUIDO)
