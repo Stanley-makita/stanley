@@ -88,6 +88,25 @@ export function usePuxarProcessos() {
   })
 }
 
+export function usePuxarContratos() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (fechamento_id: string) => {
+      const { data, error } = await supabase.rpc('puxar_contratos', {
+        p_fechamento_id: fechamento_id,
+      })
+      if (error) throw error
+      return data as number
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] })
+      toast.success(`${count} contrato(s) importado(s) para o fechamento.`)
+    },
+    onError: (err: Error) => toast.error(err.message || 'Erro ao puxar contratos.'),
+  })
+}
+
 export function useGerarComissoesAPagar() {
   const queryClient = useQueryClient()
 

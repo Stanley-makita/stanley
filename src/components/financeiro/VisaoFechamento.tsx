@@ -30,6 +30,7 @@ import {
 import { type FinFechamento, type FinFechamentoStatus } from '@/types/financeiro'
 import {
   usePuxarProcessos,
+  usePuxarContratos,
   useGerarComissoesAPagar,
   useGerarFolha,
   useExecutarConferencias,
@@ -72,6 +73,7 @@ export function VisaoFechamento({ fechamento }: Props) {
   }
 
   const puxarProcessos = usePuxarProcessos()
+  const puxarContratos = usePuxarContratos()
   const gerarComissoes = useGerarComissoesAPagar()
   const gerarFolha = useGerarFolha()
   const executarConferencias = useExecutarConferencias()
@@ -84,12 +86,17 @@ export function VisaoFechamento({ fechamento }: Props) {
   const ETAPAS = [
     {
       numero: 1,
-      titulo: 'Puxar Emissões',
-      descricao: 'Importar processos emitidos do mês',
+      titulo: 'Puxar Processos',
+      descricao: 'Importar financiamentos/CGI e contratos emitidos do mês',
       icone: <FileText className="h-4 w-4" />,
       acao: () => puxarProcessos.mutate(fechamento.id),
       carregando: puxarProcessos.isPending,
       desabilitado: travado,
+      acaoSecundaria: {
+        label: 'Contratos',
+        acao: () => puxarContratos.mutate(fechamento.id),
+        carregando: puxarContratos.isPending,
+      },
     },
     {
       numero: 2,
@@ -222,26 +229,51 @@ export function VisaoFechamento({ fechamento }: Props) {
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-2">
               <p className="text-xs text-gray-500">{etapa.descricao}</p>
-              <Button
-                size="sm"
-                variant={etapa.perigo ? 'destructive' : etapa.destaque ? 'default' : 'outline'}
-                className={`w-full gap-1 text-xs ${
-                  etapa.destaque && !etapa.perigo
-                    ? 'bg-[#253B29] hover:bg-[#1a2a1d] text-white'
-                    : ''
-                }`}
-                onClick={etapa.acao}
-                disabled={etapa.desabilitado || etapa.carregando}
-              >
-                {etapa.carregando ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : travado ? (
-                  <Lock className="h-3.5 w-3.5" />
-                ) : (
-                  etapa.icone
-                )}
-                {etapa.carregando ? 'Aguarde...' : travado ? 'Travado' : 'Executar'}
-              </Button>
+              {etapa.acaoSecundaria ? (
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs"
+                    onClick={etapa.acao}
+                    disabled={etapa.desabilitado || etapa.carregando}
+                  >
+                    {etapa.carregando ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                    Emissões
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs"
+                    onClick={etapa.acaoSecundaria.acao}
+                    disabled={etapa.desabilitado || etapa.acaoSecundaria.carregando}
+                  >
+                    {etapa.acaoSecundaria.carregando ? <Loader2 className="h-3 w-3 animate-spin" /> : <ClipboardCheck className="h-3 w-3" />}
+                    Contratos
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant={etapa.perigo ? 'destructive' : etapa.destaque ? 'default' : 'outline'}
+                  className={`w-full gap-1 text-xs ${
+                    etapa.destaque && !etapa.perigo
+                      ? 'bg-[#253B29] hover:bg-[#1a2a1d] text-white'
+                      : ''
+                  }`}
+                  onClick={etapa.acao}
+                  disabled={etapa.desabilitado || etapa.carregando}
+                >
+                  {etapa.carregando ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : travado ? (
+                    <Lock className="h-3.5 w-3.5" />
+                  ) : (
+                    etapa.icone
+                  )}
+                  {etapa.carregando ? 'Aguarde...' : travado ? 'Travado' : 'Executar'}
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}
