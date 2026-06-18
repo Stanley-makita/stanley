@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { useLead } from '@/hooks/leads/useLeads'
 import { useConversaDoLead } from '@/hooks/conversas/useConversaDoLead'
+import { useIniciarConversa } from '@/hooks/conversas/useIniciarConversa'
 import { useRouter } from 'next/navigation'
 import { AbaResumo } from './LeadDetalhe/AbaResumo'
 import { AbaNotas } from './LeadDetalhe/AbaNotas'
@@ -88,9 +90,12 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [completarDadosAberto, setCompletarDadosAberto] = useState(false)
   const [excluirAberto, setExcluirAberto] = useState(false)
+  const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
+  const [msgInicial, setMsgInicial] = useState('')
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
+  const iniciarConversa = useIniciarConversa()
   const { data: fases = [] } = useFases('leads')
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
@@ -165,13 +170,13 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       if (conversaDoLead?.id) {
                         router.push(`/conversas?id=${conversaDoLead.id}`)
                       } else {
-                        const tel = lead.telefone.replace(/\D/g, '')
-                        router.push(`/conversas?busca=${encodeURIComponent(tel)}`)
+                        setMsgInicial('')
+                        setIniciarConversaAberto(true)
                       }
                     }}
                   >
                     <MessageCircle className="h-3 w-3" />
-                    Abrir Conversa
+                    {conversaDoLead?.id ? 'Abrir Conversa' : 'Iniciar Conversa'}
                   </Button>
 
                   <div className="flex gap-2">
@@ -425,6 +430,63 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             nomeCliente={lead.nome}
             onExcluido={fechar}
           />
+
+          {/* Dialog: Iniciar nova conversa */}
+          <Dialog open={iniciarConversaAberto} onOpenChange={(o) => { if (!o) setIniciarConversaAberto(false) }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-[#253B29]">Iniciar conversa</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-800">{lead.nome}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{lead.telefone}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">Mensagem inicial (opcional)</label>
+                  <Textarea
+                    placeholder="Olá! Tudo bem?"
+                    rows={3}
+                    className="text-sm resize-none"
+                    value={msgInicial}
+                    onChange={(e) => setMsgInicial(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIniciarConversaAberto(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={iniciarConversa.isPending}
+                  className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+                  onClick={async () => {
+                    try {
+                      const id = await iniciarConversa.mutateAsync({
+                        telefone:       lead.telefone,
+                        nome:           lead.nome,
+                        lead_id:        lead.id,
+                        pessoa_id:      (lead as any).pessoa_id ?? undefined,
+                        mensagemInicial: msgInicial,
+                      })
+                      setIniciarConversaAberto(false)
+                      router.push(`/conversas?id=${id}`)
+                    } catch {
+                      toast.error('Erro ao criar conversa. Tente novamente.')
+                    }
+                  }}
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  {iniciarConversa.isPending ? 'Criando...' : 'Iniciar Conversa'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </>
