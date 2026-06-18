@@ -209,18 +209,20 @@ export default function ProcessoDetalhePage() {
                 {gerandoFormularios ? 'Gerando...' : 'Formulários'}
               </Button>
 
-              {/* Confirmação de Valores */}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!processo.banco?.nome}
-                title={!processo.banco?.nome ? 'Defina o banco do processo antes de enviar a confirmação' : 'Enviar confirmação de valores por e-mail'}
-                className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
-                onClick={() => setConfirmacaoValoresAberto(true)}
-              >
-                <Mail className="h-3.5 w-3.5" />
-                Confirmar Valores
-              </Button>
+              {/* Confirmação de Valores — apenas na fase Análise Jurídica */}
+              {processo.fase_atual?.nome?.toLowerCase().includes('jurídica') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!processo.banco?.nome}
+                  title={!processo.banco?.nome ? 'Defina o banco do processo antes de enviar a confirmação' : 'Enviar confirmação de valores por e-mail'}
+                  className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+                  onClick={() => setConfirmacaoValoresAberto(true)}
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Confirmar Valores
+                </Button>
+              )}
 
               {/* Nova Solicitação */}
               <Button
