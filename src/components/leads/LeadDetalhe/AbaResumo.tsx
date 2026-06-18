@@ -337,15 +337,16 @@ function Campo({ label, valor }: { label: string; valor: string }) {
   )
 }
 
-function NotaExpandivel({ nota }: { nota: { id: string; descricao: string; created_at: string; usuario?: { nome: string } | null } }) {
+function NotaExpandivel({ nota }: { nota: { id: string; descricao: string | null; created_at: string; usuario?: { nome: string } | null } }) {
   const [expandida, setExpandida] = useState(false)
+  const texto = nota.descricao ?? ''
   const LIMITE = 120
-  const longa = nota.descricao.length > LIMITE
+  const longa = texto.length > LIMITE
 
   return (
     <div className="bg-[#F9F7F2] rounded-lg px-3 py-2.5 border border-[#E7E0C4]">
       <p className="text-sm text-gray-700 leading-snug whitespace-pre-wrap">
-        {expandida || !longa ? nota.descricao : nota.descricao.slice(0, LIMITE) + '…'}
+        {expandida || !longa ? texto : texto.slice(0, LIMITE) + '…'}
       </p>
       {longa && (
         <button
