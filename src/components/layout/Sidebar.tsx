@@ -20,6 +20,7 @@ import {
   ClipboardList,
   Briefcase,
   Calculator,
+  UserCheck,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
@@ -38,6 +39,7 @@ const navItemsTop = [
 const navItemsBottom = [
   { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
   { href: '/operacional',       label: 'Operacional',  icon: ClipboardList },
+  { href: '/rh',                label: 'RH',           icon: UserCheck },
   { href: '/simuladores',       label: 'Simuladores',  icon: Calculator },
   { href: '/financeiro',        label: 'Financeiro',   icon: DollarSign },
   { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2 },
