@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { ClipboardCheck, User } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { toast } from 'sonner'
 import {
   useChecklistTemplate,
   useChecklistExecucoes,
@@ -27,7 +28,6 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
   const obrigatoriosPendentes = itens.filter(i => i.obrigatorio && !marcadosSet.has(i.id)).length
   const totalObrigatorios     = itens.filter(i => i.obrigatorio).length
 
-  // Notificar o pai sempre que mudar
   useEffect(() => {
     onPendenciasChange(obrigatoriosPendentes > 0)
   }, [obrigatoriosPendentes, onPendenciasChange])
@@ -73,6 +73,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
           {itens.map((item) => {
             const checked = marcadosSet.has(item.id)
             const execucao = execucoes.find(e => e.item_id === item.id && e.marcado)
+            const novoMarcado = !checked
 
             return (
               <div key={item.id} className="group">
@@ -80,7 +81,20 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                   <input
                     type="checkbox"
                     checked={checked}
-                    onChange={() => marcar.mutate({ itemId: item.id, marcado: !checked })}
+                    onChange={() => {
+                      marcar.mutate(
+                        { item, marcado: novoMarcado },
+                        {
+                          onSuccess: async () => {
+                            if (novoMarcado && item.acao_ao_completar === 'emitido') {
+                              const { default: confetti } = await import('canvas-confetti')
+                              confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+                              toast.success('🎉 Emissão confirmada! Processo marcado como Emitido.')
+                            }
+                          },
+                        }
+                      )
+                    }}
                     disabled={marcar.isPending}
                     className="mt-0.5 h-3.5 w-3.5 rounded accent-[#253B29] shrink-0 cursor-pointer"
                   />
@@ -89,9 +103,11 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                     {item.obrigatorio && (
                       <span className="ml-1 text-red-500 font-bold" title="Obrigatório">*</span>
                     )}
+                    {item.acao_ao_completar === 'emitido' && (
+                      <span className="ml-1.5 text-[10px] text-green-600 font-medium">🎉 marca como Emitido</span>
+                    )}
                   </span>
                 </label>
-                {/* Quem marcou e quando */}
                 {execucao?.usuario && execucao.marcado_em && (
                   <p className="text-[10px] text-gray-400 ml-6 mt-0.5 flex items-center gap-1">
                     <User className="h-2.5 w-2.5 shrink-0" />

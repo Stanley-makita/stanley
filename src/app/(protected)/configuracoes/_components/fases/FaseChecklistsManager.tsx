@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import {
   useFaseChecklists,
@@ -35,6 +38,7 @@ const novoItemVazio = () => ({
   link_externo: '',
   obrigatorio: false,
   bloqueia_avanco: false,
+  acao_ao_completar: '' as string,
 })
 
 export function FaseChecklistsManager({ faseId }: Props) {
@@ -54,13 +58,14 @@ export function FaseChecklistsManager({ faseId }: Props) {
     if (!novo.descricao.trim()) return
     try {
       await criar.mutateAsync({
-        fase_id:       faseId,
-        descricao:     novo.descricao.trim(),
-        tipo:          novo.tipo,
-        link_externo:  novo.tipo === 'link_externo' ? novo.link_externo || null : null,
-        obrigatorio:   novo.obrigatorio,
+        fase_id:         faseId,
+        descricao:       novo.descricao.trim(),
+        tipo:            novo.tipo,
+        link_externo:    novo.tipo === 'link_externo' ? novo.link_externo || null : null,
+        obrigatorio:     novo.obrigatorio,
         bloqueia_avanco: novo.bloqueia_avanco,
-        ordem:         itens.length,
+        acao_ao_completar: novo.acao_ao_completar || null,
+        ordem:           itens.length,
       })
       setNovo(novoItemVazio())
       setAdicionando(false)
@@ -80,19 +85,21 @@ export function FaseChecklistsManager({ faseId }: Props) {
       link_externo: item.link_externo ?? '',
       obrigatorio: item.obrigatorio,
       bloqueia_avanco: item.bloqueia_avanco,
+      acao_ao_completar: item.acao_ao_completar ?? '',
     })
   }
 
   async function handleSalvarEdicao(item: ChecklistItem) {
     try {
       await atualizar.mutateAsync({
-        id:            item.id,
-        fase_id:       faseId,
-        descricao:     editForm.descricao.trim(),
-        tipo:          editForm.tipo,
-        link_externo:  editForm.tipo === 'link_externo' ? editForm.link_externo || null : null,
-        obrigatorio:   editForm.obrigatorio,
+        id:              item.id,
+        fase_id:         faseId,
+        descricao:       editForm.descricao.trim(),
+        tipo:            editForm.tipo,
+        link_externo:    editForm.tipo === 'link_externo' ? editForm.link_externo || null : null,
+        obrigatorio:     editForm.obrigatorio,
         bloqueia_avanco: editForm.bloqueia_avanco,
+        acao_ao_completar: editForm.acao_ao_completar || null,
       })
       setEditandoId(null)
       toast.success('Item atualizado.')
@@ -158,6 +165,9 @@ export function FaseChecklistsManager({ faseId }: Props) {
                   >
                     <ExternalLink className="w-3 h-3" /> Link
                   </a>
+                )}
+                {item.acao_ao_completar === 'emitido' && (
+                  <span className="text-[10px] text-green-600 font-medium">🎉 Marca como Emitido</span>
                 )}
               </div>
             </div>
@@ -271,6 +281,22 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
           />
           <Label htmlFor="bloqueia-novo" className="text-xs cursor-pointer">Bloqueia avanço</Label>
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Ao completar este item</Label>
+        <Select
+          value={form.acao_ao_completar || 'none'}
+          onValueChange={(v) => set('acao_ao_completar', v === 'none' ? '' : v)}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nenhuma ação</SelectItem>
+            <SelectItem value="emitido">🎉 Marcar processo como Emitido</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex gap-2">

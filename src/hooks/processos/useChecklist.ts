@@ -11,6 +11,7 @@ export interface ChecklistItemDB {
   obrigatorio: boolean
   ordem: number
   ativo: boolean
+  acao_ao_completar: string | null
 }
 
 export interface ChecklistTemplateDB {
@@ -51,7 +52,7 @@ export function useChecklistTemplate(faseId: string | null | undefined) {
 
       const { data: itens, error: iErr } = await supabase
         .from('checklist_items')
-        .select('id, template_id, descricao, obrigatorio, ordem, ativo')
+        .select('id, template_id, descricao, obrigatorio, ordem, ativo, acao_ao_completar')
         .eq('template_id', template.id)
         .eq('ativo', true)
         .order('ordem', { ascending: true })
@@ -89,13 +90,13 @@ export function useMarcarChecklistItem(processoId: string) {
   const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ itemId, marcado }: { itemId: string; marcado: boolean }) => {
+    mutationFn: async ({ item, marcado }: { item: ChecklistItemDB; marcado: boolean }) => {
       const { error } = await supabase
         .from('checklist_execucoes')
         .upsert(
           {
             processo_id: processoId,
-            item_id:     itemId,
+            item_id:     item.id,
             empresa_id:  usuario!.empresa_id,
             marcado,
             marcado_por: marcado ? usuario!.id : null,
@@ -104,9 +105,22 @@ export function useMarcarChecklistItem(processoId: string) {
           { onConflict: 'processo_id,item_id' }
         )
       if (error) throw error
+
+      if (marcado && item.acao_ao_completar === 'emitido') {
+        const { error: errP } = await supabase
+          .from('processos')
+          .update({
+            status_emissao: 'emitido',
+            data_emissao: new Date().toISOString().slice(0, 10),
+          })
+          .eq('id', processoId)
+        if (errP) throw errP
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checklist-execucoes', processoId] })
+      queryClient.invalidateQueries({ queryKey: ['processo', processoId] })
+      queryClient.invalidateQueries({ queryKey: ['processos'] })
     },
   })
 }

@@ -17,6 +17,7 @@ export interface ChecklistItem {
   link_externo: string | null
   obrigatorio: boolean
   bloqueia_avanco: boolean
+  acao_ao_completar: string | null
   ordem: number
   ativo: boolean
   criado_em: string
@@ -103,6 +104,7 @@ export function useCriarChecklistItem() {
       link_externo?: string | null
       obrigatorio?: boolean
       bloqueia_avanco?: boolean
+      acao_ao_completar?: string | null
       ordem?: number
     }) => {
       const templateId = await garantirTemplate(input.fase_id, usuario!.empresa_id)
@@ -116,6 +118,7 @@ export function useCriarChecklistItem() {
           link_externo: input.link_externo ?? null,
           obrigatorio: input.obrigatorio ?? false,
           bloqueia_avanco: input.bloqueia_avanco ?? false,
+          acao_ao_completar: input.acao_ao_completar || null,
           ordem: input.ordem ?? 999,
         })
         .select()
@@ -141,11 +144,16 @@ export function useAtualizarChecklistItem() {
       link_externo?: string | null
       obrigatorio?: boolean
       bloqueia_avanco?: boolean
+      acao_ao_completar?: string | null
     }) => {
       const { id, fase_id, ...campos } = input
+      const atualizar = {
+        ...campos,
+        acao_ao_completar: campos.acao_ao_completar || null,
+      }
       const { data, error } = await supabase
         .from('checklist_items')
-        .update(campos)
+        .update(atualizar)
         .eq('id', id)
         .select()
         .single()
