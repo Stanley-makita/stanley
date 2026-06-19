@@ -295,6 +295,9 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
           <SelectContent>
             <SelectItem value="none">Nenhuma ação</SelectItem>
             <SelectItem value="emitido">🎉 Marcar processo como Emitido</SelectItem>
+            <SelectItem value="salvar_vencimento_credito">📅 Salvar validade do Crédito</SelectItem>
+            <SelectItem value="salvar_vencimento_matricula">📅 Salvar validade da Matrícula</SelectItem>
+            <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>
           </SelectContent>
         </Select>
       </div>
