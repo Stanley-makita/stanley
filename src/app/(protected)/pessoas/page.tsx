@@ -158,9 +158,9 @@ export default function PessoasPage() {
       {/* Lista */}
       <div className="flex-1 overflow-y-auto bg-gray-50">
         {isLoading ? (
-          <div className="p-4 space-y-3">
+          <div className="px-4 py-3 space-y-1">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-lg" />
+              <Skeleton key={i} className="h-10 rounded-lg" />
             ))}
           </div>
         ) : pessoas.length === 0 ? (
@@ -171,7 +171,7 @@ export default function PessoasPage() {
             className="h-64"
           />
         ) : (
-          <div className="p-4 space-y-2">
+          <div className="px-4 py-3 space-y-1">
             {pessoas.map((pessoa) => {
               const tel = telefonePrincipal(pessoa)
               const nTelefones = pessoa.pessoa_telefones.filter((t) => t.ativo).length
@@ -181,17 +181,17 @@ export default function PessoasPage() {
                   key={pessoa.id}
                   onClick={() => router.push(`/pessoas/${pessoa.id}`)}
                   avatar={(
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#253B29]/10">
-                      <span className="text-sm font-bold uppercase text-[#253B29]">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#253B29]/10 shrink-0">
+                      <span className="text-xs font-bold uppercase text-[#253B29]">
                         {pessoa.nome.charAt(0)}
                       </span>
                     </div>
                   )}
-                  heading={pessoa.nome}
+                  heading={<span className="text-sm">{pessoa.nome}</span>}
                   meta={(
                     <>
                       {pessoa.tipo && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#253B29]/8 text-[#253B29] shrink-0">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#253B29]/10 text-[#253B29] shrink-0">
                           {TIPO_LABEL[pessoa.tipo] ?? pessoa.tipo}
                         </span>
                       )}
@@ -203,7 +203,7 @@ export default function PessoasPage() {
                   details={(
                     <>
                       {tel ? (
-                        <span className="flex items-center gap-1 text-sm text-gray-500">
+                        <span className="flex items-center gap-1 text-xs text-gray-500">
                           <Phone className="h-3 w-3" />
                           {tel.telefone}
                           {nTelefones > 1 && (
@@ -213,19 +213,19 @@ export default function PessoasPage() {
                           )}
                         </span>
                       ) : (
-                        <span className="text-sm text-gray-400">Sem telefone</span>
+                        <span className="text-xs text-gray-400">Sem telefone</span>
                       )}
                       {pessoa.email && (
-                        <span className="text-sm text-gray-400 truncate">{pessoa.email}</span>
+                        <span className="text-xs text-gray-400 truncate">{pessoa.email}</span>
                       )}
                     </>
                   )}
                   trailing={(
-                    <div className="flex items-center gap-3">
-                      <p className={cn('text-xs text-gray-400 transition-colors group-hover:text-gray-600')}>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-400 whitespace-nowrap">
                         {formatDistanceToNow(new Date(pessoa.created_at), { addSuffix: true, locale: ptBR })}
                       </p>
-                      <ChevronRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-500" />
+                      <ChevronRight className="h-3.5 w-3.5 text-gray-300 transition-colors group-hover:text-gray-500" />
                     </div>
                   )}
                 />
