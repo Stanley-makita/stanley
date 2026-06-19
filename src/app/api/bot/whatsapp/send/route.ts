@@ -124,7 +124,10 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[send] Erro Uazapi:', detail)
-    return NextResponse.json({ error: `Uazapi: ${detail}` }, { status: 502 })
+    const msg = detail.includes('not on WhatsApp')
+      ? `Número ${telEnvio} não está no WhatsApp. Verifique se o telefone do lead está correto (com DDD).`
+      : 'Falha ao enviar mensagem. Tente novamente.'
+    return NextResponse.json({ error: msg }, { status: 502 })
   }
 
   // Salva no histórico
