@@ -621,14 +621,14 @@ const MSG_AJUDA = `*Fonti — Comandos*
 *inicio*  _(ou *fonti inicio*)_
   → Marca início de sessão de docs para o próximo cliente.
 
-*cria cliente [descrição livre]*  _(ou *fonti cria ...*)_
+*cria cliente* ou *criar cliente [descrição livre]*  _(ou *fonti cria ...*)_
   → Cria Pessoa + Lead e vincula documentos recentes
 
-*atualiza [nome] [dados]*  _(ou *fonti atualiza ...*)_
+*atualiza* ou *atualizar [nome] [dados]*  _(ou *fonti atualiza ...*)_
   → Atualiza CPF, nascimento, renda, estado civil de um lead
      Também vincula docs recentes da conversa
 
-*salva [nome]*  _(ou *fonti salva ...*)_
+*salva* ou *salvar [nome]*  _(ou *fonti salva ...*)_
   → Vincula docs recentes à pessoa/lead informado
 
 *Processo*
@@ -681,11 +681,11 @@ export async function processarComandoFonti(
 
   // Normaliza atalhos curtos para o padrão *fonti [subcomando]
   let _texto = textoCompleto
-  if      (/^\*inicio\b/i.test(_texto))           _texto = '*fonti inicio'
-  else if (/^\*cria\s+cliente\b/i.test(_texto))   _texto = _texto.replace(/^\*cria\s+cliente\b/i, '*fonti cria cliente')
-  else if (/^\*salva\b/i.test(_texto))            _texto = _texto.replace(/^\*salva\b/i, '*fonti salva')
-  else if (/^\*atualiza\b/i.test(_texto))         _texto = _texto.replace(/^\*atualiza\b/i, '*fonti atualiza')
-  else if (/^\*processo\b/i.test(_texto))         _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
+  if      (/^\*inicio\b/i.test(_texto))                _texto = '*fonti inicio'
+  else if (/^\*criar?\s+cliente\b/i.test(_texto))     _texto = _texto.replace(/^\*criar?\s+cliente\b/i, '*fonti cria cliente')
+  else if (/^\*salvar?\b/i.test(_texto))              _texto = _texto.replace(/^\*salvar?\b/i, '*fonti salva')
+  else if (/^\*atualizar?\b/i.test(_texto))           _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
+  else if (/^\*processo\b/i.test(_texto))             _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
 
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
   const corpo = _texto.replace(/^\*fonti\s*/i, '').trim()
