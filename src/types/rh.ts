@@ -70,6 +70,11 @@ export interface RhFaixaComissao {
   valor_minimo: number
   valor_maximo: number
   percentual: number
+  pct_comercial: number | null
+  pct_operacional: number | null
+  pct_parceiro: number | null
+  piso_valor: number
+  teto_valor: number
   created_at: string
 }
 

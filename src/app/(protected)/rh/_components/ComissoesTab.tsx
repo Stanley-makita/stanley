@@ -22,7 +22,16 @@ function fmtMoeda(v: number) {
 type FaixaForm = Omit<RhFaixaComissao, 'id' | 'regra_id' | 'created_at'>
 
 const VAZIO_REGRA = { nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true }
-const VAZIO_FAIXA = (): FaixaForm => ({ valor_minimo: 0, valor_maximo: 0, percentual: 0 })
+const VAZIO_FAIXA = (): FaixaForm => ({
+  valor_minimo: 0,
+  valor_maximo: 0,
+  percentual: 0,
+  pct_comercial: null,
+  pct_operacional: null,
+  pct_parceiro: null,
+  piso_valor: 0,
+  teto_valor: 0,
+})
 
 export function ComissoesTab() {
   const [modal, setModal] = useState(false)
@@ -46,7 +55,16 @@ export function ComissoesTab() {
     if (regra) {
       setEditando(regra)
       setForm({ nome: regra.nome, descricao: regra.descricao ?? '', data_inicio: regra.data_inicio, data_termino: regra.data_termino ?? '', ativa: regra.ativa })
-      setFaixas(regra.faixas?.length ? regra.faixas.map(f => ({ valor_minimo: f.valor_minimo, valor_maximo: f.valor_maximo, percentual: f.percentual })) : [VAZIO_FAIXA()])
+      setFaixas(regra.faixas?.length ? regra.faixas.map(f => ({
+        valor_minimo: f.valor_minimo,
+        valor_maximo: f.valor_maximo,
+        percentual: f.percentual,
+        pct_comercial: f.pct_comercial ?? null,
+        pct_operacional: f.pct_operacional ?? null,
+        pct_parceiro: f.pct_parceiro ?? null,
+        piso_valor: f.piso_valor ?? 0,
+        teto_valor: f.teto_valor ?? 0,
+      })) : [VAZIO_FAIXA()])
     } else {
       setEditando(null)
       setForm(VAZIO_REGRA)
@@ -55,7 +73,7 @@ export function ComissoesTab() {
     setModal(true)
   }
 
-  function setFaixa(idx: number, key: keyof FaixaForm, val: number) {
+  function setFaixa(idx: number, key: keyof FaixaForm, val: number | null) {
     setFaixas(fs => fs.map((f, i) => i === idx ? { ...f, [key]: val } : f))
   }
 
@@ -136,17 +154,27 @@ export function ComissoesTab() {
                     <table className="w-full text-sm mt-2">
                       <thead>
                         <tr className="border-b border-gray-100">
-                          <th className="text-left py-2 text-xs font-medium text-gray-500">Valor Mínimo</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500">Valor Máximo</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500">Percentual</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Val. Mínimo</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Val. Máximo</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Base</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Comercial</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Operacional</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Parceiro</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Piso R$</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500">Teto R$</th>
                         </tr>
                       </thead>
                       <tbody>
                         {r.faixas.map((f, i) => (
                           <tr key={i} className="border-b border-gray-50 last:border-0">
-                            <td className="py-2 text-xs text-gray-700">{fmtMoeda(f.valor_minimo)}</td>
-                            <td className="py-2 text-xs text-gray-700">{f.valor_maximo === 0 ? 'Sem limite' : fmtMoeda(f.valor_maximo)}</td>
-                            <td className="py-2 text-xs text-gray-700">{f.percentual}%</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{fmtMoeda(f.valor_minimo)}</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.valor_maximo === 0 ? '—' : fmtMoeda(f.valor_maximo)}</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.percentual}%</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.pct_comercial != null ? `${f.pct_comercial}%` : '—'}</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.pct_operacional != null ? `${f.pct_operacional}%` : '—'}</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.pct_parceiro != null ? `${f.pct_parceiro}%` : '—'}</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.piso_valor > 0 ? fmtMoeda(f.piso_valor) : '—'}</td>
+                            <td className="py-2 text-xs text-gray-700">{f.teto_valor > 0 ? fmtMoeda(f.teto_valor) : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -191,25 +219,49 @@ export function ComissoesTab() {
               </div>
               <div className="space-y-2">
                 {faixas.map((f, i) => (
-                  <div key={i} className="grid grid-cols-3 gap-2 items-end border border-gray-100 rounded-lg p-2.5">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-gray-500">Valor Mínimo</Label>
-                      <Input type="number" min={0} value={f.valor_minimo} onChange={e => setFaixa(i, 'valor_minimo', Number(e.target.value))} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-gray-500">Valor Máximo (0 = sem limite)</Label>
-                      <Input type="number" min={0} value={f.valor_maximo} onChange={e => setFaixa(i, 'valor_maximo', Number(e.target.value))} className="h-8 text-xs" />
-                    </div>
-                    <div className="flex items-end gap-1">
-                      <div className="flex-1 space-y-1">
-                        <Label className="text-[10px] text-gray-500">Percentual (%)</Label>
-                        <Input type="number" min={0} step={0.1} value={f.percentual} onChange={e => setFaixa(i, 'percentual', Number(e.target.value))} className="h-8 text-xs" />
+                  <div key={i} className="border border-gray-100 rounded-lg p-2.5 space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">Val. Mínimo (R$)</Label>
+                        <Input type="number" min={0} value={f.valor_minimo} onChange={e => setFaixa(i, 'valor_minimo', Number(e.target.value))} className="h-8 text-xs" />
                       </div>
-                      {faixas.length > 1 && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => setFaixas(fs => fs.filter((_, j) => j !== i))}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">Val. Máximo (0 = sem limite)</Label>
+                        <Input type="number" min={0} value={f.valor_maximo} onChange={e => setFaixa(i, 'valor_maximo', Number(e.target.value))} className="h-8 text-xs" />
+                      </div>
+                      <div className="flex items-end gap-1">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-[10px] text-gray-500">% Base</Label>
+                          <Input type="number" min={0} step={0.1} value={f.percentual} onChange={e => setFaixa(i, 'percentual', Number(e.target.value))} className="h-8 text-xs" />
+                        </div>
+                        {faixas.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => setFaixas(fs => fs.filter((_, j) => j !== i))}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">% Comercial</Label>
+                        <Input type="number" min={0} step={0.1} value={f.pct_comercial ?? ''} placeholder="= Base" onChange={e => setFaixa(i, 'pct_comercial', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">% Operacional</Label>
+                        <Input type="number" min={0} step={0.1} value={f.pct_operacional ?? ''} placeholder="= Base" onChange={e => setFaixa(i, 'pct_operacional', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">% Parceiro</Label>
+                        <Input type="number" min={0} step={0.1} value={f.pct_parceiro ?? ''} placeholder="= Base" onChange={e => setFaixa(i, 'pct_parceiro', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">Piso R$</Label>
+                        <Input type="number" min={0} step={100} value={f.piso_valor} onChange={e => setFaixa(i, 'piso_valor', Number(e.target.value))} className="h-7 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-500">Teto R$ (0 = sem)</Label>
+                        <Input type="number" min={0} step={100} value={f.teto_valor} onChange={e => setFaixa(i, 'teto_valor', Number(e.target.value))} className="h-7 text-xs" />
+                      </div>
                     </div>
                   </div>
                 ))}

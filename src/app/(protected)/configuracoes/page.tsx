@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck, Bot, LayoutTemplate } from 'lucide-react'
+import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
 import { ProdutosLista } from './_components/produtos/ProdutosLista'
@@ -10,6 +10,8 @@ import { RegistrosImoveisLista } from './_components/registros-imoveis/Registros
 import { ChecklistsConfig } from './_components/checklists/ChecklistsConfig'
 import { AgenteFontiConfig } from './_components/bot/AgenteFontiConfig'
 import { AbasConfigTab } from './_components/abas/AbasConfigTab'
+import { AbaComissoesPadrao } from '@/components/configuracoes/AbaComissoesPadrao'
+import { AbaMetas } from '@/components/configuracoes/AbaMetas'
 
 export default function ConfiguracoesPage() {
   return (
@@ -55,6 +57,12 @@ export default function ConfiguracoesPage() {
           </TabsTrigger>
           <TabsTrigger value="abas-lead" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
             <LayoutTemplate className="w-4 h-4 mr-1.5" /> Abas do Lead
+          </TabsTrigger>
+          <TabsTrigger value="comissoes-banco" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
+            <Percent className="w-4 h-4 mr-1.5" /> Comissões Banco
+          </TabsTrigger>
+          <TabsTrigger value="metas" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
+            <Target className="w-4 h-4 mr-1.5" /> Metas
           </TabsTrigger>
         </TabsList>
 
@@ -141,6 +149,25 @@ export default function ConfiguracoesPage() {
               Defina a ordem das abas no modal de detalhe do lead. Apenas administradores podem alterar.
             </p>
             <AbasConfigTab />
+          </div>
+        </TabsContent>
+        <TabsContent value="comissoes-banco">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-medium text-gray-900 mb-1">Comissões por Banco</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Configure o percentual que a empresa recebe de cada banco, por modalidade, com piso e teto por operação.
+            </p>
+            <AbaComissoesPadrao />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="metas">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-medium text-gray-900 mb-1">Metas da Equipe</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Defina as metas mensais de valor financiado e número de contratos. Usadas nas barras de progresso do módulo Emissões.
+            </p>
+            <AbaMetas />
           </div>
         </TabsContent>
       </Tabs>

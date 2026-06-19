@@ -13,8 +13,13 @@ export interface ComissaoPadrao {
   id: string
   empresa_id: string
   banco_id: string
+  modalidade: string           // '' = todas as modalidades
   comissao_empresa: number
   comissao_comercial: number
+  comissao_operacional: number
+  comissao_parceiro: number
+  piso_valor: number
+  teto_valor: number
   banco?: { nome: string; cor: string | null }
 }
 
