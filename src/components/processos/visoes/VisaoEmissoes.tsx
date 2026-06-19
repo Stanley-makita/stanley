@@ -43,13 +43,55 @@ export function VisaoEmissoes() {
   const { data: bancos = [] } = useQuery<PerformanceBanco[]>({
     queryKey: ['processos', 'performance-banco', usuario?.empresa_id, mes, ano],
     queryFn: async () => {
-      const { data: result, error } = await supabase.rpc('performance_por_banco', {
-        p_empresa_id: usuario!.empresa_id,
-        p_mes: mes,
-        p_ano: ano,
-      })
+      const inicioMes = `${ano}-${String(mes).padStart(2, '0')}-01`
+      const ultimoDia = new Date(ano, mes, 0).getDate()
+      const fimMes = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
+
+      const { data, error } = await supabase
+        .from('processos')
+        .select('valor_financiado, banco_id, bancos(nome, cor)')
+        .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
+        .neq('modalidade', 'Contrato')
+        .eq('status_emissao', 'emitido')
+        .not('data_emissao', 'is', null)
+        .gte('data_emissao', inicioMes)
+        .lte('data_emissao', fimMes)
+
       if (error) throw error
-      return result ?? []
+
+      const rows = (data ?? []) as Array<{
+        valor_financiado: number | null
+        banco_id: string | null
+        bancos: { nome: string; cor: string | null } | null
+      }>
+
+      const totalValor = rows.reduce((s, r) => s + (r.valor_financiado ?? 0), 0)
+      const totalContratos = rows.length
+
+      const grouped = new Map<string, { nome: string; cor: string | null; valor: number; qtd: number }>()
+      for (const r of rows) {
+        const nome = r.bancos?.nome ?? 'Sem banco'
+        const key = r.banco_id ?? '__sem_banco__'
+        const ex = grouped.get(key)
+        if (ex) {
+          ex.valor += r.valor_financiado ?? 0
+          ex.qtd++
+        } else {
+          grouped.set(key, { nome, cor: r.bancos?.cor ?? null, valor: r.valor_financiado ?? 0, qtd: 1 })
+        }
+      }
+
+      return Array.from(grouped.values())
+        .sort((a, b) => b.valor - a.valor)
+        .map(g => ({
+          banco_nome: g.nome,
+          banco_cor: g.cor,
+          realizado: g.valor,
+          percentual_valor: totalValor > 0 ? Math.round(g.valor / totalValor * 100 * 1000) / 1000 : 0,
+          num_contratos: g.qtd,
+          percentual_contratos: totalContratos > 0 ? Math.round(g.qtd / totalContratos * 100 * 1000) / 1000 : 0,
+        }))
     },
     enabled: !!usuario,
   })
