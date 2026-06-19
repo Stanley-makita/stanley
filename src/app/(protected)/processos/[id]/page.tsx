@@ -11,7 +11,10 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Wallet, Calendar, TrendingUp, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail } from 'lucide-react'
+import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
+import { AlertaVencimentoModal } from '@/components/processos/detalhe/AlertaVencimentoModal'
+import { useAlertasVencimento } from '@/hooks/processos/useAlertasVencimento'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -85,6 +88,11 @@ export default function ProcessoDetalhePage() {
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
+  const { alertasPendentes, confirmar: confirmarAlertas } = useAlertasVencimento(id, {
+    validade_credito:    (processo as any)?.validade_credito,
+    validade_engenharia: (processo as any)?.validade_engenharia,
+    validade_matricula:  (processo as any)?.validade_matricula,
+  })
 
   if (carregando || isLoading) {
     return (
@@ -253,32 +261,41 @@ export default function ProcessoDetalhePage() {
           </p>
         </div>
 
-        {/* 4 KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Chance de Fechamento', valor: 'Alta', icone: TrendingUp, destaque: true },
-            { label: 'Dias em Andamento',    valor: `${diasEmAndamento} dias`, icone: Calendar },
-            { label: 'Valor do Imóvel',      valor: formatarMoeda(processo.valor_imovel), icone: Building2 },
-            { label: 'Saldo da Conta',       valor: formatarMoeda(0), icone: Wallet },
-          ].map(({ label, valor, icone: Icone, destaque }) => (
-            <div
-              key={label}
-              className={`rounded-xl border p-4 flex items-center gap-3 ${
-                destaque
-                  ? 'bg-[#E7E0C4] border-[#C2AA6A]'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="w-9 h-9 bg-white/50 rounded-lg flex items-center justify-center shrink-0">
-                <Icone className="h-4 w-4 text-[#253B29]" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className="text-sm font-bold text-[#253B29]">{valor}</p>
-              </div>
+        {/* KPIs + Validades */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {/* Valor do Imóvel */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+            <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+              <Building2 className="h-4 w-4 text-[#253B29]" />
             </div>
-          ))}
+            <div>
+              <p className="text-xs text-gray-500">Valor do Imóvel</p>
+              <p className="text-sm font-bold text-[#253B29]">{formatarMoeda(processo.valor_imovel)}</p>
+            </div>
+          </div>
+
+          {/* Dias em Andamento */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+            <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+              <Calendar className="h-4 w-4 text-[#253B29]" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Dias em Andamento</p>
+              <p className="text-sm font-bold text-[#253B29]">{diasEmAndamento} dias</p>
+            </div>
+          </div>
+
+          {/* Validades */}
+          <ValidadeCard processoId={id} tipo="credito"    label="Validade Crédito"     data={(processo as any).validade_credito} />
+          <ValidadeCard processoId={id} tipo="engenharia" label="Validade Engenharia"   data={(processo as any).validade_engenharia} />
+          <ValidadeCard processoId={id} tipo="matricula"  label="Validade Matrícula"    data={(processo as any).validade_matricula} />
         </div>
+
+        <AlertaVencimentoModal
+          alertas={alertasPendentes}
+          onConfirmar={() => confirmarAlertas.mutate(alertasPendentes)}
+          isPending={confirmarAlertas.isPending}
+        />
 
         {/* Abas */}
         <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
