@@ -60,7 +60,7 @@ export function VisaoEmissoes() {
 
       if (error) throw error
 
-      const rows = (data ?? []) as Array<{
+      const rows = (data ?? []) as unknown as Array<{
         valor_financiado: number | null
         banco_id: string | null
         bancos: { nome: string; cor: string | null } | null
