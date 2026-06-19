@@ -31,7 +31,7 @@ import { useConversasBadge } from '@/hooks/conversas/useConversasBadge'
 
 const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/leads',             label: 'Leads',        icon: Users },
+  { href: '/leads',             label: 'Comercial',    icon: Users },
   { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle },
   { href: '/imoveis',           label: 'Imóveis',      icon: Building2 },
 ]

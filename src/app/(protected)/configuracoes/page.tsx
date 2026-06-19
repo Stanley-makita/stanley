@@ -1,5 +1,12 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Users, Layers, Smartphone, Calculator, Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target } from 'lucide-react'
+'use client'
+
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import {
+  Settings, Building2, Users, Layers, Smartphone, Calculator,
+  Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target,
+  Package, ChevronRight, ArrowLeft,
+} from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
 import { ProdutosLista } from './_components/produtos/ProdutosLista'
@@ -13,164 +20,174 @@ import { AbasConfigTab } from './_components/abas/AbasConfigTab'
 import { AbaComissoesPadrao } from '@/components/configuracoes/AbaComissoesPadrao'
 import { AbaMetas } from '@/components/configuracoes/AbaMetas'
 
-export default function ConfiguracoesPage() {
+interface ConfigItem {
+  key: string
+  label: string
+  descricao: string
+  icon: React.ElementType
+}
+
+interface ConfigGrupo {
+  titulo: string
+  itens: ConfigItem[]
+}
+
+const GRUPOS: ConfigGrupo[] = [
+  {
+    titulo: 'Pipeline',
+    itens: [
+      { key: 'fases',      label: 'Fases',         descricao: 'Etapas do pipeline de crédito, consórcio e contratos',  icon: Layers },
+      { key: 'checklists', label: 'Checklists',     descricao: 'Itens de verificação obrigatórios por fase',             icon: ClipboardCheck },
+      { key: 'abas-lead',  label: 'Abas do Lead',   descricao: 'Ordem e visibilidade das abas no modal de lead',         icon: LayoutTemplate },
+    ],
+  },
+  {
+    titulo: 'Comercial & Financeiro',
+    itens: [
+      { key: 'bancos',          label: 'Bancos',            descricao: 'Bancos e instituições parceiras',                       icon: Building2 },
+      { key: 'produtos',        label: 'Produtos',          descricao: 'Produtos e modalidades de crédito oferecidos',          icon: Package },
+      { key: 'comissoes-banco', label: 'Comissões Banco',   descricao: 'Percentuais por banco, modalidade, piso e teto',        icon: Percent },
+      { key: 'metas',           label: 'Metas',             descricao: 'Metas mensais de valor financiado e contratos',         icon: Target },
+      { key: 'simulador',       label: 'Simulador',         descricao: 'Parâmetros de custas, ITBI e tarifas bancárias',        icon: Calculator },
+    ],
+  },
+  {
+    titulo: 'Imóveis',
+    itens: [
+      { key: 'registros-imoveis', label: 'Registros de Imóveis', descricao: 'Cartórios de RI utilizados nos processos', icon: Landmark },
+    ],
+  },
+  {
+    titulo: 'Usuários & Equipe',
+    itens: [
+      { key: 'usuarios', label: 'Usuários', descricao: 'Gerencie usuários, acessos e permissões', icon: Users },
+    ],
+  },
+  {
+    titulo: 'Comunicação & Automação',
+    itens: [
+      { key: 'instancias',   label: 'Instâncias WhatsApp', descricao: 'Números e instâncias conectadas ao sistema',            icon: Smartphone },
+      { key: 'agente-fonti', label: 'Agente Fonti',        descricao: 'Comportamento do assistente virtual no WhatsApp',       icon: Bot },
+    ],
+  },
+]
+
+const TODOS_ITENS = GRUPOS.flatMap(g => g.itens)
+
+function renderConteudo(key: string) {
+  const wrap = (titulo: string, descricao: string, children: React.ReactNode) => (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+      <h2 className="text-base font-medium text-gray-900 mb-1">{titulo}</h2>
+      {descricao && <p className="text-sm text-gray-500 mb-6">{descricao}</p>}
+      {children}
+    </div>
+  )
+
+  switch (key) {
+    case 'fases':            return wrap('Fases do Processo', 'Defina as etapas do pipeline. Arraste para reordenar.', <FasesLista />)
+    case 'bancos':           return wrap('Bancos Parceiros', '', <BancosLista />)
+    case 'produtos':         return wrap('Produtos e Serviços', '', <ProdutosLista />)
+    case 'usuarios':         return wrap('Usuários', '', <UsuariosLista />)
+    case 'instancias':       return wrap('Instâncias WhatsApp', '', <InstanciasLista />)
+    case 'simulador':        return wrap('Simulador de Custas', 'Configure parâmetros de cálculo, tarifas bancárias e alíquotas de ITBI por município.', <SimuladorConfigTab />)
+    case 'registros-imoveis': return wrap('Registros de Imóveis', 'Cadastre os cartórios de RI utilizados nos processos.', <RegistrosImoveisLista />)
+    case 'checklists':       return wrap('Checklists por Fase', 'Itens obrigatórios bloqueiam o avanço de fase no processo.', <ChecklistsConfig />)
+    case 'agente-fonti':     return wrap('Agente Fonti', 'Personalize o assistente virtual no WhatsApp — nome, horário, produtos e mensagens.', <AgenteFontiConfig />)
+    case 'abas-lead':        return wrap('Abas do Lead', 'Defina a ordem das abas no modal de detalhe do lead.', <AbasConfigTab />)
+    case 'comissoes-banco':  return wrap('Comissões por Banco', 'Configure o percentual por banco e modalidade, com piso e teto por operação.', <AbaComissoesPadrao />)
+    case 'metas':            return wrap('Metas da Equipe', 'Metas mensais de valor financiado e número de contratos.', <AbaMetas />)
+    default:                 return null
+  }
+}
+
+function ConfiguracoesInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const abaAtiva = searchParams.get('aba')
+
+  const itemAtivo = abaAtiva ? TODOS_ITENS.find(i => i.key === abaAtiva) : null
+
+  function navegar(key: string) {
+    router.push(`/configuracoes?aba=${key}`)
+  }
+
+  function voltar() {
+    router.push('/configuracoes')
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
+          {itemAtivo && (
+            <button onClick={voltar} className="p-1 rounded hover:bg-gray-100 transition-colors mr-1">
+              <ArrowLeft className="w-4 h-4 text-gray-500" />
+            </button>
+          )}
           <Settings className="w-5 h-5 text-[#C2AA6A]" />
-          <h1 className="text-xl font-semibold text-[#253B29]">Configurações</h1>
+          <h1 className="text-xl font-semibold text-[#253B29]">
+            {itemAtivo ? itemAtivo.label : 'Configurações'}
+          </h1>
         </div>
-        <p className="text-sm text-gray-500">
-          Gerencie fases do processo, bancos parceiros, produtos, usuários, instâncias WhatsApp e registros de imóveis.
-        </p>
+        {!itemAtivo && (
+          <p className="text-sm text-gray-500 ml-7">
+            Gerencie pipeline, comercial, usuários, comunicação e automação.
+          </p>
+        )}
+        {itemAtivo && (
+          <p className="text-sm text-gray-400 ml-7">
+            <button onClick={voltar} className="hover:underline">Configurações</button>
+            <ChevronRight className="inline w-3 h-3 mx-1" />
+            {itemAtivo.label}
+          </p>
+        )}
       </div>
 
-      <Tabs defaultValue="fases">
-        <TabsList className="bg-[#253B29]/10 mb-6">
-          <TabsTrigger value="fases" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Layers className="w-4 h-4 mr-1.5" /> Fases
-          </TabsTrigger>
-          <TabsTrigger value="bancos" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Building2 className="w-4 h-4 mr-1.5" /> Bancos
-          </TabsTrigger>
-          <TabsTrigger value="produtos" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Settings className="w-4 h-4 mr-1.5" /> Produtos
-          </TabsTrigger>
-          <TabsTrigger value="usuarios" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Users className="w-4 h-4 mr-1.5" /> Usuários
-          </TabsTrigger>
-          <TabsTrigger value="instancias" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Smartphone className="w-4 h-4 mr-1.5" /> Instâncias
-          </TabsTrigger>
-          <TabsTrigger value="simulador" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Calculator className="w-4 h-4 mr-1.5" /> Simulador
-          </TabsTrigger>
-          <TabsTrigger value="registros-imoveis" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Landmark className="w-4 h-4 mr-1.5" /> Reg. Imóveis
-          </TabsTrigger>
-          <TabsTrigger value="checklists" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <ClipboardCheck className="w-4 h-4 mr-1.5" /> Checklists
-          </TabsTrigger>
-          <TabsTrigger value="agente-fonti" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Bot className="w-4 h-4 mr-1.5" /> Agente Fonti
-          </TabsTrigger>
-          <TabsTrigger value="abas-lead" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <LayoutTemplate className="w-4 h-4 mr-1.5" /> Abas do Lead
-          </TabsTrigger>
-          <TabsTrigger value="comissoes-banco" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Percent className="w-4 h-4 mr-1.5" /> Comissões Banco
-          </TabsTrigger>
-          <TabsTrigger value="metas" className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
-            <Target className="w-4 h-4 mr-1.5" /> Metas
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="fases">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-4">Fases do Processo</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Defina as etapas do processo de crédito. Arraste para reordenar.
-            </p>
-            <FasesLista />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="bancos">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-4">Bancos Parceiros</h2>
-            <BancosLista />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="produtos">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-4">Produtos e Serviços</h2>
-            <ProdutosLista />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="usuarios">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-4">Usuários</h2>
-            <UsuariosLista />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="instancias">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-4">Instâncias WhatsApp</h2>
-            <InstanciasLista />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="simulador">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Simulador de Custas</h2>
-            <p className="text-sm text-gray-500 mb-6">Configure parâmetros de cálculo, tarifas bancárias e alíquotas de ITBI por município.</p>
-            <SimuladorConfigTab />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="registros-imoveis">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Registros de Imóveis</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Cadastre os cartórios de Registro de Imóveis utilizados nos processos. Exemplos: 1º RI Maringá, 2º RI Maringá, RI Sarandi.
-            </p>
-            <RegistrosImoveisLista />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="checklists">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Checklists por Fase</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Configure os itens de verificação de cada fase. Itens obrigatórios bloqueiam o avanço de fase no processo.
-            </p>
-            <ChecklistsConfig />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="agente-fonti">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Agente Fonti</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Personalize o comportamento do assistente virtual no WhatsApp — nome, horário, produtos e mensagens.
-            </p>
-            <AgenteFontiConfig />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="abas-lead">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Abas do Lead</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Defina a ordem das abas no modal de detalhe do lead. Apenas administradores podem alterar.
-            </p>
-            <AbasConfigTab />
-          </div>
-        </TabsContent>
-        <TabsContent value="comissoes-banco">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Comissões por Banco</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Configure o percentual que a empresa recebe de cada banco, por modalidade, com piso e teto por operação.
-            </p>
-            <AbaComissoesPadrao />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="metas">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-medium text-gray-900 mb-1">Metas da Equipe</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Defina as metas mensais de valor financiado e número de contratos. Usadas nas barras de progresso do módulo Emissões.
-            </p>
-            <AbaMetas />
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* Conteúdo ativo */}
+      {itemAtivo ? (
+        renderConteudo(itemAtivo.key)
+      ) : (
+        /* Grid de categorias */
+        <div className="space-y-8">
+          {GRUPOS.map(grupo => (
+            <div key={grupo.titulo}>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                {grupo.titulo}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {grupo.itens.map(item => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => navegar(item.key)}
+                      className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-[#253B29]/30 hover:shadow-sm transition-all text-left group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#253B29]/10 flex items-center justify-center shrink-0 group-hover:bg-[#253B29]/20 transition-colors">
+                        <Icon className="w-4 h-4 text-[#253B29]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#253B29]">{item.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{item.descricao}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 shrink-0 mt-0.5 transition-colors" />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+export default function ConfiguracoesPage() {
+  return (
+    <Suspense>
+      <ConfiguracoesInner />
+    </Suspense>
   )
 }
