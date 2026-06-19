@@ -27,6 +27,7 @@ import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
 import { EditarProcessoDrawer } from '@/components/processos/EditarProcessoDrawer'
 import { useAtualizarChanceEmissao, useAtualizarImovelProcesso } from '@/hooks/processos/useProcessos'
+import { useProcessoFasesHistorico } from '@/hooks/processos/useProcessoFasesHistorico'
 import { BlocoImovel } from '@/components/imoveis/BlocoImovel'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
@@ -94,6 +95,7 @@ export default function ProcessoDetalhePage() {
     validade_engenharia: (processo as any)?.validade_engenharia,
     validade_matricula:  (processo as any)?.validade_matricula,
   })
+  const { data: fasesHistorico = [] } = useProcessoFasesHistorico(id)
 
   if (carregando || isLoading) {
     return (
@@ -265,10 +267,13 @@ export default function ProcessoDetalhePage() {
         {/* KPIs + Validades */}
         {(() => {
           const faseEng = processo.fase_atual?.nome?.toLowerCase().includes('engenharia') ?? false
-          const temEngenharia = faseEng || Boolean((processo as any).validade_engenharia || (processo as any).valor_engenharia)
-          const temMatricula  = faseEng || Boolean((processo as any).validade_matricula)
+          const jaPasoiEngenharia = fasesHistorico.some(h => h.fase?.nome?.toLowerCase().includes('engenharia'))
+          const temEngenharia = faseEng || jaPasoiEngenharia || Boolean((processo as any).validade_engenharia || (processo as any).valor_engenharia)
+          const temMatricula  = faseEng || jaPasoiEngenharia || Boolean((processo as any).validade_matricula)
+          const numCards = 3 + (temMatricula ? 1 : 0) + (temEngenharia ? 1 : 0)
+          const gridColsClass = numCards <= 3 ? 'grid-cols-2 md:grid-cols-3' : numCards === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-5'
           return (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className={`grid ${gridColsClass} gap-3`}>
               {/* Valor do Imóvel */}
               <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
