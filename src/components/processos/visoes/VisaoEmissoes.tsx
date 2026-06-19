@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useMetas } from '@/hooks/configuracoes/useMetas'
+import { useBancos } from '@/hooks/useBancos'
 import { ChevronLeft, ChevronRight, BarChart2, TrendingUp, Package, CheckCircle2, Clock } from 'lucide-react'
 import { fmtData } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { type ResumoEstoque, type PerformanceBanco, type EmissaoSemana } from '@/types/processos'
+import { type ResumoEstoque, type EmissaoSemana } from '@/types/processos'
 
 function fmt(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
@@ -26,6 +27,9 @@ export function VisaoEmissoes() {
   const ano = data.getFullYear()
   const nomeMes = data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
+  // Todos os bancos cadastrados (para exibir mesmo os que não emitiram)
+  const { data: todosBancos = [] } = useBancos()
+
   const { data: emissoes = [] } = useQuery<EmissaoSemana[]>({
     queryKey: ['processos', 'emissoes', usuario?.empresa_id, mes, ano],
     queryFn: async () => {
@@ -40,16 +44,17 @@ export function VisaoEmissoes() {
     enabled: !!usuario,
   })
 
-  const { data: bancos = [] } = useQuery<PerformanceBanco[]>({
-    queryKey: ['processos', 'performance-banco', usuario?.empresa_id, mes, ano],
+  // Query simples: só banco_id + valor dos processos emitidos no mês
+  const { data: emitidosRaw = [] } = useQuery<Array<{ banco_id: string | null; valor_financiado: number | null }>>({
+    queryKey: ['processos', 'emitidos-banco-raw', usuario?.empresa_id, mes, ano],
     queryFn: async () => {
       const inicioMes = `${ano}-${String(mes).padStart(2, '0')}-01`
       const ultimoDia = new Date(ano, mes, 0).getDate()
-      const fimMes = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
+      const fimMes   = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
 
-      const { data, error } = await supabase
+      const { data: rows, error } = await supabase
         .from('processos')
-        .select('valor_financiado, banco_id, bancos(nome, cor)')
+        .select('banco_id, valor_financiado')
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
         .neq('modalidade', 'Contrato')
@@ -59,42 +64,36 @@ export function VisaoEmissoes() {
         .lte('data_emissao', fimMes)
 
       if (error) throw error
-
-      const rows = (data ?? []) as unknown as Array<{
-        valor_financiado: number | null
-        banco_id: string | null
-        bancos: { nome: string; cor: string | null } | null
-      }>
-
-      const totalValor = rows.reduce((s, r) => s + (r.valor_financiado ?? 0), 0)
-      const totalContratos = rows.length
-
-      const grouped = new Map<string, { nome: string; cor: string | null; valor: number; qtd: number }>()
-      for (const r of rows) {
-        const nome = r.bancos?.nome ?? 'Sem banco'
-        const key = r.banco_id ?? '__sem_banco__'
-        const ex = grouped.get(key)
-        if (ex) {
-          ex.valor += r.valor_financiado ?? 0
-          ex.qtd++
-        } else {
-          grouped.set(key, { nome, cor: r.bancos?.cor ?? null, valor: r.valor_financiado ?? 0, qtd: 1 })
-        }
-      }
-
-      return Array.from(grouped.values())
-        .sort((a, b) => b.valor - a.valor)
-        .map(g => ({
-          banco_nome: g.nome,
-          banco_cor: g.cor,
-          realizado: g.valor,
-          percentual_valor: totalValor > 0 ? Math.round(g.valor / totalValor * 100 * 1000) / 1000 : 0,
-          num_contratos: g.qtd,
-          percentual_contratos: totalContratos > 0 ? Math.round(g.qtd / totalContratos * 100 * 1000) / 1000 : 0,
-        }))
+      return (rows ?? []) as Array<{ banco_id: string | null; valor_financiado: number | null }>
     },
     enabled: !!usuario,
   })
+
+  // Monta tabela de banco cruzando todosBancos com os emitidos do mês
+  const bancosPerformance = useMemo(() => {
+    const agrupado = new Map<string, { valor: number; qtd: number }>()
+    for (const r of emitidosRaw) {
+      const key = r.banco_id ?? '__sem_banco__'
+      const ex = agrupado.get(key)
+      if (ex) { ex.valor += r.valor_financiado ?? 0; ex.qtd++ }
+      else agrupado.set(key, { valor: r.valor_financiado ?? 0, qtd: 1 })
+    }
+
+    const totalValor = emitidosRaw.reduce((s, r) => s + (r.valor_financiado ?? 0), 0)
+    const totalQtd   = emitidosRaw.length
+
+    return todosBancos.map(b => {
+      const d = agrupado.get(b.id) ?? { valor: 0, qtd: 0 }
+      return {
+        banco_nome:           b.nome,
+        banco_cor:            b.cor ?? null,
+        realizado:            d.valor,
+        percentual_valor:     totalValor > 0 ? Math.round(d.valor / totalValor * 100 * 1000) / 1000 : 0,
+        num_contratos:        d.qtd,
+        percentual_contratos: totalQtd > 0   ? Math.round(d.qtd   / totalQtd   * 100 * 1000) / 1000 : 0,
+      }
+    }).sort((a, b) => b.realizado - a.realizado)
+  }, [todosBancos, emitidosRaw])
 
   const { data: estoque } = useQuery<ResumoEstoque>({
     queryKey: ['processos', 'resumo-estoque', usuario?.empresa_id],
@@ -129,6 +128,8 @@ export function VisaoEmissoes() {
       return nova
     })
   }
+
+  const temEmissoes = emitidosRaw.length > 0
 
   return (
     <div className="space-y-5">
@@ -229,7 +230,7 @@ export function VisaoEmissoes() {
           </div>
         </div>
 
-        {/* Tabela por banco */}
+        {/* Tabela por banco — todos os bancos cadastrados */}
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <p className="text-sm font-semibold text-[#253B29] mb-4">Realizado por banco</p>
           <div className="overflow-x-auto">
@@ -242,13 +243,13 @@ export function VisaoEmissoes() {
                 </tr>
               </thead>
               <tbody>
-                {bancos.length === 0 ? (
+                {bancosPerformance.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-xs text-gray-400">Nenhuma emissão no período</td>
+                    <td colSpan={5} className="py-6 text-center text-xs text-gray-400">Nenhum banco cadastrado</td>
                   </tr>
                 ) : (
-                  bancos.map((b, i) => (
-                    <tr key={i} className="border-b border-gray-50 last:border-0">
+                  bancosPerformance.map((b, i) => (
+                    <tr key={i} className={`border-b border-gray-50 last:border-0 ${b.realizado === 0 ? 'opacity-50' : ''}`}>
                       <td className="py-2.5 pr-3">
                         <div className="flex items-center gap-1.5">
                           <div
@@ -258,14 +259,16 @@ export function VisaoEmissoes() {
                           <span className="text-xs font-medium text-[#253B29] whitespace-nowrap">{b.banco_nome}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 pr-3 text-blue-600 font-medium whitespace-nowrap">{fmt(b.realizado)}</td>
-                      <td className="py-2.5 pr-3 text-gray-600">{pct(b.percentual_valor)}</td>
-                      <td className="py-2.5 pr-3 font-medium text-[#253B29]">{b.num_contratos}</td>
-                      <td className="py-2.5 text-gray-600">{pct(b.percentual_contratos)}</td>
+                      <td className={`py-2.5 pr-3 font-medium whitespace-nowrap ${b.realizado > 0 ? 'text-blue-600' : 'text-gray-300'}`}>
+                        {fmt(b.realizado)}
+                      </td>
+                      <td className={`py-2.5 pr-3 ${b.realizado > 0 ? 'text-gray-600' : 'text-gray-300'}`}>{pct(b.percentual_valor)}</td>
+                      <td className={`py-2.5 pr-3 font-medium ${b.realizado > 0 ? 'text-[#253B29]' : 'text-gray-300'}`}>{b.num_contratos}</td>
+                      <td className={`py-2.5 ${b.realizado > 0 ? 'text-gray-600' : 'text-gray-300'}`}>{pct(b.percentual_contratos)}</td>
                     </tr>
                   ))
                 )}
-                {bancos.length > 0 && (
+                {temEmissoes && (
                   <tr className="bg-gray-50">
                     <td className="py-2.5 pr-3 font-bold text-[#253B29] text-xs">Total</td>
                     <td className="py-2.5 pr-3 font-bold text-blue-600 whitespace-nowrap">{fmt(totalProducao)}</td>
