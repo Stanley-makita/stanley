@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -72,14 +73,15 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   return (
     <aside className={cn('flex min-h-screen w-60 flex-col bg-[#253B29] text-white', className)}>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-9 h-9 bg-[#C2AA6A] rounded-lg flex items-center justify-center shrink-0">
-          <span className="text-[#253B29] font-bold text-lg">F</span>
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold leading-tight truncate">Fontinhas</p>
-          <p className="text-xs text-white/50 truncate">Assessoria</p>
-        </div>
+      <div className="flex items-center justify-center px-4 py-4 border-b border-white/10">
+        <Image
+          src="/images/logos/logotipo retangular fontinhas assessoria.jpg"
+          alt="Fontinhas Assessoria"
+          width={180}
+          height={90}
+          className="object-contain"
+          priority
+        />
       </div>
 
       {/* Nav principal */}

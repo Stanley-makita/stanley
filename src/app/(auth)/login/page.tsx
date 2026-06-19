@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -38,11 +39,17 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#253B29] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-6">
         <div className="text-center">
-          <div className="w-16 h-16 bg-[#253B29] rounded-xl mx-auto flex items-center justify-center mb-3">
-            <span className="text-[#C2AA6A] text-2xl font-bold">F</span>
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/images/logos/logotipo quadrado fontinhas assessoria.jpg"
+              alt="Fontinhas Assessoria"
+              width={96}
+              height={96}
+              className="rounded-xl object-cover"
+              priority
+            />
           </div>
-          <h1 className="text-xl font-bold text-[#253B29]">Fontinhas Assessoria</h1>
-          <p className="text-sm text-gray-500 mt-1">Acesse sua conta</p>
+          <p className="text-sm text-gray-500">Acesse sua conta</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
