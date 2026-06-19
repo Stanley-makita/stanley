@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Loader2, User, Users, FileText } from 'lucide-react'
+import { Search, Loader2, User, Users, FileText, Menu } from 'lucide-react'
 import { useBuscaGlobal, type ResultadoBusca } from '@/hooks/busca/useBuscaGlobal'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { SinoNotificacoes } from './SinoNotificacoes'
@@ -12,7 +12,11 @@ function iniciais(nome: string) {
   return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
 }
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void
+}
+
+export function Topbar({ onMenuClick }: TopbarProps) {
   const router = useRouter()
   const { data: usuario } = useUsuarioAtual()
   const { termo, setTermo, resultados, buscando, aberto, setAberto, limpar } = useBuscaGlobal()
@@ -58,10 +62,18 @@ export function Topbar() {
   }
 
   return (
-    <header className="h-14 border-b border-gray-200 bg-white flex items-center px-6 gap-4 shrink-0 z-30">
+    <header className="h-14 border-b border-gray-200 bg-white flex items-center px-4 md:px-6 gap-3 md:gap-4 shrink-0 z-30">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 lg:hidden"
+        aria-label="Abrir menu"
+      >
+        <Menu className="h-4 w-4" />
+      </button>
 
       {/* Busca global */}
-      <div ref={wrapperRef} className="relative flex-1 max-w-md">
+      <div ref={wrapperRef} className="relative min-w-0 flex-1 max-w-md">
         <div className="relative">
           {buscando
             ? <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin pointer-events-none" />

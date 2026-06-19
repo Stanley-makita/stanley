@@ -9,6 +9,7 @@ import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton'
 import { DashboardComercial } from '@/components/dashboard/DashboardComercial'
 import { DashboardOperacional } from '@/components/dashboard/DashboardOperacional'
 import { DashboardJuridico } from '@/components/dashboard/DashboardJuridico'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { useDashboardKpis, useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { useAuth } from '@/hooks/auth/useAuth'
 
@@ -37,15 +38,11 @@ function DashboardGestor() {
   const totalMembros = membros?.length ?? 0
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#253B29]">
-          {saudacao()}, {usuario?.nome?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Aqui está o resumo de hoje — Fontinhas Assessoria
-        </p>
-      </div>
+    <div className="space-y-6 p-6">
+      <PageHeader
+        title={`${saudacao()}, ${usuario?.nome?.split(' ')[0] ?? ''}`}
+        description="Aqui está o resumo de hoje - Fontinhas Assessoria"
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard

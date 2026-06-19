@@ -11,8 +11,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { FilterChip } from '@/components/ui/filter-chip'
+import { EmptyState } from '@/components/ui/empty-state'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { TableShell } from '@/components/ui/table-shell'
 import { useRouter } from 'next/navigation'
-import { Download, Search, ChevronDown, Filter, X } from 'lucide-react'
+import { Download, Search, ChevronDown, Filter, X, ClipboardList } from 'lucide-react'
 import { fmtData } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
@@ -220,15 +224,14 @@ export function VisaoTabela({ produtoFixo }: Props) {
         ]).map((f) => {
           const count = f.value === 'todos' ? processos.length : (contagemStatus[f.value] ?? 0)
           return (
-            <button
+            <FilterChip
               key={f.value}
+              active={statusFiltro === f.value}
+              count={count}
               onClick={() => setStatusFiltro(f.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                statusFiltro === f.value ? 'bg-[#253B29] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
             >
-              {f.label}{count > 0 && <span className="ml-1 opacity-70">{count}</span>}
-            </button>
+              {f.label}
+            </FilterChip>
           )
         })}
 
@@ -272,8 +275,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
       )}
 
       {/* Tabela */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <TableShell>
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: '#253B29' }} className="hover:bg-[#253B29]">
@@ -307,7 +309,13 @@ export function VisaoTabela({ produtoFixo }: Props) {
                 </TableRow>
               ) : filteredProcessos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">Nenhum processo encontrado.</TableCell>
+                  <TableCell colSpan={totalColunas} className="py-10">
+                    <EmptyState
+                      icon={ClipboardList}
+                      title="Nenhum processo encontrado"
+                      description="Ajuste os filtros ou a busca para ampliar os resultados."
+                    />
+                  </TableCell>
                 </TableRow>
               ) : (
                 filteredProcessos.map((p) => {
@@ -337,15 +345,15 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={p.status_emissao === 'emitido' ? 'text-xs bg-green-50 text-green-700 border-green-200 whitespace-nowrap' : 'text-xs bg-gray-50 text-gray-500 border-gray-200 whitespace-nowrap'}>
+                        <StatusBadge variant={p.status_emissao === 'emitido' ? 'success' : 'neutral'}>
                           {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
-                        </Badge>
+                        </StatusBadge>
                       </TableCell>
                       <TableCell><ChanceBadge chance={p.chance_emissao} /></TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={p.tem_assessoria ? 'text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]' : 'text-xs bg-gray-50 text-gray-400'}>
+                        <StatusBadge variant={p.tem_assessoria ? 'brand' : 'neutral'}>
                           {p.tem_assessoria ? 'Sim' : 'Não'}
-                        </Badge>
+                        </StatusBadge>
                       </TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap">
                         {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
@@ -375,8 +383,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
               )}
             </TableBody>
           </Table>
-        </div>
-      </div>
+      </TableShell>
     </div>
   )
 }

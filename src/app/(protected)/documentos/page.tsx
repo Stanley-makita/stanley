@@ -1,8 +1,23 @@
+import { PageHeader } from '@/components/layout/PageHeader'
+import { EmptyState } from '@/components/ui/empty-state'
+import { FileText } from 'lucide-react'
+
 export default function DocumentosPage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-[#253B29] mb-2">Documentos</h1>
-      <p className="text-gray-500 text-sm">Gestão de documentos</p>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        title="Documentos"
+        description="Gestão de documentos"
+      />
+
+      <div className="rounded-xl border border-gray-200 bg-white">
+        <EmptyState
+          icon={FileText}
+          title="Biblioteca de documentos em preparação"
+          description="Os documentos já podem ser acessados nos detalhes de leads e processos vinculados."
+          className="min-h-[280px] px-6"
+        />
+      </div>
     </div>
   )
 }

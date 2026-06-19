@@ -4,6 +4,7 @@ import { AlertCircle, Loader2, CheckCircle2, ListTodo } from 'lucide-react'
 import { KpiCard } from './KpiCard'
 import { DashboardSkeleton } from './DashboardSkeleton'
 import { useDashboardKpisOperacional } from '@/hooks/dashboard/useDashboardPerfil'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 function saudacao(): string {
   const h = new Date().getHours()
@@ -20,13 +21,11 @@ export function DashboardOperacional({ nome }: Props) {
   if (isLoading) return <DashboardSkeleton />
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#253B29]">
-          {saudacao()}, {nome?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">Suas solicitações operacionais — Fontinhas Assessoria</p>
-      </div>
+    <div className="space-y-6 p-6">
+      <PageHeader
+        title={`${saudacao()}, ${nome?.split(' ')[0] ?? ''}`}
+        description="Suas solicitações operacionais - Fontinhas Assessoria"
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard

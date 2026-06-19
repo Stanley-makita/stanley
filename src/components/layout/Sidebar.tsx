@@ -52,7 +52,12 @@ const adminItems = [
   { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  className?: string
+  onNavigate?: () => void
+}
+
+export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const { data: usuario } = useUsuarioAtual()
   const { sair } = useAuth()
@@ -65,7 +70,7 @@ export function Sidebar() {
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
   return (
-    <aside className="flex flex-col w-60 min-h-screen bg-[#253B29] text-white">
+    <aside className={cn('flex min-h-screen w-60 flex-col bg-[#253B29] text-white', className)}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
         <div className="w-9 h-9 bg-[#C2AA6A] rounded-lg flex items-center justify-center shrink-0">
@@ -86,6 +91,7 @@ export function Sidebar() {
             <div key={href} className="relative">
               <Link
                 href={href}
+                onClick={onNavigate}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   active
@@ -113,6 +119,7 @@ export function Sidebar() {
           return (
             <Link
               href="/negocios"
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 negociosActive
@@ -135,6 +142,7 @@ export function Sidebar() {
             <div key={href} className="relative">
               <Link
                 href={href}
+                onClick={onNavigate}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   active
@@ -171,6 +179,7 @@ export function Sidebar() {
               const active = pathname === href || pathname.startsWith(href + '/')
               return (
                 <Link key={href} href={href}
+                  onClick={onNavigate}
                   className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                     active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
                   )}>
@@ -191,6 +200,7 @@ export function Sidebar() {
                 <Link
                   key={href}
                   href={href}
+                  onClick={onNavigate}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                     active

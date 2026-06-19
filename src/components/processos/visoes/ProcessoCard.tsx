@@ -5,6 +5,7 @@ import { type Processo, type ModalidadeProcesso } from '@/types/processos'
 import { ProcessoStatusBadge } from '../ProcessoStatusBadge'
 import { ChanceBadge } from '../ChanceBadge'
 import { useSolicitacoesAbertasPorProcesso } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorProcesso'
+import { EntityCard } from '@/components/ui/entity-card'
 import { Building2, User, Calendar, Clock } from 'lucide-react'
 import { fmtData } from '@/lib/utils'
 
@@ -36,8 +37,8 @@ export function ProcessoCard({ processo }: Props) {
   const modalidadeCfg = MODALIDADE_CONFIG[processo.modalidade]
 
   return (
-    <div
-      className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-[#C2AA6A] transition-all"
+    <EntityCard
+      interactive
       onClick={() => {
         const rota = processo.modalidade === 'Consorcio'
           ? `/negocios/consorcio/${processo.id}`
@@ -127,6 +128,6 @@ export function ProcessoCard({ processo }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </EntityCard>
   )
 }

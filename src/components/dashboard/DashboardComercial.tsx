@@ -5,6 +5,7 @@ import { KpiCard } from './KpiCard'
 import { AtividadeRecente } from './AtividadeRecente'
 import { useDashboardKpisComercial } from '@/hooks/dashboard/useDashboardPerfil'
 import { DashboardSkeleton } from './DashboardSkeleton'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 function saudacao(): string {
   const h = new Date().getHours()
@@ -25,13 +26,11 @@ export function DashboardComercial({ nome }: Props) {
     : 0
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#253B29]">
-          {saudacao()}, {nome?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">Seu desempenho comercial — Fontinhas Assessoria</p>
-      </div>
+    <div className="space-y-6 p-6">
+      <PageHeader
+        title={`${saudacao()}, ${nome?.split(' ')[0] ?? ''}`}
+        description="Seu desempenho comercial - Fontinhas Assessoria"
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard

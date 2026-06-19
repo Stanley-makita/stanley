@@ -10,11 +10,18 @@ import { DashboardLeads } from '@/components/leads/DashboardLeads'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { UserPlus, Columns, List, Search, LayoutDashboard } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 type Visao = 'dashboard' | 'kanban' | 'lista'
 type FiltroLista = 'inativos' | undefined
+
+const VISOES_LEADS = [
+  { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, title: 'Dashboard operacional' },
+  { value: 'kanban', label: 'Kanban', icon: Columns, title: 'Visão Kanban' },
+  { value: 'lista', label: 'Lista', icon: List, title: 'Visão Lista' },
+] satisfies Array<{ value: Visao; label: string; icon: typeof LayoutDashboard; title: string }>
 
 function LeadsContent() {
   const { pode } = usePermissao()
@@ -70,70 +77,42 @@ function LeadsContent() {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#253B29]">Leads</h1>
-          <p className="text-sm text-gray-500">Gerencie seus leads em todas as fases</p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Leads"
+        description="Gerencie seus leads em todas as fases"
+        actions={(
+          <>
           {visao === 'lista' && (
-            <div className="relative">
+            <div className="relative min-w-[180px] flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <Input
                 placeholder="Buscar lead..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className="pl-9 h-9 w-52 text-sm"
+                className="h-9 w-full pl-9 text-sm sm:w-52"
               />
             </div>
           )}
 
-          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => irParaVisao('dashboard')}
-              title="Dashboard operacional"
-              className={cn(
-                'p-2 transition-colors',
-                visao === 'dashboard' ? 'bg-[#253B29] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-              )}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => irParaVisao('kanban')}
-              title="Visão Kanban"
-              className={cn(
-                'p-2 transition-colors border-l border-gray-200',
-                visao === 'kanban' ? 'bg-[#253B29] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-              )}
-            >
-              <Columns className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => irParaVisao('lista')}
-              title="Visão Lista"
-              className={cn(
-                'p-2 transition-colors border-l border-gray-200',
-                visao === 'lista' ? 'bg-[#253B29] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-              )}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
+          <SegmentedControl
+            value={visao}
+            items={VISOES_LEADS}
+            onChange={irParaVisao}
+            iconOnly
+          />
 
           {pode('leads.criar') && (
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-2 h-9"
+              className="gap-2 h-9"
               onClick={() => abrirModal()}
             >
               <UserPlus className="h-4 w-4" />
               Novo Lead
             </Button>
           )}
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {/* Conteúdo */}
       {visao === 'dashboard' && (
