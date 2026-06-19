@@ -13,6 +13,7 @@ import {
 import type { ChecklistItemDB } from '@/hooks/processos/useChecklist'
 import { useSalvarValidadeProcesso, LABEL_VALIDADE } from '@/hooks/processos/useSalvarValidadeProcesso'
 import type { TipoValidade } from '@/hooks/processos/useSalvarValidadeProcesso'
+import { useSalvarEngenharia } from '@/hooks/processos/useSalvarEngenharia'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,11 +33,17 @@ function tipoValidadeDeAcao(acao: string | null | undefined): TipoValidade | nul
 export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Props) {
   const { data: tmpl, isLoading: tmplLoading } = useChecklistTemplate(faseId)
   const { data: execucoes = [], isLoading: execLoading } = useChecklistExecucoes(processoId)
-  const marcar        = useMarcarChecklistItem(processoId)
-  const salvarValidade = useSalvarValidadeProcesso()
+  const marcar          = useMarcarChecklistItem(processoId)
+  const salvarValidade  = useSalvarValidadeProcesso()
+  const salvarEngenharia = useSalvarEngenharia()
 
   const [itemPendente, setItemPendente] = useState<ChecklistItemDB | null>(null)
   const [dataValidade, setDataValidade] = useState('')
+
+  // Estado para o modal de engenharia (2 campos)
+  const [itemPendenteEng, setItemPendenteEng] = useState<ChecklistItemDB | null>(null)
+  const [dataEngenharia, setDataEngenharia]   = useState('')
+  const [valorEngenharia, setValorEngenharia] = useState('')
 
   const itens = tmpl?.itens ?? []
   const marcadosSet = new Set(execucoes.filter(e => e.marcado).map(e => e.item_id))
@@ -124,6 +131,12 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                       type="checkbox"
                       checked={checked}
                       onChange={() => {
+                        if (novoMarcado && item.acao_ao_completar === 'salvar_engenharia') {
+                          setDataEngenharia('')
+                          setValorEngenharia('')
+                          setItemPendenteEng(item)
+                          return
+                        }
                         if (novoMarcado && tipoVal) {
                           setDataValidade('')
                           setItemPendente(item)
@@ -155,6 +168,9 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                       )}
                       {tipoVal && (
                         <span className="ml-1.5 text-[10px] text-blue-600 font-medium">📅 salva validade da {LABEL_VALIDADE[tipoVal]}</span>
+                      )}
+                      {item.acao_ao_completar === 'salvar_engenharia' && (
+                        <span className="ml-1.5 text-[10px] text-purple-600 font-medium">📐 salva vencimento + valor engenharia</span>
                       )}
                     </span>
                   </label>
@@ -205,6 +221,71 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
               className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
               disabled={marcar.isPending || salvarValidade.isPending}
               onClick={handleConfirmarValidade}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de engenharia: vencimento + valor (ambos obrigatórios) */}
+      <Dialog
+        open={Boolean(itemPendenteEng)}
+        onOpenChange={(o) => { if (!o) { setItemPendenteEng(null); setDataEngenharia(''); setValorEngenharia('') } }}
+      >
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-[#253B29]">📐 Engenharia Realizada</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Vencimento da engenharia <span className="text-red-500">*</span></label>
+              <Input
+                type="date"
+                value={dataEngenharia}
+                onChange={(e) => setDataEngenharia(e.target.value)}
+                className="text-sm"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Valor avaliado pelo banco (R$) <span className="text-red-500">*</span></label>
+              <Input
+                type="number"
+                min="0"
+                step="1000"
+                placeholder="Ex: 350000"
+                value={valorEngenharia}
+                onChange={(e) => setValorEngenharia(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setItemPendenteEng(null); setDataEngenharia(''); setValorEngenharia('') }}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              disabled={marcar.isPending || salvarEngenharia.isPending || !dataEngenharia || !valorEngenharia}
+              onClick={async () => {
+                if (!itemPendenteEng || !dataEngenharia || !valorEngenharia) return
+                const valor = parseFloat(valorEngenharia.replace(/\./g, '').replace(',', '.'))
+                if (isNaN(valor) || valor <= 0) return
+                try {
+                  await salvarEngenharia.mutateAsync({ processoId, validadeEngenharia: dataEngenharia, valorEngenharia: valor })
+                  marcar.mutate({ item: itemPendenteEng, marcado: true }, {
+                    onSuccess: () => toast.success('📐 Engenharia registrada com sucesso.'),
+                  })
+                } catch {
+                  toast.error('Erro ao salvar dados de engenharia.')
+                } finally {
+                  setItemPendenteEng(null)
+                  setDataEngenharia('')
+                  setValorEngenharia('')
+                }
+              }}
             >
               Confirmar
             </Button>

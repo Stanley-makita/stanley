@@ -151,8 +151,8 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
             <SelectItem value="none">Nenhuma ação</SelectItem>
             <SelectItem value="emitido">🎉 Marcar como Emitido</SelectItem>
             <SelectItem value="salvar_vencimento_credito">📅 Salvar validade do Crédito</SelectItem>
-            <SelectItem value="salvar_vencimento_engenharia">📅 Salvar validade da Engenharia</SelectItem>
             <SelectItem value="salvar_vencimento_matricula">📅 Salvar validade da Matrícula</SelectItem>
+            <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail } from 'lucide-react'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
+import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
 import { AlertaVencimentoModal } from '@/components/processos/detalhe/AlertaVencimentoModal'
 import { useAlertasVencimento } from '@/hooks/processos/useAlertasVencimento'
 import {
@@ -262,34 +263,53 @@ export default function ProcessoDetalhePage() {
         </div>
 
         {/* KPIs + Validades */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {/* Valor do Imóvel */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
-            <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-              <Building2 className="h-4 w-4 text-[#253B29]" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Valor do Imóvel</p>
-              <p className="text-sm font-bold text-[#253B29]">{formatarMoeda(processo.valor_imovel)}</p>
-            </div>
-          </div>
+        {(() => {
+          const faseEng = processo.fase_atual?.nome?.toLowerCase().includes('engenharia') ?? false
+          const temEngenharia = faseEng || Boolean((processo as any).validade_engenharia || (processo as any).valor_engenharia)
+          const temMatricula  = faseEng || Boolean((processo as any).validade_matricula)
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {/* Valor do Imóvel */}
+              <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                  <Building2 className="h-4 w-4 text-[#253B29]" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Valor do Imóvel</p>
+                  <p className="text-sm font-bold text-[#253B29]">{formatarMoeda(processo.valor_imovel)}</p>
+                </div>
+              </div>
 
-          {/* Dias em Andamento */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
-            <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-              <Calendar className="h-4 w-4 text-[#253B29]" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Dias em Andamento</p>
-              <p className="text-sm font-bold text-[#253B29]">{diasEmAndamento} dias</p>
-            </div>
-          </div>
+              {/* Dias em Andamento */}
+              <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                  <Calendar className="h-4 w-4 text-[#253B29]" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Dias em Andamento</p>
+                  <p className="text-sm font-bold text-[#253B29]">{diasEmAndamento} dias</p>
+                </div>
+              </div>
 
-          {/* Validades */}
-          <ValidadeCard processoId={id} tipo="credito"    label="Validade Crédito"     data={(processo as any).validade_credito} />
-          <ValidadeCard processoId={id} tipo="engenharia" label="Validade Engenharia"   data={(processo as any).validade_engenharia} />
-          <ValidadeCard processoId={id} tipo="matricula"  label="Validade Matrícula"    data={(processo as any).validade_matricula} />
-        </div>
+              {/* Validade Crédito — sempre visível */}
+              <ValidadeCard processoId={id} tipo="credito" label="Validade Crédito" data={(processo as any).validade_credito} />
+
+              {/* Validade Matrícula — só na fase Engenharia ou se já preenchido */}
+              {temMatricula && (
+                <ValidadeCard processoId={id} tipo="matricula" label="Validade Matrícula" data={(processo as any).validade_matricula} />
+              )}
+
+              {/* Engenharia (vencimento + valor) — só na fase Engenharia ou se já preenchido */}
+              {temEngenharia && (
+                <EngenhariaCard
+                  processoId={id}
+                  validadeEngenharia={(processo as any).validade_engenharia}
+                  valorEngenharia={(processo as any).valor_engenharia}
+                />
+              )}
+            </div>
+          )
+        })()}
 
         <AlertaVencimentoModal
           alertas={alertasPendentes}
