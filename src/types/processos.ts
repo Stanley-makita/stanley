@@ -65,6 +65,7 @@ export interface Processo {
   // Fases e datas
   fase_atual_id: string | null
   data_inicio: string
+  data_emissao?: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

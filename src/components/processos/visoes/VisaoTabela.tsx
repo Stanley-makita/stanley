@@ -28,6 +28,12 @@ function formatarCpf(cpf: string | null) {
   return cpf
 }
 
+function formatarComissaoRS(valorFinanciado: number | null, pct: number | null) {
+  if (valorFinanciado == null || pct == null) return '—'
+  const valor = (valorFinanciado * pct) / 100
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valor)
+}
+
 const EXTRACTORS: Record<string, (p: Processo) => string> = {
   Operacional:  (p) => p.operacional?.nome ?? '',
   Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
@@ -197,7 +203,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = 13 + (isGestor ? 2 : 0)
+  const totalColunas = 14 + (isGestor ? 3 : 0)
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos }
 
@@ -284,10 +290,12 @@ export function VisaoTabela({ produtoFixo }: Props) {
                 <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
                 <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
                 <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
+                <StaticHead>Emitido em</StaticHead>
                 {isGestor && (
                   <>
                     <StaticHead>Comissão Comercial</StaticHead>
                     <StaticHead>Comissão Empresa</StaticHead>
+                    <StaticHead>Assessoria R$</StaticHead>
                   </>
                 )}
               </TableRow>
@@ -339,13 +347,25 @@ export function VisaoTabela({ produtoFixo }: Props) {
                           {p.tem_assessoria ? 'Sim' : 'Não'}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">
+                        {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
+                      </TableCell>
                       {isGestor && (
                         <>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {p.comissao_comercial != null ? <span className="text-[#253B29] font-medium">{p.comissao_comercial}%</span> : <span className="text-gray-400">—</span>}
+                            {p.comissao_comercial != null
+                              ? <span className="text-[#253B29] font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
+                              : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {p.comissao_empresa != null ? <span className="text-[#C2AA6A] font-medium">{p.comissao_empresa}%</span> : <span className="text-gray-400">—</span>}
+                            {p.comissao_empresa != null
+                              ? <span className="text-[#C2AA6A] font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
+                              : <span className="text-gray-400">—</span>}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {p.valor_assessoria != null && p.valor_assessoria > 0
+                              ? <span className="text-gray-700 font-medium">{formatarMoeda(p.valor_assessoria)}</span>
+                              : <span className="text-gray-300">—</span>}
                           </TableCell>
                         </>
                       )}
