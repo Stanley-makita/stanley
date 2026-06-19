@@ -113,10 +113,14 @@ export async function POST(request: NextRequest) {
     if (instancia?.token) instanceToken = instancia.token
   }
 
+  // Normaliza número: garante prefixo 55 para números brasileiros
+  const telRaw = telefone.replace(/\D/g, '')
+  const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
+
   // Envia via Uazapi
   let uazapiResult
   try {
-    uazapiResult = await enviarUazapi(telefone, tipo, instanceToken, texto, arquivo, nome_arquivo)
+    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, texto, arquivo, nome_arquivo)
   } catch (err) {
     console.error('[send] Erro Uazapi:', err)
     return NextResponse.json({ error: 'Falha ao enviar mensagem. Tente novamente.' }, { status: 502 })
@@ -158,10 +162,12 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  // Atualiza updated_at da conversa
+  // Atualiza updated_at e cura contato_telefone se estava sem prefixo 55
+  const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (telEnvio !== telRaw) updatePayload.contato_telefone = telEnvio
   await supabaseService
     .from('conversas')
-    .update({ updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', conversa_id)
 
   return NextResponse.json({ ok: true, message_id: uazapiResult?.messageid })
