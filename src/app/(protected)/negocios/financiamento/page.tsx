@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { VisaoCards } from '@/components/processos/visoes/VisaoCards'
 import { VisaoTabela } from '@/components/processos/visoes/VisaoTabela'
 import { VisaoEmissoes } from '@/components/processos/visoes/VisaoEmissoes'
-import { ResumoEstoque } from '@/components/processos/ResumoEstoque'
 import { NovoProcessoRapidoModal } from '@/components/processos/NovoProcessoRapidoModal'
 import { Button } from '@/components/ui/button'
 import { usePermissao } from '@/hooks/auth/usePermissao'
@@ -56,12 +55,7 @@ export default function FinanciamentoPage() {
 
       {visao === 'cards'    && <VisaoCards modulo="processos" />}
       {visao === 'tabela'   && <VisaoTabela produtoFixo="financiamento" />}
-      {visao === 'emissoes' && (
-        <>
-          <ResumoEstoque />
-          <VisaoEmissoes />
-        </>
-      )}
+      {visao === 'emissoes' && <VisaoEmissoes />}
 
       <NovoProcessoRapidoModal
         aberto={modalAberto}
