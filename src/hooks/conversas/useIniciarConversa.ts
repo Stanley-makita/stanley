@@ -19,7 +19,10 @@ export function useIniciarConversa() {
 
   return useMutation({
     mutationFn: async (input: IniciarConversaInput): Promise<string> => {
-      const tel = input.telefone.replace(/\D/g, '')
+      const telRaw = input.telefone.replace(/\D/g, '')
+      // Normaliza para formato internacional: o Uazapi devolve webhooks com prefixo 55,
+      // então contato_telefone deve usar o mesmo formato para o lookup encontrar a conversa.
+      const tel = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
 
       // Cria a conversa
       const { data: conversa, error } = await supabase
