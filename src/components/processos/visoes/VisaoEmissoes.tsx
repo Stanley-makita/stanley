@@ -61,7 +61,7 @@ export function VisaoEmissoes() {
         p_empresa_id: usuario!.empresa_id,
       })
       if (error) throw error
-      return result
+      return (result as ResumoEstoque[])?.[0] ?? null
     },
     enabled: !!usuario,
     staleTime: 1000 * 60 * 5,
