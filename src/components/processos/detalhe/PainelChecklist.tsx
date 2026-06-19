@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ClipboardCheck, User } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import {
@@ -203,6 +203,24 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
             <p className="text-sm text-gray-600">
               Informe a data de vencimento da validade do {tipoModal ? LABEL_VALIDADE[tipoModal].toLowerCase() : ''}:
             </p>
+            {tipoModal === 'matricula' && (
+              <button
+                type="button"
+                onClick={() => setDataValidade(format(addDays(new Date(), 30), 'yyyy-MM-dd'))}
+                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors"
+              >
+                + 30 dias (padrão matrícula nova)
+              </button>
+            )}
+            {tipoModal === 'engenharia' && (
+              <button
+                type="button"
+                onClick={() => setDataValidade(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
+                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors"
+              >
+                + 180 dias (prazo padrão engenharia)
+              </button>
+            )}
             <Input
               type="date"
               value={dataValidade}
@@ -240,6 +258,13 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
           <div className="space-y-3 py-1">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Vencimento da engenharia <span className="text-red-500">*</span></label>
+              <button
+                type="button"
+                onClick={() => setDataEngenharia(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
+                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors block"
+              >
+                + 180 dias (prazo padrão)
+              </button>
               <Input
                 type="date"
                 value={dataEngenharia}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { CalendarClock, Pencil } from 'lucide-react'
-import { format, differenceInDays, parseISO } from 'date-fns'
+import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -81,6 +81,24 @@ export function ValidadeCard({ processoId, tipo, label, data }: Props) {
           </DialogHeader>
           <div className="space-y-3 py-1">
             <p className="text-sm text-gray-600">Informe a data de vencimento da validade do {label.toLowerCase()}:</p>
+            {tipo === 'matricula' && (
+              <button
+                type="button"
+                onClick={() => setNovaData(format(addDays(new Date(), 30), 'yyyy-MM-dd'))}
+                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors"
+              >
+                + 30 dias (padrão matrícula nova)
+              </button>
+            )}
+            {tipo === 'engenharia' && (
+              <button
+                type="button"
+                onClick={() => setNovaData(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
+                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors"
+              >
+                + 180 dias (prazo padrão engenharia)
+              </button>
+            )}
             <Input
               type="date"
               value={novaData}
