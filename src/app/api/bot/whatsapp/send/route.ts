@@ -122,8 +122,9 @@ export async function POST(request: NextRequest) {
   try {
     uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, texto, arquivo, nome_arquivo)
   } catch (err) {
-    console.error('[send] Erro Uazapi:', err)
-    return NextResponse.json({ error: 'Falha ao enviar mensagem. Tente novamente.' }, { status: 502 })
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error('[send] Erro Uazapi:', detail)
+    return NextResponse.json({ error: `Uazapi: ${detail}` }, { status: 502 })
   }
 
   // Salva no histórico
