@@ -15,6 +15,7 @@ export interface AlertaPendente {
   label: string
   diasRestantes: number
   validadeData: string
+  vencida: boolean
 }
 
 function calcularAlertas(
@@ -35,12 +36,12 @@ function calcularAlertas(
     if (dias <= 5) {
       const chave = `${tipo}_5__${data}`
       if (!lidos.has(chave)) {
-        alertas.push({ tipo: `${tipo}_5`, tipoValidade: tipo, label: LABEL_VALIDADE[tipo], diasRestantes: dias, validadeData: data })
+        alertas.push({ tipo: `${tipo}_5`, tipoValidade: tipo, label: LABEL_VALIDADE[tipo], diasRestantes: dias, validadeData: data, vencida: dias < 0 })
       }
     } else {
       const chave = `${tipo}_10__${data}`
       if (!lidos.has(chave)) {
-        alertas.push({ tipo: `${tipo}_10`, tipoValidade: tipo, label: LABEL_VALIDADE[tipo], diasRestantes: dias, validadeData: data })
+        alertas.push({ tipo: `${tipo}_10`, tipoValidade: tipo, label: LABEL_VALIDADE[tipo], diasRestantes: dias, validadeData: data, vencida: false })
       }
     }
   }
@@ -91,5 +92,8 @@ export function useAlertasVencimento(
     },
   })
 
-  return { alertasPendentes, confirmar }
+  const alertasBloqueantes = alertasPendentes.filter(a => !a.vencida)
+  const alertasVencidos    = alertasPendentes.filter(a => a.vencida)
+
+  return { alertasPendentes, alertasBloqueantes, alertasVencidos, confirmar }
 }

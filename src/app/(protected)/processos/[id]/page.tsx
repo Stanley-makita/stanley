@@ -90,7 +90,7 @@ export default function ProcessoDetalhePage() {
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
-  const { alertasPendentes, confirmar: confirmarAlertas } = useAlertasVencimento(id, {
+  const { alertasBloqueantes, alertasVencidos, confirmar: confirmarAlertas } = useAlertasVencimento(id, {
     validade_credito:    (processo as any)?.validade_credito,
     validade_engenharia: (processo as any)?.validade_engenharia,
     validade_matricula:  (processo as any)?.validade_matricula,
@@ -316,9 +316,30 @@ export default function ProcessoDetalhePage() {
           )
         })()}
 
+        {/* Banner não-bloqueante para prazos já vencidos */}
+        {alertasVencidos.length > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-red-800">Prazo(s) vencido(s)</p>
+              <p className="text-xs text-red-600 mt-0.5">
+                {alertasVencidos.map(a => `${a.label} (${Math.abs(a.diasRestantes)}d atrás)`).join(' · ')}
+                {' — '}Atualize as datas nos cards acima.
+              </p>
+            </div>
+            <button
+              onClick={() => confirmarAlertas.mutate(alertasVencidos)}
+              className="text-xs text-red-500 hover:text-red-700 underline shrink-0"
+            >
+              Ciente
+            </button>
+          </div>
+        )}
+
+        {/* Modal bloqueante apenas para prazos futuros próximos do vencimento */}
         <AlertaVencimentoModal
-          alertas={alertasPendentes}
-          onConfirmar={() => confirmarAlertas.mutate(alertasPendentes)}
+          alertas={alertasBloqueantes}
+          onConfirmar={() => confirmarAlertas.mutate(alertasBloqueantes)}
           isPending={confirmarAlertas.isPending}
         />
 
