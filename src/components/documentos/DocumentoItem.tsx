@@ -40,22 +40,22 @@ export function DocumentoItem({ documento, onExcluir, podeExcluir, mobile = fals
 
   if (mobile) {
     return (
-      <div className="space-y-3 border-b bg-white p-4 last:border-b-0">
-        <div className="flex items-start justify-between gap-3">
+      <div className="space-y-3 border-b bg-white p-3 last:border-b-0 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-2">
             <span className="text-lg leading-none">{iconeParaMime(documento.mime_type ?? '')}</span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-800">{documento.nome}</p>
+              <p className="break-words text-sm font-semibold text-gray-800">{documento.nome}</p>
               <p className="mt-1 text-xs text-gray-500">
                 {formatarTamanho(documento.tamanho ?? 0)}
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-1">
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-9 w-full sm:h-8 sm:w-8"
               onClick={handleDownload}
               disabled={baixando}
               title="Baixar"
@@ -69,7 +69,7 @@ export function DocumentoItem({ documento, onExcluir, podeExcluir, mobile = fals
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                className="h-9 w-full text-red-500 hover:bg-red-50 hover:text-red-600 sm:h-8 sm:w-8"
                 onClick={onExcluir}
                 title="Excluir"
               >

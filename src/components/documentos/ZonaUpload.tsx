@@ -35,14 +35,14 @@ export function ZonaUpload({ onArquivos, disabled }: ZonaUploadProps) {
       onDrop={handleDrop}
       onClick={() => !disabled && inputRef.current?.click()}
       className={cn(
-        'border-2 border-dashed rounded-lg px-6 py-8 text-center cursor-pointer transition-colors',
+        'cursor-pointer rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors sm:px-6 sm:py-8',
         arrastando ? 'border-fonti-accent bg-fonti-accent-hover/30' : 'border-gray-200 hover:border-fonti-primary hover:bg-gray-50',
         disabled && 'opacity-50 pointer-events-none'
       )}
     >
-      <Upload className="w-7 h-7 mx-auto mb-2 text-gray-400" />
+      <Upload className="mx-auto mb-2 h-6 w-6 text-gray-400 sm:h-7 sm:w-7" />
       <p className="text-sm text-gray-600 font-medium">
-        Arraste arquivos aqui ou <span className="text-fonti-primary underline">clique para selecionar</span>
+        <span className="hidden sm:inline">Arraste arquivos aqui ou </span><span className="text-fonti-primary underline">clique para selecionar</span>
       </p>
       <p className="text-xs text-gray-400 mt-1">
         PDF, imagens, planilhas, Word — máximo 20 MB por arquivo

@@ -479,13 +479,13 @@ export function AbaDocumentos({ processoId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-gray-500 font-medium">
           {documentos.length} documento{documentos.length !== 1 ? 's' : ''}
         </p>
         <Button
           size="sm"
-          className="h-8 text-xs gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+          className="h-8 w-full gap-1.5 bg-fonti-primary text-xs text-white hover:bg-fonti-primary-hover sm:w-auto"
           onClick={() => inputRef.current?.click()}
         >
           <Upload className="h-3 w-3" />
@@ -504,11 +504,11 @@ export function AbaDocumentos({ processoId }: Props) {
       {(() => {
         const pendentes = documentos.filter(d => d.ocr_status === 'pendente' || d.ocr_status === 'ignorado')
         return pendentes.length > 0 ? (
-          <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-medium text-amber-800">
               {pendentes.length} documento{pendentes.length !== 1 ? 's' : ''} aguardando extração de dados
             </span>
-            <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-100 h-7 text-xs shrink-0" onClick={() => setExtracaoAberta(true)}>
+            <Button size="sm" variant="outline" className="h-8 w-full shrink-0 border-amber-200 text-xs text-amber-700 hover:bg-amber-100 sm:h-7 sm:w-auto" onClick={() => setExtracaoAberta(true)}>
               <Sparkles className="h-3 w-3 mr-1" />
               Extrair dados
             </Button>
@@ -517,8 +517,8 @@ export function AbaDocumentos({ processoId }: Props) {
       })()}
 
       {documentos.some(d => d.classificacao === 'extrato_bancario') && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-blue-800">Análise de Extratos</span>
             {ultimaApuracao && (
               <span className="text-xs text-blue-500">
@@ -526,7 +526,7 @@ export function AbaDocumentos({ processoId }: Props) {
               </span>
             )}
           </div>
-          <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-100 h-7 text-xs" onClick={() => setAnaliseAberta(true)}>
+          <Button size="sm" variant="outline" className="h-8 w-full border-blue-200 text-xs text-blue-700 hover:bg-blue-100 sm:h-7 sm:w-auto" onClick={() => setAnaliseAberta(true)}>
             {ultimaApuracao ? 'Ver Análise' : 'Analisar Extratos'}
           </Button>
         </div>
@@ -549,9 +549,10 @@ export function AbaDocumentos({ processoId }: Props) {
           {documentos.map((doc) => (
             <div
               key={doc.id}
-              className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
+              className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white px-3 py-3 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:px-4"
             >
-              <span className="text-xl shrink-0">{iconeParaMime(doc.mime_type ?? '')}</span>
+              <div className="flex min-w-0 gap-3 sm:flex-1 sm:items-center">
+              <span className="shrink-0 text-xl">{iconeParaMime(doc.mime_type ?? '')}</span>
               {(() => {
                 const classificacaoLabel = LABELS_CLASSIFICACAO[doc.classificacao ?? ''] ?? null
                 return (
@@ -560,7 +561,7 @@ export function AbaDocumentos({ processoId }: Props) {
                       <>
                         <button
                           onClick={() => handleVisualizar(doc)}
-                          className="text-sm font-semibold text-fonti-primary hover:underline block text-left w-full truncate"
+                          className="block w-full text-left text-sm font-semibold text-fonti-primary hover:underline sm:truncate"
                           title="Abrir no navegador"
                         >
                           {classificacaoLabel}
@@ -580,7 +581,7 @@ export function AbaDocumentos({ processoId }: Props) {
                             />
                           ) : (
                             <>
-                              <span className="text-xs text-gray-400 truncate">{doc.nome_exibicao ?? doc.nome_original}</span>
+                              <span className="break-words text-xs text-gray-400 sm:truncate">{doc.nome_exibicao ?? doc.nome_original}</span>
                               <button
                                 onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? doc.nome_original) }}
                                 title="Renomear arquivo"
@@ -610,7 +611,7 @@ export function AbaDocumentos({ processoId }: Props) {
                           <>
                             <button
                               onClick={() => handleVisualizar(doc)}
-                              className="text-sm font-medium text-fonti-primary hover:underline truncate block text-left"
+                              className="block text-left text-sm font-medium text-fonti-primary hover:underline sm:truncate"
                               title="Abrir no navegador"
                             >
                               {doc.nome_exibicao ?? doc.nome_original}
@@ -638,7 +639,8 @@ export function AbaDocumentos({ processoId }: Props) {
                   </div>
                 )
               })()}
-              <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-1 sm:justify-end">
                 {doc.vinculado && (
                   <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
                     <Link2 className="h-3 w-3" />
@@ -732,19 +734,19 @@ export function AbaDocumentos({ processoId }: Props) {
       />
 
       <Dialog open={modalAberto} onOpenChange={(v) => { if (!v) fecharModal() }}>
-        <DialogContent className="max-w-lg p-0 flex flex-col overflow-hidden">
-          <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
+        <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg flex-col overflow-hidden p-0 sm:w-full">
+          <div className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
             <h2 className="text-base font-semibold text-fonti-primary">
               Classificar {total} documento{total !== 1 ? 's' : ''}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">Ajuste o tipo de cada arquivo antes de enviar</p>
           </div>
 
-          <div className="px-6 py-4 space-y-2 overflow-y-auto max-h-[55vh]">
+          <div className="max-h-[55svh] space-y-2 overflow-y-auto px-4 py-4 sm:px-6">
             {arquivosSelecionados.map((arquivo) => {
               const chave = chaveArquivo(arquivo)
               return (
-                <div key={chave} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div key={chave} className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center">
                   <span className="text-lg shrink-0">{iconeParaMime(arquivo.type)}</span>
                   <p className="flex-1 text-xs font-medium text-gray-700 truncate min-w-0" title={arquivo.name}>
                     {arquivo.name.length > 35 ? arquivo.name.slice(0, 32) + '...' : arquivo.name}
@@ -754,7 +756,7 @@ export function AbaDocumentos({ processoId }: Props) {
                     onValueChange={(v) => setTiposPorArquivo(prev => ({ ...prev, [chave]: v }))}
                     disabled={fazendoUpload}
                   >
-                    <SelectTrigger className="w-48 h-8 text-xs shrink-0">
+                    <SelectTrigger className="h-8 w-full shrink-0 text-xs sm:w-48">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -770,7 +772,7 @@ export function AbaDocumentos({ processoId }: Props) {
             })}
           </div>
 
-          <div className="px-6 py-3 border-t border-gray-100 shrink-0">
+          <div className="shrink-0 border-t border-gray-100 px-4 py-3 sm:px-6">
             <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -783,12 +785,12 @@ export function AbaDocumentos({ processoId }: Props) {
             </label>
           </div>
 
-          <div className="flex justify-end gap-3 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
-            <Button variant="outline" onClick={fecharModal} disabled={fazendoUpload}>
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-end sm:px-6">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={fecharModal} disabled={fazendoUpload}>
               Cancelar
             </Button>
             <Button
-              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[140px]"
+              className="min-w-[140px] w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               onClick={handleUpload}
               disabled={fazendoUpload}
             >
