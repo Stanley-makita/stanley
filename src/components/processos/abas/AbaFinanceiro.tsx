@@ -98,7 +98,7 @@ function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: Mo
 
   return (
     <Dialog open={aberto} onOpenChange={onFechar}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{editando ? 'Editar lançamento' : 'Novo lançamento'}</DialogTitle>
         </DialogHeader>
@@ -113,7 +113,7 @@ function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: Mo
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Tipo <span className="text-red-400">*</span></label>
               <Select value={form.tipo} onValueChange={(v) => set('tipo', v as ProcessoFinanceiro['tipo'])}>
@@ -161,10 +161,10 @@ function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: Mo
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onFechar}>Cancelar</Button>
+        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+          <Button variant="outline" onClick={onFechar} className="w-full sm:w-auto">Cancelar</Button>
           <Button
-            className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
             onClick={() => onSalvar(form)}
             disabled={isPending}
           >
@@ -289,7 +289,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
   return (
     <div className="space-y-5">
       {/* Cards resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <CardResumo label="A Receber"     valor={aReceber}     destaque="neutro" />
         <CardResumo label="Recebido"      valor={recebido}     destaque="verde" />
         <CardResumo label="Saldo Cliente" valor={saldoCliente} destaque="azul" />
@@ -297,9 +297,9 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
       </div>
 
       {/* Barra de ações */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         {/* Pills de filtro */}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {FILTROS.map((f) => (
             <button
               key={f.id}
@@ -318,7 +318,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
 
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+          className="w-full gap-1.5 bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
           onClick={abrirCriar}
         >
           <Plus className="h-4 w-4" />
@@ -336,7 +336,70 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
           </Button>
         </div>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
+          <div className="divide-y md:hidden">
+            {filtrados.map((l) => (
+              <div key={l.id} className="space-y-3 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">{l.descricao}</p>
+                    {l.observacao && (
+                      <p className="mt-0.5 text-xs text-gray-400">{l.observacao}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">
+                      {format(new Date(l.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold text-[#253B29]">
+                    {fmtMoeda(l.valor)}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge className={cn('text-[11px] font-medium', TIPO_CFG[l.tipo].cls)}>
+                    {TIPO_CFG[l.tipo].label}
+                  </Badge>
+                  <Badge className={cn('text-[11px] font-medium', SITUACAO_CFG[l.situacao].cls)}>
+                    {SITUACAO_CFG[l.situacao].label}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-end gap-1">
+                  {l.situacao === 'pendente' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs text-green-700"
+                      onClick={() => marcarPago(l.id)}
+                    >
+                      <Check className="mr-1 h-3.5 w-3.5" />
+                      Pago
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-gray-400 hover:text-[#253B29]"
+                    title="Editar"
+                    onClick={() => abrirEditar(l)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-500"
+                    title="Excluir"
+                    onClick={() => handleExcluir(l.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
           {/* Cabeçalho */}
           <div className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 bg-gray-50 border-b text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
             <span>Data</span>
@@ -410,6 +473,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 

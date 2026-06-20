@@ -143,7 +143,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
-      <DialogContent className="max-w-md overflow-y-auto max-h-[90vh]">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-md overflow-y-auto sm:w-full">
         <DialogHeader>
           <DialogTitle className="text-[#253B29]">Dados do Negócio</DialogTitle>
         </DialogHeader>
@@ -198,7 +198,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
           </div>
 
           {/* Valores */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Valor do Imóvel (R$)</Label>
               <Input type="number" placeholder="0" {...form.register('valor_imovel', { valueAsNumber: true })} />
@@ -220,7 +220,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
           {/* Condições de financiamento */}
           <div className="rounded-lg border border-gray-200 p-4 space-y-4">
             <p className="text-sm font-medium text-[#253B29]">Condições do Financiamento</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Prazo (meses)</Label>
                 <Input
@@ -278,7 +278,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <Label>Financiar despesas cartorárias</Label>
               <Switch
                 checked={form.watch('financiar_despesas_cartorariais')}
@@ -289,7 +289,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
           {/* Assessoria */}
           <div className="space-y-3 rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <Label>Com Assessoria</Label>
               <Switch
                 checked={temAssessoria}
@@ -308,7 +308,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             )}
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
             <Button type="button" variant="outline" className="flex-1" onClick={onFechar}>
               Cancelar
             </Button>

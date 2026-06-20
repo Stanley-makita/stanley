@@ -193,7 +193,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
 
       {/* Modal de data de validade */}
       <Dialog open={Boolean(itemPendente)} onOpenChange={(o) => { if (!o) { setItemPendente(null); setDataValidade('') } }}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-xs overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-[#253B29]">
               📅 Validade — {tipoModal ? LABEL_VALIDADE[tipoModal] : ''}
@@ -230,13 +230,13 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
             />
             <p className="text-xs text-gray-400">Deixe em branco para marcar o item sem registrar data.</p>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setItemPendente(null); setDataValidade('') }}>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" size="sm" onClick={() => { setItemPendente(null); setDataValidade('') }} className="w-full sm:w-auto">
               Cancelar
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
               disabled={marcar.isPending || salvarValidade.isPending}
               onClick={handleConfirmarValidade}
             >
@@ -251,7 +251,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
         open={Boolean(itemPendenteEng)}
         onOpenChange={(o) => { if (!o) { setItemPendenteEng(null); setDataEngenharia(''); setValorEngenharia('') } }}
       >
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-xs overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-[#253B29]">📐 Engenharia Realizada</DialogTitle>
           </DialogHeader>
@@ -286,13 +286,13 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
               />
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setItemPendenteEng(null); setDataEngenharia(''); setValorEngenharia('') }}>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" size="sm" onClick={() => { setItemPendenteEng(null); setDataEngenharia(''); setValorEngenharia('') }} className="w-full sm:w-auto">
               Cancelar
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
               disabled={marcar.isPending || salvarEngenharia.isPending || !dataEngenharia || !valorEngenharia}
               onClick={async () => {
                 if (!itemPendenteEng || !dataEngenharia || !valorEngenharia) return

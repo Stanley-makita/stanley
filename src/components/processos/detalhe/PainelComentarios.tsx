@@ -84,9 +84,9 @@ function FormComentario({
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
       />
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Select value={tipo} onValueChange={(v) => setTipo(v as ProcessoComentario['tipo'])}>
-          <SelectTrigger className="h-8 text-xs w-36">
+          <SelectTrigger className="h-8 w-full text-xs sm:w-36">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -95,11 +95,11 @@ function FormComentario({
             <SelectItem value="solicitacao">Solicitação</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => setNotificar(!notificar)}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors ${
+            className={`flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
               notificar
                 ? 'bg-[#E7E0C4] border-[#C2AA6A] text-[#253B29]'
                 : 'border-gray-200 text-gray-400'
@@ -110,7 +110,7 @@ function FormComentario({
           </button>
           <Button
             size="sm"
-            className="h-8 bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+            className="h-8 gap-1.5 bg-[#253B29] text-white hover:bg-[#1a2b1e]"
             onClick={enviar}
             disabled={!texto.trim() || adicionarComentario.isPending}
           >
@@ -158,7 +158,7 @@ export function PainelComentarios({ processoId }: Props) {
 
       {/* Dialog com histórico completo */}
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold text-[#253B29]">
               Todos os comentários ({comentarios.length})

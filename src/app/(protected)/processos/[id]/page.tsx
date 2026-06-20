@@ -124,16 +124,16 @@ export default function ProcessoDetalhePage() {
     : 0
 
   return (
-    <div className="flex gap-6 p-6 h-[calc(100vh-80px)]">
+    <div className="flex min-h-[calc(100vh-80px)] flex-col gap-5 p-4 lg:h-[calc(100vh-80px)] lg:flex-row lg:gap-6 lg:p-6">
       {/* Conteúdo principal */}
-      <div className="flex-1 overflow-y-auto space-y-5">
+      <div className="min-w-0 flex-1 space-y-5 overflow-visible lg:overflow-y-auto">
         {/* Header do processo */}
         <div>
-          <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400" onClick={() => router.push('/processos')}>
+          <div className="mb-2 flex flex-wrap items-start gap-2 sm:items-center sm:gap-3">
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-xl font-bold text-[#253B29]">
+            <h1 className="min-w-0 flex-1 text-lg font-bold leading-tight text-[#253B29] sm:text-xl">
               {processo.compradores?.find(c => c.principal)?.nome
                 ?? processo.compradores?.[0]?.nome
                 ?? processo.nome_imovel}
@@ -160,7 +160,7 @@ export default function ProcessoDetalhePage() {
               </Badge>
             )}
             <EmailConfirmacaoBadge processoId={id} />
-            <div className="ml-auto flex items-center gap-2">
+            <div className="order-4 -mx-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 pb-1 pt-1 sm:order-none sm:mx-0 sm:ml-auto sm:w-auto sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0 sm:pt-0">
               {/* Toggle Certeza / Incerteza */}
               <Button
                 size="sm"
@@ -174,8 +174,8 @@ export default function ProcessoDetalhePage() {
                 }
                 className={
                   processo.chance_emissao === 'certeza'
-                    ? 'gap-1.5 text-xs border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
-                    : 'gap-1.5 text-xs border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100'
+                    ? 'h-8 shrink-0 gap-1.5 text-xs border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
+                    : 'h-8 shrink-0 gap-1.5 text-xs border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100'
                 }
               >
                 {processo.chance_emissao === 'certeza' ? (
@@ -190,7 +190,7 @@ export default function ProcessoDetalhePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+                className="h-8 shrink-0 gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
                 onClick={() => setNovaTarefaAberta(true)}
               >
                 <Plus className="h-3.5 w-3.5" /> Tarefa
@@ -200,7 +200,7 @@ export default function ProcessoDetalhePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+                className="h-8 shrink-0 gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
                 onClick={() => setEditarProcessoAberto(true)}
               >
                 <DollarSign className="h-3.5 w-3.5" />
@@ -213,7 +213,7 @@ export default function ProcessoDetalhePage() {
                 variant="outline"
                 disabled={gerandoFormularios || !processo.banco?.nome}
                 title={!processo.banco?.nome ? 'Defina o banco do processo antes de gerar os formulários' : ''}
-                className="gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                className="h-8 shrink-0 gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                 onClick={() => setConfirmFormulariosAberto(true)}
               >
                 <Download className="h-3.5 w-3.5" />
@@ -227,7 +227,7 @@ export default function ProcessoDetalhePage() {
                   variant="outline"
                   disabled={!processo.banco?.nome}
                   title={!processo.banco?.nome ? 'Defina o banco do processo antes de enviar a confirmação' : 'Enviar confirmação de valores por e-mail'}
-                  className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
+                  className="h-8 shrink-0 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
                   onClick={() => setConfirmacaoValoresAberto(true)}
                 >
                   <Mail className="h-3.5 w-3.5" />
@@ -239,7 +239,7 @@ export default function ProcessoDetalhePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                className="h-8 shrink-0 gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
                 onClick={() => setNovaSolicitacaoAberta(true)}
               >
                 <ClipboardList className="h-3.5 w-3.5" />
@@ -249,11 +249,11 @@ export default function ProcessoDetalhePage() {
           </div>
 
           {!processo.imovel_id && processo.nome_imovel && (
-            <p className="text-sm text-[#253B29] ml-11 font-medium">
+            <p className="ml-10 text-sm font-medium text-[#253B29] sm:ml-11">
               {processo.nome_imovel}
             </p>
           )}
-          <p className="text-xs text-gray-400 ml-11">
+          <p className="ml-10 text-xs text-gray-400 sm:ml-11">
             {processo.numero_processo}
             {processo.banco && ` • ${processo.banco.nome}`}
             {` • ${diasEmAndamento} dias em andamento`}
@@ -271,9 +271,9 @@ export default function ProcessoDetalhePage() {
           const temEngenharia = faseEng || jaPasoiEngenharia || Boolean((processo as any).validade_engenharia || (processo as any).valor_engenharia)
           const temMatricula  = faseEng || jaPasoiEngenharia || Boolean((processo as any).validade_matricula)
           const numCards = 3 + (temMatricula ? 1 : 0) + (temEngenharia ? 1 : 0)
-          const gridColsClass = numCards <= 3 ? 'grid-cols-2 md:grid-cols-3' : numCards === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-5'
+          const gridColsClass = numCards <= 3 ? 'md:grid-cols-3' : numCards === 4 ? 'md:grid-cols-4' : 'md:grid-cols-5'
           return (
-            <div className={`grid ${gridColsClass} gap-3`}>
+            <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridColsClass}`}>
               {/* Valor do Imóvel */}
               <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
@@ -318,7 +318,7 @@ export default function ProcessoDetalhePage() {
 
         {/* Banner não-bloqueante para prazos já vencidos */}
         {alertasVencidos.length > 0 && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-start">
             <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-red-800">Prazo(s) vencido(s)</p>
@@ -345,7 +345,8 @@ export default function ProcessoDetalhePage() {
 
         {/* Abas */}
         <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
-          <TabsList className="bg-gray-100 h-9 flex-wrap">
+          <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex h-9 min-w-max bg-gray-100">
             {([
               ['resumo','Resumo'],['compradores','Compradores'],['vendedores','Vendedores'],
               ['fases','Fases'],['documentos','Documentos'],['financeiro','Financeiro'],
@@ -366,8 +367,9 @@ export default function ProcessoDetalhePage() {
               </TabsTrigger>
             ))}
           </TabsList>
+          </div>
 
-          <div className="mt-4 bg-white border border-gray-200 rounded-xl p-5">
+          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
             <TabsContent value="resumo" className="m-0">
               <AbaResumo
                 processo={processo}
@@ -455,7 +457,7 @@ export default function ProcessoDetalhePage() {
 
       {/* Confirmação de geração de formulários */}
       <Dialog open={confirmFormulariosAberto} onOpenChange={setConfirmFormulariosAberto}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-[#253B29]">Gerar formulários</DialogTitle>
           </DialogHeader>
@@ -466,7 +468,7 @@ export default function ProcessoDetalhePage() {
           <p className="text-xs text-gray-400">
             Os PDFs serão gerados com os dados do processo e salvos na aba <strong>Documentos</strong>.
           </p>
-          <DialogFooter className="gap-2 mt-2">
+          <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">
             <Button
               variant="outline"
               size="sm"
@@ -487,7 +489,7 @@ export default function ProcessoDetalhePage() {
       </Dialog>
 
       {/* Painel direito — sempre visível */}
-      <div className="w-80 shrink-0 flex flex-col gap-4 overflow-y-auto">
+      <div className="grid shrink-0 gap-4 lg:w-80 lg:flex lg:flex-col lg:overflow-y-auto">
         <PainelChecklist
           processoId={id}
           faseId={processo.fase_atual_id}
@@ -530,7 +532,7 @@ function AbaResumo({
         {/* Operação */}
         <div className="space-y-3 border border-gray-100 rounded-lg p-4">
           <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Operação</h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
             <Campo label="Modalidade"       valor={processo.modalidade} />
             <Campo label="Banco"            valor={processo.banco?.nome ?? '—'} />
             <Campo label="Valor Financiado" valor={fmtMoeda(processo.valor_financiado)} />
@@ -548,7 +550,7 @@ function AbaResumo({
           {(processo.compradores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.compradores!.map((c) => (
-                <div key={c.id} className="flex items-center gap-2 text-sm">
+                <div key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                   <span className="text-[#253B29] font-medium">{c.nome}</span>
                   {c.cpf && <span className="text-xs text-gray-400">{c.cpf}</span>}
@@ -591,7 +593,7 @@ function AbaResumo({
           {(processo.vendedores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.vendedores!.map((v) => (
-                <div key={v.id} className="flex items-center gap-2 text-sm">
+                <div key={v.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                   <span className="text-[#253B29] font-medium">{v.nome}</span>
                   {v.cpf && <span className="text-xs text-gray-400">{v.cpf}</span>}
@@ -622,7 +624,7 @@ function AbaResumo({
             )}
           </div>
           {(processo.comissao_comercial || processo.comissao_empresa) && (
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               {processo.comissao_comercial != null && (
                 <Campo label="Comissão Comercial" valor={`${processo.comissao_comercial}%`} />
               )}
