@@ -95,14 +95,14 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => { if (!v) fechar() }}>
-      <DialogContent className="max-w-md p-0">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-gray-100">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-md overflow-y-auto p-0 sm:w-full">
+        <DialogHeader className="border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
           <DialogTitle className="text-fonti-primary">
             {editing ? 'Editar Tarefa' : 'Nova Tarefa'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="space-y-4 px-4 py-5 sm:px-6">
           {/* Título */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Título *</label>
@@ -129,7 +129,7 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
           </div>
 
           {/* Categoria + Prioridade */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">Categoria</label>
               <Select value={categoria} onValueChange={setCategoria}>
@@ -143,14 +143,14 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1.5 block">Prioridade</label>
-              <div className="flex gap-1 flex-wrap">
+              <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                 {(Object.keys(PRIORIDADE_CONFIG) as Prioridade[]).map(p => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setPrioridade(p)}
                     className={cn(
-                      'text-xs px-2 py-1 rounded-lg border transition-all',
+                      'shrink-0 rounded-lg border px-2 py-1 text-xs transition-all',
                       prioridade === p
                         ? 'border-fonti-primary bg-fonti-primary text-white'
                         : 'border-gray-200 text-gray-500 hover:border-gray-300'
@@ -168,10 +168,10 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
             <label className="text-xs font-medium text-gray-600 mb-1 block">
               Data e Horário <span className="text-gray-400 font-normal">(opcional)</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid gap-2 sm:grid-cols-3">
               <Input
                 type="date"
-                className="text-sm h-9"
+                className="h-9 text-sm"
                 value={dataPrazo}
                 onChange={e => setDataPrazo(e.target.value)}
               />
@@ -207,10 +207,10 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 pb-5 pt-2 border-t border-gray-100">
-          <Button variant="outline" onClick={fechar} disabled={isPending}>Cancelar</Button>
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-end sm:px-6">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={fechar} disabled={isPending}>Cancelar</Button>
           <Button
-            className="bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[110px]"
+            className="min-w-[110px] bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
             onClick={handleSalvar}
             disabled={!titulo.trim() || isPending}
           >

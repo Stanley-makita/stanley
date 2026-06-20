@@ -82,17 +82,17 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4 p-4 md:p-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-fonti-primary">Agenda</h1>
           <p className="text-sm text-gray-500 mt-0.5">Tarefas de todos os processos</p>
         </div>
 
         {podeVerTodos && (
           <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-            <SelectTrigger className="w-48 h-9 text-sm">
+            <SelectTrigger className="h-9 w-full text-sm md:w-48">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
@@ -106,9 +106,9 @@ export default function AgendaPage() {
       </div>
 
       {/* Layout 2 colunas — calendário + lista */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
         {/* Coluna esquerda — Calendário */}
-        <div className="bg-white rounded-lg border p-4 space-y-3 h-fit">
+        <div className="h-fit space-y-3 rounded-lg border bg-white p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(subMonths(mes, 1))}>
               <ChevronLeft className="w-4 h-4" />
@@ -139,7 +139,7 @@ export default function AgendaPage() {
         </div>
 
         {/* Coluna direita — Lista */}
-        <div className="bg-white rounded-lg border p-4">
+        <div className="rounded-lg border bg-white p-3 sm:p-4">
           {isLoading ? (
             <div className="py-12 text-center text-gray-400">Carregando...</div>
           ) : (
@@ -169,8 +169,8 @@ export default function AgendaPage() {
 
       {/* Painel operacional — só para perfil operacional */}
       {isOperacional && (
-        <div className="bg-white rounded-lg border p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="rounded-lg border bg-white p-4 sm:p-5">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <AlertCircle className="h-4 w-4 text-fonti-primary" />
             <h2 className="font-semibold text-fonti-primary text-sm">Solicitações operacionais abertas</h2>
             {!loadingSol && (
@@ -187,7 +187,7 @@ export default function AgendaPage() {
           ) : solicitacoes.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">Nenhuma solicitação aberta 👍</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
               {solicitacoes.map((s) => (
                 <div key={s.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
                   <div className="flex-1 min-w-0">

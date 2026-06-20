@@ -164,8 +164,8 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
   return (
     <>
       <Dialog open={!!tarefaId} onOpenChange={(v) => { if (!v) onFechar() }}>
-        <DialogContent className="max-w-lg p-0 max-h-[90vh] flex flex-col">
-          <DialogHeader className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
+        <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg flex-col p-0 sm:w-full">
+          <DialogHeader className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
             <div className="flex items-start justify-between gap-3">
               <DialogTitle className="text-fonti-primary text-base font-semibold leading-snug">
                 {loading ? '...' : tarefa?.titulo}
@@ -185,9 +185,9 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
             {(nomeOrigem || numeroOrigem) && (
               <button
                 onClick={handleNavegar}
-                className="flex items-center gap-1 text-xs text-fonti-primary/70 hover:text-fonti-primary hover:underline mt-0.5 w-fit"
+                className="mt-0.5 flex w-fit min-w-0 items-center gap-1 text-xs text-fonti-primary/70 hover:text-fonti-primary hover:underline"
               >
-                <span>{numeroOrigem} · {nomeOrigem}</span>
+                <span className="truncate">{numeroOrigem} · {nomeOrigem}</span>
                 <ArrowUpRight className="h-3 w-3" />
               </button>
             )}
@@ -199,7 +199,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
                 <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
               </div>
             ) : tarefa ? (
-              <div className="px-6 py-4 space-y-4">
+              <div className="space-y-4 px-4 py-4 sm:px-6">
                 {/* Badges de info */}
                 <div className="flex flex-wrap gap-2">
                   {/* Prioridade */}
@@ -231,7 +231,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
 
                 {/* Data e horário */}
                 {(vencimento || tarefa.horario_inicio) && (
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 sm:gap-3">
                     {vencimento && (
                       <span className={cn('flex items-center gap-1', estaVencida && !tarefa.concluida && 'text-red-600 font-medium')}>
                         <Calendar className="h-3.5 w-3.5" />
@@ -294,7 +294,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Textarea
                       rows={2}
                       placeholder="Adicionar comentário..."
@@ -307,7 +307,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
                     />
                     <Button
                       size="icon"
-                      className="shrink-0 bg-fonti-primary hover:bg-fonti-primary-hover self-end"
+                      className="h-9 w-full shrink-0 self-end bg-fonti-primary hover:bg-fonti-primary-hover sm:w-9"
                       onClick={handleEnviarComentario}
                       disabled={!comentario.trim() || comentarPT.isPending || comentarLT.isPending}
                     >
@@ -320,8 +320,8 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center shrink-0 bg-white">
-            <Button variant="outline" size="sm" onClick={handleNavegar} className="gap-1.5 text-xs">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <Button variant="outline" size="sm" onClick={handleNavegar} className="w-full gap-1.5 text-xs sm:w-auto">
               <ArrowUpRight className="h-3.5 w-3.5" />
               {fonte === 'processo' ? 'Ver processo' : 'Ver lead'}
             </Button>
@@ -331,7 +331,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
               onClick={handleConcluir}
               disabled={concluirPT.isPending}
               className={cn(
-                'gap-1.5 text-xs',
+                'w-full gap-1.5 text-xs sm:w-auto',
                 tarefa?.concluida
                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
                   : 'bg-fonti-primary hover:bg-fonti-primary-hover text-white'

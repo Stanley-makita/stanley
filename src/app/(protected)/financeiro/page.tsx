@@ -87,16 +87,16 @@ export default function FinanceiroPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-fonti-primary">Financeiro</h1>
           <p className="text-sm text-gray-500">Fechamento, comissões, folha e despesas</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {!fechamento && (
             <Button
               size="sm"
-              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
+              className="w-full gap-1 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               onClick={() => {
                 setFormMes(String(mes))
                 setFormAno(String(ano))
@@ -107,15 +107,17 @@ export default function FinanceiroPage() {
               Abrir Fechamento
             </Button>
           )}
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navegar(-1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium text-fonti-primary min-w-[160px] text-center capitalize">
-            {nomeMes}
-          </span>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navegar(1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => navegar(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-0 flex-1 text-center text-sm font-medium capitalize text-fonti-primary sm:min-w-[160px] sm:flex-none">
+              {nomeMes}
+            </span>
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => navegar(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -205,11 +207,11 @@ export default function FinanceiroPage() {
 
       {/* Modal Abrir Fechamento */}
       <Dialog open={modalAbrir} onOpenChange={setModalAbrir}>
-        <DialogContent>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Abrir Novo Fechamento</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-2">
+          <div className="grid gap-3 py-2 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Mês</Label>
               <Input
@@ -234,10 +236,10 @@ export default function FinanceiroPage() {
           <p className="text-xs text-gray-500 px-1">
             O fechamento irá importar automaticamente as despesas recorrentes ativas.
           </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAbrir(false)}>Cancelar</Button>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setModalAbrir(false)}>Cancelar</Button>
             <Button
-              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+              className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               disabled={abrirFechamento.isPending}
               onClick={() => {
                 abrirFechamento.mutate(
