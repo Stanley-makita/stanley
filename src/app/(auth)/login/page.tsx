@@ -36,7 +36,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#253B29] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-fonti-primary flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-6">
         <div className="text-center">
           <div className="flex justify-center mb-4">
@@ -84,14 +84,14 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={carregando}
-            className="w-full bg-[#253B29] hover:bg-[#253B29]/90 text-white"
+            className="w-full bg-fonti-primary hover:bg-fonti-primary/90 text-white"
           >
             {carregando ? 'Entrando...' : 'Entrar'}
           </Button>
         </form>
 
         <div className="text-center">
-          <a href="/esqueci-senha" className="text-xs text-gray-400 hover:text-[#253B29] transition-colors">
+          <a href="/esqueci-senha" className="text-xs text-gray-400 hover:text-fonti-primary transition-colors">
             Esqueci minha senha
           </a>
         </div>

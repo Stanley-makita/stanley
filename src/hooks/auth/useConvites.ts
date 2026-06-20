@@ -56,7 +56,7 @@ export function useCriarConvite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['convites'] })
       toast.success('Convite enviado com sucesso!', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     },
     onError: () => {
@@ -80,7 +80,7 @@ export function useCancelarConvite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['convites'] })
       toast.success('Convite cancelado.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     },
   })

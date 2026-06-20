@@ -570,7 +570,7 @@ export default function ConversasPage() {
       {/* Sidebar de conversas */}
       <div className="w-80 border-r border-gray-200 flex flex-col bg-white shrink-0">
         <div className="px-4 py-3 border-b border-gray-100">
-          <h1 className="text-base font-semibold text-[#253B29] flex items-center gap-2">
+          <h1 className="text-base font-semibold text-fonti-primary flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
             Conversas
           </h1>
@@ -585,7 +585,7 @@ export default function ConversasPage() {
               placeholder="Buscar por nome ou telefone..."
               value={pesquisa}
               onChange={(e) => setPesquisa(e.target.value)}
-              className="w-full text-xs pl-8 pr-8 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#253B29] bg-gray-50 placeholder:text-gray-400"
+              className="w-full text-xs pl-8 pr-8 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-fonti-primary bg-gray-50 placeholder:text-gray-400"
             />
             {pesquisa && (
               <button onClick={() => setPesquisa('')}
@@ -602,7 +602,7 @@ export default function ConversasPage() {
             <button key={c.id} onClick={() => setCanal(c.id)}
               className={cn('text-xs px-2.5 py-1 rounded-full border transition-all',
                 canal === c.id
-                  ? 'bg-[#253B29] text-white border-[#253B29]'
+                  ? 'bg-fonti-primary text-white border-fonti-primary'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
               )}>
               {c.label}
@@ -616,7 +616,7 @@ export default function ConversasPage() {
             <button key={s.id} onClick={() => setStatusFiltro(s.id)}
               className={cn('text-xs px-2 py-0.5 rounded-full border transition-all',
                 statusFiltro === s.id
-                  ? 'bg-[#C2AA6A]/20 text-[#8a7142] border-[#C2AA6A]'
+                  ? 'bg-fonti-accent/20 text-fonti-primary border-fonti-accent'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
               )}>
               {s.label}
@@ -643,7 +643,7 @@ export default function ConversasPage() {
                 onClick={() => setConversaSelecionada(c)}
                 className={cn(
                   'w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors',
-                  conversaSelecionada?.id === c.id && 'bg-[#E7E0C4]/30 border-l-2 border-l-[#C2AA6A]'
+                  conversaSelecionada?.id === c.id && 'bg-fonti-accent-hover/30 border-l-2 border-l-fonti-accent'
                 )}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -722,7 +722,7 @@ export default function ConversasPage() {
                   ) : (
                     <button
                       onClick={() => { setModoVincular('opcoes'); setBuscaLead(''); setLeadSelecionado(null) }}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-fonti-primary transition-colors"
                     >
                       <Link2 className="w-3 h-3" />
                       Vincular lead
@@ -734,7 +734,7 @@ export default function ConversasPage() {
             <div className="flex gap-2">
               {/* Botão nova solicitação */}
               <Button size="sm" variant="outline"
-                className="h-7 text-xs gap-1.5 border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                className="h-7 text-xs gap-1.5 border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
                 onClick={() => setNovaSolicitacaoAberta(true)}>
                 <ClipboardList className="w-3.5 h-3.5" />
                 Solicitação
@@ -744,7 +744,7 @@ export default function ConversasPage() {
               <Button size="sm" variant="outline"
                 className={cn('h-7 text-xs gap-1.5',
                   painelNotasAberto
-                    ? 'bg-[#253B29] text-white border-[#253B29]'
+                    ? 'bg-fonti-primary text-white border-fonti-primary'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                 )}
                 onClick={() => setPainelNotasAberto(!painelNotasAberto)}>
@@ -812,8 +812,8 @@ export default function ConversasPage() {
                     m.origem === 'cliente'
                       ? 'bg-white border border-gray-100 rounded-bl-sm text-gray-800 shadow-sm'
                       : m.origem === 'bot'
-                      ? 'bg-[#253B29] text-white rounded-br-sm'
-                      : 'bg-[#C2AA6A] text-[#253B29] rounded-br-sm font-medium'
+                      ? 'bg-fonti-primary text-white rounded-br-sm'
+                      : 'bg-fonti-accent text-fonti-primary rounded-br-sm font-medium'
                   )}>
                     {m.origem === 'cliente' && conversaSelecionada.contato_grupo_id && m.metadata?.sender_nome && (
                       <p className="text-[10px] font-semibold text-purple-600 px-3 pt-2">
@@ -924,8 +924,8 @@ export default function ConversasPage() {
           <div className="w-72 shrink-0 border-l border-gray-200 bg-white flex flex-col">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <MessageSquareDashed className="w-4 h-4 text-[#253B29]" />
-                <span className="text-sm font-semibold text-[#253B29]">Notas internas</span>
+                <MessageSquareDashed className="w-4 h-4 text-fonti-primary" />
+                <span className="text-sm font-semibold text-fonti-primary">Notas internas</span>
               </div>
               <button onClick={() => setPainelNotasAberto(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -943,7 +943,7 @@ export default function ConversasPage() {
                 <p className="text-xs text-gray-400 text-center py-6">Nenhuma nota ainda.</p>
               ) : (
                 notas.map((n) => (
-                  <div key={n.id} className="bg-[#FFFBEB] border border-amber-100 rounded-lg px-3 py-2">
+                  <div key={n.id} className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[11px] font-semibold text-amber-800">
                         {n.autor?.[0]?.nome ?? 'Equipe'}
@@ -962,8 +962,8 @@ export default function ConversasPage() {
             {/* Solicitações operacionais */}
             <div className="border-t border-gray-100 px-3 py-3">
               <div className="flex items-center gap-1.5 mb-2">
-                <ClipboardList className="w-3.5 h-3.5 text-[#253B29]" />
-                <span className="text-xs font-semibold text-[#253B29]">Solicitações</span>
+                <ClipboardList className="w-3.5 h-3.5 text-fonti-primary" />
+                <span className="text-xs font-semibold text-fonti-primary">Solicitações</span>
               </div>
               <AbaSolicitacoes
                 conversaId={conversaSelecionada.id}
@@ -980,7 +980,7 @@ export default function ConversasPage() {
             <div className="px-3 py-3 border-t border-gray-100">
               <div className="flex gap-2">
                 <textarea
-                  className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[#253B29] placeholder:text-gray-400"
+                  className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-fonti-primary placeholder:text-gray-400"
                   rows={2}
                   placeholder="Escreva uma nota..."
                   value={textoNota}
@@ -992,7 +992,7 @@ export default function ConversasPage() {
                     }
                   }}
                 />
-                <Button size="icon" className="h-8 w-8 bg-[#253B29] hover:bg-[#1a2b1e] shrink-0 self-end"
+                <Button size="icon" className="h-8 w-8 bg-fonti-primary hover:bg-fonti-primary-hover shrink-0 self-end"
                   disabled={!textoNota.trim() || adicionarNota.isPending}
                   onClick={() => { if (textoNota.trim()) adicionarNota.mutate(textoNota.trim()) }}>
                   <Send className="w-3.5 h-3.5" />
@@ -1031,7 +1031,7 @@ export default function ConversasPage() {
               <div className="py-2 space-y-3">
                 <button
                   onClick={() => setModoVincular('buscar')}
-                  className="w-full flex items-start gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-[#253B29]/40 hover:bg-[#253B29]/5 transition-all text-left group"
+                  className="w-full flex items-start gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-fonti-primary/40 hover:bg-fonti-primary/5 transition-all text-left group"
                 >
                   <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-200 transition-colors">
                     <Search className="w-4 h-4 text-blue-600" />
@@ -1044,7 +1044,7 @@ export default function ConversasPage() {
 
                 <button
                   onClick={() => { setModoVincular(null); setDrawerCriarLead(true) }}
-                  className="w-full flex items-start gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-[#253B29]/40 hover:bg-[#253B29]/5 transition-all text-left group"
+                  className="w-full flex items-start gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-fonti-primary/40 hover:bg-fonti-primary/5 transition-all text-left group"
                 >
                   <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0 group-hover:bg-green-200 transition-colors">
                     <UserPlus className="w-4 h-4 text-green-600" />
@@ -1070,7 +1070,7 @@ export default function ConversasPage() {
                       placeholder="Buscar lead por nome ou telefone..."
                       value={buscaLead}
                       onChange={(e) => { setBuscaLead(e.target.value); setLeadSelecionado(null) }}
-                      className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#253B29]"
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-fonti-primary"
                       autoFocus
                     />
                   </div>
@@ -1086,7 +1086,7 @@ export default function ConversasPage() {
                             onClick={() => setLeadSelecionado(l)}
                             className={cn(
                               'w-full text-left px-3 py-2.5 hover:bg-gray-50 flex items-center justify-between border-b border-gray-50 last:border-0',
-                              leadSelecionado?.id === l.id && 'bg-[#E7E0C4]/30'
+                              leadSelecionado?.id === l.id && 'bg-fonti-accent-hover/30'
                             )}
                           >
                             <div>
@@ -1113,7 +1113,7 @@ export default function ConversasPage() {
                         type="checkbox"
                         checked={salvarTelefone}
                         onChange={(e) => setSalvarTelefone(e.target.checked)}
-                        className="w-3.5 h-3.5 accent-[#253B29]"
+                        className="w-3.5 h-3.5 accent-fonti-primary"
                       />
                       <span className="text-xs text-gray-600">
                         Salvar <span className="font-mono font-medium">{conversaSelecionada.contato_telefone}</span> como contato deste lead
@@ -1124,7 +1124,7 @@ export default function ConversasPage() {
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setModoVincular('opcoes')}>Voltar</Button>
                   <Button
-                    className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                    className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                     disabled={!leadSelecionado || vincularLead.isPending}
                     onClick={() => vincularLead.mutate({ lead_id: leadSelecionado!.id, salvar: salvarTelefone })}
                   >
@@ -1161,7 +1161,7 @@ export default function ConversasPage() {
             </DialogHeader>
             <div className="py-2 space-y-3">
               <p className="text-sm text-gray-600">
-                Contato: <span className="font-medium text-[#253B29]">
+                Contato: <span className="font-medium text-fonti-primary">
                   {conversaSelecionada.contato_nome ?? conversaSelecionada.contato_telefone}
                 </span>
               </p>
@@ -1184,7 +1184,7 @@ export default function ConversasPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setModalTransferencia(false)}>Cancelar</Button>
               <Button
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                 disabled={!novoAtendente || transferir.isPending}
                 onClick={() => transferir.mutate(novoAtendente)}
               >

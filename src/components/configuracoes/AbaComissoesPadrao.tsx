@@ -150,7 +150,7 @@ export function AbaComissoesPadrao() {
             <div className="flex items-center justify-between bg-gray-50 px-4 py-2.5 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 {banco.cor && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: banco.cor }} />}
-                <span className="text-sm font-semibold text-[#253B29]">{banco.nome}</span>
+                <span className="text-sm font-semibold text-fonti-primary">{banco.nome}</span>
                 <span className="text-xs text-gray-400">({linhasDoBanco.length} {linhasDoBanco.length === 1 ? 'regra' : 'regras'})</span>
               </div>
               <Button
@@ -223,7 +223,7 @@ export function AbaComissoesPadrao() {
                           <div className="flex items-center gap-1 justify-end">
                             <Button
                               size="icon" variant={row.dirty ? 'default' : 'ghost'}
-                              className={`h-6 w-6 ${row.dirty ? 'bg-[#253B29] hover:bg-[#253B29]/90' : ''}`}
+                              className={`h-6 w-6 ${row.dirty ? 'bg-fonti-primary hover:bg-fonti-primary/90' : ''}`}
                               disabled={salvando || !row.dirty}
                               onClick={() => salvarLinha(row, banco.nome)}
                               title="Salvar"

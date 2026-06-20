@@ -40,7 +40,7 @@ export function ImovelCard({ imovel, onClick }: Props) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#253B29]/20 transition-all p-4 flex flex-col gap-3"
+      className="w-full text-left bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-fonti-primary/20 transition-all p-4 flex flex-col gap-3"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
@@ -77,13 +77,13 @@ export function ImovelCard({ imovel, onClick }: Props) {
           </span>
         )}
         {imovel.garagem && (
-          <span className="flex items-center gap-1 text-[#253B29]">
+          <span className="flex items-center gap-1 text-fonti-primary">
             <Car className="h-3 w-3" />
             Garagem
           </span>
         )}
         {imovel.ultimo_processo && (
-          <span className="ml-auto text-[#253B29] font-medium">
+          <span className="ml-auto text-fonti-primary font-medium">
             {imovel.ultimo_processo.numero_processo}
           </span>
         )}

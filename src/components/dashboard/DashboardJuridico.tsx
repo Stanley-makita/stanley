@@ -61,7 +61,7 @@ export function DashboardJuridico({ nome }: Props) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm text-gray-500">
-          Acesse <strong className="text-[#253B29]">Negócios → Contratos</strong> e <strong className="text-[#253B29]">Registros</strong> no menu para ver os detalhes.
+          Acesse <strong className="text-fonti-primary">Negócios → Contratos</strong> e <strong className="text-fonti-primary">Registros</strong> no menu para ver os detalhes.
         </p>
       </div>
     </div>

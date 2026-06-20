@@ -145,7 +145,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
     <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
       <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-md overflow-y-auto sm:w-full">
         <DialogHeader>
-          <DialogTitle className="text-[#253B29]">Dados do Negócio</DialogTitle>
+          <DialogTitle className="text-fonti-primary">Dados do Negócio</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
@@ -219,7 +219,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
           {/* Condições de financiamento */}
           <div className="rounded-lg border border-gray-200 p-4 space-y-4">
-            <p className="text-sm font-medium text-[#253B29]">Condições do Financiamento</p>
+            <p className="text-sm font-medium text-fonti-primary">Condições do Financiamento</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Prazo (meses)</Label>
@@ -315,7 +315,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             <Button
               type="submit"
               disabled={isPending}
-              className="flex-1 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="flex-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             >
               {isPending ? 'Salvando...' : 'Salvar'}
             </Button>

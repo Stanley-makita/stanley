@@ -136,11 +136,11 @@ export function VisaoEmissoes() {
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#E7E0C4] rounded-lg flex items-center justify-center">
-            <BarChart2 className="h-4 w-4 text-[#253B29]" />
+          <div className="w-9 h-9 bg-fonti-accent-hover rounded-lg flex items-center justify-center">
+            <BarChart2 className="h-4 w-4 text-fonti-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-[#253B29]">
+            <h3 className="font-semibold text-fonti-primary">
               Emissões — {nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)}
             </h3>
             <p className="text-xs text-gray-400">Produção mensal e estoque total</p>
@@ -150,7 +150,7 @@ export function VisaoEmissoes() {
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navegar(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium text-[#253B29] min-w-[140px] text-center capitalize">{nomeMes}</span>
+          <span className="text-sm font-medium text-fonti-primary min-w-[140px] text-center capitalize">{nomeMes}</span>
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navegar(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -164,7 +164,7 @@ export function VisaoEmissoes() {
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Soma Certeza</span>
           </div>
-          <p className="text-xl font-bold text-[#253B29]">{fmt(estoque?.certeza_valor ?? 0)}</p>
+          <p className="text-xl font-bold text-fonti-primary">{fmt(estoque?.certeza_valor ?? 0)}</p>
           <p className="text-sm text-gray-400 mt-0.5">{estoque?.certeza_total ?? 0} contratos</p>
         </div>
 
@@ -173,16 +173,16 @@ export function VisaoEmissoes() {
             <Clock className="h-4 w-4 text-amber-500" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Soma Incerteza</span>
           </div>
-          <p className="text-xl font-bold text-[#253B29]">{fmt(estoque?.incerteza_valor ?? 0)}</p>
+          <p className="text-xl font-bold text-fonti-primary">{fmt(estoque?.incerteza_valor ?? 0)}</p>
           <p className="text-sm text-gray-400 mt-0.5">{estoque?.incerteza_total ?? 0} contratos</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Package className="h-4 w-4 text-[#253B29]" />
+            <Package className="h-4 w-4 text-fonti-primary" />
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total em Estoque</span>
           </div>
-          <p className="text-xl font-bold text-[#253B29]">{fmt(estoque?.total_valor ?? 0)}</p>
+          <p className="text-xl font-bold text-fonti-primary">{fmt(estoque?.total_valor ?? 0)}</p>
           <p className="text-sm text-gray-400 mt-0.5">{estoque?.total_estoque ?? 0} contratos</p>
         </div>
       </div>
@@ -191,7 +191,7 @@ export function VisaoEmissoes() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Tabela semanal */}
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <p className="text-sm font-semibold text-[#253B29] mb-4">Emissões por semana</p>
+          <p className="text-sm font-semibold text-fonti-primary mb-4">Emissões por semana</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -209,7 +209,7 @@ export function VisaoEmissoes() {
                 ) : (
                   emissoes.map((semana, i) => (
                     <tr key={i} className="border-b border-gray-50 last:border-0">
-                      <td className="py-2.5 pr-3 font-medium text-[#253B29]">{semana.emitidos}</td>
+                      <td className="py-2.5 pr-3 font-medium text-fonti-primary">{semana.emitidos}</td>
                       <td className="py-2.5 pr-3 text-blue-600 font-medium whitespace-nowrap">{fmt(semana.producao)}</td>
                       <td className="py-2.5 pr-3 text-gray-500 whitespace-nowrap">{fmtData(semana.emitidos_ate)}</td>
                       <td className="py-2.5 pr-3 text-gray-600">{pct(semana.percentual_valor)}</td>
@@ -219,7 +219,7 @@ export function VisaoEmissoes() {
                 )}
                 {emissoes.length > 0 && (
                   <tr className="bg-gray-50">
-                    <td className="py-2.5 pr-3 font-bold text-[#253B29]">{totalEmitidos}</td>
+                    <td className="py-2.5 pr-3 font-bold text-fonti-primary">{totalEmitidos}</td>
                     <td className="py-2.5 pr-3 font-bold text-blue-600 whitespace-nowrap">{fmt(totalProducao)}</td>
                     <td className="py-2.5 pr-3 text-gray-500 font-medium text-xs">Total</td>
                     <td colSpan={2} />
@@ -232,7 +232,7 @@ export function VisaoEmissoes() {
 
         {/* Tabela por banco — todos os bancos cadastrados */}
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <p className="text-sm font-semibold text-[#253B29] mb-4">Realizado por banco</p>
+          <p className="text-sm font-semibold text-fonti-primary mb-4">Realizado por banco</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -256,24 +256,24 @@ export function VisaoEmissoes() {
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: b.banco_cor ?? '#9ca3af' }}
                           />
-                          <span className="text-xs font-medium text-[#253B29] whitespace-nowrap">{b.banco_nome}</span>
+                          <span className="text-xs font-medium text-fonti-primary whitespace-nowrap">{b.banco_nome}</span>
                         </div>
                       </td>
                       <td className={`py-2.5 pr-3 font-medium whitespace-nowrap ${b.realizado > 0 ? 'text-blue-600' : 'text-gray-300'}`}>
                         {fmt(b.realizado)}
                       </td>
                       <td className={`py-2.5 pr-3 ${b.realizado > 0 ? 'text-gray-600' : 'text-gray-300'}`}>{pct(b.percentual_valor)}</td>
-                      <td className={`py-2.5 pr-3 font-medium ${b.realizado > 0 ? 'text-[#253B29]' : 'text-gray-300'}`}>{b.num_contratos}</td>
+                      <td className={`py-2.5 pr-3 font-medium ${b.realizado > 0 ? 'text-fonti-primary' : 'text-gray-300'}`}>{b.num_contratos}</td>
                       <td className={`py-2.5 ${b.realizado > 0 ? 'text-gray-600' : 'text-gray-300'}`}>{pct(b.percentual_contratos)}</td>
                     </tr>
                   ))
                 )}
                 {temEmissoes && (
                   <tr className="bg-gray-50">
-                    <td className="py-2.5 pr-3 font-bold text-[#253B29] text-xs">Total</td>
+                    <td className="py-2.5 pr-3 font-bold text-fonti-primary text-xs">Total</td>
                     <td className="py-2.5 pr-3 font-bold text-blue-600 whitespace-nowrap">{fmt(totalProducao)}</td>
                     <td className="py-2.5 pr-3 font-bold text-gray-600">100,000%</td>
-                    <td className="py-2.5 pr-3 font-bold text-[#253B29]">{totalEmitidos}</td>
+                    <td className="py-2.5 pr-3 font-bold text-fonti-primary">{totalEmitidos}</td>
                     <td className="py-2.5 font-bold text-gray-600">100,000%</td>
                   </tr>
                 )}
@@ -331,7 +331,7 @@ function MetaCard({ label, sublabel, realizado, meta, pctAtingido, cor, formatar
             <TrendingUp className="w-3.5 h-3.5" style={{ color: cor }} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-[#253B29]">{label}</p>
+            <p className="text-sm font-semibold text-fonti-primary">{label}</p>
             <p className="text-xs text-gray-400">{sublabel}</p>
           </div>
         </div>
@@ -354,8 +354,8 @@ function MetaCard({ label, sublabel, realizado, meta, pctAtingido, cor, formatar
             />
           </div>
           <div className="flex justify-between text-xs text-gray-400">
-            <span>Realizado: <span className="font-medium text-[#253B29]">{formatarRealizado(realizado)}</span></span>
-            <span>Meta: <span className="font-medium text-[#253B29]">{formatarMeta(meta)}</span></span>
+            <span>Realizado: <span className="font-medium text-fonti-primary">{formatarRealizado(realizado)}</span></span>
+            <span>Meta: <span className="font-medium text-fonti-primary">{formatarMeta(meta)}</span></span>
           </div>
         </div>
       ) : (

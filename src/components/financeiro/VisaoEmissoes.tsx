@@ -41,11 +41,11 @@ export function VisaoEmissoes({ fechamento_id, travado }: Props) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Total emitido</p>
-          <p className="text-lg font-semibold text-[#253B29]">{formatarMoeda(totalEmitido)}</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalEmitido)}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Processos</p>
-          <p className="text-lg font-semibold text-[#253B29]">{processos.length}</p>
+          <p className="text-lg font-semibold text-fonti-primary">{processos.length}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Sem comercial</p>

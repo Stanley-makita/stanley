@@ -56,7 +56,7 @@ export function useCriarTarefa(processoId: string) {
       queryClient.invalidateQueries({ queryKey: ['negocios', 'dashboard', 'tarefas-proximas'] })
       queryClient.invalidateQueries({ queryKey: ['agenda-tarefas'] })
       toast.success('Tarefa criada.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     },
   })

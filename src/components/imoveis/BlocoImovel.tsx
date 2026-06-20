@@ -141,10 +141,10 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
     <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-[#253B29]" />
-          <span className="text-sm font-semibold text-[#253B29]">Imóvel</span>
+          <Building2 className="h-4 w-4 text-fonti-primary" />
+          <span className="text-sm font-semibold text-fonti-primary">Imóvel</span>
           {processo.imovel_id && (
-            <Badge variant="outline" className="text-[10px] border-[#253B29]/20 text-[#253B29]/70">
+            <Badge variant="outline" className="text-[10px] border-fonti-primary/20 text-fonti-primary/70">
               Vinculado
             </Badge>
           )}
@@ -152,7 +152,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
         {!editando && (
           <div className="flex gap-1">
             {temImovel && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-[#253B29]" onClick={iniciarEdicao}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-fonti-primary" onClick={iniciarEdicao}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
             )}
@@ -173,7 +173,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             </Button>
             <Button
               size="sm"
-              className="h-7 text-xs gap-1 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               onClick={salvarEdicao}
               disabled={isPending}
             >
@@ -311,7 +311,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
                       <span className="text-gray-400 ml-1">· {(a.processo as any).numero_processo}</span>
                     )}
                   </span>
-                  <span className="font-semibold text-[#253B29]">{formatarMoeda(a.valor_avaliado)}</span>
+                  <span className="font-semibold text-fonti-primary">{formatarMoeda(a.valor_avaliado)}</span>
                 </div>
               ))}
             </div>

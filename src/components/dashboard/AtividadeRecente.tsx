@@ -15,7 +15,7 @@ const ICONES: Record<AtividadeItem['tipo'], React.ElementType> = {
 
 const CORES: Record<AtividadeItem['tipo'], string> = {
   lead_criado:           'bg-blue-100 text-blue-600',
-  processo_atualizado:   'bg-[#E7E0C4] text-[#253B29]',
+  processo_atualizado:   'bg-fonti-accent-hover text-fonti-primary',
   usuario_convidado:     'bg-green-100 text-green-600',
   fase_mudanca:          'bg-purple-100 text-purple-600',
 }
@@ -25,7 +25,7 @@ export function AtividadeRecente() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <h3 className="text-sm font-semibold text-[#253B29] mb-4">Atividade recente</h3>
+      <h3 className="text-sm font-semibold text-fonti-primary mb-4">Atividade recente</h3>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -53,7 +53,7 @@ export function AtividadeRecente() {
                   <Icone className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[#253B29] leading-snug">{item.descricao}</p>
+                  <p className="text-sm text-fonti-primary leading-snug">{item.descricao}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {item.usuario} ·{' '}
                     {formatDistanceToNow(new Date(item.criadoEm), {

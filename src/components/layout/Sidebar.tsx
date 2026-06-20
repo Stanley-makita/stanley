@@ -71,7 +71,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
   return (
-    <aside className={cn('flex min-h-screen w-60 flex-col bg-[#253B29] text-white', className)}>
+    <aside className={cn('flex min-h-screen w-60 flex-col bg-fonti-primary text-white', className)}>
       {/* Logo */}
       <div className="flex items-center justify-center px-4 py-4 border-b border-white/10">
         <Image
@@ -105,7 +105,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 {label}
               </Link>
               {isLeads && leadsBadge > 0 && (
-                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-[#C2AA6A] text-[#253B29] text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
+                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-fonti-accent text-fonti-primary text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
                   {leadsBadge > 99 ? '99+' : leadsBadge}
                 </span>
               )}
@@ -166,7 +166,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </span>
               )}
               {isConversas && conversasBadge > 0 && (
-                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-[#C2AA6A] text-[#253B29] text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
+                <span className="absolute top-1 right-2 min-w-[18px] h-[18px] rounded-full bg-fonti-accent text-fonti-primary text-[10px] font-bold flex items-center justify-center px-1 pointer-events-none">
                   {conversasBadge > 99 ? '99+' : conversasBadge}
                 </span>
               )}
@@ -223,8 +223,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       <div className="px-3 pb-4 border-t border-white/10 pt-3 space-y-1">
         {usuario && (
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-[#C2AA6A]/30 flex items-center justify-center shrink-0">
-              <span className="text-[#C2AA6A] text-xs font-bold uppercase">
+            <div className="w-8 h-8 rounded-full bg-fonti-accent/30 flex items-center justify-center shrink-0">
+              <span className="text-fonti-accent text-xs font-bold uppercase">
                 {usuario.nome.charAt(0)}
               </span>
             </div>

@@ -177,22 +177,22 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v && !salvando) onClose() }}>
-      <DialogContent className="max-w-2xl p-0 flex flex-col overflow-hidden max-h-[90vh]">
+      <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full">
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-start justify-between gap-4">
+        <div className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-[#253B29]">Revisar dados extraídos</h2>
+              <h2 className="text-base font-semibold text-fonti-primary">Revisar dados extraídos</h2>
               <p className="text-xs text-gray-400 mt-0.5 truncate">{documento.nome_original}</p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:shrink-0">
               {ocr?.confianca && (
                 <span className={`text-xs font-medium ${confiancaColor}`}>
                   Confiança {ocr.confianca}
                 </span>
               )}
               <Select value={tipoSelecionado} onValueChange={setTipoSelecionado}>
-                <SelectTrigger className="h-7 text-xs w-[190px] bg-gray-50 border-gray-200">
+                <SelectTrigger className="h-8 w-full bg-gray-50 text-xs sm:w-[190px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -208,15 +208,15 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
         </div>
 
         {/* Corpo */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
               Verifique os campos abaixo e corrija se necessário. Ao confirmar, os dados serão salvos no perfil do cliente.
             </p>
             <button
               onClick={abrirDocumento}
               disabled={carregandoUrl}
-              className="flex items-center gap-1 text-xs text-[#253B29] hover:underline shrink-0 ml-4"
+              className="flex shrink-0 items-center gap-1 text-xs text-fonti-primary hover:underline sm:ml-4"
             >
               {carregandoUrl ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
               Ver documento
@@ -234,7 +234,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
                   type={isDate ? 'date' : 'text'}
                   value={campos[key] ?? ''}
                   onChange={(e) => setCampos((prev) => ({ ...prev, [key]: e.target.value }))}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29]"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary"
                   placeholder={isDate ? undefined : `${label}...`}
                 />
               </div>
@@ -243,7 +243,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between gap-3 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-between sm:px-6">
           <Button
             variant="ghost"
             size="sm"
@@ -253,13 +253,13 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
           >
             Ignorar
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose} disabled={salvando}>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" size="sm" onClick={onClose} disabled={salvando} className="w-full sm:w-auto">
               Cancelar
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[110px]"
+              className="min-w-[110px] bg-fonti-primary text-white hover:bg-fonti-primary-hover"
               onClick={handleConfirmar}
               disabled={salvando}
             >

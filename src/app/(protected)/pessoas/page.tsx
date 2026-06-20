@@ -104,15 +104,15 @@ export default function PessoasPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="px-6 py-5 border-b bg-white">
+      <div className="border-b bg-white px-4 py-4 md:px-6 md:py-5">
         <PageHeader
           title="Pessoas"
           description={total > 0 ? `${total} contato${total !== 1 ? 's' : ''} cadastrado${total !== 1 ? 's' : ''}` : 'Contatos únicos do CRM'}
           actions={(
             <>
-            <div className="relative min-w-[200px] flex-1 sm:flex-none">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Buscar por nome..."
@@ -136,7 +136,7 @@ export default function PessoasPage() {
 
       {/* Filtros de tipo */}
       {tiposDisponiveis.length > 0 && (
-        <div className="px-6 py-2.5 border-b bg-white flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto border-b bg-white px-4 py-2.5 md:px-6">
           <FilterChip
             active={tipoFiltro === ''}
             onClick={() => { setTipoFiltro(''); setPagina(1) }}
@@ -158,9 +158,9 @@ export default function PessoasPage() {
       {/* Lista */}
       <div className="flex-1 overflow-y-auto bg-gray-50">
         {isLoading ? (
-          <div className="px-4 py-3 space-y-1">
+          <div className="space-y-2 px-4 py-3">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 rounded-lg" />
+              <Skeleton key={i} className="h-20 rounded-lg md:h-10" />
             ))}
           </div>
         ) : pessoas.length === 0 ? (
@@ -171,7 +171,7 @@ export default function PessoasPage() {
             className="h-64"
           />
         ) : (
-          <div className="px-4 py-3 space-y-1">
+          <div className="space-y-2 px-3 py-3 md:px-4">
             {pessoas.map((pessoa) => {
               const tel = telefonePrincipal(pessoa)
               const nTelefones = pessoa.pessoa_telefones.filter((t) => t.ativo).length
@@ -181,8 +181,8 @@ export default function PessoasPage() {
                   key={pessoa.id}
                   onClick={() => router.push(`/pessoas/${pessoa.id}`)}
                   avatar={(
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#253B29]/10 shrink-0">
-                      <span className="text-xs font-bold uppercase text-[#253B29]">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-fonti-primary/10 shrink-0">
+                      <span className="text-xs font-bold uppercase text-fonti-primary">
                         {pessoa.nome.charAt(0)}
                       </span>
                     </div>
@@ -191,7 +191,7 @@ export default function PessoasPage() {
                   meta={(
                     <>
                       {pessoa.tipo && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#253B29]/10 text-[#253B29] shrink-0">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-fonti-primary/10 text-fonti-primary shrink-0">
                           {TIPO_LABEL[pessoa.tipo] ?? pessoa.tipo}
                         </span>
                       )}
@@ -222,7 +222,7 @@ export default function PessoasPage() {
                   )}
                   trailing={(
                     <div className="flex items-center gap-2">
-                      <p className="text-xs text-gray-400 whitespace-nowrap">
+                      <p className="hidden whitespace-nowrap text-xs text-gray-400 sm:block">
                         {formatDistanceToNow(new Date(pessoa.created_at), { addSuffix: true, locale: ptBR })}
                       </p>
                       <ChevronRight className="h-3.5 w-3.5 text-gray-300 transition-colors group-hover:text-gray-500" />
@@ -239,22 +239,22 @@ export default function PessoasPage() {
 
       {/* Paginação */}
       {totalPaginas > 1 && (
-        <div className="px-6 py-3 border-t bg-white flex items-center justify-between">
+        <div className="flex flex-col gap-3 border-t bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-6">
           <p className="text-sm text-gray-500">
             Página {pagina} de {totalPaginas}
           </p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <button
               onClick={() => setPagina((p) => Math.max(1, p - 1))}
               disabled={pagina === 1}
-              className="px-3 py-1.5 text-sm rounded-md border disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-gray-50 disabled:opacity-40 sm:py-1.5"
             >
               Anterior
             </button>
             <button
               onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
               disabled={pagina === totalPaginas}
-              className="px-3 py-1.5 text-sm rounded-md border disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-gray-50 disabled:opacity-40 sm:py-1.5"
             >
               Próxima
             </button>

@@ -12,7 +12,7 @@ export function FilterChip({ active = false, count, className, children, ...prop
       className={cn(
         'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-3 text-xs font-medium transition-colors',
         active
-          ? 'border-[#253B29] bg-[#253B29] text-white'
+          ? 'border-fonti-primary bg-fonti-primary text-white'
           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50',
         className
       )}

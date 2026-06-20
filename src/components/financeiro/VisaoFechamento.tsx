@@ -157,7 +157,7 @@ export function VisaoFechamento({ fechamento }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-[#253B29]">
+          <h2 className="text-lg font-semibold text-fonti-primary">
             Fechamento {String(fechamento.competencia_mes).padStart(2, '0')}/{fechamento.competencia_ano}
           </h2>
           <p className="text-sm text-gray-500">
@@ -210,7 +210,7 @@ export function VisaoFechamento({ fechamento }: Props) {
             key={etapa.numero}
             className={`border transition-all ${
               etapa.destaque
-                ? 'border-[#C2AA6A] bg-[#f9f6ec]'
+                ? 'border-fonti-accent bg-fonti-surface-accent'
                 : etapa.perigo
                   ? 'border-red-200'
                   : 'border-gray-200'
@@ -258,7 +258,7 @@ export function VisaoFechamento({ fechamento }: Props) {
                   variant={etapa.perigo ? 'destructive' : etapa.destaque ? 'default' : 'outline'}
                   className={`w-full gap-1 text-xs ${
                     etapa.destaque && !etapa.perigo
-                      ? 'bg-[#253B29] hover:bg-[#1a2a1d] text-white'
+                      ? 'bg-fonti-primary hover:bg-fonti-primary-hover text-white'
                       : ''
                   }`}
                   onClick={etapa.acao}

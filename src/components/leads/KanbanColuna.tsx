@@ -37,7 +37,7 @@ export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLe
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: faseCor }}
           />
-          <span className="text-xs font-semibold text-[#253B29] truncate">
+          <span className="text-xs font-semibold text-fonti-primary truncate">
             {faseNome}
           </span>
           <span className="text-xs text-gray-400 font-normal shrink-0">
@@ -49,7 +49,7 @@ export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLe
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 text-gray-400 hover:text-[#253B29] shrink-0"
+            className="h-5 w-5 text-gray-400 hover:text-fonti-primary shrink-0"
             onClick={() => onCriarLead(faseId)}
           >
             <Plus className="h-3 w-3" />
@@ -67,7 +67,7 @@ export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLe
           ref={setNodeRef}
           className={`
             flex min-h-[80px] flex-col gap-1.5 rounded-lg p-1.5 transition-colors
-            ${isOver ? 'bg-[#E7E0C4]/60 ring-1 ring-[#C2AA6A]' : 'bg-gray-100/60'}
+            ${isOver ? 'bg-fonti-accent-hover/60 ring-1 ring-fonti-accent' : 'bg-gray-100/60'}
           `}
         >
           {isLoading ? (
@@ -86,7 +86,7 @@ export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLe
               {pode('leads.criar') && (
                 <button
                   onClick={() => onCriarLead(faseId)}
-                  className="text-[#C2AA6A] hover:underline"
+                  className="text-fonti-accent hover:underline"
                 >
                   Adicionar o primeiro →
                 </button>

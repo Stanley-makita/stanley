@@ -121,7 +121,7 @@ export function ListaNotificacoes() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-xs text-[#253B29]"
+                  className="text-xs text-fonti-primary"
                   onClick={() => setPagina((p) => p + 1)}
                 >
                   Carregar mais

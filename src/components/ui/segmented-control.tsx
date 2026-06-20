@@ -40,8 +40,8 @@ export function SegmentedControl<T extends string>({
               'inline-flex h-8 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors',
               iconOnly ? 'w-8 px-0' : 'px-3',
               active
-                ? 'bg-[#253B29] text-white shadow-sm'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-[#253B29]'
+                ? 'bg-fonti-primary text-white shadow-sm'
+                : 'text-gray-500 hover:bg-gray-50 hover:text-fonti-primary'
             )}
           >
             <Icon className={cn('shrink-0', iconOnly ? 'h-4 w-4' : 'h-3.5 w-3.5')} />

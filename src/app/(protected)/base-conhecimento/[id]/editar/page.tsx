@@ -154,20 +154,20 @@ export default function EditarDocumentoPage() {
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Título *</label>
           <input value={titulo} onChange={e => setTitulo(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20" />
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20" />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
           <input value={descricao} onChange={e => setDescricao(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20" />
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Categoria</label>
             <select value={categoriaId} onChange={e => setCategoriaId(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 bg-white">
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 bg-white">
               <option value="">Sem categoria</option>
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
@@ -175,7 +175,7 @@ export default function EditarDocumentoPage() {
           <div className="flex items-end pb-1">
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input type="checkbox" checked={publicado} onChange={e => setPublicado(e.target.checked)}
-                className="w-4 h-4 rounded accent-[#253B29]" />
+                className="w-4 h-4 rounded accent-fonti-primary" />
               <span className="text-sm text-gray-700">Publicado</span>
             </label>
           </div>
@@ -185,7 +185,7 @@ export default function EditarDocumentoPage() {
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Conteúdo</label>
             <textarea value={conteudo} onChange={e => setConteudo(e.target.value)} rows={12}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 resize-y" />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 resize-y" />
           </div>
         )}
 
@@ -193,7 +193,7 @@ export default function EditarDocumentoPage() {
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">URL</label>
             <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} type="url"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20" />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20" />
           </div>
         )}
 
@@ -207,7 +207,7 @@ export default function EditarDocumentoPage() {
               </div>
             ) : (
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="w-full flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-[#253B29]/30 transition-colors">
+                className="w-full flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-fonti-primary/30 transition-colors">
                 <Upload className="h-5 w-5" />
                 {uploading ? 'Enviando...' : 'Clique para selecionar'}
               </button>
@@ -222,7 +222,7 @@ export default function EditarDocumentoPage() {
           <div className="flex gap-2">
             <input value={tagInput} onChange={e => setTagInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
               placeholder="Pressione Enter para adicionar" />
             <button onClick={addTag}
               className="flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
@@ -250,7 +250,7 @@ export default function EditarDocumentoPage() {
           Cancelar
         </Link>
         <button onClick={() => salvar.mutate()} disabled={salvar.isPending || !titulo || uploading}
-          className="px-5 py-2 bg-[#253B29] text-white rounded-lg text-sm font-medium hover:bg-[#1e3023] disabled:opacity-50 transition-colors">
+          className="px-5 py-2 bg-fonti-primary text-white rounded-lg text-sm font-medium hover:bg-fonti-primary-hover disabled:opacity-50 transition-colors">
           {salvar.isPending ? 'Salvando...' : 'Salvar alterações'}
         </button>
       </div>

@@ -13,7 +13,7 @@ export default function TodosNegociosPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-[#253B29]">Todos os Negócios</h1>
+          <h1 className="text-xl font-bold text-fonti-primary">Todos os Negócios</h1>
           <p className="text-sm text-gray-500">Processos de todos os funis — financiamento, consórcio, contrato e registro</p>
         </div>
 
@@ -26,7 +26,7 @@ export default function TodosNegociosPage() {
               key={key}
               onClick={() => setVisao(key)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
-                visao === key ? 'bg-[#253B29] text-white' : 'text-gray-600 hover:bg-gray-50'
+                visao === key ? 'bg-fonti-primary text-white' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <Icone className="h-3.5 w-3.5" />

@@ -92,7 +92,7 @@ export function VisaoComissoesAPagar({ fechamento_id, travado }: Props) {
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Total a pagar</p>
-          <p className="text-lg font-semibold text-[#253B29]">{formatarMoeda(totalFinal)}</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalFinal)}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Pendentes</p>
@@ -106,11 +106,11 @@ export function VisaoComissoesAPagar({ fechamento_id, travado }: Props) {
 
       {/* Ações em lote */}
       {!travado && selecionados.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-[#C2AA6A] bg-[#f9f6ec] p-3">
+        <div className="flex items-center gap-3 rounded-lg border border-fonti-accent bg-fonti-surface-accent p-3">
           <span className="text-sm font-medium">{selecionados.size} selecionado(s)</span>
           <Button
             size="sm"
-            className="bg-[#253B29] hover:bg-[#1a2a1d] text-white gap-1"
+            className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
             onClick={() => setModalPagar(true)}
           >
             <CheckCircle2 className="h-3.5 w-3.5" />

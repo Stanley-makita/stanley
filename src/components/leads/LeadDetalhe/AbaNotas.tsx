@@ -51,7 +51,7 @@ export function AbaNotas({ leadId }: Props) {
     <div className="space-y-4">
 
       {/* Input */}
-      <div className="bg-white rounded-xl border border-[#E7E0C4] p-3">
+      <div className="bg-white rounded-xl border border-fonti-accent-hover p-3">
         <Textarea
           placeholder="Registre o que aconteceu: ligação, mensagem, reunião, follow-up..."
           value={texto}
@@ -64,7 +64,7 @@ export function AbaNotas({ leadId }: Props) {
           <p className="text-xs text-gray-400">Ctrl + Enter para enviar</p>
           <Button
             size="sm"
-            className="h-7 text-xs gap-1.5 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="h-7 text-xs gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={handleEnviar}
             disabled={!texto.trim() || registrar.isPending}
           >
@@ -100,11 +100,11 @@ export function AbaNotas({ leadId }: Props) {
         <div className="space-y-3">
           {notas.map((item) => (
             <div key={item.id} className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-[#253B29] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-7 h-7 rounded-full bg-fonti-primary flex items-center justify-center shrink-0 mt-0.5">
                 <MessageSquare className="h-3 w-3 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="bg-white border border-[#E7E0C4] rounded-xl px-3.5 py-2.5 shadow-sm">
+                <div className="bg-white border border-fonti-accent-hover rounded-xl px-3.5 py-2.5 shadow-sm">
                   <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                     {item.descricao}
                   </p>

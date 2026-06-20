@@ -126,26 +126,26 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
         <DialogContent className="flex max-h-[94svh] w-[calc(100vw-1rem)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0">
           {isLoading || !lead ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-6 w-6 animate-spin text-[#253B29]" />
+              <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
             </div>
           ) : (
             <div className="flex flex-1 flex-col overflow-hidden lg:flex-row" style={{ height: '88svh' }}>
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
-              <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-[#F9F7F2] lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
+              <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
 
                 {/* Identidade + ações rápidas */}
                 <div className="space-y-3 border-b border-gray-200 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
                       <span className="text-sm font-bold text-white">{iniciais(lead.nome)}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-sm font-bold text-[#253B29] leading-snug break-words">{lead.nome}</h2>
+                      <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
                       {lead.fase && (
                         <span
                           className="text-xs px-2 py-0.5 rounded-full font-medium text-white mt-1.5 inline-block"
-                          style={{ backgroundColor: lead.fase.cor ?? '#253B29' }}
+                          style={{ backgroundColor: lead.fase.cor ?? 'var(--fonti-primary)' }}
                         >
                           {lead.fase.nome}
                         </span>
@@ -208,7 +208,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full h-7 text-xs gap-1 text-[#253B29] border-[#C2AA6A]/50 hover:bg-[#E7E0C4]/40"
+                      className="w-full h-7 text-xs gap-1 text-fonti-primary border-fonti-accent/50 hover:bg-fonti-accent-hover/40"
                       onClick={() => setCompletarDadosAberto(true)}
                     >
                       <ClipboardList className="h-3 w-3" />
@@ -260,10 +260,10 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Comercial</p>
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
                           <span className="text-xs font-bold text-white">{iniciais(lead.responsavel.nome)}</span>
                         </div>
-                        <span className="text-sm text-[#253B29] font-medium truncate">{lead.responsavel.nome}</span>
+                        <span className="text-sm text-fonti-primary font-medium truncate">{lead.responsavel.nome}</span>
                       </div>
                     </div>
                   )}
@@ -311,7 +311,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                           'w-full h-8 text-xs gap-1.5',
                           temBloqueio
                             ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                            : 'text-[#253B29] border-[#253B29]/30 hover:bg-[#253B29]/5'
+                            : 'text-fonti-primary border-fonti-primary/30 hover:bg-fonti-primary/5'
                         )}
                         disabled={editarLead.isPending}
                         onClick={() => {
@@ -335,7 +335,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                   })()}
                   <Button
                     size="sm"
-                    className="w-full h-8 text-xs gap-1.5 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                    className="w-full h-8 text-xs gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                     onClick={() => setNovoProcessoAberto(true)}
                   >
                     <Plus className="h-3 w-3" />
@@ -362,7 +362,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       className={cn(
                         'px-4 py-3 text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap',
                         abaAtiva === aba.id
-                          ? 'border-[#253B29] text-[#253B29]'
+                          ? 'border-fonti-primary text-fonti-primary'
                           : 'border-transparent text-gray-400 hover:text-gray-600'
                       )}
                     >
@@ -444,7 +444,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
           <Dialog open={consultaRestritivosAberto} onOpenChange={(o) => { if (!o) setConsultaRestritivosAberto(false) }}>
             <DialogContent className="max-w-sm">
               <DialogHeader>
-                <DialogTitle className="text-[#253B29] text-base">Consulta de Restritivos</DialogTitle>
+                <DialogTitle className="text-fonti-primary text-base">Consulta de Restritivos</DialogTitle>
               </DialogHeader>
               <div className="py-3 space-y-4">
                 <p className="text-sm text-gray-700 leading-relaxed">
@@ -476,7 +476,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 <Button
                   size="sm"
                   disabled={temRestricao === null}
-                  className="w-full bg-[#253B29] hover:bg-[#1a2b1e] text-white disabled:opacity-40"
+                  className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white disabled:opacity-40"
                   onClick={() => {
                     setConsultaRestritivosRespondido(true)
                     setConsultaRestritivosAberto(false)
@@ -493,7 +493,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
           <Dialog open={iniciarConversaAberto} onOpenChange={(o) => { if (!o) setIniciarConversaAberto(false) }}>
             <DialogContent className="max-w-sm">
               <DialogHeader>
-                <DialogTitle className="text-[#253B29]">Iniciar conversa</DialogTitle>
+                <DialogTitle className="text-fonti-primary">Iniciar conversa</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="text-sm text-gray-600">
@@ -522,7 +522,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 <Button
                   size="sm"
                   disabled={iniciarConversa.isPending}
-                  className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+                  className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
                   onClick={async () => {
                     try {
                       const id = await iniciarConversa.mutateAsync({
@@ -566,7 +566,7 @@ function InfoRow({
         <p className="text-xs text-gray-400">{label}</p>
         <p className={cn(
           'text-sm truncate',
-          destaque ? 'font-bold text-[#253B29]' : 'font-medium text-gray-800'
+          destaque ? 'font-bold text-fonti-primary' : 'font-medium text-gray-800'
         )}>
           {valor}
         </p>

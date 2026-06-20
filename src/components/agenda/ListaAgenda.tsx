@@ -92,7 +92,7 @@ export function ListaAgenda({
     <div className="space-y-3">
       {/* Contadores */}
       <div className="flex gap-4 text-sm">
-        <span className="text-gray-600"><strong className="text-[#253B29]">{pendentes}</strong> pendentes</span>
+        <span className="text-gray-600"><strong className="text-fonti-primary">{pendentes}</strong> pendentes</span>
         {vencidas > 0 && (
           <span className="text-red-600 font-semibold">{vencidas} vencidas</span>
         )}
@@ -108,8 +108,8 @@ export function ListaAgenda({
             className={cn(
               'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
               filtroPeriodo === value
-                ? 'bg-[#253B29] text-white border-[#253B29]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-[#253B29]/40'
+                ? 'bg-fonti-primary text-white border-fonti-primary'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-fonti-primary/40'
             )}
           >
             {label}

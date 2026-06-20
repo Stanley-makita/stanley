@@ -39,7 +39,7 @@ export default function RhPage() {
               <TabsTrigger
                 key={value}
                 value={value}
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#253B29] data-[state=active]:bg-transparent data-[state=active]:text-[#253B29] data-[state=active]:shadow-none text-gray-500 hover:text-gray-700 gap-1.5 px-4 py-2.5 text-sm"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-fonti-primary data-[state=active]:bg-transparent data-[state=active]:text-fonti-primary data-[state=active]:shadow-none text-gray-500 hover:text-gray-700 gap-1.5 px-4 py-2.5 text-sm"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {label}

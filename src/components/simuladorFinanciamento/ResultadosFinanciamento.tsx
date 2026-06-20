@@ -77,7 +77,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
                 {elegiveis.map((r, i) => (
                   <tr
                     key={r.resultadoId}
-                    className={cn('transition-colors', i === 0 ? 'bg-[#253B29]/5' : 'hover:bg-gray-50')}
+                    className={cn('transition-colors', i === 0 ? 'bg-fonti-primary/5' : 'hover:bg-gray-50')}
                   >
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export function ResultadosFinanciamento({ resultados }: Props) {
                         <span className="font-medium text-gray-800 whitespace-nowrap">
                           {nomeAbrev(r)}
                           {i === 0 && (
-                            <span className="ml-1 text-[10px] text-[#253B29] font-bold">★</span>
+                            <span className="ml-1 text-[10px] text-fonti-primary font-bold">★</span>
                           )}
                         </span>
                       </div>
@@ -165,7 +165,7 @@ function Metric({ label, value, destaque }: { label: string; value: string; dest
   return (
     <div>
       <p className="text-gray-400">{label}</p>
-      <p className={cn('font-semibold mt-0.5', destaque ? 'text-[#253B29]' : 'text-gray-700')}>
+      <p className={cn('font-semibold mt-0.5', destaque ? 'text-fonti-primary' : 'text-gray-700')}>
         {value}
       </p>
     </div>

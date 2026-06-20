@@ -88,7 +88,7 @@ export function VisaoDespesas({ fechamento_id, travado }: Props) {
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Total previsto</p>
-          <p className="text-lg font-semibold text-[#253B29]">{formatarMoeda(totalPrevisto)}</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalPrevisto)}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Pago</p>
@@ -105,7 +105,7 @@ export function VisaoDespesas({ fechamento_id, travado }: Props) {
       {/* Ação adicionar */}
       {!travado && (
         <div className="flex justify-end">
-          <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2a1d] text-white gap-1" onClick={() => setModalAdd(true)}>
+          <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1" onClick={() => setModalAdd(true)}>
             <Plus className="h-4 w-4" />
             Nova Despesa
           </Button>

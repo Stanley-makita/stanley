@@ -71,7 +71,7 @@ export function VisaoAReceber({ fechamento_id, travado }: Props) {
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Previsto</p>
-          <p className="text-lg font-semibold text-[#253B29]">{formatarMoeda(totalPrevisto)}</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalPrevisto)}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Recebido</p>

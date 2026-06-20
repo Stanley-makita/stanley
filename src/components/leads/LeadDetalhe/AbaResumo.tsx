@@ -157,7 +157,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
                           ? 'bg-gray-100 text-gray-400'
                           : 'bg-gray-50 text-gray-300'
                     )}
-                    style={isAtual ? { backgroundColor: fase.cor ?? '#253B29' } : undefined}
+                    style={isAtual ? { backgroundColor: fase.cor ?? 'var(--fonti-primary)' } : undefined}
                   >
                     {fase.nome}
                   </div>
@@ -179,7 +179,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${Math.round(((idxFaseAtual) / Math.max(fasesOrdenadas.length - 1, 1)) * 100)}%`,
-                    backgroundColor: lead.fase?.cor ?? '#253B29',
+                    backgroundColor: lead.fase?.cor ?? 'var(--fonti-primary)',
                   }}
                 />
               </div>
@@ -232,7 +232,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
             ))}
             {notas.length > 3 && (
               <p className="text-xs text-gray-400 text-center pt-1">
-                +{notas.length - 3} notas — veja em <span className="text-[#253B29] font-medium">Notas</span>
+                +{notas.length - 3} notas — veja em <span className="text-fonti-primary font-medium">Notas</span>
               </p>
             )}
           </div>
@@ -244,7 +244,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <p className="text-sm text-gray-400">Perfil incompleto.</p>
           <p className="text-xs text-gray-300 mt-1">
-            Clique em <span className="text-[#253B29] font-medium">Editar</span> para complementar os dados do cliente.
+            Clique em <span className="text-fonti-primary font-medium">Editar</span> para complementar os dados do cliente.
           </p>
         </div>
       )}
@@ -264,7 +264,7 @@ function MiniStat({
   const cores = {
     blue:  'bg-blue-50   text-blue-600',
     green: 'bg-green-50  text-green-600',
-    gold:  'bg-[#F9F7F2] text-[#C2AA6A]',
+    gold:  'bg-fonti-surface-warm text-fonti-accent',
     gray:  'bg-gray-50   text-gray-500',
     red:   'bg-red-50    text-red-600',
     amber: 'bg-amber-50  text-amber-500',
@@ -283,7 +283,7 @@ function MiniStat({
       </div>
       <div className="min-w-0">
         <p className="text-[10px] text-gray-400 font-medium leading-none mb-0.5">{label}</p>
-        <p className="text-sm font-bold text-[#253B29] leading-none">{valor}</p>
+        <p className="text-sm font-bold text-fonti-primary leading-none">{valor}</p>
       </div>
     </Tag>
   )
@@ -301,7 +301,7 @@ function KpiCard({
   const cores = {
     blue:  'bg-blue-50   text-blue-600',
     green: 'bg-green-50  text-green-600',
-    gold:  'bg-[#F9F7F2] text-[#C2AA6A]',
+    gold:  'bg-fonti-surface-warm text-fonti-accent',
     gray:  'bg-gray-50   text-gray-500',
     red:   'bg-red-50    text-red-600',
     amber: 'bg-amber-50  text-amber-600',
@@ -322,7 +322,7 @@ function KpiCard({
         </div>
         <p className="text-xs text-gray-400 font-medium leading-tight">{label}</p>
       </div>
-      <p className="text-lg font-bold text-[#253B29] leading-none">{valor}</p>
+      <p className="text-lg font-bold text-fonti-primary leading-none">{valor}</p>
       <p className="text-xs text-gray-400 leading-tight">{sub}</p>
     </div>
   )
@@ -344,14 +344,14 @@ function NotaExpandivel({ nota }: { nota: { id: string; descricao: string | null
   const longa = texto.length > LIMITE
 
   return (
-    <div className="bg-[#F9F7F2] rounded-lg px-3 py-2.5 border border-[#E7E0C4]">
+    <div className="bg-fonti-surface-warm rounded-lg px-3 py-2.5 border border-fonti-accent-hover">
       <p className="text-sm text-gray-700 leading-snug whitespace-pre-wrap">
         {expandida || !longa ? texto : texto.slice(0, LIMITE) + '…'}
       </p>
       {longa && (
         <button
           onClick={() => setExpandida(v => !v)}
-          className="text-xs text-[#253B29] font-medium mt-1 hover:underline"
+          className="text-xs text-fonti-primary font-medium mt-1 hover:underline"
         >
           {expandida ? 'ver menos' : 'ver mais'}
         </button>

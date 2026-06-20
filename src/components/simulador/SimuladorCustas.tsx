@@ -202,15 +202,15 @@ function PainelHistorico({
               </span>
             </div>
             <div className="grid grid-cols-3 gap-3 text-sm">
-              <div><p className="text-xs text-gray-400">C&V</p><p className="font-medium text-[#253B29]">{BRL.format(sim.valor_imovel)}</p></div>
-              <div><p className="text-xs text-gray-400">Sem Desconto</p><p className="font-bold text-[#253B29]">{BRL.format(sim.total_custas)}</p></div>
+              <div><p className="text-xs text-gray-400">C&V</p><p className="font-medium text-fonti-primary">{BRL.format(sim.valor_imovel)}</p></div>
+              <div><p className="text-xs text-gray-400">Sem Desconto</p><p className="font-bold text-fonti-primary">{BRL.format(sim.total_custas)}</p></div>
               <div><p className="text-xs text-gray-400">Com Desconto</p><p className="font-bold text-[#1E7B34]">{BRL.format(res?.totalComDesconto ?? sim.total_custas)}</p></div>
             </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs border-[#253B29] text-[#253B29] hover:bg-[#E7E0C4] gap-1.5"
+                className="text-xs border-fonti-primary text-fonti-primary hover:bg-fonti-accent-hover gap-1.5"
                 onClick={async () => {
                   if (!res) return
                   const { gerarPDFSimulacao } = await import('./gerarPDF')
@@ -228,7 +228,7 @@ function PainelHistorico({
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs border-[#C2AA6A] text-[#253B29] hover:bg-[#E7E0C4] gap-1.5"
+                className="text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover gap-1.5"
                 onClick={async () => {
                   if (!res) return
                   const { gerarPDFSimulacao } = await import('./gerarPDF')
@@ -388,7 +388,7 @@ export function SimuladorCustas({
           onClick={() => setAbaAtiva('simulador')}
           className={`px-4 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${
             abaAtiva === 'simulador'
-              ? 'border-[#253B29] text-[#253B29]'
+              ? 'border-fonti-primary text-fonti-primary'
               : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
@@ -399,7 +399,7 @@ export function SimuladorCustas({
             onClick={() => setAbaAtiva('historico')}
             className={`px-4 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${
               abaAtiva === 'historico'
-                ? 'border-[#253B29] text-[#253B29]'
+                ? 'border-fonti-primary text-fonti-primary'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -413,14 +413,14 @@ export function SimuladorCustas({
       )}
 
       {abaAtiva === 'simulador' && (
-        <div className={`rounded-2xl border-2 border-[#253B29] overflow-hidden${modoAvulso ? ' flex-1 min-h-0 flex flex-col' : ''}`}>
+        <div className={`rounded-2xl border-2 border-fonti-primary overflow-hidden${modoAvulso ? ' flex-1 min-h-0 flex flex-col' : ''}`}>
 
           {/* ── Cabeçalho ─────────────────────────────────────────── */}
           <div className="flex items-center justify-between gap-4 px-5 py-3 bg-white border-b border-gray-100">
             <div className="flex items-center gap-3 min-w-0">
-              <Calculator className="h-5 w-5 text-[#253B29] shrink-0" />
+              <Calculator className="h-5 w-5 text-fonti-primary shrink-0" />
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[#253B29] leading-tight">
+                <p className="text-sm font-bold text-fonti-primary leading-tight">
                   Cálculo de estimativa de custas para contratação de Financiamento
                 </p>
                 {clienteNome && (
@@ -444,7 +444,7 @@ export function SimuladorCustas({
               <div className="grid grid-cols-2 px-3 pt-2 pb-1">
                 {/* Header */}
                 <div className="col-span-2 pb-1 mb-1 border-b border-[#D5CFA8]">
-                  <p className="text-[10px] font-semibold text-[#253B29] uppercase tracking-wide">Dados da Operação</p>
+                  <p className="text-[10px] font-semibold text-fonti-primary uppercase tracking-wide">Dados da Operação</p>
                 </div>
 
                 <Row label="Tipo de Imóvel">
@@ -473,7 +473,7 @@ export function SimuladorCustas({
                 </Row>
 
                 <Row label="Recursos Próprios">
-                  <div className="h-7 flex items-center px-2 bg-white/60 border border-[#D5CFA8] rounded-md text-xs font-semibold text-[#253B29] w-full">
+                  <div className="h-7 flex items-center px-2 bg-white/60 border border-[#D5CFA8] rounded-md text-xs font-semibold text-fonti-primary w-full">
                     {BRL.format(recursosPropriosValue)}
                   </div>
                 </Row>
@@ -498,7 +498,7 @@ export function SimuladorCustas({
 
                 {/* Separator */}
                 <div className="col-span-2 mt-1 mb-1 border-t border-[#D5CFA8]">
-                  <p className="text-[10px] font-semibold text-[#253B29] uppercase tracking-wide pt-1">Parâmetros</p>
+                  <p className="text-[10px] font-semibold text-fonti-primary uppercase tracking-wide pt-1">Parâmetros</p>
                 </div>
 
                 <Row label="1ª Aquisição">
@@ -608,7 +608,7 @@ export function SimuladorCustas({
               </div>
 
               {/* Estimativas de Despesas */}
-              <div className="bg-[#253B29] px-4 py-3 flex items-center justify-between gap-4 shrink-0">
+              <div className="bg-fonti-primary px-4 py-3 flex items-center justify-between gap-4 shrink-0">
                 <p className="text-xs font-bold text-white uppercase tracking-wide">Estimativas de Despesas</p>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
@@ -646,7 +646,7 @@ export function SimuladorCustas({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-[#C2AA6A] text-[#253B29] hover:bg-[#E7E0C4] gap-1"
+                  className="h-7 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover gap-1"
                   onClick={salvarSimulacao}
                   disabled={!resultado || salvar.isPending}
                 >
@@ -655,7 +655,7 @@ export function SimuladorCustas({
               )}
               <Button
                 size="sm"
-                className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1"
+                className="h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
                 onClick={baixarPDF}
                 disabled={!resultado}
               >

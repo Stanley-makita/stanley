@@ -93,9 +93,9 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
 
   if (pessoaSelecionada) {
     return (
-      <div className="flex items-center gap-2 bg-[#E7E0C4]/30 border border-[#253B29]/20 rounded-lg px-3 py-2.5">
+      <div className="flex items-center gap-2 bg-fonti-accent-hover/30 border border-fonti-primary/20 rounded-lg px-3 py-2.5">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[#253B29] truncate">{pessoaSelecionada.nome}</p>
+          <p className="text-sm font-medium text-fonti-primary truncate">{pessoaSelecionada.nome}</p>
           {pessoaSelecionada.cpf && (
             <p className="text-xs text-gray-500">CPF: {pessoaSelecionada.cpf}</p>
           )}
@@ -122,7 +122,7 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
           onChange={(e) => setTermo(e.target.value)}
           onFocus={() => resultados.length > 0 && setAberto(true)}
           placeholder="Buscar por nome ou CPF..."
-          className="w-full pl-9 pr-9 h-9 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29]/50 transition"
+          className="w-full pl-9 pr-9 h-9 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary/50 transition"
         />
         {carregando && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
@@ -140,7 +140,7 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
                     onClick={() => selecionar(p)}
                     className="w-full text-left px-3 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
                   >
-                    <p className="text-sm font-medium text-[#253B29]">{p.nome}</p>
+                    <p className="text-sm font-medium text-fonti-primary">{p.nome}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {[p.cpf, p.telefone].filter(Boolean).join(' · ') || 'Sem CPF ou telefone'}
                     </p>
@@ -154,7 +154,7 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
             type="button"
             onClick={() => { setAberto(false); onCriarPessoa() }}
             className={cn(
-              'w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#253B29] hover:bg-[#E7E0C4]/40 transition-colors',
+              'w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-fonti-primary hover:bg-fonti-accent-hover/40 transition-colors',
               resultados.length > 0 && 'border-t border-gray-100'
             )}
           >
@@ -170,7 +170,7 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
         <button
           type="button"
           onClick={onCriarPessoa}
-          className="mt-1 w-full flex items-center gap-2 px-3 py-2 text-sm text-[#253B29] hover:bg-gray-50 border border-dashed border-gray-200 rounded-lg transition-colors"
+          className="mt-1 w-full flex items-center gap-2 px-3 py-2 text-sm text-fonti-primary hover:bg-gray-50 border border-dashed border-gray-200 rounded-lg transition-colors"
         >
           <UserPlus className="h-4 w-4 shrink-0" />
           Não encontrado — criar nova pessoa

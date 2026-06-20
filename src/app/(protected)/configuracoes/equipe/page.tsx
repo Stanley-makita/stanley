@@ -54,7 +54,7 @@ function useAlternarAtivo() {
     onSuccess: (_, { ativo }) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios', 'equipe'] })
       toast.success(ativo ? 'Usuário ativado.' : 'Usuário desativado.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     },
   })
@@ -72,7 +72,7 @@ export default function EquipePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-[#253B29]">Equipe</h2>
+          <h2 className="text-xl font-semibold text-fonti-primary">Equipe</h2>
           <p className="text-sm text-gray-500">Gerencie os membros e acessos da sua equipe</p>
         </div>
         {pode('usuarios.convidar') && <ConviteFormDrawer />}
@@ -82,13 +82,13 @@ export default function EquipePage() {
         <TabsList className="bg-gray-100">
           <TabsTrigger
             value="membros"
-            className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white"
+            className="data-[state=active]:bg-fonti-primary data-[state=active]:text-white"
           >
             Membros ({usuarios?.length ?? 0})
           </TabsTrigger>
           <TabsTrigger
             value="convites"
-            className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white"
+            className="data-[state=active]:bg-fonti-primary data-[state=active]:text-white"
           >
             Convites pendentes ({convites?.length ?? 0})
           </TabsTrigger>
@@ -123,7 +123,7 @@ export default function EquipePage() {
                 ) : (
                   usuarios?.map((u) => (
                     <TableRow key={u.id}>
-                      <TableCell className="font-medium text-[#253B29]">{u.nome}</TableCell>
+                      <TableCell className="font-medium text-fonti-primary">{u.nome}</TableCell>
                       <TableCell className="text-gray-600">{u.email}</TableCell>
                       <TableCell>
                         <UsuarioPerfilBadge perfil={u.perfil} />
@@ -182,7 +182,7 @@ export default function EquipePage() {
                     const expirado = new Date(c.expira_em) < new Date()
                     return (
                       <TableRow key={c.id}>
-                        <TableCell className="text-[#253B29]">{c.email}</TableCell>
+                        <TableCell className="text-fonti-primary">{c.email}</TableCell>
                         <TableCell>
                           <UsuarioPerfilBadge perfil={c.perfil} />
                         </TableCell>

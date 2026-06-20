@@ -7,7 +7,7 @@ const variantClass: Record<StatusBadgeVariant, string> = {
   neutral: 'border-gray-200 bg-gray-50 text-gray-500',
   success: 'border-green-200 bg-green-50 text-green-700',
   warning: 'border-amber-200 bg-amber-50 text-amber-700',
-  brand: 'border-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+  brand: 'border-fonti-accent bg-fonti-accent-hover text-fonti-primary',
 }
 
 interface StatusBadgeProps {

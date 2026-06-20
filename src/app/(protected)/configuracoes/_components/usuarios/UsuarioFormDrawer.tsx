@@ -147,7 +147,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
       <Sheet open={aberto} onOpenChange={onFechar}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-[#253B29]">
+            <SheetTitle className="text-fonti-primary">
               {modoEdicao ? 'Editar usuário' : 'Novo usuário'}
             </SheetTitle>
           </SheetHeader>
@@ -263,7 +263,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                       aria-checked={field.value}
                       onClick={() => field.onChange(!field.value)}
                       className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        field.value ? 'bg-[#253B29]' : 'bg-gray-200'
+                        field.value ? 'bg-fonti-primary' : 'bg-gray-200'
                       }`}
                     >
                       <span
@@ -300,7 +300,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                    className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                     disabled={isPending}
                   >
                     {isPending ? 'Salvando...' : modoEdicao ? 'Salvar' : 'Criar usuário'}
@@ -343,7 +343,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
             <Button
               onClick={confirmarResetSenha}
               disabled={novaSenha.length < 6 || resetSenha.isPending}
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             >
               {resetSenha.isPending ? 'Salvando...' : 'Confirmar'}
             </Button>

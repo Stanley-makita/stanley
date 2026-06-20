@@ -54,18 +54,18 @@ export function AbaHistorico({ leadId }: Props) {
               return (
                 <div key={item.id} className="flex gap-3 relative">
                   <div className="w-7 h-7 rounded-full border-2 bg-white border-gray-200 flex items-center justify-center shrink-0 z-10">
-                    <Icone className="h-3 w-3 text-[#253B29]" />
+                    <Icone className="h-3 w-3 text-fonti-primary" />
                   </div>
 
                   <div className="flex-1 pb-3">
                     {item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova ? (
                       <p className="text-sm text-gray-600">
                         Movido de{' '}
-                        <span className="font-medium text-[#253B29]">{item.fase_anterior.nome}</span>
+                        <span className="font-medium text-fonti-primary">{item.fase_anterior.nome}</span>
                         {' '}
                         <ArrowRight className="inline h-3 w-3 text-gray-400" />
                         {' '}
-                        <span className="font-medium text-[#253B29]">{item.fase_nova.nome}</span>
+                        <span className="font-medium text-fonti-primary">{item.fase_nova.nome}</span>
                       </p>
                     ) : (
                       <p className="text-sm text-gray-600">

@@ -7,15 +7,15 @@ import { cn } from '@/lib/utils'
 const ICONES: Record<TipoNotificacao, React.ReactNode> = {
   tarefa_vencida:          <CheckSquare className="w-4 h-4 text-red-500" />,
   tarefa_atribuida:        <CheckSquare className="w-4 h-4 text-blue-500" />,
-  fase_avancada:           <ArrowRight className="w-4 h-4 text-[#C2AA6A]" />,
+  fase_avancada:           <ArrowRight className="w-4 h-4 text-fonti-accent" />,
   lead_atribuido:          <UserPlus className="w-4 h-4 text-green-600" />,
-  processo_emitido:        <FileCheck className="w-4 h-4 text-[#253B29]" />,
+  processo_emitido:        <FileCheck className="w-4 h-4 text-fonti-primary" />,
   cobranca_vencida:        <CreditCard className="w-4 h-4 text-red-500" />,
   comentario_mencionado:   <MessageSquare className="w-4 h-4 text-purple-500" />,
   solicitacao_atribuida:   <Bell className="w-4 h-4 text-blue-500" />,
   solicitacao_concluida:   <CheckSquare className="w-4 h-4 text-green-600" />,
   solicitacao_sla_vencido: <Bell className="w-4 h-4 text-red-500" />,
-  solicitacao_respondida:  <MessageSquare className="w-4 h-4 text-[#C2AA6A]" />,
+  solicitacao_respondida:  <MessageSquare className="w-4 h-4 text-fonti-accent" />,
   solicitacao_retorno:     <MessageSquare className="w-4 h-4 text-blue-500" />,
 }
 

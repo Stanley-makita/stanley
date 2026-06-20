@@ -58,8 +58,8 @@ export function AbasConfigTab() {
   return (
     <div className="max-w-sm">
       <div className="flex items-center gap-2 mb-1">
-        <LayoutTemplate className="h-4 w-4 text-[#C2AA6A]" />
-        <h3 className="text-sm font-semibold text-[#253B29]">Ordem das abas — Modal de Lead</h3>
+        <LayoutTemplate className="h-4 w-4 text-fonti-accent" />
+        <h3 className="text-sm font-semibold text-fonti-primary">Ordem das abas — Modal de Lead</h3>
       </div>
       <p className="text-xs text-gray-500 mb-5">
         Arraste para reordenar. A ordem é salva por empresa e aplicada a todos os usuários.
@@ -77,7 +77,7 @@ export function AbasConfigTab() {
 
       <div className="flex items-center gap-3 mt-5 pt-4 border-t border-gray-100">
         <Button
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white h-8 text-xs px-4"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white h-8 text-xs px-4"
           disabled={!hasChanges || salvar.isPending}
           onClick={() => salvar.mutate(ordem)}
         >
@@ -105,7 +105,7 @@ function AbaItem({ aba, posicao }: { aba: AbaConfig; posicao: number }) {
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-white select-none',
-        isDragging ? 'border-[#C2AA6A] shadow-md opacity-80' : 'border-gray-200 hover:border-gray-300',
+        isDragging ? 'border-fonti-accent shadow-md opacity-80' : 'border-gray-200 hover:border-gray-300',
       )}
     >
       <button

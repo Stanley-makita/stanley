@@ -60,7 +60,7 @@ export function AbaProcessos({ leadId }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#253B29] border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-fonti-primary border-t-transparent" />
       </div>
     )
   }
@@ -85,7 +85,7 @@ export function AbaProcessos({ leadId }: Props) {
           <button
             key={p.id}
             onClick={() => router.push(`/processos/${p.id}`)}
-            className="w-full text-left border border-gray-200 rounded-xl px-4 py-3 hover:bg-[#E7E0C4]/30 transition-colors group"
+            className="w-full text-left border border-gray-200 rounded-xl px-4 py-3 hover:bg-fonti-accent-hover/30 transition-colors group"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-1 min-w-0">
@@ -94,7 +94,7 @@ export function AbaProcessos({ leadId }: Props) {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.cor}`}>{status.label}</span>
                   <span className="text-xs text-gray-400">{p.modalidade}</span>
                 </div>
-                <p className="text-sm font-medium text-[#253B29] truncate">{p.nome_imovel}</p>
+                <p className="text-sm font-medium text-fonti-primary truncate">{p.nome_imovel}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   {p.banco && (
                     <span className="flex items-center gap-1">
@@ -105,7 +105,7 @@ export function AbaProcessos({ leadId }: Props) {
                   <span>{fmtMoeda(p.valor_imovel)}</span>
                 </div>
               </div>
-              <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-[#253B29] shrink-0 mt-1 transition-colors" />
+              <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-fonti-primary shrink-0 mt-1 transition-colors" />
             </div>
           </button>
         )

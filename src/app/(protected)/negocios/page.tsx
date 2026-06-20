@@ -57,15 +57,15 @@ function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading, desta
       className={cn(
         'group flex flex-col gap-4 rounded-xl border p-5 hover:shadow-md transition-all',
         destaque
-          ? 'bg-[#253B29] border-[#253B29] hover:bg-[#1a2b1e]'
-          : 'bg-white border-gray-200 hover:border-[#253B29]/40',
+          ? 'bg-fonti-primary border-fonti-primary hover:bg-fonti-primary-hover'
+          : 'bg-white border-gray-200 hover:border-fonti-primary/40',
       )}
     >
       <div className="flex items-center gap-3">
-        <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', destaque ? 'bg-white/15' : 'bg-[#E7E0C4]')}>
-          <Icon className={cn('h-4 w-4', destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]')} />
+        <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', destaque ? 'bg-white/15' : 'bg-fonti-accent-hover')}>
+          <Icon className={cn('h-4 w-4', destaque ? 'text-fonti-accent' : 'text-fonti-primary')} />
         </div>
-        <span className={cn('font-semibold text-sm', destaque ? 'text-white' : 'text-[#253B29]')}>{titulo}</span>
+        <span className={cn('font-semibold text-sm', destaque ? 'text-white' : 'text-fonti-primary')}>{titulo}</span>
       </div>
 
       {isLoading ? (
@@ -77,7 +77,7 @@ function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading, desta
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className={cn('text-xs', destaque ? 'text-white/70' : 'text-gray-500')}>{linhaA.label}</span>
-            <span className={cn('text-sm font-bold', destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]')}>{linhaA.valor}</span>
+            <span className={cn('text-sm font-bold', destaque ? 'text-fonti-accent' : 'text-fonti-primary')}>{linhaA.valor}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className={cn('text-xs', destaque ? 'text-white/70' : 'text-gray-500')}>{linhaB.label}</span>
@@ -106,7 +106,7 @@ export default function NegociosDashboardPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#253B29]">Negócios</h1>
+        <h1 className="text-2xl font-bold text-fonti-primary">Negócios</h1>
         <p className="text-sm text-gray-500 mt-0.5">Visão geral dos módulos e da sua agenda</p>
       </div>
 
@@ -160,8 +160,8 @@ export default function NegociosDashboardPage() {
         {/* Suas tarefas do dia */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Clock className="h-4 w-4 text-[#253B29]" />
-            <h2 className="font-semibold text-[#253B29] text-sm">Suas próximas tarefas</h2>
+            <Clock className="h-4 w-4 text-fonti-primary" />
+            <h2 className="font-semibold text-fonti-primary text-sm">Suas próximas tarefas</h2>
             {!tarefasHoje.isLoading && (
               <span className="ml-auto text-xs text-gray-400">
                 {tarefasHoje.data?.length ?? 0} pendente{(tarefasHoje.data?.length ?? 0) !== 1 ? 's' : ''}
@@ -205,8 +205,8 @@ export default function NegociosDashboardPage() {
         {/* Solicitações a você */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <AlertCircle className="h-4 w-4 text-[#253B29]" />
-            <h2 className="font-semibold text-[#253B29] text-sm">Solicitações a você</h2>
+            <AlertCircle className="h-4 w-4 text-fonti-primary" />
+            <h2 className="font-semibold text-fonti-primary text-sm">Solicitações a você</h2>
             {!solicitacoes.isLoading && (
               <span className="ml-auto text-xs text-gray-400">
                 {solicitacoes.data?.length ?? 0} aberta{(solicitacoes.data?.length ?? 0) !== 1 ? 's' : ''}
@@ -230,7 +230,7 @@ export default function NegociosDashboardPage() {
                 const slaVencendo = s.sla_at ? isToday(parseISO(s.sla_at)) : false
                 const slaVencido  = s.sla_at ? parseISO(s.sla_at) < new Date() : false
                 return (
-                  <div key={s.id} onClick={() => navegarParaSolicitacao(s)} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-[#E7E0C4]/60 cursor-pointer transition-colors">
+                  <div key={s.id} onClick={() => navegarParaSolicitacao(s)} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-fonti-accent-hover/60 cursor-pointer transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{s.titulo}</p>
                       <p className="text-xs text-gray-400 mt-0.5">

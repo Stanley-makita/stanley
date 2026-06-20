@@ -82,7 +82,7 @@ export function FeriasTab() {
             <TabsTrigger value="ausencias" className="text-xs">Ausências</TabsTrigger>
           </TabsList>
           <div className="flex gap-2">
-            <Button size="sm" className="bg-[#253B29] text-white hover:bg-[#1a2b1e] gap-1.5" onClick={() => setModalFerias(true)}>
+            <Button size="sm" className="bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1.5" onClick={() => setModalFerias(true)}>
               <Plus className="h-3.5 w-3.5" /> Nova Férias
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setModalAus(true)}>
@@ -221,7 +221,7 @@ export function FeriasTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalFerias(false)}>Cancelar</Button>
-            <Button onClick={handleSalvarFerias} disabled={criarF.isPending} className="bg-[#253B29] text-white hover:bg-[#1a2b1e]">
+            <Button onClick={handleSalvarFerias} disabled={criarF.isPending} className="bg-fonti-primary text-white hover:bg-fonti-primary-hover">
               {criarF.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -264,7 +264,7 @@ export function FeriasTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalAus(false)}>Cancelar</Button>
-            <Button onClick={handleSalvarAus} disabled={criarA.isPending} className="bg-[#253B29] text-white hover:bg-[#1a2b1e]">
+            <Button onClick={handleSalvarAus} disabled={criarA.isPending} className="bg-fonti-primary text-white hover:bg-fonti-primary-hover">
               {criarA.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>

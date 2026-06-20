@@ -219,7 +219,7 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
   const set = (key: string, value: unknown) => onChange({ ...form, [key]: value })
 
   return (
-    <div className="space-y-3 p-3 border border-dashed border-[#C2AA6A] rounded-lg bg-amber-50/40">
+    <div className="space-y-3 p-3 border border-dashed border-fonti-accent rounded-lg bg-amber-50/40">
       <div className="space-y-1">
         <Label className="text-xs">Descrição *</Label>
         <Input
@@ -242,7 +242,7 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
               className={[
                 'px-2 py-1 rounded text-xs border transition-all',
                 form.tipo === tipo
-                  ? 'border-[#253B29] bg-[#253B29] text-white'
+                  ? 'border-fonti-primary bg-fonti-primary text-white'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300',
               ].join(' ')}
             >
@@ -305,7 +305,7 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
       <div className="flex gap-2">
         <Button
           size="sm"
-          className="bg-[#253B29] text-white text-xs h-7"
+          className="bg-fonti-primary text-white text-xs h-7"
           onClick={onConfirm}
           disabled={!form.descricao.trim() || isLoading}
         >

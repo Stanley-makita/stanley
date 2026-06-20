@@ -168,7 +168,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1 text-[#253B29]"
+              className="h-7 text-xs gap-1 text-fonti-primary"
               onClick={() => setModalCorretor(true)}
             >
               <Plus className="h-3 w-3" /> Adicionar
@@ -198,7 +198,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   {vc.principal && (
-                    <Badge className="bg-[#253B29] text-white text-xs">Principal</Badge>
+                    <Badge className="bg-fonti-primary text-white text-xs">Principal</Badge>
                   )}
                   {!readOnly && (
                     <>
@@ -206,7 +206,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-[#253B29]"
+                          className="h-6 w-6 text-muted-foreground hover:text-fonti-primary"
                           title="Tornar principal"
                           onClick={() => tornarPrincipal(vc.id)}
                         >
@@ -240,7 +240,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1 text-[#253B29]"
+              className="h-7 text-xs gap-1 text-fonti-primary"
               onClick={() => setModalImobiliaria(true)}
             >
               <Plus className="h-3 w-3" /> Adicionar
@@ -290,7 +290,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1 text-[#253B29]"
+              className="h-7 text-xs gap-1 text-fonti-primary"
               onClick={() => setModalParceiro(true)}
             >
               <Plus className="h-3 w-3" /> Adicionar
@@ -438,11 +438,11 @@ function ModalAdicionarCorretor({ open, processoId, onClose, onAdded }: ModalCor
         <div className="space-y-4 pt-2">
           <div className="flex gap-2">
             <Button variant={modo === 'buscar' ? 'default' : 'outline'} size="sm"
-              className={modo === 'buscar' ? 'bg-[#253B29]' : ''} onClick={() => setModo('buscar')}>
+              className={modo === 'buscar' ? 'bg-fonti-primary' : ''} onClick={() => setModo('buscar')}>
               Buscar existente
             </Button>
             <Button variant={modo === 'novo' ? 'default' : 'outline'} size="sm"
-              className={modo === 'novo' ? 'bg-[#253B29]' : ''} onClick={() => setModo('novo')}>
+              className={modo === 'novo' ? 'bg-fonti-primary' : ''} onClick={() => setModo('novo')}>
               Cadastrar novo
             </Button>
           </div>
@@ -486,7 +486,7 @@ function ModalAdicionarCorretor({ open, processoId, onClose, onAdded }: ModalCor
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { onClose(); resetForm() }}>Cancelar</Button>
-            <Button className="bg-[#253B29] hover:bg-[#1a2d1e]" disabled={!podeSalvar || saving} onClick={salvar}>
+            <Button className="bg-fonti-primary hover:bg-fonti-primary-hover" disabled={!podeSalvar || saving} onClick={salvar}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Adicionar'}
             </Button>
           </div>
@@ -549,9 +549,9 @@ function ModalAdicionarImobiliaria({ open, processoId, onClose, onAdded }: Modal
         <div className="space-y-4 pt-2">
           <div className="flex gap-2">
             <Button variant={modo === 'buscar' ? 'default' : 'outline'} size="sm"
-              className={modo === 'buscar' ? 'bg-[#253B29]' : ''} onClick={() => setModo('buscar')}>Buscar existente</Button>
+              className={modo === 'buscar' ? 'bg-fonti-primary' : ''} onClick={() => setModo('buscar')}>Buscar existente</Button>
             <Button variant={modo === 'novo' ? 'default' : 'outline'} size="sm"
-              className={modo === 'novo' ? 'bg-[#253B29]' : ''} onClick={() => setModo('novo')}>Cadastrar nova</Button>
+              className={modo === 'novo' ? 'bg-fonti-primary' : ''} onClick={() => setModo('novo')}>Cadastrar nova</Button>
           </div>
           {modo === 'buscar' ? (
             <div className="space-y-2">
@@ -589,7 +589,7 @@ function ModalAdicionarImobiliaria({ open, processoId, onClose, onAdded }: Modal
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { onClose(); resetForm() }}>Cancelar</Button>
-            <Button className="bg-[#253B29] hover:bg-[#1a2d1e]" disabled={!podeSalvar || saving} onClick={salvar}>
+            <Button className="bg-fonti-primary hover:bg-fonti-primary-hover" disabled={!podeSalvar || saving} onClick={salvar}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Adicionar'}
             </Button>
           </div>
@@ -653,9 +653,9 @@ function ModalAdicionarParceiro({ open, processoId, onClose, onAdded }: ModalPar
         <div className="space-y-4 pt-2">
           <div className="flex gap-2">
             <Button variant={modo === 'buscar' ? 'default' : 'outline'} size="sm"
-              className={modo === 'buscar' ? 'bg-[#253B29]' : ''} onClick={() => setModo('buscar')}>Buscar existente</Button>
+              className={modo === 'buscar' ? 'bg-fonti-primary' : ''} onClick={() => setModo('buscar')}>Buscar existente</Button>
             <Button variant={modo === 'novo' ? 'default' : 'outline'} size="sm"
-              className={modo === 'novo' ? 'bg-[#253B29]' : ''} onClick={() => setModo('novo')}>Cadastrar novo</Button>
+              className={modo === 'novo' ? 'bg-fonti-primary' : ''} onClick={() => setModo('novo')}>Cadastrar novo</Button>
           </div>
           {modo === 'buscar' ? (
             <div className="space-y-2"><Label>Parceiro</Label>
@@ -686,7 +686,7 @@ function ModalAdicionarParceiro({ open, processoId, onClose, onAdded }: ModalPar
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { onClose(); resetForm() }}>Cancelar</Button>
-            <Button className="bg-[#253B29] hover:bg-[#1a2d1e]" disabled={!podeSalvar || saving} onClick={salvar}>
+            <Button className="bg-fonti-primary hover:bg-fonti-primary-hover" disabled={!podeSalvar || saving} onClick={salvar}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Adicionar'}
             </Button>
           </div>

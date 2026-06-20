@@ -203,7 +203,7 @@ export function NovaPessoaModal({ aberto, onFechar, onSucesso }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => { if (!v && !salvar.isPending) onFechar() }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Nova Pessoa</DialogTitle>
         </DialogHeader>
@@ -267,7 +267,7 @@ export function NovaPessoaModal({ aberto, onFechar, onSucesso }: Props) {
           {/* Tipo */}
           <div>
             <label className="text-xs font-medium text-gray-500 mb-2 block">Tipo</label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
               {TIPOS.map((t) => (
                 <button
                   key={t.value}
@@ -276,7 +276,7 @@ export function NovaPessoaModal({ aberto, onFechar, onSucesso }: Props) {
                   className={cn(
                     'text-xs px-3 py-1.5 rounded-lg border transition-all',
                     form.tipo === t.value
-                      ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                      ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                   )}
                 >
@@ -318,12 +318,12 @@ export function NovaPessoaModal({ aberto, onFechar, onSucesso }: Props) {
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onFechar} disabled={salvar.isPending}>
+        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+          <Button variant="outline" onClick={onFechar} disabled={salvar.isPending} className="w-full sm:w-auto">
             Cancelar
           </Button>
           <Button
-            className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[90px]"
+            className="w-full min-w-[90px] bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
             onClick={() => salvar.mutate()}
             disabled={!podeSalvar || (!!duplicata && !ignorarDuplicata)}
           >

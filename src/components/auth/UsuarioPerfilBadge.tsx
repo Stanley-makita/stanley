@@ -2,9 +2,9 @@ import { type UsuarioPerfil } from '@/types/auth'
 import { Badge } from '@/components/ui/badge'
 
 const CORES: Record<UsuarioPerfil, string> = {
-  admin:       'bg-[#253B29] text-white',
-  gerente:     'bg-[#C2AA6A] text-[#253B29]',
-  gestor:      'bg-[#C2AA6A] text-[#253B29]',
+  admin:       'bg-fonti-primary text-white',
+  gerente:     'bg-fonti-accent text-fonti-primary',
+  gestor:      'bg-fonti-accent text-fonti-primary',
   analista:    'bg-blue-100 text-blue-800',
   comercial:   'bg-green-100 text-green-800',
   operacional: 'bg-orange-100 text-orange-800',

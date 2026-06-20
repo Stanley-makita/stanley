@@ -11,7 +11,7 @@ export function EntityCard({ interactive = false, className, children, ...props 
     <div
       className={cn(
         'rounded-xl border border-gray-200 bg-white p-4 transition-all',
-        interactive && 'cursor-pointer hover:border-[#C2AA6A] hover:shadow-md',
+        interactive && 'cursor-pointer hover:border-fonti-accent hover:shadow-md',
         className
       )}
       {...props}

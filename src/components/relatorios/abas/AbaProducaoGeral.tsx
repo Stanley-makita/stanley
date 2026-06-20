@@ -77,8 +77,8 @@ export function AbaProducaoGeral({ ano }: AbaProducaoGeralProps) {
               }
             />
             <Legend />
-            <Bar yAxisId="left" dataKey="Valor Emitido (R$)" fill="#253B29" radius={[3, 3, 0, 0]} />
-            <Bar yAxisId="right" dataKey="Contratos" fill="#C2AA6A" radius={[3, 3, 0, 0]} />
+            <Bar yAxisId="left" dataKey="Valor Emitido (R$)" fill="var(--fonti-primary)" radius={[3, 3, 0, 0]} />
+            <Bar yAxisId="right" dataKey="Contratos" fill="var(--fonti-accent)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -95,9 +95,9 @@ export function AbaProducaoGeral({ ano }: AbaProducaoGeralProps) {
             <Line
               type="monotone"
               dataKey="Taxa Conversão (%)"
-              stroke="#C2AA6A"
+              stroke="var(--fonti-accent)"
               strokeWidth={2}
-              dot={{ fill: '#C2AA6A', r: 4 }}
+              dot={{ fill: 'var(--fonti-accent)', r: 4 }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -109,7 +109,7 @@ export function AbaProducaoGeral({ ano }: AbaProducaoGeralProps) {
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#253B29] text-white">
+              <tr className="bg-fonti-primary text-white">
                 <th className="px-4 py-2 text-left">Período</th>
                 <th className="px-4 py-2 text-right">Emissões</th>
                 <th className="px-4 py-2 text-right">Valor Total</th>

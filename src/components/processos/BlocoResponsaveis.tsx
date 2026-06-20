@@ -89,7 +89,7 @@ export function BlocoResponsaveis({ processo }: Props) {
         {!editando && (
           <button
             onClick={iniciarEdicao}
-            className="p-1 rounded text-gray-300 hover:text-[#253B29] hover:bg-gray-100 transition-colors"
+            className="p-1 rounded text-gray-300 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
             title="Editar responsáveis"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -132,7 +132,7 @@ export function BlocoResponsaveis({ processo }: Props) {
           <div className="flex gap-2 pt-1">
             <Button
               size="sm"
-              className="h-7 bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1"
+              className="h-7 bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
               onClick={salvar}
               disabled={atualizar.isPending}
             >
@@ -159,7 +159,7 @@ export function BlocoResponsaveis({ processo }: Props) {
                 <p className="text-xs text-gray-400">{papel.label}</p>
                 {membro ? (
                   <>
-                    <p className="text-sm font-medium text-[#253B29]">{membro.nome}</p>
+                    <p className="text-sm font-medium text-fonti-primary">{membro.nome}</p>
                     <p className="text-xs text-gray-400">{membro.email}</p>
                   </>
                 ) : (
@@ -172,7 +172,7 @@ export function BlocoResponsaveis({ processo }: Props) {
           {processo.corretor_nome && (
             <div>
               <p className="text-xs text-gray-400">Corretor</p>
-              <p className="text-sm font-medium text-[#253B29]">{processo.corretor_nome}</p>
+              <p className="text-sm font-medium text-fonti-primary">{processo.corretor_nome}</p>
               {processo.corretor_creci && (
                 <p className="text-xs text-gray-400">CRECI: {processo.corretor_creci}</p>
               )}

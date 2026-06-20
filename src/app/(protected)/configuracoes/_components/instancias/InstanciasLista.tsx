@@ -160,7 +160,7 @@ export function InstanciasLista() {
         {podeGerenciar && (
           <Button
             size="sm"
-            className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+            className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
             onClick={abrirNova}
           >
             <Plus className="w-3.5 h-3.5" /> Nova instância
@@ -196,7 +196,7 @@ export function InstanciasLista() {
             ) : (
               instancias?.map((inst) => (
                 <TableRow key={inst.id}>
-                  <TableCell className="font-medium text-[#253B29] flex items-center gap-2">
+                  <TableCell className="font-medium text-fonti-primary flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-gray-400 shrink-0" />
                     {inst.nome}
                   </TableCell>
@@ -313,7 +313,7 @@ export function InstanciasLista() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalAberto(false)}>Cancelar</Button>
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               disabled={!form.nome.trim() || !form.token.trim() || salvar.isPending}
               onClick={() => salvar.mutate()}
             >

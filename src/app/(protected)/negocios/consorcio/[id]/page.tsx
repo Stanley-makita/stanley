@@ -107,7 +107,7 @@ export default function ConsorcioDetalhePage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
 
-            <h1 className="text-xl font-bold text-[#253B29] truncate max-w-xs">{compradorPrincipal}</h1>
+            <h1 className="text-xl font-bold text-fonti-primary truncate max-w-xs">{compradorPrincipal}</h1>
             <ProcessoStatusBadge status={processo.status_processo} />
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
               Consórcio
@@ -124,9 +124,9 @@ export default function ConsorcioDetalhePage() {
                       key={fase.id}
                       className={`w-2.5 h-2.5 rounded-full transition-all ${
                         concluida
-                          ? 'bg-[#253B29]'
+                          ? 'bg-fonti-primary'
                           : atual
-                            ? 'bg-[#C2AA6A] ring-2 ring-[#C2AA6A]/30'
+                            ? 'bg-fonti-accent ring-2 ring-fonti-accent/30'
                             : 'bg-gray-200'
                       }`}
                       title={fase.nome}
@@ -175,7 +175,7 @@ export default function ConsorcioDetalhePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                className="gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
                 onClick={() => setNovaSolicitacaoAberta(true)}
               >
                 <ClipboardList className="h-3.5 w-3.5" />
@@ -198,7 +198,7 @@ export default function ConsorcioDetalhePage() {
               <TabsTrigger
                 key={value}
                 value={value}
-                className="text-xs data-[state=active]:bg-[#253B29] data-[state=active]:text-white"
+                className="text-xs data-[state=active]:bg-fonti-primary data-[state=active]:text-white"
               >
                 {label}
               </TabsTrigger>

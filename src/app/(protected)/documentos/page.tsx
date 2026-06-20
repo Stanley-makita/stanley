@@ -4,7 +4,7 @@ import { FileText } from 'lucide-react'
 
 export default function DocumentosPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <PageHeader
         title="Documentos"
         description="Gestão de documentos"

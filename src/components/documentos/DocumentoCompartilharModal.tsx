@@ -186,17 +186,17 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v && !enviando) onClose() }}>
-      <DialogContent className="max-w-md p-0 flex flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-md flex-col overflow-hidden p-0 sm:w-full">
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-          <h2 className="text-base font-semibold text-[#253B29]">Compartilhar documento</h2>
+        <div className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
+          <h2 className="text-base font-semibold text-fonti-primary">Compartilhar documento</h2>
           <p className="text-xs text-gray-400 mt-0.5 truncate" title={documento.nome_original}>
             {documento.nome_original}
           </p>
         </div>
 
         {/* Corpo */}
-        <div className="px-6 py-5 space-y-4 flex-1">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-2">Enviar para</label>
 
@@ -216,9 +216,9 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
                       value={op.telefone}
                       checked={destinatario === op.telefone}
                       onChange={() => setDestinatario(op.telefone)}
-                      className="accent-[#253B29]"
+                      className="accent-fonti-primary"
                     />
-                    <span className="text-sm text-gray-700 group-hover:text-[#253B29]">{op.label}</span>
+                    <span className="text-sm text-gray-700 group-hover:text-fonti-primary">{op.label}</span>
                   </label>
                 ))}
 
@@ -232,15 +232,15 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
                         value="usuario_interno"
                         checked={destinatario === 'usuario_interno'}
                         onChange={() => setDestinatario('usuario_interno')}
-                        className="accent-[#253B29]"
+                        className="accent-fonti-primary"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-[#253B29]">Usuário interno / Comercial</span>
+                      <span className="text-sm text-gray-700 group-hover:text-fonti-primary">Usuário interno / Comercial</span>
                     </label>
                     {destinatario === 'usuario_interno' && (
                       <select
                         value={usuarioId}
                         onChange={(e) => setUsuarioId(e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29] bg-white ml-6"
+                        className="ml-0 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-fonti-primary focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 sm:ml-6"
                       >
                         {usuarios.map((u) => (
                           <option key={u.id} value={u.id}>
@@ -261,9 +261,9 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
                       value="outro"
                       checked={destinatario === 'outro'}
                       onChange={() => setDestinatario('outro')}
-                      className="accent-[#253B29]"
+                      className="accent-fonti-primary"
                     />
-                    <span className="text-sm text-gray-700 group-hover:text-[#253B29]">Outro número...</span>
+                    <span className="text-sm text-gray-700 group-hover:text-fonti-primary">Outro número...</span>
                   </label>
                   {destinatario === 'outro' && (
                     <input
@@ -271,8 +271,7 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
                       placeholder="Ex: (44) 99999-0000"
                       value={outroTelefone}
                       onChange={(e) => setOutroTelefone(e.target.value)}
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29] ml-6"
-                      style={{ width: 'calc(100% - 1.5rem)' }}
+                      className="ml-0 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-fonti-primary focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 sm:ml-6 sm:w-[calc(100%_-_1.5rem)]"
                       autoFocus
                     />
                   )}
@@ -288,20 +287,20 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
               rows={3}
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29] resize-none"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary resize-none"
               placeholder="Mensagem que acompanha o documento..."
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={enviando}>
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-end sm:px-6">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={enviando} className="w-full sm:w-auto">
             Cancelar
           </Button>
           <Button
             size="sm"
-            className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 min-w-[100px]"
+            className="min-w-[100px] gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover"
             onClick={handleEnviar}
             disabled={enviando || carregando || !telefoneEfetivo}
           >

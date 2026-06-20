@@ -137,7 +137,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
       <Dialog open={aberto} onOpenChange={(v) => { if (!v && !novaPessoaAberta) fechar() }}>
         <DialogContent className={cn('max-h-[92svh] w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0 sm:w-full', !modulo ? 'max-w-sm' : 'max-w-md')}>
           <DialogHeader className="px-5 pt-5 pb-4 border-b border-gray-100">
-            <DialogTitle className="text-sm font-semibold text-[#253B29]">
+            <DialogTitle className="text-sm font-semibold text-fonti-primary">
               {!modulo ? 'Novo Processo' : `Novo Processo — ${moduloInfo?.nome}`}
             </DialogTitle>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -153,13 +153,13 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
                   <button
                     key={m.id}
                     onClick={() => setModulo(m.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left bg-white hover:bg-[#E7E0C4]/30 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left bg-white hover:bg-fonti-accent-hover/30 transition-colors cursor-pointer"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-[#E7E0C4] text-[#253B29] flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-fonti-accent-hover text-fonti-primary flex items-center justify-center shrink-0">
                       {m.icone}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#253B29]">{m.nome}</p>
+                      <p className="text-sm font-medium text-fonti-primary">{m.nome}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{m.descricao}</p>
                     </div>
                   </button>
@@ -247,7 +247,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
                   <Button variant="outline" size="sm" onClick={fechar} className="h-9 w-full sm:w-auto">Cancelar</Button>
                 )}
                 <Button
-                  className="h-9 w-full bg-[#253B29] px-5 text-white hover:bg-[#1a2b1e] sm:w-auto"
+                  className="h-9 w-full bg-fonti-primary px-5 text-white hover:bg-fonti-primary-hover sm:w-auto"
                   onClick={handleCriar}
                   disabled={!podeCriar}
                 >

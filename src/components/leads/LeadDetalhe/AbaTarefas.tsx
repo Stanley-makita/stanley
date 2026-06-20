@@ -73,7 +73,7 @@ export function AbaTarefas({ leadId }: Props) {
         </p>
         <Button
           size="sm"
-          className="h-8 text-xs gap-1.5 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+          className="h-8 text-xs gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
           onClick={() => setNovaAberta(true)}
         >
           <Plus className="h-3 w-3" />
@@ -196,7 +196,7 @@ function TarefaCard({
             ? <CheckCircle2 className="h-5 w-5 text-green-500" />
             : concluindo
               ? <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-              : <Circle className="h-5 w-5 text-gray-300 hover:text-[#253B29]" />
+              : <Circle className="h-5 w-5 text-gray-300 hover:text-fonti-primary" />
           }
         </button>
 
@@ -256,8 +256,8 @@ function TarefaCard({
               className={cn(
                 'p-1.5 rounded-lg transition-colors',
                 comentariosAberto
-                  ? 'bg-[#253B29] text-white'
-                  : 'text-gray-400 hover:text-[#253B29] hover:bg-gray-100'
+                  ? 'bg-fonti-primary text-white'
+                  : 'text-gray-400 hover:text-fonti-primary hover:bg-gray-100'
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
@@ -265,7 +265,7 @@ function TarefaCard({
             <button
               onClick={onEditar}
               title="Editar"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-[#253B29] hover:bg-gray-100 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -327,7 +327,7 @@ function ComentariosSection({ tarefaId, concluida }: { tarefaId: string; conclui
         <div className="space-y-2 max-h-40 overflow-y-auto">
           {comentarios.map((c) => (
             <div key={c.id} className="flex gap-2">
-              <div className="w-5 h-5 rounded-full bg-[#253B29] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-fonti-primary flex items-center justify-center shrink-0 mt-0.5">
                 <span className="text-[9px] font-bold text-white">
                   {(c.usuario?.nome ?? 'U').charAt(0).toUpperCase()}
                 </span>
@@ -357,7 +357,7 @@ function ComentariosSection({ tarefaId, concluida }: { tarefaId: string; conclui
           />
           <Button
             size="sm"
-            className="h-auto px-2.5 bg-[#253B29] hover:bg-[#1a2b1e] text-white self-end"
+            className="h-auto px-2.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white self-end"
             onClick={handleEnviar}
             disabled={!texto.trim() || comentar.isPending}
           >

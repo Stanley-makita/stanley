@@ -60,7 +60,7 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
       {/* Header */}
       <div className="flex items-center justify-between">
         {!compacto && (
-          <h4 className="text-sm font-semibold text-[#253B29]">
+          <h4 className="text-sm font-semibold text-fonti-primary">
             Solicitações Operacionais
             {solicitacoes.length > 0 && (
               <span className="ml-1.5 text-xs text-gray-400 font-normal">({solicitacoes.length})</span>
@@ -187,7 +187,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
       <tr
         className={cn(
           'cursor-pointer transition-colors border-b border-gray-100 last:border-0',
-          expanded ? 'bg-[#E7E0C4]/20' : concluido ? 'bg-gray-50 hover:bg-gray-100 opacity-70' : 'bg-white hover:bg-gray-50'
+          expanded ? 'bg-fonti-accent-hover/20' : concluido ? 'bg-gray-50 hover:bg-gray-100 opacity-70' : 'bg-white hover:bg-gray-50'
         )}
         onClick={onToggle}
       >
@@ -210,7 +210,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
         {/* Título + badge de mensagens */}
         <td className="px-3 py-2.5 max-w-[220px]">
           <div className="flex items-center gap-1.5">
-            <span className="text-[#253B29] font-medium truncate">{s.titulo}</span>
+            <span className="text-fonti-primary font-medium truncate">{s.titulo}</span>
             {totalMensagens > 0 && (
               <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-gray-400">
                 <MessageCircle className="h-3 w-3" />
@@ -248,8 +248,8 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
       {/* Linha expandida: detalhes + mensagens */}
       {expanded && (
         <tr className="border-b border-gray-100 last:border-0">
-          <td colSpan={7} className="px-4 pb-4 pt-0 bg-[#E7E0C4]/10">
-            <div className="border-l-2 border-[#C2AA6A] pl-3 ml-2 space-y-3">
+          <td colSpan={7} className="px-4 pb-4 pt-0 bg-fonti-accent-hover/10">
+            <div className="border-l-2 border-fonti-accent pl-3 ml-2 space-y-3">
 
               {/* Descrição */}
               {s.descricao && (
@@ -269,7 +269,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
                     </div>
                     {s.anexo_retorno_path && (
                       <button onClick={(e) => { e.stopPropagation(); abrirAnexo() }}
-                        className="shrink-0 text-gray-400 hover:text-[#253B29] transition-colors"
+                        className="shrink-0 text-gray-400 hover:text-fonti-primary transition-colors"
                         title="Abrir anexo"
                       >
                         <Paperclip className="h-3.5 w-3.5" />
@@ -308,7 +308,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
               {!!s.retorno_operacional && !concluido && !respondendo && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setRespondendo(true) }}
-                  className="text-xs text-[#253B29] font-medium underline underline-offset-2 hover:text-[#C2AA6A] transition-colors"
+                  className="text-xs text-fonti-primary font-medium underline underline-offset-2 hover:text-fonti-accent transition-colors"
                 >
                   {mensagens.length > 0 || s.replica_comercial ? 'Responder novamente' : 'Responder ao retorno'}
                 </button>
@@ -328,7 +328,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
                       onClick={() => { setRespondendo(false); setTextoMensagem('') }} disabled={isPending}>
                       Cancelar
                     </Button>
-                    <Button size="sm" className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1"
+                    <Button size="sm" className="h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
                       onClick={handleEnviar} disabled={!textoMensagem.trim() || isPending}>
                       <Send className="h-3 w-3" /> Enviar
                     </Button>

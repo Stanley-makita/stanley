@@ -143,7 +143,7 @@ function FormRegistroImoveis({ inicial, onSalvar, onCancelar, isPending }: FormP
         <Button
           type="submit"
           disabled={!form.nome.trim() || isPending}
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
         >
           {isPending ? 'Salvando...' : 'Salvar'}
         </Button>
@@ -220,7 +220,7 @@ export function RegistrosImoveisLista() {
         </p>
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#C2AA6A] hover:text-[#253B29] text-white"
+          className="bg-fonti-primary hover:bg-fonti-accent hover:text-fonti-primary text-white"
           onClick={abrirCriar}
         >
           <Plus className="w-4 h-4 mr-1" /> Novo Registro
@@ -271,7 +271,7 @@ export function RegistrosImoveisLista() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-gray-400 hover:text-[#253B29]"
+                        className="h-7 w-7 text-gray-400 hover:text-fonti-primary"
                         onClick={() => abrirEditar(r)}
                       >
                         <Pencil className="h-3.5 w-3.5" />

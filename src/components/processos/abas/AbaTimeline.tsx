@@ -24,7 +24,7 @@ function ItemComentario({ payload }: { payload: ProcessoComentario }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-medium text-[#253B29]">{payload.usuario?.nome ?? 'Sistema'}</span>
+        <span className="text-xs font-medium text-fonti-primary">{payload.usuario?.nome ?? 'Sistema'}</span>
         <Badge className={`text-xs px-1.5 py-0 ${config.className}`}>{config.label}</Badge>
       </div>
       <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">{payload.texto}</p>
@@ -35,8 +35,8 @@ function ItemComentario({ payload }: { payload: ProcessoComentario }) {
 function ItemFase({ payload }: { payload: ProcessoFaseHistorico }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: payload.fase?.cor ?? '#253B29' }} />
-      <span className="text-sm font-medium text-[#253B29]">Avançou para {payload.fase?.nome ?? '—'}</span>
+      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: payload.fase?.cor ?? 'var(--fonti-primary)' }} />
+      <span className="text-sm font-medium text-fonti-primary">Avançou para {payload.fase?.nome ?? '—'}</span>
       <span className="text-xs text-gray-400">por {payload.usuario?.nome ?? 'Sistema'}</span>
       {payload.observacao && (
         <span className="text-xs text-gray-500 italic">"{payload.observacao}"</span>
@@ -49,10 +49,10 @@ function ItemTarefa({ item }: { item: TimelineItem & { tipo: 'tarefa_criada' | '
   const t = item.payload as ProcessoTarefa
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-[#253B29]">
+      <span className="text-sm text-fonti-primary">
         {item.tipo === 'tarefa_concluida' ? 'Concluiu tarefa' : 'Criou tarefa'}:
       </span>
-      <span className="text-sm font-medium text-[#253B29]">{t.titulo}</span>
+      <span className="text-sm font-medium text-fonti-primary">{t.titulo}</span>
     </div>
   )
 }

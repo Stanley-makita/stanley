@@ -13,7 +13,7 @@ function Campo({ label, valor }: { label: string; valor: string | null | undefin
   return (
     <div>
       <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-sm font-medium text-[#253B29]">{valor || '—'}</p>
+      <p className="text-sm font-medium text-fonti-primary">{valor || '—'}</p>
     </div>
   )
 }
@@ -36,13 +36,13 @@ export function AbaResumoConsorcio({ processo, onIrParaCompradores }: Props) {
         {compradorPrincipal ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#253B29]/10 flex items-center justify-center shrink-0">
-                <span className="text-[#253B29] text-sm font-bold">
+              <div className="w-8 h-8 rounded-full bg-fonti-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-fonti-primary text-sm font-bold">
                   {compradorPrincipal.nome.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#253B29]">{compradorPrincipal.nome}</p>
+                <p className="text-sm font-semibold text-fonti-primary">{compradorPrincipal.nome}</p>
                 {compradorPrincipal.cpf && (
                   <p className="text-xs text-gray-400">{compradorPrincipal.cpf}</p>
                 )}
@@ -76,7 +76,7 @@ export function AbaResumoConsorcio({ processo, onIrParaCompradores }: Props) {
           <button
             type="button"
             onClick={onIrParaCompradores}
-            className="text-xs text-[#253B29] underline underline-offset-2 hover:opacity-70 transition-opacity"
+            className="text-xs text-fonti-primary underline underline-offset-2 hover:opacity-70 transition-opacity"
           >
             Ver / editar compradores →
           </button>

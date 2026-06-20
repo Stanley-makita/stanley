@@ -40,15 +40,15 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <CheckSquare className="h-4 w-4 text-[#253B29]" />
-          <span className="text-sm font-semibold text-[#253B29]">Tarefas</span>
+          <CheckSquare className="h-4 w-4 text-fonti-primary" />
+          <span className="text-sm font-semibold text-fonti-primary">Tarefas</span>
           {atrasadas > 0 && (
             <Badge className="bg-red-500 text-white text-xs px-1.5 py-0">
               {atrasadas} atrasada{atrasadas > 1 ? 's' : ''}
             </Badge>
           )}
         </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-[#253B29]" onClick={() => onNovaTarefa?.()}>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-fonti-primary" onClick={() => onNovaTarefa?.()}>
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -66,7 +66,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
               key={a}
               onClick={() => setAba(a)}
               className={`flex-1 text-xs py-1 rounded-md font-medium transition-colors ${
-                aba === a ? 'bg-white text-[#253B29] shadow-sm' : 'text-gray-500'
+                aba === a ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500'
               }`}
             >
               {a === 'pendente' ? `Pendentes (${count})` : a === 'concluida' ? 'Concluídas' : 'Todas'}
@@ -94,7 +94,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
             return (
               <div
                 key={t.id}
-                className="flex items-start gap-2 p-2.5 bg-white border border-gray-100 rounded-lg hover:border-[#253B29]/20 cursor-pointer"
+                className="flex items-start gap-2 p-2.5 bg-white border border-gray-100 rounded-lg hover:border-fonti-primary/20 cursor-pointer"
                 onClick={(e) => {
                   // Não abre modal se clicou no checkbox
                   if ((e.target as HTMLElement).closest('button')) return
@@ -107,7 +107,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
                 >
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
                     t.status === 'concluida'
-                      ? 'bg-[#253B29] border-[#253B29]'
+                      ? 'bg-fonti-primary border-fonti-primary'
                       : 'border-gray-300'
                   }`}>
                     {t.status === 'concluida' && (
@@ -119,7 +119,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium leading-snug ${t.status === 'concluida' ? 'line-through text-gray-400' : 'text-[#253B29]'}`}>
+                  <p className={`text-xs font-medium leading-snug ${t.status === 'concluida' ? 'line-through text-gray-400' : 'text-fonti-primary'}`}>
                     {t.titulo}
                   </p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">

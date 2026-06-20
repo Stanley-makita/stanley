@@ -121,7 +121,7 @@ export default function BibliotecaDocPage() {
       <div className="p-6 max-w-4xl mx-auto text-center text-gray-400 pt-20">
         <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
         <p className="text-sm">Documento não encontrado</p>
-        <Link href="/base-conhecimento" className="text-sm text-[#253B29] mt-2 inline-block">
+        <Link href="/base-conhecimento" className="text-sm text-fonti-primary mt-2 inline-block">
           Voltar à Biblioteca
         </Link>
       </div>
@@ -259,7 +259,7 @@ export default function BibliotecaDocPage() {
                 download={doc.arquivo_nome ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#253B29] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1e3023] transition-colors"
+                className="inline-flex items-center gap-2 bg-fonti-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-fonti-primary-hover transition-colors"
               >
                 <Download className="h-4 w-4" />
                 {doc.arquivo_nome ? `Baixar ${doc.arquivo_nome}` : 'Baixar arquivo'}
@@ -282,7 +282,7 @@ export default function BibliotecaDocPage() {
             href={doc.link_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-[#253B29] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1e3023] transition-colors"
+            className="inline-flex items-center gap-2 bg-fonti-primary text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-fonti-primary-hover transition-colors"
           >
             <ExternalLink className="h-4 w-4" />
             Abrir link

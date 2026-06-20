@@ -192,7 +192,7 @@ export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
 
         <DialogFooter className="pt-2 border-t border-gray-100">
           <Button variant="outline" onClick={onFechar} disabled={isPending}>Cancelar</Button>
-          <Button onClick={handleSalvar} disabled={isPending} className="bg-[#253B29] text-white hover:bg-[#1a2b1e]">
+          <Button onClick={handleSalvar} disabled={isPending} className="bg-fonti-primary text-white hover:bg-fonti-primary-hover">
             {isPending ? 'Salvando...' : 'Salvar'}
           </Button>
         </DialogFooter>

@@ -40,7 +40,7 @@ export function AbaVisaoGeral({ lead }: Props) {
         <div className="grid grid-cols-2 gap-x-8 gap-y-3">
           <div>
             <p className="text-xs text-gray-400 mb-1">Valor Pretendido</p>
-            <p className="text-sm font-bold text-[#253B29]">{fmtMoeda(lead.valor_pretendido)}</p>
+            <p className="text-sm font-bold text-fonti-primary">{fmtMoeda(lead.valor_pretendido)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1">Origem</p>
@@ -51,7 +51,7 @@ export function AbaVisaoGeral({ lead }: Props) {
               <p className="text-xs text-gray-400 mb-1">Fase atual</p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: lead.fase.cor }} />
-                <span className="text-sm font-medium text-[#253B29]">{lead.fase.nome}</span>
+                <span className="text-sm font-medium text-fonti-primary">{lead.fase.nome}</span>
               </div>
             </div>
           )}
@@ -62,10 +62,10 @@ export function AbaVisaoGeral({ lead }: Props) {
       {lead.responsavel && (
         <Card titulo="Responsável pelo Atendimento" icone={<Users className="h-4 w-4" />}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-white">{iniciais(lead.responsavel.nome)}</span>
             </div>
-            <span className="text-sm font-medium text-[#253B29]">{lead.responsavel.nome}</span>
+            <span className="text-sm font-medium text-fonti-primary">{lead.responsavel.nome}</span>
           </div>
         </Card>
       )}

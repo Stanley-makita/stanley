@@ -7,7 +7,7 @@ export function MetasEquipe() {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-[#253B29]">Metas da equipe</h3>
+        <h3 className="text-sm font-semibold text-fonti-primary">Metas da equipe</h3>
         <span className="text-xs text-gray-400">processos este mês</span>
       </div>
 

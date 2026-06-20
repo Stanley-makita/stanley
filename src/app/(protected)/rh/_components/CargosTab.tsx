@@ -91,16 +91,16 @@ export function CargosTab() {
           <Input placeholder="Buscar cargo..." className="pl-9 h-9 text-sm" value={busca} onChange={e => setBusca(e.target.value)} />
         </div>
         <div className="flex gap-1.5">
-          <Button size="sm" variant={filtroDepto === 'todos' ? 'default' : 'outline'} className={cn('h-9', filtroDepto === 'todos' && 'bg-[#253B29] text-white')} onClick={() => setFiltroDepto('todos')}>
+          <Button size="sm" variant={filtroDepto === 'todos' ? 'default' : 'outline'} className={cn('h-9', filtroDepto === 'todos' && 'bg-fonti-primary text-white')} onClick={() => setFiltroDepto('todos')}>
             Todos
           </Button>
           {departamentos.map(d => (
-            <Button key={d.id} size="sm" variant={filtroDepto === d.id ? 'default' : 'outline'} className={cn('h-9', filtroDepto === d.id && 'bg-[#253B29] text-white')} onClick={() => setFiltroDepto(d.id)}>
+            <Button key={d.id} size="sm" variant={filtroDepto === d.id ? 'default' : 'outline'} className={cn('h-9', filtroDepto === d.id && 'bg-fonti-primary text-white')} onClick={() => setFiltroDepto(d.id)}>
               {d.nome}
             </Button>
           ))}
         </div>
-        <Button size="sm" className="bg-[#253B29] text-white hover:bg-[#1a2b1e] gap-1.5 ml-auto" onClick={() => abrir()}>
+        <Button size="sm" className="bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1.5 ml-auto" onClick={() => abrir()}>
           <Plus className="h-3.5 w-3.5" /> Novo Cargo
         </Button>
       </div>
@@ -203,7 +203,7 @@ export function CargosTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModal(false)}>Cancelar</Button>
-            <Button onClick={handleSalvar} disabled={isPending} className="bg-[#253B29] text-white hover:bg-[#1a2b1e]">
+            <Button onClick={handleSalvar} disabled={isPending} className="bg-fonti-primary text-white hover:bg-fonti-primary-hover">
               {isPending ? 'Salvando...' : 'Criar Cargo'}
             </Button>
           </DialogFooter>

@@ -130,7 +130,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
     <Dialog open={aberto} onOpenChange={onFechar}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <DialogTitle className="text-[#253B29]">Editar Lead</DialogTitle>
+          <DialogTitle className="text-fonti-primary">Editar Lead</DialogTitle>
           <p className="text-sm text-gray-400 mt-0.5">{lead.nome}</p>
         </DialogHeader>
 
@@ -210,7 +210,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                           className={cn(
                             'flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition-all',
                             field.value === val
-                              ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                              ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                               : 'border-gray-200 text-gray-600 hover:border-gray-300'
                           )}
                         >
@@ -451,7 +451,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[140px]"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[140px]"
                 disabled={editarLead.isPending}
               >
                 {editarLead.isPending ? 'Salvando...' : 'Salvar Alterações'}

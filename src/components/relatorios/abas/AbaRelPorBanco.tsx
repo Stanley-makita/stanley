@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { PeriodoRelatorio } from '@/types/relatorios'
 
-const CORES = ['#253B29', '#C2AA6A', '#4A7C59', '#E7E0C4', '#6B9080', '#A4C3B2', '#84A98C']
+const CORES = ['var(--fonti-primary)', 'var(--fonti-accent)', '#4A7C59', 'var(--fonti-accent-hover)', '#6B9080', '#A4C3B2', '#84A98C']
 
 interface AbaRelPorBancoProps {
   periodo: PeriodoRelatorio
@@ -82,7 +82,7 @@ export function AbaRelPorBanco({ periodo }: AbaRelPorBancoProps) {
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#253B29] text-white">
+              <tr className="bg-fonti-primary text-white">
                 <th className="px-4 py-2 text-left">Banco</th>
                 <th className="px-4 py-2 text-right">Nº Contratos</th>
                 <th className="px-4 py-2 text-right">Valor Emitido</th>

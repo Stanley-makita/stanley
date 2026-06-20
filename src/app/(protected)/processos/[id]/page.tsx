@@ -75,7 +75,7 @@ export default function ProcessoDetalhePage() {
       if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar formulários')
 
       toast.success(json.mensagem, {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
         duration: 6000,
       })
       // Recarrega aba de documentos
@@ -133,7 +133,7 @@ export default function ProcessoDetalhePage() {
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="min-w-0 flex-1 text-lg font-bold leading-tight text-[#253B29] sm:text-xl">
+            <h1 className="min-w-0 flex-1 text-lg font-bold leading-tight text-fonti-primary sm:text-xl">
               {processo.compradores?.find(c => c.principal)?.nome
                 ?? processo.compradores?.[0]?.nome
                 ?? processo.nome_imovel}
@@ -155,7 +155,7 @@ export default function ProcessoDetalhePage() {
             )}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
-              <Badge className="text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]">
+              <Badge className="text-xs bg-fonti-accent-hover text-fonti-primary border-fonti-accent">
                 Assessoria
               </Badge>
             )}
@@ -239,7 +239,7 @@ export default function ProcessoDetalhePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 shrink-0 gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                className="h-8 shrink-0 gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
                 onClick={() => setNovaSolicitacaoAberta(true)}
               >
                 <ClipboardList className="h-3.5 w-3.5" />
@@ -249,7 +249,7 @@ export default function ProcessoDetalhePage() {
           </div>
 
           {!processo.imovel_id && processo.nome_imovel && (
-            <p className="ml-10 text-sm font-medium text-[#253B29] sm:ml-11">
+            <p className="ml-10 text-sm font-medium text-fonti-primary sm:ml-11">
               {processo.nome_imovel}
             </p>
           )}
@@ -277,22 +277,22 @@ export default function ProcessoDetalhePage() {
               {/* Valor do Imóvel */}
               <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                  <Building2 className="h-4 w-4 text-[#253B29]" />
+                  <Building2 className="h-4 w-4 text-fonti-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Valor do Imóvel</p>
-                  <p className="text-sm font-bold text-[#253B29]">{formatarMoeda(processo.valor_imovel)}</p>
+                  <p className="text-sm font-bold text-fonti-primary">{formatarMoeda(processo.valor_imovel)}</p>
                 </div>
               </div>
 
               {/* Dias em Andamento */}
               <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
-                  <Calendar className="h-4 w-4 text-[#253B29]" />
+                  <Calendar className="h-4 w-4 text-fonti-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Dias em Andamento</p>
-                  <p className="text-sm font-bold text-[#253B29]">{diasEmAndamento} dias</p>
+                  <p className="text-sm font-bold text-fonti-primary">{diasEmAndamento} dias</p>
                 </div>
               </div>
 
@@ -361,7 +361,7 @@ export default function ProcessoDetalhePage() {
               <TabsTrigger
                 key={value}
                 value={value}
-                className="text-xs data-[state=active]:bg-[#253B29] data-[state=active]:text-white"
+                className="text-xs data-[state=active]:bg-fonti-primary data-[state=active]:text-white"
               >
                 {label}
               </TabsTrigger>
@@ -459,11 +459,11 @@ export default function ProcessoDetalhePage() {
       <Dialog open={confirmFormulariosAberto} onOpenChange={setConfirmFormulariosAberto}>
         <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
           <DialogHeader>
-            <DialogTitle className="text-[#253B29]">Gerar formulários</DialogTitle>
+            <DialogTitle className="text-fonti-primary">Gerar formulários</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600 py-2">
             Confirma o preenchimento automático dos formulários do{' '}
-            <span className="font-semibold text-[#253B29]">{processo.banco?.nome}</span>?
+            <span className="font-semibold text-fonti-primary">{processo.banco?.nome}</span>?
           </p>
           <p className="text-xs text-gray-400">
             Os PDFs serão gerados com os dados do processo e salvos na aba <strong>Documentos</strong>.
@@ -478,7 +478,7 @@ export default function ProcessoDetalhePage() {
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               onClick={confirmarGerarFormularios}
             >
               <Download className="h-3.5 w-3.5 mr-1" />
@@ -552,10 +552,10 @@ function AbaResumo({
               {processo.compradores!.map((c) => (
                 <div key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                  <span className="text-[#253B29] font-medium">{c.nome}</span>
+                  <span className="text-fonti-primary font-medium">{c.nome}</span>
                   {c.cpf && <span className="text-xs text-gray-400">{c.cpf}</span>}
                   {c.principal && (
-                    <span className="text-[10px] bg-[#253B29] text-white px-1.5 py-0.5 rounded-full">Principal</span>
+                    <span className="text-[10px] bg-fonti-primary text-white px-1.5 py-0.5 rounded-full">Principal</span>
                   )}
                 </div>
               ))}
@@ -571,8 +571,8 @@ function AbaResumo({
         {/* Imóvel */}
         {processo.modalidade === 'Contrato' ? (
           <div className="space-y-2 border border-gray-100 rounded-lg p-4 flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#E7E0C4] rounded-lg flex items-center justify-center shrink-0">
-              <FileText className="h-4 w-4 text-[#253B29]" />
+            <div className="w-8 h-8 bg-fonti-accent-hover rounded-lg flex items-center justify-center shrink-0">
+              <FileText className="h-4 w-4 text-fonti-primary" />
             </div>
             <div>
               <p className="text-xs text-gray-400">Contrato</p>
@@ -595,7 +595,7 @@ function AbaResumo({
               {processo.vendedores!.map((v) => (
                 <div key={v.id} className="flex flex-wrap items-center gap-2 text-sm">
                   <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                  <span className="text-[#253B29] font-medium">{v.nome}</span>
+                  <span className="text-fonti-primary font-medium">{v.nome}</span>
                   {v.cpf && <span className="text-xs text-gray-400">{v.cpf}</span>}
                 </div>
               ))}
@@ -614,13 +614,13 @@ function AbaResumo({
         {/* Assessoria & Contrato */}
         <div className="space-y-3 border border-gray-100 rounded-lg p-4">
           <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Assessoria & Contrato</h4>
-          <div className={`flex items-center justify-between p-3 rounded-lg ${processo.tem_assessoria ? 'bg-[#E7E0C4]' : 'bg-gray-50'}`}>
-            <span className="text-sm text-[#253B29]">{processo.tem_assessoria ? 'Com Assessoria' : 'Sem Assessoria'}</span>
+          <div className={`flex items-center justify-between p-3 rounded-lg ${processo.tem_assessoria ? 'bg-fonti-accent-hover' : 'bg-gray-50'}`}>
+            <span className="text-sm text-fonti-primary">{processo.tem_assessoria ? 'Com Assessoria' : 'Sem Assessoria'}</span>
             {processo.tem_assessoria && processo.valor_assessoria != null && (
-              <span className="text-sm font-semibold text-[#253B29]">{formatarMoeda(processo.valor_assessoria)}</span>
+              <span className="text-sm font-semibold text-fonti-primary">{formatarMoeda(processo.valor_assessoria)}</span>
             )}
             {processo.tem_assessoria && processo.valor_assessoria == null && (
-              <span className="text-xs text-[#253B29] font-medium">Inclusa</span>
+              <span className="text-xs text-fonti-primary font-medium">Inclusa</span>
             )}
           </div>
           {(processo.comissao_comercial || processo.comissao_empresa) && (
@@ -648,7 +648,7 @@ function AbaResumo({
           <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: '40%', backgroundColor: processo.fase_atual.cor ?? '#253B29' }}
+              style={{ width: '40%', backgroundColor: processo.fase_atual.cor ?? 'var(--fonti-primary)' }}
             />
           </div>
         </div>
@@ -661,7 +661,7 @@ function Campo({ label, valor }: { label: string; valor: string }) {
   return (
     <div>
       <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-sm font-medium text-[#253B29]">{valor}</p>
+      <p className="text-sm font-medium text-fonti-primary">{valor}</p>
     </div>
   )
 }

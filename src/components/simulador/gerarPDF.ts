@@ -2,9 +2,9 @@ import type { ResultadoSimulador } from '@/types/simulador'
 import { MODALIDADE_LABELS } from '@/types/simulador'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
-const COR_VERDE = '#253B29'
-const COR_DOURADO = '#C2AA6A'
-const COR_BEGE = '#E7E0C4'
+const COR_VERDE = 'var(--fonti-primary)'
+const COR_DOURADO = 'var(--fonti-accent)'
+const COR_BEGE = 'var(--fonti-accent-hover)'
 
 interface ImageInfo { dataUrl: string; naturalW: number; naturalH: number }
 
@@ -461,7 +461,7 @@ function drawSectionTitle(
   usableW: number,
 ): number {
   const h = 8
-  const [r, g, b] = hexToRgb('#253B29')
+  const [r, g, b] = hexToRgb('var(--fonti-primary)')
   doc.setFillColor(r, g, b)
   doc.rect(mL, y, usableW, h, 'F')
   doc.setFontSize(8.5)

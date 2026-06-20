@@ -89,14 +89,14 @@ export default function FinanceiroPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-[#253B29]">Financeiro</h1>
+          <h1 className="text-xl font-bold text-fonti-primary">Financeiro</h1>
           <p className="text-sm text-gray-500">Fechamento, comissões, folha e despesas</p>
         </div>
         <div className="flex items-center gap-2">
           {!fechamento && (
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2a1d] text-white gap-1"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
               onClick={() => {
                 setFormMes(String(mes))
                 setFormAno(String(ano))
@@ -110,7 +110,7 @@ export default function FinanceiroPage() {
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navegar(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium text-[#253B29] min-w-[160px] text-center capitalize">
+          <span className="text-sm font-medium text-fonti-primary min-w-[160px] text-center capitalize">
             {nomeMes}
           </span>
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navegar(1)}>
@@ -127,13 +127,13 @@ export default function FinanceiroPage() {
             onClick={() => setAba(key)}
             className={`relative flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               aba === key
-                ? 'border-[#253B29] text-[#253B29]'
+                ? 'border-fonti-primary text-fonti-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             {label}
             {novo && (
-              <span className="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-[#C2AA6A]" />
+              <span className="ml-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-fonti-accent" />
             )}
           </button>
         ))}
@@ -166,7 +166,7 @@ export default function FinanceiroPage() {
               Abra um fechamento para acessar esta aba.
             </p>
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2a1d] text-white gap-1"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1"
               onClick={() => {
                 setFormMes(String(mes))
                 setFormAno(String(ano))
@@ -237,7 +237,7 @@ export default function FinanceiroPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalAbrir(false)}>Cancelar</Button>
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2a1d] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               disabled={abrirFechamento.isPending}
               onClick={() => {
                 abrirFechamento.mutate(

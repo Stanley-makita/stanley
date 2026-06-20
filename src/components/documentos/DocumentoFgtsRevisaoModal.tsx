@@ -125,15 +125,15 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v && !salvando) onClose() }}>
-      <DialogContent className="max-w-2xl p-0 flex flex-col overflow-hidden max-h-[90vh]">
+      <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full">
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-[#253B29]">Revisar Extrato FGTS</h2>
+        <div className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-fonti-primary">Revisar Extrato FGTS</h2>
               <p className="text-xs text-gray-400 mt-0.5">{documento.nome_original}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {ocr?.confianca && (
                 <span className={`text-xs font-medium ${confiancaColor}`}>Confiança {ocr.confianca}</span>
               )}
@@ -145,15 +145,15 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
         </div>
 
         {/* Corpo */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div className="flex items-center justify-between">
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
               Verifique os dados extraídos. Ao confirmar, todas as contas serão salvas no perfil do cliente.
             </p>
             <button
               onClick={abrirDocumento}
               disabled={carregandoUrl}
-              className="flex items-center gap-1 text-xs text-[#253B29] hover:underline shrink-0 ml-4"
+              className="flex shrink-0 items-center gap-1 text-xs text-fonti-primary hover:underline sm:ml-4"
             >
               {carregandoUrl ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
               Ver extrato
@@ -163,14 +163,14 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
           {/* Dados gerais do trabalhador */}
           <div className="p-4 bg-gray-50 rounded-xl space-y-3">
             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dados do Trabalhador</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-1">
                 <label className="text-xs font-medium text-gray-600 block mb-1">Nome</label>
                 <input
                   type="text"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29] bg-white"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary bg-white"
                   placeholder="Nome completo..."
                 />
               </div>
@@ -180,7 +180,7 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
                   type="text"
                   value={pisPassep}
                   onChange={(e) => setPisPassep(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29] bg-white"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary bg-white"
                   placeholder="Somente dígitos..."
                 />
               </div>
@@ -190,7 +190,7 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
                   type="date"
                   value={dataExtrato}
                   onChange={(e) => setDataExtrato(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29] bg-white"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary bg-white"
                 />
               </div>
             </div>
@@ -204,7 +204,7 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
               </p>
               <button
                 onClick={adicionarConta}
-                className="flex items-center gap-1 text-xs text-[#253B29] hover:underline"
+                className="flex items-center gap-1 text-xs text-fonti-primary hover:underline"
               >
                 <Plus className="h-3 w-3" /> Adicionar conta
               </button>
@@ -223,24 +223,24 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-medium text-gray-600 block mb-1">Código / CNPJ do empregador</label>
                     <input
                       type="text"
                       value={conta.cod_empregador ?? ''}
                       onChange={(e) => atualizarConta(idx, 'cod_empregador', e.target.value)}
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29]"
+                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary"
                       placeholder="Inscrição do empregador..."
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-medium text-gray-600 block mb-1">Número da conta FGTS</label>
                     <input
                       type="text"
                       value={conta.nro_conta_fgts ?? ''}
                       onChange={(e) => atualizarConta(idx, 'nro_conta_fgts', e.target.value)}
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29]"
+                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary"
                       placeholder="Nº da conta..."
                     />
                   </div>
@@ -250,13 +250,13 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
                       type="text"
                       value={conta.saldo_disponivel ?? ''}
                       onChange={(e) => atualizarConta(idx, 'saldo_disponivel', e.target.value)}
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 focus:border-[#253B29]"
+                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary"
                       placeholder="ex: 121507.82"
                     />
                   </div>
                   {conta.saldo_disponivel && (
                     <div className="flex items-end pb-2">
-                      <span className="text-sm font-semibold text-[#253B29]">{fmtSaldo(conta.saldo_disponivel)}</span>
+                      <span className="text-sm font-semibold text-fonti-primary">{fmtSaldo(conta.saldo_disponivel)}</span>
                     </div>
                   )}
                 </div>
@@ -266,15 +266,15 @@ export function DocumentoFgtsRevisaoModal({ documento, onClose, onConfirmado }: 
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between gap-3 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-between sm:px-6">
           <Button variant="ghost" size="sm" onClick={handleIgnorar} disabled={salvando} className="text-gray-400 hover:text-gray-600">
             Ignorar
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose} disabled={salvando}>Cancelar</Button>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="outline" size="sm" onClick={onClose} disabled={salvando} className="w-full sm:w-auto">Cancelar</Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[130px]"
+              className="min-w-[130px] bg-fonti-primary text-white hover:bg-fonti-primary-hover"
               onClick={handleConfirmar}
               disabled={salvando}
             >

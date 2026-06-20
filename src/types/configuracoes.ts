@@ -37,14 +37,14 @@ export const PERFIL_LABELS: Record<UsuarioPerfil, string> = {
 }
 
 export const PERFIL_CORES: Record<UsuarioPerfil, string> = {
-  admin:       'bg-[#253B29] text-white',
-  gestor:      'bg-[#C2AA6A] text-[#253B29]',
+  admin:       'bg-fonti-primary text-white',
+  gestor:      'bg-fonti-accent text-fonti-primary',
   comercial:   'bg-blue-100 text-blue-800',
   operacional: 'bg-indigo-100 text-indigo-800',
   juridico:    'bg-purple-100 text-purple-800',
   apoio:       'bg-teal-100 text-teal-800',
   // legado
-  gerente:     'bg-[#C2AA6A] text-[#253B29]',
+  gerente:     'bg-fonti-accent text-fonti-primary',
   analista:    'bg-blue-100 text-blue-800',
   consultor:   'bg-purple-100 text-purple-800',
   cliente:     'bg-gray-100 text-gray-700',

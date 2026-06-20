@@ -72,7 +72,7 @@ function StepperFases({
           const isAtual     = fase.id === faseAtualId
           const isFutura    = !isConcluida && !isAtual
           const isLast      = idx === fases.length - 1
-          const cor         = fase.cor ?? '#C2AA6A'
+          const cor         = fase.cor ?? 'var(--fonti-accent)'
 
           return (
             <div key={fase.id} className="flex items-start">
@@ -85,9 +85,9 @@ function StepperFases({
                   onClick={() => podeEditar && isConcluida && onVoltar(fase)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all
                     ${isConcluida
-                      ? 'bg-[#253B29] border-[#253B29] cursor-pointer hover:opacity-80'
+                      ? 'bg-fonti-primary border-fonti-primary cursor-pointer hover:opacity-80'
                       : isAtual
-                        ? 'border-[#C2AA6A] bg-[#C2AA6A] cursor-default shadow-[0_0_0_3px_#C2AA6A30]'
+                        ? 'border-fonti-accent bg-fonti-accent cursor-default shadow-[0_0_0_3px_rgb(var(--fonti-accent-rgb)/0.19)]'
                         : 'bg-white border-gray-300 cursor-default'
                     }`}
                   title={isConcluida && podeEditar ? `Retornar para "${fase.nome}"` : undefined}
@@ -102,7 +102,7 @@ function StepperFases({
 
                 {/* Label */}
                 <p className={`text-center mt-1.5 leading-tight px-1 ${
-                  isAtual    ? 'text-[11px] font-bold text-[#253B29]'
+                  isAtual    ? 'text-[11px] font-bold text-fonti-primary'
                   : isConcluida ? 'text-[10px] text-gray-500'
                   : 'text-[10px] text-gray-400'
                 }`}
@@ -111,7 +111,7 @@ function StepperFases({
                 </p>
 
                 {isAtual && (
-                  <span className="mt-1 text-[9px] font-semibold bg-[#C2AA6A] text-[#253B29] px-1.5 py-0.5 rounded-full">
+                  <span className="mt-1 text-[9px] font-semibold bg-fonti-accent text-fonti-primary px-1.5 py-0.5 rounded-full">
                     atual
                   </span>
                 )}
@@ -120,8 +120,8 @@ function StepperFases({
               {/* Conector */}
               {!isLast && (
                 <div className={`w-8 h-0.5 mt-4 shrink-0 ${
-                  isConcluida ? 'bg-[#253B29]'
-                  : isAtual    ? 'bg-gradient-to-r from-[#C2AA6A] to-gray-200'
+                  isConcluida ? 'bg-fonti-primary'
+                  : isAtual    ? 'bg-gradient-to-r from-fonti-accent to-gray-200'
                   : 'border-t border-dashed border-gray-300 bg-transparent h-0'
                 }`} />
               )}
@@ -213,7 +213,7 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
           {proximaFase ? (
             <div className="space-y-1.5">
               <Button
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleAvancar}
                 disabled={avancarFase.isPending || itensObrigatoriosPendentes}
               >
@@ -255,7 +255,7 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
             <div className="space-y-3">
               {historico.map((item, idx) => {
                 const isCurrent = processo.fase_atual_id === item.fase_id
-                const cor = item.fase?.cor ?? '#C2AA6A'
+                const cor = item.fase?.cor ?? 'var(--fonti-accent)'
                 return (
                   <div key={item.id} className="relative flex gap-4 pl-10">
                     <div
@@ -263,13 +263,13 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
                       style={{ backgroundColor: cor }}
                     />
                     <div className={`flex-1 rounded-xl p-3 border text-xs ${
-                      isCurrent ? 'border-[#C2AA6A] bg-[#E7E0C4]/20' : 'border-gray-100 bg-white'
+                      isCurrent ? 'border-fonti-accent bg-fonti-accent-hover/20' : 'border-gray-100 bg-white'
                     }`}>
                       <div className="flex items-center justify-between mb-0.5">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-[#253B29]">{item.fase?.nome ?? '—'}</span>
+                          <span className="font-semibold text-fonti-primary">{item.fase?.nome ?? '—'}</span>
                           {isCurrent && (
-                            <span className="bg-[#253B29] text-white text-[9px] px-1.5 py-0.5 rounded-full">Atual</span>
+                            <span className="bg-fonti-primary text-white text-[9px] px-1.5 py-0.5 rounded-full">Atual</span>
                           )}
                         </div>
                         <span className="text-gray-400">

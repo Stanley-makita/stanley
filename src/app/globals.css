@@ -4,9 +4,51 @@
 
 @layer base {
   :root {
+    /* Fonti Design System tokens. Hex values preserve the approved light theme and allow a future .dark override. */
+    --fonti-primary: #253B29;
+    --fonti-primary-rgb: 37 59 41;
+    --fonti-primary-hover: #1a2b1e;
+    --fonti-primary-hover-rgb: 26 43 30;
+    --fonti-accent: #C2AA6A;
+    --fonti-accent-rgb: 194 170 106;
+    --fonti-accent-hover: #E7E0C4;
+    --fonti-accent-hover-rgb: 231 224 196;
+    --fonti-surface-warm: #F9F7F2;
+    --fonti-surface-accent: #f9f6ec;
+    --fonti-surface-muted: #f4f4f4;
+    --fonti-table-warm: #f5f3ee;
+
+    --success: #16a34a;
+    --success-rgb: 22 163 74;
+    --warning: #d97706;
+    --warning-rgb: 217 119 6;
+    --danger: #dc2626;
+    --danger-rgb: 220 38 38;
+    --info: #2563eb;
+    --info-rgb: 37 99 235;
+
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
+    --card-hover: #F9F7F2;
+
+    --border: 214.3 31.8% 91.4%;
+    --border-light: #f3f4f6;
+
+    --text-primary: #253B29;
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
+
+    --sidebar-background: #253B29;
+    --sidebar-text: #ffffff;
+
+    --table-header: #f9fafb;
+    --table-row-hover: rgba(37, 59, 41, 0.03);
+
+    --input-background: #ffffff;
+    --input-border: #e5e7eb;
+    --input-focus: #253B29;
+
+    --foreground: 222.2 84% 4.9%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;

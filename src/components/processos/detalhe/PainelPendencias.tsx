@@ -18,7 +18,7 @@ export function PainelPendencias({ processoId, onIrParaSolicitacoes }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-amber-500" />
-          <span className="text-sm font-semibold text-[#253B29]">Pendências</span>
+          <span className="text-sm font-semibold text-fonti-primary">Pendências</span>
         </div>
         <span className="text-xs font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 min-w-[1.25rem] text-center">
           {pendencias.length}
@@ -30,7 +30,7 @@ export function PainelPendencias({ processoId, onIrParaSolicitacoes }: Props) {
           <button
             key={p.id}
             onClick={onIrParaSolicitacoes}
-            className="w-full text-left flex items-center gap-2 text-xs text-gray-600 hover:text-[#253B29] transition-colors group"
+            className="w-full text-left flex items-center gap-2 text-xs text-gray-600 hover:text-fonti-primary transition-colors group"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
             <span className="truncate group-hover:underline">

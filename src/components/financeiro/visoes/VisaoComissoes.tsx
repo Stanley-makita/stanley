@@ -54,7 +54,7 @@ export function VisaoComissoes({ mes, ano }: Props) {
             key={f.value}
             onClick={() => setStatusFiltro(f.value)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              statusFiltro === f.value ? 'bg-[#253B29] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              statusFiltro === f.value ? 'bg-fonti-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             {f.label}
@@ -72,7 +72,7 @@ export function VisaoComissoes({ mes, ano }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-[#253B29]">
+                <tr className="bg-fonti-primary">
                   {['Processo','Banco','Comercial','Emissão','Bruto','Empresa','Comercial (R$)','Status',''].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-white px-4 py-2.5 whitespace-nowrap">{h}</th>
                   ))}
@@ -82,7 +82,7 @@ export function VisaoComissoes({ mes, ano }: Props) {
                 {comissoes.map((c) => (
                   <tr key={c.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-2.5">
-                      <p className="font-medium text-[#253B29] text-xs">{c.processo?.numero_processo ?? '—'}</p>
+                      <p className="font-medium text-fonti-primary text-xs">{c.processo?.numero_processo ?? '—'}</p>
                       <p className="text-xs text-gray-400 truncate max-w-[140px]">{c.processo?.nome_imovel ?? '—'}</p>
                     </td>
                     <td className="px-4 py-2.5">
@@ -97,7 +97,7 @@ export function VisaoComissoes({ mes, ano }: Props) {
                     <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
                       {fmtData(c.data_emissao)}
                     </td>
-                    <td className="px-4 py-2.5 font-medium text-[#253B29] whitespace-nowrap">{fmtMoeda(c.valor_bruto)}</td>
+                    <td className="px-4 py-2.5 font-medium text-fonti-primary whitespace-nowrap">{fmtMoeda(c.valor_bruto)}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtMoeda(c.valor_empresa)}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtMoeda(c.valor_comercial)}</td>
                     <td className="px-4 py-2.5"><StatusComissaoBadge status={c.status} /></td>

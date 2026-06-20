@@ -41,7 +41,7 @@ export function useAdicionarCobrança(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'cobranças'] })
-      toast.success('Cobrança adicionada.', { className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+      toast.success('Cobrança adicionada.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao adicionar cobrança.'),
   })
@@ -64,7 +64,7 @@ export function useAtualizarStatusCobrança(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'cobranças'] })
-      toast.success('Status atualizado.', { className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+      toast.success('Status atualizado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao atualizar cobrança.'),
   })

@@ -79,14 +79,14 @@ export function VisaoFluxoCaixa({ mes, ano }: Props) {
       </div>
 
       <div className="flex justify-end">
-        <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 h-8" onClick={() => setExibirForm(!exibirForm)}>
+        <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 h-8" onClick={() => setExibirForm(!exibirForm)}>
           <Plus className="h-3.5 w-3.5" /> Novo Lançamento
         </Button>
       </div>
 
       {exibirForm && (
-        <div className="border border-[#C2AA6A] rounded-xl p-4 bg-[#E7E0C4]/20 space-y-3">
-          <p className="text-xs font-semibold text-[#253B29]">Novo lançamento</p>
+        <div className="border border-fonti-accent rounded-xl p-4 bg-fonti-accent-hover/20 space-y-3">
+          <p className="text-xs font-semibold text-fonti-primary">Novo lançamento</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as TipoLancamento, categoria: '' })}>
               <SelectTrigger className="h-8 text-sm">
@@ -111,7 +111,7 @@ export function VisaoFluxoCaixa({ mes, ano }: Props) {
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => setExibirForm(false)}><X className="h-3.5 w-3.5" /> Cancelar</Button>
-            <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white h-8 gap-1" onClick={salvar} disabled={!form.categoria || !form.descricao.trim() || !form.valor || adicionar.isPending}>
+            <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white h-8 gap-1" onClick={salvar} disabled={!form.categoria || !form.descricao.trim() || !form.valor || adicionar.isPending}>
               <Check className="h-3.5 w-3.5" /> Registrar
             </Button>
           </div>
@@ -150,7 +150,7 @@ export function VisaoFluxoCaixa({ mes, ano }: Props) {
                     </Badge>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-gray-500">{l.categoria}</td>
-                  <td className="px-4 py-2.5 text-[#253B29]">{l.descricao}</td>
+                  <td className="px-4 py-2.5 text-fonti-primary">{l.descricao}</td>
                   <td className={`px-4 py-2.5 font-medium whitespace-nowrap ${l.tipo === 'receita' ? 'text-blue-700' : 'text-red-600'}`}>
                     {l.tipo === 'receita' ? '+' : '-'}{fmtMoeda(l.valor)}
                   </td>

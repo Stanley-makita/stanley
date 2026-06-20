@@ -97,7 +97,7 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
     <Dialog open={aberto} onOpenChange={(v) => { if (!v) fechar() }}>
       <DialogContent className="max-w-md p-0">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-gray-100">
-          <DialogTitle className="text-[#253B29]">
+          <DialogTitle className="text-fonti-primary">
             {editing ? 'Editar Tarefa' : 'Nova Tarefa'}
           </DialogTitle>
         </DialogHeader>
@@ -152,7 +152,7 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
                     className={cn(
                       'text-xs px-2 py-1 rounded-lg border transition-all',
                       prioridade === p
-                        ? 'border-[#253B29] bg-[#253B29] text-white'
+                        ? 'border-fonti-primary bg-fonti-primary text-white'
                         : 'border-gray-200 text-gray-500 hover:border-gray-300'
                     )}
                   >
@@ -210,7 +210,7 @@ export function TarefaFormModal({ aberto, onFechar, onSalvar, isPending, tarefaA
         <div className="flex justify-end gap-3 px-6 pb-5 pt-2 border-t border-gray-100">
           <Button variant="outline" onClick={fechar} disabled={isPending}>Cancelar</Button>
           <Button
-            className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[110px]"
+            className="bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[110px]"
             onClick={handleSalvar}
             disabled={!titulo.trim() || isPending}
           >

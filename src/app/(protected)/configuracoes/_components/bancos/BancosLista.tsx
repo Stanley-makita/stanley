@@ -37,7 +37,7 @@ export function BancosLista() {
         <p className="text-sm text-gray-500">{bancos.length} bancos cadastrados</p>
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#C2AA6A] hover:text-[#253B29] text-white"
+          className="bg-fonti-primary hover:bg-fonti-accent hover:text-fonti-primary text-white"
           onClick={() => setExibirForm(!exibirForm)}
         >
           <Plus className="w-4 h-4 mr-1" /> Novo banco
@@ -45,8 +45,8 @@ export function BancosLista() {
       </div>
 
       {exibirForm && (
-        <div className="border border-[#C2AA6A] rounded-xl p-4 bg-[#E7E0C4]/20 space-y-3">
-          <p className="text-xs font-semibold text-[#253B29]">Novo banco</p>
+        <div className="border border-fonti-accent rounded-xl p-4 bg-fonti-accent-hover/20 space-y-3">
+          <p className="text-xs font-semibold text-fonti-primary">Novo banco</p>
           <div className="flex gap-2">
             <Input
               placeholder="Ex: Caixa Econômica Federal"
@@ -60,7 +60,7 @@ export function BancosLista() {
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white h-8 gap-1"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white h-8 gap-1"
               onClick={salvar}
               disabled={!nome.trim() || criar.isPending}
             >
@@ -83,7 +83,7 @@ export function BancosLista() {
               className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition-shadow group"
             >
               <div className="flex items-center gap-3">
-                <Building2 className="h-4 w-4 text-[#C2AA6A] shrink-0" />
+                <Building2 className="h-4 w-4 text-fonti-accent shrink-0" />
                 <span className="text-sm font-medium text-gray-900">{banco.nome}</span>
               </div>
               <Button

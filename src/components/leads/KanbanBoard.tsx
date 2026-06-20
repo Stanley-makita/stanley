@@ -179,8 +179,8 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
               className={`
                 h-8 text-xs gap-1.5 rounded-lg px-3 border border-dashed transition-colors
                 ${mostrarConcluidos
-                  ? 'border-[#253B29]/40 text-[#253B29] bg-[#E7E0C4]/40'
-                  : 'border-gray-300 text-gray-400 hover:text-[#253B29] hover:border-[#253B29]/30'}
+                  ? 'border-fonti-primary/40 text-fonti-primary bg-fonti-accent-hover/40'
+                  : 'border-gray-300 text-gray-400 hover:text-fonti-primary hover:border-fonti-primary/30'}
               `}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />

@@ -61,7 +61,7 @@ export function DashboardOperacional({ nome }: Props) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm text-gray-500">
-          Acesse <strong className="text-[#253B29]">Operacional</strong> no menu para ver e responder suas solicitações em detalhe.
+          Acesse <strong className="text-fonti-primary">Operacional</strong> no menu para ver e responder suas solicitações em detalhe.
         </p>
       </div>
     </div>

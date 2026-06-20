@@ -83,7 +83,7 @@ export function FaseStatusesManager({ faseId }: Props) {
 
       {statuses.map((s) =>
         editandoId === s.id ? (
-          <div key={s.id} className="flex items-center gap-2 p-2 border border-[#C2AA6A] rounded-lg bg-amber-50">
+          <div key={s.id} className="flex items-center gap-2 p-2 border border-fonti-accent rounded-lg bg-amber-50">
             <input
               type="color"
               value={editCor}
@@ -130,7 +130,7 @@ export function FaseStatusesManager({ faseId }: Props) {
       )}
 
       {adicionando ? (
-        <div className="space-y-2 p-3 border border-dashed border-[#C2AA6A] rounded-lg bg-amber-50/40">
+        <div className="space-y-2 p-3 border border-dashed border-fonti-accent rounded-lg bg-amber-50/40">
           <Input
             placeholder="Nome do status"
             value={novoNome}
@@ -159,7 +159,7 @@ export function FaseStatusesManager({ faseId }: Props) {
           <div className="flex gap-2">
             <Button
               size="sm"
-              className="bg-[#253B29] text-white text-xs h-7"
+              className="bg-fonti-primary text-white text-xs h-7"
               onClick={handleAdicionar}
               disabled={!novoNome.trim() || criar.isPending}
             >

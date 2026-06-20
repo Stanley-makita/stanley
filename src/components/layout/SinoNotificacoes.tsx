@@ -46,12 +46,12 @@ export function SinoNotificacoes() {
 
       <DropdownMenuContent align="end" className="w-[360px] p-0 shadow-lg" sideOffset={8}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-[#253B29] text-white rounded-t-md">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-fonti-primary text-white rounded-t-md">
           <span className="font-semibold text-sm">Notificações</span>
           {naoLidas.length > 0 && (
             <button
               onClick={() => marcarTodas()}
-              className="text-xs text-[#C2AA6A] hover:text-[#E7E0C4] transition-colors"
+              className="text-xs text-fonti-accent hover:text-fonti-accent-hover transition-colors"
             >
               Marcar todas como lidas
             </button>
@@ -80,7 +80,7 @@ export function SinoNotificacoes() {
         <div className="px-4 py-2 border-t bg-gray-50 rounded-b-md">
           <button
             onClick={() => router.push('/notificacoes')}
-            className="w-full text-center text-xs text-[#253B29] hover:text-[#C2AA6A] font-medium transition-colors"
+            className="w-full text-center text-xs text-fonti-primary hover:text-fonti-accent font-medium transition-colors"
           >
             Ver todas as notificações →
           </button>

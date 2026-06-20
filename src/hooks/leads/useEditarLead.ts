@@ -156,7 +156,7 @@ export function useEditarLead() {
       }
 
       toast.success('Lead atualizado.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     },
     onError: (err: any) => {

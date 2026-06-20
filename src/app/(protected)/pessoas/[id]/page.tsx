@@ -643,7 +643,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
       <div className="flex flex-col items-center justify-center h-64 text-gray-400">
         <User className="h-12 w-12 mb-3 opacity-30" />
         <p>Pessoa não encontrada</p>
-        <button onClick={() => router.back()} className="mt-3 text-sm text-[#253B29] hover:underline">
+        <button onClick={() => router.back()} className="mt-3 text-sm text-fonti-primary hover:underline">
           Voltar
         </button>
       </div>
@@ -661,8 +661,8 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-[#253B29]/10 flex items-center justify-center shrink-0">
-            <span className="text-[#253B29] font-bold text-sm uppercase">{pessoa.nome.charAt(0)}</span>
+          <div className="w-10 h-10 rounded-full bg-fonti-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-fonti-primary font-bold text-sm uppercase">{pessoa.nome.charAt(0)}</span>
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-semibold text-gray-900 truncate">{pessoa.nome}</h1>
@@ -676,7 +676,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
             <>
               <Button
                 size="sm"
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
                 onClick={() => setDrawerLead(true)}
               >
                 <UserPlus className="h-4 w-4" />
@@ -756,7 +756,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Observações</label>
                 <textarea
-                  className="w-full text-sm border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#253B29]/30"
+                  className="w-full text-sm border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
                   rows={3}
                   value={form.observacoes}
                   onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
@@ -774,7 +774,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                       className={cn(
                         'text-xs px-3 py-1.5 rounded-lg border transition-all',
                         form.tipo === t.value
-                          ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                          ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                       )}
                     >
@@ -785,7 +785,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               </div>
               {/* Dados pessoais adicionais */}
               <div className="border-t pt-3 space-y-3">
-                <p className="text-xs font-semibold text-[#253B29]">Dados Pessoais</p>
+                <p className="text-xs font-semibold text-fonti-primary">Dados Pessoais</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">RG</label>
@@ -804,7 +804,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
 
               {/* Estado Civil */}
               <div className="border-t pt-3 space-y-2">
-                <p className="text-xs font-semibold text-[#253B29]">Estado Civil</p>
+                <p className="text-xs font-semibold text-fonti-primary">Estado Civil</p>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { value: 'solteiro',      label: 'Solteiro(a)' },
@@ -820,7 +820,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                       className={cn(
                         'text-xs px-3 py-1.5 rounded-lg border transition-all',
                         form.estado_civil === ec.value
-                          ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                          ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                       )}
                     >
@@ -831,8 +831,8 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
 
                 {/* Cônjuge — condicional */}
                 {eCasadoForm && (
-                  <div className="mt-3 p-3 bg-[#E7E0C4]/20 border border-[#C2AA6A]/40 rounded-xl space-y-3">
-                    <p className="text-xs font-semibold text-[#253B29]">Cônjuge / Companheiro(a)</p>
+                  <div className="mt-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/40 rounded-xl space-y-3">
+                    <p className="text-xs font-semibold text-fonti-primary">Cônjuge / Companheiro(a)</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>
@@ -865,7 +865,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                       <div className="col-span-2">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Regime de Bens</label>
                         <select
-                          className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30"
+                          className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
                           value={form.regime_casamento}
                           onChange={(e) => setForm((f) => ({ ...f, regime_casamento: e.target.value }))}
                         >
@@ -883,7 +883,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
 
               {/* Dados Financeiros */}
               <div className="border-t pt-3 space-y-2">
-                <p className="text-xs font-semibold text-[#253B29]">Dados Financeiros</p>
+                <p className="text-xs font-semibold text-fonti-primary">Dados Financeiros</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Formal (R$)</label>
@@ -898,7 +898,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
 
               {/* Endereço */}
               <div className="border-t pt-3 space-y-2">
-                <p className="text-xs font-semibold text-[#253B29]">Endereço</p>
+                <p className="text-xs font-semibold text-fonti-primary">Endereço</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">CEP</label>
@@ -1063,7 +1063,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 className={cn(
                   'flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors',
                   abaAtiva === id
-                    ? 'border-[#253B29] text-[#253B29]'
+                    ? 'border-fonti-primary text-fonti-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 )}
               >
@@ -1085,7 +1085,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-800">{tel.telefone}</span>
                           {tel.principal && (
-                            <Badge className="text-[10px] px-1.5 py-0 bg-[#253B29] text-white">Principal</Badge>
+                            <Badge className="text-[10px] px-1.5 py-0 bg-fonti-primary text-white">Principal</Badge>
                           )}
                           {tel.whatsapp && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-200">WhatsApp</Badge>
@@ -1104,7 +1104,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 ))}
                 <button
                   onClick={() => setModalTelefone(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-[#253B29]/40 hover:text-[#253B29] transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-fonti-primary/40 hover:text-fonti-primary transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   Adicionar telefone
@@ -1120,7 +1120,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                     <p className="text-sm text-gray-400">Nenhum lead vinculado a esta pessoa</p>
                     <Button
                       size="sm"
-                      className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+                      className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
                       onClick={() => setDrawerLead(true)}
                     >
                       <UserPlus className="h-4 w-4" />
@@ -1313,7 +1313,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                           <p className="text-xs text-gray-500"><span className="font-medium text-gray-700">PIS/NIS:</span> {c.pis_pasep}</p>
                         )}
                         {c.saldo_disponivel != null && (
-                          <p className="text-sm font-semibold text-[#253B29]">
+                          <p className="text-sm font-semibold text-fonti-primary">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.saldo_disponivel)}
                           </p>
                         )}
@@ -1384,7 +1384,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setModalConversa(false)}>Fechar</Button>
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               onClick={() => { setModalConversa(false); router.push('/conversas') }}
             >
               Ir para Conversas
@@ -1463,7 +1463,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                     onClick={() => setPessoaMergeId(p.id)}
                     className={cn(
                       'w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between',
-                      pessoaMergeId === p.id && 'bg-[#253B29]/5'
+                      pessoaMergeId === p.id && 'bg-fonti-primary/5'
                     )}
                   >
                     <span className="font-medium text-gray-800">{p.nome}</span>

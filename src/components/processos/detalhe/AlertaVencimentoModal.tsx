@@ -69,7 +69,7 @@ export function AlertaVencimentoModal({ alertas, onConfirmar, isPending }: Props
         </div>
 
         <Button
-          className="w-full bg-[#253B29] hover:bg-[#1a2b1e] text-white mt-1"
+          className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white mt-1"
           disabled={isPending}
           onClick={onConfirmar}
         >

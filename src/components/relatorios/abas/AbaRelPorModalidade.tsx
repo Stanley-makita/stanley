@@ -69,8 +69,8 @@ export function AbaRelPorModalidade({ periodo }: AbaRelPorModalidadeProps) {
               }
             />
             <Legend />
-            <Bar dataKey="Valor Total" fill="#253B29" radius={[0, 3, 3, 0]} />
-            <Bar dataKey="Nº Contratos" fill="#C2AA6A" radius={[0, 3, 3, 0]} />
+            <Bar dataKey="Valor Total" fill="var(--fonti-primary)" radius={[0, 3, 3, 0]} />
+            <Bar dataKey="Nº Contratos" fill="var(--fonti-accent)" radius={[0, 3, 3, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -86,7 +86,7 @@ export function AbaRelPorModalidade({ periodo }: AbaRelPorModalidadeProps) {
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#253B29] text-white">
+              <tr className="bg-fonti-primary text-white">
                 <th className="px-4 py-2 text-left">Modalidade</th>
                 <th className="px-4 py-2 text-right">Nº Contratos</th>
                 <th className="px-4 py-2 text-right">Valor Total</th>

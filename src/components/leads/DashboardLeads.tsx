@@ -45,18 +45,18 @@ function CardResumo({ titulo, icon: Icon, linhaA, linhaB, destaque, isLoading, o
   const base = (
     <div className={cn(
       'flex flex-col gap-4 rounded-xl border p-5 h-full',
-      destaque ? 'bg-[#253B29] border-[#253B29]' : 'bg-white border-gray-200',
-      onClick && !destaque && 'hover:border-[#253B29]/40 hover:shadow-sm transition-all',
+      destaque ? 'bg-fonti-primary border-fonti-primary' : 'bg-white border-gray-200',
+      onClick && !destaque && 'hover:border-fonti-primary/40 hover:shadow-sm transition-all',
       onClick && 'cursor-pointer',
     )}>
       <div className="flex items-center gap-3">
         <div className={cn(
           'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
-          destaque ? 'bg-white/15' : 'bg-[#E7E0C4]',
+          destaque ? 'bg-white/15' : 'bg-fonti-accent-hover',
         )}>
-          <Icon className={cn('h-4 w-4', destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]')} />
+          <Icon className={cn('h-4 w-4', destaque ? 'text-fonti-accent' : 'text-fonti-primary')} />
         </div>
-        <span className={cn('font-semibold text-sm flex-1', destaque ? 'text-white' : 'text-[#253B29]')}>
+        <span className={cn('font-semibold text-sm flex-1', destaque ? 'text-white' : 'text-fonti-primary')}>
           {titulo}
         </span>
         {onClick && !destaque && (
@@ -73,7 +73,7 @@ function CardResumo({ titulo, icon: Icon, linhaA, linhaB, destaque, isLoading, o
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className={cn('text-xs', destaque ? 'text-white/70' : 'text-gray-500')}>{linhaA.label}</span>
-            <span className={cn('text-sm font-bold', destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]')}>{linhaA.valor}</span>
+            <span className={cn('text-sm font-bold', destaque ? 'text-fonti-accent' : 'text-fonti-primary')}>{linhaA.valor}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className={cn('text-xs', destaque ? 'text-white/70' : 'text-gray-500')}>{linhaB.label}</span>
@@ -155,8 +155,8 @@ function ColunaFila({
   return (
     <div className="flex flex-col min-h-0">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="h-4 w-4 text-[#253B29] shrink-0" />
-        <span className="text-sm font-semibold text-[#253B29]">{titulo}</span>
+        <Icon className="h-4 w-4 text-fonti-primary shrink-0" />
+        <span className="text-sm font-semibold text-fonti-primary">{titulo}</span>
         <span className="text-xs text-gray-400 ml-0.5">({items.length})</span>
         <div className="ml-auto flex items-center gap-2 text-xs">
           {vencidos > 0 && <span className="text-red-500 font-medium">{vencidos}v</span>}
@@ -258,8 +258,8 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         {/* Header */}
         <div className="flex items-center gap-2 mb-5">
-          <Send className="h-4 w-4 text-[#253B29] shrink-0" />
-          <h2 className="font-semibold text-[#253B29] text-sm">Fila de Trabalho</h2>
+          <Send className="h-4 w-4 text-fonti-primary shrink-0" />
+          <h2 className="font-semibold text-fonti-primary text-sm">Fila de Trabalho</h2>
 
           {isGestor && (
             <div className="flex items-center gap-0.5 ml-2 bg-gray-100 rounded-lg p-0.5">
@@ -267,7 +267,7 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
                 onClick={() => setTodasDaEmpresa(false)}
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                  !todasDaEmpresa ? 'bg-white text-[#253B29] shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                  !todasDaEmpresa ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
                 )}
               >
                 Minhas
@@ -276,7 +276,7 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
                 onClick={() => setTodasDaEmpresa(true)}
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                  todasDaEmpresa ? 'bg-white text-[#253B29] shadow-sm' : 'text-gray-500 hover:text-gray-700',
+                  todasDaEmpresa ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
                 )}
               >
                 Equipe

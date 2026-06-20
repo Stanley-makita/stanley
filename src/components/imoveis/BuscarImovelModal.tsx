@@ -141,7 +141,7 @@ export function BuscarImovelModal({ aberto, onFechar, onSelecionar, onCadastrarN
           )}
 
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <Button variant="ghost" size="sm" onClick={handleCadastrarNovo} className="gap-1 text-[#253B29]">
+            <Button variant="ghost" size="sm" onClick={handleCadastrarNovo} className="gap-1 text-fonti-primary">
               <Plus className="h-3.5 w-3.5" /> Cadastrar novo imóvel
             </Button>
             <Button variant="outline" size="sm" onClick={onFechar}>Fechar</Button>

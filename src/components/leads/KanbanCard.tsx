@@ -66,7 +66,7 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
       className={cn(
         'bg-white border rounded-lg p-2.5 cursor-grab active:cursor-grabbing',
         'shadow-sm hover:shadow-md transition-shadow select-none',
-        isDragging ? 'opacity-40 border-[#C2AA6A]' : 'border-gray-200',
+        isDragging ? 'opacity-40 border-fonti-accent' : 'border-gray-200',
         overlay && 'shadow-lg rotate-1 opacity-95',
       )}
       onMouseDown={(e) => { mouseDownPos.current = { x: e.clientX, y: e.clientY } }}
@@ -81,7 +81,7 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
       }}
     >
       {/* Nome */}
-      <p className="text-sm font-semibold leading-snug text-[#253B29] line-clamp-2 lg:text-xs lg:truncate">
+      <p className="text-sm font-semibold leading-snug text-fonti-primary line-clamp-2 lg:text-xs lg:truncate">
         {lead.nome}
       </p>
 
@@ -114,10 +114,10 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
           {/* Responsável: avatar com iniciais */}
           {lead.responsavel && (
             <div
-              className="w-5 h-5 rounded-full bg-[#253B29]/15 flex items-center justify-center"
+              className="w-5 h-5 rounded-full bg-fonti-primary/15 flex items-center justify-center"
               title={lead.responsavel.nome}
             >
-              <span className="text-[9px] font-bold text-[#253B29]">{iniciais(lead.responsavel.nome)}</span>
+              <span className="text-[9px] font-bold text-fonti-primary">{iniciais(lead.responsavel.nome)}</span>
             </div>
           )}
 

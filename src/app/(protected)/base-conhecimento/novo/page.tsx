@@ -117,7 +117,7 @@ export default function NovoDocumentoPage() {
           <input
             value={titulo}
             onChange={e => setTitulo(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
             placeholder="Ex: Manual de Processo de Financiamento"
           />
         </div>
@@ -127,7 +127,7 @@ export default function NovoDocumentoPage() {
           <input
             value={descricao}
             onChange={e => setDescricao(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
             placeholder="Resumo breve do conteúdo"
           />
         </div>
@@ -138,7 +138,7 @@ export default function NovoDocumentoPage() {
             <select
               value={tipo}
               onChange={e => setTipo(e.target.value as 'arquivo' | 'link' | 'texto')}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 bg-white"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 bg-white"
             >
               <option value="texto">Texto</option>
               <option value="arquivo">Arquivo</option>
@@ -150,7 +150,7 @@ export default function NovoDocumentoPage() {
             <select
               value={categoriaId}
               onChange={e => setCategoriaId(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 bg-white"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 bg-white"
             >
               <option value="">Sem categoria</option>
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -165,7 +165,7 @@ export default function NovoDocumentoPage() {
               value={conteudo}
               onChange={e => setConteudo(e.target.value)}
               rows={10}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 resize-y"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 resize-y"
               placeholder="Escreva o conteúdo aqui..."
             />
           </div>
@@ -178,7 +178,7 @@ export default function NovoDocumentoPage() {
               value={linkUrl}
               onChange={e => setLinkUrl(e.target.value)}
               type="url"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
               placeholder="https://..."
             />
           </div>
@@ -198,7 +198,7 @@ export default function NovoDocumentoPage() {
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="w-full flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-[#253B29]/30 hover:text-[#253B29] transition-colors"
+                className="w-full flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-fonti-primary/30 hover:text-fonti-primary transition-colors"
               >
                 <Upload className="h-5 w-5" />
                 {uploading ? 'Enviando...' : 'Clique para selecionar o arquivo'}
@@ -220,7 +220,7 @@ export default function NovoDocumentoPage() {
               value={tagInput}
               onChange={e => setTagInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
               placeholder="Digite e pressione Enter"
             />
             <button
@@ -249,7 +249,7 @@ export default function NovoDocumentoPage() {
             type="checkbox"
             checked={publicado}
             onChange={e => setPublicado(e.target.checked)}
-            className="w-4 h-4 rounded accent-[#253B29]"
+            className="w-4 h-4 rounded accent-fonti-primary"
           />
           <span className="text-sm text-gray-700">Publicar imediatamente</span>
         </label>
@@ -265,7 +265,7 @@ export default function NovoDocumentoPage() {
         <button
           onClick={() => criar.mutate()}
           disabled={criar.isPending || !titulo || uploading}
-          className="px-5 py-2 bg-[#253B29] text-white rounded-lg text-sm font-medium hover:bg-[#1e3023] disabled:opacity-50 transition-colors"
+          className="px-5 py-2 bg-fonti-primary text-white rounded-lg text-sm font-medium hover:bg-fonti-primary-hover disabled:opacity-50 transition-colors"
         >
           {criar.isPending ? 'Salvando...' : 'Salvar documento'}
         </button>

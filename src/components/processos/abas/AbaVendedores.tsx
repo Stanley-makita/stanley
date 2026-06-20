@@ -170,17 +170,17 @@ export function AbaVendedores({ processoId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-[#253B29]">
+        <p className="text-sm font-semibold text-fonti-primary">
           Vendedores <span className="text-gray-400 font-normal">({vendedores.length})</span>
         </p>
-        <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 h-8" onClick={abrirFormNovo}>
+        <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 h-8" onClick={abrirFormNovo}>
           <Plus className="h-3.5 w-3.5" /> Adicionar
         </Button>
       </div>
 
       {exibirForm && (
-        <div className="border border-[#C2AA6A] rounded-xl p-4 bg-[#E7E0C4]/20 space-y-4">
-          <p className="text-xs font-semibold text-[#253B29]">{editandoId ? 'Editar vendedor' : 'Novo vendedor'}</p>
+        <div className="border border-fonti-accent rounded-xl p-4 bg-fonti-accent-hover/20 space-y-4">
+          <p className="text-xs font-semibold text-fonti-primary">{editandoId ? 'Editar vendedor' : 'Novo vendedor'}</p>
 
           {/* Busca de pessoa — só no modo novo */}
           {!editandoId && (
@@ -216,7 +216,7 @@ export function AbaVendedores({ processoId }: Props) {
 
           {/* Dados bancários */}
           <div>
-            <p className="text-xs font-medium text-[#253B29] mb-2 border-t border-[#C2AA6A]/30 pt-3">Dados Bancários</p>
+            <p className="text-xs font-medium text-fonti-primary mb-2 border-t border-fonti-accent/30 pt-3">Dados Bancários</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Banco</label>
@@ -235,7 +235,7 @@ export function AbaVendedores({ processoId }: Props) {
 
           {/* Estado civil */}
           <div>
-            <p className="text-xs font-medium text-[#253B29] mb-2 border-t border-[#C2AA6A]/30 pt-3">Estado Civil</p>
+            <p className="text-xs font-medium text-fonti-primary mb-2 border-t border-fonti-accent/30 pt-3">Estado Civil</p>
             <Select value={form.estado_civil} onValueChange={handleEstadoCivil}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Selecionar estado civil..." />
@@ -251,7 +251,7 @@ export function AbaVendedores({ processoId }: Props) {
           {/* Dados do cônjuge — só quando casado */}
           {eCasado && (
             <div>
-              <p className="text-xs font-medium text-[#253B29] mb-2 border-t border-[#C2AA6A]/30 pt-3">Dados do Cônjuge</p>
+              <p className="text-xs font-medium text-fonti-primary mb-2 border-t border-fonti-accent/30 pt-3">Dados do Cônjuge</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2">
                   <label className="text-xs text-gray-500 mb-1 block">Nome completo</label>
@@ -291,7 +291,7 @@ export function AbaVendedores({ processoId }: Props) {
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white h-8 gap-1"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white h-8 gap-1"
               onClick={salvar}
               disabled={!form.nome.trim() || adicionar.isPending || editar.isPending}
             >
@@ -339,7 +339,7 @@ function VendedorCard({ vendedor: v, onEditar, onRemover, onCompletarDados }: { 
           <User className="h-4 w-4 text-gray-500" />
         </div>
         <div className="space-y-0.5">
-          <p className="text-sm font-semibold text-[#253B29]">{v.nome}</p>
+          <p className="text-sm font-semibold text-fonti-primary">{v.nome}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-0.5">
             <span className="text-xs text-gray-400">CPF: {mascaraCpf(v.cpf)}</span>
             {v.telefone && <span className="text-xs text-gray-400">{v.telefone}</span>}
@@ -366,14 +366,14 @@ function VendedorCard({ vendedor: v, onEditar, onRemover, onCompletarDados }: { 
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-[#253B29] hover:bg-[#E7E0C4]/50 gap-1"
+            className="h-7 px-2 text-xs text-fonti-primary hover:bg-fonti-accent-hover/50 gap-1"
             onClick={() => onCompletarDados(v.pessoa_id!)}
           >
             <ClipboardList className="h-3.5 w-3.5" />
             Completar dados
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-[#253B29]" onClick={onEditar}>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-fonti-primary" onClick={onEditar}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-red-500" onClick={onRemover}>

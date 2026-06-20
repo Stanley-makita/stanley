@@ -141,7 +141,7 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
       <Sheet open={aberto} onOpenChange={onFechar}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle className="text-[#253B29]">Novo lead</SheetTitle>
+            <SheetTitle className="text-fonti-primary">Novo lead</SheetTitle>
           </SheetHeader>
 
           <Form {...form}>
@@ -274,7 +274,7 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                 </Button>
                 <Button
                   type="submit"
-                  className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
+                  className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
                   disabled={enviando || criarLead.isPending}
                 >
                   {enviando || criarLead.isPending ? 'Salvando...' : 'Criar lead'}

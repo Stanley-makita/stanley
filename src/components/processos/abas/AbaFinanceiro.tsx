@@ -164,7 +164,7 @@ function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: Mo
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button variant="outline" onClick={onFechar} className="w-full sm:w-auto">Cancelar</Button>
           <Button
-            className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
+            className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
             onClick={() => onSalvar(form)}
             disabled={isPending}
           >
@@ -182,7 +182,7 @@ function CardResumo({ label, valor, destaque }: { label: string; valor: number; 
   const cor = destaque === 'verde' ? 'text-green-600'
     : destaque === 'vermelho' ? 'text-red-600'
     : destaque === 'azul'     ? 'text-blue-600'
-    : 'text-[#253B29]'
+    : 'text-fonti-primary'
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <p className="text-xs text-gray-400 mb-1">{label}</p>
@@ -307,7 +307,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
               className={cn(
                 'text-xs px-3 py-1.5 rounded-full border transition-all',
                 filtro === f.id
-                  ? 'bg-[#253B29] text-white border-[#253B29]'
+                  ? 'bg-fonti-primary text-white border-fonti-primary'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
               )}
             >
@@ -318,7 +318,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
 
         <Button
           size="sm"
-          className="w-full gap-1.5 bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
+          className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
           onClick={abrirCriar}
         >
           <Plus className="h-4 w-4" />
@@ -350,7 +350,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                       {format(new Date(l.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm font-bold text-[#253B29]">
+                  <span className="shrink-0 text-sm font-bold text-fonti-primary">
                     {fmtMoeda(l.valor)}
                   </span>
                 </div>
@@ -379,7 +379,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-[#253B29]"
+                    className="h-8 w-8 p-0 text-gray-400 hover:text-fonti-primary"
                     title="Editar"
                     onClick={() => abrirEditar(l)}
                   >
@@ -455,7 +455,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-gray-400 hover:text-[#253B29]"
+                  className="h-7 w-7 p-0 text-gray-400 hover:text-fonti-primary"
                   title="Editar"
                   onClick={() => abrirEditar(l)}
                 >

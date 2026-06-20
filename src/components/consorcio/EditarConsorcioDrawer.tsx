@@ -183,7 +183,7 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
             </Button>
             <Button
               type="submit"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               disabled={isSubmitting || editar.isPending}
             >
               {(isSubmitting || editar.isPending) ? (

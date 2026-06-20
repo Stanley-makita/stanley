@@ -115,7 +115,7 @@ export function OcrEnriquecimentoModal({ aberto, leadId, sugestoes, onFechar }: 
     <Dialog open={aberto} onOpenChange={v => { if (!v && !salvando) onFechar() }}>
       <DialogContent className="max-w-2xl p-0 flex flex-col overflow-hidden max-h-[90vh]">
         <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-          <h2 className="text-base font-semibold text-[#253B29]">Completar cadastro por OCR</h2>
+          <h2 className="text-base font-semibold text-fonti-primary">Completar cadastro por OCR</h2>
           <p className="text-sm text-gray-500 mt-0.5">Selecione os campos que deseja aplicar ao cadastro da pessoa.</p>
         </div>
 
@@ -129,7 +129,7 @@ export function OcrEnriquecimentoModal({ aberto, leadId, sugestoes, onFechar }: 
                     checked={todosMarcados}
                     onChange={toggleTodos}
                     disabled={salvando}
-                    className="h-4 w-4 rounded border-gray-300 text-[#253B29] cursor-pointer"
+                    className="h-4 w-4 rounded border-gray-300 text-fonti-primary cursor-pointer"
                   />
                 </th>
                 <th className="px-2 py-2.5 text-left font-medium text-gray-600 text-xs">Campo</th>
@@ -157,7 +157,7 @@ export function OcrEnriquecimentoModal({ aberto, leadId, sugestoes, onFechar }: 
                         checked={checked}
                         onChange={() => !isCpfBloqueado && toggleCampo(s.campo)}
                         disabled={isCpfBloqueado || salvando}
-                        className="h-4 w-4 rounded border-gray-300 text-[#253B29] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-4 w-4 rounded border-gray-300 text-fonti-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     </td>
                     <td className="px-2 py-3">
@@ -224,7 +224,7 @@ export function OcrEnriquecimentoModal({ aberto, leadId, sugestoes, onFechar }: 
               size="sm"
               onClick={() => handleAplicar(false)}
               disabled={salvando || selecionados.size === 0}
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             >
               {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
               Aplicar {selecionados.size > 0 ? `${selecionados.size} campo${selecionados.size !== 1 ? 's' : ''}` : 'selecionados'}

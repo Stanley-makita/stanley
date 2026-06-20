@@ -107,7 +107,7 @@ export function ComissoesTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold text-gray-700">Regras de Comissão</h3>
-        <Button size="sm" className="bg-[#253B29] text-white hover:bg-[#1a2b1e] gap-1.5" onClick={() => abrir()}>
+        <Button size="sm" className="bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1.5" onClick={() => abrir()}>
           <Plus className="h-3.5 w-3.5" /> Nova Regra
         </Button>
       </div>
@@ -275,7 +275,7 @@ export function ComissoesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModal(false)}>Cancelar</Button>
-            <Button onClick={handleSalvar} disabled={isPending} className="bg-[#253B29] text-white hover:bg-[#1a2b1e]">
+            <Button onClick={handleSalvar} disabled={isPending} className="bg-fonti-primary text-white hover:bg-fonti-primary-hover">
               {isPending ? 'Salvando...' : editando ? 'Salvar' : 'Criar Regra'}
             </Button>
           </DialogFooter>

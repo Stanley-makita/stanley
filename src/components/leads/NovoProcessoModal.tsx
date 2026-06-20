@@ -173,7 +173,7 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
     <Dialog open={aberto} onOpenChange={fechar}>
       <DialogContent className={cn('p-0 gap-0 overflow-hidden', vinculacao || tipo ? 'max-w-lg' : 'max-w-sm')}>
         <DialogHeader className="px-5 pt-5 pb-4 border-b border-gray-100">
-          <DialogTitle className="text-sm font-semibold text-[#253B29]">{tituloHeader}</DialogTitle>
+          <DialogTitle className="text-sm font-semibold text-fonti-primary">{tituloHeader}</DialogTitle>
           <p className="text-xs text-gray-400 mt-0.5">{subtituloHeader}</p>
         </DialogHeader>
 
@@ -218,7 +218,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
     <div className="px-5 pt-4 pb-5 space-y-4">
       <div className="bg-gray-50 rounded-xl p-4 space-y-1">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-[#253B29]">{clienteNome}</p>
+          <p className="text-sm font-semibold text-fonti-primary">{clienteNome}</p>
           {lead ? (
             <span className="flex items-center gap-1 text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
               {lead.origem === 'whatsapp' && <MessageCircle className="h-3 w-3 text-green-500" />}
@@ -226,7 +226,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
-              <User className="h-3 w-3 text-[#253B29]" />
+              <User className="h-3 w-3 text-fonti-primary" />
               Cliente cadastrado
             </span>
           )}
@@ -234,7 +234,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
         {clienteCpf && <p className="text-xs text-gray-500">CPF: {clienteCpf}</p>}
         {lead?.valor_pretendido != null && (
           <p className="text-xs text-gray-500">
-            Valor pretendido: <span className="font-medium text-[#253B29]">{fmtMoeda(lead.valor_pretendido)}</span>
+            Valor pretendido: <span className="font-medium text-fonti-primary">{fmtMoeda(lead.valor_pretendido)}</span>
           </p>
         )}
       </div>
@@ -254,13 +254,13 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
               key={p.id}
               disabled={p.emBreve}
               onClick={() => onSelecionar(p.id)}
-              className={cn('w-full flex items-center gap-3 px-4 py-3 text-left transition-colors', p.emBreve ? 'bg-gray-50 cursor-not-allowed' : 'bg-white hover:bg-[#E7E0C4]/30 cursor-pointer')}
+              className={cn('w-full flex items-center gap-3 px-4 py-3 text-left transition-colors', p.emBreve ? 'bg-gray-50 cursor-not-allowed' : 'bg-white hover:bg-fonti-accent-hover/30 cursor-pointer')}
             >
-              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', p.emBreve ? 'bg-gray-100 text-gray-300' : 'bg-[#E7E0C4] text-[#253B29]')}>
+              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', p.emBreve ? 'bg-gray-100 text-gray-300' : 'bg-fonti-accent-hover text-fonti-primary')}>
                 {p.icone}
               </div>
               <div className="flex-1 min-w-0">
-                <p className={cn('text-sm font-medium', p.emBreve ? 'text-gray-400' : 'text-[#253B29]')}>{p.nome}</p>
+                <p className={cn('text-sm font-medium', p.emBreve ? 'text-gray-400' : 'text-fonti-primary')}>{p.nome}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{p.descricao}</p>
               </div>
               {p.emBreve
@@ -502,10 +502,10 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
                   onClick={() => { setFgts(val); clr('fgts', 'valorFgts') }}
                   className={cn(
                     'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer',
-                    fgts === val ? 'border-[#253B29]' : erros.fgts ? 'border-red-400' : 'border-gray-300'
+                    fgts === val ? 'border-fonti-primary' : erros.fgts ? 'border-red-400' : 'border-gray-300'
                   )}
                 >
-                  {fgts === val && <div className="w-2 h-2 rounded-full bg-[#253B29]" />}
+                  {fgts === val && <div className="w-2 h-2 rounded-full bg-fonti-primary" />}
                 </div>
                 <span className="text-sm text-gray-700">{val ? 'Sim' : 'Não'}</span>
               </label>
@@ -536,10 +536,10 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
                   onClick={() => { setAssessoria(val); clr('assessoria', 'valorAssessoria') }}
                   className={cn(
                     'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer',
-                    assessoria === val ? 'border-[#253B29]' : erros.assessoria ? 'border-red-400' : 'border-gray-300'
+                    assessoria === val ? 'border-fonti-primary' : erros.assessoria ? 'border-red-400' : 'border-gray-300'
                   )}
                 >
-                  {assessoria === val && <div className="w-2 h-2 rounded-full bg-[#253B29]" />}
+                  {assessoria === val && <div className="w-2 h-2 rounded-full bg-fonti-primary" />}
                 </div>
                 <span className="text-sm text-gray-700">{val ? 'Com Assessoria' : 'Sem Assessoria'}</span>
               </label>
@@ -586,7 +586,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
         </Button>
         <Button
           size="sm"
-          className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]"
+          className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]"
           onClick={handleCriar}
           disabled={criarProcesso.isPending}
         >
@@ -713,7 +713,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       <Secao titulo="Assessoria">
         <div className="space-y-3">
           <label className="flex items-center gap-3 cursor-pointer">
-            <div onClick={() => setTemAssessoria(!temAssessoria)} className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-[#253B29]' : 'bg-gray-200')}>
+            <div onClick={() => setTemAssessoria(!temAssessoria)} className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer', temAssessoria ? 'bg-fonti-primary' : 'bg-gray-200')}>
               <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', temAssessoria ? 'translate-x-4' : 'translate-x-0')} />
             </div>
             <span className="text-sm text-gray-700">Processo inclui Assessoria</span>
@@ -751,7 +751,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 
       <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
         <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>Cancelar</Button>
-        <Button size="sm" className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !bancoId || !valorCredito}>
+        <Button size="sm" className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !bancoId || !valorCredito}>
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>
       </div>
@@ -895,7 +895,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>Cancelar</Button>
         <Button
           size="sm"
-          className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]"
+          className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]"
           onClick={handleCriar}
           disabled={criarProcesso.isPending || !tipoContrato}
         >
@@ -1109,7 +1109,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 
       <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
         <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>Cancelar</Button>
-        <Button size="sm" className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !tipoBem || !valorCarta}>
+        <Button size="sm" className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !tipoBem || !valorCarta}>
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>
       </div>
@@ -1179,7 +1179,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
         <p className="text-xs text-gray-500">
           {docs.length} documento{docs.length !== 1 ? 's' : ''} encontrado{docs.length !== 1 ? 's' : ''}
         </p>
-        <button onClick={toggleAll} className="text-xs text-[#253B29] hover:underline font-medium">
+        <button onClick={toggleAll} className="text-xs text-fonti-primary hover:underline font-medium">
           {selecionados.size === docs.length ? 'Desmarcar todos' : 'Selecionar todos'}
         </button>
       </div>
@@ -1214,7 +1214,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
         </Button>
         <Button
           size="sm"
-          className="h-9 bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 min-w-[150px]"
+          className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 min-w-[150px]"
           onClick={() => handleVincular(selecionados)}
           disabled={vinculando}
         >
@@ -1248,7 +1248,7 @@ function GrupoDocumentos({ titulo, docs, selecionados, onToggle }: {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors',
                 selecionados.has(doc.id)
-                  ? 'border-[#253B29]/20 bg-[#E7E0C4]/30'
+                  ? 'border-fonti-primary/20 bg-fonti-accent-hover/30'
                   : 'border-gray-100 bg-white hover:bg-gray-50'
               )}
             >
@@ -1256,9 +1256,9 @@ function GrupoDocumentos({ titulo, docs, selecionados, onToggle }: {
                 type="checkbox"
                 checked={selecionados.has(doc.id)}
                 onChange={() => onToggle(doc.id)}
-                className="rounded accent-[#253B29] shrink-0"
+                className="rounded accent-fonti-primary shrink-0"
               />
-              <span className="flex-1 text-sm font-medium text-[#253B29] truncate">{label}</span>
+              <span className="flex-1 text-sm font-medium text-fonti-primary truncate">{label}</span>
               {status && (
                 <span className={cn(
                   'text-xs px-2 py-0.5 rounded-full border font-medium shrink-0',

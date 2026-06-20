@@ -87,7 +87,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             onChange={e => setTermo(e.target.value)}
             onFocus={() => { if (resultados.length > 0) setAberto(true) }}
             onKeyDown={handleKeyDown}
-            className="w-full h-9 pl-9 pr-16 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-[#253B29] focus:ring-1 focus:ring-[#253B29]/20 transition-all placeholder:text-gray-400"
+            className="w-full h-9 pl-9 pr-16 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-fonti-primary focus:ring-1 focus:ring-fonti-primary/20 transition-all placeholder:text-gray-400"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 text-xs text-gray-300 font-mono">
             <span>⌘</span><span>K</span>
@@ -115,7 +115,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                     <FileText className="h-4 w-4 text-amber-600" />
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
                     <span className="text-xs font-bold text-white">{iniciais(item.titulo)}</span>
                   </div>
                 )}
@@ -126,7 +126,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 {item.fase && (
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium text-white shrink-0"
-                    style={{ backgroundColor: item.faseCor ?? '#253B29' }}
+                    style={{ backgroundColor: item.faseCor ?? 'var(--fonti-primary)' }}
                   >
                     {item.fase}
                   </span>
@@ -185,7 +185,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
         {/* Avatar do usuário */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#253B29] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-fonti-primary flex items-center justify-center">
             {usuario?.nome
               ? <span className="text-xs font-bold text-white">{iniciais(usuario.nome)}</span>
               : <User className="h-4 w-4 text-white" />

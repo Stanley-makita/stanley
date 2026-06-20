@@ -97,7 +97,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
             <SolicitacaoStatusBadge status={s.status} />
             <SlaCountdown slaAt={s.sla_at} concluido={s.status === 'concluido'} />
           </div>
-          <DialogTitle className="text-[#253B29] mt-1">{s.titulo}</DialogTitle>
+          <DialogTitle className="text-fonti-primary mt-1">{s.titulo}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -113,7 +113,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Lead</span>
                 <button
-                  className="font-medium text-[#253B29] flex items-center gap-1 hover:underline"
+                  className="font-medium text-fonti-primary flex items-center gap-1 hover:underline"
                   onClick={() => router.push(`/leads/${s.lead_id}`)}
                 >
                   {s.lead.nome}
@@ -125,7 +125,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Processo</span>
                 <button
-                  className="font-medium text-[#253B29] flex items-center gap-1 hover:underline"
+                  className="font-medium text-fonti-primary flex items-center gap-1 hover:underline"
                   onClick={() => router.push(`/processos/${s.processo_id}`)}
                 >
                   {s.processo.nome_imovel}
@@ -164,7 +164,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
                         href={doc.signedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:border-[#C2AA6A]/60 hover:bg-[#E7E0C4]/30 transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:border-fonti-accent/60 hover:bg-fonti-accent-hover/30 transition-colors"
                       >
                         <Icon className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                         <span className="text-xs text-gray-700 truncate flex-1">
@@ -272,7 +272,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 hover:border-[#253B29]/40 hover:text-[#253B29] transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 hover:border-fonti-primary/40 hover:text-fonti-primary transition-colors"
               >
                 <Paperclip className="h-3.5 w-3.5" />
                 Selecionar PDF ou imagem
@@ -286,7 +286,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
             Cancelar
           </Button>
           <Button
-            className="flex-1 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="flex-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={handleSalvar}
             disabled={salvando || !status}
           >

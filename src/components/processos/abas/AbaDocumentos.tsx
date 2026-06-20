@@ -485,7 +485,7 @@ export function AbaDocumentos({ processoId }: Props) {
         </p>
         <Button
           size="sm"
-          className="h-8 text-xs gap-1.5 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+          className="h-8 text-xs gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
           onClick={() => inputRef.current?.click()}
         >
           <Upload className="h-3 w-3" />
@@ -560,7 +560,7 @@ export function AbaDocumentos({ processoId }: Props) {
                       <>
                         <button
                           onClick={() => handleVisualizar(doc)}
-                          className="text-sm font-semibold text-[#253B29] hover:underline block text-left w-full truncate"
+                          className="text-sm font-semibold text-fonti-primary hover:underline block text-left w-full truncate"
                           title="Abrir no navegador"
                         >
                           {classificacaoLabel}
@@ -604,13 +604,13 @@ export function AbaDocumentos({ processoId }: Props) {
                               if (e.key === 'Enter') e.currentTarget.blur()
                               if (e.key === 'Escape') setRenomeando(null)
                             }}
-                            className="text-sm font-medium text-[#253B29] w-full border-b border-[#253B29] outline-none bg-transparent"
+                            className="text-sm font-medium text-fonti-primary w-full border-b border-fonti-primary outline-none bg-transparent"
                           />
                         ) : (
                           <>
                             <button
                               onClick={() => handleVisualizar(doc)}
-                              className="text-sm font-medium text-[#253B29] hover:underline truncate block text-left"
+                              className="text-sm font-medium text-fonti-primary hover:underline truncate block text-left"
                               title="Abrir no navegador"
                             >
                               {doc.nome_exibicao ?? doc.nome_original}
@@ -650,14 +650,14 @@ export function AbaDocumentos({ processoId }: Props) {
                 <button
                   onClick={() => handleVisualizar(doc)}
                   title="Abrir no navegador"
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-[#253B29] hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => handleDownload(doc)}
                   title="Baixar arquivo"
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-[#253B29] hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
                 </button>
@@ -734,7 +734,7 @@ export function AbaDocumentos({ processoId }: Props) {
       <Dialog open={modalAberto} onOpenChange={(v) => { if (!v) fecharModal() }}>
         <DialogContent className="max-w-lg p-0 flex flex-col overflow-hidden">
           <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-semibold text-[#253B29]">
+            <h2 className="text-base font-semibold text-fonti-primary">
               Classificar {total} documento{total !== 1 ? 's' : ''}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">Ajuste o tipo de cada arquivo antes de enviar</p>
@@ -788,7 +788,7 @@ export function AbaDocumentos({ processoId }: Props) {
               Cancelar
             </Button>
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[140px]"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[140px]"
               onClick={handleUpload}
               disabled={fazendoUpload}
             >

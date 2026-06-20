@@ -67,13 +67,13 @@ export function CalendarioMensal({ mes, tarefas, diaSelecionado, onDiaClick }: C
               className={cn(
                 'flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition-colors',
                 mesAtual ? 'hover:bg-gray-100' : 'opacity-30 pointer-events-none',
-                selecionado && 'bg-[#253B29] text-white hover:bg-[#253B29]',
-                hoje && !selecionado && 'ring-1 ring-[#C2AA6A]'
+                selecionado && 'bg-fonti-primary text-white hover:bg-fonti-primary',
+                hoje && !selecionado && 'ring-1 ring-fonti-accent'
               )}
             >
               <span className={cn(
                 'text-sm font-medium leading-none',
-                selecionado ? 'text-white' : hoje ? 'text-[#253B29]' : 'text-gray-700'
+                selecionado ? 'text-white' : hoje ? 'text-fonti-primary' : 'text-gray-700'
               )}>
                 {format(dia, 'd')}
               </span>
@@ -90,7 +90,7 @@ export function CalendarioMensal({ mes, tarefas, diaSelecionado, onDiaClick }: C
                           ? 'bg-gray-300'
                           : vencida
                           ? 'bg-red-500'
-                          : 'bg-[#C2AA6A]'
+                          : 'bg-fonti-accent'
                       )}
                     />
                   ))}

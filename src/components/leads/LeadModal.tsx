@@ -85,7 +85,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
     <Dialog open={aberto} onOpenChange={onFechar}>
       <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto p-0 sm:w-full">
         <DialogHeader className="px-4 pt-5 pb-0 sm:px-6 sm:pt-6">
-          <DialogTitle className="text-[#253B29] text-lg">Novo Lead</DialogTitle>
+          <DialogTitle className="text-fonti-primary text-lg">Novo Lead</DialogTitle>
           <p className="text-sm text-gray-500 mt-0.5">Preencha os dados do novo lead</p>
         </DialogHeader>
 
@@ -253,7 +253,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
               </Button>
               <Button
                 type="submit"
-                className="w-full min-w-[120px] bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
+                className="w-full min-w-[120px] bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
                 disabled={criarLead.isPending}
               >
                 {criarLead.isPending ? 'Salvando...' : 'Criar lead'}

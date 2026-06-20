@@ -33,14 +33,14 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
           <div key={c.id} className="space-y-1">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-[#253B29]">
+                <span className="text-xs font-medium text-fonti-primary">
                   {c.usuario?.nome ?? 'Sistema'}
                 </span>
                 <Badge className={`text-xs px-1.5 py-0 ${config.className}`}>
                   {config.label}
                 </Badge>
                 {c.notificar_cliente && (
-                  <Bell className="h-3 w-3 text-[#C2AA6A]" />
+                  <Bell className="h-3 w-3 text-fonti-accent" />
                 )}
               </div>
               <span className="text-xs text-gray-400 shrink-0">
@@ -101,7 +101,7 @@ function FormComentario({
             onClick={() => setNotificar(!notificar)}
             className={`flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
               notificar
-                ? 'bg-[#E7E0C4] border-[#C2AA6A] text-[#253B29]'
+                ? 'bg-fonti-accent-hover border-fonti-accent text-fonti-primary'
                 : 'border-gray-200 text-gray-400'
             }`}
           >
@@ -110,7 +110,7 @@ function FormComentario({
           </button>
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-[#253B29] text-white hover:bg-[#1a2b1e]"
+            className="h-8 gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover"
             onClick={enviar}
             disabled={!texto.trim() || adicionarComentario.isPending}
           >
@@ -130,7 +130,7 @@ export function PainelComentarios({ processoId }: Props) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-[#253B29]">Comentários</h3>
+        <h3 className="text-sm font-semibold text-fonti-primary">Comentários</h3>
         <span className="text-xs text-gray-400">{comentarios.length}</span>
       </div>
 
@@ -149,7 +149,7 @@ export function PainelComentarios({ processoId }: Props) {
         <button
           type="button"
           onClick={() => setDialogAberto(true)}
-          className="mt-3 flex items-center gap-1.5 text-xs text-[#253B29] hover:underline self-start"
+          className="mt-3 flex items-center gap-1.5 text-xs text-fonti-primary hover:underline self-start"
         >
           <MessageSquare className="h-3 w-3" />
           Ver todos os {comentarios.length} comentários
@@ -160,7 +160,7 @@ export function PainelComentarios({ processoId }: Props) {
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
         <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto sm:w-full">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold text-[#253B29]">
+            <DialogTitle className="text-sm font-semibold text-fonti-primary">
               Todos os comentários ({comentarios.length})
             </DialogTitle>
           </DialogHeader>

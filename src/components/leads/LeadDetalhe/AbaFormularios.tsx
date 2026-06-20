@@ -188,7 +188,7 @@ export function AbaFormularios({ lead }: Props) {
               className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700"
             >
               {todosSelecionados
-                ? <CheckSquare className="w-4 h-4 text-[#253B29]" />
+                ? <CheckSquare className="w-4 h-4 text-fonti-primary" />
                 : <Square className="w-4 h-4" />
               }
               {todosSelecionados ? 'Desmarcar todos' : 'Selecionar todos'}
@@ -205,7 +205,7 @@ export function AbaFormularios({ lead }: Props) {
                     className={cn(
                       'w-full flex items-center gap-3 p-2.5 rounded-lg border text-sm text-left transition-all',
                       sel
-                        ? 'border-[#253B29] bg-[#253B29]/5 text-[#253B29]'
+                        ? 'border-fonti-primary bg-fonti-primary/5 text-fonti-primary'
                         : 'border-gray-100 text-gray-500 hover:border-gray-200'
                     )}
                   >
@@ -221,7 +221,7 @@ export function AbaFormularios({ lead }: Props) {
             </div>
 
             <Button
-              className="w-full bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-2"
+              className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-2"
               onClick={handleGerar}
               disabled={gerando || selecionados.size === 0}
             >

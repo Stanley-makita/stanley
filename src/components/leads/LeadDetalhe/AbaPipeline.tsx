@@ -55,7 +55,7 @@ export function AbaPipeline({ leadId }: Props) {
                   <div className={cn(
                     'w-3 h-3 rounded-full border-2 mt-3 z-10',
                     isUltimo
-                      ? 'border-[#253B29] bg-[#253B29]'
+                      ? 'border-fonti-primary bg-fonti-primary'
                       : 'border-gray-300 bg-white'
                   )} />
                   {!isUltimo && <div className="w-px flex-1 bg-gray-200 my-1" />}
@@ -65,16 +65,16 @@ export function AbaPipeline({ leadId }: Props) {
                 <div className={cn(
                   'flex-1 border rounded-xl px-4 py-3 mb-3 transition-all',
                   isUltimo
-                    ? 'border-[#E7E0C4] bg-[#F9F7F2]'
+                    ? 'border-fonti-accent-hover bg-fonti-surface-warm'
                     : 'border-gray-100 bg-white'
                 )}>
                   {isCriacao ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
                         <Plus className="h-3 w-3 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-[#253B29]">Lead criado</p>
+                        <p className="text-sm font-medium text-fonti-primary">Lead criado</p>
                         {evento.fase_nova && (
                           <p className="text-xs text-gray-400 mt-0.5">
                             Fase inicial:{' '}
@@ -94,12 +94,12 @@ export function AbaPipeline({ leadId }: Props) {
                             {evento.fase_anterior.nome}
                           </span>
                           <ArrowRight className="h-3 w-3 text-gray-400" />
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#253B29] text-white font-medium">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-fonti-primary text-white font-medium">
                             {evento.fase_nova.nome}
                           </span>
                         </div>
                         {isUltimo && (
-                          <p className="text-xs text-[#C2AA6A] font-medium mt-1">← Fase atual</p>
+                          <p className="text-xs text-fonti-accent font-medium mt-1">← Fase atual</p>
                         )}
                       </div>
                     </div>

@@ -148,7 +148,7 @@ export function NovaSolicitacaoDrawer({
     <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent className="sm:max-w-md flex flex-col gap-0 p-0 max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <DialogTitle className="text-[#253B29]">Nova Solicitação Operacional</DialogTitle>
+          <DialogTitle className="text-fonti-primary">Nova Solicitação Operacional</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -225,7 +225,7 @@ export function NovaSolicitacaoDrawer({
             Cancelar
           </Button>
           <Button
-            className="flex-1 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="flex-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={handleSubmit}
             disabled={!titulo.trim() || responsavelId === 'none' || criar.isPending}
           >

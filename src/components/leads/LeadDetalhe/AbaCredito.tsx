@@ -252,7 +252,7 @@ function StatusFase({ lead }: { lead: Lead }) {
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Status da Fase</p>
         <p className="text-xs text-gray-400 italic">
           Nenhum status configurado.{' '}
-          <a href="/configuracoes" className="text-[#C2AA6A] hover:underline">Configurar em Configurações → Fases</a>
+          <a href="/configuracoes" className="text-fonti-accent hover:underline">Configurar em Configurações → Fases</a>
         </p>
       </div>
     )
@@ -359,13 +359,13 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
       <div className="px-4 pt-3 pb-2">
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Comprador</p>
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#253B29] flex items-center justify-center shrink-0 mt-0.5">
+          <div className="w-9 h-9 rounded-full bg-fonti-primary flex items-center justify-center shrink-0 mt-0.5">
             <span className="text-xs font-bold text-white">{iniciais(lead.nome)}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               {onCompletarPessoa ? (
-                <button onClick={onCompletarPessoa} className="text-sm font-semibold text-[#253B29] hover:underline flex items-center gap-1 text-left">
+                <button onClick={onCompletarPessoa} className="text-sm font-semibold text-fonti-primary hover:underline flex items-center gap-1 text-left">
                   {lead.nome}
                   <ExternalLink className="h-3 w-3 opacity-40 shrink-0" />
                 </button>
@@ -373,7 +373,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                 <p className="text-sm font-semibold text-gray-800">{lead.nome}</p>
               )}
               {onCompletarPessoa && (
-                <button onClick={onCompletarPessoa} className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-[#253B29]">
+                <button onClick={onCompletarPessoa} className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-fonti-primary">
                   <ClipboardList className="h-2.5 w-2.5" /> Cadastro
                 </button>
               )}
@@ -419,12 +419,12 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                 ) : (
                   <>
                     {nomeConjuge && (
-                      <button onClick={onEditarConjuge} className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-[#253B29]">
+                      <button onClick={onEditarConjuge} className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-fonti-primary">
                         <Pencil className="h-2.5 w-2.5" /> Editar
                       </button>
                     )}
                     {nomeConjuge && (
-                      <button onClick={onCriarConjuge} className="flex items-center gap-0.5 text-[10px] text-[#253B29] hover:underline font-medium">
+                      <button onClick={onCriarConjuge} className="flex items-center gap-0.5 text-[10px] text-fonti-primary hover:underline font-medium">
                         <Plus className="h-2.5 w-2.5" /> Criar cadastro
                       </button>
                     )}
@@ -441,7 +441,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                   </div>
                   <div className="flex-1 min-w-0">
                     {lead.conjuge_pessoa_id ? (
-                      <button onClick={onAbrirConjugePessoa} className="text-sm font-semibold text-[#253B29] hover:underline flex items-center gap-1">
+                      <button onClick={onAbrirConjugePessoa} className="text-sm font-semibold text-fonti-primary hover:underline flex items-center gap-1">
                         {nomeConjuge} <ExternalLink className="h-3 w-3 opacity-40 shrink-0" />
                       </button>
                     ) : (
@@ -490,7 +490,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                 </div>
                 {conjDirty && !lead.conjuge_pessoa_id && (
                   <div className="ml-12 mt-1">
-                    <button onClick={salvarRendaConjuge} className="flex items-center gap-1 text-[10px] text-[#253B29] hover:underline">
+                    <button onClick={salvarRendaConjuge} className="flex items-center gap-1 text-[10px] text-fonti-primary hover:underline">
                       {editar.isPending
                         ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
                         : <Save className="h-2.5 w-2.5" />
@@ -506,7 +506,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                 )}
               </>
             ) : (
-              <button onClick={onEditarConjuge} className="flex items-center gap-1 text-xs text-[#253B29] font-medium hover:underline">
+              <button onClick={onEditarConjuge} className="flex items-center gap-1 text-xs text-fonti-primary font-medium hover:underline">
                 <Plus className="h-3 w-3" /> Informar dados do cônjuge
               </button>
             )}
@@ -519,7 +519,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
         <div className="border-t border-gray-100 bg-gray-50 px-4 py-2.5 flex items-center justify-between">
           <div>
             <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Renda Total</p>
-            <p className="text-lg font-bold text-[#253B29]">{fmtMoedaValor(rendaTotal)}</p>
+            <p className="text-lg font-bold text-fonti-primary">{fmtMoedaValor(rendaTotal)}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Renda Considerada</p>
@@ -532,7 +532,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                 onBlur={() => { if (rcDirty) salvarRendaConsiderada() }}
               />
               {rcDirty && (
-                <button onClick={salvarRendaConsiderada} className="text-[#253B29] hover:opacity-70 shrink-0">
+                <button onClick={salvarRendaConsiderada} className="text-fonti-primary hover:opacity-70 shrink-0">
                   {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                 </button>
               )}
@@ -551,7 +551,7 @@ function RendaCampo({ label, valor, destaque }: { label: string; valor: string; 
   return (
     <div className="bg-gray-50 rounded px-2 py-1.5">
       <p className="text-[10px] text-gray-400 mb-0.5">{label}</p>
-      <p className={cn('text-xs font-semibold', destaque ? 'text-[#253B29]' : 'text-gray-700')}>{valor}</p>
+      <p className={cn('text-xs font-semibold', destaque ? 'text-fonti-primary' : 'text-gray-700')}>{valor}</p>
     </div>
   )
 }
@@ -611,7 +611,7 @@ function BlocoOperacao({ lead }: { lead: Lead }) {
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operação</p>
         {dirty && (
-          <Button size="sm" className="h-7 text-xs gap-1 bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={salvar} disabled={editar.isPending}>
+          <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
             {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             Salvar
           </Button>
@@ -700,7 +700,7 @@ function BlocoImovel({ lead }: { lead: Lead }) {
       <div className="bg-white border border-dashed border-gray-200 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Imóvel</p>
-          <button onClick={() => setEditando(true)} className="flex items-center gap-1 text-xs text-[#253B29] hover:underline font-medium">
+          <button onClick={() => setEditando(true)} className="flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium">
             <Plus className="h-3 w-3" /> Informar Imóvel
           </button>
         </div>
@@ -714,13 +714,13 @@ function BlocoImovel({ lead }: { lead: Lead }) {
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Imóvel</p>
         <div className="flex items-center gap-2">
           {dirty && (
-            <Button size="sm" className="h-7 text-xs gap-1 bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={salvar} disabled={editar.isPending}>
+            <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
               {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               Salvar
             </Button>
           )}
           {!editando && (
-            <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-[#253B29] flex items-center gap-0.5">
+            <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-fonti-primary flex items-center gap-0.5">
               <Pencil className="h-3 w-3" /> Editar
             </button>
           )}
@@ -865,7 +865,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
             <div className="flex-1 min-w-0">
               <button
                 onClick={onAbrirVendedorPessoa}
-                className="text-sm font-semibold text-[#253B29] hover:underline flex items-center gap-1 text-left"
+                className="text-sm font-semibold text-fonti-primary hover:underline flex items-center gap-1 text-left"
               >
                 {vendedorPessoa.nome}
                 <ExternalLink className="h-3 w-3 opacity-40 shrink-0" />
@@ -896,7 +896,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
 
         {/* Campo de busca */}
         <div className="relative">
-          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 focus-within:border-[#253B29] transition-colors">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 focus-within:border-fonti-primary transition-colors">
             {buscando
               ? <Loader2 className="h-3.5 w-3.5 text-gray-400 shrink-0 animate-spin" />
               : <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
@@ -942,7 +942,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
               <div className="border-t border-gray-100">
                 <button
                   onMouseDown={() => { setShowDropdown(false); setCriandoNovo(true); setNovoNome(termoBusca) }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-[#253B29] font-medium hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-fonti-primary font-medium hover:bg-gray-50 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" /> Criar novo vendedor
                 </button>
@@ -955,7 +955,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
         {!termoBusca && (
           <button
             onClick={() => setCriandoNovo(true)}
-            className="mt-2 flex items-center gap-1 text-xs text-[#253B29] hover:underline font-medium"
+            className="mt-2 flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium"
           >
             <Plus className="h-3 w-3" /> Criar novo vendedor
           </button>
@@ -966,7 +966,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
       {criandoNovo && (
         <Dialog open onOpenChange={v => { if (!v) setCriandoNovo(false) }}>
           <DialogContent className="max-w-sm p-6">
-            <h2 className="text-base font-semibold text-[#253B29] mb-1">Novo Vendedor</h2>
+            <h2 className="text-base font-semibold text-fonti-primary mb-1">Novo Vendedor</h2>
             <p className="text-xs text-gray-500 mb-4">Dados básicos para criar o cadastro. Você poderá completar depois.</p>
             <div className="space-y-3">
               <div>
@@ -985,7 +985,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
               <Button variant="outline" size="sm" onClick={() => setCriandoNovo(false)}>Cancelar</Button>
               <Button
                 size="sm"
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                 onClick={criarNovoVendedor}
                 disabled={!novoNome.trim() || editar.isPending}
               >
@@ -1153,7 +1153,7 @@ function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdi
           {icon}
           <span className="font-medium">{label}</span>
         </div>
-        <button onClick={onAbrirAdicionar} className="flex items-center gap-0.5 text-xs text-[#253B29] hover:underline">
+        <button onClick={onAbrirAdicionar} className="flex items-center gap-0.5 text-xs text-fonti-primary hover:underline">
           <Plus className="h-3 w-3" /> Vincular
         </button>
       </div>
@@ -1213,7 +1213,7 @@ function ConjugeEditarDialog({ lead, onClose, onCriarPessoa }: {
   return (
     <Dialog open onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-sm p-6">
-        <h2 className="text-base font-semibold text-[#253B29] mb-4">Dados do Cônjuge</h2>
+        <h2 className="text-base font-semibold text-fonti-primary mb-4">Dados do Cônjuge</h2>
         <div className="space-y-3">
           <div>
             <Label className="text-xs text-gray-500">Nome completo</Label>
@@ -1230,13 +1230,13 @@ function ConjugeEditarDialog({ lead, onClose, onCriarPessoa }: {
         </div>
         <div className="flex justify-between items-center mt-5">
           {onCriarPessoa && (
-            <Button variant="outline" size="sm" className="text-xs gap-1 text-[#253B29] border-[#253B29]/30" onClick={() => { salvar(); onCriarPessoa() }}>
+            <Button variant="outline" size="sm" className="text-xs gap-1 text-fonti-primary border-fonti-primary/30" onClick={() => { salvar(); onCriarPessoa() }}>
               <Plus className="h-3 w-3" /> Criar cadastro completo
             </Button>
           )}
           <div className="flex gap-2 ml-auto">
             <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={salvar} disabled={editar.isPending}>
+            <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
               {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
               Salvar
             </Button>

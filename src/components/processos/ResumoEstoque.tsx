@@ -40,7 +40,7 @@ export function ResumoEstoque() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-[#253B29]">Resumo do Estoque</h3>
+      <h3 className="text-sm font-semibold text-fonti-primary">Resumo do Estoque</h3>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -59,7 +59,7 @@ export function ResumoEstoque() {
       {/* Performance por Banco */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100">
-          <p className="text-sm font-semibold text-[#253B29]">Performance por Banco</p>
+          <p className="text-sm font-semibold text-fonti-primary">Performance por Banco</p>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -80,14 +80,14 @@ export function ResumoEstoque() {
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: b.banco_cor ?? '#94a3b8' }}
                     />
-                    <span className="text-[#253B29]">{b.banco_nome}</span>
+                    <span className="text-fonti-primary">{b.banco_nome}</span>
                   </div>
                 </td>
                 <td className="px-4 py-2.5 text-blue-600 font-medium">
                   {formatarMoeda(b.realizado)}
                 </td>
                 <td className="px-4 py-2.5 text-gray-600">{b.percentual_valor.toFixed(2)}%</td>
-                <td className="px-4 py-2.5 font-medium text-[#253B29]">{b.num_contratos}</td>
+                <td className="px-4 py-2.5 font-medium text-fonti-primary">{b.num_contratos}</td>
                 <td className="px-4 py-2.5 text-gray-600">{b.percentual_contratos.toFixed(2)}%</td>
               </tr>
             ))}

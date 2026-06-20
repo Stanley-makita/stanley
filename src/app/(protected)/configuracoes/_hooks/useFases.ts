@@ -90,7 +90,7 @@ export function useCriarFase() {
         .insert({
           empresa_id: usuario.empresa_id,
           nome: fase.nome,
-          cor: fase.cor ?? '#C2AA6A',
+          cor: fase.cor ?? 'var(--fonti-accent)',
           ordem: fase.ordem ?? 999,
           prazo_dias: fase.prazo_dias ?? null,
           modulo: fase.modulo,

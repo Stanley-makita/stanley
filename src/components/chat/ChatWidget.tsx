@@ -88,9 +88,9 @@ export function ChatWidget({ empresaId }: Props) {
         <div className="w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
           style={{ height: '500px' }}>
           {/* Header */}
-          <div className="bg-[#253B29] px-4 py-3 flex items-center justify-between shrink-0">
+          <div className="bg-fonti-primary px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#C2AA6A] flex items-center justify-center text-[#253B29] font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-fonti-accent flex items-center justify-center text-fonti-primary font-bold text-sm">
                 F
               </div>
               <div>
@@ -113,7 +113,7 @@ export function ChatWidget({ empresaId }: Props) {
                 <div
                   className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-snug whitespace-pre-wrap ${
                     m.role === 'user'
-                      ? 'bg-[#253B29] text-white rounded-br-sm'
+                      ? 'bg-fonti-primary text-white rounded-br-sm'
                       : 'bg-white text-gray-800 border border-gray-100 rounded-bl-sm shadow-sm'
                   }`}
                 >
@@ -144,12 +144,12 @@ export function ChatWidget({ empresaId }: Props) {
               onKeyDown={handleKeyDown}
               placeholder="Digite sua mensagem..."
               disabled={carregando}
-              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#253B29] transition-colors disabled:opacity-50 bg-gray-50"
+              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-fonti-primary transition-colors disabled:opacity-50 bg-gray-50"
             />
             <button
               onClick={enviar}
               disabled={!input.trim() || carregando}
-              className="w-9 h-9 rounded-xl bg-[#253B29] hover:bg-[#1a2b1e] text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+              className="w-9 h-9 rounded-xl bg-fonti-primary hover:bg-fonti-primary-hover text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             >
               {carregando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
@@ -160,7 +160,7 @@ export function ChatWidget({ empresaId }: Props) {
       {/* Botão flutuante */}
       <button
         onClick={() => setAberto(!aberto)}
-        className="w-14 h-14 rounded-full bg-[#253B29] hover:bg-[#1a2b1e] text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+        className="w-14 h-14 rounded-full bg-fonti-primary hover:bg-fonti-primary-hover text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
         aria-label="Abrir chat"
       >
         {aberto ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}

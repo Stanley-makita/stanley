@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils'
 
 function Avatar({ nome }: { nome: string }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-[#253B29]/10 flex items-center justify-center shrink-0">
-      <span className="text-[#253B29] font-semibold text-xs uppercase">{nome.charAt(0)}</span>
+    <div className="w-8 h-8 rounded-full bg-fonti-primary/10 flex items-center justify-center shrink-0">
+      <span className="text-fonti-primary font-semibold text-xs uppercase">{nome.charAt(0)}</span>
     </div>
   )
 }
@@ -68,7 +68,7 @@ export function UsuariosLista() {
         </p>
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
           onClick={abrirCriar}
         >
           <Plus className="h-4 w-4" />
@@ -139,7 +139,7 @@ export function UsuariosLista() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 text-gray-400 hover:text-[#253B29]"
+                    className="h-7 w-7 p-0 text-gray-400 hover:text-fonti-primary"
                     onClick={() => abrirEditar(u)}
                     title="Editar"
                   >

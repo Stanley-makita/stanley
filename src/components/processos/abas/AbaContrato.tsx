@@ -415,12 +415,12 @@ export function AbaContrato({ processoId, processo }: Props) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-[#253B29]">Contratos</h3>
+            <h3 className="text-sm font-semibold text-fonti-primary">Contratos</h3>
             <p className="text-xs text-gray-400 mt-0.5">{contratos.length} contrato{contratos.length !== 1 ? 's' : ''} neste processo</p>
           </div>
           <Button
             size="sm"
-            className="gap-1.5 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="gap-1.5 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={() => {
               setContratoAtivoId(null)
               setModeloAtivo(null)
@@ -444,11 +444,11 @@ export function AbaContrato({ processoId, processo }: Props) {
                 className="flex items-start gap-3 text-left flex-1 min-w-0"
                 onClick={() => abrirContratoNoEditor(c)}
               >
-                <div className="w-8 h-8 shrink-0 bg-[#E7E0C4] rounded-lg flex items-center justify-center mt-0.5">
-                  <FileText className="h-3.5 w-3.5 text-[#253B29]" />
+                <div className="w-8 h-8 shrink-0 bg-fonti-accent-hover rounded-lg flex items-center justify-center mt-0.5">
+                  <FileText className="h-3.5 w-3.5 text-fonti-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#253B29] truncate">{c.titulo}</p>
+                  <p className="text-sm font-medium text-fonti-primary truncate">{c.titulo}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     v{c.versao} · {format(new Date(c.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
@@ -462,7 +462,7 @@ export function AbaContrato({ processoId, processo }: Props) {
                     href={c.clicksign_signed_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-2.5 py-1 hover:bg-[#E7E0C4] transition-colors"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-fonti-primary border border-fonti-accent/60 rounded-lg px-2.5 py-1 hover:bg-fonti-accent-hover transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Download className="h-3 w-3" />
@@ -484,7 +484,7 @@ export function AbaContrato({ processoId, processo }: Props) {
         {contratos.length > 0 && (
           <button
             onClick={() => setTela('lista')}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-fonti-primary transition-colors"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Voltar para contratos
@@ -492,7 +492,7 @@ export function AbaContrato({ processoId, processo }: Props) {
         )}
 
         <div>
-          <h3 className="text-sm font-semibold text-[#253B29]">Selecione um modelo de contrato</h3>
+          <h3 className="text-sm font-semibold text-fonti-primary">Selecione um modelo de contrato</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             O sistema preenche automaticamente os dados já cadastrados no processo.
             Os campos em falta ficam marcados como <span className="font-mono">[A PREENCHER]</span> para edição manual.
@@ -504,13 +504,13 @@ export function AbaContrato({ processoId, processo }: Props) {
             <button
               key={t.id}
               onClick={() => selecionarModelo(t.id)}
-              className="flex gap-3 items-start text-left border border-gray-200 rounded-xl p-4 hover:border-[#C2AA6A] hover:bg-[#E7E0C4]/20 transition-colors group"
+              className="flex gap-3 items-start text-left border border-gray-200 rounded-xl p-4 hover:border-fonti-accent hover:bg-fonti-accent-hover/20 transition-colors group"
             >
-              <div className="w-9 h-9 shrink-0 bg-[#E7E0C4] rounded-lg flex items-center justify-center group-hover:bg-[#C2AA6A]/30 transition-colors">
-                <FileText className="h-4 w-4 text-[#253B29]" />
+              <div className="w-9 h-9 shrink-0 bg-fonti-accent-hover rounded-lg flex items-center justify-center group-hover:bg-fonti-accent/30 transition-colors">
+                <FileText className="h-4 w-4 text-fonti-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#253B29]">{t.titulo}</p>
+                <p className="text-sm font-semibold text-fonti-primary">{t.titulo}</p>
                 <p className="text-xs text-gray-400 mt-0.5 leading-snug">{t.descricao}</p>
               </div>
             </button>
@@ -527,13 +527,13 @@ export function AbaContrato({ processoId, processo }: Props) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setTela('selecao')}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-fonti-primary transition-colors"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Voltar
           </button>
           <span className="text-gray-300">|</span>
-          <p className="text-sm font-semibold text-[#253B29]">Configurar Contrato de Assessoria</p>
+          <p className="text-sm font-semibold text-fonti-primary">Configurar Contrato de Assessoria</p>
         </div>
 
         <div className="border border-gray-200 rounded-xl p-5 space-y-5 bg-white">
@@ -546,7 +546,7 @@ export function AbaContrato({ processoId, processo }: Props) {
                 value={numeroPrevia}
                 onChange={(e) => setNumeroPrevia(e.target.value)}
                 placeholder="78/2026"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C2AA6A]"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-fonti-accent"
               />
               <p className="text-xs text-gray-400 mt-1">Número gerado automaticamente ao confirmar</p>
             </div>
@@ -556,7 +556,7 @@ export function AbaContrato({ processoId, processo }: Props) {
                 type="text"
                 value={dataContrato}
                 onChange={(e) => setDataContrato(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C2AA6A]"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-fonti-accent"
               />
             </div>
           </div>
@@ -576,8 +576,8 @@ export function AbaContrato({ processoId, processo }: Props) {
                     onClick={() => set(!value)}
                     className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
                       value
-                        ? 'bg-[#253B29] border-[#253B29]'
-                        : 'border-gray-300 group-hover:border-[#253B29]'
+                        ? 'bg-fonti-primary border-fonti-primary'
+                        : 'border-gray-300 group-hover:border-fonti-primary'
                     }`}
                   >
                     {value && (
@@ -600,7 +600,7 @@ export function AbaContrato({ processoId, processo }: Props) {
               value={valorServicos}
               onChange={(e) => setValorServicos(e.target.value)}
               placeholder="3500.00"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C2AA6A]"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-fonti-accent"
             />
             <p className="text-xs text-gray-400 mt-1">
               {(processo as any).valor_assessoria
@@ -624,7 +624,7 @@ export function AbaContrato({ processoId, processo }: Props) {
             size="sm"
             onClick={handleGerarAssessoria}
             disabled={gerando}
-            className="gap-1.5 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="gap-1.5 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
           >
             {gerando ? 'Gerando...' : 'Gerar Contrato'}
           </Button>
@@ -641,13 +641,13 @@ export function AbaContrato({ processoId, processo }: Props) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleTrocarModelo}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#253B29] transition-colors"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-fonti-primary transition-colors"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             {contratos.length > 0 ? 'Contratos' : 'Trocar modelo'}
           </button>
           <span className="text-gray-300">|</span>
-          <p className="text-sm font-semibold text-[#253B29]">{tituloAtivo}</p>
+          <p className="text-sm font-semibold text-fonti-primary">{tituloAtivo}</p>
           {contratoAtivoId && (() => {
             const c = contratos.find((x) => x.id === contratoAtivoId)
             return c ? <span className="text-xs text-gray-400">v{c.versao}</span> : null
@@ -658,7 +658,7 @@ export function AbaContrato({ processoId, processo }: Props) {
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+            className="gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
             onClick={handleExportarPdf}
           >
             <Printer className="h-3.5 w-3.5" />
@@ -666,7 +666,7 @@ export function AbaContrato({ processoId, processo }: Props) {
           </Button>
           <Button
             size="sm"
-            className="gap-1.5 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            className="gap-1.5 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={handleSalvar}
             disabled={salvar.isPending}
           >
@@ -763,7 +763,7 @@ export function AbaContrato({ processoId, processo }: Props) {
       {/* Painel de Assinatura Eletrônica */}
       {contratoAtivoId && (
         <div className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
-          <p className="text-xs font-semibold text-[#253B29] uppercase tracking-wide">Assinatura Eletrônica</p>
+          <p className="text-xs font-semibold text-fonti-primary uppercase tracking-wide">Assinatura Eletrônica</p>
 
           {csStatus?.clicksign_status === 'closed' ? (
             <div className="flex items-center justify-between gap-3">
@@ -782,7 +782,7 @@ export function AbaContrato({ processoId, processo }: Props) {
                     href={csStatus.clicksign_signed_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-[#253B29] border border-[#C2AA6A]/60 rounded-lg px-3 py-1.5 hover:bg-[#E7E0C4] transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-fonti-primary border border-fonti-accent/60 rounded-lg px-3 py-1.5 hover:bg-fonti-accent-hover transition-colors"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Ver contrato assinado
@@ -835,7 +835,7 @@ export function AbaContrato({ processoId, processo }: Props) {
               <Button
                 size="sm"
                 variant="outline"
-                className="shrink-0 gap-1.5 text-xs border-[#C2AA6A]/60 text-[#253B29] hover:bg-[#E7E0C4]"
+                className="shrink-0 gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
                 onClick={handleEnviarClicksign}
                 disabled={enviandoClicksign}
               >
@@ -872,8 +872,8 @@ function ToolbarButton({
       disabled={disabled}
       className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
         active
-          ? 'bg-[#253B29] text-white'
-          : 'text-gray-600 hover:bg-gray-200 hover:text-[#253B29]'
+          ? 'bg-fonti-primary text-white'
+          : 'text-gray-600 hover:bg-gray-200 hover:text-fonti-primary'
       }`}
     >
       {children}

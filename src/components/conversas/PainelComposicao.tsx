@@ -268,7 +268,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
             onClick={() => setEmojiAberto((v) => !v)}
             className={cn(
               'w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0',
-              emojiAberto && 'text-[#C2AA6A] bg-[#C2AA6A]/10'
+              emojiAberto && 'text-fonti-accent bg-fonti-accent/10'
             )}
             title="Emojis"
           >
@@ -301,7 +301,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
               onPaste={onPaste}
               placeholder={anexo ? 'Adicione uma legenda (opcional)…' : 'Digite uma mensagem… (Cole imagens com Ctrl+V)'}
               rows={1}
-              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#253B29]/30 focus:border-[#253B29]/30 max-h-32 overflow-y-auto"
+              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-fonti-primary/30 focus:border-fonti-primary/30 max-h-32 overflow-y-auto"
               style={{ minHeight: '38px' }}
               onInput={(e) => {
                 const el = e.currentTarget
@@ -318,7 +318,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
               onTouchStart={(e) => { e.preventDefault(); iniciarGravacao() }}
               onMouseUp={pararGravacao}
               onTouchEnd={pararGravacao}
-              className="w-9 h-9 rounded-full bg-[#253B29] flex items-center justify-center text-white hover:bg-[#1a2a1e] transition-colors shrink-0"
+              className="w-9 h-9 rounded-full bg-fonti-primary flex items-center justify-center text-white hover:bg-fonti-primary-hover transition-colors shrink-0"
               title="Segurar para gravar áudio"
             >
               <Mic className="w-4 h-4" />
@@ -327,7 +327,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
             <button
               onClick={() => enviar()}
               disabled={enviando}
-              className="w-9 h-9 rounded-full bg-[#253B29] flex items-center justify-center text-white hover:bg-[#1a2a1e] disabled:opacity-50 transition-colors shrink-0"
+              className="w-9 h-9 rounded-full bg-fonti-primary flex items-center justify-center text-white hover:bg-fonti-primary-hover disabled:opacity-50 transition-colors shrink-0"
               title="Enviar (Enter)"
             >
               {enviando

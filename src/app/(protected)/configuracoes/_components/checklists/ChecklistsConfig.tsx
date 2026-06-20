@@ -68,7 +68,7 @@ function ChecklistItemRow({
       style={style}
       className={cn(
         'flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-100 bg-white group transition-all',
-        isDragging && 'opacity-50 border-[#C2AA6A] shadow-md'
+        isDragging && 'opacity-50 border-fonti-accent shadow-md'
       )}
     >
       <button {...attributes} {...listeners} className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing shrink-0">
@@ -89,7 +89,7 @@ function ChecklistItemRow({
         {item.obrigatorio ? 'Obrigatório' : 'Opcional'}
       </span>
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEditar(item)} className="text-gray-400 hover:text-[#253B29] p-1 rounded">
+        <button onClick={() => onEditar(item)} className="text-gray-400 hover:text-fonti-primary p-1 rounded">
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
@@ -124,7 +124,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
   }
 
   return (
-    <div className="border border-[#C2AA6A]/40 rounded-lg p-3 bg-[#E7E0C4]/10 space-y-2">
+    <div className="border border-fonti-accent/40 rounded-lg p-3 bg-fonti-accent-hover/10 space-y-2">
       <Input
         autoFocus
         placeholder="Descrição do item..."
@@ -162,7 +162,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
         </Button>
         <Button
           size="sm"
-          className="h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+          className="h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
           onClick={handleSalvar}
           disabled={!descricao.trim()}
         >
@@ -247,7 +247,7 @@ function FaseSection({
     reordenar.mutate({ itens: reordenados.map((i, idx) => ({ id: i.id, ordem: idx })), modulo })
   }
 
-  const corFase = fase.cor ?? '#C2AA6A'
+  const corFase = fase.cor ?? 'var(--fonti-accent)'
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -261,7 +261,7 @@ function FaseSection({
           : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
         }
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: corFase }} />
-        <span className="text-sm font-medium text-[#253B29] flex-1 text-left">{fase.nome}</span>
+        <span className="text-sm font-medium text-fonti-primary flex-1 text-left">{fase.nome}</span>
         {itens.length > 0 && (
           <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
             {itens.length} {itens.length === 1 ? 'item' : 'itens'}
@@ -308,7 +308,7 @@ function FaseSection({
           ) : (
             <button
               onClick={() => { setAdicionando(true); setEditandoItem(null) }}
-              className="flex items-center gap-1.5 text-xs text-[#253B29] hover:text-[#253B29]/80 py-1.5 px-2 rounded-lg hover:bg-[#E7E0C4]/40 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-fonti-primary hover:text-fonti-primary/80 py-1.5 px-2 rounded-lg hover:bg-fonti-accent-hover/40 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Adicionar item
@@ -337,7 +337,7 @@ export function ChecklistsConfig() {
             className={cn(
               'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
               modulo === m.id
-                ? 'bg-[#253B29] text-white'
+                ? 'bg-fonti-primary text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >

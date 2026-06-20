@@ -49,7 +49,7 @@ export function FuncionariosTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <Input placeholder="Buscar funcionário..." className="pl-9 h-9 text-sm" value={busca} onChange={e => setBusca(e.target.value)} />
         </div>
-        <Button size="sm" className="bg-[#253B29] text-white hover:bg-[#1a2b1e] gap-1.5" onClick={() => abrir()}>
+        <Button size="sm" className="bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1.5" onClick={() => abrir()}>
           <Plus className="h-3.5 w-3.5" /> Novo Funcionário
         </Button>
       </div>

@@ -106,7 +106,7 @@ function FilterHead({
       <button
         ref={btnRef}
         onClick={handleOpen}
-        className={`flex items-center gap-1 transition-colors ${isActive ? 'text-[#C2AA6A]' : 'text-white hover:text-[#C2AA6A]'}`}
+        className={`flex items-center gap-1 transition-colors ${isActive ? 'text-fonti-accent' : 'text-white hover:text-fonti-accent'}`}
       >
         {isActive && <Filter className="h-3 w-3 shrink-0" />}
         <span className="max-w-[120px] truncate">{isActive ? colFilters[col] : children}</span>
@@ -126,7 +126,7 @@ function FilterHead({
           <div className="max-h-56 overflow-y-auto py-1">
             <button
               onClick={() => select('')}
-              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${!colFilters[col] ? 'text-[#253B29] font-semibold' : 'text-gray-500'}`}
+              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${!colFilters[col] ? 'text-fonti-primary font-semibold' : 'text-gray-500'}`}
             >
               Todos
             </button>
@@ -136,8 +136,8 @@ function FilterHead({
                 <button
                   key={val}
                   onClick={() => select(val)}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-[#E7E0C4]/40 transition-colors ${
-                    colFilters[col] === val ? 'text-[#253B29] font-semibold bg-[#E7E0C4]/30' : 'text-gray-700'
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-fonti-accent-hover/40 transition-colors ${
+                    colFilters[col] === val ? 'text-fonti-primary font-semibold bg-fonti-accent-hover/30' : 'text-gray-700'
                   }`}
                 >
                   {val || '—'}
@@ -248,7 +248,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
         </div>
 
         {activeFilters.map(([col, val]) => (
-          <span key={col} className="flex items-center gap-1 px-2 py-0.5 bg-[#E7E0C4] text-[#253B29] text-xs rounded-full border border-[#C2AA6A]">
+          <span key={col} className="flex items-center gap-1 px-2 py-0.5 bg-fonti-accent-hover text-fonti-primary text-xs rounded-full border border-fonti-accent">
             <span className="opacity-60">{col}:</span> {val}
             <button onClick={() => setColFilters(prev => ({ ...prev, [col]: '' }))} className="ml-0.5 hover:text-red-500">
               <X className="h-3 w-3" />
@@ -278,7 +278,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
       <TableShell>
           <Table>
             <TableHeader>
-              <TableRow style={{ backgroundColor: '#253B29' }} className="hover:bg-[#253B29]">
+              <TableRow style={{ backgroundColor: 'var(--fonti-primary)' }} className="hover:bg-fonti-primary">
                 <FilterHead col="Operacional" {...filterProps}>Operacional</FilterHead>
                 <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
                 <StaticHead>CPF</StaticHead>
@@ -323,17 +323,17 @@ export function VisaoTabela({ produtoFixo }: Props) {
                   return (
                     <TableRow
                       key={p.id}
-                      className="cursor-pointer hover:bg-[#E7E0C4]/30 transition-colors"
+                      className="cursor-pointer hover:bg-fonti-accent-hover/30 transition-colors"
                       onClick={() => router.push(`/processos/${p.id}`)}
                     >
                       <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-sm font-medium text-[#253B29] whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-sm font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
                       <TableCell>
                         {p.fase_atual
-                          ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? '#C2AA6A' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
+                          ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
                           : <span className="text-gray-400 text-sm">—</span>}
                       </TableCell>
                       <TableCell className="text-sm font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
@@ -362,12 +362,12 @@ export function VisaoTabela({ produtoFixo }: Props) {
                         <>
                           <TableCell className="text-sm whitespace-nowrap">
                             {p.comissao_comercial != null
-                              ? <span className="text-[#253B29] font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
+                              ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
                               : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {p.comissao_empresa != null
-                              ? <span className="text-[#C2AA6A] font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
+                              ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
                               : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">

@@ -73,12 +73,12 @@ export function DashboardComercial({ nome }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-[#253B29] mb-1">Taxa de certeza</h2>
-          <p className="text-3xl font-bold text-[#253B29]">{taxaCerteza}%</p>
+          <h2 className="text-sm font-semibold text-fonti-primary mb-1">Taxa de certeza</h2>
+          <p className="text-3xl font-bold text-fonti-primary">{taxaCerteza}%</p>
           <p className="text-xs text-gray-400 mt-1">dos seus processos são de certeza de emissão</p>
           <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#253B29] rounded-full transition-all"
+              className="h-full bg-fonti-primary rounded-full transition-all"
               style={{ width: `${taxaCerteza}%` }}
             />
           </div>

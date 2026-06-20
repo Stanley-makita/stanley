@@ -138,7 +138,7 @@ export function AgenteFontiConfig() {
       {/* Identidade */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-          <Bot className="w-4 h-4 text-[#C2AA6A]" />
+          <Bot className="w-4 h-4 text-fonti-accent" />
           <h3 className="text-sm font-semibold text-gray-700">Identidade do agente</h3>
         </div>
         <div className="space-y-1.5">
@@ -201,7 +201,7 @@ export function AgenteFontiConfig() {
                 onClick={() => toggleDia(d.value)}
                 className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer select-none transition-colors ${
                   form.dias_atendimento.includes(d.value)
-                    ? 'bg-[#253B29] text-white border-[#253B29]'
+                    ? 'bg-fonti-primary text-white border-fonti-primary'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -231,7 +231,7 @@ export function AgenteFontiConfig() {
                 type="checkbox"
                 checked={form.produtos_ativos.includes(p)}
                 onChange={() => toggleProduto(p)}
-                className="w-4 h-4 rounded border-gray-300 accent-[#253B29] cursor-pointer"
+                className="w-4 h-4 rounded border-gray-300 accent-fonti-primary cursor-pointer"
               />
               <span className="text-sm text-gray-700">{p}</span>
             </label>
@@ -243,7 +243,7 @@ export function AgenteFontiConfig() {
       {/* Salvar */}
       <div className="pt-2">
         <Button
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-2"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-2"
           disabled={salvar.isPending || form.produtos_ativos.length === 0}
           onClick={() => salvar.mutate()}
         >

@@ -54,7 +54,7 @@ function KanbanCard({ s, onResponder }: {
     <div className={`bg-white border rounded-lg p-3 transition-all ${
       concluida ? 'border-gray-100 opacity-70'
         : vencido ? 'border-red-200 hover:border-red-300 hover:shadow-sm'
-        : 'border-gray-200 hover:border-[#C2AA6A]/60 hover:shadow-sm'
+        : 'border-gray-200 hover:border-fonti-accent/60 hover:shadow-sm'
     }`}>
       {/* tipo + prioridade */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -64,7 +64,7 @@ function KanbanCard({ s, onResponder }: {
       </div>
 
       {/* título */}
-      <p className="text-xs font-medium text-[#253B29] line-clamp-2 leading-snug mb-2">{s.titulo}</p>
+      <p className="text-xs font-medium text-fonti-primary line-clamp-2 leading-snug mb-2">{s.titulo}</p>
 
       {/* solicitante */}
       {s.solicitante && (
@@ -107,7 +107,7 @@ function KanbanCard({ s, onResponder }: {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {!concluida && (
-            <Button size="sm" className="h-6 text-[10px] px-2 bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+            <Button size="sm" className="h-6 text-[10px] px-2 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               onClick={() => onResponder(s)}>
               Responder
             </Button>
@@ -180,7 +180,7 @@ function TabelaConcluidas({ items, onVer }: {
             >
               <td className="px-3 py-2.5 whitespace-nowrap font-medium text-gray-700">{TIPO_LABELS[s.tipo]}</td>
               <td className="px-3 py-2.5 max-w-[220px]">
-                <p className="truncate text-[#253B29]">{s.titulo}</p>
+                <p className="truncate text-fonti-primary">{s.titulo}</p>
               </td>
               <td className="px-3 py-2.5 whitespace-nowrap text-gray-500">{s.solicitante?.nome.split(' ')[0] ?? '—'}</td>
               <td className="px-3 py-2.5 whitespace-nowrap">
@@ -271,7 +271,7 @@ export default function OperacionalPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
         <div>
-          <h1 className="text-lg font-bold text-[#253B29]">
+          <h1 className="text-lg font-bold text-fonti-primary">
             {isGestor && !soMinhaFila ? 'Fila Operacional — Empresa' : 'Minha Fila Operacional'}
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -287,12 +287,12 @@ export default function OperacionalPage() {
         <div className="flex items-center gap-2">
           {isGestor && (
             <Button variant={soMinhaFila ? 'default' : 'outline'} size="sm"
-              className={soMinhaFila ? 'bg-[#253B29] text-white text-xs' : 'text-xs'}
+              className={soMinhaFila ? 'bg-fonti-primary text-white text-xs' : 'text-xs'}
               onClick={() => setSoMinhaFila((v) => !v)}>
               {soMinhaFila ? 'Minha fila' : 'Todas da empresa'}
             </Button>
           )}
-          <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+          <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
             onClick={() => setNovaAberta(true)}>
             <Plus className="h-3.5 w-3.5" /> Nova Solicitação
           </Button>
@@ -333,10 +333,10 @@ export default function OperacionalPage() {
       {/* ── Tabs: Fila | Concluídas ── */}
       <Tabs defaultValue="fila" className="flex flex-col flex-1 min-h-0">
         <TabsList className="bg-gray-100 h-9 w-fit mb-3 shrink-0">
-          <TabsTrigger value="fila" className="text-xs data-[state=active]:bg-[#253B29] data-[state=active]:text-white">
+          <TabsTrigger value="fila" className="text-xs data-[state=active]:bg-fonti-primary data-[state=active]:text-white">
             Fila ativa
           </TabsTrigger>
-          <TabsTrigger value="concluidas" className="text-xs data-[state=active]:bg-[#253B29] data-[state=active]:text-white gap-1.5">
+          <TabsTrigger value="concluidas" className="text-xs data-[state=active]:bg-fonti-primary data-[state=active]:text-white gap-1.5">
             <LayoutList className="h-3.5 w-3.5" />
             Concluídas {!loadingConcluidas && concluidas.length > 0 && `(${concluidas.length})`}
           </TabsTrigger>

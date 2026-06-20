@@ -160,7 +160,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
           className={cn(
             'px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
             !faseId
-              ? 'bg-[#253B29] text-white border-[#253B29]'
+              ? 'bg-fonti-primary text-white border-fonti-primary'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
           )}
         >
@@ -177,7 +177,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 ? 'text-white border-transparent'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
             )}
-            style={faseId === f.id ? { backgroundColor: f.cor ?? '#253B29', borderColor: f.cor ?? '#253B29' } : undefined}
+            style={faseId === f.id ? { backgroundColor: f.cor ?? 'var(--fonti-primary)', borderColor: f.cor ?? 'var(--fonti-primary)' } : undefined}
           >
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.cor ?? '#94a3b8' }} />
             {f.nome}
@@ -190,7 +190,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
         {hasFilters && (
           <button
             onClick={clearAllFilters}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border border-[#253B29]/40 text-[#253B29] hover:bg-[#253B29]/5"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border border-fonti-primary/40 text-fonti-primary hover:bg-fonti-primary/5"
           >
             <X className="h-3 w-3" />
             Limpar filtros
@@ -309,12 +309,12 @@ function LeadMobileCard({
           onClick()
         }
       }}
-      className="block w-full cursor-pointer bg-white p-4 text-left transition-colors hover:bg-[#253B29]/[0.03] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#C2AA6A]/40"
+      className="block w-full cursor-pointer bg-white p-4 text-left transition-colors hover:bg-fonti-primary/[0.03] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fonti-accent/40"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="min-w-0 text-sm font-semibold leading-snug text-[#253B29]">
+            <h3 className="min-w-0 text-sm font-semibold leading-snug text-fonti-primary">
               {lead.nome}
             </h3>
             {lead.convertido_em && (
@@ -381,7 +381,7 @@ function LeadMobileCard({
         <div className="grid grid-cols-2 gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <DollarSign className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-            <span className="truncate font-medium text-[#253B29]">{fmtValor(lead.valor_pretendido)}</span>
+            <span className="truncate font-medium text-fonti-primary">{fmtValor(lead.valor_pretendido)}</span>
           </div>
           <div className="flex min-w-0 items-center gap-2">
             <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -423,13 +423,13 @@ function FilterPopover({
           onClick={e => e.stopPropagation()}
           className={cn(
             'relative inline-flex items-center justify-center p-0.5 rounded transition-colors',
-            hasFilter ? 'text-[#253B29]' : 'text-gray-300 hover:text-gray-500',
+            hasFilter ? 'text-fonti-primary' : 'text-gray-300 hover:text-gray-500',
           )}
           title="Filtrar coluna"
         >
           <Filter className="h-3 w-3" />
           {hasFilter && (
-            <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-[#253B29] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+            <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-fonti-primary text-white text-[9px] font-bold flex items-center justify-center leading-none">
               {selected.length}
             </span>
           )}
@@ -458,7 +458,7 @@ function FilterPopover({
               >
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-[#253B29] accent-[#253B29]"
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-fonti-primary accent-fonti-primary"
                   checked={selected.includes(opt)}
                   onChange={e => {
                     if (e.target.checked) onChange([...selected, opt])
@@ -502,7 +502,7 @@ function ColHeader({
           onClick={() => onSort(col)}
           className={cn(
             'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
-            isActive ? 'text-[#253B29]' : 'text-gray-500 hover:text-gray-700',
+            isActive ? 'text-fonti-primary' : 'text-gray-500 hover:text-gray-700',
           )}
         >
           {label}
@@ -544,12 +544,12 @@ function LeadRow({
   return (
     <tr
       onClick={onClick}
-      className="border-b border-gray-50 last:border-0 hover:bg-[#253B29]/[0.03] cursor-pointer transition-colors"
+      className="border-b border-gray-50 last:border-0 hover:bg-fonti-primary/[0.03] cursor-pointer transition-colors"
     >
       {/* Nome */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <p className="font-medium text-[#253B29] truncate max-w-[180px]">{lead.nome}</p>
+          <p className="font-medium text-fonti-primary truncate max-w-[180px]">{lead.nome}</p>
           {lead.convertido_em && (
             <span className="shrink-0 text-xs bg-blue-50 text-blue-600 font-medium px-1.5 py-0.5 rounded">
               Convertido
@@ -610,7 +610,7 @@ function LeadRow({
       </td>
 
       {/* Valor */}
-      <td className="px-4 py-3 text-right font-medium text-[#253B29]">
+      <td className="px-4 py-3 text-right font-medium text-fonti-primary">
         {fmtValor(lead.valor_pretendido)}
       </td>
 

@@ -42,7 +42,7 @@ function SecaoParametrosGerais() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#253B29]">Parâmetros Gerais</h3>
+        <h3 className="text-sm font-semibold text-fonti-primary">Parâmetros Gerais</h3>
         {!editando ? (
           <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={iniciarEdicao}>
             <Pencil className="h-3.5 w-3.5" /> Editar
@@ -52,7 +52,7 @@ function SecaoParametrosGerais() {
             <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setEditando(false)}>
               <X className="h-3.5 w-3.5" /> Cancelar
             </Button>
-            <Button size="sm" className="bg-[#253B29] text-white gap-1 text-xs" onClick={salvarParams} disabled={salvar.isPending}>
+            <Button size="sm" className="bg-fonti-primary text-white gap-1 text-xs" onClick={salvarParams} disabled={salvar.isPending}>
               <Check className="h-3.5 w-3.5" /> Salvar
             </Button>
           </div>
@@ -79,7 +79,7 @@ function SecaoParametrosGerais() {
                 onChange={(e) => setForm((f) => ({ ...f, [chave]: Number(e.target.value) }))}
               />
             ) : (
-              <p className="mt-1 text-sm font-medium text-[#253B29]">
+              <p className="mt-1 text-sm font-medium text-fonti-primary">
                 {String((p as unknown as Record<string, number>)[chave])}
               </p>
             )}
@@ -156,8 +156,8 @@ function SecaoTarifas() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#253B29]">Tarifas por Banco</h3>
-        <Button size="sm" variant="outline" className="gap-1 text-xs border-[#C2AA6A] text-[#253B29] hover:bg-[#E7E0C4]" onClick={() => { setFormNovo({ bancoNome: '', tarifaAvaliacao: 0, tarifaCorrespondente: 0, tarifaOutros: 0 }); setNovoAberto(true) }}>
+        <h3 className="text-sm font-semibold text-fonti-primary">Tarifas por Banco</h3>
+        <Button size="sm" variant="outline" className="gap-1 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover" onClick={() => { setFormNovo({ bancoNome: '', tarifaAvaliacao: 0, tarifaCorrespondente: 0, tarifaOutros: 0 }); setNovoAberto(true) }}>
           <Plus className="h-3.5 w-3.5" /> Adicionar
         </Button>
       </div>
@@ -199,7 +199,7 @@ function SecaoTarifas() {
                 </tr>
               ) : (
                 <tr key={t.bancoNome} className={`border-b border-gray-50 last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                  <td className="px-4 py-2.5 font-medium text-[#253B29]">{t.bancoNome}</td>
+                  <td className="px-4 py-2.5 font-medium text-fonti-primary">{t.bancoNome}</td>
                   <td className="px-4 py-2.5">{BRL.format(t.tarifaAvaliacao)}</td>
                   <td className="px-4 py-2.5">{BRL.format(t.tarifaCorrespondente)}</td>
                   <td className="px-4 py-2.5">{BRL.format(t.tarifaOutros)}</td>
@@ -229,7 +229,7 @@ function TarifaForm({ form, onChange, onSalvar, onCancelar, pending }: {
   const set = (k: string, v: string | number) => setLocal((f) => ({ ...f, [k]: v }))
 
   return (
-    <div className="space-y-3 p-3 bg-[#E7E0C4]/20 border border-[#C2AA6A]/50 rounded-lg">
+    <div className="space-y-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/50 rounded-lg">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <Label className="text-xs text-gray-500">Banco</Label>
@@ -250,7 +250,7 @@ function TarifaForm({ form, onChange, onSalvar, onCancelar, pending }: {
       </div>
       <div className="flex gap-2 justify-end">
         <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={onCancelar}><X className="h-3.5 w-3.5" /> Cancelar</Button>
-        <Button size="sm" className="h-8 text-xs bg-[#253B29] text-white gap-1" onClick={() => { onChange(local); onSalvar() }} disabled={!local.bancoNome || pending}>
+        <Button size="sm" className="h-8 text-xs bg-fonti-primary text-white gap-1" onClick={() => { onChange(local); onSalvar() }} disabled={!local.bancoNome || pending}>
           <Check className="h-3.5 w-3.5" /> Salvar
         </Button>
       </div>
@@ -276,8 +276,8 @@ function SecaoItbi() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#253B29]">Alíquotas de ITBI por Município</h3>
-        <Button size="sm" variant="outline" className="gap-1 text-xs border-[#C2AA6A] text-[#253B29] hover:bg-[#E7E0C4]" onClick={() => setNovoAberto(true)}>
+        <h3 className="text-sm font-semibold text-fonti-primary">Alíquotas de ITBI por Município</h3>
+        <Button size="sm" variant="outline" className="gap-1 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover" onClick={() => setNovoAberto(true)}>
           <Plus className="h-3.5 w-3.5" /> Adicionar
         </Button>
       </div>
@@ -305,7 +305,7 @@ function SecaoItbi() {
               <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhum município configurado.</td></tr>
             ) : itbis.map((it, i) => (
               <tr key={it.municipio} className={`border-b border-gray-50 last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                <td className="px-4 py-2.5 font-medium text-[#253B29]">{it.municipio}</td>
+                <td className="px-4 py-2.5 font-medium text-fonti-primary">{it.municipio}</td>
                 <td className="px-4 py-2.5">{(it.aliquota * 100).toFixed(2)}%</td>
                 <td className="px-4 py-2.5">{it.temDesconto ? 'Sim' : 'Não'}</td>
                 <td className="px-4 py-2.5">{it.aliquotaDesconto ? `${(it.aliquotaDesconto * 100).toFixed(2)}%` : '—'}</td>
@@ -333,7 +333,7 @@ function ItbiForm({ form: initial, onSalvar, onCancelar, pending }: {
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }))
 
   return (
-    <div className="space-y-3 p-3 bg-[#E7E0C4]/20 border border-[#C2AA6A]/50 rounded-lg">
+    <div className="space-y-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/50 rounded-lg">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <Label className="text-xs text-gray-500">Município</Label>
@@ -362,7 +362,7 @@ function ItbiForm({ form: initial, onSalvar, onCancelar, pending }: {
       </div>
       <div className="flex gap-2 justify-end">
         <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={onCancelar}><X className="h-3.5 w-3.5" /> Cancelar</Button>
-        <Button size="sm" className="h-8 text-xs bg-[#253B29] text-white gap-1" onClick={() => onSalvar(form)} disabled={!form.municipio || pending}>
+        <Button size="sm" className="h-8 text-xs bg-fonti-primary text-white gap-1" onClick={() => onSalvar(form)} disabled={!form.municipio || pending}>
           <Check className="h-3.5 w-3.5" /> Salvar
         </Button>
       </div>

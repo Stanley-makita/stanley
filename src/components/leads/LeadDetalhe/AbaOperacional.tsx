@@ -75,7 +75,7 @@ export function AbaOperacional({ lead }: Props) {
     return (
       <div className="text-center py-12 space-y-2">
         <p className="text-sm text-gray-500">Nenhum item de checklist configurado para esta fase.</p>
-        <a href="/configuracoes" className="text-xs text-[#C2AA6A] hover:underline">
+        <a href="/configuracoes" className="text-xs text-fonti-accent hover:underline">
           Configurar em Configurações → Fases
         </a>
       </div>
@@ -191,7 +191,7 @@ export function AbaOperacional({ lead }: Props) {
             <Button variant="outline" size="sm" onClick={() => setModalItem(null)}>Cancelar</Button>
             <Button
               size="sm"
-              className="bg-[#253B29] text-white"
+              className="bg-fonti-primary text-white"
               onClick={handleConfirmarModal}
               disabled={completar.isPending}
             >

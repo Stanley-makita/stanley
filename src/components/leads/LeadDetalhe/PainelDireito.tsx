@@ -51,14 +51,14 @@ function SecaoNotas({ leadId }: { leadId: string }) {
   return (
     <div className="p-4 space-y-3 shrink-0">
       <div className="flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-[#253B29]" />
-        <span className="text-sm font-semibold text-[#253B29]">Notas</span>
+        <MessageSquare className="h-4 w-4 text-fonti-primary" />
+        <span className="text-sm font-semibold text-fonti-primary">Notas</span>
         {notas.length > 0 && (
           <span className="text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5 font-medium">{notas.length}</span>
         )}
       </div>
 
-      <div className="bg-[#F9F7F2] rounded-lg border border-[#E7E0C4] p-2.5">
+      <div className="bg-fonti-surface-warm rounded-lg border border-fonti-accent-hover p-2.5">
         <Textarea
           placeholder="Registre uma nota..."
           value={texto}
@@ -71,7 +71,7 @@ function SecaoNotas({ leadId }: { leadId: string }) {
           <span className="text-[9px] text-gray-400">Ctrl+Enter</span>
           <Button
             size="sm"
-            className="h-6 text-[10px] gap-1 bg-[#253B29] text-white px-2"
+            className="h-6 text-[10px] gap-1 bg-fonti-primary text-white px-2"
             onClick={handleEnviar}
             disabled={!texto.trim() || registrar.isPending}
           >
@@ -87,11 +87,11 @@ function SecaoNotas({ leadId }: { leadId: string }) {
         <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
           {notas.slice(0, 10).map((item) => (
             <div key={item.id} className="flex gap-2">
-              <div className="w-5 h-5 rounded-full bg-[#253B29] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-fonti-primary flex items-center justify-center shrink-0 mt-0.5">
                 <MessageSquare className="h-2.5 w-2.5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="bg-white border border-[#E7E0C4] rounded-lg px-2.5 py-1.5">
+                <div className="bg-white border border-fonti-accent-hover rounded-lg px-2.5 py-1.5">
                   <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-0.5 ml-0.5">
@@ -131,15 +131,15 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
     <div className="p-4 space-y-3 shrink-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-[#253B29]" />
-          <span className="text-sm font-semibold text-[#253B29]">Tarefas</span>
+          <CheckCircle2 className="h-4 w-4 text-fonti-primary" />
+          <span className="text-sm font-semibold text-fonti-primary">Tarefas</span>
           {pendentes.length > 0 && (
             <span className="text-[10px] bg-amber-100 text-amber-600 rounded-full px-1.5 py-0.5 font-medium">{pendentes.length}</span>
           )}
         </div>
         <button
           onClick={() => setNovaAberta(true)}
-          className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-[#253B29] hover:bg-gray-100"
+          className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-fonti-primary hover:bg-gray-100"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -209,8 +209,8 @@ function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) 
   return (
     <div className="p-4 space-y-3 shrink-0">
       <div className="flex items-center gap-2">
-        <ClipboardList className="h-4 w-4 text-[#253B29]" />
-        <span className="text-sm font-semibold text-[#253B29]">Checklist da fase</span>
+        <ClipboardList className="h-4 w-4 text-fonti-primary" />
+        <span className="text-sm font-semibold text-fonti-primary">Checklist da fase</span>
         {pendentes.length > 0 && (
           <span className="text-[10px] bg-red-100 text-red-600 rounded-full px-1.5 py-0.5 font-medium">{pendentes.length}</span>
         )}
@@ -318,7 +318,7 @@ function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) 
             <Button variant="outline" size="sm" onClick={() => setModalItem(null)}>Cancelar</Button>
             <Button
               size="sm"
-              className="bg-[#253B29] text-white"
+              className="bg-fonti-primary text-white"
               disabled={completar.isPending}
               onClick={async () => {
                 if (!modalItem) return

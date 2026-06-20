@@ -139,12 +139,12 @@ export function AbaCompradores({ processoId }: Props) {
     <>
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-[#253B29]">
+        <p className="text-sm font-semibold text-fonti-primary">
           Compradores <span className="text-gray-400 font-normal">({compradores.length})</span>
         </p>
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 h-8"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 h-8"
           onClick={abrirFormNovo}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -154,8 +154,8 @@ export function AbaCompradores({ processoId }: Props) {
 
       {/* Formulário inline */}
       {exibirForm && (
-        <div className="border border-[#C2AA6A] rounded-xl p-4 bg-[#E7E0C4]/20 space-y-3">
-          <p className="text-xs font-semibold text-[#253B29]">
+        <div className="border border-fonti-accent rounded-xl p-4 bg-fonti-accent-hover/20 space-y-3">
+          <p className="text-xs font-semibold text-fonti-primary">
             {editandoId ? 'Editar comprador' : 'Novo comprador'}
           </p>
 
@@ -224,9 +224,9 @@ export function AbaCompradores({ processoId }: Props) {
               type="checkbox"
               checked={form.principal}
               onChange={(e) => setForm({ ...form, principal: e.target.checked })}
-              className="rounded accent-[#253B29]"
+              className="rounded accent-fonti-primary"
             />
-            <span className="text-xs text-[#253B29]">Comprador principal</span>
+            <span className="text-xs text-fonti-primary">Comprador principal</span>
           </label>
           <div className="flex gap-2 justify-end">
             <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={fecharForm}>
@@ -234,7 +234,7 @@ export function AbaCompradores({ processoId }: Props) {
             </Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white h-8 gap-1"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white h-8 gap-1"
               onClick={salvar}
               disabled={!form.nome.trim() || isPending}
             >
@@ -256,14 +256,14 @@ export function AbaCompradores({ processoId }: Props) {
           {compradores.map((c) => (
             <div key={c.id} className="flex items-start justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-colors cursor-pointer" onClick={() => abrirFormEditar(c)}>
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
                   <User className="h-4 w-4 text-white" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-[#253B29]">{c.nome}</p>
+                    <p className="text-sm font-semibold text-fonti-primary">{c.nome}</p>
                     {c.principal && (
-                      <Badge className="text-xs bg-[#E7E0C4] text-[#253B29] border-[#C2AA6A]">Principal</Badge>
+                      <Badge className="text-xs bg-fonti-accent-hover text-fonti-primary border-fonti-accent">Principal</Badge>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
@@ -283,7 +283,7 @@ export function AbaCompradores({ processoId }: Props) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-[#253B29] hover:bg-[#E7E0C4]/50 gap-1"
+                    className="h-7 px-2 text-xs text-fonti-primary hover:bg-fonti-accent-hover/50 gap-1"
                     onClick={() => setCompletarDadosId(c.pessoa_id!)}
                   >
                     <ClipboardList className="h-3.5 w-3.5" />
@@ -293,7 +293,7 @@ export function AbaCompradores({ processoId }: Props) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-gray-400 hover:text-[#253B29]"
+                  className="h-7 w-7 text-gray-400 hover:text-fonti-primary"
                   onClick={() => abrirFormEditar(c)}
                 >
                   <Pencil className="h-3.5 w-3.5" />

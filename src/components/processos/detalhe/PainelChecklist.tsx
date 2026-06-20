@@ -87,8 +87,8 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4 text-[#253B29]" />
-            <span className="text-sm font-semibold text-[#253B29]">Checklist da fase</span>
+            <ClipboardCheck className="h-4 w-4 text-fonti-primary" />
+            <span className="text-sm font-semibold text-fonti-primary">Checklist da fase</span>
           </div>
           {!isLoading && itens.length > 0 && (
             obrigatoriosPendentes > 0 ? (
@@ -156,7 +156,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                         )
                       }}
                       disabled={marcar.isPending}
-                      className="mt-0.5 h-3.5 w-3.5 rounded accent-[#253B29] shrink-0 cursor-pointer"
+                      className="mt-0.5 h-3.5 w-3.5 rounded accent-fonti-primary shrink-0 cursor-pointer"
                     />
                     <span className={`text-xs leading-relaxed flex-1 ${checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                       {item.descricao}
@@ -195,7 +195,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
       <Dialog open={Boolean(itemPendente)} onOpenChange={(o) => { if (!o) { setItemPendente(null); setDataValidade('') } }}>
         <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-xs overflow-y-auto sm:w-full">
           <DialogHeader>
-            <DialogTitle className="text-[#253B29]">
+            <DialogTitle className="text-fonti-primary">
               📅 Validade — {tipoModal ? LABEL_VALIDADE[tipoModal] : ''}
             </DialogTitle>
           </DialogHeader>
@@ -207,7 +207,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
               <button
                 type="button"
                 onClick={() => setDataValidade(format(addDays(new Date(), 30), 'yyyy-MM-dd'))}
-                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors"
+                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
               >
                 + 30 dias (padrão matrícula nova)
               </button>
@@ -216,7 +216,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
               <button
                 type="button"
                 onClick={() => setDataValidade(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors"
+                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
               >
                 + 180 dias (prazo padrão engenharia)
               </button>
@@ -236,7 +236,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
             </Button>
             <Button
               size="sm"
-              className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
+              className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               disabled={marcar.isPending || salvarValidade.isPending}
               onClick={handleConfirmarValidade}
             >
@@ -253,7 +253,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
       >
         <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-xs overflow-y-auto sm:w-full">
           <DialogHeader>
-            <DialogTitle className="text-[#253B29]">📐 Engenharia Realizada</DialogTitle>
+            <DialogTitle className="text-fonti-primary">📐 Engenharia Realizada</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="space-y-1">
@@ -261,7 +261,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
               <button
                 type="button"
                 onClick={() => setDataEngenharia(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors block"
+                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors block"
               >
                 + 180 dias (prazo padrão)
               </button>
@@ -292,7 +292,7 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
             </Button>
             <Button
               size="sm"
-              className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
+              className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               disabled={marcar.isPending || salvarEngenharia.isPending || !dataEngenharia || !valorEngenharia}
               onClick={async () => {
                 if (!itemPendenteEng || !dataEngenharia || !valorEngenharia) return

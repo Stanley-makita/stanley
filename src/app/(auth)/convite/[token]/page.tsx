@@ -68,7 +68,7 @@ export default function AceitarConvitePage() {
     }
 
     toast.success('Conta criada! Bem-vindo ao Credifon.', {
-      className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+      className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
     })
     router.push('/login')
   }
@@ -83,9 +83,9 @@ export default function AceitarConvitePage() {
 
   if (!tokenValido) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FEFEFE]">
+      <div className="min-h-screen flex items-center justify-center bg-card">
         <div className="text-center space-y-4">
-          <p className="text-[#253B29] font-semibold text-lg">Convite inválido ou expirado</p>
+          <p className="text-fonti-primary font-semibold text-lg">Convite inválido ou expirado</p>
           <p className="text-sm text-gray-500">
             Este link de convite não é mais válido. Solicite um novo convite ao administrador.
           </p>
@@ -95,13 +95,13 @@ export default function AceitarConvitePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FEFEFE]">
+    <div className="min-h-screen flex items-center justify-center bg-card">
       <div className="w-full max-w-md space-y-8 px-6">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#253B29] mb-4">
-            <span className="text-[#C2AA6A] text-2xl font-bold">F</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-fonti-primary mb-4">
+            <span className="text-fonti-accent text-2xl font-bold">F</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#253B29]">Criar sua conta</h1>
+          <h1 className="text-2xl font-bold text-fonti-primary">Criar sua conta</h1>
           <p className="text-sm text-gray-500 mt-1">{email}</p>
         </div>
 
@@ -152,7 +152,7 @@ export default function AceitarConvitePage() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                 disabled={carregando}
               >
                 {carregando ? 'Criando conta...' : 'Criar minha conta'}

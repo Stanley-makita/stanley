@@ -61,8 +61,8 @@ export function AbaRelPorEquipe({ periodo }: AbaRelPorEquipeProps) {
               ]}
             />
             <Legend />
-            <Bar dataKey="Valor Emitido" fill="#253B29" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="Comissão" fill="#C2AA6A" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Valor Emitido" fill="var(--fonti-primary)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Comissão" fill="var(--fonti-accent)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -78,7 +78,7 @@ export function AbaRelPorEquipe({ periodo }: AbaRelPorEquipeProps) {
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#253B29] text-white">
+              <tr className="bg-fonti-primary text-white">
                 <th className="px-4 py-2 text-center w-12">Pos.</th>
                 <th className="px-4 py-2 text-left">Comercial</th>
                 <th className="px-4 py-2 text-right">Contratos</th>

@@ -80,8 +80,8 @@ export function SeletorPeriodo({ value, onChange }: SeletorPeriodoProps) {
           onClick={() => handleTipo(op.value)}
           className={
             tipo === op.value
-              ? 'bg-[#253B29] text-white border-[#253B29] hover:bg-[#253B29]'
-              : 'border-gray-300 text-gray-700 hover:border-[#253B29]'
+              ? 'bg-fonti-primary text-white border-fonti-primary hover:bg-fonti-primary'
+              : 'border-gray-300 text-gray-700 hover:border-fonti-primary'
           }
         >
           {op.label}

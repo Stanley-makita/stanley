@@ -51,7 +51,7 @@ export function AbaSimulacoes({ processoId }: Props) {
         </p>
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
           onClick={() => setAberto((v) => !v)}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -61,7 +61,7 @@ export function AbaSimulacoes({ processoId }: Props) {
 
       {/* Formulário */}
       {aberto && (
-        <div className="border border-[#C2AA6A]/40 bg-[#E7E0C4]/20 rounded-xl p-4 space-y-3">
+        <div className="border border-fonti-accent/40 bg-fonti-accent-hover/20 rounded-xl p-4 space-y-3">
           <div className="space-y-1.5">
             <Label>Descrição <span className="text-red-500">*</span></Label>
             <Textarea
@@ -78,14 +78,14 @@ export function AbaSimulacoes({ processoId }: Props) {
               ref={fileRef}
               type="file"
               accept=".pdf,.xlsx,.xls"
-              className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-[#253B29] file:text-white hover:file:bg-[#1a2b1e] cursor-pointer"
+              className="text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-fonti-primary file:text-white hover:file:bg-fonti-primary-hover cursor-pointer"
               onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
             />
           </div>
           <div className="flex gap-2">
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               disabled={!descricao.trim() || adicionar.isPending}
               onClick={handleAdicionar}
             >
@@ -125,7 +125,7 @@ export function AbaSimulacoes({ processoId }: Props) {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#253B29] font-medium leading-snug">{s.descricao}</p>
+                <p className="text-sm text-fonti-primary font-medium leading-snug">{s.descricao}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {s.usuario?.nome ?? 'Sistema'} ·{' '}
                   {formatDistanceToNow(new Date(s.criado_em), { addSuffix: true, locale: ptBR })}
@@ -137,7 +137,7 @@ export function AbaSimulacoes({ processoId }: Props) {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-7 w-7 text-gray-400 hover:text-[#253B29]"
+                    className="h-7 w-7 text-gray-400 hover:text-fonti-primary"
                     title="Baixar arquivo"
                     onClick={() => handleBaixar(s.arquivo_path!, s.arquivo_nome!)}
                   >

@@ -53,7 +53,7 @@ export function ConviteFormDrawer() {
 
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-[#253B29]">Convidar novo membro</SheetTitle>
+          <SheetTitle className="text-fonti-primary">Convidar novo membro</SheetTitle>
         </SheetHeader>
 
         <Form {...form}>

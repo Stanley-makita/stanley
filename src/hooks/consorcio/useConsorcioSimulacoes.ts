@@ -58,7 +58,7 @@ export function useAdicionarSimulacao(processoId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'simulacoes'] })
       toast.success('Simulação adicionada.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     },
     onError: () => toast.error('Erro ao adicionar simulação.'),

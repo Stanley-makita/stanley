@@ -64,7 +64,7 @@ function KanbanCard({ processo }: { processo: Processo }) {
           : `/processos/${processo.id}`
         router.push(rota)
       }}
-      className="bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:shadow-md hover:border-[#C2AA6A] transition-all select-none"
+      className="bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:shadow-md hover:border-fonti-accent transition-all select-none"
     >
       {/* linha 1: status + modalidade + chance */}
       <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -81,8 +81,8 @@ function KanbanCard({ processo }: { processo: Processo }) {
 
       {/* linha 2: cliente / imóvel */}
       <div className="flex items-start gap-1 mb-0.5">
-        <User className="h-3 w-3 text-[#253B29] mt-0.5 shrink-0" />
-        <p className="text-xs font-semibold text-[#253B29] line-clamp-1 leading-tight">
+        <User className="h-3 w-3 text-fonti-primary mt-0.5 shrink-0" />
+        <p className="text-xs font-semibold text-fonti-primary line-clamp-1 leading-tight">
           {comprador ?? processo.nome_imovel}
         </p>
       </div>
@@ -94,7 +94,7 @@ function KanbanCard({ processo }: { processo: Processo }) {
 
       {/* linha 3: valor + nº */}
       <div className="flex items-center justify-between mt-1.5">
-        <span className="text-xs font-bold text-[#253B29]">
+        <span className="text-xs font-bold text-fonti-primary">
           {processo.valor_financiado ? fmtMoeda(processo.valor_financiado) : '—'}
         </span>
         <span className="text-[9px] text-gray-400 tabular-nums">{processo.numero_processo}</span>
@@ -142,7 +142,7 @@ function KanbanColuna({
         <div className="flex items-center gap-2 min-w-0">
           <div
             className="w-2.5 h-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: cor ?? '#C2AA6A' }}
+            style={{ backgroundColor: cor ?? 'var(--fonti-accent)' }}
           />
           <span className="text-xs font-semibold text-gray-700 truncate">{nome}</span>
         </div>
@@ -218,7 +218,7 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
               onClick={() => setProdutoFiltro(ativo ? 'todos' : f.value)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 ativo
-                  ? 'bg-[#C2AA6A] text-[#253B29]'
+                  ? 'bg-fonti-accent text-fonti-primary'
                   : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
               }`}
             >

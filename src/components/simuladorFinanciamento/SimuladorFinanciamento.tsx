@@ -52,7 +52,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
           {onSalvar && (
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               onClick={() => onSalvar(resultado)}
               disabled={salvando}
             >

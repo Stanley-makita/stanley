@@ -77,7 +77,7 @@ export function VisaoFolha({ fechamento_id, travado }: Props) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Total salários</p>
-          <p className="text-lg font-semibold text-[#253B29]">{formatarMoeda(folha.total_salarios)}</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(folha.total_salarios)}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
           <p className="text-xs text-gray-500">Benefícios</p>

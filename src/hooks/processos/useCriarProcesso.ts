@@ -26,7 +26,7 @@ export function useCriarProcesso() {
     onSuccess: async (processo) => {
       queryClient.invalidateQueries({ queryKey: ['processos'] })
       toast.success('Processo criado com sucesso!', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
 
       if (processo.lead_id) {

@@ -54,7 +54,7 @@ export function AbaDocumentos({ processoId }: AbaDocumentosProps) {
               {!p.erro && (
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#253B29] transition-all duration-300"
+                    className="h-full bg-fonti-primary transition-all duration-300"
                     style={{ width: `${p.progresso}%` }}
                   />
                 </div>
@@ -68,7 +68,7 @@ export function AbaDocumentos({ processoId }: AbaDocumentosProps) {
       )}
 
       {/* Filtros de tipo */}
-      <div className="flex gap-1 flex-wrap">
+      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
         {FILTROS.map((f) => (
           <button
             key={f.value}
@@ -76,7 +76,7 @@ export function AbaDocumentos({ processoId }: AbaDocumentosProps) {
             className={cn(
               'px-3 py-1 rounded-full text-xs font-medium transition-colors',
               filtro === f.value
-                ? 'bg-[#253B29] text-white'
+                ? 'bg-fonti-primary text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             )}
           >
@@ -93,10 +93,21 @@ export function AbaDocumentos({ processoId }: AbaDocumentosProps) {
           {filtro === 'todos' ? 'Nenhum documento enviado ainda.' : 'Nenhum documento deste tipo.'}
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-hidden rounded-lg border">
+          <div className="divide-y md:hidden">
+            {documentosFiltrados.map((doc) => (
+              <DocumentoItem
+                key={doc.id}
+                documento={doc}
+                mobile
+                podeExcluir={podeExcluirTudo || doc.enviado_por === usuario?.id}
+                onExcluir={() => excluir({ id: doc.id, storagePath: doc.storage_path })}
+              />
+            ))}
+          </div>
+          <table className="hidden w-full text-sm md:table">
             <thead>
-              <tr className="bg-[#253B29] text-white">
+              <tr className="bg-fonti-primary text-white">
                 <th className="px-4 py-2 text-left">Arquivo</th>
                 <th className="px-4 py-2 text-left">Tamanho</th>
                 <th className="px-4 py-2 text-left">Enviado por</th>

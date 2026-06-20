@@ -181,8 +181,8 @@ export default function GestaoPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <ShieldCheck className="w-5 h-5 text-[#C2AA6A]" />
-        <h1 className="text-xl font-semibold text-[#253B29]">Gestão de Conversas</h1>
+        <ShieldCheck className="w-5 h-5 text-fonti-accent" />
+        <h1 className="text-xl font-semibold text-fonti-primary">Gestão de Conversas</h1>
       </div>
 
       {/* Cards de resumo */}
@@ -198,7 +198,7 @@ export default function GestaoPage() {
               <Icon className={cn('w-4 h-4', color)} />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#253B29]">{value}</p>
+              <p className="text-2xl font-bold text-fonti-primary">{value}</p>
               <p className="text-xs text-gray-500">{label}</p>
             </div>
           </div>
@@ -288,7 +288,7 @@ export default function GestaoPage() {
                 <TableRow key={c.id} className="hover:bg-gray-50/50">
                   <TableCell>
                     <div>
-                      <p className="text-sm font-medium text-[#253B29]">
+                      <p className="text-sm font-medium text-fonti-primary">
                         {c.contato_nome ?? c.contato_telefone ?? 'Desconhecido'}
                       </p>
                       {c.contato_nome && c.contato_telefone && (
@@ -335,7 +335,7 @@ export default function GestaoPage() {
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost" size="sm"
-                        className="h-7 text-xs gap-1 text-gray-600 hover:text-[#253B29]"
+                        className="h-7 text-xs gap-1 text-gray-600 hover:text-fonti-primary"
                         onClick={() => router.push(`/conversas?id=${c.id}`)}
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
@@ -368,7 +368,7 @@ export default function GestaoPage() {
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-gray-600">
-              Contato: <span className="font-medium text-[#253B29]">
+              Contato: <span className="font-medium text-fonti-primary">
                 {transferindoConversa?.contato_nome ?? transferindoConversa?.contato_telefone}
               </span>
             </p>
@@ -391,7 +391,7 @@ export default function GestaoPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferindoConversa(null)}>Cancelar</Button>
             <Button
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               disabled={!novoAtendente || transferir.isPending}
               onClick={() => transferir.mutate({ conversa_id: transferindoConversa!.id, atendente_id: novoAtendente })}
             >

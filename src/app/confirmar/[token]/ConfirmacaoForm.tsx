@@ -100,21 +100,21 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
 
   if (confirmacaoFinal) {
     return (
-      <div className="min-h-screen bg-[#f4f4f4] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-fonti-surface-muted flex items-center justify-center p-4">
         <div className="bg-white rounded-xl max-w-md w-full overflow-hidden shadow-sm">
-          <div className="bg-[#253B29] px-8 py-5">
-            <span className="text-[#C2AA6A] text-lg font-bold">Fontinhas Assessoria</span>
+          <div className="bg-fonti-primary px-8 py-5">
+            <span className="text-fonti-accent text-lg font-bold">Fontinhas Assessoria</span>
           </div>
           <div className="p-8 text-center space-y-4">
             <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
-            <h2 className="text-xl font-bold text-[#253B29]">Confirmação registrada</h2>
+            <h2 className="text-xl font-bold text-fonti-primary">Confirmação registrada</h2>
             <p className="text-sm text-gray-600">
               Obrigado! Seu aceite foi registrado com sucesso.
             </p>
             {confirmacaoFinal.protocolo && (
               <div className="bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
                 <p className="text-xs text-gray-500 mb-0.5">Protocolo</p>
-                <p className="text-sm font-mono font-semibold text-[#253B29]">{confirmacaoFinal.protocolo}</p>
+                <p className="text-sm font-mono font-semibold text-fonti-primary">{confirmacaoFinal.protocolo}</p>
               </div>
             )}
             <p className="text-xs text-gray-400">
@@ -132,13 +132,13 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
   const linhas = dadosJson ? linhasTabela(dadosJson, template) : []
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4] p-4 py-8">
+    <div className="min-h-screen bg-fonti-surface-muted p-4 py-8">
       <div className="max-w-lg mx-auto space-y-4">
         {/* Header */}
-        <div className="bg-[#253B29] rounded-xl px-8 py-5">
-          <span className="text-[#C2AA6A] text-lg font-bold">Fontinhas Assessoria</span>
+        <div className="bg-fonti-primary rounded-xl px-8 py-5">
+          <span className="text-fonti-accent text-lg font-bold">Fontinhas Assessoria</span>
           {bancoNome && (
-            <span className="text-[#E7E0C4] text-sm ml-3">Confirmação de Valores — {bancoNome}</span>
+            <span className="text-fonti-accent-hover text-sm ml-3">Confirmação de Valores — {bancoNome}</span>
           )}
         </div>
 
@@ -153,16 +153,16 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
           {linhas.length > 0 && (
             <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
               <thead>
-                <tr className="bg-[#f5f3ee]">
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-[#253B29]">Descrição</th>
-                  <th className="text-right px-3 py-2 text-xs font-semibold text-[#253B29]">Valor</th>
+                <tr className="bg-fonti-table-warm">
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-fonti-primary">Descrição</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-fonti-primary">Valor</th>
                 </tr>
               </thead>
               <tbody>
                 {linhas.map(([label, valor], i) => (
                   <tr key={i} className="border-t border-gray-100">
                     <td className="px-3 py-[5px] text-gray-600">{label}</td>
-                    <td className="px-3 py-[5px] text-right font-semibold text-[#253B29]">{valor}</td>
+                    <td className="px-3 py-[5px] text-right font-semibold text-fonti-primary">{valor}</td>
                   </tr>
                 ))}
               </tbody>
@@ -178,7 +178,7 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
                 type="checkbox"
                 checked={v1}
                 onChange={e => setV1(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-[#253B29] flex-shrink-0"
+                className="mt-0.5 h-4 w-4 accent-fonti-primary flex-shrink-0"
               />
               <span className="text-sm text-gray-700">Estou de acordo com os valores informados.</span>
             </label>
@@ -188,7 +188,7 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
                 type="checkbox"
                 checked={v2}
                 onChange={e => setV2(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-[#253B29] flex-shrink-0"
+                className="mt-0.5 h-4 w-4 accent-fonti-primary flex-shrink-0"
               />
               <span className="text-sm text-gray-700">
                 Estou ciente de que valores, taxas e prazos podem sofrer alteração por banco, prefeitura, cartório ou órgão responsável.
@@ -200,7 +200,7 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
                 type="checkbox"
                 checked={v3}
                 onChange={e => setV3(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-[#253B29] flex-shrink-0"
+                className="mt-0.5 h-4 w-4 accent-fonti-primary flex-shrink-0"
               />
               <span className="text-sm text-gray-700">Estou ciente dos prazos informados.</span>
             </label>
@@ -216,7 +216,7 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
           <button
             onClick={confirmar}
             disabled={!podeConfirmar || enviando}
-            className="w-full py-3 rounded-lg text-sm font-semibold transition-colors bg-[#253B29] text-[#C2AA6A] hover:bg-[#1a2b1e] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#253B29]"
+            className="w-full py-3 rounded-lg text-sm font-semibold transition-colors bg-fonti-primary text-fonti-accent hover:bg-fonti-primary-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-fonti-primary"
           >
             {enviando ? 'Registrando...' : 'Confirmar ciência e aceite'}
           </button>

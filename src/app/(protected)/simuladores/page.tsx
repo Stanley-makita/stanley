@@ -205,7 +205,7 @@ export default function SimuladoresPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#253B29] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-fonti-primary flex items-center justify-center">
             <Calculator className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -214,7 +214,7 @@ export default function SimuladoresPage() {
           </div>
         </div>
         <Button
-          className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-2"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-2"
           onClick={() => setModal('escolha')}
         >
           <Plus className="w-4 h-4" />
@@ -335,7 +335,7 @@ export default function SimuladoresPage() {
             <button
               type="button"
               onClick={() => abrirTipo('custas')}
-              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-[#253B29] hover:bg-[#253B29]/5 transition-all group"
+              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
             >
               <Building2 className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
               <div className="text-center">
@@ -346,7 +346,7 @@ export default function SimuladoresPage() {
             <button
               type="button"
               onClick={() => abrirTipo('financiamento')}
-              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-[#253B29] hover:bg-[#253B29]/5 transition-all group"
+              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
             >
               <TrendingUp className="w-8 h-8 text-green-500 group-hover:scale-110 transition-transform" />
               <div className="text-center">
@@ -375,7 +375,7 @@ export default function SimuladoresPage() {
             </DialogTitle>
             <Button
               size="sm"
-              className="ml-auto h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 shrink-0"
+              className="ml-auto h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
               onClick={handleSalvarCustas}
               disabled={salvarCustas.isPending}
             >
@@ -405,7 +405,7 @@ export default function SimuladoresPage() {
             </DialogTitle>
             <Button
               size="sm"
-              className="ml-auto h-7 text-xs bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 shrink-0"
+              className="ml-auto h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
               onClick={() => salvarCustas.mutateAsync({
                 nomeCliente: custaVer?.nome_cliente ?? undefined,
                 cpfCliente: custaVer?.cpf_cliente ?? undefined,

@@ -132,10 +132,10 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v && estado !== 'processando') onClose() }}>
-      <DialogContent className="max-w-lg p-0 flex flex-col overflow-hidden max-h-[90vh]">
+      <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg flex-col overflow-hidden p-0 sm:w-full">
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
-          <h2 className="text-base font-semibold text-[#253B29]">Extrair dados dos documentos</h2>
+        <div className="shrink-0 border-b border-gray-100 px-4 pb-4 pt-5 sm:px-6">
+          <h2 className="text-base font-semibold text-fonti-primary">Extrair dados dos documentos</h2>
           <p className="text-xs text-gray-400 mt-0.5">
             {estado === 'selecionando' && 'Selecione os documentos que deseja que o sistema leia.'}
             {estado === 'processando' && `Lendo documento ${progresso.atual} de ${progresso.total}…`}
@@ -146,14 +146,14 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
         {/* Selecionando */}
         {estado === 'selecionando' && (
           <>
-            <div className="px-6 py-4 space-y-2 overflow-y-auto flex-1">
+            <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4 sm:px-6">
               {documentos.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">Nenhum documento disponível.</p>
               ) : (
                 documentos.map(doc => (
                   <label
                     key={doc.id}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-amber-50 hover:border-amber-100 transition-colors"
+                    className="flex cursor-pointer flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3 transition-colors hover:border-amber-100 hover:bg-amber-50 sm:flex-row sm:items-center sm:gap-3"
                   >
                     <input
                       type="checkbox"
@@ -169,10 +169,10 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
                 ))
               )}
             </div>
-            <div className="flex justify-end gap-3 px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-end sm:px-6">
+              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">Cancelar</Button>
               <Button
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[180px]"
+                className="min-w-[180px] bg-fonti-primary text-white hover:bg-fonti-primary-hover"
                 onClick={iniciarExtracao}
                 disabled={qtdSelecionados === 0}
               >
@@ -186,7 +186,7 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
         {/* Processando */}
         {estado === 'processando' && (
           <div className="flex flex-col items-center justify-center py-16 gap-4 px-6">
-            <Loader2 className="h-10 w-10 animate-spin text-[#253B29]" />
+            <Loader2 className="h-10 w-10 animate-spin text-fonti-primary" />
             <p className="text-sm text-gray-600 font-medium text-center">
               Lendo documento {progresso.atual} de {progresso.total}…
             </p>
@@ -197,7 +197,7 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
         {/* Concluído */}
         {estado === 'concluido' && (
           <>
-            <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
               {lidos.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-green-700 mb-2 flex items-center gap-1.5">
@@ -271,8 +271,8 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
                 </div>
               )}
             </div>
-            <div className="flex justify-end px-6 pb-5 pt-3 border-t border-gray-100 shrink-0">
-              <Button className="bg-[#253B29] hover:bg-[#1a2b1e] text-white" onClick={onClose}>
+            <div className="flex shrink-0 justify-end border-t border-gray-100 px-4 pb-5 pt-3 sm:px-6">
+              <Button className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto" onClick={onClose}>
                 Fechar
               </Button>
             </div>

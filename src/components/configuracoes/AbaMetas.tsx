@@ -57,7 +57,7 @@ export function AbaMetas() {
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAno(ano - 1)}>
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <span className="text-sm font-semibold text-[#253B29] w-10 text-center">{ano}</span>
+        <span className="text-sm font-semibold text-fonti-primary w-10 text-center">{ano}</span>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAno(ano + 1)}>
           <ChevronRight className="w-4 h-4" />
         </Button>
@@ -67,7 +67,7 @@ export function AbaMetas() {
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#253B29] text-white">
+            <tr className="bg-fonti-primary text-white">
               <th className="px-4 py-2 text-left w-16">Mês</th>
               <th className="px-4 py-2 text-right">Meta Corte (R$)</th>
               <th className="px-4 py-2 text-right">Meta Plus (R$)</th>
@@ -82,7 +82,7 @@ export function AbaMetas() {
               const alterado = !!edicao[mes]
               return (
                 <tr key={mes} className={`border-t ${alterado ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
-                  <td className="px-4 py-2 font-medium text-[#253B29]">{MESES[mes - 1]}</td>
+                  <td className="px-4 py-2 font-medium text-fonti-primary">{MESES[mes - 1]}</td>
                   {(['meta_corte', 'meta_plus', 'meta_valor'] as const).map((campo) => (
                     <td key={campo} className="px-2 py-1.5">
                       <Input
@@ -111,7 +111,7 @@ export function AbaMetas() {
                     <Button
                       size="icon"
                       variant={alterado ? 'default' : 'ghost'}
-                      className={`h-7 w-7 ${alterado ? 'bg-[#253B29] hover:bg-[#253B29]/90' : ''}`}
+                      className={`h-7 w-7 ${alterado ? 'bg-fonti-primary hover:bg-fonti-primary/90' : ''}`}
                       onClick={() => handleSalvar(mes)}
                       disabled={isPending || !alterado}
                     >

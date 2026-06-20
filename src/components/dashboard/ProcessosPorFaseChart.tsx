@@ -16,7 +16,7 @@ export function ProcessosPorFaseChart() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <h3 className="text-sm font-semibold text-[#253B29] mb-4">Processos por fase</h3>
+      <h3 className="text-sm font-semibold text-fonti-primary mb-4">Processos por fase</h3>
 
       <ResponsiveContainer width="100%" height={220}>
         <BarChart

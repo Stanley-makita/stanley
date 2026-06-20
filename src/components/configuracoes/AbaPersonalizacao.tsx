@@ -85,7 +85,7 @@ export function AbaPersonalizacao() {
         <Label>Logo da empresa</Label>
         <div className="flex items-center gap-4">
           <div
-            className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer hover:border-[#253B29] transition-colors"
+            className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer hover:border-fonti-primary transition-colors"
             onClick={() => inputLogoRef.current?.click()}
           >
             {logoPreview
@@ -125,7 +125,7 @@ export function AbaPersonalizacao() {
         </div>
       </div>
 
-      <Button onClick={handleSalvar} disabled={isPending} className="bg-[#253B29] hover:bg-[#253B29]/90 text-white">
+      <Button onClick={handleSalvar} disabled={isPending} className="bg-fonti-primary hover:bg-fonti-primary/90 text-white">
         {isPending ? 'Salvando...' : 'Salvar configurações'}
       </Button>
     </div>

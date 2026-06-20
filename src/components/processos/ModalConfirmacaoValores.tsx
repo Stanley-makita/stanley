@@ -123,7 +123,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao enviar e-mail')
       toast.success(json.mensagem ?? 'E-mail enviado com sucesso!', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
         duration: 5000,
       })
       queryClient.invalidateQueries({ queryKey: ['email_confirmacoes', processoId] })
@@ -154,8 +154,8 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
       <Dialog open={aberto} onOpenChange={(open) => { if (!open) fechar() }}>
         <DialogContent className="max-w-5xl w-full max-h-[90vh] flex flex-col">
           <DialogHeader className="shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-[#253B29]">
-              <Mail className="h-4 w-4 text-[#C2AA6A]" />
+            <DialogTitle className="flex items-center gap-2 text-fonti-primary">
+              <Mail className="h-4 w-4 text-fonti-accent" />
               {tela === 'lista' ? 'Histórico de Confirmações de Valores' : 'Nova Confirmação de Valores'}
             </DialogTitle>
           </DialogHeader>
@@ -169,7 +169,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 h-8"
+                    className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 h-8"
                     onClick={() => { setTela('nova'); carregarPrevia() }}
                   >
                     <Plus className="h-3.5 w-3.5" /> Nova confirmação
@@ -198,7 +198,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                         {confirmacoes.map((c) => (
                           <tr
                             key={c.id}
-                            className="border-b border-gray-50 last:border-0 hover:bg-[#E7E0C4]/30 cursor-pointer transition-colors"
+                            className="border-b border-gray-50 last:border-0 hover:bg-fonti-accent-hover/30 cursor-pointer transition-colors"
                             title={c.corpo ? 'Clique para ver o e-mail enviado' : undefined}
                             onClick={() => c.corpo && setVerEmailCorpo(c.corpo)}
                           >
@@ -264,7 +264,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                       {modoEdicao ? (
                         <textarea value={corpo} onChange={e => setCorpo(e.target.value)} rows={16}
                           disabled={etapa === 'enviando'}
-                          className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30 resize-y disabled:opacity-60" />
+                          className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30 resize-y disabled:opacity-60" />
                       ) : (
                         <div className="rounded-md border border-gray-200 overflow-hidden" style={{ height: 300 }}>
                           <iframe srcDoc={corpo} title="Prévia do e-mail" className="w-full h-full" sandbox="allow-same-origin" />
@@ -297,7 +297,7 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
                     : <><X className="h-3.5 w-3.5 mr-1" /> Cancelar</>}
                 </Button>
                 {etapa !== 'carregando' && (
-                  <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5"
+                  <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
                     onClick={enviarEmail}
                     disabled={etapa === 'enviando' || !assunto.trim() || !corpo.trim()}>
                     {etapa === 'enviando'
@@ -315,8 +315,8 @@ export function ModalConfirmacaoValores({ processoId, aberto, onFechar }: Props)
       <Dialog open={!!verEmailCorpo} onOpenChange={(o) => { if (!o) setVerEmailCorpo(null) }}>
         <DialogContent className="max-w-2xl w-full max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 py-4 border-b shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-[#253B29] text-sm">
-              <Mail className="h-4 w-4 text-[#C2AA6A]" /> E-mail enviado ao cliente
+            <DialogTitle className="flex items-center gap-2 text-fonti-primary text-sm">
+              <Mail className="h-4 w-4 text-fonti-accent" /> E-mail enviado ao cliente
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 min-h-0">

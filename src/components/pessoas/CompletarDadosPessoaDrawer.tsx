@@ -320,7 +320,7 @@ export function CompletarDadosPessoaDrawer({
       qc.invalidateQueries({ queryKey: ['leads'] })
       qc.invalidateQueries({ queryKey: ['processos'] })
       toast.success('Dados complementados com sucesso.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
       onClose()
     },
@@ -331,7 +331,7 @@ export function CompletarDadosPessoaDrawer({
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-[#253B29]">
+          <DialogTitle className="text-fonti-primary">
             Completar dados{pessoa ? ` — ${pessoa.nome}` : ''}
           </DialogTitle>
         </DialogHeader>
@@ -378,7 +378,7 @@ export function CompletarDadosPessoaDrawer({
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Sexo</label>
                 <select
-                  className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30"
+                  className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
                   value={form.sexo}
                   onChange={(e) => f({ sexo: e.target.value })}
                 >
@@ -391,7 +391,7 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Documentos de identidade */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-[#253B29] mb-3">Documentos de Identidade</p>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Documentos de Identidade</p>
 
               {/* Sub-bloco RG / Identidade */}
               <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 mb-3">
@@ -446,7 +446,7 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Dados financeiros */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-[#253B29] mb-3">Dados Financeiros</p>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Dados Financeiros</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Formal (R$)</label>
@@ -461,7 +461,7 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Estado Civil */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-[#253B29] mb-3">Estado Civil</p>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Estado Civil</p>
               <div className="flex flex-wrap gap-2">
                 {ESTADOS_CIVIS.map((ec) => (
                   <button
@@ -471,7 +471,7 @@ export function CompletarDadosPessoaDrawer({
                     className={cn(
                       'text-xs px-3 py-1.5 rounded-lg border transition-all',
                       form.estado_civil === ec.value
-                        ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                        ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                     )}
                   >
@@ -482,8 +482,8 @@ export function CompletarDadosPessoaDrawer({
 
               {/* Cônjuge */}
               {eCasado && (
-                <div className="mt-3 p-3 bg-[#E7E0C4]/20 border border-[#C2AA6A]/40 rounded-xl space-y-3">
-                  <p className="text-xs font-semibold text-[#253B29]">Cônjuge / Companheiro(a)</p>
+                <div className="mt-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/40 rounded-xl space-y-3">
+                  <p className="text-xs font-semibold text-fonti-primary">Cônjuge / Companheiro(a)</p>
                   {/* Card se cônjuge já é uma pessoa vinculada */}
                   {(() => {
                     const cp = (pessoa as any)?.conjuge_pessoa
@@ -536,7 +536,7 @@ export function CompletarDadosPessoaDrawer({
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Regime de Bens</label>
                       <select
-                        className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-[#253B29]/30"
+                        className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
                         value={form.regime_casamento}
                         onChange={(e) => f({ regime_casamento: e.target.value })}
                       >
@@ -553,7 +553,7 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Endereço */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-[#253B29] mb-3">Endereço</p>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Endereço</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">CEP</label>
@@ -584,7 +584,7 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Trabalho / FGTS */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-[#253B29] mb-3">Trabalho (para FGTS)</p>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Trabalho (para FGTS)</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Nome da Empresa</label>
@@ -607,7 +607,7 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Conta bancária */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-[#253B29] mb-3">Conta Bancária (débito das parcelas)</p>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Conta Bancária (débito das parcelas)</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Banco</label>
@@ -635,7 +635,7 @@ export function CompletarDadosPessoaDrawer({
               </Button>
               <Button
                 size="sm"
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                 onClick={() => salvar.mutate()}
                 disabled={salvar.isPending}
               >

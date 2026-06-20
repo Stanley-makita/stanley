@@ -86,7 +86,7 @@ export default function AgendaPage() {
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#253B29]">Agenda</h1>
+          <h1 className="text-2xl font-bold text-fonti-primary">Agenda</h1>
           <p className="text-sm text-gray-500 mt-0.5">Tarefas de todos os processos</p>
         </div>
 
@@ -113,7 +113,7 @@ export default function AgendaPage() {
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(subMonths(mes, 1))}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-sm font-semibold text-[#253B29] capitalize">
+            <span className="text-sm font-semibold text-fonti-primary capitalize">
               {format(mes, 'MMMM yyyy', { locale: ptBR })}
             </span>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(addMonths(mes, 1))}>
@@ -171,8 +171,8 @@ export default function AgendaPage() {
       {isOperacional && (
         <div className="bg-white rounded-lg border p-5">
           <div className="flex items-center gap-2 mb-4">
-            <AlertCircle className="h-4 w-4 text-[#253B29]" />
-            <h2 className="font-semibold text-[#253B29] text-sm">Solicitações operacionais abertas</h2>
+            <AlertCircle className="h-4 w-4 text-fonti-primary" />
+            <h2 className="font-semibold text-fonti-primary text-sm">Solicitações operacionais abertas</h2>
             {!loadingSol && (
               <span className="ml-auto text-xs text-gray-400">
                 {solicitacoes.length} aberta{solicitacoes.length !== 1 ? 's' : ''}

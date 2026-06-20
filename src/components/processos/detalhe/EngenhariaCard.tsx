@@ -58,10 +58,10 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
     <>
       <button
         onClick={abrirEditor}
-        className="group rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3 hover:border-[#253B29]/30 hover:bg-gray-50 transition-colors text-left w-full"
+        className="group rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3 hover:border-fonti-primary/30 hover:bg-gray-50 transition-colors text-left w-full"
       >
         <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-white transition-colors">
-          <CalendarClock className="h-4 w-4 text-[#253B29]" />
+          <CalendarClock className="h-4 w-4 text-fonti-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -69,7 +69,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
             <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />
           </p>
           {validadeEngenharia ? (
-            <p className="text-sm font-bold text-[#253B29]">
+            <p className="text-sm font-bold text-fonti-primary">
               {format(parseISO(validadeEngenharia), 'dd/MM/yyyy', { locale: ptBR })}
             </p>
           ) : (
@@ -89,7 +89,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle className="text-[#253B29]">📐 Engenharia</DialogTitle>
+            <DialogTitle className="text-fonti-primary">📐 Engenharia</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="space-y-1">
@@ -97,7 +97,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
               <button
                 type="button"
                 onClick={() => setNovaData(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-[#E7E0C4]/60 hover:bg-[#E7E0C4] text-[#253B29] font-medium px-3 py-1.5 rounded-lg transition-colors block"
+                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors block"
               >
                 + 180 dias (prazo padrão)
               </button>
@@ -120,7 +120,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
             <Button variant="outline" size="sm" onClick={() => setAberto(false)}>Cancelar</Button>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
               disabled={salvar.isPending || !novaData || !novoValor}
               onClick={handleSalvar}
             >

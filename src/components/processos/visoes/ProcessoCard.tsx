@@ -62,8 +62,8 @@ export function ProcessoCard({ processo }: Props) {
 
       {/* Cliente (principal) */}
       <div className="flex items-start gap-2 mb-1">
-        <User className="h-4 w-4 text-[#253B29] mt-0.5 shrink-0" />
-        <p className="text-sm font-semibold text-[#253B29] leading-snug line-clamp-1">
+        <User className="h-4 w-4 text-fonti-primary mt-0.5 shrink-0" />
+        <p className="text-sm font-semibold text-fonti-primary leading-snug line-clamp-1">
           {compradorPrincipal ?? processo.nome_imovel}
         </p>
       </div>
@@ -79,7 +79,7 @@ export function ProcessoCard({ processo }: Props) {
 
       {/* Valor + Data */}
       <div className="flex items-center justify-between mb-3 text-sm">
-        <span className="font-bold text-[#253B29]">
+        <span className="font-bold text-fonti-primary">
           {processo.valor_financiado ? formatarMoeda(processo.valor_financiado) : '—'}
         </span>
         {processo.data_inicio && (
@@ -99,7 +99,7 @@ export function ProcessoCard({ processo }: Props) {
           <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full"
-              style={{ width: '30%', backgroundColor: processo.fase_atual.cor ?? '#253B29' }}
+              style={{ width: '30%', backgroundColor: processo.fase_atual.cor ?? 'var(--fonti-primary)' }}
             />
           </div>
         </div>

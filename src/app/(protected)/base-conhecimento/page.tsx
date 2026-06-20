@@ -35,7 +35,7 @@ function formatBytes(kb: number) {
   return kb < 1024 ? `${kb} KB` : `${(kb / 1024).toFixed(1)} MB`
 }
 
-const CORES = ['#6B7280','#253B29','#C2AA6A','#3B82F6','#EF4444','#F59E0B','#8B5CF6','#EC4899','#14B8A6','#F97316']
+const CORES = ['#6B7280','var(--fonti-primary)','var(--fonti-accent)','#3B82F6','#EF4444','#F59E0B','#8B5CF6','#EC4899','#14B8A6','#F97316']
 
 export default function BibliotecaPage() {
   const { usuario } = useAuth()
@@ -144,7 +144,7 @@ export default function BibliotecaPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <BookOpen className="h-6 w-6 text-[#253B29]" />
+          <BookOpen className="h-6 w-6 text-fonti-primary" />
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Biblioteca</h1>
             <p className="text-sm text-gray-500">Normativos, manuais, templates e materiais internos</p>
@@ -154,14 +154,14 @@ export default function BibliotecaPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowCats(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors ${showCats ? 'border-[#253B29] text-[#253B29] bg-[#253B29]/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors ${showCats ? 'border-fonti-primary text-fonti-primary bg-fonti-primary/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             >
               <Settings2 className="h-4 w-4" />
               Categorias
             </button>
             <Link
               href="/base-conhecimento/novo"
-              className="flex items-center gap-2 bg-[#253B29] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1e3023] transition-colors"
+              className="flex items-center gap-2 bg-fonti-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-fonti-primary-hover transition-colors"
             >
               <Plus className="h-4 w-4" />
               Novo documento
@@ -185,7 +185,7 @@ export default function BibliotecaPage() {
                       <input
                         value={catNome}
                         onChange={e => setCatNome(e.target.value)}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
                       />
                       <div className="flex gap-1">
                         {CORES.map(c => (
@@ -195,7 +195,7 @@ export default function BibliotecaPage() {
                         ))}
                       </div>
                       <button onClick={() => salvarCategoria.mutate()} disabled={!catNome.trim() || salvarCategoria.isPending}
-                        className="text-xs px-3 py-1.5 bg-[#253B29] text-white rounded-lg hover:bg-[#1e3023] disabled:opacity-50">
+                        className="text-xs px-3 py-1.5 bg-fonti-primary text-white rounded-lg hover:bg-fonti-primary-hover disabled:opacity-50">
                         Salvar
                       </button>
                       <button onClick={cancelarEdicaoCat} className="text-xs px-2 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -228,7 +228,7 @@ export default function BibliotecaPage() {
                 onChange={e => setCatNome(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && catNome.trim()) salvarCategoria.mutate() }}
                 placeholder="Nova categoria..."
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
               />
               <div className="flex gap-1">
                 {CORES.map(c => (
@@ -240,7 +240,7 @@ export default function BibliotecaPage() {
               <button
                 onClick={() => salvarCategoria.mutate()}
                 disabled={!catNome.trim() || salvarCategoria.isPending}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#253B29] text-white rounded-lg hover:bg-[#1e3023] disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-fonti-primary text-white rounded-lg hover:bg-fonti-primary-hover disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Adicionar
@@ -259,18 +259,18 @@ export default function BibliotecaPage() {
             placeholder="Buscar documentos..."
             value={q}
             onChange={e => setQ(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#253B29]/20"
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
           />
         </div>
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-gray-400" />
           <select value={categoriaId} onChange={e => setCategoriaId(e.target.value)}
-            className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 bg-white">
+            className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 bg-white">
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
           <select value={tipo} onChange={e => setTipo(e.target.value)}
-            className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#253B29]/20 bg-white">
+            className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 bg-white">
             <option value="">Todos os tipos</option>
             <option value="arquivo">Arquivo</option>
             <option value="link">Link</option>
@@ -283,7 +283,7 @@ export default function BibliotecaPage() {
       {categorias.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setCategoriaId('')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!categoriaId ? 'bg-[#253B29] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!categoriaId ? 'bg-fonti-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             Todos
           </button>
           {categorias.map(cat => (
@@ -312,7 +312,7 @@ export default function BibliotecaPage() {
             const TipoIcon = TIPO_ICON[doc.tipo]
             return (
               <Link key={doc.id} href={`/base-conhecimento/${doc.id}`}
-                className="group flex flex-col gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-[#253B29]/30 hover:shadow-sm transition-all">
+                className="group flex flex-col gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-fonti-primary/30 hover:shadow-sm transition-all">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -320,7 +320,7 @@ export default function BibliotecaPage() {
                       <TipoIcon className="h-4 w-4" style={{ color: doc.categoria?.cor ?? '#6B7280' }} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#253B29]">{doc.titulo}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate group-hover:text-fonti-primary">{doc.titulo}</p>
                       {doc.categoria && <p className="text-xs text-gray-400 truncate">{doc.categoria.nome}</p>}
                     </div>
                   </div>

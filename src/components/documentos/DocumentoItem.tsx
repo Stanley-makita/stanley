@@ -13,9 +13,10 @@ interface DocumentoItemProps {
   documento: ProcessoDocumento
   onExcluir: () => void
   podeExcluir: boolean
+  mobile?: boolean
 }
 
-export function DocumentoItem({ documento, onExcluir, podeExcluir }: DocumentoItemProps) {
+export function DocumentoItem({ documento, onExcluir, podeExcluir, mobile = false }: DocumentoItemProps) {
   const supabase = createClient()
   const [baixando, setBaixando] = useState(false)
 
@@ -35,6 +36,54 @@ export function DocumentoItem({ documento, onExcluir, podeExcluir }: DocumentoIt
     } finally {
       setBaixando(false)
     }
+  }
+
+  if (mobile) {
+    return (
+      <div className="space-y-3 border-b bg-white p-4 last:border-b-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="text-lg leading-none">{iconeParaMime(documento.mime_type ?? '')}</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800">{documento.nome}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                {formatarTamanho(documento.tamanho ?? 0)}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={handleDownload}
+              disabled={baixando}
+              title="Baixar"
+            >
+              {baixando
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Download className="h-4 w-4" />
+              }
+            </Button>
+            {podeExcluir && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                onClick={onExcluir}
+                title="Excluir"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-1 text-xs text-gray-400">
+          <span>Enviado por {documento.enviado_por_usuario?.nome ?? '-'}</span>
+          <span>{format(new Date(documento.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+        </div>
+      </div>
+    )
   }
 
   return (

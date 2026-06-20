@@ -22,7 +22,7 @@ export function EntityListItem({
     <button
       type="button"
       className={cn(
-        'group flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-4 py-2 text-left transition-all hover:border-[#253B29]/30 hover:shadow-sm',
+        'group flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-4 py-2 text-left transition-all hover:border-fonti-primary/30 hover:shadow-sm',
         className
       )}
       {...props}

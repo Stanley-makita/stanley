@@ -58,7 +58,7 @@ export function TarefaCard({ tarefa, onToggle, onDetalhes }: TarefaCardProps) {
         type="checkbox"
         checked={tarefa.concluida}
         onChange={(e) => onToggle(tarefa.tarefa_id, e.target.checked, tarefa.fonte)}
-        className="mt-0.5 w-4 h-4 rounded accent-[#253B29] cursor-pointer shrink-0"
+        className="mt-0.5 w-4 h-4 rounded accent-fonti-primary cursor-pointer shrink-0"
       />
 
       {/* Conteúdo */}
@@ -69,13 +69,13 @@ export function TarefaCard({ tarefa, onToggle, onDetalhes }: TarefaCardProps) {
 
         {/* Processo ou Lead */}
         {tarefa.fonte === 'lead' ? (
-          <span className="text-xs text-[#253B29]/70 truncate block mt-0.5">
+          <span className="text-xs text-fonti-primary/70 truncate block mt-0.5">
             Lead: {tarefa.processo_nome_imovel}
           </span>
         ) : (
           <button
             onClick={() => tarefa.processo_id && router.push(`/processos/${tarefa.processo_id}`)}
-            className="text-xs text-[#253B29] hover:text-[#C2AA6A] hover:underline truncate block mt-0.5 text-left"
+            className="text-xs text-fonti-primary hover:text-fonti-accent hover:underline truncate block mt-0.5 text-left"
           >
             #{tarefa.processo_numero} · {tarefa.processo_nome_imovel}
           </button>

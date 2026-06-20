@@ -42,7 +42,7 @@ export function useAdicionarMovimento(processoId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'movimentos'] })
       queryClient.invalidateQueries({ queryKey: ['processos', processoId] }) // atualiza saldo_conta
-      toast.success('Lançamento registrado.', { className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+      toast.success('Lançamento registrado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao registrar lançamento.'),
   })

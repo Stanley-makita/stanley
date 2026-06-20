@@ -62,7 +62,7 @@ export function useAdicionarComprador(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
-      toast.success('Comprador adicionado.', { className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+      toast.success('Comprador adicionado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao adicionar comprador.'),
   })
@@ -128,7 +128,7 @@ export function useEditarComprador(processoId: string) {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
       queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
       queryClient.invalidateQueries({ queryKey: ['leads'] })
-      toast.success('Comprador atualizado.', { className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]' })
+      toast.success('Comprador atualizado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao atualizar comprador.'),
   })

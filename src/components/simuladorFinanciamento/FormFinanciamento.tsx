@@ -102,7 +102,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
           <Label className="text-xs text-gray-500">
             Valor de Entrada
             {vImovel > 0 && (
-              <span className="ml-1 text-[#253B29] font-medium">{pctEntrada}%</span>
+              <span className="ml-1 text-fonti-primary font-medium">{pctEntrada}%</span>
             )}
           </Label>
           <div className="relative">
@@ -119,7 +119,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
 
       {/* Preview financiado */}
       {vFinanciado > 0 && (
-        <div className="rounded-lg bg-[#253B29]/5 border border-[#253B29]/20 px-3 py-2 text-sm text-[#253B29] font-medium">
+        <div className="rounded-lg bg-fonti-primary/5 border border-fonti-primary/20 px-3 py-2 text-sm text-fonti-primary font-medium">
           Valor financiado: {vFinanciado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
         </div>
       )}
@@ -162,7 +162,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
               className={cn(
                 'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
                 tipoAmortizacao === t
-                  ? 'bg-[#253B29] text-white border-[#253B29]'
+                  ? 'bg-fonti-primary text-white border-fonti-primary'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
               )}
             >
@@ -183,7 +183,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
           type="checkbox"
           checked={correntista}
           onChange={(e) => setCorrentista(e.target.checked)}
-          className="w-4 h-4 accent-[#253B29]"
+          className="w-4 h-4 accent-fonti-primary"
         />
         <span className="text-sm text-gray-700">
           Correntista / relacionamento bancário
@@ -223,7 +223,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
       </div>
 
       <Button
-        className="w-full bg-[#253B29] hover:bg-[#1a2b1e] text-white"
+        className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white"
         onClick={handleSubmit}
         disabled={!podeSimular || loading}
       >

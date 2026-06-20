@@ -69,7 +69,7 @@ export default function ImoveisPage() {
             </div>
             <Button
               size="sm"
-              className="bg-[#253B29] hover:bg-[#1a2b1e] text-white gap-1.5 shrink-0"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
               onClick={abrirCriar}
             >
               <Plus className="h-4 w-4" />
@@ -86,7 +86,7 @@ export default function ImoveisPage() {
           className={cn(
             'text-xs px-3 py-1.5 rounded-full border shrink-0 transition-all',
             !tipoFiltro && !categoriaFiltro
-              ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+              ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
               : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
           )}
         >
@@ -102,7 +102,7 @@ export default function ImoveisPage() {
             className={cn(
               'text-xs px-3 py-1.5 rounded-full border shrink-0 transition-all',
               tipoFiltro === tipo
-                ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                 : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
             )}
           >
@@ -119,7 +119,7 @@ export default function ImoveisPage() {
             className={cn(
               'text-xs px-3 py-1.5 rounded-full border shrink-0 transition-all',
               categoriaFiltro === cat
-                ? 'border-[#253B29] bg-[#253B29] text-white font-medium'
+                ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                 : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
             )}
           >
@@ -207,7 +207,7 @@ export default function ImoveisPage() {
                     </td>
                     <td className="px-4 py-3">
                       {imovel.ultimo_processo ? (
-                        <span className="text-xs text-[#253B29] font-medium">
+                        <span className="text-xs text-fonti-primary font-medium">
                           {imovel.ultimo_processo.numero_processo}
                         </span>
                       ) : <span className="text-gray-400 text-xs">—</span>}
@@ -215,7 +215,7 @@ export default function ImoveisPage() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => abrirEditar(imovel)}
-                        className="text-gray-400 hover:text-[#253B29] transition-colors"
+                        className="text-gray-400 hover:text-fonti-primary transition-colors"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>

@@ -25,24 +25,24 @@ export function KpiCard({
     <div
       className={`rounded-xl border p-5 flex flex-col gap-3 ${
         destaque
-          ? 'bg-[#253B29] text-white border-[#253B29]'
+          ? 'bg-fonti-primary text-white border-fonti-primary'
           : 'bg-white border-gray-200'
       }`}
     >
       <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${destaque ? 'text-[#C2AA6A]' : 'text-gray-500'}`}>
+        <span className={`text-sm font-medium ${destaque ? 'text-fonti-accent' : 'text-gray-500'}`}>
           {titulo}
         </span>
         <div
           className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-            destaque ? 'bg-[#1a2b1e]' : 'bg-[#E7E0C4]'
+            destaque ? 'bg-fonti-primary-hover' : 'bg-fonti-accent-hover'
           }`}
         >
-          <Icone className={`h-4 w-4 ${destaque ? 'text-[#C2AA6A]' : 'text-[#253B29]'}`} />
+          <Icone className={`h-4 w-4 ${destaque ? 'text-fonti-accent' : 'text-fonti-primary'}`} />
         </div>
       </div>
 
-      <div className={`text-2xl font-bold ${destaque ? 'text-white' : 'text-[#253B29]'}`}>
+      <div className={`text-2xl font-bold ${destaque ? 'text-white' : 'text-fonti-primary'}`}>
         {valor}
       </div>
 

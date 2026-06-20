@@ -25,8 +25,8 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
-        <Trophy className="h-4 w-4 text-[#C2AA6A]" />
-        <span className="text-sm font-semibold text-[#253B29]">Ranking de Produção</span>
+        <Trophy className="h-4 w-4 text-fonti-accent" />
+        <span className="text-sm font-semibold text-fonti-primary">Ranking de Produção</span>
       </div>
 
       {relatorio.map((r, idx) => {
@@ -38,7 +38,7 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
               <div className="flex items-center gap-3">
                 {/* Posição */}
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                  idx === 0 ? 'bg-[#C2AA6A] text-white'
+                  idx === 0 ? 'bg-fonti-accent text-white'
                   : idx === 1 ? 'bg-gray-300 text-gray-700'
                   : idx === 2 ? 'bg-amber-700 text-white'
                   : 'bg-gray-100 text-gray-500'
@@ -46,12 +46,12 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
                   {idx + 1}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#253B29]">{r.comercial_nome}</p>
+                  <p className="text-sm font-semibold text-fonti-primary">{r.comercial_nome}</p>
                   <p className="text-xs text-gray-400">{r.num_contratos} contrato{r.num_contratos !== 1 ? 's' : ''}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold text-[#253B29]">{fmtMoeda(r.valor_emitido)}</p>
+                <p className="text-sm font-bold text-fonti-primary">{fmtMoeda(r.valor_emitido)}</p>
                 <p className="text-xs text-gray-400">emitido</p>
               </div>
             </div>
@@ -60,7 +60,7 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${percentual}%`, backgroundColor: idx === 0 ? '#C2AA6A' : '#253B29' }}
+                style={{ width: `${percentual}%`, backgroundColor: idx === 0 ? 'var(--fonti-accent)' : 'var(--fonti-primary)' }}
               />
             </div>
 
@@ -80,9 +80,9 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
       })}
 
       {/* Totais */}
-      <div className="bg-[#253B29] rounded-xl p-4 text-white">
+      <div className="bg-fonti-primary rounded-xl p-4 text-white">
         <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className="h-4 w-4 text-[#C2AA6A]" />
+          <TrendingUp className="h-4 w-4 text-fonti-accent" />
           <span className="text-sm font-semibold">Total da Equipe</span>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -92,11 +92,11 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
           </div>
           <div>
             <p className="text-xs text-white/60">Valor Emitido</p>
-            <p className="text-lg font-bold text-[#C2AA6A]">{fmtMoeda(relatorio.reduce((s, r) => s + r.valor_emitido, 0))}</p>
+            <p className="text-lg font-bold text-fonti-accent">{fmtMoeda(relatorio.reduce((s, r) => s + r.valor_emitido, 0))}</p>
           </div>
           <div>
             <p className="text-xs text-white/60">Comissão Gerada</p>
-            <p className="text-lg font-bold text-[#C2AA6A]">{fmtMoeda(relatorio.reduce((s, r) => s + r.comissao_gerada, 0))}</p>
+            <p className="text-lg font-bold text-fonti-accent">{fmtMoeda(relatorio.reduce((s, r) => s + r.comissao_gerada, 0))}</p>
           </div>
         </div>
       </div>

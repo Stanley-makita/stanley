@@ -127,7 +127,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
       queryClient.invalidateQueries({ queryKey: ['lead-tarefa', tarefaId] })
       queryClient.invalidateQueries({ queryKey: ['agenda-tarefas'] })
       toast.success('Tarefa atualizada.', {
-        className: 'border-l-4 border-l-[#C2AA6A] bg-[#E7E0C4] text-[#253B29]',
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
     }
     setEditando(false)
@@ -167,7 +167,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
         <DialogContent className="max-w-lg p-0 max-h-[90vh] flex flex-col">
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
             <div className="flex items-start justify-between gap-3">
-              <DialogTitle className="text-[#253B29] text-base font-semibold leading-snug">
+              <DialogTitle className="text-fonti-primary text-base font-semibold leading-snug">
                 {loading ? '...' : tarefa?.titulo}
               </DialogTitle>
               <div className="flex gap-1.5 shrink-0">
@@ -185,7 +185,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
             {(nomeOrigem || numeroOrigem) && (
               <button
                 onClick={handleNavegar}
-                className="flex items-center gap-1 text-xs text-[#253B29]/70 hover:text-[#253B29] hover:underline mt-0.5 w-fit"
+                className="flex items-center gap-1 text-xs text-fonti-primary/70 hover:text-fonti-primary hover:underline mt-0.5 w-fit"
               >
                 <span>{numeroOrigem} · {nomeOrigem}</span>
                 <ArrowUpRight className="h-3 w-3" />
@@ -307,7 +307,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
                     />
                     <Button
                       size="icon"
-                      className="shrink-0 bg-[#253B29] hover:bg-[#1a2b1e] self-end"
+                      className="shrink-0 bg-fonti-primary hover:bg-fonti-primary-hover self-end"
                       onClick={handleEnviarComentario}
                       disabled={!comentario.trim() || comentarPT.isPending || comentarLT.isPending}
                     >
@@ -334,7 +334,7 @@ export function TarefaDetalheModal({ tarefaId, fonte, onFechar }: Props) {
                 'gap-1.5 text-xs',
                 tarefa?.concluida
                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-                  : 'bg-[#253B29] hover:bg-[#1a2b1e] text-white'
+                  : 'bg-fonti-primary hover:bg-fonti-primary-hover text-white'
               )}
             >
               {tarefa?.concluida ? (

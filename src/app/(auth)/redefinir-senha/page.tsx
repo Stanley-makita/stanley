@@ -62,13 +62,13 @@ export default function RedefinirSenhaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#253B29] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-fonti-primary flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-6">
         <div className="text-center">
-          <div className="w-16 h-16 bg-[#253B29] rounded-xl mx-auto flex items-center justify-center mb-3">
-            <span className="text-[#C2AA6A] text-2xl font-bold">F</span>
+          <div className="w-16 h-16 bg-fonti-primary rounded-xl mx-auto flex items-center justify-center mb-3">
+            <span className="text-fonti-accent text-2xl font-bold">F</span>
           </div>
-          <h1 className="text-xl font-bold text-[#253B29]">Nova senha</h1>
+          <h1 className="text-xl font-bold text-fonti-primary">Nova senha</h1>
           <p className="text-sm text-gray-500 mt-1">Defina sua nova senha de acesso</p>
         </div>
 
@@ -121,7 +121,7 @@ export default function RedefinirSenhaPage() {
             <Button
               type="submit"
               disabled={carregando}
-              className="w-full bg-[#253B29] hover:bg-[#253B29]/90 text-white"
+              className="w-full bg-fonti-primary hover:bg-fonti-primary/90 text-white"
             >
               {carregando ? 'Salvando...' : 'Salvar nova senha'}
             </Button>

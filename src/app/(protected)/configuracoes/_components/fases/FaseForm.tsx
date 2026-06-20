@@ -44,7 +44,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { cor: '#C2AA6A', notificar_cliente: false, modulo: moduloInicial },
+    defaultValues: { cor: 'var(--fonti-accent)', notificar_cliente: false, modulo: moduloInicial },
   })
 
   const notificar = watch('notificar_cliente')
@@ -56,14 +56,14 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
       reset({
         nome:              fase.nome,
         descricao:         '',
-        cor:               fase.cor ?? '#C2AA6A',
+        cor:               fase.cor ?? 'var(--fonti-accent)',
         prazo_dias:        fase.prazo_dias,
         modulo:            fase.modulo ?? moduloInicial,
         notificar_cliente: false,
         mensagem_cliente:  '',
       })
     } else {
-      reset({ cor: '#C2AA6A', notificar_cliente: false, modulo: moduloInicial })
+      reset({ cor: 'var(--fonti-accent)', notificar_cliente: false, modulo: moduloInicial })
     }
   }, [fase, reset, moduloInicial])
 
@@ -116,7 +116,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
                   className={[
                     'flex flex-col items-start px-3 py-2 rounded-lg border text-left transition-all flex-1 min-w-[120px]',
                     moduloAtual === m.id
-                      ? 'border-[#253B29] bg-[#253B29] text-white'
+                      ? 'border-fonti-primary bg-fonti-primary text-white'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white',
                   ].join(' ')}
                 >
@@ -150,7 +150,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
                 onChange={(e) => setValue('cor', e.target.value)}
                 className="w-10 h-10 rounded cursor-pointer border border-gray-200"
               />
-              <Input id="cor" placeholder="#C2AA6A" {...register('cor')} className="font-mono" />
+              <Input id="cor" placeholder="var(--fonti-accent)" {...register('cor')} className="font-mono" />
             </div>
             {errors.cor && <p className="text-xs text-red-500">{errors.cor.message}</p>}
           </div>
@@ -195,7 +195,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-[#253B29] hover:bg-[#C2AA6A] hover:text-[#253B29] text-white flex-1"
+              className="bg-fonti-primary hover:bg-fonti-accent hover:text-fonti-primary text-white flex-1"
             >
               {isSubmitting ? 'Salvando...' : fase ? 'Salvar alterações' : 'Criar fase'}
             </Button>

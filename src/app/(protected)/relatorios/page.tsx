@@ -27,7 +27,7 @@ export default function RelatoriosPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#253B29]">Relatórios</h1>
+          <h1 className="text-2xl font-bold text-fonti-primary">Relatórios</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Inteligência operacional da Fontinhas
           </p>
@@ -47,7 +47,7 @@ export default function RelatoriosPage() {
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="data-[state=active]:bg-[#253B29] data-[state=active]:text-white"
+              className="data-[state=active]:bg-fonti-primary data-[state=active]:text-white"
             >
               {tab.label}
             </TabsTrigger>

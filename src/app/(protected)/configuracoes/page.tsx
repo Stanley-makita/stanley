@@ -125,8 +125,8 @@ function ConfiguracoesInner() {
               <ArrowLeft className="w-4 h-4 text-gray-500" />
             </button>
           )}
-          <Settings className="w-5 h-5 text-[#C2AA6A]" />
-          <h1 className="text-xl font-semibold text-[#253B29]">
+          <Settings className="w-5 h-5 text-fonti-accent" />
+          <h1 className="text-xl font-semibold text-fonti-primary">
             {itemAtivo ? itemAtivo.label : 'Configurações'}
           </h1>
         </div>
@@ -162,13 +162,13 @@ function ConfiguracoesInner() {
                     <button
                       key={item.key}
                       onClick={() => navegar(item.key)}
-                      className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-[#253B29]/30 hover:shadow-sm transition-all text-left group"
+                      className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-fonti-primary/30 hover:shadow-sm transition-all text-left group"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[#253B29]/10 flex items-center justify-center shrink-0 group-hover:bg-[#253B29]/20 transition-colors">
-                        <Icon className="w-4 h-4 text-[#253B29]" />
+                      <div className="w-8 h-8 rounded-lg bg-fonti-primary/10 flex items-center justify-center shrink-0 group-hover:bg-fonti-primary/20 transition-colors">
+                        <Icon className="w-4 h-4 text-fonti-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#253B29]">{item.label}</p>
+                        <p className="text-sm font-medium text-fonti-primary">{item.label}</p>
                         <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{item.descricao}</p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 shrink-0 mt-0.5 transition-colors" />

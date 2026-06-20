@@ -100,7 +100,7 @@ export function TabelaAuxiliar<T extends { id: string }>({
         </div>
         <Button
           size="sm"
-          className="bg-[#253B29] hover:bg-[#C2AA6A] hover:text-[#253B29] text-white"
+          className="bg-fonti-primary hover:bg-fonti-accent hover:text-fonti-primary text-white"
           onClick={abrirCriar}
         >
           <Plus className="w-4 h-4 mr-1" /> {rotuloBotaoNovo}
@@ -145,7 +145,7 @@ export function TabelaAuxiliar<T extends { id: string }>({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-gray-400 hover:text-[#253B29]"
+                        className="h-7 w-7 text-gray-400 hover:text-fonti-primary"
                         onClick={() => abrirEditar(item)}
                         disabled={isPendingEditar}
                       >

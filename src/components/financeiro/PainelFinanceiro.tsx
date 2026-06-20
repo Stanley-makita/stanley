@@ -53,10 +53,10 @@ function PainelFechamentoCard({ fechamento, onIrParaFechamento }: PainelFechamen
   const totalDespPendentes = despesas.filter(d => !['paga', 'cancelada'].includes(d.status)).reduce((s, d) => s + d.valor, 0)
 
   return (
-    <Card className={`border-2 ${criticos > 0 ? 'border-red-300' : fechamento.status === 'travado' ? 'border-gray-300' : 'border-[#C2AA6A]'}`}>
+    <Card className={`border-2 ${criticos > 0 ? 'border-red-300' : fechamento.status === 'travado' ? 'border-gray-300' : 'border-fonti-accent'}`}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between text-base">
-          <span className="text-[#253B29]">
+          <span className="text-fonti-primary">
             {String(fechamento.competencia_mes).padStart(2, '0')}/{fechamento.competencia_ano}
           </span>
           <Badge className={STATUS_COLORS[fechamento.status]}>
@@ -121,7 +121,7 @@ export function PainelFinanceiro({ onAbrirFechamento, onIrParaFechamento }: Prop
           <DollarSign className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-600 font-medium mb-1">Nenhum fechamento aberto</p>
           <p className="text-sm text-gray-400 mb-4">Abra um novo fechamento para iniciar o processo do mês.</p>
-          <Button className="bg-[#253B29] hover:bg-[#1a2a1d] text-white gap-1" onClick={onAbrirFechamento}>
+          <Button className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1" onClick={onAbrirFechamento}>
             <Plus className="h-4 w-4" />
             Abrir Fechamento
           </Button>
@@ -134,7 +134,7 @@ export function PainelFinanceiro({ onAbrirFechamento, onIrParaFechamento }: Prop
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-700">Fechamento Atual</h3>
             {!['rascunho', 'em_conferencia', 'reaberto'].includes(fechamentoAtual.status) && (
-              <Button size="sm" className="bg-[#253B29] hover:bg-[#1a2a1d] text-white gap-1 text-xs" onClick={onAbrirFechamento}>
+              <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1 text-xs" onClick={onAbrirFechamento}>
                 <Plus className="h-3.5 w-3.5" />
                 Novo Fechamento
               </Button>
