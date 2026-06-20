@@ -135,7 +135,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
   return (
     <>
       <Dialog open={aberto} onOpenChange={(v) => { if (!v && !novaPessoaAberta) fechar() }}>
-        <DialogContent className={cn('p-0 gap-0 overflow-hidden', !modulo ? 'max-w-sm' : 'max-w-md')}>
+        <DialogContent className={cn('max-h-[92svh] w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0 sm:w-full', !modulo ? 'max-w-sm' : 'max-w-md')}>
           <DialogHeader className="px-5 pt-5 pb-4 border-b border-gray-100">
             <DialogTitle className="text-sm font-semibold text-[#253B29]">
               {!modulo ? 'Novo Processo' : `Novo Processo — ${moduloInfo?.nome}`}
@@ -171,7 +171,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
             </div>
           ) : (
             /* Passo 2: Formulário */
-            <div className="px-5 py-5 space-y-4 overflow-y-auto max-h-[75vh]">
+            <div className="max-h-[75svh] space-y-4 overflow-y-auto px-5 py-5">
 
               {/* Cliente */}
               <div className="space-y-1.5">
@@ -198,7 +198,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
               </div>
 
               {/* Responsáveis */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-gray-500 block">Responsável operacional</label>
                   <Select
@@ -233,7 +233,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
               </div>
 
               {/* Ações */}
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
                 {!moduloInicial ? (
                   <button
                     type="button"
@@ -244,10 +244,10 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
                     Voltar
                   </button>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={fechar} className="h-9">Cancelar</Button>
+                  <Button variant="outline" size="sm" onClick={fechar} className="h-9 w-full sm:w-auto">Cancelar</Button>
                 )}
                 <Button
-                  className="bg-[#253B29] hover:bg-[#1a2b1e] text-white h-9 px-5"
+                  className="h-9 w-full bg-[#253B29] px-5 text-white hover:bg-[#1a2b1e] sm:w-auto"
                   onClick={handleCriar}
                   disabled={!podeCriar}
                 >

@@ -29,7 +29,7 @@ export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLe
   const { setNodeRef, isOver } = useDroppable({ id: faseId })
 
   return (
-    <div className="flex flex-col w-52 shrink-0">
+    <div className="flex w-[82vw] max-w-[21rem] shrink-0 flex-col sm:w-64 lg:w-52">
       {/* Cabeçalho da coluna */}
       <div className="flex items-center justify-between mb-2 px-0.5">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -66,7 +66,7 @@ export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLe
         <div
           ref={setNodeRef}
           className={`
-            flex flex-col gap-1.5 min-h-[80px] rounded-lg p-1.5 transition-colors
+            flex min-h-[80px] flex-col gap-1.5 rounded-lg p-1.5 transition-colors
             ${isOver ? 'bg-[#E7E0C4]/60 ring-1 ring-[#C2AA6A]' : 'bg-gray-100/60'}
           `}
         >

@@ -76,14 +76,14 @@ function LeadsContent() {
   }, [])
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4 p-4 md:p-6">
       <PageHeader
         title="Leads"
         description="Gerencie seus leads em todas as fases"
         actions={(
           <>
           {visao === 'lista' && (
-            <div className="relative min-w-[180px] flex-1 sm:flex-none">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <Input
                 placeholder="Buscar lead..."
@@ -99,11 +99,12 @@ function LeadsContent() {
             items={VISOES_LEADS}
             onChange={irParaVisao}
             iconOnly
+            className="max-w-full"
           />
 
           {pode('leads.criar') && (
             <Button
-              className="gap-2 h-9"
+              className="h-9 w-full gap-2 sm:w-auto"
               onClick={() => abrirModal()}
             >
               <UserPlus className="h-4 w-4" />
@@ -123,7 +124,7 @@ function LeadsContent() {
         />
       )}
       {visao === 'kanban' && (
-        <div className="overflow-x-auto pb-4">
+        <div className="-mx-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
           <KanbanBoard onCriarLead={abrirModal} onAbrirLead={abrirDetalhe} />
         </div>
       )}

@@ -139,7 +139,7 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
   return (
     <>
       <Sheet open={aberto} onOpenChange={onFechar}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle className="text-[#253B29]">Novo lead</SheetTitle>
           </SheetHeader>
@@ -187,7 +187,7 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                 </FormItem>
               )} />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <FormField control={form.control} name="fase_id" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fase</FormLabel>
@@ -268,13 +268,13 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                 </FormItem>
               )} />
 
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={onFechar}>
+              <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" onClick={onFechar} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="w-full bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
                   disabled={enviando || criarLead.isPending}
                 >
                   {enviando || criarLead.isPending ? 'Salvando...' : 'Criar lead'}

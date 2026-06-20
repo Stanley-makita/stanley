@@ -123,19 +123,19 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   return (
     <>
       <Dialog open={aberto} onOpenChange={fechar}>
-        <DialogContent className="max-w-[96vw] w-[96vw] max-h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogContent className="flex max-h-[94svh] w-[calc(100vw-1rem)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0">
           {isLoading || !lead ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-6 w-6 animate-spin text-[#253B29]" />
             </div>
           ) : (
-            <div className="flex flex-1 overflow-hidden" style={{ height: '85vh' }}>
+            <div className="flex flex-1 flex-col overflow-hidden lg:flex-row" style={{ height: '88svh' }}>
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
-              <div className="w-64 shrink-0 border-r border-gray-100 bg-[#F9F7F2] flex flex-col overflow-hidden">
+              <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-[#F9F7F2] lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
 
                 {/* Identidade + ações rápidas */}
-                <div className="p-4 border-b border-gray-200 space-y-3">
+                <div className="space-y-3 border-b border-gray-200 p-4">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#253B29] flex items-center justify-center shrink-0">
                       <span className="text-sm font-bold text-white">{iniciais(lead.nome)}</span>
@@ -228,7 +228,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
 
                 {/* Campos de dados */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+                <div className="flex-1 space-y-3.5 overflow-y-auto p-4">
                   <InfoRow icone={<Phone className="h-3.5 w-3.5" />} label="Telefone" valor={lead.telefone} />
                   {lead.cpf && (
                     <InfoRow icone={<CreditCard className="h-3.5 w-3.5" />} label="CPF" valor={lead.cpf} />
@@ -296,7 +296,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
 
                 {/* Ação principal */}
-                <div className="p-4 border-t border-gray-200 space-y-2">
+                <div className="space-y-2 border-t border-gray-200 p-4">
                   {(() => {
                     const idx = fases.findIndex(f => f.id === lead.fase_id)
                     const proxFase = idx >= 0 && idx < fases.length - 1 ? fases[idx + 1] : null
@@ -345,10 +345,10 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
               </div>
 
               {/* ── Centro: Abas de Interação ── */}
-              <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 
                 {/* Tab bar */}
-                <div className="flex border-b border-gray-100 bg-white px-1 shrink-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex shrink-0 overflow-x-auto border-b border-gray-100 bg-white px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {abas.map((aba) => (
                     <button
                       key={aba.id}
@@ -372,7 +372,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
 
                 {/* Conteúdo da aba */}
-                <div className="flex-1 overflow-y-auto px-5 py-4">
+                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
                   {abaAtiva === 'credito'      && <AbaCredito      lead={lead} />}
                   {abaAtiva === 'operacional'  && <AbaOperacional  lead={lead} />}
@@ -398,7 +398,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
               </div>
 
               {/* ── Painel Direito: Notas + Tarefas + Checklist ── */}
-              <div className="w-72 shrink-0 border-l border-gray-100 bg-white overflow-y-auto">
+              <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-gray-100 bg-white xl:block">
                 <PainelDireitoLead lead={lead} />
               </div>
 

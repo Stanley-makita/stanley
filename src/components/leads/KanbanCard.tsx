@@ -81,7 +81,7 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
       }}
     >
       {/* Nome */}
-      <p className="text-xs font-semibold text-[#253B29] leading-snug truncate">
+      <p className="text-sm font-semibold leading-snug text-[#253B29] line-clamp-2 lg:text-xs lg:truncate">
         {lead.nome}
       </p>
 
@@ -107,7 +107,7 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
       </div>
 
       {/* Rodapé: tarefas + responsável + dias */}
-      <div className="flex items-center justify-between gap-1 mt-2">
+      <div className="mt-2 flex items-center justify-between gap-1">
         <TarefaIndicador status={tarefaStatus} />
 
         <div className="flex items-center gap-2 shrink-0 ml-auto">

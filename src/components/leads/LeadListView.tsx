@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from 'lucide-react'
+import { Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Phone, Mail, CalendarDays, DollarSign, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
 import { useLeadsInativos } from '@/hooks/leads/useLeadsDashboard'
@@ -154,7 +154,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
       )}
 
       {/* Filtros por fase */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
         <button
           onClick={() => onFaseChange(undefined)}
           className={cn(
@@ -206,7 +206,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
       )}
 
       {/* Tabela */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -214,35 +214,16 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
             ))}
           </div>
         ) : leads.length === 0 ? (
-          <div className="py-16 text-center text-gray-400">
+          <div className="px-4 py-16 text-center text-gray-400">
             <p className="text-sm">
               {busca ? `Nenhum lead encontrado para "${busca}"` : hasFilters ? 'Nenhum lead com esses filtros.' : 'Nenhum lead nesta fase.'}
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60">
-                <ColHeader label="Nome"              col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
-                <ColHeader label="Contato"           col="contato"     active={sortCol} dir={sortDir} onSort={handleSort} />
-                <ColHeader label="Fase"              col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
-                  filterable filterOptions={getUniqueValues(leadsBase, 'fase')} activeFilter={filters.fase ?? []} onFilterChange={v => setFilter('fase', v)} />
-                <ColHeader label="Status"            col="status"      active={sortCol} dir={sortDir} onSort={handleSort}
-                  filterable filterOptions={getUniqueValues(leadsBase, 'status')} activeFilter={filters.status ?? []} onFilterChange={v => setFilter('status', v)} />
-                <ColHeader label="Origem"            col="origem"      active={sortCol} dir={sortDir} onSort={handleSort}
-                  filterable filterOptions={getUniqueValues(leadsBase, 'origem')} activeFilter={filters.origem ?? []} onFilterChange={v => setFilter('origem', v)} />
-                <ColHeader label="Comercial"         col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
-                  filterable filterOptions={getUniqueValues(leadsBase, 'comercial')} activeFilter={filters.comercial ?? []} onFilterChange={v => setFilter('comercial', v)} />
-                <ColHeader label="Operacional"       col="operacional" active={sortCol} dir={sortDir} onSort={handleSort}
-                  filterable filterOptions={getUniqueValues(leadsBase, 'operacional')} activeFilter={filters.operacional ?? []} onFilterChange={v => setFilter('operacional', v)} />
-                <ColHeader label="Valor pretendido"  col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
-                <ColHeader label="Criado em"         col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
-                {podeExcluir && <th className="w-10 px-2 py-3" />}
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <div className="divide-y divide-gray-100 md:hidden">
               {leads.map((lead) => (
-                <LeadRow
+                <LeadMobileCard
                   key={lead.id}
                   lead={lead}
                   podeExcluir={podeExcluir}
@@ -250,8 +231,43 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                   onExcluir={() => setLeadParaExcluir({ id: lead.id, faseId: lead.fase_id, nome: lead.nome })}
                 />
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/60">
+                    <ColHeader label="Nome"              col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Contato"           col="contato"     active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Fase"              col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable filterOptions={getUniqueValues(leadsBase, 'fase')} activeFilter={filters.fase ?? []} onFilterChange={v => setFilter('fase', v)} />
+                    <ColHeader label="Status"            col="status"      active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable filterOptions={getUniqueValues(leadsBase, 'status')} activeFilter={filters.status ?? []} onFilterChange={v => setFilter('status', v)} />
+                    <ColHeader label="Origem"            col="origem"      active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable filterOptions={getUniqueValues(leadsBase, 'origem')} activeFilter={filters.origem ?? []} onFilterChange={v => setFilter('origem', v)} />
+                    <ColHeader label="Comercial"         col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable filterOptions={getUniqueValues(leadsBase, 'comercial')} activeFilter={filters.comercial ?? []} onFilterChange={v => setFilter('comercial', v)} />
+                    <ColHeader label="Operacional"       col="operacional" active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable filterOptions={getUniqueValues(leadsBase, 'operacional')} activeFilter={filters.operacional ?? []} onFilterChange={v => setFilter('operacional', v)} />
+                    <ColHeader label="Valor pretendido"  col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <ColHeader label="Criado em"         col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
+                    {podeExcluir && <th className="w-10 px-2 py-3" />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.map((lead) => (
+                    <LeadRow
+                      key={lead.id}
+                      lead={lead}
+                      podeExcluir={podeExcluir}
+                      onClick={() => onAbrirLead(lead.id)}
+                      onExcluir={() => setLeadParaExcluir({ id: lead.id, faseId: lead.fase_id, nome: lead.nome })}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -265,6 +281,124 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
           onExcluido={() => setLeadParaExcluir(null)}
         />
       )}
+    </div>
+  )
+}
+
+function LeadMobileCard({
+  lead,
+  podeExcluir,
+  onClick,
+  onExcluir,
+}: {
+  lead: Lead
+  podeExcluir: boolean
+  onClick: () => void
+  onExcluir: () => void
+}) {
+  const responsavelOp = (lead as any).responsavel_operacional as { nome: string } | null | undefined
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className="block w-full cursor-pointer bg-white p-4 text-left transition-colors hover:bg-[#253B29]/[0.03] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#C2AA6A]/40"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="min-w-0 text-sm font-semibold leading-snug text-[#253B29]">
+              {lead.nome}
+            </h3>
+            {lead.convertido_em && (
+              <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-600">
+                Convertido
+              </span>
+            )}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {lead.fase && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: lead.fase.cor ?? '#94a3b8' }} />
+                {lead.fase.nome}
+              </span>
+            )}
+            {lead.status && (
+              <span
+                className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium"
+                style={{
+                  backgroundColor: lead.status.cor ? `${lead.status.cor}18` : '#f3f4f6',
+                  borderColor:     lead.status.cor ? `${lead.status.cor}40` : '#e5e7eb',
+                  color:           lead.status.cor ?? '#374151',
+                }}
+              >
+                {lead.status.nome}
+              </span>
+            )}
+            <LeadOrigemBadge origem={lead.origem} />
+          </div>
+        </div>
+
+        {podeExcluir && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onExcluir() }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                e.stopPropagation()
+                onExcluir()
+              }
+            }}
+            title="Excluir lead"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
+          >
+            <Trash2 className="h-4 w-4" />
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-2 text-xs text-gray-500">
+        <div className="flex min-w-0 items-center gap-2">
+          <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          <span className="truncate">{lead.telefone || 'Sem telefone'}</span>
+        </div>
+        {lead.email && (
+          <div className="flex min-w-0 items-center gap-2">
+            <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate">{lead.email}</span>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <DollarSign className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate font-medium text-[#253B29]">{fmtValor(lead.valor_pretendido)}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate">{format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-1 pt-1 sm:grid-cols-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <UserRound className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate">Comercial: {lead.responsavel?.nome ?? '-'}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <UserRound className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="truncate">Operacional: {responsavelOp?.nome ?? '-'}</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

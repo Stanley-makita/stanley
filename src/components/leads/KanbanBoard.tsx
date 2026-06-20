@@ -156,7 +156,7 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      <div className="flex gap-3 pb-4 min-h-[calc(100vh-200px)]">
+      <div className="flex min-h-[calc(100vh-220px)] gap-3 pb-4 md:min-h-[calc(100vh-200px)]">
         {fases.map((fase) => (
           <KanbanColuna
             key={fase.id}

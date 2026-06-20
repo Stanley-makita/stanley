@@ -24,7 +24,7 @@ export default function ProcessosPage() {
   const { pode } = usePermissao()
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <PageHeader
         title="Processos"
         description="Acompanhe todos os processos de crédito imobiliário"
@@ -34,10 +34,11 @@ export default function ProcessosPage() {
             value={visao}
             items={VISOES_PROCESSOS}
             onChange={setVisao}
+            className="max-w-full"
           />
 
           {pode('processos.criar') && (
-            <Button className="gap-1.5">
+            <Button className="h-9 w-full gap-1.5 sm:w-auto">
               <Plus className="h-4 w-4" />
               Novo Processo
             </Button>

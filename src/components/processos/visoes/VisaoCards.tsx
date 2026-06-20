@@ -136,7 +136,7 @@ function KanbanColuna({
   processos: Processo[]
 }) {
   return (
-    <div className="flex flex-col min-w-[180px] max-w-[260px] flex-1">
+    <div className="flex w-[82vw] max-w-[21rem] shrink-0 flex-col sm:w-64 lg:min-w-[180px] lg:max-w-[260px] lg:flex-1">
       {/* cabeçalho */}
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-2 min-w-0">
@@ -205,9 +205,9 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
   }, {} as Record<string, Processo[]>)
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
+    <div className="flex min-h-[calc(100vh-220px)] flex-col md:h-[calc(100vh-180px)] md:min-h-0">
       {/* ── Filtros ── */}
-      <div className="flex items-center gap-1.5 flex-wrap mb-3 shrink-0">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5">
 
         {!produtoFixo && FILTROS_PRODUTO.map((f) => {
           const count = contagemProduto[f.value] ?? 0
@@ -228,7 +228,7 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
           )
         })}
 
-        {!produtoFixo && <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />}
+        {!produtoFixo && <span className="hidden h-4 w-px shrink-0 bg-gray-300 sm:block" />}
 
         {FILTROS_CHANCE.map((f) => {
           const count = contagemChance[f.value] ?? 0
@@ -253,7 +253,7 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
           )
         })}
 
-        <div className="relative flex-1 min-w-[160px] max-w-[260px] ml-1">
+        <div className="relative ml-0 min-w-full flex-1 sm:ml-1 sm:min-w-[180px] sm:max-w-[260px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <Input
             placeholder="Buscar por imóvel ou proposta..."
@@ -266,13 +266,13 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
 
       {/* ── Kanban Board ── */}
       {isLoading ? (
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="shrink-0 w-48 animate-pulse bg-gray-100 rounded-xl h-full min-h-[400px]" />
           ))}
         </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-4 flex-1 min-h-0">
+        <div className="-mx-4 flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
           {fases.map((fase) => (
             <KanbanColuna
               key={fase.id}

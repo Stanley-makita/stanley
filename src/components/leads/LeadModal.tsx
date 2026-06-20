@@ -83,14 +83,14 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={onFechar}>
-      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto p-0 sm:w-full">
+        <DialogHeader className="px-4 pt-5 pb-0 sm:px-6 sm:pt-6">
           <DialogTitle className="text-[#253B29] text-lg">Novo Lead</DialogTitle>
           <p className="text-sm text-gray-500 mt-0.5">Preencha os dados do novo lead</p>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 pb-6 pt-4 space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-5 pt-4 sm:px-6 sm:pb-6">
 
             {/* Nome */}
             <FormField control={form.control} name="nome" render={({ field }) => (
@@ -104,7 +104,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
             )} />
 
             {/* Telefone + Email */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="telefone" render={({ field }) => (
                 <FormItem>
                   <FormLabel>WhatsApp *</FormLabel>
@@ -127,7 +127,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
             </div>
 
             {/* Fase + Origem */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="fase_id" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fase *</FormLabel>
@@ -179,7 +179,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
             </div>
 
             {/* Responsáveis + Valor */}
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FormField control={form.control} name="responsavel_id" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Comercial <span className="text-gray-400 font-normal text-xs">(opcional)</span></FormLabel>
@@ -247,13 +247,13 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
             )} />
 
             {/* Botões */}
-            <div className="flex justify-end gap-3 pt-2 border-t">
-              <Button type="button" variant="outline" onClick={onFechar} disabled={criarLead.isPending}>
+            <div className="flex flex-col-reverse gap-2 border-t pt-2 sm:flex-row sm:justify-end sm:gap-3">
+              <Button type="button" variant="outline" onClick={onFechar} disabled={criarLead.isPending} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-[#253B29] hover:bg-[#1a2b1e] text-white min-w-[120px]"
+                className="w-full min-w-[120px] bg-[#253B29] text-white hover:bg-[#1a2b1e] sm:w-auto"
                 disabled={criarLead.isPending}
               >
                 {criarLead.isPending ? 'Salvando...' : 'Criar lead'}
