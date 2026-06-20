@@ -128,18 +128,18 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={onFechar}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto p-0 sm:w-full">
+        <DialogHeader className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 pb-4 pt-5 sm:px-6 sm:pt-6">
           <DialogTitle className="text-fonti-primary">Editar Lead</DialogTitle>
           <p className="text-sm text-gray-400 mt-0.5">{lead.nome}</p>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="px-6 pb-6 pt-5 space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 px-4 pb-6 pt-5 sm:px-6">
 
             {/* ── DADOS PESSOAIS ── */}
             <Secao titulo="Dados Pessoais">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <FormField control={form.control} name="nome" render={({ field }) => (
                   <FormItem className="col-span-2">
                     <FormLabel>Nome Completo</FormLabel>
@@ -203,12 +203,12 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
               <FormField control={form.control} name="estado_civil" render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
                       {Object.entries(ESTADO_CIVIL_LABELS).map(([val, label]) => (
                         <label
                           key={val}
                           className={cn(
-                            'flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border text-sm transition-all',
+                            'flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-all',
                             field.value === val
                               ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
                               : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -233,7 +233,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
               {temConjuge && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cônjuge / Companheiro(a)</p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <FormField control={form.control} name="conjuge_nome" render={({ field }) => (
                       <FormItem className="col-span-2">
                         <FormLabel>Nome</FormLabel>
@@ -281,7 +281,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
 
             {/* ── DADOS FINANCEIROS ── */}
             <Secao titulo="Dados Financeiros">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <FormField control={form.control} name="renda_formal" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Renda Formal <Opcional /></FormLabel>
@@ -355,7 +355,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
 
             {/* ── CLASSIFICAÇÃO ── */}
             <Secao titulo="Classificação">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <FormField control={form.control} name="fase_id" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status / Fase</FormLabel>
@@ -445,13 +445,13 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
               </FormItem>
             )} />
 
-            <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-              <Button type="button" variant="outline" onClick={onFechar} disabled={editarLead.isPending}>
+            <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end sm:gap-3">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onFechar} disabled={editarLead.isPending}>
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[140px]"
+                className="min-w-[140px] w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
                 disabled={editarLead.isPending}
               >
                 {editarLead.isPending ? 'Salvando...' : 'Salvar Alterações'}

@@ -171,8 +171,8 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={fechar}>
-      <DialogContent className={cn('p-0 gap-0 overflow-hidden', vinculacao || tipo ? 'max-w-lg' : 'max-w-sm')}>
-        <DialogHeader className="px-5 pt-5 pb-4 border-b border-gray-100">
+      <DialogContent className={cn('max-h-[92svh] w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0 sm:w-full', vinculacao || tipo ? 'max-w-lg' : 'max-w-sm')}>
+        <DialogHeader className="border-b border-gray-100 px-4 pb-4 pt-5 sm:px-5">
           <DialogTitle className="text-sm font-semibold text-fonti-primary">{tituloHeader}</DialogTitle>
           <p className="text-xs text-gray-400 mt-0.5">{subtituloHeader}</p>
         </DialogHeader>
@@ -215,7 +215,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
   const clienteCpf  = lead?.cpf  ?? pessoa?.cpf  ?? null
 
   return (
-    <div className="px-5 pt-4 pb-5 space-y-4">
+    <div className="space-y-4 px-4 pb-5 pt-4 sm:px-5">
       <div className="bg-gray-50 rounded-xl p-4 space-y-1">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-fonti-primary">{clienteNome}</p>
@@ -273,7 +273,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
       </div>
 
       <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={onFechar} className="h-9">Cancelar</Button>
+        <Button variant="outline" size="sm" onClick={onFechar} className="h-9 w-full sm:w-auto">Cancelar</Button>
       </div>
     </div>
   )
@@ -402,9 +402,9 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   }
 
   return (
-    <div className="overflow-y-auto max-h-[75vh] px-5 py-5 space-y-5">
+    <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
       <Secao titulo="Dados do Cliente">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome *">
             <Input
               value={nome}
@@ -445,7 +445,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       </Secao>
 
       <Secao titulo="Dados do Financiamento">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Banco *" className="col-span-2">
             <Select value={bancoId} onValueChange={(v) => {
               setBancoId(v); clr('bancoId')
@@ -558,7 +558,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       </Secao>
 
       <Secao titulo="Responsáveis">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Operacional *">
             <Select value={operacionalId} onValueChange={(v) => { setOperacionalId(v); clr('operacionalId') }}>
               <SelectTrigger className={cn('h-9 text-sm', erros.operacionalId && 'border-red-400')}><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -580,13 +580,13 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
         </div>
       </Secao>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
+        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9 w-full sm:w-auto" disabled={criarProcesso.isPending}>
           Cancelar
         </Button>
         <Button
           size="sm"
-          className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]"
+          className="h-9 min-w-[120px] w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
           onClick={handleCriar}
           disabled={criarProcesso.isPending}
         >
@@ -680,16 +680,16 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   }
 
   return (
-    <div className="overflow-y-auto max-h-[75vh] px-5 py-5 space-y-5">
+    <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
       <Secao titulo="Dados do Cliente">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
           <Campo label="CPF"><Input value={clienteCpf ?? '—'} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
         </div>
       </Secao>
 
       <Secao titulo="Dados do Crédito">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Banco *" className="col-span-2">
             <Select value={bancoId} onValueChange={(v) => {
               setBancoId(v)
@@ -727,7 +727,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       </Secao>
 
       <Secao titulo="Responsáveis">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Operacional">
             <Select value={operacionalId} onValueChange={setOperacionalId}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -749,9 +749,9 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         </div>
       </Secao>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>Cancelar</Button>
-        <Button size="sm" className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !bancoId || !valorCredito}>
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
+        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9 w-full sm:w-auto" disabled={criarProcesso.isPending}>Cancelar</Button>
+        <Button size="sm" className="h-9 min-w-[120px] w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto" onClick={handleCriar} disabled={criarProcesso.isPending || !bancoId || !valorCredito}>
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>
       </div>
@@ -848,9 +848,9 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   }
 
   return (
-    <div className="overflow-y-auto max-h-[70vh] px-5 py-5 space-y-5">
+    <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
       <Secao titulo="Dados do Cliente">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
           <Campo label="CPF"><Input value={clienteCpf ?? '—'} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
         </div>
@@ -870,7 +870,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       </Secao>
 
       <Secao titulo="Responsáveis">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Comercial *">
             <Select value={comercialId} onValueChange={setComercialId}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -891,11 +891,11 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         </div>
       </Secao>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>Cancelar</Button>
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
+        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9 w-full sm:w-auto" disabled={criarProcesso.isPending}>Cancelar</Button>
         <Button
           size="sm"
-          className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]"
+          className="h-9 min-w-[120px] w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
           onClick={handleCriar}
           disabled={criarProcesso.isPending || !tipoContrato}
         >
@@ -1005,16 +1005,16 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   }
 
   return (
-    <div className="overflow-y-auto max-h-[70vh] px-5 py-5 space-y-5">
+    <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
       <Secao titulo="Dados do Cliente">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
           <Campo label="CPF"><Input value={clienteCpf ?? '—'} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
         </div>
       </Secao>
 
       <Secao titulo="Bem">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Tipo de Bem *">
             <Select value={tipoBem} onValueChange={setTipoBem}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1054,7 +1054,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 
       <Secao titulo="Estratégia">
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Campo label="Prazo de Contemplação">
               <Select value={prazo} onValueChange={setPrazo}>
                 <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1086,7 +1086,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       </Secao>
 
       <Secao titulo="Responsáveis">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Comercial *">
             <Select value={comercialId} onValueChange={setComercialId}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1107,9 +1107,9 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         </div>
       </Secao>
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9" disabled={criarProcesso.isPending}>Cancelar</Button>
-        <Button size="sm" className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white min-w-[120px]" onClick={handleCriar} disabled={criarProcesso.isPending || !tipoBem || !valorCarta}>
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
+        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9 w-full sm:w-auto" disabled={criarProcesso.isPending}>Cancelar</Button>
+        <Button size="sm" className="h-9 min-w-[120px] w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto" onClick={handleCriar} disabled={criarProcesso.isPending || !tipoBem || !valorCarta}>
           {criarProcesso.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Processo'}
         </Button>
       </div>
@@ -1174,8 +1174,8 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
   const docsConjuge   = docs.filter(d => d.pessoa_id === pessoaIdConjuge)
 
   return (
-    <div className="flex flex-col overflow-hidden max-h-[70vh]">
-      <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+    <div className="flex max-h-[75svh] flex-col overflow-hidden">
+      <div className="flex flex-col gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <p className="text-xs text-gray-500">
           {docs.length} documento{docs.length !== 1 ? 's' : ''} encontrado{docs.length !== 1 ? 's' : ''}
         </p>
@@ -1184,7 +1184,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
         </button>
       </div>
 
-      <div className="overflow-y-auto px-5 py-4 space-y-4">
+      <div className="max-h-[60svh] space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
         <GrupoDocumentos
           titulo={nomeComprador}
           docs={docsComprador}
@@ -1201,11 +1201,11 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
         )}
       </div>
 
-      <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
         <Button
           variant="outline"
           size="sm"
-          className="h-9 gap-1.5 text-gray-500"
+          className="h-9 w-full gap-1.5 text-gray-500 sm:w-auto"
           onClick={() => onPular(processoId)}
           disabled={vinculando}
         >
@@ -1214,7 +1214,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
         </Button>
         <Button
           size="sm"
-          className="h-9 bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 min-w-[150px]"
+          className="h-9 min-w-[150px] w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
           onClick={() => handleVincular(selecionados)}
           disabled={vinculando}
         >

@@ -132,7 +132,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             <div className="flex flex-1 flex-col overflow-hidden lg:flex-row" style={{ height: '88svh' }}>
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
-              <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
+              <div className="flex max-h-[58svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
 
                 {/* Identidade + ações rápidas */}
                 <div className="space-y-3 border-b border-gray-200 p-4">
@@ -182,7 +182,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                     {conversaDoLead?.id ? 'Abrir Conversa' : 'Iniciar Conversa'}
                   </Button>
 
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -360,7 +360,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                         setAbaAtiva(aba.id as Aba)
                       }}
                       className={cn(
-                        'px-4 py-3 text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap',
+                        'min-w-20 px-3 py-3 text-center text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap sm:min-w-0 sm:px-4',
                         abaAtiva === aba.id
                           ? 'border-fonti-primary text-fonti-primary'
                           : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -372,7 +372,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
 
                 {/* Conteúdo da aba */}
-                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+                <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-5">
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
                   {abaAtiva === 'credito'      && <AbaCredito      lead={lead} />}
                   {abaAtiva === 'operacional'  && <AbaOperacional  lead={lead} />}
@@ -442,7 +442,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
 
           {/* Dialog: Consulta de Restritivos */}
           <Dialog open={consultaRestritivosAberto} onOpenChange={(o) => { if (!o) setConsultaRestritivosAberto(false) }}>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
               <DialogHeader>
                 <DialogTitle className="text-fonti-primary text-base">Consulta de Restritivos</DialogTitle>
               </DialogHeader>
@@ -452,13 +452,13 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </p>
                 <div className="space-y-1.5">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">O cliente possui restrição?</p>
-                  <div className="flex gap-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {([true, false] as const).map(val => (
                       <button
                         key={String(val)}
                         onClick={() => setTemRestricao(val)}
                         className={cn(
-                          'flex-1 py-2.5 rounded-lg border text-sm font-medium transition-all',
+                          'rounded-lg border px-3 py-2.5 text-sm font-medium transition-all',
                           temRestricao === val
                             ? val
                               ? 'border-red-400 bg-red-50 text-red-700'
@@ -491,7 +491,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
 
           {/* Dialog: Iniciar nova conversa */}
           <Dialog open={iniciarConversaAberto} onOpenChange={(o) => { if (!o) setIniciarConversaAberto(false) }}>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
               <DialogHeader>
                 <DialogTitle className="text-fonti-primary">Iniciar conversa</DialogTitle>
               </DialogHeader>
@@ -511,10 +511,11 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                   />
                 </div>
               </div>
-              <DialogFooter className="gap-2">
+              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => setIniciarConversaAberto(false)}
                 >
                   Cancelar
@@ -522,7 +523,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 <Button
                   size="sm"
                   disabled={iniciarConversa.isPending}
-                  className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
+                  className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
                   onClick={async () => {
                     try {
                       const id = await iniciarConversa.mutateAsync({
