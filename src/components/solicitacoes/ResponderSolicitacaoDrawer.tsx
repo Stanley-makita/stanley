@@ -89,8 +89,8 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
 
   return (
     <Dialog open={!!s} onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent className="max-w-lg w-full flex flex-col gap-0 p-0 max-h-[90vh]">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+      <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg flex-col gap-0 p-0 sm:w-full">
+        <DialogHeader className="shrink-0 border-b px-4 pb-4 pt-5 sm:px-6 sm:pt-6">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-500 font-medium">{TIPO_LABELS[s.tipo]}</span>
             <SolicitacaoPrioridadeBadge prioridade={s.prioridade} />
@@ -100,17 +100,17 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
           <DialogTitle className="text-fonti-primary mt-1">{s.titulo}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
           {/* Contexto */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-xs">
+          <div className="space-y-2 rounded-lg bg-gray-50 p-3 text-xs">
             {s.solicitante && (
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
                 <span className="text-gray-400">Solicitante</span>
                 <span className="font-medium text-gray-700">{s.solicitante.nome}</span>
               </div>
             )}
             {s.lead && (
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-gray-400">Lead</span>
                 <button
                   className="font-medium text-fonti-primary flex items-center gap-1 hover:underline"
@@ -122,7 +122,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
               </div>
             )}
             {s.processo && (
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-gray-400">Processo</span>
                 <button
                   className="font-medium text-fonti-primary flex items-center gap-1 hover:underline"
@@ -134,7 +134,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
               </div>
             )}
             {s.pessoa && (
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
                 <span className="text-gray-400">Pessoa</span>
                 <span className="font-medium text-gray-700">{s.pessoa.nome}</span>
               </div>
@@ -281,7 +281,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t flex gap-2">
+        <div className="flex flex-col-reverse gap-2 border-t px-4 py-4 sm:flex-row sm:px-6">
           <Button variant="outline" className="flex-1" onClick={onFechar}>
             Cancelar
           </Button>

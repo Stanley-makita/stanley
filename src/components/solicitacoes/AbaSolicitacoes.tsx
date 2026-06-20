@@ -58,7 +58,7 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {!compacto && (
           <h4 className="text-sm font-semibold text-fonti-primary">
             Solicitações Operacionais
@@ -70,7 +70,7 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
         <Button
           size="sm"
           variant="outline"
-          className="gap-1.5 text-xs ml-auto"
+          className="ml-auto w-full gap-1.5 text-xs sm:w-auto"
           onClick={() => setDrawerAberto(true)}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -89,8 +89,8 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
           <p className="text-xs">Nenhuma solicitação vinculada</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <table className="min-w-[720px] w-full text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="w-6 px-3 py-2" />
@@ -323,7 +323,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
                     className="text-xs min-h-[56px] resize-none"
                     autoFocus
                   />
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button size="sm" variant="ghost" className="h-7 text-xs"
                       onClick={() => { setRespondendo(false); setTextoMensagem('') }} disabled={isPending}>
                       Cancelar

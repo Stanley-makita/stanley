@@ -146,12 +146,12 @@ export function NovaSolicitacaoDrawer({
 
   return (
     <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent className="sm:max-w-md flex flex-col gap-0 p-0 max-h-[90vh]">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+      <DialogContent className="flex max-h-[92svh] w-[calc(100vw-1rem)] max-w-md flex-col gap-0 p-0 sm:w-full">
+        <DialogHeader className="border-b px-4 pb-4 pt-5 sm:px-6 sm:pt-6">
           <DialogTitle className="text-fonti-primary">Nova Solicitação Operacional</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
           {/* Para quem? */}
           <div className="space-y-1.5">
             <Label>Para quem? <span className="text-red-500">*</span></Label>
@@ -220,7 +220,7 @@ export function NovaSolicitacaoDrawer({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t flex gap-2">
+        <div className="flex flex-col-reverse gap-2 border-t px-4 py-4 sm:flex-row sm:px-6">
           <Button variant="outline" className="flex-1" onClick={onFechar}>
             Cancelar
           </Button>
