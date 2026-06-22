@@ -398,7 +398,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
               </div>
 
-              {/* ── Painel Direito: Notas + Tarefas + Checklist ── */}
+              {/* ── Painel Direito: Notas + Tarefas + Checklist (bonus em telas grandes) ── */}
               <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-gray-100 bg-white xl:block">
                 <PainelDireitoLead lead={lead} />
               </div>

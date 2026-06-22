@@ -12,16 +12,22 @@ export interface AbaConfig {
 
 export const ABAS_DEFAULT: AbaConfig[] = [
   { id: 'resumo',       label: 'Resumo' },
+  { id: 'notas',        label: 'Notas' },
+  { id: 'tarefas',      label: 'Tarefas' },
+  { id: 'operacional',  label: 'Checklist' },
   { id: 'credito',      label: 'Crédito' },
-  { id: 'formularios',  label: 'Formulários' },
-  { id: 'processos',    label: 'Processos' },
-  { id: 'simulador',    label: 'Simulador' },
-  { id: 'solicitacoes', label: 'Solicitações' },
-  { id: 'historico',    label: 'Histórico' },
   { id: 'documentos',   label: 'Documentos' },
+  { id: 'solicitacoes', label: 'Solicitações' },
+  { id: 'formularios',  label: 'Formulários' },
+  { id: 'simulador',    label: 'Simulador' },
+  { id: 'processos',    label: 'Processos' },
+  { id: 'historico',    label: 'Histórico' },
 ]
 
-const VALID_IDS = new Set(ABAS_DEFAULT.map(a => a.id))
+const VALID_IDS = new Set([
+  'resumo', 'notas', 'tarefas', 'operacional', 'credito',
+  'documentos', 'solicitacoes', 'formularios', 'simulador', 'processos', 'historico',
+])
 
 function mergeComDefault(abas: AbaConfig[]): AbaConfig[] {
   const validas = abas.filter(a => VALID_IDS.has(a.id))
