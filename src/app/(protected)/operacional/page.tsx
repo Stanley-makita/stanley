@@ -267,7 +267,7 @@ export default function OperacionalPage() {
   }))
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] px-6 pt-6">
+    <div className="flex flex-col h-[calc(100vh-80px)] px-4 pt-4 md:px-6 md:pt-6">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
         <div>
@@ -294,7 +294,8 @@ export default function OperacionalPage() {
           )}
           <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
             onClick={() => setNovaAberta(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nova Solicitação
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Nova Solicitação</span>
           </Button>
         </div>
       </div>

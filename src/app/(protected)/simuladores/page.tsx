@@ -201,7 +201,7 @@ export default function SimuladoresPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -218,12 +218,12 @@ export default function SimuladoresPage() {
           onClick={() => setModal('escolha')}
         >
           <Plus className="w-4 h-4" />
-          Nova Simulação
+          <span className="hidden sm:inline">Nova Simulação</span>
         </Button>
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <SummaryCard label="Total" value={total} icon={<Calculator className="w-4 h-4 text-gray-400" />} />
         <SummaryCard label="Aguardando" value={aguardando} icon={<Clock className="w-4 h-4 text-amber-500" />} cor="amber" />
         <SummaryCard label="Concluídas" value={concluidas} icon={<CheckCircle2 className="w-4 h-4 text-green-500" />} cor="green" />
@@ -300,7 +300,7 @@ export default function SimuladoresPage() {
 
       {/* ── Modal: escolha de tipo + dados do cliente ─────────────────── */}
       <Dialog open={modal === 'escolha'} onOpenChange={(o) => !o && setModal(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Nova Simulação</DialogTitle>
           </DialogHeader>
