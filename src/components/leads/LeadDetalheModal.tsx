@@ -123,13 +123,13 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   return (
     <>
       <Dialog open={aberto} onOpenChange={fechar}>
-        <DialogContent className="flex max-h-[94svh] w-[calc(100vw-1rem)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="flex h-[94svh] w-[calc(100vw-1rem)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0">
           {isLoading || !lead ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
             </div>
           ) : (
-            <div className="flex flex-1 flex-col overflow-hidden lg:flex-row" style={{ height: '88svh' }}>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
               <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
