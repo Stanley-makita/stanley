@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -22,6 +23,7 @@ import {
   Briefcase,
   Calculator,
   UserCheck,
+  ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
@@ -40,18 +42,14 @@ const navItemsTop = [
 const navItemsBottom = [
   { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
   { href: '/operacional',       label: 'Operacional',  icon: ClipboardList },
-  { href: '/rh',                label: 'RH',           icon: UserCheck },
   { href: '/simuladores',       label: 'Simuladores',  icon: Calculator },
-  { href: '/financeiro',        label: 'Financeiro',   icon: DollarSign },
   { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2 },
   { href: '/notificacoes',      label: 'Notificações', icon: Bell },
   { href: '/agenda',            label: 'Agenda',       icon: Calendar },
   { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen },
 ]
 
-const adminItems = [
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
-]
+const GESTAO_ROUTES = ['/gestao', '/rh', '/financeiro', '/configuracoes']
 
 interface SidebarProps {
   className?: string
@@ -69,6 +67,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+
+  const isGestaoAtivo = GESTAO_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
+  const [gestaoAberto, setGestaoAberto] = useState(isGestaoAtivo)
+
+  useEffect(() => {
+    if (isGestaoAtivo) setGestaoAberto(true)
+  }, [pathname])
 
   return (
     <aside className={cn('flex h-screen w-60 flex-col bg-fonti-primary text-white', className)}>
@@ -174,49 +179,87 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           )
         })}
 
-        {isGestor && (
-          <>
-            <div className="my-2 border-t border-white/10" />
-            {[{ href: '/gestao', label: 'Gestão', icon: ShieldCheck }].map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
-              return (
-                <Link key={href} href={href}
-                  onClick={onNavigate}
-                  className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  )}>
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                </Link>
-              )
-            })}
-          </>
-        )}
+        {/* ── Gestão (grupo colapsável) ── */}
+        <div className="my-2 border-t border-white/10" />
+        <div>
+          <button
+            onClick={() => setGestaoAberto(v => !v)}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              isGestaoAtivo
+                ? 'bg-white/15 text-white'
+                : 'text-white/70 hover:bg-white/10 hover:text-white'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Gestão
+            <ChevronDown className={cn(
+              'ml-auto h-3.5 w-3.5 transition-transform duration-200',
+              gestaoAberto && 'rotate-180'
+            )} />
+          </button>
 
-        {isAdmin && (
-          <>
-            <div className="my-2 border-t border-white/10" />
-            {adminItems.map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
-              return (
+          {gestaoAberto && (
+            <div className="ml-4 mt-0.5 border-l border-white/10 pl-2 space-y-0.5">
+              {isGestor && (
                 <Link
-                  key={href}
-                  href={href}
+                  href="/gestao"
                   onClick={onNavigate}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    active
+                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    pathname === '/gestao' || pathname.startsWith('/gestao/')
                       ? 'bg-white/15 text-white'
                       : 'text-white/70 hover:bg-white/10 hover:text-white'
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  Painel
                 </Link>
-              )
-            })}
-          </>
-        )}
+              )}
+              <Link
+                href="/rh"
+                onClick={onNavigate}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  pathname === '/rh' || pathname.startsWith('/rh/')
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                )}
+              >
+                <UserCheck className="h-4 w-4 shrink-0" />
+                RH
+              </Link>
+              <Link
+                href="/financeiro"
+                onClick={onNavigate}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  pathname === '/financeiro' || pathname.startsWith('/financeiro/')
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                )}
+              >
+                <DollarSign className="h-4 w-4 shrink-0" />
+                Financeiro
+              </Link>
+              {isAdmin && (
+                <Link
+                  href="/configuracoes"
+                  onClick={onNavigate}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    pathname === '/configuracoes' || pathname.startsWith('/configuracoes/')
+                      ? 'bg-white/15 text-white'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  )}
+                >
+                  <Settings className="h-4 w-4 shrink-0" />
+                  Configurações
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* Footer */}
