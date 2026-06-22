@@ -132,10 +132,10 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             <div className="flex flex-1 flex-col overflow-hidden lg:flex-row" style={{ height: '88svh' }}>
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
-              <div className="flex max-h-[58svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
+              <div className="flex max-h-[46svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
 
                 {/* Identidade + ações rápidas */}
-                <div className="space-y-3 border-b border-gray-200 p-4">
+                <div className="space-y-2 border-b border-gray-200 p-4">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
                       <span className="text-sm font-bold text-white">{iniciais(lead.nome)}</span>
@@ -204,27 +204,28 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                       </Button>
                     )}
                   </div>
-                  {lead.pessoa_id && (
+                  <div className={cn('grid gap-1.5', lead.pessoa_id ? 'grid-cols-2' : 'grid-cols-1')}>
+                    {lead.pessoa_id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1 text-fonti-primary border-fonti-accent/50 hover:bg-fonti-accent-hover/40"
+                        onClick={() => setCompletarDadosAberto(true)}
+                      >
+                        <ClipboardList className="h-3 w-3" />
+                        <span className="truncate">Completar</span>
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full h-7 text-xs gap-1 text-fonti-primary border-fonti-accent/50 hover:bg-fonti-accent-hover/40"
-                      onClick={() => setCompletarDadosAberto(true)}
+                      className="h-7 text-xs gap-1 text-amber-700 border-amber-200 hover:bg-amber-50"
+                      onClick={() => setNovaSolicitacaoAberta(true)}
                     >
                       <ClipboardList className="h-3 w-3" />
-                      Completar Cadastro
+                      <span className="truncate">Solicitar Op.</span>
                     </Button>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-8 text-xs gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
-                    onClick={() => setNovaSolicitacaoAberta(true)}
-                  >
-                    <ClipboardList className="h-3 w-3" />
-                    Solicitar ao Operacional
-                  </Button>
+                  </div>
                 </div>
 
                 {/* Campos de dados */}

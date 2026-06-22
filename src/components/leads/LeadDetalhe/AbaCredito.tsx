@@ -199,7 +199,7 @@ export function AbaCredito({ lead }: Props) {
       />
 
       {/* 6. Origem + Parceiros */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BlocoOrigem
           origem={lead.origem}
           onChange={(o) => editar.mutate({ id: lead.id, origem: o as Lead['origem'] })}
@@ -618,7 +618,7 @@ function BlocoOperacao({ lead }: { lead: Lead }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <div>
           <Label className="text-xs text-gray-500">Produto</Label>
           <Select value={form.produto_interesse} onValueChange={v => set('produto_interesse', v)}>
@@ -660,7 +660,7 @@ function BlocoOperacao({ lead }: { lead: Lead }) {
           <Input className="h-8 text-sm mt-1" type="number" placeholder="360" value={form.prazo_meses} onChange={e => set('prazo_meses', e.target.value)} />
         </div>
 
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <Label className="text-xs text-gray-500">Finalidade</Label>
           <Select value={form.finalidade} onValueChange={v => set('finalidade', v)}>
             <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
@@ -727,7 +727,7 @@ function BlocoImovel({ lead }: { lead: Lead }) {
         </div>
       </div>
       {editando ? (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {CAMPOS_IMOVEL.map(c => (
             <div key={c.key}>
               <Label className="text-xs text-gray-500">{c.label}</Label>
@@ -748,7 +748,7 @@ function BlocoImovel({ lead }: { lead: Lead }) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
           {CAMPOS_IMOVEL.map(c => {
             const val = lead[c.key as keyof Lead] as string | null
             if (!val) return null
