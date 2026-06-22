@@ -132,7 +132,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
             <div className="flex flex-1 flex-col overflow-hidden lg:flex-row" style={{ height: '88svh' }}>
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
-              <div className="flex max-h-[46svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
+              <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
 
                 {/* Identidade + ações rápidas */}
                 <div className="space-y-2 border-b border-gray-200 p-4">
@@ -364,7 +364,8 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                         'min-w-20 px-3 py-3 text-center text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap sm:min-w-0 sm:px-4',
                         abaAtiva === aba.id
                           ? 'border-fonti-primary text-fonti-primary'
-                          : 'border-transparent text-gray-400 hover:text-gray-600'
+                          : 'border-transparent text-gray-400 hover:text-gray-600',
+                        ['notas', 'tarefas', 'operacional'].includes(aba.id) && 'xl:hidden'
                       )}
                     >
                       {aba.label}

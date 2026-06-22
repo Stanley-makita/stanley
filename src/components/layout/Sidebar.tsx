@@ -90,7 +90,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </div>
 
       {/* Nav principal */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {navItemsTop.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isLeads = href === '/leads'
