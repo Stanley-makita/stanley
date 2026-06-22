@@ -104,14 +104,14 @@ export default function NegociosDashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-fonti-primary">Negócios</h1>
         <p className="text-sm text-gray-500 mt-0.5">Visão geral dos módulos e da sua agenda</p>
       </div>
 
       {/* Linha 1 — 5 cards de módulos */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <ModuloCard
           titulo="Financiamentos"
           href="/negocios/financiamento"

@@ -17,7 +17,7 @@ export default function FinanciamentoPage() {
   const { pode } = usePermissao()
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-fonti-primary">Financiamento</h1>
@@ -39,7 +39,7 @@ export default function FinanciamentoPage() {
                 }`}
               >
                 <Icone className="h-3.5 w-3.5" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -47,7 +47,7 @@ export default function FinanciamentoPage() {
           {pode('processos.criar') && (
             <Button className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5" onClick={() => setModalAberto(true)}>
               <Plus className="h-4 w-4" />
-              Novo Processo
+              <span className="hidden sm:inline">Novo Processo</span>
             </Button>
           )}
         </div>

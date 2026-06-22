@@ -499,7 +499,7 @@ export function AbaContrato({ processoId, processo }: Props) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {TODOS_TEMPLATES.map((t) => (
             <button
               key={t.id}
@@ -538,7 +538,7 @@ export function AbaContrato({ processoId, processo }: Props) {
 
         <div className="border border-gray-200 rounded-xl p-5 space-y-5 bg-white">
           {/* Número e data */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Nº do contrato</label>
               <input

@@ -54,7 +54,7 @@ export function AbaCobranças({ processoId }: Props) {
   return (
     <div className="space-y-5">
       {/* Resumo */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-xl border bg-amber-50 border-amber-200 p-4">
           <p className="text-xs text-gray-500 mb-1">Em Aberto</p>
           <p className="text-lg font-bold text-amber-700">{fmtMoeda(totalAberto)}</p>

@@ -45,7 +45,7 @@ export function AbaConta({ processoId }: Props) {
   return (
     <div className="space-y-5">
       {/* Cards de resumo */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-gray-500">Saldo Atual</span>

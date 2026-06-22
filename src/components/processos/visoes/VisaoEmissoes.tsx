@@ -158,7 +158,7 @@ export function VisaoEmissoes() {
       </div>
 
       {/* Blocos Certeza / Incerteza / Total em Estoque */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 className="h-4 w-4 text-green-600" />

@@ -10,7 +10,7 @@ export default function TodosNegociosPage() {
   const [visao, setVisao] = useState<Visao>('tabela')
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-fonti-primary">Todos os Negócios</h1>
@@ -30,7 +30,7 @@ export default function TodosNegociosPage() {
               }`}
             >
               <Icone className="h-3.5 w-3.5" />
-              {label}
+              <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
         </div>
