@@ -9,7 +9,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { type Lead } from '@/types/leads'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users } from 'lucide-react'
+import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -568,7 +568,10 @@ export default function ConversasPage() {
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden">
       {/* Sidebar de conversas */}
-      <div className="w-80 border-r border-gray-200 flex flex-col bg-white shrink-0">
+      <div className={cn(
+        'border-r border-gray-200 flex flex-col bg-white shrink-0 w-full lg:w-80',
+        conversaSelecionada ? 'hidden lg:flex' : 'flex'
+      )}>
         <div className="px-4 py-3 border-b border-gray-100">
           <h1 className="text-base font-semibold text-fonti-primary flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
@@ -697,14 +700,20 @@ export default function ConversasPage() {
         {/* Coluna principal da conversa */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="px-5 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
+          <div className="px-3 py-3 border-b border-gray-200 bg-white space-y-2">
             <div className="flex items-center gap-3">
+              <button
+                className="lg:hidden shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => setConversaSelecionada(null)}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
               <CanalIcon canal={conversaSelecionada.canal} />
-              <div>
-                <p className="text-sm font-semibold text-gray-800">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-800 truncate">
                   {conversaSelecionada.contato_nome ?? conversaSelecionada.contato_telefone ?? 'Desconhecido'}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={conversaSelecionada.status} />
                   {conversaSelecionada.lead?.fase && (
                     <span
@@ -731,7 +740,7 @@ export default function ConversasPage() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0">
               {/* Botão nova solicitação */}
               <Button size="sm" variant="outline"
                 className="h-7 text-xs gap-1.5 border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
@@ -1021,7 +1030,7 @@ export default function ConversasPage() {
           open={modoVincular !== null}
           onOpenChange={(o) => { if (!o) { setModoVincular(null); setBuscaLead(''); setLeadSelecionado(null) } }}
         >
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Vincular a um lead</DialogTitle>
             </DialogHeader>
@@ -1155,7 +1164,7 @@ export default function ConversasPage() {
 
         {/* Modal de transferência */}
         <Dialog open={modalTransferencia} onOpenChange={(o) => { setModalTransferencia(o); if (!o) setNovoAtendente('') }}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Transferir conversa</DialogTitle>
             </DialogHeader>
@@ -1195,7 +1204,7 @@ export default function ConversasPage() {
         </Dialog>
       </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="hidden lg:flex flex-1 items-center justify-center bg-gray-50">
           <div className="text-center text-gray-400">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Selecione uma conversa para visualizar</p>
