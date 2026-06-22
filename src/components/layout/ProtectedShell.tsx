@@ -15,7 +15,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
       <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
         <SheetContent side="left" className="w-72 max-w-[85vw] overflow-hidden border-0 bg-fonti-primary p-0 text-white">
           <SheetTitle className="sr-only">Menu principal</SheetTitle>
-          <Sidebar className="min-h-full w-full" onNavigate={() => setMenuAberto(false)} />
+          <Sidebar className="h-full w-full" onNavigate={() => setMenuAberto(false)} />
         </SheetContent>
       </Sheet>
 
