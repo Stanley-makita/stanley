@@ -52,7 +52,7 @@ export function ExcluirPessoaDialog({ aberto, onFechar, pessoaId, nomePessoa, on
 
   return (
     <Dialog open={aberto} onOpenChange={handleFechar}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <Trash2 className="h-4 w-4" />

@@ -656,82 +656,87 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <div className="px-6 py-4 border-b bg-white flex items-center gap-4">
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-fonti-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-fonti-primary font-bold text-sm uppercase">{pessoa.nome.charAt(0)}</span>
+      <div className="px-4 py-3 border-b bg-white md:px-6 md:py-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 transition-colors shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-fonti-primary/10 flex items-center justify-center shrink-0">
+              <span className="text-fonti-primary font-bold text-sm uppercase">{pessoa.nome.charAt(0)}</span>
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-gray-900 truncate">{pessoa.nome}</h1>
+              <p className="text-xs text-gray-400">
+                Cadastrado {formatDistanceToNow(new Date(pessoa.created_at), { addSuffix: true, locale: ptBR })}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-gray-900 truncate">{pessoa.nome}</h1>
-            <p className="text-xs text-gray-400">
-              Cadastrado {formatDistanceToNow(new Date(pessoa.created_at), { addSuffix: true, locale: ptBR })}
-            </p>
+          <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+            {!editando && (
+              <>
+                <Button
+                  size="sm"
+                  className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
+                  onClick={() => setDrawerLead(true)}
+                  title="Criar Lead"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Criar Lead</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setModalNovoProcesso(true)}
+                  title="Novo Processo"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Novo Processo</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setModalConversa(true)}
+                  title="Nova Conversa"
+                >
+                  <MessageCirclePlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Nova Conversa</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={iniciarEdicao} title="Editar">
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1.5">Editar</span>
+                </Button>
+              </>
+            )}
+            {pode('pessoas.merge') && !editando && (
+              <Button variant="outline" size="sm" onClick={() => setModalMerge(true)} title="Mesclar">
+                <GitMerge className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1.5">Mesclar</span>
+              </Button>
+            )}
+            {pode('pessoas.excluir') && !editando && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                onClick={() => setDialogExcluir(true)}
+                title="Excluir pessoa"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
-        </div>
-        <div className="flex gap-2 shrink-0 flex-wrap justify-end">
-          {!editando && (
-            <>
-              <Button
-                size="sm"
-                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5"
-                onClick={() => setDrawerLead(true)}
-              >
-                <UserPlus className="h-4 w-4" />
-                Criar Lead
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => setModalNovoProcesso(true)}
-              >
-                <FolderPlus className="h-4 w-4" />
-                Novo Processo
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => setModalConversa(true)}
-              >
-                <MessageCirclePlus className="h-4 w-4" />
-                Nova Conversa
-              </Button>
-              <Button variant="outline" size="sm" onClick={iniciarEdicao}>
-                <Edit2 className="h-4 w-4 mr-1.5" />
-                Editar
-              </Button>
-            </>
-          )}
-          {pode('pessoas.merge') && !editando && (
-            <Button variant="outline" size="sm" onClick={() => setModalMerge(true)}>
-              <GitMerge className="h-4 w-4 mr-1.5" />
-              Mesclar
-            </Button>
-          )}
-          {pode('pessoas.excluir') && !editando && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-red-400 border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
-              onClick={() => setDialogExcluir(true)}
-              title="Excluir pessoa"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
         {/* Card de dados */}
         <div className="bg-white rounded-xl border p-5">
           {editando ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Nome</label>
                   <Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} />
@@ -786,7 +791,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               {/* Dados pessoais adicionais */}
               <div className="border-t pt-3 space-y-3">
                 <p className="text-xs font-semibold text-fonti-primary">Dados Pessoais</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">RG</label>
                     <Input value={form.rg} onChange={(e) => setForm((f) => ({ ...f, rg: e.target.value }))} placeholder="00.000.000-0" />
@@ -795,7 +800,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Profissão</label>
                     <Input value={form.profissao} onChange={(e) => setForm((f) => ({ ...f, profissao: e.target.value }))} placeholder="Ex: Advogado" />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Nacionalidade</label>
                     <Input value={form.nacionalidade} onChange={(e) => setForm((f) => ({ ...f, nacionalidade: e.target.value }))} placeholder="Brasileiro(a)" />
                   </div>
@@ -833,8 +838,8 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 {eCasadoForm && (
                   <div className="mt-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/40 rounded-xl space-y-3">
                     <p className="text-xs font-semibold text-fonti-primary">Cônjuge / Companheiro(a)</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>
                         <Input value={form.conjuge_nome} onChange={(e) => setForm((f) => ({ ...f, conjuge_nome: e.target.value }))} placeholder="Nome do cônjuge" />
                       </div>
@@ -862,7 +867,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Informal (R$)</label>
                         <Input type="number" value={form.conjuge_renda_informal} onChange={(e) => setForm((f) => ({ ...f, conjuge_renda_informal: e.target.value }))} placeholder="0" />
                       </div>
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Regime de Bens</label>
                         <select
                           className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
@@ -884,7 +889,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               {/* Dados Financeiros */}
               <div className="border-t pt-3 space-y-2">
                 <p className="text-xs font-semibold text-fonti-primary">Dados Financeiros</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Formal (R$)</label>
                     <Input type="number" value={form.renda_formal} onChange={(e) => setForm((f) => ({ ...f, renda_formal: e.target.value }))} placeholder="0" />
@@ -899,7 +904,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               {/* Endereço */}
               <div className="border-t pt-3 space-y-2">
                 <p className="text-xs font-semibold text-fonti-primary">Endereço</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">CEP</label>
                     <Input value={form.endereco_cep} onChange={(e) => setForm((f) => ({ ...f, endereco_cep: e.target.value }))} placeholder="00000-000" />
@@ -908,7 +913,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Número</label>
                     <Input value={form.endereco_numero} onChange={(e) => setForm((f) => ({ ...f, endereco_numero: e.target.value }))} placeholder="123" />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Rua / Logradouro</label>
                     <Input value={form.endereco_rua} onChange={(e) => setForm((f) => ({ ...f, endereco_rua: e.target.value }))} placeholder="Rua das Flores" />
                   </div>
@@ -920,7 +925,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                     <label className="text-xs font-medium text-gray-500 mb-1 block">UF</label>
                     <Input value={form.endereco_uf} onChange={(e) => setForm((f) => ({ ...f, endereco_uf: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="PR" maxLength={2} />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Cidade</label>
                     <Input value={form.endereco_cidade} onChange={(e) => setForm((f) => ({ ...f, endereco_cidade: e.target.value }))} placeholder="Maringá" />
                   </div>
@@ -937,7 +942,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
               {(() => {
                 const lead0 = pessoa.leads[0] ?? null
                 const cpfEfetivo = pessoa.cpf ?? lead0?.cpf ?? null
@@ -969,13 +974,13 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 </div>
               </div>
               {pessoa.observacoes && (
-                <div className="col-span-2 mt-1 p-3 bg-amber-50 rounded-lg text-sm text-amber-800">
+                <div className="sm:col-span-2 mt-1 p-3 bg-amber-50 rounded-lg text-sm text-amber-800">
                   {pessoa.observacoes}
                 </div>
               )}
               {/* Campos expandidos — exibe apenas os preenchidos */}
               {(pessoa.rg || pessoa.profissao || pessoa.estado_civil || pessoa.renda_formal || pessoa.renda_informal || pessoa.nacionalidade) && (
-                <div className="col-span-2 border-t pt-3 grid grid-cols-2 gap-x-8 gap-y-2">
+                <div className="sm:col-span-2 border-t pt-3 grid grid-cols-2 gap-x-8 gap-y-2">
                   {pessoa.profissao && (
                     <div className="flex items-start gap-2">
                       <Briefcase className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
@@ -1014,7 +1019,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               )}
               {/* Endereço */}
               {(pessoa.endereco_rua || pessoa.endereco_cidade) && (
-                <div className="col-span-2 flex items-start gap-2 border-t pt-3">
+                <div className="sm:col-span-2 flex items-start gap-2 border-t pt-3">
                   <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-[11px] text-gray-400">Endereço</p>
@@ -1032,7 +1037,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               )}
               {/* Cônjuge */}
               {pessoa.conjuge_nome && (
-                <div className="col-span-2 flex items-start gap-2 border-t pt-3">
+                <div className="sm:col-span-2 flex items-start gap-2 border-t pt-3">
                   <User className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-[11px] text-gray-400">Cônjuge / Companheiro(a)</p>
@@ -1049,7 +1054,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
 
         {/* Abas */}
         <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="flex border-b">
+          <div className="flex overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               { id: 'telefones',  label: `Telefones (${telefoneAtivos.length})`,   icon: Phone },
               { id: 'leads',      label: `Leads (${pessoa.leads.length})`,          icon: Briefcase },
@@ -1061,13 +1066,13 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 key={id}
                 onClick={() => setAbaAtiva(id)}
                 className={cn(
-                  'flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors',
+                  'flex shrink-0 items-center gap-1.5 px-3 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap sm:gap-2 sm:px-5 sm:text-sm',
                   abaAtiva === id
                     ? 'border-fonti-primary text-fonti-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {label}
               </button>
             ))}

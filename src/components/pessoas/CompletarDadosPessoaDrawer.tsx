@@ -329,7 +329,7 @@ export function CompletarDadosPessoaDrawer({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-fonti-primary">
             Completar dados{pessoa ? ` — ${pessoa.nome}` : ''}
@@ -342,8 +342,8 @@ export function CompletarDadosPessoaDrawer({
           <div className="space-y-5 py-2">
 
             {/* Dados básicos */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>
                 <Input value={form.nome} onChange={(e) => f({ nome: e.target.value })} />
               </div>
@@ -396,7 +396,7 @@ export function CompletarDadosPessoaDrawer({
               {/* Sub-bloco RG / Identidade */}
               <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 mb-3">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">RG / Identidade</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Órgão emissor</label>
                     <Input value={form.orgao_emissor} onChange={(e) => f({ orgao_emissor: e.target.value })} placeholder="Ex: SESP/PR" />
@@ -427,7 +427,7 @@ export function CompletarDadosPessoaDrawer({
               {/* Sub-bloco CNH */}
               <div className="rounded-lg bg-blue-50/40 border border-blue-100 p-3">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">CNH</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Nº Registro CNH</label>
                     <Input value={form.registro_cnh} onChange={(e) => f({ registro_cnh: e.target.value })} placeholder="Ex: 00123456789" />
@@ -447,7 +447,7 @@ export function CompletarDadosPessoaDrawer({
             {/* Dados financeiros */}
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-fonti-primary mb-3">Dados Financeiros</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Formal (R$)</label>
                   <Input type="number" value={form.renda_formal} onChange={(e) => f({ renda_formal: e.target.value })} placeholder="0" />
@@ -500,8 +500,8 @@ export function CompletarDadosPessoaDrawer({
                       </div>
                     )
                   })()}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>
                       <Input value={form.conjuge_nome} onChange={(e) => f({ conjuge_nome: e.target.value })} placeholder="Nome do cônjuge" />
                     </div>
@@ -554,7 +554,7 @@ export function CompletarDadosPessoaDrawer({
             {/* Endereço */}
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-fonti-primary mb-3">Endereço</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">CEP</label>
                   <Input value={form.endereco_cep} onChange={(e) => f({ endereco_cep: e.target.value })} placeholder="00000-000" />
@@ -563,7 +563,7 @@ export function CompletarDadosPessoaDrawer({
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Número</label>
                   <Input value={form.endereco_numero} onChange={(e) => f({ endereco_numero: e.target.value })} placeholder="123" />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Rua / Logradouro</label>
                   <Input value={form.endereco_rua} onChange={(e) => f({ endereco_rua: e.target.value })} placeholder="Rua das Flores" />
                 </div>
@@ -575,7 +575,7 @@ export function CompletarDadosPessoaDrawer({
                   <label className="text-xs font-medium text-gray-500 mb-1 block">UF</label>
                   <Input value={form.endereco_uf} onChange={(e) => f({ endereco_uf: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Cidade</label>
                   <Input value={form.endereco_cidade} onChange={(e) => f({ endereco_cidade: e.target.value })} placeholder="Maringá" />
                 </div>
@@ -585,8 +585,8 @@ export function CompletarDadosPessoaDrawer({
             {/* Trabalho / FGTS */}
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-fonti-primary mb-3">Trabalho (para FGTS)</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Nome da Empresa</label>
                   <Input value={form.empresa_nome} onChange={(e) => f({ empresa_nome: e.target.value })} placeholder="Razão Social da Empresa" />
                 </div>
@@ -608,8 +608,8 @@ export function CompletarDadosPessoaDrawer({
             {/* Conta bancária */}
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-fonti-primary mb-3">Conta Bancária (débito das parcelas)</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Banco</label>
                   <Input value={form.conta_bancaria_banco} onChange={(e) => f({ conta_bancaria_banco: e.target.value })} placeholder="Ex: Bradesco" />
                 </div>
