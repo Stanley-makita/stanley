@@ -392,7 +392,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
           </div>
         </div>
 
-        <div className="ml-12 mt-2 grid grid-cols-3 gap-2">
+        <div className="ml-12 mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
           <RendaCampo label="Formal"   valor={fmtMoedaValor(rendaFormalComprador   || null)} />
           <RendaCampo label="Informal" valor={fmtMoedaValor(rendaInformalComprador || null)} />
           <RendaCampo label="Total"    valor={fmtMoedaValor(totalComprador          || null)} destaque />
@@ -461,7 +461,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
                 </div>
 
                 {/* Renda cônjuge */}
-                <div className="ml-12 mt-2 grid grid-cols-3 gap-2">
+                <div className="ml-12 mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {lead.conjuge_pessoa_id ? (
                     // Pessoa vinculada: renda vem do cadastro dela (somente leitura aqui)
                     <>
@@ -748,7 +748,7 @@ function BlocoImovel({ lead }: { lead: Lead }) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
           {CAMPOS_IMOVEL.map(c => {
             const val = lead[c.key as keyof Lead] as string | null
             if (!val) return null
@@ -965,7 +965,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
       {/* Dialog criar novo vendedor */}
       {criandoNovo && (
         <Dialog open onOpenChange={v => { if (!v) setCriandoNovo(false) }}>
-          <DialogContent className="max-w-sm p-6">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm p-6">
             <h2 className="text-base font-semibold text-fonti-primary mb-1">Novo Vendedor</h2>
             <p className="text-xs text-gray-500 mb-4">Dados básicos para criar o cadastro. Você poderá completar depois.</p>
             <div className="space-y-3">

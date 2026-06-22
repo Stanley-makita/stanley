@@ -121,7 +121,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
       </div>
 
       {/* ── Métricas financeiras: 2 colunas ── */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <KpiCard
           icone={<TrendingUp className="h-4 w-4" />}
           label="Valor Pretendido"
@@ -195,7 +195,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
             <Users className="h-4 w-4 text-gray-400" />
             <p className="text-xs font-semibold text-gray-500">Perfil do Cliente</p>
           </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
             {lead.profissao && <Campo label="Profissão" valor={lead.profissao} />}
             {lead.estado_civil && (
               <Campo label="Estado Civil" valor={ESTADO_CIVIL_LABELS[lead.estado_civil] ?? lead.estado_civil} />
@@ -211,7 +211,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           {lead.conjuge_nome && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <p className="text-xs font-semibold text-gray-400 mb-2">Cônjuge</p>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                 <Campo label="Nome" valor={lead.conjuge_nome} />
                 {lead.conjuge_cpf && <Campo label="CPF" valor={lead.conjuge_cpf} />}
               </div>

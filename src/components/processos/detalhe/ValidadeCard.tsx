@@ -75,7 +75,7 @@ export function ValidadeCard({ processoId, tipo, label, data }: Props) {
       </button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-xs">
           <DialogHeader>
             <DialogTitle className="text-fonti-primary">Validade — {label}</DialogTitle>
           </DialogHeader>

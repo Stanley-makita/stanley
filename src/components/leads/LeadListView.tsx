@@ -378,7 +378,7 @@ function LeadMobileCard({
             <span className="truncate">{lead.email}</span>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <DollarSign className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate font-medium text-fonti-primary">{fmtValor(lead.valor_pretendido)}</span>

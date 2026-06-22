@@ -293,7 +293,7 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
 
       {/* ── Dialog retorno de fase ── */}
       <Dialog open={!!voltarParaFase} onOpenChange={(open) => { if (!open) { setVoltarParaFase(null); setMotivo('') } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-700">
               <AlertTriangle className="h-5 w-5" />

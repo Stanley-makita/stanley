@@ -28,7 +28,7 @@ export function AbaVisaoGeral({ lead }: Props) {
 
       {/* Dados Pessoais */}
       <Card titulo="Dados Pessoais" icone={<Users className="h-4 w-4" />}>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           <CampoComIcone icone={<Phone className="h-3.5 w-3.5" />} label="Telefone" valor={lead.telefone} />
           <CampoComIcone icone={<Mail className="h-3.5 w-3.5" />} label="Email" valor={lead.email} />
           <CampoComIcone icone={<CreditCard className="h-3.5 w-3.5" />} label="CPF" valor={lead.cpf} />
@@ -37,7 +37,7 @@ export function AbaVisaoGeral({ lead }: Props) {
 
       {/* Financeiro */}
       <Card titulo="Financeiro" icone={<DollarSign className="h-4 w-4" />}>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           <div>
             <p className="text-xs text-gray-400 mb-1">Valor Pretendido</p>
             <p className="text-sm font-bold text-fonti-primary">{fmtMoeda(lead.valor_pretendido)}</p>

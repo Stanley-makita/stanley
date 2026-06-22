@@ -430,7 +430,7 @@ function ModalAdicionarCorretor({ open, processoId, onClose, onAdded }: ModalCor
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); resetForm() } }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Adicionar Corretor</DialogTitle>
         </DialogHeader>
@@ -544,7 +544,7 @@ function ModalAdicionarImobiliaria({ open, processoId, onClose, onAdded }: Modal
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); resetForm() } }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
         <DialogHeader><DialogTitle>Adicionar Imobiliária / Construtora</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="flex gap-2">
@@ -648,7 +648,7 @@ function ModalAdicionarParceiro({ open, processoId, onClose, onAdded }: ModalPar
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); resetForm() } }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
         <DialogHeader><DialogTitle>Adicionar Parceiro Comercial</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="flex gap-2">
