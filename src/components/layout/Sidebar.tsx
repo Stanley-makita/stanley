@@ -71,7 +71,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
   return (
-    <aside className={cn('flex min-h-screen w-60 flex-col bg-fonti-primary text-white', className)}>
+    <aside className={cn('flex h-screen w-60 flex-col bg-fonti-primary text-white', className)}>
       {/* Logo */}
       <div className="flex items-center justify-center px-4 py-4 border-b border-white/10">
         <Image
