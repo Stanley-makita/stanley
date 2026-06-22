@@ -38,8 +38,8 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Itaú',
     cor: '#EC7000',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1160, // 11,60% a.a. + TR
-    taxaAnualCorrentista: 0.1160, // sem tabela diferenciada formal
+    taxaAnualBase:        0.1399, // 13,99% a.a. (taxa balcão jun/2026 — SFH Uniclass ~13%)
+    taxaAnualCorrentista: 0.1300, // 13,00% a.a. (Uniclass/correntista — fonte: simulador oficial Itaú)
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -145,6 +145,58 @@ export const MIP_RATE_MCMV = 0.0000151
 // Taxa fixa durante todo o contrato
 // Fonte: mercado SFH (ponto médio entre Caixa ~0,006% e Itaú ~0,01337%)
 export const DFI_RATE_MENSAL = 0.0000663 // 0,00663% ao mês sobre VALOR DO IMÓVEL
+
+// ─── Itaú Seguradora — Nova Alíquota ───────────────────────────────────────
+// Fonte: calibrado do simulador oficial Itaú (simulador itau.xlsm, CALCULOS!U32:U452)
+// Extração: jun/2026 — cliente DOB 29/12/1980, prazo 396 meses, saldo R$1.054.500
+
+// DFI Itaú (nova alíquota) — sobre VALOR DE AVALIAÇÃO do imóvel
+export const ITAU_DFI_RATE = 0.0000554 // 0,00554% ao mês
+
+// MIP Itaú — Período 1 (meses 0–120, primeiros 10 anos)
+// Alíquota mensal sobre saldo devedor, por idade inteira (floor) do mutuário
+// Idades 18–43: estimadas com base na progressão observada da tabela Itaú
+// Idades 44–54: extraídas diretamente do simulador oficial (CALCULOS!U, ago/2025)
+export const ITAU_MIP_P1: Record<number, number> = {
+  18: 0.0000900, 19: 0.0000950, 20: 0.0001000,
+  21: 0.0001080, 22: 0.0001140, 23: 0.0001200, 24: 0.0001270, 25: 0.0001350,
+  26: 0.0001450, 27: 0.0001570, 28: 0.0001690, 29: 0.0001810, 30: 0.0001950,
+  31: 0.0002080, 32: 0.0002220, 33: 0.0002370, 34: 0.0002530, 35: 0.0002700,
+  36: 0.0002840, 37: 0.0002990, 38: 0.0003160, 39: 0.0003340, 40: 0.0003480,
+  41: 0.0003580, 42: 0.0003660, 43: 0.0003740,
+  // Valores exatos do simulador:
+  44: 0.0003829000,
+  45: 0.0004223775,
+  46: 0.0004924938,
+  47: 0.0005412695,
+  48: 0.0005933640,
+  49: 0.0006490816,
+  50: 0.0007079316,
+  51: 0.0008038063,
+  52: 0.0008720327,
+  53: 0.0009434927,
+  54: 0.0010189828,
+}
+
+// MIP Itaú — Período 2 (meses 121+, após renovação decenal)
+// Os valores resetam no 10º ano e voltam a crescer com a idade
+export const ITAU_MIP_P2: Record<number, number> = {
+  54: 0.0006585900,
+  55: 0.0007160355,
+  56: 0.0007773832,
+  57: 0.0008443117,
+  58: 0.0009174841,
+  59: 0.0009991547,
+  60: 0.0010918590,
+  61: 0.0011983857,
+  62: 0.0013214359,
+  63: 0.0014637220,
+  64: 0.0016274190,
+  65: 0.0018145477,
+  66: 0.002027, 67: 0.002269, 68: 0.002541, 69: 0.002847,
+  70: 0.003190, 71: 0.003576, 72: 0.004008, 73: 0.004495,
+  74: 0.005048, 75: 0.005691,
+}
 
 // MCMV — Minha Casa Minha Vida (Caixa, novas condições vigentes desde 22/04/2026)
 // Fonte: Portaria MCID n° 333/2026, caixanoticias, infomoney, gov.br

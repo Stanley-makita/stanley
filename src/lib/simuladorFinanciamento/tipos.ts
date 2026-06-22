@@ -19,6 +19,11 @@ export interface InputFinanciamento {
   bancosIds: BancoId[]
   nomeCliente?: string
   cpfCliente?: string
+  // Itaú / avançado
+  valorAvaliacao?: number       // valor de avaliação bancária (se diferente do valorImovel)
+  incorporarItbi?: boolean      // incorporar ITBI no valor financiado
+  percentualItbi?: number       // % ITBI sobre valor de compra (padrão 5%)
+  dataContratacao?: string      // YYYY-MM-DD — base para cálculo de idade (padrão: hoje)
 }
 
 export interface ResultadoBanco {

@@ -1,9 +1,134 @@
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE } from './constantes'
 import type { BancoConfig } from './constantes'
 
 export function taxaAnualParaMensal(taxaAnual: number): number {
   return Math.pow(1 + taxaAnual, 1 / 12) - 1
+}
+
+// Itaú usa TRUNC com 15 casas decimais na conversão de taxa anual → mensal
+function taxaAnualParaMensalItau(taxaAnual: number): number {
+  const raw = Math.pow(1 + taxaAnual, 1 / 12) - 1
+  return Math.trunc(raw * 1e15) / 1e15
+}
+
+// Retorna a alíquota MIP mensal Itaú (nova alíquota / Seguradora Itaú)
+// ageFloor = idade inteira (anos completados) no mês em questão
+// month = número do mês de pagamento (0 = pré-pagamento de assinatura)
+function getItauMipRate(ageFloor: number, month: number): number {
+  const table = month > 120 ? ITAU_MIP_P2 : ITAU_MIP_P1
+  for (let age = ageFloor; age >= 18; age--) {
+    if (table[age] !== undefined) return table[age]
+  }
+  return ITAU_MIP_P1[18] ?? 0.000090
+}
+
+// Calcula a idade decimal (anos) a partir de dataBase + mesesAdicionais
+function idadeDecimalEmMeses(dataNasc: string, mesesAdicionais: number, dataBase?: Date): number {
+  const nasc = new Date(dataNasc)
+  const ref = dataBase ? new Date(dataBase) : new Date()
+  ref.setMonth(ref.getMonth() + mesesAdicionais)
+  const diff = ref.getTime() - nasc.getTime()
+  return diff / (365.24222222 * 24 * 3600 * 1000)
+}
+
+interface ResultadoCalculo {
+  primeiraParcela: number
+  ultimaParcela: number
+  totalJuros: number
+  totalSeguros: number
+}
+
+// SAC com MIP variável por idade — exclusivo Itaú
+// A "1ª parcela" inclui pré-pagamento de seguros no mês 0 (comportamento do simulador oficial)
+function calcularSACItau(
+  valorFinanciadoTotal: number,
+  valorAvaliacao: number,
+  taxaMensal: number,
+  prazo: number,
+  dataNasc: string,
+  dataBase?: Date,
+): ResultadoCalculo {
+  const amortizacao = valorFinanciadoTotal / prazo
+  const dfiMensal = valorAvaliacao * ITAU_DFI_RATE
+
+  // Mês 0: pré-pagamento de seguros (sem amortização nem juros)
+  // Nota: MIP não usa TRUNC (valor raw); DFI usa TRUNC(val, 2) conforme simulador Itaú
+  const dfiTrunc = Math.trunc(dfiMensal * 100) / 100
+  const idadeM0 = idadeDecimalEmMeses(dataNasc, 0, dataBase)
+  const mipRateM0 = getItauMipRate(Math.floor(idadeM0), 0)
+  const mipM0 = valorFinanciadoTotal * mipRateM0 // raw, sem TRUNC
+  const prePayment = mipM0 + dfiTrunc
+
+  let saldoDevedor = valorFinanciadoTotal
+  let totalJuros = 0
+  let totalSeguros = prePayment
+  let primeiraParcela = 0
+  let ultimaParcela = 0
+
+  for (let i = 1; i <= prazo; i++) {
+    const isLast = i === prazo
+    const idadeI = idadeDecimalEmMeses(dataNasc, i, dataBase)
+    const mipRate = getItauMipRate(Math.floor(idadeI), i)
+    const juros = saldoDevedor * taxaMensal
+    // No simulador Itaú, última parcela não inclui MIP nem DFI
+    const mip = isLast ? 0 : saldoDevedor * mipRate
+    const dfi = isLast ? 0 : dfiTrunc
+    const parcela = amortizacao + juros + mip + dfi
+
+    if (i === 1) primeiraParcela = parcela + prePayment
+    if (isLast) ultimaParcela = parcela
+
+    totalJuros += juros
+    totalSeguros += mip + dfi
+    saldoDevedor -= amortizacao
+  }
+
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
+}
+
+// PRICE com MIP variável — exclusivo Itaú
+function calcularPRICEItau(
+  valorFinanciadoTotal: number,
+  valorAvaliacao: number,
+  taxaMensal: number,
+  prazo: number,
+  dataNasc: string,
+  dataBase?: Date,
+): ResultadoCalculo {
+  const fator = Math.pow(1 + taxaMensal, prazo)
+  const parcelaCJ = valorFinanciadoTotal * (taxaMensal * fator) / (fator - 1)
+  const dfiTrunc = Math.trunc(valorAvaliacao * ITAU_DFI_RATE * 100) / 100
+
+  const idadeM0 = idadeDecimalEmMeses(dataNasc, 0, dataBase)
+  const mipRateM0 = getItauMipRate(Math.floor(idadeM0), 0)
+  const prePayment = valorFinanciadoTotal * mipRateM0 + dfiTrunc
+
+  let saldoDevedor = valorFinanciadoTotal
+  let totalJuros = 0
+  let totalSeguros = prePayment
+  let primeiraParcela = 0
+  let ultimaParcela = 0
+
+  for (let i = 1; i <= prazo; i++) {
+    const isLast = i === prazo
+    const idadeI = idadeDecimalEmMeses(dataNasc, i, dataBase)
+    const mipRate = getItauMipRate(Math.floor(idadeI), i)
+    const juros = saldoDevedor * taxaMensal
+    const amort = parcelaCJ - juros
+    const mip = isLast ? 0 : saldoDevedor * mipRate
+    const dfi = isLast ? 0 : dfiTrunc
+    const parcela = parcelaCJ + mip + dfi
+
+    if (i === 1) primeiraParcela = parcela + prePayment
+    if (isLast) ultimaParcela = parcela
+
+    totalJuros += juros
+    totalSeguros += mip + dfi
+    saldoDevedor = Math.max(0, saldoDevedor - amort)
+  }
+
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
 export function calcularIdadeEmAnos(dataNasc: string): number {
@@ -37,13 +162,6 @@ export function calcularPrazoMaximo(
 export function getMipRate(idadeAnos: number): number {
   const faixa = MIP_RATES.find((f) => idadeAnos >= f.idadeMin && idadeAnos <= f.idadeMax)
   return faixa ? faixa.taxa : MIP_RATES[MIP_RATES.length - 1].taxa
-}
-
-interface ResultadoCalculo {
-  primeiraParcela: number
-  ultimaParcela: number
-  totalJuros: number
-  totalSeguros: number
 }
 
 // DFI: fixo sobre valor do imóvel (não sobre saldo devedor)
@@ -175,26 +293,43 @@ function simularBancoComTaxa(
     )
   }
 
-  const taxaMensal = taxaAnualParaMensal(taxaAnual)
+  // Itaú: taxa mensal com TRUNC 15 casas (fidelidade ao simulador oficial)
+  const taxaMensal = cfg.id === 'itau'
+    ? taxaAnualParaMensalItau(taxaAnual)
+    : taxaAnualParaMensal(taxaAnual)
+
+  // Itaú: ITBI pode ser incorporado; DFI sobre valorAvaliacao; MIP varia com idade
+  const valorAvaliacao = input.valorAvaliacao ?? input.valorImovel
+  const valorItbi = cfg.id === 'itau' && input.incorporarItbi
+    ? input.valorImovel * (input.percentualItbi ?? 0.05)
+    : 0
+  const valorFinanciadoTotal = valorFinanciado + valorItbi
+
   const maxFinanciavel30 = calcularMaxFinanciavel(
     input.rendaMensal, input.valorImovel, taxaMensal, prazo, mip
   )
 
-  const calc =
-    input.tipoAmortizacao === 'SAC'
-      ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
-      : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
+  const dataBase = input.dataContratacao ? new Date(input.dataContratacao) : undefined
+  const calc = cfg.id === 'itau'
+    ? (input.tipoAmortizacao === 'SAC'
+        ? calcularSACItau(valorFinanciadoTotal, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, dataBase)
+        : calcularPRICEItau(valorFinanciadoTotal, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, dataBase))
+    : (input.tipoAmortizacao === 'SAC'
+        ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
+        : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
+
+  const vf = cfg.id === 'itau' ? valorFinanciadoTotal : valorFinanciado
 
   if (calc.primeiraParcela > input.rendaMensal * 0.30) {
     return {
-      ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
+      ...baseResult(cfg, vf, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
       elegivel: false,
       motivoInelegivel: `1ª parcela (${fmtMoeda(calc.primeiraParcela)}) > 30% da renda (${fmtMoeda(input.rendaMensal * 0.30)})`,
     }
   }
 
   return {
-    ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
+    ...baseResult(cfg, vf, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
     elegivel: true,
   }
 }
