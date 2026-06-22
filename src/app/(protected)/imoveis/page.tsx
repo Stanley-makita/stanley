@@ -49,22 +49,22 @@ export default function ImoveisPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-5 border-b bg-white">
-        <div className="flex items-center justify-between gap-4">
+      <div className="px-4 py-4 border-b bg-white md:px-6 md:py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Imóveis</h1>
+            <h1 className="text-lg font-semibold text-gray-900 md:text-xl">Imóveis</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {total > 0 ? `${total} imóvel${total !== 1 ? 'is' : ''} cadastrado${total !== 1 ? 's' : ''}` : 'Cadastro de imóveis'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative w-72">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 sm:flex-none sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Buscar por matrícula ou endereço..."
                 value={busca}
                 onChange={(e) => { setBusca(e.target.value); setPagina(1) }}
-                className="pl-9"
+                className="pl-9 w-full"
               />
             </div>
             <Button
@@ -73,14 +73,14 @@ export default function ImoveisPage() {
               onClick={abrirCriar}
             >
               <Plus className="h-4 w-4" />
-              Novo Imóvel
+              <span className="hidden sm:inline">Novo Imóvel</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="px-6 py-2.5 border-b bg-white flex items-center gap-2 overflow-x-auto scrollbar-none">
+      <div className="px-4 py-2.5 border-b bg-white flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:px-6">
         <button
           onClick={() => { setTipoFiltro(''); setCategoriaFiltro(''); setPagina(1) }}
           className={cn(
@@ -149,7 +149,8 @@ export default function ImoveisPage() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                 <th className="text-left px-4 py-3 font-medium">Endereço</th>
@@ -225,6 +226,7 @@ export default function ImoveisPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

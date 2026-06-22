@@ -66,7 +66,7 @@ export function BuscarImovelModal({ aberto, onFechar, onSelecionar, onCadastrarN
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => !open && onFechar()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Buscar Imóvel Cadastrado</DialogTitle>
         </DialogHeader>

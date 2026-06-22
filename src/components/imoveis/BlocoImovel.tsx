@@ -203,7 +203,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             )}
             {processo.imovel_area_construida && <span>Área: <strong>{processo.imovel_area_construida} m²</strong></span>}
             {processo.imovel_cidade && <span>Cidade: <strong>{processo.imovel_cidade}{processo.imovel_uf ? `/${processo.imovel_uf}` : ''}</strong></span>}
-            {registroNome && <span className="col-span-2">Registro: <strong>{registroNome}</strong></span>}
+            {registroNome && <span className="sm:col-span-2">Registro: <strong>{registroNome}</strong></span>}
           </div>
           {processo.imovel_id && (
             <button
@@ -224,7 +224,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             Edições aqui afetam apenas este processo, não o cadastro original do imóvel.
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Nome / Referência</Label>
               <Input className="h-8 text-xs" value={form.nome_imovel} onChange={(e) => setForm((f) => ({ ...f, nome_imovel: e.target.value }))} />
@@ -235,8 +235,8 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs">Rua</Label>
               <Input className="h-8 text-xs" value={form.imovel_rua} onChange={(e) => setForm((f) => ({ ...f, imovel_rua: e.target.value }))} />
             </div>
@@ -246,8 +246,8 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="sm:col-span-2 space-y-1">
               <Label className="text-xs">Cidade</Label>
               <Input className="h-8 text-xs" value={form.imovel_cidade} onChange={(e) => setForm((f) => ({ ...f, imovel_cidade: e.target.value }))} />
             </div>
@@ -263,7 +263,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Área construída (m²)</Label>
               <Input className="h-8 text-xs" type="number" value={form.imovel_area_construida} onChange={(e) => setForm((f) => ({ ...f, imovel_area_construida: e.target.value }))} />

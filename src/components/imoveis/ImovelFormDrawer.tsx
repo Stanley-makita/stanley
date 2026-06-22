@@ -168,7 +168,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{imovel ? 'Editar Imóvel' : 'Novo Imóvel'}</DialogTitle>
         </DialogHeader>
@@ -179,7 +179,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
           <section className="space-y-4">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Identificação</h4>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Origem</Label>
                 <Select value={form.origem} onValueChange={(v) => set('origem', v)}>
@@ -204,7 +204,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Tipo</Label>
                 <Select value={form.tipo || '__'} onValueChange={(v) => set('tipo', v === '__' ? '' : v)}>
@@ -232,7 +232,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Matrícula <span className="text-red-500">*</span></Label>
                 <Input
@@ -283,8 +283,8 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
           <section className="space-y-4">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Localização</h4>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1.5">
                 <Label>Rua / Logradouro</Label>
                 <Input
                   placeholder="Ex: Av. Dr. Gastão Vidigal"
@@ -302,7 +302,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>Quadra</Label>
                 <Input value={form.quadra} onChange={(e) => set('quadra', e.target.value)} />
@@ -317,7 +317,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Apto / Unidade</Label>
                 <Input
@@ -336,8 +336,8 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1.5">
                 <Label>Bairro</Label>
                 <Input
                   placeholder="Ex: Zona 07"
@@ -374,7 +374,7 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
           <section className="space-y-4">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Características</h4>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Área construída (m²)</Label>
                 <Input
