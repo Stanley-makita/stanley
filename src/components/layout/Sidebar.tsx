@@ -33,20 +33,20 @@ import { useSolicitacoesBadge } from '@/hooks/solicitacoes/useSolicitacoesBadge'
 import { useConversasBadge } from '@/hooks/conversas/useConversasBadge'
 
 const navItemsTop = [
-  { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard, mobileHidden: true },
   { href: '/leads',             label: 'Comercial',    icon: Users },
   { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle },
-  { href: '/imoveis',           label: 'Imóveis',      icon: Building2 },
+  { href: '/imoveis',           label: 'Imóveis',      icon: Building2,      mobileHidden: true },
 ]
 
 const navItemsBottom = [
   { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
   { href: '/operacional',       label: 'Operacional',  icon: ClipboardList },
   { href: '/simuladores',       label: 'Simuladores',  icon: Calculator },
-  { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2 },
-  { href: '/notificacoes',      label: 'Notificações', icon: Bell },
-  { href: '/agenda',            label: 'Agenda',       icon: Calendar },
-  { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen },
+  { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2,      mobileHidden: true },
+  { href: '/notificacoes',      label: 'Notificações', icon: Bell,           mobileHidden: true },
+  { href: '/agenda',            label: 'Agenda',       icon: Calendar,       mobileHidden: true },
+  { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen,       mobileHidden: true },
 ]
 
 const GESTAO_ROUTES = ['/gestao', '/rh', '/financeiro', '/configuracoes']
@@ -91,11 +91,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
       {/* Nav principal */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {navItemsTop.map(({ href, label, icon: Icon }) => {
+        {navItemsTop.map(({ href, label, icon: Icon, mobileHidden }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isLeads = href === '/leads'
           return (
-            <div key={href} className="relative">
+            <div key={href} className={cn('relative', mobileHidden && 'hidden lg:block')}>
               <Link
                 href={href}
                 onClick={onNavigate}
@@ -140,13 +140,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           )
         })()}
 
-        {navItemsBottom.map(({ href, label, icon: Icon }) => {
+        {navItemsBottom.map(({ href, label, icon: Icon, mobileHidden }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isAgenda = href === '/agenda'
           const isOperacional = href === '/operacional'
           const isConversas = href === '/conversas'
           return (
-            <div key={href} className="relative">
+            <div key={href} className={cn('relative', mobileHidden && 'hidden lg:block')}>
               <Link
                 href={href}
                 onClick={onNavigate}
@@ -179,9 +179,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           )
         })}
 
-        {/* ── Gestão (grupo colapsável) ── */}
-        <div className="my-2 border-t border-white/10" />
-        <div>
+        {/* ── Gestão (grupo colapsável) — apenas desktop ── */}
+        <div className="my-2 border-t border-white/10 hidden lg:block" />
+        <div className="hidden lg:block">
           <button
             onClick={() => setGestaoAberto(v => !v)}
             className={cn(
