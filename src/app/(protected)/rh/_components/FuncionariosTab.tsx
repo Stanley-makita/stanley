@@ -65,37 +65,37 @@ export function FuncionariosTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Nome</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Cargo / Dept.</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Contrato</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Admissão</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Status</th>
-                <th className="px-4 py-3 w-10" />
+                <th className="text-left px-3 py-1.5 text-xs font-medium text-gray-500">Nome</th>
+                <th className="text-left px-3 py-1.5 text-xs font-medium text-gray-500">Cargo / Dept.</th>
+                <th className="text-left px-3 py-1.5 text-xs font-medium text-gray-500">Contrato</th>
+                <th className="text-left px-3 py-1.5 text-xs font-medium text-gray-500">Admissão</th>
+                <th className="text-left px-3 py-1.5 text-xs font-medium text-gray-500">Status</th>
+                <th className="px-3 py-1.5 w-10" />
               </tr>
             </thead>
             <tbody>
               {filtrados.map(f => (
                 <tr key={f.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-1.5">
                     <div>
                       <p className="font-medium text-gray-800">{f.nome}</p>
                       <p className="text-xs text-gray-400">{f.email}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
+                  <td className="px-3 py-1.5 text-xs text-gray-600">
                     <p>{f.cargo?.nome ?? '—'}</p>
                     <p className="text-gray-400">{f.cargo?.departamento?.nome ?? ''}</p>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{RH_TIPO_CONTRATO_LABELS[f.tipo_contrato]}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
+                  <td className="px-3 py-1.5 text-xs text-gray-600">{RH_TIPO_CONTRATO_LABELS[f.tipo_contrato]}</td>
+                  <td className="px-3 py-1.5 text-xs text-gray-600">
                     {f.data_admissao ? format(parseISO(f.data_admissao), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-1.5">
                     <span className={cn('inline-flex items-center text-xs font-medium rounded-full px-2 py-0.5', RH_STATUS_FUNCIONARIO_CORES[f.status])}>
                       {RH_STATUS_FUNCIONARIO_LABELS[f.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-1.5">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7">

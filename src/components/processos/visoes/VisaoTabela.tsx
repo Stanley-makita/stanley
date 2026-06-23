@@ -326,24 +326,24 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       className="cursor-pointer hover:bg-fonti-accent-hover/30 transition-colors"
                       onClick={() => router.push(`/processos/${p.id}`)}
                     >
-                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-sm font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
                       <TableCell>
                         {p.fase_atual
                           ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
-                          : <span className="text-gray-400 text-sm">—</span>}
+                          : <span className="text-gray-400 text-xs">—</span>}
                       </TableCell>
-                      <TableCell className="text-sm font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
+                      <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
                       <TableCell>
                         {p.banco
                           ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
-                          : <span className="text-gray-400 text-sm">—</span>}
+                          : <span className="text-gray-400 text-xs">—</span>}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
                       <TableCell>
                         <StatusBadge variant={p.status_emissao === 'emitido' ? 'success' : 'neutral'}>
                           {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
@@ -355,22 +355,22 @@ export function VisaoTabela({ produtoFixo }: Props) {
                           {p.tem_assessoria ? 'Sim' : 'Não'}
                         </StatusBadge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">
+                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">
                         {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
                       </TableCell>
                       {isGestor && (
                         <>
-                          <TableCell className="text-sm whitespace-nowrap">
+                          <TableCell className="text-xs whitespace-nowrap">
                             {p.comissao_comercial != null
                               ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
                               : <span className="text-gray-400">—</span>}
                           </TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">
+                          <TableCell className="text-xs whitespace-nowrap">
                             {p.comissao_empresa != null
                               ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
                               : <span className="text-gray-400">—</span>}
                           </TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">
+                          <TableCell className="text-xs whitespace-nowrap">
                             {p.valor_assessoria != null && p.valor_assessoria > 0
                               ? <span className="text-gray-700 font-medium">{formatarMoeda(p.valor_assessoria)}</span>
                               : <span className="text-gray-300">—</span>}
