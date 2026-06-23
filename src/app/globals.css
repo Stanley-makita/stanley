@@ -73,6 +73,9 @@
 }
 
 @layer base {
+  html {
+    zoom: 0.8;
+  }
   * {
     @apply border-border;
   }

@@ -444,8 +444,17 @@ export async function gerarPDFSimulacao(
     : `Estimativa de Custas.pdf`
 
   if (options.mode === 'preview') {
-    const url = doc.output('bloburl')
-    window.open(url as unknown as string, '_blank')
+    const blob = doc.output('blob')
+    const url = URL.createObjectURL(blob)
+    const win = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!win) {
+      // popup blocker ativo — faz download como fallback
+      const a = document.createElement('a')
+      a.href = url
+      a.download = nomeArquivo
+      a.click()
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } else {
     doc.save(nomeArquivo)
   }

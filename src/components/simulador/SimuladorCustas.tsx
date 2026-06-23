@@ -213,14 +213,19 @@ function PainelHistorico({
                 className="text-xs border-fonti-primary text-fonti-primary hover:bg-fonti-accent-hover gap-1.5"
                 onClick={async () => {
                   if (!res) return
-                  const { gerarPDFSimulacao } = await import('./gerarPDF')
-                  await gerarPDFSimulacao(res, {
-                    clienteNome,
-                    responsavelNome,
-                    valorAssessoria: res.entrada.servicoRegistro,
-                    valorContratoServico: res.entrada.contratoParticular,
-                    mode: 'preview',
-                  })
+                  try {
+                    const { gerarPDFSimulacao } = await import('./gerarPDF')
+                    await gerarPDFSimulacao(res, {
+                      clienteNome,
+                      responsavelNome,
+                      valorAssessoria: res.entrada.servicoRegistro,
+                      valorContratoServico: res.entrada.contratoParticular,
+                      mode: 'preview',
+                    })
+                  } catch (err) {
+                    console.error('Erro ao gerar preview:', err)
+                    toast.error('Não foi possível abrir a visualização. Tente o botão de download.')
+                  }
                 }}
               >
                 <Eye className="h-3.5 w-3.5" /> Ver
