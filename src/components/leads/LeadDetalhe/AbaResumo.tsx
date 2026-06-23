@@ -140,7 +140,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
 
       {/* ── Pipeline de Fases ── */}
       {fases.length > 0 && (
-        <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+        <div className="border border-gray-300 rounded-xl p-4 bg-white shadow">
           <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">Progresso no Pipeline</p>
           <div className="flex items-center gap-1 overflow-x-auto pb-1">
             {fasesOrdenadas.map((fase, idx) => {
@@ -190,7 +190,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
 
       {/* ── Dados Pessoais (se preenchidos) ── */}
       {(lead.profissao || lead.estado_civil || lead.data_nascimento) && (
-        <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+        <div className="border border-gray-300 rounded-xl p-4 bg-white shadow">
           <div className="flex items-center gap-2 mb-3">
             <Users className="h-4 w-4 text-gray-400" />
             <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Perfil do Cliente</p>
@@ -222,7 +222,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
 
       {/* ── Últimas Notas ── */}
       {notas.length > 0 && (
-        <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+        <div className="border border-gray-300 rounded-xl p-4 bg-white shadow">
           <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">
             Últimas Interações
           </p>
@@ -274,7 +274,7 @@ function MiniStat({
     <Tag
       onClick={onClick}
       className={cn(
-        'border border-gray-200 rounded-xl p-3 flex items-center gap-2.5 w-full text-left bg-white shadow-[var(--shadow-card)]',
+        'border border-gray-300 rounded-xl p-3 flex items-center gap-2.5 w-full text-left bg-white shadow',
         onClick && 'hover:border-amber-300 hover:bg-amber-50/30 transition-colors cursor-pointer'
       )}
     >
@@ -315,7 +315,7 @@ function KpiCard({
     amber: 'border-amber-200',
   }
   return (
-    <div className={cn('border rounded-xl p-3.5 space-y-2 bg-white shadow-[var(--shadow-card)]', borderCores[cor])}>
+    <div className={cn('border rounded-xl p-3.5 space-y-2 bg-white shadow', borderCores[cor])}>
       <div className="flex items-center gap-2">
         <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', cores[cor])}>
           {icone}
