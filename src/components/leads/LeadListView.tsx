@@ -148,7 +148,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
       {isInativos && (
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
           <span className="text-amber-700 text-xs font-medium">
-            Leads sem contato há mais de 7 dias e sem tarefas agendadas — {leads.length} encontrado{leads.length !== 1 ? 's' : ''}
+            Captações sem contato há mais de 7 dias e sem tarefas agendadas — {leads.length} encontrada{leads.length !== 1 ? 's' : ''}
           </span>
         </div>
       )}
@@ -201,7 +201,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
       {/* Aviso leads convertidos */}
       {leads.some(l => l.convertido_em) && (
         <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
-          Leads com <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-1.5 py-0.5 rounded">Convertido</span> foram transformados em processo e não aparecem no Kanban.
+          Captações com <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-1.5 py-0.5 rounded">Convertido</span> foram transformadas em processo e não aparecem no Kanban.
         </p>
       )}
 
@@ -216,7 +216,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
         ) : leads.length === 0 ? (
           <div className="px-4 py-16 text-center text-gray-400">
             <p className="text-sm">
-              {busca ? `Nenhum lead encontrado para "${busca}"` : hasFilters ? 'Nenhum lead com esses filtros.' : 'Nenhum lead nesta fase.'}
+              {busca ? `Nenhuma captação encontrada para "${busca}"` : hasFilters ? 'Nenhuma captação com esses filtros.' : 'Nenhuma captação nesta fase.'}
             </p>
           </div>
         ) : (
@@ -359,7 +359,7 @@ function LeadMobileCard({
                 onExcluir()
               }
             }}
-            title="Excluir lead"
+            title="Excluir captação"
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
           >
             <Trash2 className="h-4 w-4" />
@@ -496,7 +496,7 @@ function ColHeader({
   const hasFilter = activeFilter.length > 0
 
   return (
-    <th className={cn('px-4 py-3 whitespace-nowrap', align === 'right' ? 'text-right' : 'text-left')}>
+    <th className={cn('px-3 py-2 whitespace-nowrap', align === 'right' ? 'text-right' : 'text-left')}>
       <div className={cn('inline-flex items-center gap-1', align === 'right' && 'flex-row-reverse')}>
         <button
           onClick={() => onSort(col)}
@@ -544,12 +544,12 @@ function LeadRow({
   return (
     <tr
       onClick={onClick}
-      className="border-b border-gray-50 last:border-0 hover:bg-fonti-primary/[0.03] cursor-pointer transition-colors"
+      className="border-b border-gray-100 last:border-0 odd:bg-white even:bg-gray-50/50 hover:bg-fonti-primary/[0.04] cursor-pointer transition-colors"
     >
       {/* Nome */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-1.5">
         <div className="flex items-center gap-2">
-          <p className="font-medium text-fonti-primary truncate max-w-[180px]">{lead.nome}</p>
+          <p className="text-xs font-semibold text-fonti-primary truncate max-w-[180px] uppercase">{lead.nome}</p>
           {lead.convertido_em && (
             <span className="shrink-0 text-xs bg-blue-50 text-blue-600 font-medium px-1.5 py-0.5 rounded">
               Convertido
@@ -559,15 +559,15 @@ function LeadRow({
       </td>
 
       {/* Contato */}
-      <td className="px-4 py-3">
-        <p className="text-gray-700">{lead.telefone}</p>
+      <td className="px-3 py-1.5">
+        <p className="text-xs text-gray-700">{lead.telefone}</p>
         {lead.email && (
           <p className="text-xs text-gray-400 mt-0.5">{lead.email}</p>
         )}
       </td>
 
       {/* Fase */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-1.5">
         {lead.fase ? (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lead.fase.cor ?? '#94a3b8' }} />
@@ -577,7 +577,7 @@ function LeadRow({
       </td>
 
       {/* Status */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-1.5">
         {lead.status ? (
           <span
             className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border"
@@ -595,36 +595,36 @@ function LeadRow({
       </td>
 
       {/* Origem */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-1.5">
         <LeadOrigemBadge origem={lead.origem} />
       </td>
 
       {/* Comercial */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-1.5">
         <span className="text-xs text-gray-600">{lead.responsavel?.nome ?? '—'}</span>
       </td>
 
       {/* Operacional */}
-      <td className="px-4 py-3">
+      <td className="px-3 py-1.5">
         <span className="text-xs text-gray-600">{responsavelOp?.nome ?? '—'}</span>
       </td>
 
       {/* Valor */}
-      <td className="px-4 py-3 text-right font-medium text-fonti-primary">
+      <td className="px-3 py-1.5 text-right text-xs font-medium text-fonti-primary">
         {fmtValor(lead.valor_pretendido)}
       </td>
 
       {/* Data */}
-      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+      <td className="px-3 py-1.5 text-xs text-gray-400 whitespace-nowrap">
         {format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}
       </td>
 
       {/* Excluir */}
       {podeExcluir && (
-        <td className="px-2 py-3 text-center">
+        <td className="px-2 py-1.5 text-center">
           <button
             onClick={(e) => { e.stopPropagation(); onExcluir() }}
-            title="Excluir lead"
+            title="Excluir captação"
             className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />

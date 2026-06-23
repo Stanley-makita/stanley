@@ -78,15 +78,15 @@ function LeadsContent() {
   return (
     <div className="space-y-4 p-4 md:p-6">
       <PageHeader
-        title="Leads"
-        description="Gerencie seus leads em todas as fases"
+        title="Comercial"
+        description="Gerencie sua captação em todas as fases"
         actions={(
           <>
           {visao === 'lista' && (
             <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <Input
-                placeholder="Buscar lead..."
+                placeholder="Buscar captação..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 className="h-9 w-full pl-9 text-sm sm:w-52"
@@ -108,7 +108,7 @@ function LeadsContent() {
               onClick={() => abrirModal()}
             >
               <UserPlus className="h-4 w-4" />
-              Novo Lead
+              Nova Captação
             </Button>
           )}
           </>
