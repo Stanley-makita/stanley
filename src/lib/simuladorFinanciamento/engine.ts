@@ -1,5 +1,5 @@
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE } from './constantes'
 import type { BancoConfig } from './constantes'
 
 export function taxaAnualParaMensal(taxaAnual: number): number {
@@ -171,7 +171,8 @@ export function calcularSAC(
   valorImovel: number,
   taxaMensal: number,
   prazo: number,
-  mip: number
+  mip: number,
+  dfiRateOverride?: number,
 ): ResultadoCalculo {
   const amortizacao = principal / prazo
   let saldoDevedor = principal
@@ -179,7 +180,7 @@ export function calcularSAC(
   let totalSeguros = 0
   let primeiraParcela = 0
   let ultimaParcela = 0
-  const dfiMensal = valorImovel * DFI_RATE_MENSAL
+  const dfiMensal = valorImovel * (dfiRateOverride ?? DFI_RATE_MENSAL)
 
   for (let i = 1; i <= prazo; i++) {
     const juros = saldoDevedor * taxaMensal
@@ -203,11 +204,12 @@ export function calcularPRICE(
   valorImovel: number,
   taxaMensal: number,
   prazo: number,
-  mip: number
+  mip: number,
+  dfiRateOverride?: number,
 ): ResultadoCalculo {
   const fator = Math.pow(1 + taxaMensal, prazo)
   const parcelaCJ = principal * (taxaMensal * fator) / (fator - 1)
-  const dfiMensal = valorImovel * DFI_RATE_MENSAL
+  const dfiMensal = valorImovel * (dfiRateOverride ?? DFI_RATE_MENSAL)
 
   let saldoDevedor = principal
   let totalJuros = 0
@@ -238,6 +240,13 @@ function getCaixaMipRate(idadeAnos: number): number {
     if (idadeAnos <= faixa.maxAge) return faixa.taxa
   }
   return CAIXA_MIP_RATES[CAIXA_MIP_RATES.length - 1].taxa
+}
+
+function getInterMipRate(idadeAnos: number): number {
+  for (const faixa of INTER_MIP_SOMPO) {
+    if (idadeAnos <= faixa.maxAge) return faixa.taxa
+  }
+  return INTER_MIP_SOMPO[INTER_MIP_SOMPO.length - 1].taxa
 }
 
 // SAC Caixa — MIP fixo na contratação, DFI sobre valor do imóvel, TA R$25/mês
@@ -343,7 +352,13 @@ function simularBancoComTaxa(
 ): ResultadoBanco {
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const prazo = calcularPrazoMaximo(input.dataNascimento, cfg.prazoMaximoMeses)
-  const mip = mipOverride ?? (cfg.id === 'caixa' ? getCaixaMipRate(idadeAnos) : getMipRate(idadeAnos))
+  const mip = mipOverride ?? (
+    cfg.id === 'caixa'     ? getCaixaMipRate(idadeAnos) :
+    cfg.id === 'inter'     ? getInterMipRate(idadeAnos) :
+    cfg.id === 'daycoval'  ? DAYCOVAL_MIP_RATE          :
+    getMipRate(idadeAnos)
+  )
+  const dfiRate = cfg.id === 'inter' ? INTER_DFI_RATE : cfg.id === 'daycoval' ? DAYCOVAL_DFI_RATE : undefined
 
   const valorFinanciado = input.valorImovel - input.valorEntrada
 
@@ -401,8 +416,8 @@ function simularBancoComTaxa(
           ? calcularSACCaixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
           : calcularPRICECaixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
       : (input.tipoAmortizacao === 'SAC'
-          ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
-          : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
+          ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip, dfiRate)
+          : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip, dfiRate))
 
   const vf = cfg.id === 'itau' ? valorFinanciadoTotal : valorFinanciado
 

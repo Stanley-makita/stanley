@@ -56,11 +56,11 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Bradesco',
     cor: '#CC092F',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1170, // 11,70% a.a. + TR
-    taxaAnualCorrentista: 0.1140, // ~11,40% via Open Finance (relacionamento ativo)
+    taxaAnualBase:        0.1230, // 12,30% a.a. — todos os segmentos PF residencial (fonte: simulador oficial jun/2026)
+    taxaAnualCorrentista: 0.1230, // taxa independe do segmento (PRIME/EXCLUSIVE/CLASSIC/PRINCIPAL/PRIVATE = mesma taxa)
     programa: 'SBPE',
     maxLtv: 0.80,
-    maxLtvCorrentista: 0.90,      // correntistas Bradesco podem obter até 90% LTV
+    maxLtvCorrentista: 0.80,
     maxValorImovel: 0,
     prazoMaximoMeses: 420,
     aceitaMcmv: false,
@@ -100,30 +100,30 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Banco Inter',
     cor: '#FF6600',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1376, // 13,76% a.a. + TR
-    taxaAnualCorrentista: 0.1376, // exige conta Inter para contratar
+    taxaAnualBase:        0.0950, // 9,50% a.a. SFH — fonte: simulador oficial Inter (nov/2024). Verificar taxa atual antes de usar.
+    taxaAnualCorrentista: 0.0950, // exige conta Inter para contratar
     programa: 'SBPE',
-    maxLtv: 0.75,                 // entrada mínima de 25%
-    maxLtvCorrentista: 0.75,
+    maxLtv: 0.80,                 // 1.340.000 / 1.690.000 = 79,3% → confirmado simulador
+    maxLtvCorrentista: 0.80,
     maxValorImovel: 0,
-    prazoMaximoMeses: 360,        // prazo máximo 30 anos (vs 35 nos demais)
+    prazoMaximoMeses: 420,        // 35 anos — confirmado simulador (420 parcelas)
     aceitaMcmv: false,
-    observacao: 'Processo 100% digital. Entrada mínima de 25%. Prazo máximo 30 anos.',
+    observacao: 'Processo 100% digital. Seguro MIP: Sompo SuperHab SFH (faixas etárias 5 anos). Taxa: verificar no simulador Inter com CPF.',
   },
   daycoval: {
     id: 'daycoval',
     nome: 'Daycoval (CGI)',
     cor: '#1B3F6E',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1540, // ~15,40% a.a. (Crédito com Garantia de Imóvel)
-    taxaAnualCorrentista: 0.1540,
+    taxaAnualBase:        0.1394, // 13,94% efetivo a.a. — CGI PRICE (nominal 13,08% = 1,09%/mês × 12). Fonte: simulador jun/2026.
+    taxaAnualCorrentista: 0.1394,
     programa: 'CGI',
-    maxLtv: 0.60,                 // LTV 60% (produto é CGI, não SBPE)
+    maxLtv: 0.60,                 // LTV máx 60% (CGI/Home Equity)
     maxLtvCorrentista: 0.60,
     maxValorImovel: 1_000_000,
-    prazoMaximoMeses: 240,        // 20 anos
+    prazoMaximoMeses: 360,        // 30 anos (CGI)
     aceitaMcmv: false,
-    observacao: 'Daycoval não opera financiamento SBPE. Produto disponível: Crédito com Garantia de Imóvel (CGI/Home Equity).',
+    observacao: 'Daycoval não opera financiamento SBPE. Produto: Crédito com Garantia de Imóvel (CGI/Home Equity).',
   },
 }
 
@@ -246,3 +246,34 @@ export const CAIXA_PRO_COTISTA = {
 export const TODOS_BANCOS: BancoId[] = [
   'caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval',
 ]
+
+// ─── Inter — Sompo SuperHab SFH ──────────────────────────────────────────────
+// Alíquota MIP mensal sobre saldo devedor, faixas de 5 anos
+// Fonte: planilha "Tx Sompo SuperHab SFH" do simulador oficial Inter (nov/2024)
+// Os valores estão em decimal (ex: 0.0000622 = 0,006% a.m.)
+export const INTER_MIP_SOMPO: Array<{ maxAge: number; taxa: number }> = [
+  { maxAge: 30,  taxa: 0.0000622 }, // 0,00622%
+  { maxAge: 35,  taxa: 0.0000823 }, // 0,00823%
+  { maxAge: 40,  taxa: 0.0001064 }, // 0,01064%
+  { maxAge: 45,  taxa: 0.0001877 }, // 0,01877% — verificado: R$264,84 em R$1.411.000
+  { maxAge: 50,  taxa: 0.0003262 }, // 0,03262% — verificado: salto no mês 20 (idade 46)
+  { maxAge: 55,  taxa: 0.0005039 },
+  { maxAge: 60,  taxa: 0.0006595 },
+  { maxAge: 65,  taxa: 0.0009586 },
+  { maxAge: 70,  taxa: 0.0015659 },
+  { maxAge: 75,  taxa: 0.0025888 },
+  { maxAge: 999, taxa: 0.0042099 },
+]
+
+// DFI Inter — sobre VALOR DO IMÓVEL
+// Verificado: R$144,66 em R$1.690.000 = 0,008558%/mês
+export const INTER_DFI_RATE = 0.00008558
+
+// ─── Daycoval CGI ────────────────────────────────────────────────────────────
+// MIP flat (sem variação por idade) — sobre saldo devedor
+// Verificado: R$46,00 em R$200.000 = 0,023%/mês
+export const DAYCOVAL_MIP_RATE = 0.000230
+
+// DFI Daycoval — sobre VALOR ESTIMADO do imóvel
+// Verificado: R$20,00 em R$500.000 = 0,004%/mês; R$12,00 em R$300.000 = 0,004%/mês
+export const DAYCOVAL_DFI_RATE = 0.000040
