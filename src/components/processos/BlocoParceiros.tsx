@@ -152,14 +152,16 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
   }
 
   return (
-    <div className="space-y-5">
+    <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
 
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+      <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">
         Parceiros
-      </p>
+      </h4>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
       {/* ── CORRETOR ── */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-lg bg-gray-50 p-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground flex items-center gap-1.5">
             <User className="h-3.5 w-3.5" /> Corretor
@@ -231,7 +233,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
       </div>
 
       {/* ── IMOBILIÁRIA / CONSTRUTORA ── */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-lg bg-gray-50 p-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Imobiliária / Construtora
@@ -281,7 +283,7 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
       </div>
 
       {/* ── PARCEIRO COMERCIAL ── */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-lg bg-gray-50 p-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Handshake className="h-3.5 w-3.5" /> Parceiro Comercial
@@ -331,6 +333,8 @@ export function BlocoParceiros({ processoId, readOnly = false }: BlocoParceirosP
           </div>
         )}
       </div>
+
+      </div>{/* fim grid */}
 
       {/* ── MODAIS ── */}
       <ModalAdicionarCorretor

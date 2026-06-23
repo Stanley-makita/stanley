@@ -530,8 +530,8 @@ function AbaResumo({
       {/* Row 1: Operação + Participantes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Operação */}
-        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Operação</h4>
+        <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Operação</h4>
           <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
             <Campo label="Modalidade"       valor={processo.modalidade} />
             <Campo label="Banco"            valor={processo.banco?.nome ?? '—'} />
@@ -545,8 +545,8 @@ function AbaResumo({
         </div>
 
         {/* Compradores */}
-        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Compradores</h4>
+        <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Compradores</h4>
           {(processo.compradores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.compradores!.map((c) => (
@@ -570,7 +570,7 @@ function AbaResumo({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Imóvel */}
         {processo.modalidade === 'Contrato' ? (
-          <div className="space-y-2 border border-gray-100 rounded-lg p-4 flex items-center gap-3">
+          <div className="space-y-2 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)] flex items-center gap-3">
             <div className="w-8 h-8 bg-fonti-accent-hover rounded-lg flex items-center justify-center shrink-0">
               <FileText className="h-4 w-4 text-fonti-primary" />
             </div>
@@ -588,8 +588,8 @@ function AbaResumo({
         )}
 
         {/* Vendedores */}
-        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Vendedores</h4>
+        <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Vendedores</h4>
           {(processo.vendedores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.vendedores!.map((v) => (
@@ -612,8 +612,8 @@ function AbaResumo({
       {/* Row 4: Assessoria & Contrato + Responsáveis */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Assessoria & Contrato */}
-        <div className="space-y-3 border border-gray-100 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Assessoria & Contrato</h4>
+        <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Assessoria & Contrato</h4>
           <div className={`flex items-center justify-between p-3 rounded-lg ${processo.tem_assessoria ? 'bg-fonti-accent-hover' : 'bg-gray-50'}`}>
             <span className="text-sm text-fonti-primary">{processo.tem_assessoria ? 'Com Assessoria' : 'Sem Assessoria'}</span>
             {processo.tem_assessoria && processo.valor_assessoria != null && (

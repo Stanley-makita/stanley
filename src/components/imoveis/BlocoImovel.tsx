@@ -138,7 +138,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
   const registroNome = registros.find((r) => r.id === processo.imovel_registro_id)?.nome
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-[var(--shadow-card)] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-fonti-primary" />
