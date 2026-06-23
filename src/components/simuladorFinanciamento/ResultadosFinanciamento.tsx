@@ -5,6 +5,7 @@ import type { ResultadoBanco } from '@/lib/simuladorFinanciamento/tipos'
 
 interface Props {
   resultados: ResultadoBanco[]
+  valorImovel?: number
 }
 
 function fmtMoeda(v: number) {
@@ -24,7 +25,7 @@ function nomeAbrev(r: ResultadoBanco): string {
   return NOME_ABREV[r.bancoId] ?? r.bancoNome.split(' ')[0]
 }
 
-export function ResultadosFinanciamento({ resultados }: Props) {
+export function ResultadosFinanciamento({ resultados, valorImovel }: Props) {
   const elegiveis = resultados.filter((r) => r.elegivel)
   const inaplicaveis = resultados.filter((r) => !r.elegivel)
   const melhor = elegiveis[0]
@@ -64,13 +65,13 @@ export function ResultadosFinanciamento({ resultados }: Props) {
               <thead className="bg-gray-50 text-gray-500">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Banco</th>
+                  <th className="px-3 py-2 text-right font-medium">Vlr Imóvel</th>
+                  <th className="px-3 py-2 text-right font-medium">Vlr Financiado</th>
                   <th className="px-3 py-2 text-left font-medium">Programa</th>
                   <th className="px-3 py-2 text-right font-medium">1ª Parcela</th>
                   <th className="px-3 py-2 text-right font-medium">Última</th>
                   <th className="px-3 py-2 text-right font-medium">Parcelas</th>
                   <th className="px-3 py-2 text-right font-medium">Taxa a.a.</th>
-                  <th className="px-3 py-2 text-right font-medium">Total Juros</th>
-                  <th className="px-3 py-2 text-right font-medium">Total Pago</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -93,13 +94,13 @@ export function ResultadosFinanciamento({ resultados }: Props) {
                         </span>
                       </div>
                     </td>
+                    <td className="px-3 py-2.5 text-right text-gray-500">{valorImovel ? fmtMoeda(valorImovel) : '—'}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-500">{fmtMoeda(r.valorFinanciado)}</td>
                     <td className="px-3 py-2.5 text-gray-500">{r.programa}</td>
                     <td className="px-3 py-2.5 text-right font-semibold text-gray-900">{fmtMoeda(r.primeiraParcela)}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{fmtMoeda(r.ultimaParcela)}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{r.parcelas}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{fmtPct(r.taxaAnual)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-500">{fmtMoeda(r.totalJuros)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-500">{fmtMoeda(r.totalPago)}</td>
                   </tr>
                 ))}
               </tbody>

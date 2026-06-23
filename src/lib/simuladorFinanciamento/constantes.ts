@@ -42,8 +42,8 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Itaú',
     cor: '#EC7000',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1399, // 13,99% a.a. (taxa balcão jun/2026 — SFH Uniclass ~13%)
-    taxaAnualCorrentista: 0.1300, // 13,00% a.a. (Uniclass/correntista — fonte: simulador oficial Itaú)
+    taxaAnualBase:        0.1190, // 11,90% a.a. (mínimo praticado jun/2026 — fonte: simulador Itaú + site oficial)
+    taxaAnualCorrentista: 0.1190, // taxa varia por rating/CPF (11,90%–13,99%), não por correntista
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
