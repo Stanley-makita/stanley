@@ -1,5 +1,5 @@
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL } from './constantes'
 import type { BancoConfig } from './constantes'
 
 export function taxaAnualParaMensal(taxaAnual: number): number {
@@ -233,6 +233,85 @@ export function calcularPRICE(
   return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
+function getCaixaMipRate(idadeAnos: number): number {
+  for (const faixa of CAIXA_MIP_RATES) {
+    if (idadeAnos <= faixa.maxAge) return faixa.taxa
+  }
+  return CAIXA_MIP_RATES[CAIXA_MIP_RATES.length - 1].taxa
+}
+
+// SAC Caixa — MIP fixo na contratação, DFI sobre valor do imóvel, TA R$25/mês
+// Última parcela: amort + juros + TA (sem MIP, sem DFI — verificado simulador oficial)
+function calcularSACCaixa(
+  principal: number,
+  valorImovel: number,
+  taxaMensal: number,
+  prazo: number,
+  mipRate: number,
+): ResultadoCalculo {
+  const amortizacao = principal / prazo
+  const dfiMensal = valorImovel * CAIXA_DFI_RATE
+  let saldoDevedor = principal
+  let totalJuros = 0
+  let totalSeguros = 0
+  let primeiraParcela = 0
+  let ultimaParcela = 0
+
+  for (let i = 1; i <= prazo; i++) {
+    const isLast = i === prazo
+    const juros = saldoDevedor * taxaMensal
+    const mip = isLast ? 0 : saldoDevedor * mipRate
+    const dfi = isLast ? 0 : dfiMensal
+    const parcela = amortizacao + juros + mip + dfi + CAIXA_TA_MENSAL
+
+    if (i === 1) primeiraParcela = parcela
+    if (isLast) ultimaParcela = parcela
+
+    totalJuros += juros
+    totalSeguros += mip + dfi + CAIXA_TA_MENSAL
+    saldoDevedor -= amortizacao
+  }
+
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
+}
+
+// PRICE Caixa — mesmas regras de seguros que SAC Caixa
+function calcularPRICECaixa(
+  principal: number,
+  valorImovel: number,
+  taxaMensal: number,
+  prazo: number,
+  mipRate: number,
+): ResultadoCalculo {
+  const fator = Math.pow(1 + taxaMensal, prazo)
+  const parcelaCJ = principal * (taxaMensal * fator) / (fator - 1)
+  const dfiMensal = valorImovel * CAIXA_DFI_RATE
+
+  let saldoDevedor = principal
+  let totalJuros = 0
+  let totalSeguros = 0
+  let primeiraParcela = 0
+  let ultimaParcela = 0
+
+  for (let i = 1; i <= prazo; i++) {
+    const isLast = i === prazo
+    const juros = saldoDevedor * taxaMensal
+    const amort = parcelaCJ - juros
+    const mip = isLast ? 0 : saldoDevedor * mipRate
+    const dfi = isLast ? 0 : dfiMensal
+    const parcela = parcelaCJ + mip + dfi + CAIXA_TA_MENSAL
+
+    if (i === 1) primeiraParcela = parcela
+    if (isLast) ultimaParcela = parcela
+
+    totalJuros += juros
+    totalSeguros += mip + dfi + CAIXA_TA_MENSAL
+    saldoDevedor = Math.max(0, saldoDevedor - amort)
+  }
+
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
+}
+
 // Busca binária: maior principal cuja 1ª parcela SAC ≤ 30% da renda
 export function calcularMaxFinanciavel(
   renda: number,
@@ -264,10 +343,13 @@ function simularBancoComTaxa(
 ): ResultadoBanco {
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const prazo = calcularPrazoMaximo(input.dataNascimento, cfg.prazoMaximoMeses)
-  const mip = mipOverride ?? getMipRate(idadeAnos)
+  const mip = mipOverride ?? (cfg.id === 'caixa' ? getCaixaMipRate(idadeAnos) : getMipRate(idadeAnos))
 
   const valorFinanciado = input.valorImovel - input.valorEntrada
-  const maxLtv = input.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv
+
+  // LTV: Caixa PRICE = 70%; imóvel usado reduz 10pp
+  const baseLtv = input.tipoAmortizacao === 'PRICE' ? (cfg.maxLtvPrice ?? cfg.maxLtv) : (input.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv)
+  const maxLtv = (cfg.id === 'caixa' && input.tipoImovel === 'usado') ? baseLtv - 0.10 : baseLtv
   const maxLtvValue = input.valorImovel * maxLtv
 
   // ── Verificações de elegibilidade ────────────────────────────────
@@ -314,17 +396,25 @@ function simularBancoComTaxa(
     ? (input.tipoAmortizacao === 'SAC'
         ? calcularSACItau(valorFinanciadoTotal, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, dataBase)
         : calcularPRICEItau(valorFinanciadoTotal, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, dataBase))
-    : (input.tipoAmortizacao === 'SAC'
-        ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
-        : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
+    : cfg.id === 'caixa'
+      ? (input.tipoAmortizacao === 'SAC'
+          ? calcularSACCaixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
+          : calcularPRICECaixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
+      : (input.tipoAmortizacao === 'SAC'
+          ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
+          : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
 
   const vf = cfg.id === 'itau' ? valorFinanciadoTotal : valorFinanciado
 
-  if (calc.primeiraParcela > input.rendaMensal * 0.30) {
+  // Comprometimento de renda: Caixa PRICE = 25%, demais = 30%
+  const comprometimentoMax = (input.tipoAmortizacao === 'PRICE' && cfg.comprometimentoMaxPrice)
+    ? cfg.comprometimentoMaxPrice
+    : 0.30
+  if (calc.primeiraParcela > input.rendaMensal * comprometimentoMax) {
     return {
       ...baseResult(cfg, vf, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
       elegivel: false,
-      motivoInelegivel: `1ª parcela (${fmtMoeda(calc.primeiraParcela)}) > 30% da renda (${fmtMoeda(input.rendaMensal * 0.30)})`,
+      motivoInelegivel: `1ª parcela (${fmtMoeda(calc.primeiraParcela)}) > ${Math.round(comprometimentoMax * 100)}% da renda (${fmtMoeda(input.rendaMensal * comprometimentoMax)})`,
     }
   }
 
@@ -357,25 +447,30 @@ export function simularBanco(bancoId: BancoId, input: InputFinanciamento): Resul
   return simularBancoComTaxa(cfg, input, taxaAnual, programa, bancoId)
 }
 
-// Caixa retorna dois resultados: MCMV (se elegível) + SBPE (sempre)
+// Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre)
 function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
   const cfg = BANCOS_CONFIG['caixa']
   const results: ResultadoBanco[] = []
 
-  // Pró-Cotista (imóveis até R$350k)
-  if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
+  // Elegibilidade MCMV/Pró-Cotista: apenas residencial e sem subsídio anterior
+  const podeAcessarMcmv = input.finalidade !== 'comercial' && !input.jaRecebeuSubsidio
+
+  // Pró-Cotista (imóveis até R$350k, FGTS 3+ anos)
+  if (podeAcessarMcmv && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
     results.push(
       simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista', MIP_RATE_MCMV)
     )
   }
 
   // MCMV (se renda e imóvel se enquadram)
-  const faixaMcmv = MCMV_FAIXAS.filter(
-    (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
-  )
-  if (faixaMcmv.length > 0) {
-    const f = faixaMcmv[0]
-    results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', f.mipSubsidizado ? MIP_RATE_MCMV : undefined))
+  if (podeAcessarMcmv) {
+    const faixaMcmv = MCMV_FAIXAS.filter(
+      (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
+    )
+    if (faixaMcmv.length > 0) {
+      const f = faixaMcmv[0]
+      results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', f.mipSubsidizado ? MIP_RATE_MCMV : undefined))
+    }
   }
 
   // SBPE — sempre presente como alternativa

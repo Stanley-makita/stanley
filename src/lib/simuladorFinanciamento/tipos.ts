@@ -1,4 +1,6 @@
 export type TipoAmortizacao = 'SAC' | 'PRICE'
+export type TipoImovel = 'novo' | 'usado'
+export type FinalidadeImovel = 'residencial' | 'comercial'
 
 export type BancoId =
   | 'caixa'
@@ -19,11 +21,17 @@ export interface InputFinanciamento {
   bancosIds: BancoId[]
   nomeCliente?: string
   cpfCliente?: string
+  // Características do imóvel
+  tipoImovel?: TipoImovel         // novo ou usado — afeta LTV Caixa (usado = -10pp)
+  finalidade?: FinalidadeImovel   // residencial = elegível MCMV; comercial = SBPE apenas
+  // FGTS / elegibilidade MCMV
+  usaFgts?: boolean               // 3+ anos FGTS → Pró-Cotista elegível
+  jaRecebeuSubsidio?: boolean     // true → bloqueia MCMV
   // Itaú / avançado
-  valorAvaliacao?: number       // valor de avaliação bancária (se diferente do valorImovel)
-  incorporarItbi?: boolean      // incorporar ITBI no valor financiado
-  percentualItbi?: number       // % ITBI sobre valor de compra (padrão 5%)
-  dataContratacao?: string      // YYYY-MM-DD — base para cálculo de idade (padrão: hoje)
+  valorAvaliacao?: number         // valor de avaliação bancária (se diferente do valorImovel)
+  incorporarItbi?: boolean        // incorporar ITBI no valor financiado
+  percentualItbi?: number         // % ITBI sobre valor de compra (padrão 5%)
+  dataContratacao?: string        // YYYY-MM-DD — base para cálculo de idade (padrão: hoje)
 }
 
 export interface ResultadoBanco {

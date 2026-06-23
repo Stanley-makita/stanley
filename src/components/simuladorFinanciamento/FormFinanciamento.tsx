@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { BANCOS_CONFIG, TODOS_BANCOS } from '@/lib/simuladorFinanciamento/constantes'
-import type { BancoId, InputFinanciamento, TipoAmortizacao } from '@/lib/simuladorFinanciamento/tipos'
+import type { BancoId, InputFinanciamento, TipoAmortizacao, TipoImovel, FinalidadeImovel } from '@/lib/simuladorFinanciamento/tipos'
 
 interface Props {
   onSimular: (input: InputFinanciamento) => void
@@ -36,6 +36,10 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
   const [dataNascimento, setDataNascimento] = useState('')
   const [rendaMensal, setRendaMensal] = useState('')
   const [tipoAmortizacao, setTipoAmortizacao] = useState<TipoAmortizacao>('SAC')
+  const [tipoImovel, setTipoImovel] = useState<TipoImovel>('novo')
+  const [finalidade, setFinalidade] = useState<FinalidadeImovel>('residencial')
+  const [usaFgts, setUsaFgts] = useState(false)
+  const [jaRecebeuSubsidio, setJaRecebeuSubsidio] = useState(false)
   const [correntista, setCorrentista] = useState(false)
   const [bancosIds, setBancosIds] = useState<BancoId[]>([...TODOS_BANCOS])
 
@@ -74,6 +78,10 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
       dataNascimento,
       rendaMensal: parseMoeda(rendaMensal),
       tipoAmortizacao,
+      tipoImovel,
+      finalidade,
+      usaFgts,
+      jaRecebeuSubsidio: usaFgts ? jaRecebeuSubsidio : false,
       correntista,
       bancosIds,
       nomeCliente,
@@ -175,6 +183,80 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
             ? 'SAC: parcelas decrescentes — juros menores no total'
             : 'PRICE: parcelas fixas — mais fácil de planejar'}
         </p>
+      </div>
+
+      {/* Tipo de imóvel + Finalidade */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-gray-500">Tipo de Imóvel</Label>
+          <div className="flex gap-2">
+            {(['novo', 'usado'] as TipoImovel[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTipoImovel(t)}
+                className={cn(
+                  'flex-1 py-2 rounded-lg text-sm font-medium border transition-all capitalize',
+                  tipoImovel === t
+                    ? 'bg-fonti-primary text-white border-fonti-primary'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-gray-500">Finalidade</Label>
+          <div className="flex gap-2">
+            {(['residencial', 'comercial'] as FinalidadeImovel[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFinalidade(f)}
+                className={cn(
+                  'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
+                  finalidade === f
+                    ? 'bg-fonti-primary text-white border-fonti-primary'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* FGTS */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={usaFgts}
+            onChange={(e) => { setUsaFgts(e.target.checked); if (!e.target.checked) setJaRecebeuSubsidio(false) }}
+            className="w-4 h-4 accent-fonti-primary"
+          />
+          <span className="text-sm text-gray-700">
+            Possui 3+ anos de trabalho no regime FGTS
+            <span className="ml-1 text-xs text-gray-400">(habilita Pró-Cotista)</span>
+          </span>
+        </label>
+        {usaFgts && (
+          <label className="flex items-center gap-3 cursor-pointer select-none ml-7">
+            <input
+              type="checkbox"
+              checked={jaRecebeuSubsidio}
+              onChange={(e) => setJaRecebeuSubsidio(e.target.checked)}
+              className="w-4 h-4 accent-fonti-primary"
+            />
+            <span className="text-sm text-gray-700">
+              Já foi beneficiado com subsídio FGTS/União
+              <span className="ml-1 text-xs text-gray-400">(bloqueia MCMV)</span>
+            </span>
+          </label>
+        )}
       </div>
 
       {/* Correntista */}

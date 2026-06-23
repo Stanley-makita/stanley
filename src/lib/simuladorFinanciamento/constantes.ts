@@ -5,14 +5,16 @@ export interface BancoConfig {
   nome: string
   cor: string
   corTexto: string
-  taxaAnualBase: number       // % a.a. sem relacionamento bancário
+  taxaAnualBase: number        // % a.a. sem relacionamento bancário
   taxaAnualCorrentista: number // % a.a. com relacionamento/conta ativa
   programa: string
-  maxLtv: number              // LTV máximo (% do valor do imóvel)
-  maxLtvCorrentista: number   // LTV com relacionamento (alguns bancos diferem)
-  maxValorImovel: number      // 0 = sem limite
-  prazoMaximoMeses: number    // prazo máximo independente de idade
-  aceitaMcmv: boolean         // agente operador do MCMV/FGTS
+  maxLtv: number               // LTV máximo SAC (% do valor do imóvel)
+  maxLtvCorrentista: number    // LTV com relacionamento (alguns bancos diferem)
+  maxLtvPrice?: number         // LTV máximo PRICE — Caixa = 70% (doc seção 3.1)
+  comprometimentoMaxPrice?: number // comprometimento máximo renda PRICE — Caixa = 25%
+  maxValorImovel: number       // 0 = sem limite
+  prazoMaximoMeses: number     // prazo máximo independente de idade
+  aceitaMcmv: boolean          // agente operador do MCMV/FGTS
   observacao?: string
 }
 
@@ -29,6 +31,8 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
+    maxLtvPrice: 0.70,            // PRICE: cota máxima 70% (doc seção 3.1)
+    comprometimentoMaxPrice: 0.25, // PRICE: comprometimento máximo 25% (doc seção 3.2)
     maxValorImovel: 2_250_000,    // teto SFH 2026
     prazoMaximoMeses: 420,
     aceitaMcmv: true,
@@ -134,6 +138,28 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
   { idadeMin: 61, idadeMax: 70, taxa: 0.001520 }, // 0,1520% a.m.
   { idadeMin: 71, idadeMax: 80, taxa: 0.002800 }, // 0,2800% a.m.
 ]
+
+// Caixa — MIP tabela oficial (faixas de 5 anos, alíquota mensal sobre SD)
+// Faixa ≤50 = 0.000386 verificado no simulador caixa.gov.br (DOB 19/02/1979, R$400k, junho/2026)
+// Demais faixas mantidas do módulo de referência; verificar se necessário para outras idades
+export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
+  { maxAge: 30,  taxa: 0.000168 },
+  { maxAge: 35,  taxa: 0.000204 },
+  { maxAge: 40,  taxa: 0.000264 },
+  { maxAge: 45,  taxa: 0.000348 },
+  { maxAge: 50,  taxa: 0.000386 },
+  { maxAge: 55,  taxa: 0.000636 },
+  { maxAge: 60,  taxa: 0.000900 },
+  { maxAge: 65,  taxa: 0.001344 },
+  { maxAge: 999, taxa: 0.002040 },
+]
+
+// DFI Caixa — verificado: R$33,00 em R$500k = 0,0066%/mês sobre valor do imóvel
+export const CAIXA_DFI_RATE  = 0.000066
+
+// TA Caixa — Tarifa de Administração SFH, devida mensalmente (MO43000269 seção 3.18.3.5)
+// Verificado no breakdown da parcela do simulador oficial: R$25,00/mês (fixo)
+export const CAIXA_TA_MENSAL = 25.00
 
 // MIP subsidiado para programas MCMV Faixas 1-3 — seguro habitacional governamental subsidiado
 // Calibrado do simulador oficial Caixa (Faixas 1-3): valor ~10x menor que SBPE
