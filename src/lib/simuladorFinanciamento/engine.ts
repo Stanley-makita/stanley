@@ -2,6 +2,17 @@ import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } 
 import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE } from './constantes'
 import type { BancoConfig } from './constantes'
 
+// Overrides por banco, vindos do banco de dados (Configurações > Bancos)
+// Campos opcionais — se null/undefined, usa o valor fixado em constantes.ts
+export interface BancoSimOverrides {
+  taxaAnual?: number       // ex: 0.1190 = 11,90% a.a.
+  maxLtv?: number          // ex: 0.80 = 80%
+  prazoMaximoMeses?: number
+  mipRate?: number         // alíquota MIP mensal (decimal) sobre saldo devedor
+  dfiRate?: number         // alíquota DFI mensal (decimal) sobre valor do imóvel
+  taxaAdmin?: number       // tarifa mensal fixa em R$ (somente Caixa)
+}
+
 export function taxaAnualParaMensal(taxaAnual: number): number {
   return Math.pow(1 + taxaAnual, 1 / 12) - 1
 }
@@ -349,21 +360,32 @@ function simularBancoComTaxa(
   programa: string,
   resultadoId: string,
   mipOverride?: number,
+  overrides?: BancoSimOverrides,
 ): ResultadoBanco {
+  // Aplica overrides do banco de dados sobre os valores de constantes.ts
+  const prazoMaxUsado   = overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses
+  const maxLtvUsado     = overrides?.maxLtv           ?? cfg.maxLtv
+  const maxLtvCorrUsado = overrides?.maxLtv           ?? cfg.maxLtvCorrentista
+
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
-  const prazo = calcularPrazoMaximo(input.dataNascimento, cfg.prazoMaximoMeses)
-  const mip = mipOverride ?? (
+  const prazo = calcularPrazoMaximo(input.dataNascimento, prazoMaxUsado)
+  const mip = mipOverride ?? overrides?.mipRate ?? (
     cfg.id === 'caixa'     ? getCaixaMipRate(idadeAnos) :
     cfg.id === 'inter'     ? getInterMipRate(idadeAnos) :
     cfg.id === 'daycoval'  ? DAYCOVAL_MIP_RATE          :
     getMipRate(idadeAnos)
   )
-  const dfiRate = cfg.id === 'inter' ? INTER_DFI_RATE : cfg.id === 'daycoval' ? DAYCOVAL_DFI_RATE : undefined
+  const dfiRate = overrides?.dfiRate
+    ?? (cfg.id === 'inter'    ? INTER_DFI_RATE
+      : cfg.id === 'daycoval' ? DAYCOVAL_DFI_RATE
+      : undefined)
 
   const valorFinanciado = input.valorImovel - input.valorEntrada
 
-  // LTV: Caixa PRICE = 70%; imóvel usado reduz 10pp
-  const baseLtv = input.tipoAmortizacao === 'PRICE' ? (cfg.maxLtvPrice ?? cfg.maxLtv) : (input.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv)
+  // LTV: Caixa PRICE = 70%; imóvel usado reduz 10pp; override do DB tem prioridade
+  const baseLtv = input.tipoAmortizacao === 'PRICE'
+    ? (overrides?.maxLtv ?? cfg.maxLtvPrice ?? cfg.maxLtv)
+    : (input.correntista ? maxLtvCorrUsado : maxLtvUsado)
   const maxLtv = (cfg.id === 'caixa' && input.tipoImovel === 'usado') ? baseLtv - 0.10 : baseLtv
   const maxLtvValue = input.valorImovel * maxLtv
 
@@ -439,10 +461,16 @@ function simularBancoComTaxa(
   }
 }
 
-export function simularBanco(bancoId: BancoId, input: InputFinanciamento): ResultadoBanco {
+export function simularBanco(
+  bancoId: BancoId,
+  input: InputFinanciamento,
+  overrides?: BancoSimOverrides,
+): ResultadoBanco {
   const cfg = BANCOS_CONFIG[bancoId]
   let programa = cfg.programa
-  let taxaAnual = input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase
+  // Override de taxa: DB > correntista > base
+  let taxaAnual = overrides?.taxaAnual
+    ?? (input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
 
   // Caixa: programa único (Pró-Cotista ou MCMV) — SBPE é tratado por simularCaixaDuplo
   if (bancoId === 'caixa') {
@@ -459,11 +487,11 @@ export function simularBanco(bancoId: BancoId, input: InputFinanciamento): Resul
     }
   }
 
-  return simularBancoComTaxa(cfg, input, taxaAnual, programa, bancoId)
+  return simularBancoComTaxa(cfg, input, taxaAnual, programa, bancoId, undefined, overrides)
 }
 
 // Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre)
-function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
+function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverrides): ResultadoBanco[] {
   const cfg = BANCOS_CONFIG['caixa']
   const results: ResultadoBanco[] = []
 
@@ -473,7 +501,7 @@ function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
   // Pró-Cotista (imóveis até R$350k, FGTS 3+ anos)
   if (podeAcessarMcmv && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
     results.push(
-      simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista', MIP_RATE_MCMV)
+      simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista', MIP_RATE_MCMV, overrides)
     )
   }
 
@@ -484,13 +512,13 @@ function simularCaixaDuplo(input: InputFinanciamento): ResultadoBanco[] {
     )
     if (faixaMcmv.length > 0) {
       const f = faixaMcmv[0]
-      results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', f.mipSubsidizado ? MIP_RATE_MCMV : undefined))
+      results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', f.mipSubsidizado ? MIP_RATE_MCMV : undefined, overrides))
     }
   }
 
   // SBPE — sempre presente como alternativa
-  const taxaSbpe = input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase
-  results.push(simularBancoComTaxa(cfg, input, taxaSbpe, 'SBPE', 'caixa-sbpe'))
+  const taxaSbpe = overrides?.taxaAnual ?? (input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
+  results.push(simularBancoComTaxa(cfg, input, taxaSbpe, 'SBPE', 'caixa-sbpe', undefined, overrides))
 
   return results
 }
@@ -564,14 +592,18 @@ function fmtMoeda(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
-export function simularTodosBancos(input: InputFinanciamento): ResultadoBanco[] {
+export function simularTodosBancos(
+  input: InputFinanciamento,
+  overridesMap?: Partial<Record<string, BancoSimOverrides>>,
+): ResultadoBanco[] {
   const todos: ResultadoBanco[] = []
 
   for (const id of input.bancosIds) {
+    const ov = overridesMap?.[id]
     if (id === 'caixa') {
-      todos.push(...simularCaixaDuplo(input))
+      todos.push(...simularCaixaDuplo(input, ov))
     } else {
-      todos.push(simularBanco(id, input))
+      todos.push(simularBanco(id, input, ov))
     }
   }
 

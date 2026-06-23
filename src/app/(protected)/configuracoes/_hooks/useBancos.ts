@@ -6,6 +6,8 @@ import type { Banco, BancoInsert } from '@/types/configuracoes'
 
 const supabase = createClient()
 
+export type BancoUpdate = Partial<Omit<Banco, 'id' | 'empresa_id' | 'created_at' | 'updated_at'>>
+
 export function useBancos() {
   return useQuery({
     queryKey: ['bancos'],
@@ -27,6 +29,23 @@ export function useCriarBanco() {
   return useMutation({
     mutationFn: async (banco: BancoInsert) => {
       const { data, error } = await supabase.from('bancos').insert(banco).select().single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bancos'] }),
+  })
+}
+
+export function useAtualizarBanco() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...dados }: BancoUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('bancos')
+        .update(dados)
+        .eq('id', id)
+        .select()
+        .single()
       if (error) throw error
       return data
     },
