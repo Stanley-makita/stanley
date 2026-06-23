@@ -1,11 +1,16 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { AlertTriangle, Download, Save } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { ResultadoBanco } from '@/lib/simuladorFinanciamento/tipos'
 
 interface Props {
   resultados: ResultadoBanco[]
   valorImovel?: number
+  onSalvarBanco?: (banco: ResultadoBanco) => void
+  onPDFBanco?: (banco: ResultadoBanco) => void
+  salvandoId?: string   // resultadoId do banco sendo salvo
 }
 
 function fmtMoeda(v: number) {
@@ -25,15 +30,38 @@ function nomeAbrev(r: ResultadoBanco): string {
   return NOME_ABREV[r.bancoId] ?? r.bancoNome.split(' ')[0]
 }
 
-export function ResultadosFinanciamento({ resultados, valorImovel }: Props) {
-  const elegiveis = resultados.filter((r) => r.elegivel)
+export function ResultadosFinanciamento({ resultados, valorImovel, onSalvarBanco, onPDFBanco, salvandoId }: Props) {
+  const elegiveis    = resultados.filter((r) => r.elegivel)
   const inaplicaveis = resultados.filter((r) => !r.elegivel)
-  const melhor = elegiveis[0]
+  const comAviso     = elegiveis.filter((r) => r.avisoRenda)
+  const melhor       = elegiveis[0]
 
   return (
     <div className="space-y-4">
-      {/* Banner melhor opção */}
-      {melhor && (
+
+      {/* ── Banner: aviso de comprometimento de renda ── */}
+      {comAviso.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1.5">
+          <div className="flex items-center gap-2 text-amber-700 font-semibold text-xs">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Comprometimento de renda acima de 30%
+          </div>
+          <div className="space-y-0.5">
+            {comAviso.map((r) => (
+              <p key={r.resultadoId} className="text-xs text-amber-700">
+                <span className="font-medium">{nomeAbrev(r)} ({r.programa}):</span>
+                {' '}1ª parcela {fmtMoeda(r.primeiraParcela)}
+                {r.maxFinanciavel30 > 0 && (
+                  <> — máx. financiável com 30% da renda: <span className="font-semibold">{fmtMoeda(r.maxFinanciavel30)}</span></>
+                )}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Banner: melhor opção (só quando sem aviso) ── */}
+      {melhor && !melhor.avisoRenda && (
         <div
           className="rounded-xl p-4 text-white"
           style={{ backgroundColor: melhor.corBanco }}
@@ -57,7 +85,7 @@ export function ResultadosFinanciamento({ resultados, valorImovel }: Props) {
         </div>
       )}
 
-      {/* Tabela comparativa */}
+      {/* ── Tabela comparativa ── */}
       {elegiveis.length > 0 && (
         <div className="rounded-xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
@@ -78,26 +106,29 @@ export function ResultadosFinanciamento({ resultados, valorImovel }: Props) {
                 {elegiveis.map((r, i) => (
                   <tr
                     key={r.resultadoId}
-                    className={cn('transition-colors', i === 0 ? 'bg-fonti-primary/5' : 'hover:bg-gray-50')}
+                    className={cn(
+                      'transition-colors',
+                      r.avisoRenda
+                        ? 'bg-amber-50/60 hover:bg-amber-50'
+                        : i === 0 ? 'bg-fonti-primary/5' : 'hover:bg-gray-50',
+                    )}
                   >
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: r.corBanco }}
-                        />
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: r.corBanco }} />
                         <span className="font-medium text-gray-800 whitespace-nowrap">
                           {nomeAbrev(r)}
-                          {i === 0 && (
-                            <span className="ml-1 text-[10px] text-fonti-primary font-bold">★</span>
-                          )}
+                          {i === 0 && !r.avisoRenda && <span className="ml-1 text-[10px] text-fonti-primary font-bold">★</span>}
+                          {r.avisoRenda && <span className="ml-1 text-[10px] text-amber-600 font-bold">⚠</span>}
                         </span>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{valorImovel ? fmtMoeda(valorImovel) : '—'}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{fmtMoeda(r.valorFinanciado)}</td>
                     <td className="px-3 py-2.5 text-gray-500">{r.programa}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-gray-900">{fmtMoeda(r.primeiraParcela)}</td>
+                    <td className={cn('px-3 py-2.5 text-right font-semibold', r.avisoRenda ? 'text-amber-700' : 'text-gray-900')}>
+                      {fmtMoeda(r.primeiraParcela)}
+                    </td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{fmtMoeda(r.ultimaParcela)}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{r.parcelas}</td>
                     <td className="px-3 py-2.5 text-right text-gray-500">{fmtPct(r.taxaAnual)}</td>
@@ -109,48 +140,90 @@ export function ResultadosFinanciamento({ resultados, valorImovel }: Props) {
         </div>
       )}
 
-      {/* Cards individuais */}
+      {/* ── Cards individuais ── */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {elegiveis.map((r) => (
           <div
             key={r.resultadoId}
-            className="rounded-xl border border-gray-100 bg-white overflow-hidden"
+            className={cn(
+              'rounded-xl border overflow-hidden bg-white',
+              r.avisoRenda ? 'border-amber-200' : 'border-gray-100',
+            )}
           >
-            <div
-              className="px-4 py-2.5 text-sm font-semibold text-white"
-              style={{ backgroundColor: r.corBanco }}
-            >
+            {/* Header colorido */}
+            <div className="px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: r.corBanco }}>
               {r.bancoNome} — {r.programa}
             </div>
+
+            {/* Métricas */}
             <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-              <Metric label="1ª Parcela" value={fmtMoeda(r.primeiraParcela)} destaque />
+              <Metric label="1ª Parcela"     value={fmtMoeda(r.primeiraParcela)} destaque={!r.avisoRenda} aviso={r.avisoRenda} />
               <Metric label="Última Parcela" value={fmtMoeda(r.ultimaParcela)} />
-              <Metric label="Prazo" value={`${r.parcelas} meses`} />
-              <Metric label="Amortização" value={r.tipoAmortizacao} />
-              <Metric label="Taxa mensal" value={fmtPct(r.taxaMensal, 4)} />
-              <Metric label="Taxa anual" value={fmtPct(r.taxaAnual)} />
-              <Metric label="Total Juros" value={fmtMoeda(r.totalJuros)} />
-              <Metric label="Total Seguros" value={fmtMoeda(r.totalSeguros)} />
-              <Metric label="V. Financiado" value={fmtMoeda(r.valorFinanciado)} />
+              <Metric label="Prazo"          value={`${r.parcelas} meses`} />
+              <Metric label="Amortização"    value={r.tipoAmortizacao} />
+              <Metric label="Taxa mensal"    value={fmtPct(r.taxaMensal, 4)} />
+              <Metric label="Taxa anual"     value={fmtPct(r.taxaAnual)} />
+              <Metric label="Total Juros"    value={fmtMoeda(r.totalJuros)} />
+              <Metric label="Total Seguros"  value={fmtMoeda(r.totalSeguros)} />
+              <Metric label="V. Financiado"  value={fmtMoeda(r.valorFinanciado)} />
               <Metric label="Máx (30% renda)" value={fmtMoeda(r.maxFinanciavel30)} />
             </div>
+
+            {/* Aviso de comprometimento */}
+            {r.avisoRenda && (
+              <div className="mx-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 space-y-0.5">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  Comprometimento de renda acima de 30%
+                </div>
+                {r.maxFinanciavel30 > 0 && (
+                  <p>Máx. financiável com 30% da renda: <span className="font-semibold">{fmtMoeda(r.maxFinanciavel30)}</span></p>
+                )}
+              </div>
+            )}
+
+            {/* Botões por banco */}
+            {(onSalvarBanco || onPDFBanco) && (
+              <div className="flex gap-2 px-4 py-3">
+                {onSalvarBanco && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50"
+                    onClick={() => onSalvarBanco(r)}
+                    disabled={salvandoId === r.resultadoId}
+                  >
+                    <Save className="w-3 h-3" />
+                    {salvandoId === r.resultadoId ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                )}
+                {onPDFBanco && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
+                    onClick={() => onPDFBanco(r)}
+                  >
+                    <Download className="w-3 h-3" />
+                    PDF
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Inelegíveis */}
+      {/* ── Incompatíveis (LTV, idade, teto) ── */}
       {inaplicaveis.length > 0 && (
         <details className="rounded-xl border border-gray-100" open={elegiveis.length === 0}>
           <summary className="px-4 py-3 text-xs text-gray-400 cursor-pointer select-none">
-            {inaplicaveis.length} banco(s) não elegível(is) — clique para ver motivos
+            {inaplicaveis.length} banco(s) incompatível(is) — clique para ver motivos
           </summary>
           <div className="px-4 pb-3 space-y-1">
             {inaplicaveis.map((r) => (
               <div key={r.resultadoId} className="flex items-center gap-2 text-xs text-gray-500">
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: r.corBanco }}
-                />
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: r.corBanco }} />
                 <span className="font-medium">{nomeAbrev(r)}:</span>
                 <span>{r.motivoInelegivel}</span>
               </div>
@@ -162,11 +235,11 @@ export function ResultadosFinanciamento({ resultados, valorImovel }: Props) {
   )
 }
 
-function Metric({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
+function Metric({ label, value, destaque, aviso }: { label: string; value: string; destaque?: boolean; aviso?: boolean }) {
   return (
     <div>
       <p className="text-gray-400">{label}</p>
-      <p className={cn('font-semibold mt-0.5', destaque ? 'text-fonti-primary' : 'text-gray-700')}>
+      <p className={cn('font-semibold mt-0.5', destaque ? 'text-fonti-primary' : aviso ? 'text-amber-700' : 'text-gray-700')}>
         {value}
       </p>
     </div>

@@ -53,6 +53,7 @@ export interface ResultadoBanco {
   tipoAmortizacao: TipoAmortizacao
   elegivel: boolean
   motivoInelegivel?: string
+  avisoRenda?: boolean
 }
 
 export interface AnalisePredicativa {

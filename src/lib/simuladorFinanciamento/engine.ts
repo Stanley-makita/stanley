@@ -447,17 +447,12 @@ function simularBancoComTaxa(
   const comprometimentoMax = (input.tipoAmortizacao === 'PRICE' && cfg.comprometimentoMaxPrice)
     ? cfg.comprometimentoMaxPrice
     : 0.30
-  if (calc.primeiraParcela > input.rendaMensal * comprometimentoMax) {
-    return {
-      ...baseResult(cfg, vf, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
-      elegivel: false,
-      motivoInelegivel: `1ª parcela (${fmtMoeda(calc.primeiraParcela)}) > ${Math.round(comprometimentoMax * 100)}% da renda (${fmtMoeda(input.rendaMensal * comprometimentoMax)})`,
-    }
-  }
+  const avisoRenda = calc.primeiraParcela > input.rendaMensal * comprometimentoMax
 
   return {
     ...baseResult(cfg, vf, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
     elegivel: true,
+    avisoRenda,
   }
 }
 

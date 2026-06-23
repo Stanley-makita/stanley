@@ -6,9 +6,9 @@ import { ResultadosFinanciamento } from './ResultadosFinanciamento'
 import { AnalisePredicativaCard } from './AnalisePredicativaCard'
 import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
-import type { InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
+import type { InputFinanciamento, ResultadoBanco, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Printer } from 'lucide-react'
 import { useBancos } from '@/app/(protected)/configuracoes/_hooks/useBancos'
 
 interface Props {
@@ -21,6 +21,8 @@ interface Props {
 export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salvando }: Props) {
   const [resultado, setResultado] = useState<ResultadoCompleto | null>(null)
   const [loading, setLoading] = useState(false)
+  const [gerandoPDF, setGerandoPDF] = useState(false)
+  const [gerandoPDFId, setGerandoPDFId] = useState<string | null>(null)
 
   // Busca configurações dos bancos do banco de dados
   // Bancos com simulador_key vinculado sobrescrevem os valores fixados em constantes.ts
@@ -42,6 +44,33 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
     }
     return map
   }, [bancosDB])
+
+  async function baixarPDF() {
+    if (!resultado) return
+    setGerandoPDF(true)
+    try {
+      const { gerarPDFFinanciamento } = await import('./gerarPDFFinanciamento')
+      await gerarPDFFinanciamento(resultado, {
+        clienteNome: resultado.input.nomeCliente ?? nomeCliente,
+      })
+    } finally {
+      setGerandoPDF(false)
+    }
+  }
+
+  async function baixarPDFBanco(banco: ResultadoBanco) {
+    if (!resultado) return
+    setGerandoPDFId(banco.resultadoId)
+    try {
+      const { gerarPDFFinanciamento } = await import('./gerarPDFFinanciamento')
+      await gerarPDFFinanciamento(
+        { ...resultado, bancos: [banco] },
+        { clienteNome: resultado.input.nomeCliente ?? nomeCliente },
+      )
+    } finally {
+      setGerandoPDFId(null)
+    }
+  }
 
   function handleSimular(input: InputFinanciamento) {
     setLoading(true)
@@ -72,21 +101,38 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
             <ArrowLeft className="w-4 h-4" />
             Nova simulação
           </button>
-          {onSalvar && (
+          <div className="flex gap-2">
             <Button
               size="sm"
-              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-              onClick={() => onSalvar(resultado)}
-              disabled={salvando}
+              variant="outline"
+              className="gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
+              onClick={baixarPDF}
+              disabled={gerandoPDF}
             >
-              {salvando ? 'Salvando...' : 'Salvar no histórico'}
+              <Printer className="w-3.5 h-3.5" />
+              {gerandoPDF ? 'Gerando...' : 'Imprimir PDF'}
             </Button>
-          )}
+            {onSalvar && (
+              <Button
+                size="sm"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+                onClick={() => onSalvar(resultado)}
+                disabled={salvando}
+              >
+                {salvando ? 'Salvando...' : 'Salvar no histórico'}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <ResultadosFinanciamento resultados={resultado.bancos} valorImovel={resultado.input.valorImovel} />
+            <ResultadosFinanciamento
+              resultados={resultado.bancos}
+              valorImovel={resultado.input.valorImovel}
+              onPDFBanco={baixarPDFBanco}
+              salvandoId={gerandoPDFId ?? undefined}
+            />
           </div>
           <div>
             <AnalisePredicativaCard analise={resultado.analise} />
