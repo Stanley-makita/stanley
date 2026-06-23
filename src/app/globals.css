@@ -48,6 +48,9 @@
     --input-border: #e5e7eb;
     --input-focus: #253B29;
 
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-elevated: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+
     --foreground: 222.2 84% 4.9%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
@@ -65,7 +68,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 143 23% 19%;
-    --radius: 0.5rem;
+    --radius: 0.625rem;
   }
 }
 
@@ -75,5 +78,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }

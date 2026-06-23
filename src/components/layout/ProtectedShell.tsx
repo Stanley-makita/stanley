@@ -9,7 +9,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
   const [menuAberto, setMenuAberto] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[#F7F5F0]">
       <Sidebar className="hidden lg:flex" />
 
       <Sheet open={menuAberto} onOpenChange={setMenuAberto}>

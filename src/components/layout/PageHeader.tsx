@@ -12,11 +12,11 @@ export function PageHeader({ title, description, actions, className }: PageHeade
   return (
     <div className={cn('flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between', className)}>
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold leading-tight text-fonti-primary sm:text-2xl">
+        <h1 className="text-2xl font-bold leading-tight tracking-tight text-fonti-primary sm:text-3xl">
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-400">
             {description}
           </p>
         )}

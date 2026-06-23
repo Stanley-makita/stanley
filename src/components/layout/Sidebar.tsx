@@ -78,7 +78,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   return (
     <aside className={cn('flex h-screen w-60 flex-col bg-fonti-primary text-white', className)}>
       {/* Logo */}
-      <div className="flex items-center justify-center px-4 py-4 border-b border-white/10">
+      <div className="flex items-center justify-center px-4 py-5 border-b border-white/10">
         <Image
           src="/images/logos/logotipo retangular fontinhas assessoria.jpg"
           alt="Fontinhas Assessoria"
@@ -90,7 +90,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </div>
 
       {/* Nav principal */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {navItemsTop.map(({ href, label, icon: Icon, mobileHidden }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isLeads = href === '/leads'
@@ -100,13 +100,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 href={href}
                 onClick={onNavigate}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
                   active
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    ? 'bg-fonti-accent/15 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className="h-[18px] w-[18px] shrink-0" />
                 {label}
               </Link>
               {isLeads && leadsBadge > 0 && (
@@ -130,11 +130,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 negociosActive
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  ? 'bg-fonti-accent/15 text-white'
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
               )}
             >
-              <Briefcase className="h-4 w-4 shrink-0" />
+              <Briefcase className="h-[18px] w-[18px] shrink-0" />
               Negócios
             </Link>
           )
@@ -151,13 +151,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 href={href}
                 onClick={onNavigate}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
                   active
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    ? 'bg-fonti-accent/15 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className="h-[18px] w-[18px] shrink-0" />
                 {label}
               </Link>
               {isAgenda && agendaBadge > 0 && (
@@ -185,13 +185,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           <button
             onClick={() => setGestaoAberto(v => !v)}
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              'w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
               isGestaoAtivo
-                ? 'bg-white/15 text-white'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                ? 'bg-fonti-accent/15 text-white'
+                : 'text-white/80 hover:bg-white/10 hover:text-white'
             )}
           >
-            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <ShieldCheck className="h-[18px] w-[18px] shrink-0" />
             Gestão
             <ChevronDown className={cn(
               'ml-auto h-3.5 w-3.5 transition-transform duration-200',
@@ -208,11 +208,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                     pathname === '/gestao' || pathname.startsWith('/gestao/')
-                      ? 'bg-white/15 text-white'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-fonti-accent/15 text-white'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
                   )}
                 >
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <ShieldCheck className="h-[18px] w-[18px] shrink-0" />
                   Painel
                 </Link>
               )}
@@ -222,11 +222,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                   pathname === '/rh' || pathname.startsWith('/rh/')
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    ? 'bg-fonti-accent/15 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 )}
               >
-                <UserCheck className="h-4 w-4 shrink-0" />
+                <UserCheck className="h-[18px] w-[18px] shrink-0" />
                 RH
               </Link>
               <Link
@@ -235,11 +235,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                   pathname === '/financeiro' || pathname.startsWith('/financeiro/')
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    ? 'bg-fonti-accent/15 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 )}
               >
-                <DollarSign className="h-4 w-4 shrink-0" />
+                <DollarSign className="h-[18px] w-[18px] shrink-0" />
                 Financeiro
               </Link>
               {isAdmin && (
@@ -249,11 +249,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                     pathname === '/configuracoes' || pathname.startsWith('/configuracoes/')
-                      ? 'bg-white/15 text-white'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-fonti-accent/15 text-white'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
                   )}
                 >
-                  <Settings className="h-4 w-4 shrink-0" />
+                  <Settings className="h-[18px] w-[18px] shrink-0" />
                   Configurações
                 </Link>
               )}

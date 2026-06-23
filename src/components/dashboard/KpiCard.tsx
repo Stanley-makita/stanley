@@ -23,14 +23,14 @@ export function KpiCard({
 
   return (
     <div
-      className={`rounded-xl border p-5 flex flex-col gap-3 ${
+      className={`rounded-xl border p-5 flex flex-col gap-3 shadow-[var(--shadow-card)] ${
         destaque
           ? 'bg-fonti-primary text-white border-fonti-primary'
-          : 'bg-white border-gray-200'
+          : 'bg-white border-gray-100'
       }`}
     >
       <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${destaque ? 'text-fonti-accent' : 'text-gray-500'}`}>
+        <span className={`text-[11px] font-semibold uppercase tracking-wide ${destaque ? 'text-fonti-accent' : 'text-gray-400'}`}>
           {titulo}
         </span>
         <div
@@ -42,7 +42,7 @@ export function KpiCard({
         </div>
       </div>
 
-      <div className={`text-2xl font-bold ${destaque ? 'text-white' : 'text-fonti-primary'}`}>
+      <div className={`text-3xl font-bold tracking-tight ${destaque ? 'text-white' : 'text-fonti-primary'}`}>
         {valor}
       </div>
 
