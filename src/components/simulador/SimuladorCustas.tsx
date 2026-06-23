@@ -145,7 +145,7 @@ function Sel<T extends string>({
   options: { value: T; label: string }[]
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as T)}>
+    <Select value={value || undefined} onValueChange={(v) => onChange(v as T)}>
       <SelectTrigger className="h-7 text-xs px-2">
         <SelectValue placeholder={placeholder ?? 'Selecione'} />
       </SelectTrigger>
@@ -299,11 +299,11 @@ export function SimuladorCustas({
   }, [historico])
 
   const cidadesDisponiveis = useMemo(() => {
-    const fromDb = itbiConfigs.map((c) => c.municipio)
+    const fromDb = itbiConfigs.map((c) => c.municipio).filter(Boolean)
     return Array.from(new Set([...CIDADES_REGIAO, ...fromDb])).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [itbiConfigs])
   const bancosDisponiveis = useMemo(() => {
-    const fromDb = custasConfigs.map((c) => c.bancoNome)
+    const fromDb = custasConfigs.map((c) => c.bancoNome).filter(Boolean)
     const extras = fromDb.filter((b) => !BANCOS_PRIORITY.some((p) => p.toLowerCase() === b.toLowerCase()))
     return [...BANCOS_PRIORITY, ...extras.sort((a, b) => a.localeCompare(b, 'pt-BR'))]
   }, [custasConfigs])

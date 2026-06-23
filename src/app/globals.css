@@ -75,6 +75,8 @@
 @layer base {
   html {
     zoom: 0.8;
+    /* Compensate: zooming to 80% leaves 20% empty — need 1/0.8 = 125% height to fill screen */
+    min-height: calc(100dvh / 0.8);
   }
   * {
     @apply border-border;
