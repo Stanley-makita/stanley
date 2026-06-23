@@ -26,7 +26,7 @@ interface Props {
 
 export function PainelDireitoLead({ lead }: Props) {
   return (
-    <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-100">
+    <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-200">
       <SecaoNotas leadId={lead.id} />
       <SecaoTarefas leadId={lead.id} />
       <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} />
@@ -49,10 +49,10 @@ function SecaoNotas({ leadId }: { leadId: string }) {
   }
 
   return (
-    <div className="p-4 space-y-3 shrink-0">
-      <div className="flex items-center gap-2">
+    <div className="p-5 space-y-4 shrink-0">
+      <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
         <MessageSquare className="h-4 w-4 text-fonti-primary" />
-        <span className="text-sm font-semibold text-fonti-primary">Notas</span>
+        <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Notas</span>
         {notas.length > 0 && (
           <span className="text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5 font-medium">{notas.length}</span>
         )}
@@ -128,11 +128,11 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
   }
 
   return (
-    <div className="p-4 space-y-3 shrink-0">
-      <div className="flex items-center justify-between">
+    <div className="p-5 space-y-4 shrink-0">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-fonti-primary" />
-          <span className="text-sm font-semibold text-fonti-primary">Tarefas</span>
+          <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Tarefas</span>
           {pendentes.length > 0 && (
             <span className="text-[10px] bg-amber-100 text-amber-600 rounded-full px-1.5 py-0.5 font-medium">{pendentes.length}</span>
           )}
@@ -207,10 +207,10 @@ function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) 
   const pendentes = itens.filter(i => !i.concluido)
 
   return (
-    <div className="p-4 space-y-3 shrink-0">
-      <div className="flex items-center gap-2">
+    <div className="p-5 space-y-4 shrink-0">
+      <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
         <ClipboardList className="h-4 w-4 text-fonti-primary" />
-        <span className="text-sm font-semibold text-fonti-primary">Checklist da fase</span>
+        <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Checklist da fase</span>
         {pendentes.length > 0 && (
           <span className="text-[10px] bg-red-100 text-red-600 rounded-full px-1.5 py-0.5 font-medium">{pendentes.length}</span>
         )}
