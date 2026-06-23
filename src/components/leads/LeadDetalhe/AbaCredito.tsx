@@ -171,7 +171,7 @@ export function AbaCredito({ lead }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
       {/* 1. Status da fase */}
       <StatusFase lead={lead} />
@@ -189,14 +189,14 @@ export function AbaCredito({ lead }: Props) {
       {/* 3. Operação */}
       <BlocoOperacao lead={lead} />
 
-      {/* 4. Imóvel */}
-      <BlocoImovel lead={lead} />
-
-      {/* 5. Vendedor */}
-      <BlocoVendedor
-        lead={lead}
-        onAbrirVendedorPessoa={lead.vendedor_pessoa_id ? () => setVendedorPessoaDrawer(lead.vendedor_pessoa_id) : undefined}
-      />
+      {/* 4+5. Imóvel e Vendedor lado a lado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <BlocoImovel lead={lead} />
+        <BlocoVendedor
+          lead={lead}
+          onAbrirVendedorPessoa={lead.vendedor_pessoa_id ? () => setVendedorPessoaDrawer(lead.vendedor_pessoa_id) : undefined}
+        />
+      </div>
 
       {/* 6. Origem + Parceiros */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -248,8 +248,8 @@ function StatusFase({ lead }: { lead: Lead }) {
   if (isLoading) return null
   if (statuses.length === 0) {
     return (
-      <div className="bg-white border border-gray-100 rounded-lg p-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Status da Fase</p>
+      <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-2">Status da Fase</p>
         <p className="text-xs text-gray-400 italic">
           Nenhum status configurado.{' '}
           <a href="/configuracoes" className="text-fonti-accent hover:underline">Configurar em Configurações → Fases</a>
@@ -258,8 +258,8 @@ function StatusFase({ lead }: { lead: Lead }) {
     )
   }
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Status da Fase</p>
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
+      <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">Status da Fase</p>
       <div className="flex flex-wrap gap-1.5">
         {statuses.map((s) => {
           const isAtivo = s.id === lead.status_id
@@ -353,7 +353,7 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
   const nomeConjuge = lead.conjuge_pessoa?.nome ?? lead.conjuge_nome
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+    <div className="bg-white border border-gray-300 rounded-xl shadow overflow-hidden">
 
       {/* ── Comprador ── */}
       <div className="px-4 pt-3 pb-2">
@@ -607,9 +607,9 @@ function BlocoOperacao({ lead }: { lead: Lead }) {
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4 space-y-3">
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operação</p>
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Operação</p>
         {dirty && (
           <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
             {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
@@ -697,9 +697,9 @@ function BlocoImovel({ lead }: { lead: Lead }) {
 
   if (!temDados && !editando) {
     return (
-      <div className="bg-white border border-dashed border-gray-200 rounded-lg p-4">
+      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Imóvel</p>
+          <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Imóvel</p>
           <button onClick={() => setEditando(true)} className="flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium">
             <Plus className="h-3 w-3" /> Informar Imóvel
           </button>
@@ -709,9 +709,9 @@ function BlocoImovel({ lead }: { lead: Lead }) {
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4">
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Imóvel</p>
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Imóvel</p>
         <div className="flex items-center gap-2">
           {dirty && (
             <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
@@ -851,9 +851,9 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
   if (vendedorPessoa) {
     return (
       <>
-        <div className="bg-white border border-gray-100 rounded-lg p-4">
+        <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vendedor</p>
+            <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Vendedor</p>
             <button onClick={desvincularVendedor} className="text-xs text-gray-300 hover:text-red-400">
               Desvincular
             </button>
@@ -889,9 +889,9 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
   // Estado: sem vendedor — busca
   return (
     <>
-      <div className="bg-white border border-dashed border-gray-200 rounded-lg p-4">
+      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Vendedor</p>
+          <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Vendedor</p>
         </div>
 
         {/* Campo de busca */}
@@ -1014,8 +1014,8 @@ function BlocoOrigem({ origem, onChange, saving }: {
   origem: Lead['origem']; onChange: (o: string) => void; saving: boolean
 }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4 space-y-3">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Origem</p>
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
+      <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-1">Origem</p>
       <Select value={origem} onValueChange={onChange} disabled={saving}>
         <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
         <SelectContent>
@@ -1110,8 +1110,8 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
   const parceirosDisp    = todosParceiros.filter(p => !parceiros.find(v => v.parceiro_id === p.id))
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4 space-y-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Parceiros</p>
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-4">
+      <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-1">Parceiros</p>
       <ParceirosSecao
         label="Corretor" icon={<User className="h-3.5 w-3.5" />}
         items={corretores.map(c => ({ id: c.id, nome: c.corretor.nome, sub: c.corretor.creci ? `CRECI: ${c.corretor.creci}` : undefined }))}
