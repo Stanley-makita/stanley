@@ -93,25 +93,17 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
       style={{ width: collapsed ? '56px' : 'clamp(192px, 14vw, 240px)' }}
     >
       {/* Logo */}
-      <div className={cn('flex items-center border-b border-white/10 shrink-0', collapsed ? 'justify-center px-0 py-3' : 'justify-center px-4 py-5')}>
-        {collapsed ? (
-          <Image
-            src="/images/logos/logotipo quadrado fontinhas assessoria.jpg"
-            alt="F"
-            width={32}
-            height={32}
-            className="rounded-md object-cover"
-            priority
-          />
-        ) : (
-          <Image
-            src="/images/logos/logotipo retangular fontinhas assessoria.jpg"
-            alt="Fontinhas Assessoria"
-            width={180}
-            height={90}
-            className="object-contain"
-            priority
-          />
+      <div className={cn('flex items-center border-b border-white/10 shrink-0', collapsed ? 'justify-center px-0 py-3' : 'gap-2.5 px-4 py-4')}>
+        <Image
+          src="/logo-fonti.png"
+          alt="Fonti"
+          width={collapsed ? 32 : 38}
+          height={collapsed ? 32 : 38}
+          className="rounded-xl object-contain shrink-0"
+          priority
+        />
+        {!collapsed && (
+          <span className="text-lg font-bold tracking-wide text-white">Fonti</span>
         )}
       </div>
 

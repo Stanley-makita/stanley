@@ -6,8 +6,8 @@ import { Providers } from '@/components/providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Credifon CRM',
-  description: 'Sistema de gestão da Fontinhas Assessoria',
+  title: 'Fonti',
+  description: 'Sistema de gestão Fonti',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
