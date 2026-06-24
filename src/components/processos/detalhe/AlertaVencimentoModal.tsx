@@ -68,13 +68,16 @@ export function AlertaVencimentoModal({ alertas, onConfirmar, isPending }: Props
           </div>
         </div>
 
-        <Button
-          className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white mt-1"
-          disabled={isPending}
-          onClick={onConfirmar}
-        >
-          Estou ciente dos prazos acima
-        </Button>
+        {/* div wrapper para não ser afetado por [&>button]:hidden do DialogContent */}
+        <div className="mt-1">
+          <Button
+            className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+            disabled={isPending}
+            onClick={onConfirmar}
+          >
+            {isPending ? 'Registrando...' : 'Ciente — registrar no histórico'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

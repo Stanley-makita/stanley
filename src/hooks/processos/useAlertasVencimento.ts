@@ -1,9 +1,11 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInDays, parseISO, format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import type { TipoValidade } from './useSalvarValidadeProcesso'
 import { LABEL_VALIDADE } from './useSalvarValidadeProcesso'
 
@@ -54,6 +56,7 @@ export function useAlertasVencimento(
   validades: { validade_credito?: string | null; validade_engenharia?: string | null; validade_matricula?: string | null },
 ) {
   const { usuario } = useAuth()
+  const { data: usuarioCompleto } = useUsuarioAtual()
   const qc = useQueryClient()
 
   const { data: lidos = [] } = useQuery({
@@ -86,9 +89,32 @@ export function useAlertasVencimento(
       }))
       const { error } = await supabase.from('processo_alertas_lidos').upsert(rows, { onConflict: 'processo_id,usuario_id,tipo,validade_data' })
       if (error) throw error
+
+      // Registra ciência no histórico/timeline do processo
+      const linhas = alertas.map(a => {
+        const dataFmt = format(parseISO(a.validadeData), "dd/MM/yyyy", { locale: ptBR })
+        const status = a.diasRestantes < 0
+          ? `VENCIDA há ${Math.abs(a.diasRestantes)} dias`
+          : a.diasRestantes === 0
+            ? 'VENCE HOJE'
+            : `faltam ${a.diasRestantes} dias`
+        return `⚠️ ${a.label}: ${dataFmt} (${status})`
+      })
+      const texto = `Ciente dos prazos críticos:\n${linhas.join('\n')}`
+
+      if (usuarioCompleto?.empresa_id) {
+        await supabase.from('processo_comentarios').insert({
+          processo_id:       processoId,
+          empresa_id:        usuarioCompleto.empresa_id,
+          tipo:              'observacao',
+          texto,
+          notificar_cliente: false,
+        })
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['alertas-lidos', processoId, usuario?.id] })
+      qc.invalidateQueries({ queryKey: ['processos', processoId, 'timeline'] })
     },
   })
 
