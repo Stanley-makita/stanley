@@ -17,28 +17,35 @@ interface Simulacao {
   processo_id: string | null
 }
 
+const BRL = (n: number) =>
+  n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+
 function extrairResumo(sim: Simulacao): string {
   const json = sim.resultado_json
   if (!json) return '—'
 
-  if (sim.tipo === 'custas') {
-    const total = json.totalGeral ?? json.total ?? json.totalCustas
-    if (typeof total === 'number') {
-      return `Total: ${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}`
+  try {
+    if (sim.tipo === 'custas') {
+      // SimuladorCustas salva totalComDesconto / totalSemDesconto
+      const total = json.totalComDesconto ?? json.totalSemDesconto ?? json.totalGeral ?? json.total
+      if (typeof total === 'number') return `Total: ${BRL(total)}`
+      return '—'
     }
-    return '—'
-  }
 
-  if (sim.tipo === 'financiamento') {
-    const bancos = json.bancos as Array<{ elegivel: boolean; bancoNome: string; parcela1: number }> | undefined
-    const melhor = bancos?.find((b) => b.elegivel)
-    if (melhor) {
-      return `${melhor.bancoNome} — 1ª parcela ${melhor.parcela1.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}`
+    if (sim.tipo === 'financiamento') {
+      // ResultadoCompleto: { bancos: Array<{ elegivel, bancoNome, primeiraParcela }>, input: { valorImovel } }
+      const bancos = json.bancos as Array<{ elegivel: boolean; bancoNome: string; primeiraParcela: number }> | undefined
+      const melhor = bancos?.find((b) => b.elegivel)
+      if (melhor && typeof melhor.primeiraParcela === 'number') {
+        return `${melhor.bancoNome} — 1ª parcela ${BRL(melhor.primeiraParcela)}`
+      }
+      const input = json.input as { valorImovel?: number } | undefined
+      if (typeof input?.valorImovel === 'number') {
+        return `Imóvel ${BRL(input.valorImovel)}`
+      }
+      return '—'
     }
-    const input = json.input as { valorImovel?: number } | undefined
-    if (input?.valorImovel) {
-      return `Imóvel ${input.valorImovel.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}`
-    }
+  } catch {
     return '—'
   }
 
@@ -113,12 +120,16 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
             </div>
 
             <div className="text-right flex-shrink-0 ml-2">
-              <p className="text-xs text-gray-500">
-                {format(new Date(sim.created_at), "dd/MM/yy", { locale: ptBR })}
-              </p>
-              <p className="text-[10px] text-gray-400">
-                {format(new Date(sim.created_at), "HH:mm", { locale: ptBR })}
-              </p>
+              {sim.created_at ? (
+                <>
+                  <p className="text-xs text-gray-500">
+                    {format(new Date(sim.created_at), "dd/MM/yy", { locale: ptBR })}
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    {format(new Date(sim.created_at), "HH:mm", { locale: ptBR })}
+                  </p>
+                </>
+              ) : <p className="text-xs text-gray-400">—</p>}
             </div>
           </div>
         )
