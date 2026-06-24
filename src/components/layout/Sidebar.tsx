@@ -93,25 +93,27 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
       style={{ width: collapsed ? '56px' : 'clamp(192px, 14vw, 240px)' }}
     >
       {/* Logo */}
-      <div className={cn('flex items-center border-b border-white/10 shrink-0', collapsed ? 'justify-center px-0 py-3' : 'justify-center px-3 py-3')}>
+      <div className={cn('flex items-center justify-center border-b border-white/10 shrink-0', collapsed ? 'px-2 py-3' : 'px-4 pt-5 pb-4')}>
         {collapsed ? (
           <Image
             src="/logo-fonti.png"
             alt="Fonti"
-            width={32}
-            height={32}
-            className="rounded-xl object-contain shrink-0"
+            width={34}
+            height={34}
+            className="rounded-xl object-contain shadow-lg"
             priority
           />
         ) : (
-          <Image
-            src="/logo-fonti-horizontal.png"
-            alt="Fonti — Sistema de Crédito"
-            width={200}
-            height={65}
-            className="object-contain"
-            priority
-          />
+          <div className="rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
+            <Image
+              src="/logo-fonti-horizontal.png"
+              alt="Fonti — Sistema de Crédito"
+              width={192}
+              height={62}
+              className="object-cover block"
+              priority
+            />
+          </div>
         )}
       </div>
 
