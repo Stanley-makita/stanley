@@ -125,6 +125,26 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
         </div>
       </div>
 
+      {/* Barra de referência: percentuais do valor do imóvel (clicáveis → preenchem entrada) */}
+      {vImovel > 0 && (
+        <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md bg-yellow-300 px-3 py-1.5 text-xs font-bold text-yellow-900">
+          {([80, 90, 75, 5] as const).map((pct) => {
+            const val = (vImovel * pct) / 100
+            return (
+              <button
+                key={pct}
+                type="button"
+                title={`Usar ${pct}% como entrada`}
+                onClick={() => setValorEntrada(fmtMoedaInput(String(Math.round(val * 100))))}
+                className="whitespace-nowrap hover:underline"
+              >
+                {pct}% = {val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Preview financiado */}
       {vFinanciado > 0 && (
         <div className="rounded-lg bg-fonti-primary/5 border border-fonti-primary/20 px-3 py-2 text-sm text-fonti-primary font-medium">
