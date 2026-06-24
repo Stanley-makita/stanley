@@ -679,13 +679,18 @@ export async function processarComandoFonti(
     return null
   }
 
+  // Remove acentos dos primeiros 20 chars (autocorrect inclui *início, *Fontí, etc.)
+  // Mantém o restante intacto para preservar nomes/dados com acento nos argumentos
+  const _textoNorm = textoCompleto.slice(0, 20).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    + textoCompleto.slice(20)
+
   // Normaliza atalhos curtos para o padrão *fonti [subcomando]
-  let _texto = textoCompleto
-  if      (/^\*inicio\b/i.test(_texto))                _texto = '*fonti inicio'
-  else if (/^\*criar?\s+cliente\b/i.test(_texto))     _texto = _texto.replace(/^\*criar?\s+cliente\b/i, '*fonti cria cliente')
-  else if (/^\*salvar?\b/i.test(_texto))              _texto = _texto.replace(/^\*salvar?\b/i, '*fonti salva')
-  else if (/^\*atualizar?\b/i.test(_texto))           _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
-  else if (/^\*processo\b/i.test(_texto))             _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
+  let _texto = _textoNorm
+  if      (/^\*in[íi]cio\b/i.test(_texto))             _texto = '*fonti inicio'
+  else if (/^\*criar?\s+cliente\b/i.test(_texto))       _texto = _texto.replace(/^\*criar?\s+cliente\b/i, '*fonti cria cliente')
+  else if (/^\*salvar?\b/i.test(_texto))                _texto = _texto.replace(/^\*salvar?\b/i, '*fonti salva')
+  else if (/^\*atualizar?\b/i.test(_texto))             _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
+  else if (/^\*processo\b/i.test(_texto))               _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
 
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
   const corpo = _texto.replace(/^\*fonti\s*/i, '').trim()
