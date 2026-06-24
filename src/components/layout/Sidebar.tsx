@@ -93,8 +93,8 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
 
   return (
     <aside
-      className={cn('flex h-screen flex-col bg-fonti-primary text-white transition-[width] duration-200 ease-in-out', className)}
-      style={{ width: collapsed ? '56px' : 'clamp(192px, 14vw, 240px)' }}
+      className={cn('flex h-screen flex-col text-white transition-[width] duration-200 ease-in-out', className)}
+      style={{ width: collapsed ? '56px' : 'clamp(192px, 14vw, 240px)', backgroundColor: '#031E13' }}
     >
       {/* Logo */}
       <div className={cn('flex items-center justify-center border-b border-white/10 shrink-0', collapsed ? 'px-2 py-3' : 'px-4 pt-5 pb-4')}>
