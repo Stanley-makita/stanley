@@ -85,5 +85,14 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* body must fill the compensated html height */
+    min-height: 100%;
+  }
+}
+
+@layer utilities {
+  /* min-h-screen: compensate zoom 0.8 — 100vh appears as 80vh visually */
+  .min-h-screen {
+    min-height: calc(100dvh / 0.8);
   }
 }
