@@ -110,11 +110,13 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
         ) : (
           <div className="rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
             <Image
+              key={logoUrl}
               src={logoUrl}
               alt="Logo"
               width={192}
               height={62}
               className="object-cover block"
+              unoptimized={logoUrl.startsWith('http')}
               priority
             />
           </div>

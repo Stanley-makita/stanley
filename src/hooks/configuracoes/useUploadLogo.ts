@@ -15,11 +15,19 @@ export function useUploadLogo() {
       if (!usuario?.empresa_id) throw new Error('Empresa não identificada')
 
       const ext = arquivo.name.split('.').pop()?.toLowerCase() ?? 'png'
-      const path = `logos/${usuario.empresa_id}/logo.${ext}`
+      // Filename único por upload — garante URL diferente e quebra cache automático
+      const path = `logos/${usuario.empresa_id}/logo-${Date.now()}.${ext}`
+
+      // Busca o path antigo antes de substituir
+      const { data: empresaAtual } = await supabase
+        .from('empresas')
+        .select('logo_path')
+        .eq('id', usuario.empresa_id)
+        .single()
 
       const { error: uploadError } = await supabase.storage
         .from('empresa-assets')
-        .upload(path, arquivo, { upsert: true, contentType: arquivo.type })
+        .upload(path, arquivo, { upsert: false, contentType: arquivo.type })
 
       if (uploadError) throw uploadError
 
@@ -33,6 +41,11 @@ export function useUploadLogo() {
         .eq('id', usuario.empresa_id)
 
       if (updateError) throw updateError
+
+      // Remove arquivo antigo do Storage (limpeza)
+      if (empresaAtual?.logo_path && empresaAtual.logo_path !== path) {
+        await supabase.storage.from('empresa-assets').remove([empresaAtual.logo_path])
+      }
 
       return publicUrl
     },

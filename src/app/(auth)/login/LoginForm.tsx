@@ -50,6 +50,7 @@ export function LoginForm({ logoUrl }: LoginFormProps) {
               width={200}
               height={65}
               className="rounded-2xl object-contain shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+              unoptimized={logoUrl.startsWith('http')}
               priority
             />
           </div>
