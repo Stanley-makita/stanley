@@ -400,8 +400,8 @@ export default function SimuladoresPage() {
       {/* ── Modal: SimuladorCustas ─────────────────────────────────────── */}
       <Dialog open={modal === 'custas'} onOpenChange={(o) => !o && fecharSimulador()}>
         <DialogContent
-          className="p-0 flex flex-col overflow-hidden"
-          style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 16px)' }}
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
         >
           {/* Barra slim: título + "Salvar no histórico" (X do shadcn fica absolute top-4 right-4) */}
           <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
@@ -431,8 +431,8 @@ export default function SimuladoresPage() {
       {/* ── Modal: Re-simular custas (olho na linha de custas) ────────── */}
       <Dialog open={!!custaVer} onOpenChange={(o) => !o && setCustaVer(null)}>
         <DialogContent
-          className="p-0 flex flex-col overflow-hidden"
-          style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 16px)' }}
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
         >
           <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">

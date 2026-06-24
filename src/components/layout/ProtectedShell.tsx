@@ -22,7 +22,7 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F7F5F0]">
+    <div className="flex h-screen overflow-hidden bg-[#F7F5F0]">
       <Sidebar
         className="hidden lg:flex"
         collapsed={collapsed}

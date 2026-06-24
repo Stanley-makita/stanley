@@ -349,7 +349,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 
                 {/* Tab bar */}
-                <div className="flex shrink-0 overflow-x-auto border-b border-gray-100 bg-white px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex shrink-0 overflow-x-auto border-b border-gray-100 bg-white px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                   {abas.map((aba) => (
                     <button
                       key={aba.id}
@@ -361,7 +361,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                         setAbaAtiva(aba.id as Aba)
                       }}
                       className={cn(
-                        'min-w-20 px-3 py-3 text-center text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap sm:min-w-0 sm:px-4',
+                        'px-2.5 py-3 text-center text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap sm:px-4',
                         abaAtiva === aba.id
                           ? 'border-fonti-primary text-fonti-primary'
                           : 'border-transparent text-gray-400 hover:text-gray-600',

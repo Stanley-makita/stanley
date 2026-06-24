@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { TableShell } from '@/components/ui/table-shell'
 import { useRouter } from 'next/navigation'
-import { Download, Search, ChevronDown, Filter, X, ClipboardList } from 'lucide-react'
+import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
 import { fmtData } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
@@ -168,11 +168,14 @@ export function VisaoTabela({ produtoFixo }: Props) {
   const router = useRouter()
   const { usuario } = useAuth()
 
+  const ROWS_PER_PAGE = 15
+
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [busca, setBusca] = useState('')
   const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [openFilter, setOpenFilter] = useState<string | null>(null)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
+  const [pagina, setPagina] = useState(1)
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -200,6 +203,15 @@ export function VisaoTabela({ produtoFixo }: Props) {
       })
     )
   }, [processos, colFilters])
+
+  // Reset página ao mudar filtros
+  useEffect(() => { setPagina(1) }, [busca, statusFiltro, colFilters])
+
+  const totalPaginas = Math.max(1, Math.ceil(filteredProcessos.length / ROWS_PER_PAGE))
+  const paginados = useMemo(() => {
+    const start = (pagina - 1) * ROWS_PER_PAGE
+    return filteredProcessos.slice(start, start + ROWS_PER_PAGE)
+  }, [filteredProcessos, pagina])
 
   const contagemStatus = processos.reduce((acc, p) => {
     acc[p.status_processo] = (acc[p.status_processo] ?? 0) + 1
@@ -318,7 +330,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredProcessos.map((p) => {
+                paginados.map((p) => {
                   const comprador = p.compradores?.find(c => c.principal) ?? p.compradores?.[0] ?? null
                   return (
                     <TableRow
@@ -384,6 +396,46 @@ export function VisaoTabela({ produtoFixo }: Props) {
             </TableBody>
           </Table>
       </TableShell>
+
+      {/* Paginação */}
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-between px-1 pt-1">
+          <p className="text-xs text-gray-400">
+            {((pagina - 1) * ROWS_PER_PAGE) + 1}–{Math.min(pagina * ROWS_PER_PAGE, filteredProcessos.length)} de {filteredProcessos.length} processos
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPagina(p => Math.max(1, p - 1))}
+              disabled={pagina === 1}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Anterior
+            </button>
+            {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(p => (
+              <button
+                key={p}
+                onClick={() => setPagina(p)}
+                className={`w-7 h-7 text-xs rounded-lg border transition-colors ${
+                  p === pagina
+                    ? 'bg-fonti-primary text-white border-fonti-primary'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+              disabled={pagina === totalPaginas}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Próximo
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
