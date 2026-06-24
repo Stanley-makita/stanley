@@ -63,6 +63,14 @@ export default function ProcessoDetalhePage() {
   const [gerandoFormularios, setGerandoFormularios] = useState(false)
   const [confirmacaoValoresAberto, setConfirmacaoValoresAberto] = useState(false)
 
+  function bancoTemFormularios(nome?: string | null): boolean {
+    if (!nome) return false
+    const n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    return n.includes('bradesco') || n.includes('brasil') || n === 'bb'
+      || n.includes('santander') || n.includes('itau') || n.includes('ita')
+      || n.includes('caixa')
+  }
+
   async function confirmarGerarFormularios() {
     if (!processo?.banco?.nome) return
     setConfirmFormulariosAberto(false)
@@ -210,18 +218,19 @@ export default function ProcessoDetalhePage() {
                 Negócio
               </Button>
 
-              {/* Gerar Formulários */}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={gerandoFormularios || !processo.banco?.nome}
-                title={!processo.banco?.nome ? 'Defina o banco do processo antes de gerar os formulários' : ''}
-                className="h-8 shrink-0 gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
-                onClick={() => setConfirmFormulariosAberto(true)}
-              >
-                <Download className="h-3.5 w-3.5" />
-                {gerandoFormularios ? 'Gerando...' : 'Formulários'}
-              </Button>
+              {/* Gerar Formulários — apenas bancos com templates disponíveis */}
+              {bancoTemFormularios(processo.banco?.nome) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={gerandoFormularios}
+                  className="h-8 shrink-0 gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                  onClick={() => setConfirmFormulariosAberto(true)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {gerandoFormularios ? 'Gerando...' : 'Formulários'}
+                </Button>
+              )}
 
               {/* Confirmação de Valores — apenas na fase Análise Jurídica */}
               {processo.fase_atual?.nome?.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes('juridica') && (
