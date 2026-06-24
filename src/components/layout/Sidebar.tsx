@@ -76,7 +76,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   }, [pathname])
 
   return (
-    <aside className={cn('flex h-screen w-60 flex-col bg-fonti-primary text-white', className)}>
+    <aside className={cn('flex h-screen flex-col bg-fonti-primary text-white', className)} style={{ width: 'clamp(192px, 14vw, 240px)' }}>
       {/* Logo */}
       <div className="flex items-center justify-center px-4 py-5 border-b border-white/10">
         <Image
