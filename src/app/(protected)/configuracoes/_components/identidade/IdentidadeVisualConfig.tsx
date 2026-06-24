@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { Upload, ImageIcon, RotateCcw } from 'lucide-react'
+import { Upload, ImageIcon, RotateCcw, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePersonalizacao } from '@/hooks/configuracoes/usePersonalizacao'
 import { useUploadLogo } from '@/hooks/configuracoes/useUploadLogo'
@@ -19,6 +19,10 @@ export function IdentidadeVisualConfig() {
   const qc = useQueryClient()
   const supabase = createClient()
 
+  // cacheBust força o <Image> a recarregar após upload (mesma URL no Storage)
+  const [cacheBust, setCacheBust] = useState<number | null>(null)
+  const [sucessoMsg, setSucessoMsg] = useState<string | null>(null)
+
   const remover = useMutation({
     mutationFn: async () => {
       if (!usuario?.empresa_id) throw new Error('Empresa não identificada')
@@ -33,7 +37,8 @@ export function IdentidadeVisualConfig() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['empresa-personalizacao', usuario?.empresa_id] })
-      toast.success('Logo removida — voltando ao padrão Fonti.')
+      setSucessoMsg('Logo removida — exibindo padrão Fonti.')
+      setCacheBust(Date.now())
     },
     onError: (err: any) => toast.error(err?.message ?? 'Erro ao remover logo'),
   })
@@ -45,11 +50,20 @@ export function IdentidadeVisualConfig() {
       toast.error('Arquivo muito grande. Máximo 2 MB.')
       return
     }
-    upload.mutate(file)
+    setSucessoMsg(null)
+    upload.mutate(file, {
+      onSuccess: () => {
+        setSucessoMsg('Logo atualizada! O sidebar e a tela de login já exibem a nova logo.')
+        setCacheBust(Date.now())
+      },
+    })
     e.target.value = ''
   }
 
-  const logoAtual = empresa?.logo_url ?? '/logo-fonti-horizontal.png'
+  const logoBase = empresa?.logo_url ?? '/logo-fonti-horizontal.png'
+  const logoAtual = cacheBust && empresa?.logo_url
+    ? `${empresa.logo_url}?t=${cacheBust}`
+    : logoBase
   const temLogoCustom = Boolean(empresa?.logo_url)
 
   return (
@@ -57,19 +71,29 @@ export function IdentidadeVisualConfig() {
       {/* Preview */}
       <div>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Logo atual</p>
-        <div className="inline-flex items-center justify-center rounded-2xl bg-fonti-primary p-4 shadow-md">
+        <div className="inline-flex items-center justify-center rounded-2xl bg-[#031E13] p-4 shadow-md">
           <Image
+            key={logoAtual}
             src={logoAtual}
             alt="Logo da empresa"
             width={220}
             height={72}
             className="rounded-xl object-contain"
+            unoptimized={Boolean(empresa?.logo_url)}
           />
         </div>
         <p className="mt-2 text-xs text-gray-400">
           {temLogoCustom ? 'Logo personalizada da sua empresa' : 'Logo padrão Fonti (nenhuma logo própria cadastrada)'}
         </p>
       </div>
+
+      {/* Feedback de sucesso */}
+      {sucessoMsg && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-green-800">{sucessoMsg}</p>
+        </div>
+      )}
 
       {/* Onde aparece */}
       <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-1.5">
@@ -100,7 +124,7 @@ export function IdentidadeVisualConfig() {
           onChange={handleArquivo}
         />
         <Button
-          onClick={() => inputRef.current?.click()}
+          onClick={() => { setSucessoMsg(null); inputRef.current?.click() }}
           disabled={upload.isPending}
           className="gap-2 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
         >
