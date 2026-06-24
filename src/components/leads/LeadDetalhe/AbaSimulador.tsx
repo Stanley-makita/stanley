@@ -13,6 +13,7 @@ export function AbaSimulador({ leadId }: Props) {
       leadId={leadId}
       valorFinanciadoInicial={lead?.valor_pretendido ?? 0}
       clienteNome={lead?.nome}
+      modoAvulso
     />
   )
 }

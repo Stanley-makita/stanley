@@ -123,7 +123,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
   return (
     <>
       <Dialog open={aberto} onOpenChange={fechar}>
-        <DialogContent className="flex h-[94svh] w-[calc(100vw-1rem)] max-w-[96vw] flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="flex h-[96svh] w-[calc(100vw-1rem)] max-w-[98vw] flex-col gap-0 overflow-hidden p-0">
           {isLoading || !lead ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
@@ -374,7 +374,12 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
 
                 {/* Conteúdo da aba */}
-                <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-5">
+                <div className={cn(
+                  'flex-1 min-h-0',
+                  abaAtiva === 'simulador'
+                    ? 'overflow-hidden'
+                    : 'overflow-y-auto px-3 py-4 sm:px-5'
+                )}>
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
                   {abaAtiva === 'credito'      && <AbaCredito      lead={lead} />}
                   {abaAtiva === 'operacional'  && <AbaOperacional  lead={lead} />}
