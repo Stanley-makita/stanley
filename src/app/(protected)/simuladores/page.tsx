@@ -81,8 +81,8 @@ function VerSimulacaoDialog({
   return (
     <Dialog open={!!simulacao} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent
-        className="p-0 flex flex-col overflow-hidden"
-        style={{ maxWidth: '90vw', width: '1100px', maxHeight: 'calc(100vh - 40px)' }}
+        className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+        style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100dvh - 40px)' }}
       >
         <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
@@ -215,8 +215,8 @@ export default function SimuladoresPage() {
   /* ── View: Simulador de Financiamento (tela cheia, sem modal) ── */
   if (visao === 'financiamento') {
     return (
-      <div className="p-4 md:p-6">
-        <div className="mb-4 flex items-center gap-2">
+      <div className="p-2 sm:p-4 md:p-6">
+        <div className="mb-3 flex items-center gap-2">
           <button
             type="button"
             onClick={fecharFinanciamento}

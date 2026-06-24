@@ -365,7 +365,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                         abaAtiva === aba.id
                           ? 'border-fonti-primary text-fonti-primary'
                           : 'border-transparent text-gray-400 hover:text-gray-600',
-                        ['notas', 'tarefas', 'operacional'].includes(aba.id) && 'xl:hidden'
+                        ['notas', 'tarefas', 'operacional', 'solicitacoes', 'formularios', 'historico'].includes(aba.id) && 'hidden lg:flex'
                       )}
                     >
                       {aba.label}

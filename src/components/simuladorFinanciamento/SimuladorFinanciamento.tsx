@@ -143,7 +143,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   }
 
   return (
-    <div className="max-w-lg mx-auto p-4">
+    <div className="w-full max-w-lg mx-auto">
       <FormFinanciamento
         onSimular={handleSimular}
         loading={loading}
