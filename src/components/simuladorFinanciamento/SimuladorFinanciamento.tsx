@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { FormFinanciamento } from './FormFinanciamento'
+import { FormFinanciamento, type InitialValuesFinanciamento } from './FormFinanciamento'
 import { ResultadosFinanciamento } from './ResultadosFinanciamento'
 import { AnalisePredicativaCard } from './AnalisePredicativaCard'
 import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciamento/engine'
@@ -16,9 +16,11 @@ interface Props {
   cpfCliente?: string
   onSalvar?: (resultado: ResultadoCompleto) => void
   salvando?: boolean
+  leadId?: string
+  initialValues?: InitialValuesFinanciamento
 }
 
-export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salvando }: Props) {
+export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salvando, leadId: _leadId, initialValues }: Props) {
   const [resultado, setResultado] = useState<ResultadoCompleto | null>(null)
   const [loading, setLoading] = useState(false)
   const [gerandoPDF, setGerandoPDF] = useState(false)
@@ -149,6 +151,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
         loading={loading}
         nomeCliente={nomeCliente}
         cpfCliente={cpfCliente}
+        initialValues={initialValues}
       />
     </div>
   )

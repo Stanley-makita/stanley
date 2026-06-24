@@ -19,7 +19,7 @@ export const ABAS_DEFAULT: AbaConfig[] = [
   { id: 'documentos',   label: 'Documentos' },
   { id: 'solicitacoes', label: 'Solicitações' },
   { id: 'formularios',  label: 'Formulários' },
-  { id: 'simulador',    label: 'Simulador' },
+  { id: 'simulador',    label: 'Simuladores' },
   { id: 'processos',    label: 'Processos' },
   { id: 'historico',    label: 'Histórico' },
 ]

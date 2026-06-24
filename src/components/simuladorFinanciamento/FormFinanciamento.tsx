@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,11 +8,19 @@ import { cn } from '@/lib/utils'
 import { BANCOS_CONFIG, TODOS_BANCOS } from '@/lib/simuladorFinanciamento/constantes'
 import type { BancoId, InputFinanciamento, TipoAmortizacao, TipoImovel, FinalidadeImovel } from '@/lib/simuladorFinanciamento/tipos'
 
+export interface InitialValuesFinanciamento {
+  valorImovel?: string
+  valorEntrada?: string
+  dataNascimento?: string
+  rendaMensal?: string
+}
+
 interface Props {
   onSimular: (input: InputFinanciamento) => void
   loading?: boolean
   nomeCliente?: string
   cpfCliente?: string
+  initialValues?: InitialValuesFinanciamento
 }
 
 function fmtNum(v: string): string {
@@ -30,11 +38,25 @@ function fmtMoedaInput(v: string): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente }: Props) {
-  const [valorImovel, setValorImovel] = useState('')
-  const [valorEntrada, setValorEntrada] = useState('')
-  const [dataNascimento, setDataNascimento] = useState('')
-  const [rendaMensal, setRendaMensal] = useState('')
+export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente, initialValues }: Props) {
+  const [valorImovel, setValorImovel] = useState(initialValues?.valorImovel ?? '')
+  const [valorEntrada, setValorEntrada] = useState(initialValues?.valorEntrada ?? '')
+  const [dataNascimento, setDataNascimento] = useState(initialValues?.dataNascimento ?? '')
+  const [rendaMensal, setRendaMensal] = useState(initialValues?.rendaMensal ?? '')
+
+  // Atualiza campos com dados do lead quando chegam de forma assíncrona.
+  // Só sobrescreve se o usuário ainda não editou (campo estava vazio).
+  const touchedRef = useRef({ valorImovel: false, valorEntrada: false, dataNascimento: false, rendaMensal: false })
+  useEffect(() => {
+    if (initialValues?.valorImovel && !touchedRef.current.valorImovel)
+      setValorImovel(initialValues.valorImovel)
+    if (initialValues?.valorEntrada && !touchedRef.current.valorEntrada)
+      setValorEntrada(initialValues.valorEntrada)
+    if (initialValues?.dataNascimento && !touchedRef.current.dataNascimento)
+      setDataNascimento(initialValues.dataNascimento)
+    if (initialValues?.rendaMensal && !touchedRef.current.rendaMensal)
+      setRendaMensal(initialValues.rendaMensal)
+  }, [initialValues?.valorImovel, initialValues?.valorEntrada, initialValues?.dataNascimento, initialValues?.rendaMensal])
   const [tipoAmortizacao, setTipoAmortizacao] = useState<TipoAmortizacao>('SAC')
   const [tipoImovel, setTipoImovel] = useState<TipoImovel>('novo')
   const [finalidade, setFinalidade] = useState<FinalidadeImovel>('residencial')
@@ -56,8 +78,10 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
 
   function handleMoedaInput(
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (v: string) => void
+    setter: (v: string) => void,
+    field: keyof typeof touchedRef.current
   ) {
+    touchedRef.current[field] = true
     const raw = e.target.value.replace(/\D/g, '')
     setter(fmtMoedaInput(raw))
   }
@@ -101,7 +125,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
               className="pl-8 text-sm"
               placeholder="0,00"
               value={valorImovel}
-              onChange={(e) => handleMoedaInput(e, setValorImovel)}
+              onChange={(e) => handleMoedaInput(e, setValorImovel, 'valorImovel')}
             />
           </div>
         </div>
@@ -119,7 +143,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
               className="pl-8 text-sm"
               placeholder="0,00"
               value={valorEntrada}
-              onChange={(e) => handleMoedaInput(e, setValorEntrada)}
+              onChange={(e) => handleMoedaInput(e, setValorEntrada, 'valorEntrada')}
             />
           </div>
         </div>
@@ -160,7 +184,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
             type="date"
             className="text-sm"
             value={dataNascimento}
-            onChange={(e) => setDataNascimento(e.target.value)}
+            onChange={(e) => { touchedRef.current.dataNascimento = true; setDataNascimento(e.target.value) }}
             max={new Date(Date.now() - 18 * 365.25 * 86400000).toISOString().split('T')[0]}
           />
         </div>
@@ -172,7 +196,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente 
               className="pl-8 text-sm"
               placeholder="0,00"
               value={rendaMensal}
-              onChange={(e) => handleMoedaInput(e, setRendaMensal)}
+              onChange={(e) => handleMoedaInput(e, setRendaMensal, 'rendaMensal')}
             />
           </div>
         </div>

@@ -186,7 +186,7 @@ export default function SimuladoresPage() {
 
   async function handleSalvarFinanciamento(resultado: ResultadoCompleto) {
     try {
-      await salvar.mutateAsync(resultado)
+      await salvar.mutateAsync({ resultado })
       toast.success('Simulação salva no histórico')
       await refetch()
       fecharFinanciamento()

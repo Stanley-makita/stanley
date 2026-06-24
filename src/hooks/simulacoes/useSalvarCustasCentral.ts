@@ -7,6 +7,8 @@ interface SalvarCustasParams {
   nomeCliente?: string
   cpfCliente?: string
   resultadoJson?: Record<string, unknown>
+  leadId?: string
+  processoId?: string
 }
 
 export function useSalvarCustasCentral() {
@@ -28,13 +30,15 @@ export function useSalvarCustasCentral() {
       const { data, error } = await supabase
         .from('simulacoes_central')
         .insert({
-          empresa_id:    usuario.empresa_id,
-          tipo:          'custas',
-          status:        'concluida',
-          nome_cliente:  params.nomeCliente ?? null,
-          cpf_cliente:   params.cpfCliente ?? null,
+          empresa_id:     usuario.empresa_id,
+          tipo:           'custas',
+          status:         'concluida',
+          nome_cliente:   params.nomeCliente ?? null,
+          cpf_cliente:    params.cpfCliente ?? null,
           resultado_json: params.resultadoJson ?? null,
           responsavel_id: usuario.id,
+          lead_id:        params.leadId ?? null,
+          processo_id:    params.processoId ?? null,
         })
         .select()
         .single()
@@ -42,8 +46,11 @@ export function useSalvarCustasCentral() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['simulacoes-central'] })
+      if (vars.leadId) {
+        qc.invalidateQueries({ queryKey: ['simulacoes-lead', vars.leadId] })
+      }
     },
   })
 }
