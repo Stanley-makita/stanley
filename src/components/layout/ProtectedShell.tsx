@@ -1,16 +1,33 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
 export function ProtectedShell({ children }: { children: ReactNode }) {
   const [menuAberto, setMenuAberto] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed')
+    if (saved === 'true') setCollapsed(true)
+  }, [])
+
+  function toggleCollapsed() {
+    setCollapsed(v => {
+      localStorage.setItem('sidebar-collapsed', String(!v))
+      return !v
+    })
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F7F5F0]">
-      <Sidebar className="hidden lg:flex" />
+      <Sidebar
+        className="hidden lg:flex"
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapsed}
+      />
 
       <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
         <SheetContent side="left" className="w-72 max-w-[85vw] overflow-hidden border-0 bg-fonti-primary p-0 text-white">

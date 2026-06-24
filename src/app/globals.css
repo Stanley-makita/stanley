@@ -91,8 +91,11 @@
 }
 
 @layer utilities {
-  /* min-h-screen: compensate zoom 0.8 — 100vh appears as 80vh visually */
+  /* compensate zoom 0.8 — 100vh appears as 80vh visually */
   .min-h-screen {
     min-height: calc(100dvh / 0.8);
+  }
+  .h-screen {
+    height: calc(100dvh / 0.8);
   }
 }
