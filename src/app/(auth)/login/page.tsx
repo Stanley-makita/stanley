@@ -39,13 +39,13 @@ export default function LoginPage() {
     <div className="min-h-screen bg-fonti-primary flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 space-y-6">
         <div className="text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-5">
             <Image
-              src="/images/logos/logotipo quadrado fontinhas assessoria.jpg"
-              alt="Fontinhas Assessoria"
-              width={96}
-              height={96}
-              className="rounded-xl object-cover"
+              src="/logo-fonti-horizontal.png"
+              alt="Fonti"
+              width={200}
+              height={65}
+              className="rounded-2xl object-contain shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
               priority
             />
           </div>

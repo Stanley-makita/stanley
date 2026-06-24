@@ -19,6 +19,7 @@ import { AgenteFontiConfig } from './_components/bot/AgenteFontiConfig'
 import { AbasConfigTab } from './_components/abas/AbasConfigTab'
 import { AbaComissoesPadrao } from '@/components/configuracoes/AbaComissoesPadrao'
 import { AbaMetas } from '@/components/configuracoes/AbaMetas'
+import { IdentidadeVisualConfig } from './_components/identidade/IdentidadeVisualConfig'
 
 interface ConfigItem {
   key: string
@@ -55,6 +56,12 @@ const GRUPOS: ConfigGrupo[] = [
     titulo: 'Imóveis',
     itens: [
       { key: 'registros-imoveis', label: 'Registros de Imóveis', descricao: 'Cartórios de RI utilizados nos processos', icon: Landmark },
+    ],
+  },
+  {
+    titulo: 'Identidade Visual',
+    itens: [
+      { key: 'identidade', label: 'Logo & Marca', descricao: 'Logo exibida no sidebar, login e favicon do sistema', icon: Settings },
     ],
   },
   {
@@ -96,6 +103,7 @@ function renderConteudo(key: string) {
     case 'abas-lead':        return wrap('Abas do Lead', 'Defina a ordem das abas no modal de detalhe do lead.', <AbasConfigTab />)
     case 'comissoes-banco':  return wrap('Comissões por Banco', 'Configure o percentual por banco e modalidade, com piso e teto por operação.', <AbaComissoesPadrao />)
     case 'metas':            return wrap('Metas da Equipe', 'Metas mensais de valor financiado e número de contratos.', <AbaMetas />)
+    case 'identidade':       return wrap('Logo & Marca', 'Logo exibida no sidebar e na tela de login. Documentos e PDFs gerados pelo sistema mantêm sua própria identidade visual.', <IdentidadeVisualConfig />)
     default:                 return null
   }
 }

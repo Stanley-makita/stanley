@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
+import { usePersonalizacao } from '@/hooks/configuracoes/usePersonalizacao'
 import { useAgendaBadge } from '@/hooks/useAgendaBadge'
 import { useLeadsBadge } from '@/hooks/leads/useLeadsBadge'
 import { useSolicitacoesBadge } from '@/hooks/solicitacoes/useSolicitacoesBadge'
@@ -69,6 +70,9 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
   const { data: operacionalBadge = 0 } = useSolicitacoesBadge()
   const { data: conversasBadge = 0 } = useConversasBadge()
 
+  const { data: empresa } = usePersonalizacao()
+  const logoUrl = empresa?.logo_url ?? '/logo-fonti-horizontal.png'
+
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
@@ -106,8 +110,8 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
         ) : (
           <div className="rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
             <Image
-              src="/logo-fonti-horizontal.png"
-              alt="Fonti — Sistema de Crédito"
+              src={logoUrl}
+              alt="Logo"
               width={192}
               height={62}
               className="object-cover block"
