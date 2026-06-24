@@ -33,7 +33,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Plus, MessageCircle, Pencil, Loader2, Trash2,
-  Phone, Mail, CreditCard, DollarSign, Calendar, CalendarClock, ClipboardList, ChevronRight,
+  Phone, Mail, CreditCard, DollarSign, Calendar, CalendarClock, ClipboardList, ChevronRight, ArrowLeft,
 } from 'lucide-react'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
@@ -76,12 +76,17 @@ function produtoCfg(produto: string | null | undefined) {
   return { label: produto, className: 'bg-gray-100 text-gray-600' }
 }
 
+// Abas que ficam no painel direito — não precisam aparecer no menu de abas superior
+const ABAS_PAINEL_DIREITO = new Set(['notas', 'tarefas', 'operacional'])
+
 interface Props {
   leadId: string | null
   onFechar: () => void
+  /** Quando true, renderiza como página cheia (sem Dialog), para uso em /leads/[id] */
+  pageMode?: boolean
 }
 
-export function LeadDetalheModal({ leadId, onFechar }: Props) {
+export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const router = useRouter()
   const { pode } = usePermissao()
   const [abaAtiva, setAbaAtiva] = useState<Aba>('resumo')
@@ -120,16 +125,14 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
 
   const aberto = !!leadId
 
-  return (
+  const innerContent = (
     <>
-      <Dialog open={aberto} onOpenChange={fechar}>
-        <DialogContent className="flex h-[96svh] w-[calc(100vw-1rem)] max-w-[98vw] flex-col gap-0 overflow-hidden p-0">
-          {isLoading || !lead ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
-            </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+      {isLoading || !lead ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
               <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
@@ -350,7 +353,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
 
                 {/* Tab bar */}
                 <div className="flex shrink-0 overflow-x-auto border-b border-gray-100 bg-white px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                  {abas.map((aba) => (
+                  {abas.filter(a => !ABAS_PAINEL_DIREITO.has(a.id)).map((aba) => (
                     <button
                       key={aba.id}
                       onClick={() => {
@@ -365,7 +368,7 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                         abaAtiva === aba.id
                           ? 'border-fonti-primary text-fonti-primary'
                           : 'border-transparent text-gray-400 hover:text-gray-600',
-                        ['notas', 'tarefas', 'operacional', 'solicitacoes', 'formularios', 'historico'].includes(aba.id) && 'hidden lg:flex'
+                        ['solicitacoes', 'formularios', 'historico'].includes(aba.id) && 'hidden lg:flex'
                       )}
                     >
                       {aba.label}
@@ -404,157 +407,193 @@ export function LeadDetalheModal({ leadId, onFechar }: Props) {
                 </div>
               </div>
 
-              {/* ── Painel Direito: Notas + Tarefas + Checklist (bonus em telas grandes) ── */}
-              <div className="hidden w-72 shrink-0 overflow-y-auto border-l border-gray-100 bg-white xl:block">
+              {/* ── Painel Direito: Notas + Tarefas + Checklist ── */}
+              <div className={cn(
+                'w-72 shrink-0 overflow-y-auto border-l border-gray-100 bg-white',
+                pageMode ? 'hidden lg:block' : 'hidden xl:block'
+              )}>
                 <PainelDireitoLead lead={lead} />
               </div>
 
             </div>
           )}
+  </>
+)
+
+  const secondaryDialogs = lead ? (
+    <>
+      <NovoProcessoModal
+        aberto={novoProcessoAberto}
+        onFechar={() => setNovoProcessoAberto(false)}
+        lead={lead}
+      />
+      <LeadEditarModal
+        aberto={editarAberto}
+        onFechar={() => setEditarAberto(false)}
+        lead={lead}
+      />
+      <CompletarDadosPessoaDrawer
+        pessoaId={lead.pessoa_id ?? null}
+        open={completarDadosAberto}
+        onClose={() => setCompletarDadosAberto(false)}
+        origemAuditoria="leads"
+      />
+      <NovaSolicitacaoDrawer
+        aberto={novaSolicitacaoAberta}
+        onFechar={() => setNovaSolicitacaoAberta(false)}
+        leadId={lead.id}
+        contexto={contextoSolicitacao}
+      />
+      <ExcluirLeadDialog
+        aberto={excluirAberto}
+        onFechar={() => setExcluirAberto(false)}
+        leadId={lead.id}
+        faseId={lead.fase_id}
+        nomeCliente={lead.nome}
+        onExcluido={fechar}
+      />
+
+      <Dialog open={consultaRestritivosAberto} onOpenChange={(o) => { if (!o) setConsultaRestritivosAberto(false) }}>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary text-base">Consulta de Restritivos</DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-4">
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Antes de avaliar o crédito, <strong>consulte os restritivos dos participantes</strong> (CPF, CNPJ, SCR e demais restrições).
+            </p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">O cliente possui restrição?</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([true, false] as const).map(val => (
+                  <button
+                    key={String(val)}
+                    onClick={() => setTemRestricao(val)}
+                    className={cn(
+                      'rounded-lg border px-3 py-2.5 text-sm font-medium transition-all',
+                      temRestricao === val
+                        ? val
+                          ? 'border-red-400 bg-red-50 text-red-700'
+                          : 'border-green-400 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    )}
+                  >
+                    {val ? 'Sim, tem restrição' : 'Não tem restrição'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              size="sm"
+              disabled={temRestricao === null}
+              className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white disabled:opacity-40"
+              onClick={() => {
+                setConsultaRestritivosRespondido(true)
+                setConsultaRestritivosAberto(false)
+                setAbaAtiva('credito')
+              }}
+            >
+              Confirmar e abrir Crédito
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {lead && (
-        <>
-          <NovoProcessoModal
-            aberto={novoProcessoAberto}
-            onFechar={() => setNovoProcessoAberto(false)}
-            lead={lead}
-          />
-          <LeadEditarModal
-            aberto={editarAberto}
-            onFechar={() => setEditarAberto(false)}
-            lead={lead}
-          />
-          <CompletarDadosPessoaDrawer
-            pessoaId={lead.pessoa_id ?? null}
-            open={completarDadosAberto}
-            onClose={() => setCompletarDadosAberto(false)}
-            origemAuditoria="leads"
-          />
-          <NovaSolicitacaoDrawer
-            aberto={novaSolicitacaoAberta}
-            onFechar={() => setNovaSolicitacaoAberta(false)}
-            leadId={lead.id}
-            contexto={contextoSolicitacao}
-          />
-          <ExcluirLeadDialog
-            aberto={excluirAberto}
-            onFechar={() => setExcluirAberto(false)}
-            leadId={lead.id}
-            faseId={lead.fase_id}
-            nomeCliente={lead.nome}
-            onExcluido={fechar}
-          />
+      <Dialog open={iniciarConversaAberto} onOpenChange={(o) => { if (!o) setIniciarConversaAberto(false) }}>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">Iniciar conversa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="text-sm text-gray-600">
+              <p className="font-medium text-gray-800">{lead.nome}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{lead.telefone}</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Mensagem inicial (opcional)</label>
+              <Textarea
+                placeholder="Olá! Tudo bem?"
+                rows={3}
+                className="text-sm resize-none"
+                value={msgInicial}
+                onChange={(e) => setMsgInicial(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setIniciarConversaAberto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={iniciarConversa.isPending}
+              className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
+              onClick={async () => {
+                try {
+                  const id = await iniciarConversa.mutateAsync({
+                    telefone:        lead.telefone,
+                    nome:            lead.nome,
+                    lead_id:         lead.id,
+                    pessoa_id:       (lead as any).pessoa_id ?? undefined,
+                    mensagemInicial: msgInicial,
+                  })
+                  setIniciarConversaAberto(false)
+                  router.push(`/conversas?id=${id}`)
+                } catch {
+                  toast.error('Erro ao criar conversa. Tente novamente.')
+                }
+              }}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              {iniciarConversa.isPending ? 'Criando...' : 'Iniciar Conversa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  ) : null
 
-          {/* Dialog: Consulta de Restritivos */}
-          <Dialog open={consultaRestritivosAberto} onOpenChange={(o) => { if (!o) setConsultaRestritivosAberto(false) }}>
-            <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
-              <DialogHeader>
-                <DialogTitle className="text-fonti-primary text-base">Consulta de Restritivos</DialogTitle>
-              </DialogHeader>
-              <div className="py-3 space-y-4">
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  Antes de avaliar o crédito, <strong>consulte os restritivos dos participantes</strong> (CPF, CNPJ, SCR e demais restrições).
-                </p>
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">O cliente possui restrição?</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {([true, false] as const).map(val => (
-                      <button
-                        key={String(val)}
-                        onClick={() => setTemRestricao(val)}
-                        className={cn(
-                          'rounded-lg border px-3 py-2.5 text-sm font-medium transition-all',
-                          temRestricao === val
-                            ? val
-                              ? 'border-red-400 bg-red-50 text-red-700'
-                              : 'border-green-400 bg-green-50 text-green-700'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                        )}
-                      >
-                        {val ? 'Sim, tem restrição' : 'Não tem restrição'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  size="sm"
-                  disabled={temRestricao === null}
-                  className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white disabled:opacity-40"
-                  onClick={() => {
-                    setConsultaRestritivosRespondido(true)
-                    setConsultaRestritivosAberto(false)
-                    setAbaAtiva('credito')
-                  }}
-                >
-                  Confirmar e abrir Crédito
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+  if (pageMode) {
+    return (
+      <>
+        <div className="h-full flex flex-col overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={onFechar}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-fonti-primary transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </button>
+            {lead && (
+              <span className="text-sm font-semibold text-gray-800 truncate">{lead.nome}</span>
+            )}
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            {innerContent}
+          </div>
+        </div>
+        {secondaryDialogs}
+      </>
+    )
+  }
 
-          {/* Dialog: Iniciar nova conversa */}
-          <Dialog open={iniciarConversaAberto} onOpenChange={(o) => { if (!o) setIniciarConversaAberto(false) }}>
-            <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
-              <DialogHeader>
-                <DialogTitle className="text-fonti-primary">Iniciar conversa</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="text-sm text-gray-600">
-                  <p className="font-medium text-gray-800">{lead.nome}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{lead.telefone}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Mensagem inicial (opcional)</label>
-                  <Textarea
-                    placeholder="Olá! Tudo bem?"
-                    rows={3}
-                    className="text-sm resize-none"
-                    value={msgInicial}
-                    onChange={(e) => setMsgInicial(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onClick={() => setIniciarConversaAberto(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={iniciarConversa.isPending}
-                  className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
-                  onClick={async () => {
-                    try {
-                      const id = await iniciarConversa.mutateAsync({
-                        telefone:       lead.telefone,
-                        nome:           lead.nome,
-                        lead_id:        lead.id,
-                        pessoa_id:      (lead as any).pessoa_id ?? undefined,
-                        mensagemInicial: msgInicial,
-                      })
-                      setIniciarConversaAberto(false)
-                      router.push(`/conversas?id=${id}`)
-                    } catch {
-                      toast.error('Erro ao criar conversa. Tente novamente.')
-                    }
-                  }}
-                >
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  {iniciarConversa.isPending ? 'Criando...' : 'Iniciar Conversa'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
+  return (
+    <>
+      <Dialog open={aberto} onOpenChange={fechar}>
+        <DialogContent className="flex h-[96svh] w-[calc(100vw-1rem)] max-w-[98vw] flex-col gap-0 overflow-hidden p-0">
+          {innerContent}
+        </DialogContent>
+      </Dialog>
+      {secondaryDialogs}
     </>
   )
 }

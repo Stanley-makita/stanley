@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { KanbanBoard } from '@/components/leads/KanbanBoard'
 import { LeadModal } from '@/components/leads/LeadModal'
 import { LeadListView } from '@/components/leads/LeadListView'
-import { LeadDetalheModal } from '@/components/leads/LeadDetalheModal'
 import { DashboardLeads } from '@/components/leads/DashboardLeads'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { Button } from '@/components/ui/button'
@@ -34,22 +33,14 @@ function LeadsContent() {
   const [faseIdNovo, setFaseIdNovo] = useState<string | undefined>()
   const [busca, setBusca] = useState('')
   const [faseIdFiltro, setFaseIdFiltro] = useState<string | undefined>()
-  const [leadDetalheId, setLeadDetalheId] = useState<string | null>(null)
 
+  // Redireciona ?open=ID para a página dedicada (compatibilidade com links do bot)
   useEffect(() => {
     const openId = searchParams.get('open')
-    if (openId && openId !== leadDetalheId) {
-      setLeadDetalheId(openId)
+    if (openId) {
+      router.replace(`/leads/${openId}`)
     }
   }, [searchParams])
-
-  function fecharDetalhe() {
-    setLeadDetalheId(null)
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('open')
-    const novaUrl = params.toString() ? `?${params.toString()}` : window.location.pathname
-    router.replace(novaUrl, { scroll: false })
-  }
 
   const abrirModal = useCallback((faseId?: string) => {
     setFaseIdNovo(faseId)
@@ -57,8 +48,8 @@ function LeadsContent() {
   }, [])
 
   const abrirDetalhe = useCallback((id: string) => {
-    setLeadDetalheId(id)
-  }, [])
+    router.push(`/leads/${id}`)
+  }, [router])
 
   function irParaVisao(v: Visao) {
     setVisao(v)
@@ -144,10 +135,6 @@ function LeadsContent() {
         faseIdInicial={faseIdNovo}
       />
 
-      <LeadDetalheModal
-        leadId={leadDetalheId}
-        onFechar={fecharDetalhe}
-      />
     </div>
   )
 }

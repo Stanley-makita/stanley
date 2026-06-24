@@ -8,9 +8,12 @@ export default function LeadPage() {
   const router = useRouter()
 
   return (
-    <LeadDetalheModal
-      leadId={id}
-      onFechar={() => router.push('/leads')}
-    />
+    <div className="h-full flex flex-col overflow-hidden">
+      <LeadDetalheModal
+        leadId={id}
+        onFechar={() => router.push('/leads')}
+        pageMode
+      />
+    </div>
   )
 }
