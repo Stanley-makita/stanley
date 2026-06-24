@@ -37,11 +37,11 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
   ).length
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
+    <div className="p-5 space-y-4">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
         <div className="flex items-center gap-2">
           <CheckSquare className="h-4 w-4 text-fonti-primary" />
-          <span className="text-sm font-semibold text-fonti-primary">Tarefas</span>
+          <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Tarefas</span>
           {atrasadas > 0 && (
             <Badge className="bg-red-500 text-white text-xs px-1.5 py-0">
               {atrasadas} atrasada{atrasadas > 1 ? 's' : ''}
@@ -54,7 +54,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
       </div>
 
       {/* Abas */}
-      <div className="flex gap-1 mb-3 bg-gray-100 rounded-lg p-0.5">
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
         {(['pendente', 'concluida', 'todas'] as const).map((a) => {
           const count = tarefas.filter((t) => {
             if (a === 'todas') return true

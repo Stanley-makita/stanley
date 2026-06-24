@@ -83,17 +83,17 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="p-5 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
           <div className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-fonti-primary" />
-            <span className="text-sm font-semibold text-fonti-primary">Checklist da fase</span>
+            <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Checklist da fase</span>
           </div>
           {!isLoading && itens.length > 0 && (
             obrigatoriosPendentes > 0 ? (
               <span className="text-xs bg-red-100 text-red-600 font-medium px-1.5 py-0.5 rounded-full">
-                {obrigatoriosPendentes}/{totalObrigatorios} pendente{obrigatoriosPendentes > 1 ? 's' : ''}
+                {obrigatoriosPendentes}/{totalObrigatorios} pend.
               </span>
             ) : (
               <span className="text-xs bg-green-100 text-green-600 font-medium px-1.5 py-0.5 rounded-full">

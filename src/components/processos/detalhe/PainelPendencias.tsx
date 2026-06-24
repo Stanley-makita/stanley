@@ -14,11 +14,11 @@ export function PainelPendencias({ processoId, onIrParaSolicitacoes }: Props) {
   if (pendencias.length === 0) return null
 
   return (
-    <div className="bg-white border border-amber-200 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="p-5 space-y-3">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-amber-500" />
-          <span className="text-sm font-semibold text-fonti-primary">Pendências</span>
+          <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Pendências</span>
         </div>
         <span className="text-xs font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 min-w-[1.25rem] text-center">
           {pendencias.length}

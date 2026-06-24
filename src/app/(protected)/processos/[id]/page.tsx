@@ -129,7 +129,8 @@ export default function ProcessoDetalhePage() {
       <div className="min-w-0 flex-1 space-y-5 overflow-visible lg:overflow-y-auto">
         {/* Header do processo */}
         <div>
-          <div className="mb-2 flex flex-wrap items-start gap-2 sm:items-center sm:gap-3">
+          {/* Row 1: voltar + nome + badges */}
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -160,7 +161,9 @@ export default function ProcessoDetalhePage() {
               </Badge>
             )}
             <EmailConfirmacaoBadge processoId={id} />
-            <div className="order-4 -mx-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 pb-1 pt-1 sm:order-none sm:mx-0 sm:ml-auto sm:w-auto sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0 sm:pt-0">
+          </div>
+          {/* Row 2: botões de ação */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
               {/* Toggle Certeza / Incerteza */}
               <Button
                 size="sm"
@@ -489,7 +492,7 @@ export default function ProcessoDetalhePage() {
       </Dialog>
 
       {/* Painel direito — sempre visível */}
-      <div className="grid shrink-0 gap-4 lg:w-80 lg:flex lg:flex-col lg:overflow-y-auto">
+      <div className="shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 lg:w-80 lg:flex lg:flex-col lg:overflow-y-auto">
         <PainelChecklist
           processoId={id}
           faseId={processo.fase_atual_id}
@@ -499,12 +502,8 @@ export default function ProcessoDetalhePage() {
           processoId={id}
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
         />
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <PainelComentarios processoId={id} />
-        </div>
+        <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
+        <PainelComentarios processoId={id} />
       </div>
     </div>
   )

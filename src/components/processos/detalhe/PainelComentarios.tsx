@@ -128,16 +128,17 @@ export function PainelComentarios({ processoId }: Props) {
   const [dialogAberto, setDialogAberto] = useState(false)
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-fonti-primary">Comentários</h3>
-        <span className="text-xs text-gray-400">{comentarios.length}</span>
+    <div className="p-5 space-y-4 flex flex-col">
+      <div className="flex items-center gap-2 border-b border-gray-100 pb-2.5">
+        <MessageSquare className="h-4 w-4 text-fonti-primary" />
+        <span className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Comentários</span>
+        {comentarios.length > 0 && (
+          <span className="text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5 font-medium">{comentarios.length}</span>
+        )}
       </div>
 
       {/* Formulário de comentário */}
-      <div className="mb-4">
-        <FormComentario processoId={processoId} />
-      </div>
+      <FormComentario processoId={processoId} />
 
       {/* Lista com altura limitada */}
       <div className="max-h-[260px] overflow-y-auto">
