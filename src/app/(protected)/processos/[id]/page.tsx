@@ -249,7 +249,6 @@ export default function ProcessoDetalhePage() {
                 + Solicitação
               </Button>
             </div>
-          </div>
 
           {!processo.imovel_id && processo.nome_imovel && (
             <p className="ml-10 text-sm font-medium text-fonti-primary sm:ml-11">
