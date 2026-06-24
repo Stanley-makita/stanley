@@ -105,6 +105,7 @@ interface Props {
   entradaInicial?: EntradaSimulador
   onResultadoChange?: (r: ResultadoSimulador | null) => void
   modoAvulso?: boolean  // Central de Simulações: oculta aba Histórico e botão Salvar interno
+  onSalvo?: () => void  // callback após salvar com sucesso
 }
 
 // ── Currency input ────────────────────────────────────────────────────────────
@@ -268,6 +269,7 @@ export function SimuladorCustas({
   entradaInicial,
   onResultadoChange,
   modoAvulso = false,
+  onSalvo,
 }: Props) {
   const { data: itbiConfigs = [] } = useItbiConfig()
   const { data: custasConfigs = [] } = useCustasConfig()
@@ -367,6 +369,7 @@ export function SimuladorCustas({
     if (!resultado) return
     await salvar.mutateAsync({ processoId, leadId, resultado })
     toast.success('Simulação salva no histórico')
+    onSalvo?.()
   }
 
   async function baixarPDF() {

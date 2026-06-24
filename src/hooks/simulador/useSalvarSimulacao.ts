@@ -59,6 +59,9 @@ export function useSalvarSimulacao() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['custas-simulacoes', vars.processoId, vars.leadId] })
+      if (vars.leadId) {
+        qc.invalidateQueries({ queryKey: ['simulacoes-lead', vars.leadId] })
+      }
     },
   })
 }

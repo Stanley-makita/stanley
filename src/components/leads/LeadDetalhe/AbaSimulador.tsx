@@ -75,6 +75,7 @@ export function AbaSimulador({ leadId }: Props) {
             valorFinanciadoInicial={lead?.valor_pretendido ?? 0}
             clienteNome={lead?.nome}
             modoAvulso
+            onSalvo={() => setSubAba('historico')}
           />
         )}
 
