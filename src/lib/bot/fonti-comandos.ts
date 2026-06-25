@@ -6,9 +6,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buscarOuCriarPessoa, buscarPessoaPorCpf, buscarPessoaPorTelefone } from '@/lib/pessoa'
 import { extrairProduto, extrairNumero } from './state-machine'
-import { obterOrdemTopo } from '@/lib/leads/ordem'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -25,6 +23,9 @@ export interface FontiContexto {
   atendente_id_override?: string  // fromMe via instância confiável — pula verificação de phone
   supabase: SupabaseClient
   arquivos: FontiArquivo[]
+  // Contexto para o Workflow de Captação enviar PDF via WhatsApp
+  instancia_token?: string     // token Uazapi da instância ativa
+  telefone_destino?: string    // telefone destino para envio de respostas com mídia
 }
 
 interface UsuarioInterno {
@@ -938,169 +939,31 @@ export async function processarComandoFonti(
     return linhas.join('\n')
   }
 
-  // ── *fonti novo lead / cria / cria novo cliente / etc. ───────────────────
+  // ── *fonti cria cliente / novo cliente / criar cliente / etc. ────────────
+  // Aciona o Workflow de Captação completo: Parser → Normalizador → Validation Engine
+  // → Pessoa → Lead → Documentos → Motor de Crédito → Histórico → PDF → WhatsApp
   const PADRAO_LEAD = /^(?:novo\s+lead|novo\s+cliente|criar?\s+(?:novo\s+)?(?:lead|cliente)|cria(?:\s+novo)?|lead)\s*/i
   if (PADRAO_LEAD.test(corpo)) {
     const instrucao = corpo.replace(PADRAO_LEAD, '').trim()
 
     if (!instrucao) {
-      return '❌ Descreva o lead.\nEx: *cria cliente João Silva, financiamento, renda 5k, valor 300k'
+      return '❌ Descreva o cliente.\nEx: *cria cliente João Silva, renda 5k, imóvel 300k, já simula Caixa Itaú'
     }
 
-    const dados = await extrairDadosLead(instrucao)
-
-    if (!dados.nome) {
-      return `❌ Não consegui identificar o nome do cliente no texto:\n"${instrucao}"\n\nTente incluir o nome completo.`
-    }
-
-    // Localiza Pessoa existente ou cria nova (sem duplicar)
     try {
-      // Prioridade 1: CPF extraído do texto
-      let pessoa_id: string | null = null
-      let pessoaCriada = false
-
-      if (dados.cpf) {
-        pessoa_id = await buscarPessoaPorCpf(empresa_id, dados.cpf) ?? null
-      }
-
-      // Prioridade 2: Pessoa já vinculada à conversa em andamento (telefone do cliente)
-      if (!pessoa_id && ctx.telefone_cliente) {
-        pessoa_id = await buscarPessoaPorTelefone(empresa_id, ctx.telefone_cliente) ?? null
-      }
-
-      // Prioridade 3: Telefone extraído do texto
-      if (!pessoa_id && dados.telefone) {
-        pessoa_id = await buscarPessoaPorTelefone(empresa_id, dados.telefone) ?? null
-      }
-
-      // Prioridade 4: Criar nova Pessoa (sem identificador validado)
-      let telefoneTemp = dados.telefone ?? `0000${Date.now().toString().slice(-9)}`
-      if (!pessoa_id) {
-        pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome, dados.cpf ?? undefined)
-        pessoaCriada = true
-      }
-
-      // Atualiza pessoa com campos extras extraídos do texto
-      const camposPessoa: Record<string, unknown> = {}
-      if (dados.cpf)             camposPessoa.cpf             = dados.cpf
-      if (dados.data_nascimento) camposPessoa.data_nascimento = dados.data_nascimento
-      if (dados.estado_civil)    camposPessoa.estado_civil    = dados.estado_civil
-      if (dados.renda)           camposPessoa.renda_formal    = dados.renda
-      if (Object.keys(camposPessoa).length > 0) {
-        await supabase.from('pessoas').update(camposPessoa).eq('id', pessoa_id)
-      }
-
-      // Busca primeira fase
-      const { data: primeiraFase } = await supabase
-        .from('fases')
-        .select('id')
-        .eq('empresa_id', empresa_id)
-        .eq('ativo', true)
-        .order('ordem', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-
-      if (!primeiraFase) {
-        return '❌ Empresa sem fases configuradas. Configure as fases em Configurações.'
-      }
-
-      const ordemTopo = await obterOrdemTopo(supabase, empresa_id, primeiraFase.id)
-
-      const { data: novoLead, error: leadErr } = await supabase
-        .from('leads')
-        .insert({
-          empresa_id,
-          nome:             dados.nome,
-          telefone:         telefoneTemp,
-          fase_id:          primeiraFase.id,
-          origem:           'whatsapp',
-          ordem_kanban:     ordemTopo,
-          produto_interesse: dados.produto ?? null,
-          valor_imovel:      dados.valor_imovel        ?? null,
-          valor_pretendido:  dados.valor_financiamento ?? null,
-          renda_formal:      dados.renda               ?? null,
-          pessoa_id,
-          observacoes: [
-            `Criado via *fonti por ${usuario.nome}`,
-            dados.valor_entrada ? `Entrada informada: R$ ${dados.valor_entrada.toLocaleString('pt-BR')}` : null,
-          ].filter(Boolean).join('\n'),
-        })
-        .select('id')
-        .single()
-
-      if (leadErr || !novoLead) {
-        console.error('[fonti] Erro ao criar lead:', leadErr)
-        return '❌ Erro ao criar o lead. Tente novamente.'
-      }
-
-      // Preserva a mensagem original do comercial como nota do lead
-      if (instrucao?.trim()) {
-        await supabase.from('lead_historico').insert({
-          lead_id:    novoLead.id,
-          empresa_id,
-          usuario_id: usuario.id,
-          tipo:       'comentario',
-          descricao:  `Mensagem original do comercial via *fonti:\n\n${instrucao.trim()}`,
-        })
-      }
-
-      // Registra telefone real em lead_telefones (se não for o temp)
-      if (dados.telefone) {
-        await supabase.from('lead_telefones').upsert(
-          { lead_id: novoLead.id, empresa_id, telefone: dados.telefone, principal: true },
-          { onConflict: 'lead_id,telefone' },
-        )
-      }
-
-      // Salva arquivo enviado junto ao próprio comando *fonti
-      let arquivosSalvos = 0
-      for (const arq of arquivos) {
-        const ok = await salvarArquivo(supabase, arq, empresa_id, {
-          pessoa_id,
-          lead_id: novoLead.id,
-        })
-        if (ok) arquivosSalvos++
-      }
-
-      // Vincula docs da conversa: usa marca de sessão (*fonti inicio) se existir, senão janela de 15 min.
-      const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
-      const marcaAt = await obterMarcaInicio(supabase, empresa_id, telefoneConversa)
-      const { count: docsConversa, ids: docsIds } = await vincularDocumentosRecentesPorTelefone(
-        supabase, empresa_id, telefoneConversa, pessoa_id, novoLead.id,
-        15, marcaAt ?? undefined,
-      )
-      if (marcaAt) await limparMarca(supabase, empresa_id, telefoneConversa)
-
-      const produto = dados.produto ? ` — ${dados.produto}` : ''
-      const linha1: string[] = []
-      if (dados.valor_imovel) linha1.push(`imóvel R$ ${dados.valor_imovel.toLocaleString('pt-BR')}`)
-      if (dados.valor_financiamento) linha1.push(`financ. R$ ${dados.valor_financiamento.toLocaleString('pt-BR')}`)
-      if (dados.renda) linha1.push(`renda R$ ${dados.renda.toLocaleString('pt-BR')}`)
-      if (dados.valor_entrada) linha1.push(`entrada R$ ${dados.valor_entrada.toLocaleString('pt-BR')}`)
-      const totalDocs = arquivosSalvos + docsConversa
-      if (totalDocs > 0) linha1.push(`${totalDocs} doc(s)`)
-
-      const linha2: string[] = []
-      if (dados.cpf) linha2.push('CPF ✓')
-      if (dados.data_nascimento) {
-        const [y, m, d] = dados.data_nascimento.split('-')
-        linha2.push(`Nasc. ${d}/${m}/${y}`)
-      }
-      if (dados.estado_civil) {
-        const labels: Record<string, string> = { solteiro: 'Solteiro', casado: 'Casado', uniao_estavel: 'União estável', divorciado: 'Divorciado', viuvo: 'Viúvo' }
-        linha2.push(labels[dados.estado_civil] ?? dados.estado_civil)
-      }
-      if (dados.telefone) linha2.push(`Tel ${dados.telefone}`)
-
-      const linhas = [`✅ Lead criado: *${dados.nome}*${produto}`]
-      if (linha1.length) linhas.push(linha1.join(' · '))
-      if (linha2.length) linhas.push(linha2.join(' · '))
-      if (pessoaCriada) linhas.push('⚠️ Pessoa criada sem identificador validado (sem CPF ou telefone). Verifique possível duplicidade.')
-
-      return linhas.join('\n')
+      const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
+      return await executarWorkflowCaptacao(instrucao, {
+        empresa_id,
+        usuario_id:    usuario.id,
+        usuario_nome:  usuario.nome,
+        supabase,
+        telefone_cliente:  ctx.telefone_cliente,
+        instancia_token:   ctx.instancia_token,
+        telefone_destino:  ctx.telefone_destino,
+      })
     } catch (err) {
-      console.error('[fonti] Erro inesperado ao criar lead:', err)
-      return '❌ Erro inesperado. Tente novamente.'
+      console.error('[fonti] Erro inesperado no Workflow de Captação:', err)
+      return '❌ Erro inesperado ao processar o cliente. Tente novamente.'
     }
   }
 

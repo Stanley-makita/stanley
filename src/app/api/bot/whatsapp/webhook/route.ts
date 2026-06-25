@@ -272,6 +272,10 @@ export async function POST(request: NextRequest) {
       const fmMediaContent = typeof msg?.content === 'object' && msg.content !== null
         ? msg.content as UazapiMediaContent : null
 
+      // Destino da resposta calculado antes de chamar processarComandoFonti
+      // para que o Workflow de Captação possa enviar PDF diretamente via Uazapi
+      const destinoResposta = clientPhone || ownerPhone
+
       const { processarComandoFonti: fmFonti } = await import('@/lib/bot/fonti-comandos')
       const respostaFM = await fmFonti(textoNormFM.trim(), {
         empresa_id: fmEmpresaId,
@@ -282,10 +286,10 @@ export async function POST(request: NextRequest) {
         arquivos: fmFileUrl
           ? [{ fileUrl: fmFileUrl, fileName: fmMediaContent?.fileName ?? null, mimeType: fmMediaContent?.mimetype ?? null }]
           : [],
+        // Contexto para o Workflow de Captação enviar PDF via WhatsApp
+        instancia_token:  fmToken,
+        telefone_destino: destinoResposta,
       })
-
-      // Responde na conversa do cliente (onde o comercial está) — ambos veem a confirmação
-      const destinoResposta = clientPhone || ownerPhone
       if (respostaFM !== null) {
         await enviarMensagemUazapi(destinoResposta, respostaFM, fmToken)
         // Salva resposta do *fonti em mensagens para que o eco do Uazapi seja detectado
