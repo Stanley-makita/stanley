@@ -108,8 +108,9 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   const { data: documentos = [], isLoading } = useQuery({
     queryKey,
     queryFn: async (): Promise<DocumentoCliente[]> => {
+      // Documentos deste lead OU documentos da pessoa ainda sem lead atribuído
       const filtro = pessoaId
-        ? `lead_id.eq.${leadId},pessoa_id.eq.${pessoaId}`
+        ? `lead_id.eq.${leadId},and(pessoa_id.eq.${pessoaId},lead_id.is.null)`
         : `lead_id.eq.${leadId}`
 
       const { data, error } = await supabase
