@@ -45,10 +45,21 @@ const CAMPOS_OBRIGATORIOS: Array<{
   },
 ]
 
-export function validarDadosCaptacao(dados: DadosCaptacaoNormalizados): ResultadoValidacao {
+export function validarDadosCaptacao(
+  dados: DadosCaptacaoNormalizados,
+  opts?: { modo?: 'captacao' | 'consulta' },
+): ResultadoValidacao {
+  const modo = opts?.modo ?? 'captacao'
   const camposFaltantes: string[] = []
 
+  // Em modo consulta: nome e CPF não são obrigatórios (sem Pessoa criada)
+  const camposIgnorados = new Set<keyof DadosCaptacaoNormalizados>(
+    modo === 'consulta' ? ['nome'] : [],
+  )
+
   for (const regra of CAMPOS_OBRIGATORIOS) {
+    if (camposIgnorados.has(regra.campo)) continue
+
     const valido = regra.condicao
       ? regra.condicao(dados)
       : dados[regra.campo] !== null && dados[regra.campo] !== undefined

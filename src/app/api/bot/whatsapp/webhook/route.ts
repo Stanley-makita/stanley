@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
     const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
     const textoNormFM = textoFromMe.slice(0, 20).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(20)
 
-    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo)\b/i.test(textoNormFM)) {
+    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?)\b/i.test(textoNormFM)) {
       const fmToken = payload.token || process.env.UAZAPI_INSTANCE_TOKEN || ''
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
@@ -485,7 +485,7 @@ export async function POST(request: NextRequest) {
   // Normaliza os primeiros chars: remove acentos (autocorrect coloca *Fontì com acento)
   const textoParaFonti = texto.trim().slice(0, 20)
     .normalize('NFD').replace(/[̀-ͯ]/g, '') + texto.trim().slice(20)
-  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo)\b/i.test(textoParaFonti)) {
+  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?)\b/i.test(textoParaFonti)) {
     const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
       telefone_remetente: telefone,

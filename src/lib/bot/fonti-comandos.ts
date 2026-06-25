@@ -622,6 +622,10 @@ const MSG_AJUDA = `*Fonti — Comandos*
 *inicio*  _(ou *fonti inicio*)_
   → Marca início de sessão de docs para o próximo cliente.
 
+*simula [dados do cliente]*  _(ou *simular*, *simulação*, *fonti simula*)_
+  → Consulta rápida: Motor de Crédito + PDF sem criar Lead ou Pessoa
+  Ex: *simula imóvel 500k, 80%, renda 12k, Itaú Caixa, 32 anos
+
 *cria cliente* ou *criar cliente [descrição livre]*  _(ou *fonti cria ...*)_
   → Cria Pessoa + Lead e vincula documentos recentes
 
@@ -687,11 +691,12 @@ export async function processarComandoFonti(
 
   // Normaliza atalhos curtos para o padrão *fonti [subcomando]
   let _texto = _textoNorm
-  if      (/^\*in[íi]cio\b/i.test(_texto))             _texto = '*fonti inicio'
-  else if (/^\*criar?\s+cliente\b/i.test(_texto))       _texto = _texto.replace(/^\*criar?\s+cliente\b/i, '*fonti cria cliente')
-  else if (/^\*salvar?\b/i.test(_texto))                _texto = _texto.replace(/^\*salvar?\b/i, '*fonti salva')
-  else if (/^\*atualizar?\b/i.test(_texto))             _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
-  else if (/^\*processo\b/i.test(_texto))               _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
+  if      (/^\*in[íi]cio\b/i.test(_texto))                        _texto = '*fonti inicio'
+  else if (/^\*criar?\s+cliente\b/i.test(_texto))                  _texto = _texto.replace(/^\*criar?\s+cliente\b/i, '*fonti cria cliente')
+  else if (/^\*salvar?\b/i.test(_texto))                           _texto = _texto.replace(/^\*salvar?\b/i, '*fonti salva')
+  else if (/^\*atualizar?\b/i.test(_texto))                        _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
+  else if (/^\*processo\b/i.test(_texto))                          _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
+  else if (/^\*simula(?:r|[cç][aã]o)?\b/i.test(_texto))           _texto = _texto.replace(/^\*simula(?:r|[cç][aã]o)?\b/i, '*fonti simula')
 
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
   const corpo = _texto.replace(/^\*fonti\s*/i, '').trim()
@@ -937,6 +942,30 @@ export async function processarComandoFonti(
     if (docsAtualizaCount > 0) linhas.push(`${docsAtualizaCount} doc(s) vinculado(s)`)
     if (dados.telefone) linhas.push(`Tel ${dados.telefone}`)
     return linhas.join('\n')
+  }
+
+  // ── *fonti simula / *simula / *simular / *simulação ──────────────────────
+  // Aciona o Workflow de Consulta Comercial: Parser → Normalizador → Validation
+  // → Motor de Crédito → PDF → WhatsApp. SEM criar Pessoa, Lead ou Documentos.
+  const PADRAO_SIMULA = /^simula(?:r|[cç][aã]o)?\s*/i
+  if (PADRAO_SIMULA.test(corpo)) {
+    const instrucao = corpo.replace(PADRAO_SIMULA, '').trim()
+
+    try {
+      const { executarWorkflowConsulta } = await import('@/lib/workflows/workflow-consulta')
+      return await executarWorkflowConsulta(instrucao, {
+        empresa_id,
+        usuario_id:         usuario.id,
+        usuario_nome:       usuario.nome,
+        supabase,
+        instancia_token:    ctx.instancia_token,
+        telefone_destino:   ctx.telefone_destino,
+        telefone_remetente: ctx.telefone_remetente,
+      })
+    } catch (err) {
+      console.error('[fonti] Erro inesperado no Workflow de Consulta:', err)
+      return '❌ Erro inesperado ao processar a consulta. Tente novamente.'
+    }
   }
 
   // ── *fonti cria cliente / novo cliente / criar cliente / etc. ────────────

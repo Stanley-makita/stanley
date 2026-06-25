@@ -27,6 +27,14 @@ export interface DadosCaptacaoNormalizados {
   renda_informal:        number | null
   bancos_ids:            BancoId[]       // mapeados para o motor de crédito
   solicitar_simulacao:   boolean
+  // Campos do Workflow de Consulta Comercial (*simula)
+  prazo_meses:           number | null   // 120–420; null = usar máximo do banco
+  tipo_amortizacao:      'SAC' | 'PRICE' // padrão: 'SAC'
+  correntista:           boolean         // true se relacionamento bancário informado
+  produto:               string | null   // "SBPE", "MCMV", etc. (informativo)
+  fgts_valor:            number | null   // valor FGTS disponível (informativo)
+  usa_fgts:              boolean         // true se fgts_valor > 0 ou menção a FGTS
+  todos_bancos:          boolean         // true se usuário pediu todos os bancos
 }
 
 // Mapa de aliases de bancos → BancoId
@@ -141,6 +149,25 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
         ? 'usado'
         : null
 
+  // Prazo: converter "30 anos"→360, "35 anos"→420, número direto → mantém; limite 120–420
+  let prazoMeses: number | null = null
+  if (typeof raw.prazo_meses === 'number') {
+    const p = Math.round(raw.prazo_meses)
+    prazoMeses = p >= 120 && p <= 420 ? p : null
+  }
+
+  // Amortização: SAC por padrão
+  const tipoAmortizacaoRaw = (raw.tipo_amortizacao_raw ?? '').toUpperCase()
+  const tipoAmortizacao: 'SAC' | 'PRICE' =
+    tipoAmortizacaoRaw.includes('PRICE') ? 'PRICE' : 'SAC'
+
+  // Correntista: qualquer relacionamento bancário ativa a flag
+  const correntista = !!raw.relacionamento_bancario
+
+  // FGTS
+  const fgtsValor = typeof raw.fgts_valor === 'number' ? raw.fgts_valor : null
+  const usaFgts = fgtsValor !== null && fgtsValor > 0
+
   return {
     nome:                raw.nome?.trim()   ?? null,
     cpf:                 normalizarCpf(raw.cpf),
@@ -155,5 +182,12 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
     renda_informal:      raw.renda_informal ?? null,
     bancos_ids:          bancosIds,
     solicitar_simulacao: raw.solicitar_simulacao === true,
+    prazo_meses:         prazoMeses,
+    tipo_amortizacao:    tipoAmortizacao,
+    correntista,
+    produto:             raw.produto?.trim() ?? null,
+    fgts_valor:          fgtsValor,
+    usa_fgts:            usaFgts,
+    todos_bancos:        raw.todos_bancos === true,
   }
 }

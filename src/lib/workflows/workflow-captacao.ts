@@ -23,6 +23,7 @@ import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
+import { enviarPDFUazapi as _enviarPDFUazapiShared } from './uazapi-helpers'
 
 export interface WorkflowCaptacaoContexto {
   empresa_id: string
@@ -165,28 +166,8 @@ async function enviarPDFUazapi(
   token: string,
   nomeCliente: string,
 ): Promise<void> {
-  const base64 = pdfBuffer.toString('base64')
   const nomeArquivo = `Simulação Preliminar${nomeCliente ? ` - ${nomeCliente}` : ''}.pdf`
-
-  // Normaliza telefone: adiciona DDI 55 para números nacionais (igual ao send/route.ts)
-  const telRaw = telefone.replace(/\D/g, '')
-  const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
-
-  const res = await fetch(`${process.env.UAZAPI_API_URL}/send/media`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'token': token },
-    body: JSON.stringify({
-      number:   telEnvio,
-      type:     'document',
-      file:     `data:application/pdf;base64,${base64}`,
-      docName:  nomeArquivo,
-      track_source: 'credifon-crm',
-    }),
-  })
-
-  if (!res.ok) {
-    throw new Error(`Uazapi send/media ${res.status}: ${await res.text()}`)
-  }
+  return _enviarPDFUazapiShared(telefone, pdfBuffer, token, nomeArquivo)
 }
 
 export async function executarWorkflowCaptacao(
