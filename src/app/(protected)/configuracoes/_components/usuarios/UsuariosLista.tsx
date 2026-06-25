@@ -109,7 +109,7 @@ export function UsuariosLista() {
               <div
                 key={u.id}
                 className={cn(
-                  'grid grid-cols-[3fr_3fr_1.2fr_1fr_1fr_auto] gap-3 px-3 py-1.5 items-center border-b last:border-0 hover:bg-gray-50/70 transition-colors',
+                  'grid grid-cols-[3fr_3fr_1.2fr_1fr_1fr_auto] gap-3 px-3 py-1.5 items-center border-b last:border-0 hover:bg-gray-50/70 transition-colors [&>*]:min-w-0',
                   !u.ativo && 'opacity-60'
                 )}
               >
@@ -120,23 +120,31 @@ export function UsuariosLista() {
                 </div>
 
                 {/* E-mail */}
-                <span className="text-sm text-gray-500 truncate">{u.email}</span>
+                <div className="min-w-0">
+                  <span className="text-sm text-gray-500 truncate block">{u.email}</span>
+                </div>
 
                 {/* Perfil */}
-                <Badge className={cn('text-[11px] font-medium', PERFIL_CORES[u.perfil] ?? 'bg-gray-100 text-gray-600')}>
-                  {PERFIL_LABELS[u.perfil] ?? u.perfil}
-                </Badge>
+                <div className="min-w-0">
+                  <Badge className={cn('text-[11px] font-medium', PERFIL_CORES[u.perfil] ?? 'bg-gray-100 text-gray-600')}>
+                    {PERFIL_LABELS[u.perfil] ?? u.perfil}
+                  </Badge>
+                </div>
 
                 {/* Função */}
-                <span className="text-sm text-gray-600">{funcaoLabel}</span>
+                <div className="min-w-0">
+                  <span className="text-sm text-gray-600 truncate block">{funcaoLabel}</span>
+                </div>
 
                 {/* Status */}
-                <Badge className={cn(
-                  'text-[11px] font-medium',
-                  u.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                )}>
-                  {u.ativo ? 'Ativo' : 'Inativo'}
-                </Badge>
+                <div className="min-w-0">
+                  <Badge className={cn(
+                    'text-[11px] font-medium',
+                    u.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  )}>
+                    {u.ativo ? 'Ativo' : 'Inativo'}
+                  </Badge>
+                </div>
 
                 {/* Ações */}
                 <div className="flex items-center gap-1">
