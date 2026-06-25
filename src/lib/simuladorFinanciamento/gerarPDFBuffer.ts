@@ -22,6 +22,21 @@ function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b]
 }
 
+// Substitui caracteres fora do WinAnsi (usados pelo Helvetica embutido no jsPDF)
+// para evitar glifos errados e espaçamento largo nos PDFs gerados.
+function pdf(text: string): string {
+  return text
+    .replace(/[★✓✗•◆►▸▶]/g, '*')
+    .replace(/[""„‟]/g, '"')
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/[–—]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/−/g, '-')   // sinal de menos (U+2212)
+    .replace(/≥/g, '>=')  // >=
+    .replace(/≤/g, '<=')  // <=
+    .replace(/×/g, 'x')   // ×
+}
+
 type Doc = InstanceType<typeof import('jspdf')['jsPDF']>
 
 function setFill(doc: Doc, hex: string) { doc.setFillColor(...hexToRgb(hex)) }
@@ -184,15 +199,17 @@ export async function gerarPDFFinanciamentoBuffer(
 
       doc.setFontSize(7.5); doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal')
       setTxt(doc, idx === 0 ? COR_VERDE : '#333333')
-      doc.text(r.bancoNome.split(' ')[0], cx + 2, midY)
+      // Melhor banco: desloca o nome para cima e adiciona badge "melhor" abaixo
+      const nameY = idx === 0 ? midY - 1.5 : midY
+      doc.text(pdf(r.bancoNome.split(' ')[0]), cx + 2, nameY)
       if (idx === 0) {
-        doc.setFontSize(5.5); setTxt(doc, '#1E7B34')
-        doc.text('★ melhor', cx + 2, midY + 3)
+        doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#1E7B34')
+        doc.text('melhor', cx + 2, nameY + 3.5)
       }
       cx += colBanco
 
       doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#555555')
-      const progLines = doc.splitTextToSize(r.programa, colPrograma - 3)
+      const progLines = doc.splitTextToSize(pdf(r.programa), colPrograma - 3)
       doc.text(progLines[0], cx + 2, midY); cx += colPrograma
 
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); setTxt(doc, '#111111')
@@ -219,7 +236,7 @@ export async function gerarPDFFinanciamentoBuffer(
     const col2W = usableW / 2
 
     elegiveis.forEach((r, idx) => {
-      const cardH = 38
+      const cardH = 44
       if (y + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
 
       const isLeft = idx % 2 === 0
@@ -230,7 +247,7 @@ export async function gerarPDFFinanciamentoBuffer(
       doc.setFillColor(br, bg, bb)
       doc.rect(x, y, cardW, 8, 'F')
       doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-      doc.text(`${r.bancoNome} — ${r.programa}`, x + 3, y + 5.5)
+      doc.text(pdf(`${r.bancoNome} - ${r.programa}`), x + 3, y + 5.5)
 
       setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
       doc.setLineWidth(0.2)
@@ -254,19 +271,19 @@ export async function gerarPDFFinanciamentoBuffer(
       const metW  = cardW / 2 - 3
 
       metC1.forEach(([label, val], mi) => {
-        const my = y + 10 + mi * 5.5
+        const my = y + 13 + mi * 5.5
         doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-        doc.text(label, x + 3, my)
+        doc.text(pdf(label), x + 3, my)
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
-        doc.text(val, x + metW - 2, my, { align: 'right' })
+        doc.text(pdf(val), x + metW - 2, my, { align: 'right' })
       })
       metC2.forEach(([label, val], mi) => {
-        const my = y + 10 + mi * 5.5
+        const my = y + 13 + mi * 5.5
         const mx = x + cardW / 2 + 2
         doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-        doc.text(label, mx, my)
+        doc.text(pdf(label), mx, my)
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
-        doc.text(val, x + cardW - 3, my, { align: 'right' })
+        doc.text(pdf(val), x + cardW - 3, my, { align: 'right' })
       })
 
       setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
@@ -321,11 +338,11 @@ export async function gerarPDFFinanciamentoBuffer(
     a.fatores.forEach((f) => {
       if (y + 6 > pageH - mBot - 20) { doc.addPage(); y = mTop }
       const fHex = f.impacto === 'positivo' ? '#1E7B34' : f.impacto === 'critico' ? '#CC0000' : '#B8860B'
-      const icon = f.impacto === 'positivo' ? '+' : f.impacto === 'critico' ? '!!' : '−'
+      const icon = f.impacto === 'positivo' ? '+' : f.impacto === 'critico' ? '!!' : '-'
       doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, fHex)
       doc.text(icon, mL + 2, y + 4)
       doc.setFont('helvetica', 'normal'); setTxt(doc, '#444444')
-      doc.text(f.descricao, mL + 8, y + 4)
+      doc.text(pdf(f.descricao), mL + 8, y + 4)
       y += 5.5
     })
     y += 3
