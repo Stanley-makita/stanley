@@ -1,16 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Pencil, PowerOff, Power } from 'lucide-react'
+import { Plus, Pencil, PowerOff, Power, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useUsuarios, useAtualizarUsuario } from '../../_hooks/useUsuarios'
 import { UsuarioFormDrawer } from './UsuarioFormDrawer'
+import { ExcluirUsuarioDialog } from './ExcluirUsuarioDialog'
 import { PERFIL_LABELS, PERFIL_CORES, FUNCAO_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioFuncao } from '@/types/configuracoes'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/auth/useAuth'
 
 function Avatar({ nome }: { nome: string }) {
   return (
@@ -23,9 +25,11 @@ function Avatar({ nome }: { nome: string }) {
 export function UsuariosLista() {
   const { data: usuarios, isLoading, error } = useUsuarios()
   const atualizar = useAtualizarUsuario()
+  const { usuario: usuarioLogado } = useAuth()
 
   const [drawerAberto, setDrawerAberto] = useState(false)
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
+  const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<Usuario | null>(null)
 
   function abrirCriar() {
     setUsuarioEditando(null)
@@ -163,6 +167,17 @@ export function UsuariosLista() {
                       : <Power    className="h-3.5 w-3.5" />
                     }
                   </Button>
+                  {u.id !== usuarioLogado?.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                      onClick={() => setUsuarioParaExcluir(u)}
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             )
@@ -174,6 +189,11 @@ export function UsuariosLista() {
         aberto={drawerAberto}
         onFechar={() => setDrawerAberto(false)}
         usuario={usuarioEditando}
+      />
+
+      <ExcluirUsuarioDialog
+        usuario={usuarioParaExcluir}
+        onFechar={() => setUsuarioParaExcluir(null)}
       />
     </>
   )

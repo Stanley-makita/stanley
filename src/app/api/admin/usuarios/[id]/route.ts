@@ -82,3 +82,58 @@ export async function PUT(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
+  const admin = await resolveAdmin(token)
+  if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const { data: alvo } = await supabase
+    .from('usuarios')
+    .select('id, perfil, ativo')
+    .eq('id', params.id)
+    .eq('empresa_id', admin.empresa_id)
+    .is('deleted_at', null)
+    .single()
+
+  if (!alvo) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+
+  const { data: adminAtual } = await supabase
+    .from('usuarios')
+    .select('id')
+    .eq('auth_user_id', (await supabase.auth.getUser(token)).data.user?.id ?? '')
+    .single()
+
+  if (adminAtual?.id === alvo.id) {
+    return NextResponse.json({ error: 'Você não pode excluir sua própria conta.' }, { status: 400 })
+  }
+
+  if (alvo.perfil === 'admin') {
+    const { count } = await supabase
+      .from('usuarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('empresa_id', admin.empresa_id)
+      .eq('perfil', 'admin')
+      .eq('ativo', true)
+      .is('deleted_at', null)
+      .neq('id', alvo.id)
+    if ((count ?? 0) === 0) {
+      return NextResponse.json({ error: 'Não é possível excluir o único administrador ativo.' }, { status: 400 })
+    }
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const motivo = body.motivo?.trim() || null
+
+  const { error } = await supabase
+    .from('usuarios')
+    .update({ deleted_at: new Date().toISOString(), ativo: false, motivo_exclusao: motivo })
+    .eq('id', params.id)
+    .eq('empresa_id', admin.empresa_id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

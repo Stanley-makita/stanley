@@ -93,6 +93,23 @@ export function useResetSenha() {
   })
 }
 
+export function useExcluirUsuario() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, motivo }: { id: string; motivo?: string }) => {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/usuarios/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ motivo }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao excluir usuário')
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['usuarios'] }),
+  })
+}
+
 // mantido para compatibilidade com código existente
 export function useAtualizarPerfil() {
   const queryClient = useQueryClient()

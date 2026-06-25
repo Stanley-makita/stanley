@@ -477,12 +477,13 @@ export async function gerarPDFFinanciamento(
   const qrSize = 16
   const qrX = pageW - mR - qrSize
   try {
-    const qrDataUrl = await QRCode.toDataURL('https://fonti.app.br', {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fonti.app.br'
+    const qrDataUrl = await QRCode.toDataURL(appUrl, {
       width: 120, margin: 1, color: { dark: '#253B29', light: '#FFFFFF' },
     })
     doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSize, qrSize)
     doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-    doc.text('fonti.app.br', qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
+    doc.text(appUrl.replace(/^https?:\/\//, ''), qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
   } catch {
     // QR opcional — não bloqueia geração do PDF
   }

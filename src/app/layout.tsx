@@ -6,8 +6,18 @@ import { Providers } from '@/components/providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://fonti.app.br'),
   title: 'Fonti',
   description: 'Sistema de gestão Fonti',
+  openGraph: {
+    url: 'https://fonti.app.br',
+    siteName: 'Fonti',
+    locale: 'pt_BR',
+    type: 'website',
+  },
+  alternates: {
+    canonical: '/',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
