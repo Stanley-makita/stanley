@@ -343,10 +343,15 @@ export async function POST(request: NextRequest) {
           ? msg.content as UazapiMediaContent : null
 
         if (nmFileUrl) {
+          // Tenta lookup com e sem DDI 55 para cobrir variações de armazenamento
+          const nmTelDigits = nmClientPhone.replace(/\D/g, '')
+          const nmTelAlt = nmTelDigits.startsWith('55') && nmTelDigits.length > 11
+            ? nmTelDigits.slice(2) : `55${nmTelDigits}`
+          const nmTelVariantes = nmTelAlt === nmTelDigits ? [nmTelDigits] : [nmTelDigits, nmTelAlt]
           const { data: convNM } = await supabase
             .from('conversas').select('id')
             .eq('empresa_id', nmEmpresaId).eq('canal', 'whatsapp')
-            .eq('contato_telefone', nmClientPhone).maybeSingle()
+            .in('contato_telefone', nmTelVariantes).maybeSingle()
           if (convNM) {
             await salvarDocumentoCliente({
               empresa_id: nmEmpresaId,

@@ -954,12 +954,14 @@ export async function processarComandoFonti(
       const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
       return await executarWorkflowCaptacao(instrucao, {
         empresa_id,
-        usuario_id:    usuario.id,
-        usuario_nome:  usuario.nome,
+        usuario_id:        usuario.id,
+        usuario_nome:      usuario.nome,
         supabase,
         telefone_cliente:  ctx.telefone_cliente,
+        telefone_remetente: ctx.telefone_remetente,
         instancia_token:   ctx.instancia_token,
         telefone_destino:  ctx.telefone_destino,
+        arquivos:          ctx.arquivos,
       })
     } catch (err) {
       console.error('[fonti] Erro inesperado no Workflow de Captação:', err)

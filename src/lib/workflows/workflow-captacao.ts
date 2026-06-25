@@ -34,6 +34,10 @@ export interface WorkflowCaptacaoContexto {
   telefone_destino?: string
   // Telefone do cliente na conversa (para vincular documentos)
   telefone_cliente?: string
+  // Telefone do operador (para lookup de sessão fonti_marcas)
+  telefone_remetente?: string
+  // Arquivos enviados junto ao comando *cria cliente (na mesma mensagem)
+  arquivos?: Array<{ fileUrl: string; fileName: string | null; mimeType: string | null }>
 }
 
 type EventoWorkflow =
@@ -43,14 +47,19 @@ type EventoWorkflow =
   | 'pessoa_criada'
   | 'pessoa_atualizada'
   | 'lead_criado'
+  | 'documentos_busca_iniciada'
   | 'documentos_vinculados'
+  | 'documentos_nao_encontrados'
   | 'campos_preenchidos'
   | 'validacao_aprovada'
   | 'validacao_pendente'
   | 'motor_executado'
   | 'simulacao_salva'
+  | 'pdf_geracao_iniciada'
   | 'pdf_gerado'
+  | 'pdf_envio_iniciado'
   | 'pdf_enviado'
+  | 'pdf_erro'
   | 'resposta_enviada'
   | 'erro_workflow'
 
@@ -75,6 +84,51 @@ async function registrarEvento(
     })
   } catch {
     // Falha no registro não interrompe o fluxo
+  }
+}
+
+// Salva arquivo enviado junto ao comando diretamente no Storage e em documentos_clientes.
+// Espelho de salvarArquivo() em fonti-comandos.ts, adaptado para o contexto do workflow.
+async function salvarArquivoWorkflow(
+  supabase: SupabaseClient,
+  arquivo: { fileUrl: string; fileName: string | null; mimeType: string | null },
+  empresa_id: string,
+  pessoa_id: string | null,
+  lead_id: string,
+): Promise<boolean> {
+  try {
+    const { fileUrl, fileName, mimeType } = arquivo
+    const ext = fileName?.split('.').pop()
+      ?? (mimeType?.split('/')[1] ?? 'bin').replace('jpeg', 'jpg')
+    const storagePath = `${empresa_id}/fonti/${crypto.randomUUID()}.${ext}`
+    const nomeOriginal = fileName ?? `arquivo.${ext}`
+
+    const fileRes = await fetch(fileUrl, { signal: AbortSignal.timeout(20000) })
+    if (!fileRes.ok) throw new Error(`Download falhou: ${fileRes.status}`)
+
+    const fileBuffer = await fileRes.arrayBuffer()
+    const { error: uploadError } = await supabase.storage
+      .from('documentos-clientes')
+      .upload(storagePath, fileBuffer, {
+        contentType: mimeType ?? 'application/octet-stream',
+        upsert: false,
+      })
+    if (uploadError) throw uploadError
+
+    await supabase.from('documentos_clientes').insert({
+      empresa_id,
+      pessoa_id:     pessoa_id ?? null,
+      lead_id,
+      nome_original: nomeOriginal,
+      mime_type:     mimeType ?? null,
+      tamanho_bytes: fileBuffer.byteLength,
+      storage_path:  storagePath,
+      canal_origem:  'whatsapp',
+    })
+    return true
+  } catch (err) {
+    console.error('[workflow-captacao] Erro ao salvar arquivo:', err)
+    return false
   }
 }
 
@@ -114,11 +168,15 @@ async function enviarPDFUazapi(
   const base64 = pdfBuffer.toString('base64')
   const nomeArquivo = `Simulação Preliminar${nomeCliente ? ` - ${nomeCliente}` : ''}.pdf`
 
+  // Normaliza telefone: adiciona DDI 55 para números nacionais (igual ao send/route.ts)
+  const telRaw = telefone.replace(/\D/g, '')
+  const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
+
   const res = await fetch(`${process.env.UAZAPI_API_URL}/send/media`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'token': token },
     body: JSON.stringify({
-      number:   telefone,
+      number:   telEnvio,
       type:     'document',
       file:     `data:application/pdf;base64,${base64}`,
       docName:  nomeArquivo,
@@ -127,7 +185,7 @@ async function enviarPDFUazapi(
   })
 
   if (!res.ok) {
-    throw new Error(`Uazapi send/media: ${res.status} ${await res.text()}`)
+    throw new Error(`Uazapi send/media ${res.status}: ${await res.text()}`)
   }
 }
 
@@ -253,23 +311,56 @@ export async function executarWorkflowCaptacao(
   }
 
   // ── Etapa 5: Documentos ──────────────────────────────────────────────────
-  // Vincula documentos já enviados na conversa (antes do *cria cliente) ao Lead
-  const telefoneConversa = ctx.telefone_cliente ?? telefoneTemp
+  await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_busca_iniciada')
+
+  // Telefone da conversa — base para lookup de sessão e conversa
+  const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente ?? telefoneTemp
   let docsVinculados = 0
+
+  // 5a. Salva arquivos enviados JUNTO AO COMANDO *cria cliente (mesma mensagem)
+  let arquivosSalvos = 0
+  for (const arq of ctx.arquivos ?? []) {
+    const ok = await salvarArquivoWorkflow(supabase, arq, empresa_id, pessoa_id, lead_id)
+    if (ok) arquivosSalvos++
+  }
+  docsVinculados += arquivosSalvos
+
+  // 5b. Vincula docs enviados ANTES do comando na conversa do cliente
+  // Verifica sessão *fonti inicio para usar como início da janela de tempo
+  let marcaAt: Date | null = null
+  if (telefoneConversa) {
+    const { data: marca } = await supabase
+      .from('fonti_marcas')
+      .select('iniciado_at')
+      .eq('empresa_id', empresa_id)
+      .eq('telefone_conversa', telefoneConversa)
+      .maybeSingle()
+    if (marca?.iniciado_at) marcaAt = new Date(marca.iniciado_at)
+  }
+
+  // Normaliza telefone: tenta lookup com e sem DDI 55 para cobrir variações de armazenamento
+  const telDigits = telefoneConversa.replace(/\D/g, '')
+  const telAlt = telDigits.startsWith('55') && telDigits.length > 11
+    ? telDigits.slice(2) : `55${telDigits}`
+  const telVariantes = telAlt === telDigits ? [telDigits] : [telDigits, telAlt]
 
   const { data: conversa } = await supabase
     .from('conversas')
     .select('id')
     .eq('empresa_id', empresa_id)
     .eq('canal', 'whatsapp')
-    .eq('contato_telefone', telefoneConversa)
+    .in('contato_telefone', telVariantes)
     .limit(1)
     .maybeSingle()
 
   if (conversa?.id) {
-    // Vincula docs sem lead_id da conversa (janela de 90 dias para cobrir sessão longa)
-    const limite = new Date()
-    limite.setDate(limite.getDate() - 90)
+    // Janela: desde *fonti inicio (se houver sessão) ou últimos 15 min
+    const limite = marcaAt ?? (() => {
+      const d = new Date()
+      d.setMinutes(d.getMinutes() - 15)
+      return d
+    })()
+
     const { data: docs } = await supabase
       .from('documentos_clientes')
       .select('id')
@@ -284,13 +375,26 @@ export async function executarWorkflowCaptacao(
         .from('documentos_clientes')
         .update({ pessoa_id, lead_id })
         .in('id', docs.map((d) => d.id))
-      docsVinculados = docs.length
+      docsVinculados += docs.length
     }
   }
 
   if (docsVinculados > 0) {
-    await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_vinculados',
-      `${docsVinculados} documento(s) vinculado(s)`)
+    const detalhe = arquivosSalvos > 0
+      ? `${docsVinculados} documento(s) (${arquivosSalvos} do comando + ${docsVinculados - arquivosSalvos} da conversa)`
+      : `${docsVinculados} documento(s) da conversa`
+    await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_vinculados', detalhe)
+
+    // Limpa sessão *fonti inicio — documentos já coletados
+    if (marcaAt && telefoneConversa) {
+      await supabase.from('fonti_marcas')
+        .delete()
+        .eq('empresa_id', empresa_id)
+        .eq('telefone_conversa', telefoneConversa)
+    }
+  } else {
+    await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_nao_encontrados',
+      `Nenhum doc encontrado para ${telefoneConversa}`)
   }
 
   // ── Etapa 6: Validation Engine ───────────────────────────────────────────
@@ -385,9 +489,12 @@ export async function executarWorkflowCaptacao(
 
   // ── Etapa 10: PDF ─────────────────────────────────────────────────────────
   let pdfEnviado = false
+  let pdfErroMsg: string | null = null
 
   if (ctx.instancia_token && ctx.telefone_destino) {
     try {
+      await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_geracao_iniciada')
+
       const { gerarPDFFinanciamentoBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
       const pdfBuffer = await gerarPDFFinanciamentoBuffer(resultado, {
         clienteNome:     dados.nome ?? undefined,
@@ -396,13 +503,18 @@ export async function executarWorkflowCaptacao(
 
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_gerado')
 
+      await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_envio_iniciado',
+        `Destino: ${ctx.telefone_destino}`)
+
       await enviarPDFUazapi(ctx.telefone_destino, pdfBuffer, ctx.instancia_token, dados.nome ?? '')
       pdfEnviado = true
 
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_enviado',
         `Enviado para ${ctx.telefone_destino}`)
     } catch (err) {
-      console.error('[workflow-captacao] Erro ao gerar/enviar PDF:', err)
+      pdfErroMsg = err instanceof Error ? err.message : String(err)
+      console.error('[workflow-captacao] Erro ao gerar/enviar PDF:', pdfErroMsg)
+      await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_erro', pdfErroMsg)
     }
   }
 
@@ -424,6 +536,8 @@ export async function executarWorkflowCaptacao(
 
   if (pdfEnviado) {
     linhas.push('\nPDF da simulação em anexo.')
+  } else if (pdfErroMsg) {
+    linhas.push('\n⚠️ Simulação gerada, mas houve erro ao enviar o PDF. Consulte o histórico do Lead.')
   }
 
   if (docsVinculados > 0) {
