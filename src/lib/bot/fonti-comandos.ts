@@ -655,6 +655,130 @@ const MSG_AJUDA = `*Fonti — Comandos*
 
 _Disponível apenas para usuários cadastrados._`
 
+// ── Helper: busca lead aberto para contextualizar *simula ────────────────────
+
+interface LeadContextoSimula {
+  lead_id: string
+  pessoa_id: string
+  nome: string
+  cpf: string | null
+  data_nascimento: string | null
+  valor_imovel: number | null
+  valor_entrada: number | null
+  renda_formal: number | null
+  renda_informal: number | null
+}
+
+const STATUS_FINAIS = ['aprovado', 'reprovado', 'convertido_em_processo', 'concluido', 'cancelado']
+
+async function buscarLeadAbertoParaSimula(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  cpf: string | null,
+  telefone: string | null,
+): Promise<LeadContextoSimula | null> {
+  const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  async function leadDaPessoa(pessoa_id: string): Promise<LeadContextoSimula | null> {
+    const { data } = await supabase
+      .from('leads')
+      .select('id, nome, valor_imovel, entrada, renda_considerada')
+      .eq('empresa_id', empresa_id)
+      .eq('pessoa_id', pessoa_id)
+      .is('deleted_at', null)
+      .not('status_analise', 'in', `(${STATUS_FINAIS.join(',')})`)
+      .gte('created_at', limite24h)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!data) return null
+
+    const { data: pessoa } = await supabase
+      .from('pessoas')
+      .select('cpf, data_nascimento, renda_formal, renda_informal')
+      .eq('id', pessoa_id)
+      .maybeSingle()
+
+    return {
+      lead_id:         data.id,
+      pessoa_id,
+      nome:            data.nome,
+      cpf:             pessoa?.cpf ?? null,
+      data_nascimento: pessoa?.data_nascimento ?? null,
+      valor_imovel:    data.valor_imovel ?? null,
+      valor_entrada:   data.entrada ?? null,
+      renda_formal:    pessoa?.renda_formal ?? null,
+      renda_informal:  pessoa?.renda_informal ?? null,
+    }
+  }
+
+  // 1. CPF (maior precisão)
+  if (cpf && cpf.length === 11) {
+    const { data: pessoa } = await supabase
+      .from('pessoas')
+      .select('id')
+      .eq('empresa_id', empresa_id)
+      .eq('cpf', cpf)
+      .maybeSingle()
+    if (pessoa?.id) {
+      const lead = await leadDaPessoa(pessoa.id)
+      if (lead) return lead
+    }
+  }
+
+  // 2. Telefone (lead direto ou lead_telefones)
+  if (telefone) {
+    const telDigits = telefone.replace(/\D/g, '')
+    const telAlt = telDigits.startsWith('55') && telDigits.length > 11
+      ? telDigits.slice(2) : `55${telDigits}`
+    const variantes = telAlt === telDigits ? [telDigits] : [telDigits, telAlt]
+
+    const { data: lead } = await supabase
+      .from('leads')
+      .select('id, nome, pessoa_id, valor_imovel, entrada, renda_considerada')
+      .eq('empresa_id', empresa_id)
+      .in('telefone', variantes)
+      .is('deleted_at', null)
+      .not('status_analise', 'in', `(${STATUS_FINAIS.join(',')})`)
+      .gte('created_at', limite24h)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (lead?.pessoa_id) {
+      const ctx = await leadDaPessoa(lead.pessoa_id)
+      if (ctx) return ctx
+    }
+
+    // Busca por lead_telefones
+    const { data: telRow } = await supabase
+      .from('lead_telefones')
+      .select('lead_id')
+      .eq('empresa_id', empresa_id)
+      .in('telefone', variantes)
+      .limit(1)
+      .maybeSingle()
+
+    if (telRow?.lead_id) {
+      const { data: leadTel } = await supabase
+        .from('leads')
+        .select('id, nome, pessoa_id, valor_imovel, entrada')
+        .eq('id', telRow.lead_id)
+        .is('deleted_at', null)
+        .not('status_analise', 'in', `(${STATUS_FINAIS.join(',')})`)
+        .gte('created_at', limite24h)
+        .maybeSingle()
+
+      if (leadTel?.pessoa_id) {
+        return await leadDaPessoa(leadTel.pessoa_id)
+      }
+    }
+  }
+
+  return null
+}
+
 // ── Roteador principal ────────────────────────────────────────────────────────
 
 export async function processarComandoFonti(
@@ -945,11 +1069,51 @@ export async function processarComandoFonti(
   }
 
   // ── *fonti simula / *simula / *simular / *simulação ──────────────────────
-  // Aciona o Workflow de Consulta Comercial: Parser → Normalizador → Validation
-  // → Motor de Crédito → PDF → WhatsApp. SEM criar Pessoa, Lead ou Documentos.
+  // Se existe um Lead aberto para o telefone/CPF da conversa, aproveita o contexto
+  // e aciona o Workflow de Captação com forcar_simulacao=true.
+  // Caso contrário, executa o Workflow de Consulta avulso (sem criar Lead).
   const PADRAO_SIMULA = /^simula(?:r|[cç][aã]o)?\s*/i
   if (PADRAO_SIMULA.test(corpo)) {
     const instrucao = corpo.replace(PADRAO_SIMULA, '').trim()
+
+    // Extrai CPF do texto (regex rápida, sem chamar parser completo)
+    const cpfMatch = instrucao.match(/\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.\s]?\d{2})\b/)
+    const cpfBruto = cpfMatch ? cpfMatch[1].replace(/\D/g, '') : null
+    const telefoneCtx = ctx.telefone_cliente ?? ctx.telefone_remetente
+
+    const leadCtx = await buscarLeadAbertoParaSimula(supabase, empresa_id, cpfBruto, telefoneCtx)
+
+    if (leadCtx) {
+      try {
+        const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
+        return await executarWorkflowCaptacao(instrucao, {
+          empresa_id,
+          usuario_id:         usuario.id,
+          usuario_nome:       usuario.nome,
+          supabase,
+          instancia_token:    ctx.instancia_token,
+          telefone_destino:   ctx.telefone_destino,
+          telefone_remetente: ctx.telefone_remetente,
+          telefone_cliente:   ctx.telefone_cliente,
+          arquivos:           ctx.arquivos,
+          lead_id_existente:  leadCtx.lead_id,
+          pessoa_id_existente: leadCtx.pessoa_id,
+          forcar_simulacao:   true,
+          dados_base: {
+            nome:             leadCtx.nome,
+            cpf:              leadCtx.cpf,
+            data_nascimento:  leadCtx.data_nascimento,
+            valor_imovel:     leadCtx.valor_imovel,
+            valor_entrada:    leadCtx.valor_entrada,
+            renda_formal:     leadCtx.renda_formal,
+            renda_informal:   leadCtx.renda_informal,
+          },
+        })
+      } catch (err) {
+        console.error('[fonti] Erro inesperado no Workflow de Captação via *simula:', err)
+        return '❌ Erro inesperado ao processar a simulação. Tente novamente.'
+      }
+    }
 
     try {
       const { executarWorkflowConsulta } = await import('@/lib/workflows/workflow-consulta')
