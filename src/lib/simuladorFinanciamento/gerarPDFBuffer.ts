@@ -127,20 +127,36 @@ export async function gerarPDFFinanciamentoBuffer(
   doc.text('Melhor Cenario Encontrado', mL + 6, y + 6)
 
   if (melhorBanco) {
-    const cells: [string, string][] = [
-      ['Banco',          pdf(melhorBanco.bancoNome)],
-      ['Financiado',     BRL.format(melhorBanco.valorFinanciado)],
-      ['1a Parcela',     BRL.format(melhorBanco.primeiraParcela)],
-      ['Prazo',          `${melhorBanco.parcelas} meses`],
-      ['Amortizacao',    melhorBanco.tipoAmortizacao],
+    // Larguras proporcionais: Banco recebe mais espaço para nomes longos
+    const cellWidths = [
+      usableW * 0.30,  // Banco
+      usableW * 0.20,  // Financiado
+      usableW * 0.18,  // 1a Parcela
+      usableW * 0.16,  // Prazo
+      usableW * 0.16,  // Amortizacao
     ]
-    const cellW = usableW / cells.length
+    const cells: [string, string][] = [
+      ['Banco',       pdf(melhorBanco.bancoNome)],
+      ['Financiado',  BRL.format(melhorBanco.valorFinanciado)],
+      ['1a Parcela',  BRL.format(melhorBanco.primeiraParcela)],
+      ['Prazo',       `${melhorBanco.parcelas} meses`],
+      ['Amortizacao', melhorBanco.tipoAmortizacao],
+    ]
+    let cx = mL
     cells.forEach(([label, val], i) => {
-      const cx = mL + i * cellW
+      const cw = cellWidths[i]
       doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#777777')
-      doc.text(label, cx + cellW / 2, y + 13, { align: 'center' })
-      doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
-      doc.text(val, cx + cellW / 2, y + 20, { align: 'center' })
+      doc.text(label, cx + cw / 2, y + 13, { align: 'center' })
+      doc.setFontSize(i === 0 ? 8 : 9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+      // Banco: quebra em 2 linhas se necessário
+      if (i === 0) {
+        const lines = doc.splitTextToSize(val, cw - 4)
+        const lineY = lines.length > 1 ? y + 17 : y + 20
+        doc.text(lines.slice(0, 2), cx + cw / 2, lineY, { align: 'center' })
+      } else {
+        doc.text(val, cx + cw / 2, y + 20, { align: 'center' })
+      }
+      cx += cw
     })
   } else {
     doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
