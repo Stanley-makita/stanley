@@ -1,7 +1,9 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Lead } from '@/types/leads'
 
@@ -66,11 +68,13 @@ export function useLead(leadId: string) {
 
 export function useLeadsTodos(faseId?: string, search?: string) {
   const { usuario } = useAuth()
+  const queryClient = useQueryClient()
+  const supabaseClient = useMemo(() => createClient(), [])
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['leads', 'todos', usuario?.empresa_id, faseId, search],
     queryFn: async (): Promise<Lead[]> => {
-      let query = supabase
+      let q = supabase
         .from('leads')
         .select(`
           *,
@@ -82,12 +86,12 @@ export function useLeadsTodos(faseId?: string, search?: string) {
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
 
-      if (faseId) query = query.eq('fase_id', faseId)
+      if (faseId) q = q.eq('fase_id', faseId)
       if (search && search.length >= 2) {
-        query = query.or(`nome.ilike.%${search}%,telefone.ilike.%${search}%`)
+        q = q.or(`nome.ilike.%${search}%,telefone.ilike.%${search}%`)
       }
 
-      const { data, error } = await query
+      const { data, error } = await q
         .order('created_at', { ascending: false })
         .limit(200)
 
@@ -95,5 +99,38 @@ export function useLeadsTodos(faseId?: string, search?: string) {
       return data as Lead[]
     },
     enabled: !!usuario,
+    refetchInterval: 30 * 1000,
   })
+
+  // Realtime: atualiza lista imediatamente quando Lead é inserido ou atualizado
+  useEffect(() => {
+    if (!usuario?.empresa_id) return
+
+    const channelName = `leads-lista-${usuario.empresa_id}`
+
+    supabaseClient.getChannels()
+      .filter((c) => c.topic === `realtime:${channelName}`)
+      .forEach((c) => supabaseClient.removeChannel(c))
+
+    const channel = supabaseClient
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'leads',
+          filter: `empresa_id=eq.${usuario.empresa_id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['leads', 'todos', usuario.empresa_id] })
+          queryClient.invalidateQueries({ queryKey: ['leads', 'fase'] })
+        },
+      )
+      .subscribe()
+
+    return () => { supabaseClient.removeChannel(channel) }
+  }, [usuario?.empresa_id, queryClient, supabaseClient])
+
+  return query
 }

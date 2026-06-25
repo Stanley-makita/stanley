@@ -99,7 +99,7 @@ export async function gerarPDFFinanciamento(
   } else {
     doc.setFontSize(12); doc.setFont('helvetica', 'bold')
     doc.setTextColor(255, 255, 255)
-    doc.text('Fontinhas Assessoria Imobiliária', mL + 4, y + HEADER_H / 2 + 3)
+    doc.text('Fontinhas Assessoria', mL + 4, y + HEADER_H / 2 + 3)
   }
 
   doc.setFontSize(9.5); doc.setFont('helvetica', 'bold')
