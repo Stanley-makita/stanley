@@ -113,8 +113,16 @@ Exemplos: ["Caixa", "Itaú", "Bradesco"], ["BB"], ["Santander", "Inter"].
 Array vazio [] se nenhum banco mencionado.
 
 SOLICITAR_SIMULACAO: true se o texto contém pedido de simulação.
-Detectar: simula, simular, simulação, simulacao, já simula, fazer simulação, fazer simulacao, rodar simulação, rodar simulacao.
-Sem dependência de acentos: "simulacao" = "simulação".
+Detectar qualquer uma destas variações (com ou sem acento):
+  simula, simular, simulação, simulacao,
+  já simula, ja simula, simula já, simula ja,
+  fazer simulação, fazer simulacao, faz simulação, faz simulacao,
+  rodar simulação, rodar simulacao,
+  quero simulação, quero simulacao,
+  manda simulação, manda simulacao, manda simula,
+  faz a simulação, faz a simulacao,
+  pode simular, pode simula.
+Sem dependência de acentos: "simulacao" = "simulação", "ja" = "já".
 false se não há pedido de simulação.
 
 PRAZO_MESES: Prazo em meses do financiamento. Converter para inteiro.
