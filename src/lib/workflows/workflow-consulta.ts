@@ -189,9 +189,9 @@ export async function executarWorkflowConsulta(
         clienteNome:     dados.nome ?? undefined,
         responsavelNome: usuario_nome,
       })
-      const nomeArquivo = dados.nome
-        ? `Consulta Rápida - ${dados.nome}.pdf`
-        : 'Consulta Rápida.pdf'
+      const hoje = new Date().toISOString().slice(0, 10)
+      const nomeBase = dados.nome?.trim() || 'Consulta Comercial'
+      const nomeArquivo = `Simulacao Preliminar - ${nomeBase} - ${hoje}.pdf`
       await enviarPDFUazapi(destinoEfetivo, pdfBuffer, tokenEfetivo, nomeArquivo)
       await atualizarPdfStatus('enviado', { enviado_em: new Date().toISOString() })
       linhaPDF = '📎 PDF completo enviado acima.'

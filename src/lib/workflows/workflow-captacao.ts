@@ -166,7 +166,8 @@ async function enviarPDFUazapi(
   token: string,
   nomeCliente: string,
 ): Promise<void> {
-  const nomeArquivo = `Simulação Preliminar${nomeCliente ? ` - ${nomeCliente}` : ''}.pdf`
+  const hoje = new Date().toISOString().slice(0, 10)
+  const nomeArquivo = `Simulacao Preliminar - ${nomeCliente || 'Cliente'} - ${hoje}.pdf`
   return _enviarPDFUazapiShared(telefone, pdfBuffer, token, nomeArquivo)
 }
 

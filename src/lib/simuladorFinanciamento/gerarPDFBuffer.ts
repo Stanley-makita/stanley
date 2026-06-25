@@ -9,6 +9,7 @@
  */
 
 import type { ResultadoCompleto } from './tipos'
+import QRCode from 'qrcode'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -81,11 +82,16 @@ export async function gerarPDFFinanciamentoBuffer(
   const HEADER_H = 24
   setFill(doc, COR_VERDE)
   doc.rect(mL, y, usableW, HEADER_H, 'F')
-  doc.setFontSize(12); doc.setFont('helvetica', 'bold')
-  doc.setTextColor(255, 255, 255)
-  doc.text('Fontinhas Assessoria', mL + 4, y + HEADER_H / 2 + 3)
-  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold')
-  doc.text('Simulação de Financiamento Imobiliário', pageW - mR - 2, y + HEADER_H / 2 + 3, { align: 'right' })
+  // Identidade Fonti (esquerda)
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('FONTI', mL + 4, y + 9)
+  doc.setFontSize(7);  doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
+  doc.text('Sistema Operacional de Credito', mL + 4, y + 15)
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
+  doc.text('by Fontinhas Assessoria', mL + 4, y + 21)
+  // Subtítulo (direita)
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('Simulacao de Financiamento Imobiliario', pageW - mR - 2, y + HEADER_H / 2 + 3, { align: 'right' })
   y += HEADER_H + 4
 
   // ── LINHA DE IDENTIFICAÇÃO ────────────────────────────────────────────────
@@ -107,6 +113,40 @@ export async function gerarPDFFinanciamentoBuffer(
 
   doc.text(infoText, pageW / 2, y + rowH / 2 + 2.5, { align: 'center' })
   y += rowH + 4
+
+  // ── MELHOR CENÁRIO ────────────────────────────────────────────────────────
+  const melhorBanco = resultado.bancos.find((b) => b.elegivel)
+  const melhorH = 24
+  setFill(doc, '#EEF5EE')
+  doc.rect(mL, y, usableW, melhorH, 'F')
+  // Borda lateral esquerda de destaque
+  setFill(doc, COR_VERDE)
+  doc.rect(mL, y, 3, melhorH, 'F')
+  // Título
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+  doc.text('Melhor Cenario Encontrado', mL + 6, y + 6)
+
+  if (melhorBanco) {
+    const cells: [string, string][] = [
+      ['Banco',          pdf(melhorBanco.bancoNome)],
+      ['Financiado',     BRL.format(melhorBanco.valorFinanciado)],
+      ['1a Parcela',     BRL.format(melhorBanco.primeiraParcela)],
+      ['Prazo',          `${melhorBanco.parcelas} meses`],
+      ['Amortizacao',    melhorBanco.tipoAmortizacao],
+    ]
+    const cellW = usableW / cells.length
+    cells.forEach(([label, val], i) => {
+      const cx = mL + i * cellW
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#777777')
+      doc.text(label, cx + cellW / 2, y + 13, { align: 'center' })
+      doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+      doc.text(val, cx + cellW / 2, y + 20, { align: 'center' })
+    })
+  } else {
+    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
+    doc.text('Nenhum banco elegivel com os parametros informados.', mL + 6, y + melhorH / 2 + 3)
+  }
+  y += melhorH + 5
 
   // ── SEÇÃO 1 — Dados da simulação ──────────────────────────────────────────
   y = drawSectionTitle(doc, 'Dados da Simulação', y, mL, usableW)
@@ -296,7 +336,7 @@ export async function gerarPDFFinanciamentoBuffer(
 
   // ── SEÇÃO 4 — Análise preditiva ───────────────────────────────────────────
   if (y + 50 > pageH - mBot - 10) { doc.addPage(); y = mTop }
-  y = drawSectionTitle(doc, 'Análise Preditiva de Aprovação', y, mL, usableW)
+  y = drawSectionTitle(doc, 'Analise de Viabilidade Preditiva', y, mL, usableW)
 
   const a = resultado.analise
   const SCORE_LABEL: Record<string, string> = { alta: 'Alta', moderada: 'Moderada', baixa: 'Baixa', improvavel: 'Improvável' }
@@ -310,7 +350,7 @@ export async function gerarPDFFinanciamentoBuffer(
   doc.rect(mL, y, boxW, boxH, 'FD')
 
   doc.setFontSize(7);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#666666')
-  doc.text('Score de Aprovação', mL + boxW / 2, y + 7, { align: 'center' })
+  doc.text('Indice de Viabilidade', mL + boxW / 2, y + 7, { align: 'center' })
   doc.setFontSize(22);  doc.setFont('helvetica', 'bold'); setTxt(doc, scoreHex)
   doc.text(`${a.score}`, mL + boxW / 2, y + 19, { align: 'center' })
   doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setTxt(doc, scoreHex)
@@ -365,21 +405,40 @@ export async function gerarPDFFinanciamentoBuffer(
   }
 
   // ── RODAPÉ ────────────────────────────────────────────────────────────────
-  if (y + 20 > pageH - mBot) { doc.addPage(); y = mTop } else { y += 4 }
+  if (y + 30 > pageH - mBot) { doc.addPage(); y = mTop } else { y += 4 }
   setDraw(doc, COR_DOURADO); doc.setLineWidth(0.4)
   doc.line(mL, y, pageW - mR, y)
-  y += 4
+  y += 5
 
-  const footerText = [
-    'Atenção – Esta é uma simulação PRELIMINAR gerada com base nas informações fornecidas pelo comercial via WhatsApp, sem análise documental. Os valores apresentados são estimativas baseadas nas condições vigentes das instituições financeiras na data de geração.',
-    'Taxas, prazos e condições podem variar conforme política de cada banco, avaliação de crédito e critérios de aprovação. Este documento não constitui proposta de crédito nem garantia de aprovação.',
-  ]
+  // QR Code (canto superior direito do rodapé)
+  const qrSize = 16
+  const qrX = pageW - mR - qrSize
+  try {
+    const qrDataUrl = await QRCode.toDataURL('https://fonti.app.br', {
+      width: 120, margin: 1, color: { dark: '#253B29', light: '#FFFFFF' },
+    })
+    doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSize, qrSize)
+    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+    doc.text('fonti.app.br', qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
+  } catch {
+    // QR opcional — não bloqueia geração do PDF
+  }
+
+  // Assinatura (esquerda)
+  const now = new Date()
+  const dataGer = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+  const horaGer = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#555555')
+  doc.text('Gerado automaticamente pelo Motor de Credito Fonti', mL, y + 4)
+  doc.setFontSize(6.5); setTxt(doc, '#777777')
+  doc.text(`${dataGer} as ${horaGer}`, mL, y + 9)
+  y += qrSize + 6
+
+  // Disclaimer institucional
+  const footerText = 'Esta simulacao possui carater exclusivamente informativo e nao representa aprovacao de credito. A contratacao esta sujeita a analise documental e as politicas vigentes de cada instituicao financeira. Os valores apresentados sao estimativas baseadas nas condicoes vigentes na data de geracao.'
   doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
-  footerText.forEach((line) => {
-    const wrapped = doc.splitTextToSize(line, usableW)
-    doc.text(wrapped, mL, y, { lineHeightFactor: 1.4 })
-    y += wrapped.length * 2.8 + 2
-  })
+  const wrapped = doc.splitTextToSize(footerText, usableW - qrSize - 4)
+  doc.text(wrapped, mL, y, { lineHeightFactor: 1.4 })
 
   return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)
 }
