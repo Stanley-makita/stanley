@@ -47,18 +47,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
 
-    // Lê a sessão dos cookies/localStorage imediatamente (sem rede).
-    // É a forma mais confiável de recuperar a sessão no F5/refresh.
+    // Usa getUser() para validar o token com o servidor e acionar refresh se necessário.
+    // getSession() retorna null quando o JWT expirou (mesmo com refresh token válido),
+    // causando flash de "deslogado" no F5. getUser() faz a renovação automaticamente.
     async function initAuth() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!active) return
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!active) return
 
-      if (session?.user) {
-        authUserIdRef.current = session.user.id
-        await carregarPerfil(session.user.id)
-      } else {
-        authUserIdRef.current = null
-        setUsuario(null)
+        if (user) {
+          authUserIdRef.current = user.id
+          await carregarPerfil(user.id)
+        } else {
+          authUserIdRef.current = null
+          setUsuario(null)
+        }
+      } catch {
+        if (active) {
+          authUserIdRef.current = null
+          setUsuario(null)
+        }
       }
 
       if (active) setCarregando(false)
