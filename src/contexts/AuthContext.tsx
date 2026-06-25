@@ -47,46 +47,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
 
-    // Usa getUser() para validar o token com o servidor e acionar refresh se necessário.
-    // getSession() retorna null quando o JWT expirou (mesmo com refresh token válido),
-    // causando flash de "deslogado" no F5. getUser() faz a renovação automaticamente.
-    async function initAuth() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!active) return
-
-        if (user) {
-          authUserIdRef.current = user.id
-          await carregarPerfil(user.id)
-        } else {
-          authUserIdRef.current = null
-          setUsuario(null)
-        }
-      } catch {
-        if (active) {
-          authUserIdRef.current = null
-          setUsuario(null)
-        }
-      }
-
-      if (active) setCarregando(false)
-    }
-
-    initAuth()
-
-    // Escuta mudanças subsequentes: login, logout, token refresh.
-    // Não é usado para o carregamento inicial (initAuth cuida disso).
+    // onAuthStateChange dispara INITIAL_SESSION na montagem com a sessão atual.
+    // createBrowserClient (@supabase/ssr) gerencia refresh de token automaticamente:
+    // se o JWT expirou mas o refresh token é válido, ele renova antes de disparar.
+    // Não chamamos getSession() nem getUser() — tudo vem pelo event listener.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!active) return
 
         if (session?.user) {
-          // Evita recarregar o perfil quando o uid não mudou (TOKEN_REFRESHED, etc.)
           if (authUserIdRef.current !== session.user.id) {
             authUserIdRef.current = session.user.id
             await carregarPerfil(session.user.id)
-            if (active) setCarregando(false)
           }
+          // Garante que carregando sai de true mesmo em TOKEN_REFRESHED para o mesmo uid
+          if (active) setCarregando(false)
         } else {
           authUserIdRef.current = null
           setUsuario(null)
