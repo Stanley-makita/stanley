@@ -13,11 +13,19 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuario, setUsuario] = useState<SessaoUsuario | null>(null)
-  const [carregando, setCarregando] = useState(true)
-  // Ref evita que onAuthStateChange dispare carregarPerfil duas vezes para o mesmo uid
+export function AuthProvider({
+  children,
+  initialUser,
+}: {
+  children: ReactNode
+  initialUser?: SessaoUsuario | null
+}) {
+  const [usuario, setUsuario] = useState<SessaoUsuario | null>(initialUser ?? null)
+  // Se o servidor já entregou o perfil, não há carregamento inicial no cliente
+  const [carregando, setCarregando] = useState(initialUser == null)
   const authUserIdRef = useRef<string | null>(null)
+  // Evita chamar carregarPerfil no INITIAL_SESSION quando o perfil veio do servidor
+  const serverLoadedRef = useRef(initialUser != null)
 
   const carregarPerfil = useCallback(async (uid: string) => {
     const { data } = await supabase
@@ -47,23 +55,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
 
-    // onAuthStateChange dispara INITIAL_SESSION na montagem com a sessão atual.
-    // createBrowserClient (@supabase/ssr) gerencia refresh de token automaticamente:
-    // se o JWT expirou mas o refresh token é válido, ele renova antes de disparar.
-    // Não chamamos getSession() nem getUser() — tudo vem pelo event listener.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!active) return
 
         if (session?.user) {
-          if (authUserIdRef.current !== session.user.id) {
-            authUserIdRef.current = session.user.id
-            await carregarPerfil(session.user.id)
+          const isNewUser = authUserIdRef.current !== session.user.id
+          authUserIdRef.current = session.user.id
+
+          if (isNewUser) {
+            if (serverLoadedRef.current) {
+              // Perfil já veio do servidor — apenas registra o uid, sem nova query
+              serverLoadedRef.current = false
+            } else {
+              await carregarPerfil(session.user.id)
+            }
           }
-          // Garante que carregando sai de true mesmo em TOKEN_REFRESHED para o mesmo uid
+
           if (active) setCarregando(false)
         } else {
           authUserIdRef.current = null
+          serverLoadedRef.current = false
           setUsuario(null)
           if (active) setCarregando(false)
         }
@@ -103,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authUserIdRef.current = null
     setUsuario(null)
     await supabase.auth.signOut()
-    // Hard redirect garante que todo estado em memória é descartado
     window.location.href = '/login'
   }
 
