@@ -493,6 +493,8 @@ export async function POST(request: NextRequest) {
       arquivos: fileUrl
         ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
         : [],
+      instancia_token: instanciaToken,
+      telefone_destino: telefone,
     })
 
     if (respostaFonti !== null) {

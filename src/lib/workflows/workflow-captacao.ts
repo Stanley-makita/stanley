@@ -491,15 +491,18 @@ export async function executarWorkflowCaptacao(
   let pdfEnviado = false
   let pdfErroMsg: string | null = null
 
-  // Diagnóstico obrigatório: sempre registra os valores de contexto antes de tentar
-  const hasToken  = !!ctx.instancia_token
-  const hasDestino = !!ctx.telefone_destino
+  // Fallbacks: token vem do contexto ou da variável de ambiente; destino vem do contexto ou do telefone do cliente
+  const tokenEfetivo  = ctx.instancia_token  || process.env.UAZAPI_INSTANCE_TOKEN || ''
+  const destinoEfetivo = ctx.telefone_destino || ctx.telefone_cliente || ctx.telefone_remetente || ''
+
+  const hasToken   = !!tokenEfetivo
+  const hasDestino = !!destinoEfetivo
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_geracao_iniciada',
-    `token=${hasToken}(${(ctx.instancia_token ?? '').length}c) destino=${ctx.telefone_destino ?? 'nulo'}`)
+    `token=${hasToken}(${tokenEfetivo.length}c) destino=${destinoEfetivo || 'nulo'}`)
 
   if (!hasToken || !hasDestino) {
     pdfErroMsg = !hasToken
-      ? 'instancia_token ausente no contexto do workflow'
+      ? 'instancia_token ausente no contexto e UAZAPI_INSTANCE_TOKEN não configurado'
       : 'telefone_destino ausente no contexto do workflow'
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_erro', pdfErroMsg)
   } else {
@@ -513,13 +516,13 @@ export async function executarWorkflowCaptacao(
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_gerado')
 
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_envio_iniciado',
-        `Destino: ${ctx.telefone_destino}`)
+        `Destino: ${destinoEfetivo}`)
 
-      await enviarPDFUazapi(ctx.telefone_destino!, pdfBuffer, ctx.instancia_token!, dados.nome ?? '')
+      await enviarPDFUazapi(destinoEfetivo, pdfBuffer, tokenEfetivo, dados.nome ?? '')
       pdfEnviado = true
 
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_enviado',
-        `Enviado para ${ctx.telefone_destino}`)
+        `Enviado para ${destinoEfetivo}`)
     } catch (err) {
       pdfErroMsg = err instanceof Error ? err.message : String(err)
       console.error('[workflow-captacao] Erro ao gerar/enviar PDF:', pdfErroMsg)
