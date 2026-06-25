@@ -12,16 +12,23 @@ import {
 export function useDashboardKpis() {
   const { usuario } = useAuth()
 
+  const FALLBACK: DashboardKpis = {
+    processosAtivos: 0, processosAtivosVariacao: 0,
+    leadsMes: 0, leadsMesVariacao: 0,
+    taxaConversao: 0, taxaConversaoVariacao: 0,
+    valorCarteira: 0, valoreCarteiraVariacao: 0,
+    membrosAtivos: 0,
+  }
+
   return useQuery({
     queryKey: ['dashboard', 'kpis', usuario?.empresa_id],
     queryFn: async (): Promise<DashboardKpis> => {
       const { data, error } = await supabase
-        .rpc('dashboard_kpis')
-        .eq('empresa_id', usuario!.empresa_id)
-        .single()
+        .rpc('dashboard_kpis', { p_empresa_id: usuario!.empresa_id })
 
       if (error) throw error
-      return data as DashboardKpis
+      // A função retorna uma linha como array
+      return ((data as any)?.[0] ?? FALLBACK) as DashboardKpis
     },
     staleTime: 1000 * 60 * 5,
     enabled: !!usuario,
