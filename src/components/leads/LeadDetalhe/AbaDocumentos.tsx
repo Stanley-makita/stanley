@@ -305,11 +305,15 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
   }
 
   async function handleVisualizar(doc: DocumentoCliente) {
-    const win = window.open('', '_blank', 'noopener,noreferrer')
     const url = await gerarSignedUrl(doc.storage_path)
-    if (!url) { toast.error('Não foi possível abrir o documento.'); win?.close(); return }
-    if (win) win.location.href = url
-    else window.open(url, '_blank', 'noopener,noreferrer')
+    if (!url) { toast.error('Não foi possível abrir o documento.'); return }
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   async function handleDownload(doc: DocumentoCliente) {

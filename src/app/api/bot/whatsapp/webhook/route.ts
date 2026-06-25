@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     const textoNormFM = textoFromMe.slice(0, 20).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(20)
 
     if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo)\b/i.test(textoNormFM)) {
-      const fmToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+      const fmToken = payload.token || process.env.UAZAPI_INSTANCE_TOKEN || ''
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
 
