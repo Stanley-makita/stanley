@@ -138,22 +138,42 @@ export async function executarWorkflowConsulta(
   const melhor = bancosResult.find((b) => b.elegivel)
   const nomeDisplay = dados.nome?.trim() || 'Cliente não identificado'
 
-  const { error: simErr } = await supabase.from('simulacoes_central').insert({
-    empresa_id,
-    tipo:           'financiamento',
-    status:         'concluida',
-    tipo_simulacao: 'consulta',
-    origem_canal:   'whatsapp',
-    nome_cliente:   nomeDisplay,
-    cpf_cliente:    dados.cpf ?? null,
-    banco:          melhor?.bancoNome ?? null,
-    responsavel_id: usuario_id,
-    resultado_json: resultado as unknown as Record<string, unknown>,
-    lead_id:        null,
-  })
+  const { data: simData, error: simErr } = await supabase
+    .from('simulacoes_central')
+    .insert({
+      empresa_id,
+      tipo:           'financiamento',
+      status:         'concluida',
+      tipo_simulacao: 'consulta',
+      origem_canal:   'whatsapp',
+      nome_cliente:   nomeDisplay,
+      cpf_cliente:    dados.cpf ?? null,
+      banco:          melhor?.bancoNome ?? null,
+      responsavel_id: usuario_id,
+      resultado_json: resultado as unknown as Record<string, unknown>,
+      lead_id:        null,
+      pdf_status:     'nao_gerado',
+    })
+    .select('id')
+    .single()
 
   if (simErr) {
     console.error('[workflow-consulta] Erro ao salvar simulação:', simErr)
+  }
+
+  const simulacaoId: string | null = simData?.id ?? null
+
+  // Helper para atualizar o pdf_status no registro salvo
+  async function atualizarPdfStatus(
+    status: 'enviado' | 'erro' | 'nao_gerado',
+    opts?: { erro?: string; enviado_em?: string },
+  ) {
+    if (!simulacaoId) return
+    await supabase.from('simulacoes_central').update({
+      pdf_status:      status,
+      pdf_erro:        opts?.erro        ?? null,
+      pdf_enviado_em:  opts?.enviado_em  ?? null,
+    }).eq('id', simulacaoId)
   }
 
   // ── Etapa 7: PDF + WhatsApp ──────────────────────────────────────────────
@@ -173,12 +193,16 @@ export async function executarWorkflowConsulta(
         ? `Consulta Rápida - ${dados.nome}.pdf`
         : 'Consulta Rápida.pdf'
       await enviarPDFUazapi(destinoEfetivo, pdfBuffer, tokenEfetivo, nomeArquivo)
+      await atualizarPdfStatus('enviado', { enviado_em: new Date().toISOString() })
       linhaPDF = '📎 PDF completo enviado acima.'
     } catch (errPdf) {
-      console.error('[workflow-consulta] PDF falhou:', errPdf)
+      const msg = errPdf instanceof Error ? errPdf.message : String(errPdf)
+      console.error('[workflow-consulta] PDF falhou:', msg)
+      await atualizarPdfStatus('erro', { erro: msg })
     }
   } else {
     console.warn('[workflow-consulta] PDF pulado — token ou destino ausente')
+    await atualizarPdfStatus('nao_gerado')
   }
 
   // ── Etapa 8: Resposta ────────────────────────────────────────────────────
