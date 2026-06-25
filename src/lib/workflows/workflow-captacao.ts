@@ -491,10 +491,19 @@ export async function executarWorkflowCaptacao(
   let pdfEnviado = false
   let pdfErroMsg: string | null = null
 
-  if (ctx.instancia_token && ctx.telefone_destino) {
-    try {
-      await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_geracao_iniciada')
+  // Diagnóstico obrigatório: sempre registra os valores de contexto antes de tentar
+  const hasToken  = !!ctx.instancia_token
+  const hasDestino = !!ctx.telefone_destino
+  await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_geracao_iniciada',
+    `token=${hasToken}(${(ctx.instancia_token ?? '').length}c) destino=${ctx.telefone_destino ?? 'nulo'}`)
 
+  if (!hasToken || !hasDestino) {
+    pdfErroMsg = !hasToken
+      ? 'instancia_token ausente no contexto do workflow'
+      : 'telefone_destino ausente no contexto do workflow'
+    await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_erro', pdfErroMsg)
+  } else {
+    try {
       const { gerarPDFFinanciamentoBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
       const pdfBuffer = await gerarPDFFinanciamentoBuffer(resultado, {
         clienteNome:     dados.nome ?? undefined,
@@ -506,7 +515,7 @@ export async function executarWorkflowCaptacao(
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_envio_iniciado',
         `Destino: ${ctx.telefone_destino}`)
 
-      await enviarPDFUazapi(ctx.telefone_destino, pdfBuffer, ctx.instancia_token, dados.nome ?? '')
+      await enviarPDFUazapi(ctx.telefone_destino!, pdfBuffer, ctx.instancia_token!, dados.nome ?? '')
       pdfEnviado = true
 
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_enviado',
