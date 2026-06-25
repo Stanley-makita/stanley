@@ -1,4 +1,4 @@
--- Adiciona tipo 'workflow_log' ao enum lead_historico_tipo.
--- Eventos técnicos do workflow (motor_executado, pdf_gerado, etc.) passam
--- a usar este tipo para não poluir o histórico comercial visível na interface.
-ALTER TYPE lead_historico_tipo ADD VALUE IF NOT EXISTS 'workflow_log';
+-- Documenta o novo valor 'workflow_log' para o campo tipo em lead_historico.
+-- O campo é TEXT (não ENUM), portanto nenhuma alteração estrutural é necessária.
+-- Eventos técnicos do workflow usam tipo='workflow_log' e são ocultados na interface.
+SELECT 1;
