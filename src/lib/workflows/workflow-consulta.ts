@@ -17,8 +17,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { parsearTextoCaptacao } from './parser-captacao'
-import { normalizarDadosCaptacao } from './normalizador-captacao'
+import { normalizarPedidoSimulacao } from './normalizador-captacao'
 import { validarDadosCaptacao } from './validation-engine-captacao'
 import {
   simularTodosBancos, calcularAnalise,
@@ -77,11 +76,8 @@ export async function executarWorkflowConsulta(
 ): Promise<string> {
   const { empresa_id, usuario_id, usuario_nome, supabase } = ctx
 
-  // ── Etapa 1: Parser ─────────────────────────────────────────────────────
-  const raw = await parsearTextoCaptacao(textoBruto)
-
-  // ── Etapa 2: Normalizador ────────────────────────────────────────────────
-  const dados = normalizarDadosCaptacao(raw)
+  // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
+  const dados = await normalizarPedidoSimulacao(textoBruto)
 
   // ── Etapa 2.1: Produto não habilitado no motor ──────────────────────────────
   const PRODUTOS_BLOQUEADOS: Array<typeof dados.produto_normalizado> = [
@@ -197,7 +193,10 @@ export async function executarWorkflowConsulta(
       cpf_cliente:    ctx.tipo_vinculo === 'AVULSA_SEM_CPF' ? null : (dados.cpf ?? null),
       banco:          melhor?.bancoNome ?? null,
       responsavel_id: usuario_id,
-      resultado_json: resultado as unknown as Record<string, unknown>,
+      resultado_json: {
+        ...(resultado as unknown as Record<string, unknown>),
+        _input_normalizado: dados as unknown as Record<string, unknown>,
+      },
       lead_id:        null,
       pdf_status:     'nao_gerado',
     })
@@ -377,7 +376,10 @@ async function responderCapacidadeMaxima(
     cpf_cliente:    ctx.tipo_vinculo === 'AVULSA_SEM_CPF' ? null : (dados.cpf ?? null),
     banco:          melhorCapacidade?.bancoNome ?? null,
     responsavel_id: usuario_id,
-    resultado_json: { modo: 'VALOR_MAXIMO_PELA_RENDA', renda: rendaMensal, bancos: resultados } as unknown as Record<string, unknown>,
+    resultado_json: {
+      modo: 'VALOR_MAXIMO_PELA_RENDA', renda: rendaMensal, bancos: resultados,
+      _input_normalizado: dados as unknown as Record<string, unknown>,
+    } as unknown as Record<string, unknown>,
     lead_id:        null,
     pdf_status:     'nao_gerado',
   })

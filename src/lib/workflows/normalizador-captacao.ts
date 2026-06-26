@@ -126,6 +126,17 @@ function normalizarProduto(produto: string | null | undefined): DadosCaptacaoNor
   return 'AQUISICAO'
 }
 
+/**
+ * Ponto de entrada único para os dois comandos (*simula e *cria já simula).
+ * Chama o parser (Claude Haiku) e em seguida o normalizador.
+ * Qualquer melhoria no parser ou normalizer beneficia automaticamente ambos os fluxos.
+ */
+export async function normalizarPedidoSimulacao(texto: string): Promise<DadosCaptacaoNormalizados> {
+  const { parsearTextoCaptacao } = await import('./parser-captacao')
+  const raw = await parsearTextoCaptacao(texto)
+  return normalizarDadosCaptacao(raw)
+}
+
 export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNormalizados {
   const valorImovel        = raw.valor_imovel    ?? null
   const valorEntradaRaw    = raw.valor_entrada   ?? null

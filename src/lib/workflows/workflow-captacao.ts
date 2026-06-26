@@ -14,8 +14,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { parsearTextoCaptacao } from './parser-captacao'
-import { normalizarDadosCaptacao } from './normalizador-captacao'
+import { normalizarPedidoSimulacao } from './normalizador-captacao'
 import { validarDadosCaptacao } from './validation-engine-captacao'
 import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
@@ -211,11 +210,8 @@ export async function executarWorkflowCaptacao(
 ): Promise<string> {
   const { empresa_id, usuario_id, usuario_nome, supabase } = ctx
 
-  // ── Etapa 1: Parser ─────────────────────────────────────────────────────
-  const raw = await parsearTextoCaptacao(textoBruto)
-
-  // ── Etapa 2: Normalizador ────────────────────────────────────────────────
-  const dados = normalizarDadosCaptacao(raw)
+  // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
+  const dados = await normalizarPedidoSimulacao(textoBruto)
 
   // Mescla dados do lead existente (contexto do *simula com lead aberto).
   // Preenche apenas campos nulos — dados novos do texto têm prioridade.
@@ -524,6 +520,34 @@ export async function executarWorkflowCaptacao(
     return linhas.join('\n')
   }
 
+  // ── Etapa 6.1: Produto não habilitado no motor ──────────────────────────────
+  const PRODUTOS_BLOQUEADOS_CAPTACAO: Array<typeof dados.produto_normalizado> = [
+    'CGI_HOME_EQUITY', 'CONSTRUCAO', 'CONSORCIO', 'PORTABILIDADE',
+  ]
+  if (PRODUTOS_BLOQUEADOS_CAPTACAO.includes(dados.produto_normalizado)) {
+    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    return [
+      `✅ ${acao}.`,
+      '',
+      'A simulação automática desse produto ainda não está habilitada.',
+      'O lead foi salvo e o comercial responsável pode analisar manualmente.',
+    ].join('\n')
+  }
+
+  // ── Etapa 6.2: Conflito de valores ───────────────────────────────────────
+  if (dados.conflito_valores) {
+    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    return [
+      `✅ ${acao}.`,
+      '',
+      '⚠️ *Há divergência entre os valores informados — simulação não executada.*',
+      '',
+      dados.conflito_valores_descricao ?? '',
+      '',
+      'Confirme os dados corretos e reenvie *simula ou *cria com os valores corrigidos.',
+    ].join('\n')
+  }
+
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_aprovada',
     `Bancos: ${dados.bancos_ids.join(', ')}`)
 
@@ -570,7 +594,10 @@ export async function executarWorkflowCaptacao(
     cpf_cliente:     dados.cpf ?? null,
     banco:           melhor?.bancoNome ?? null,
     responsavel_id:  usuario_id,
-    resultado_json:  resultado as unknown as Record<string, unknown>,
+    resultado_json: {
+      ...(resultado as unknown as Record<string, unknown>),
+      _input_normalizado: dados as unknown as Record<string, unknown>,
+    },
     lead_id,
   })
 
