@@ -391,7 +391,9 @@ export async function executarWorkflowCaptacao(
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_busca_iniciada')
 
   const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente ?? telefoneTemp
-  let docsVinculados = 0
+  let docsVinculados        = 0
+  let docsVinculadosPorMarca = 0   // incrementado apenas quando marcaAt é o critério
+  let docsConversaPendentes: Array<{ nome: string; horario: string }> = []
 
   // 5a. Salva arquivos enviados junto ao comando
   let arquivosSalvos = 0
@@ -436,7 +438,7 @@ export async function executarWorkflowCaptacao(
 
     const { data: docs } = await supabase
       .from('documentos_clientes')
-      .select('id')
+      .select('id, nome_original, created_at, ocr_dados')
       .eq('empresa_id', empresa_id)
       .eq('conversa_id', conversa.id)
       .is('lead_id', null)
@@ -444,11 +446,35 @@ export async function executarWorkflowCaptacao(
       .gte('created_at', limite.toISOString())
 
     if (docs?.length) {
-      await supabase
-        .from('documentos_clientes')
-        .update({ pessoa_id, lead_id })
-        .in('id', docs.map((d) => d.id))
-      docsVinculados += docs.length
+      const cpfNorm      = dados.cpf ? dados.cpf.replace(/\D/g, '') : null
+      const corteImediato = new Date(Date.now() - 2 * 60 * 1000)   // 2 min
+      const idsAutoVincular: string[] = []
+
+      for (const doc of docs) {
+        const docCpf       = (doc.ocr_dados as Record<string, string> | null)?.cpf?.replace(/\D/g, '')
+        const cpfBate      = !!(cpfNorm && docCpf && docCpf === cpfNorm)
+        const muitoRecente = new Date(doc.created_at as string) >= corteImediato
+
+        if (marcaAt || cpfBate || muitoRecente) {
+          idsAutoVincular.push(doc.id as string)
+          if (marcaAt) docsVinculadosPorMarca++
+        } else {
+          const hora = new Date(doc.created_at as string)
+            .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          docsConversaPendentes.push({
+            nome:    (doc.nome_original as string | null) ?? 'Documento',
+            horario: hora,
+          })
+        }
+      }
+
+      if (idsAutoVincular.length > 0) {
+        await supabase
+          .from('documentos_clientes')
+          .update({ pessoa_id, lead_id })
+          .in('id', idsAutoVincular)
+        docsVinculados += idsAutoVincular.length
+      }
     }
   }
 
@@ -457,16 +483,17 @@ export async function executarWorkflowCaptacao(
       ? `${docsVinculados} documento(s) (${arquivosSalvos} do comando + ${docsVinculados - arquivosSalvos} da conversa)`
       : `${docsVinculados} documento(s) da conversa`
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_vinculados', detalhe)
-
-    if (marcaAt && telefoneConversa) {
-      await supabase.from('fonti_marcas')
-        .delete()
-        .eq('empresa_id', empresa_id)
-        .eq('telefone_conversa', telefoneConversa)
-    }
   } else {
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_nao_encontrados',
       `Nenhum doc encontrado para ${telefoneConversa}`)
+  }
+
+  // Limpa fonti_marcas apenas quando ela foi o motivo da vinculação
+  if (marcaAt && telefoneConversa && docsVinculadosPorMarca > 0) {
+    await supabase.from('fonti_marcas')
+      .delete()
+      .eq('empresa_id', empresa_id)
+      .eq('telefone_conversa', telefoneConversa)
   }
 
   // ── Auto-deriva entrada quando apenas imóvel informado ─────────────────────
@@ -533,6 +560,16 @@ export async function executarWorkflowCaptacao(
     const aviso = pessoaCriada ? '\n⚠️ Pessoa criada sem CPF validado. Verifique duplicidade.' : ''
     const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
 
+    const linhaPendentes = docsConversaPendentes.length > 0
+      ? [
+          '',
+          '📄 *Documentos encontrados nesta conversa (não vinculados automaticamente):*',
+          ...docsConversaPendentes.map((d) => `• ${d.nome} — recebido às ${d.horario}`),
+          '',
+          '_Esses documentos não foram vinculados automaticamente porque não foi possível confirmar que pertencem ao cliente atual. Eles podem ser vinculados posteriormente pelo CRM._',
+        ].join('\n')
+      : ''
+
     if (!validacao.valido) {
       const lista = validacao.camposFaltantes.map((c) => `• ${c}`).join('\n')
       return [
@@ -544,6 +581,7 @@ export async function executarWorkflowCaptacao(
         'Para complementar:',
         '• Responda nesta conversa com os dados faltantes + *simula',
         '• Ou reenvie *cria cliente com os dados completos — o Fonti atualizará este Lead.',
+        linhaPendentes,
       ].join('\n')
     }
 
@@ -553,6 +591,7 @@ export async function executarWorkflowCaptacao(
     if (docsVinculados > 0) linhas.push(`${docsVinculados} doc(s) vinculado(s)`)
     if (aviso) linhas.push(aviso.trim())
     linhas.push('\nPara simular: envie *simula ou inclua "já simula [bancos]" no próximo comando.')
+    if (linhaPendentes) linhas.push(linhaPendentes)
     return linhas.join('\n')
   }
 
@@ -731,6 +770,16 @@ export async function executarWorkflowCaptacao(
 
   if (docsVinculados > 0) {
     linhas.push(`\n${docsVinculados} documento(s) anexado(s) ao Lead.`)
+  }
+
+  if (docsConversaPendentes.length > 0) {
+    linhas.push(
+      '',
+      '📄 *Documentos encontrados nesta conversa (não vinculados automaticamente):*',
+      ...docsConversaPendentes.map((d) => `• ${d.nome} — recebido às ${d.horario}`),
+      '',
+      '_Esses documentos não foram vinculados automaticamente porque não foi possível confirmar que pertencem ao cliente atual. Eles podem ser vinculados posteriormente pelo CRM._',
+    )
   }
 
   if (pessoaCriada) {
