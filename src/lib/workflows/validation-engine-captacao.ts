@@ -30,19 +30,22 @@ const CAMPOS_OBRIGATORIOS: Array<{
     // válido se tem renda_formal OU renda_informal
     condicao: (d) => (d.renda_formal ?? 0) > 0 || (d.renda_informal ?? 0) > 0,
   },
-  { campo: 'valor_imovel',   label: 'Valor do imóvel' },
+  {
+    campo: 'valor_imovel',
+    label: 'Valor do imóvel',
+    // em modo VALOR_MAXIMO, imóvel é referência opcional (não obrigatório)
+    condicao: (d) => d.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA' || d.valor_imovel !== null,
+  },
   {
     campo: 'valor_entrada',
     label: 'Entrada ou valor financiado',
-    // válido se tem entrada OU financiado
-    condicao: (d) => (d.valor_entrada ?? 0) > 0 || (d.valor_financiado ?? 0) > 0,
+    // em modo VALOR_MAXIMO, não se exige entrada nem valor financiado
+    condicao: (d) =>
+      d.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA' ||
+      (d.valor_entrada ?? 0) > 0 ||
+      (d.valor_financiado ?? 0) > 0,
   },
-  {
-    campo: 'bancos_ids',
-    label: 'Banco(s) para simular',
-    // válido se há ao menos um banco
-    condicao: (d) => d.bancos_ids.length > 0,
-  },
+  // Banco NÃO é obrigatório — sem banco informado usa todos os habilitados para aquisição
 ]
 
 export function validarDadosCaptacao(

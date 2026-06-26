@@ -580,6 +580,12 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             {innerContent}
           </div>
+          {/* Mobile-only: Notas + Tarefas + Checklist (painel direito oculto em telas menores que lg) */}
+          {lead && (
+            <div className="lg:hidden shrink-0 max-h-[45svh] overflow-y-auto border-t border-gray-200 bg-white">
+              <PainelDireitoLead lead={lead} />
+            </div>
+          )}
         </div>
         {secondaryDialogs}
       </>

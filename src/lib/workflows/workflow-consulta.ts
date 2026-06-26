@@ -20,10 +20,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { parsearTextoCaptacao } from './parser-captacao'
 import { normalizarDadosCaptacao } from './normalizador-captacao'
 import { validarDadosCaptacao } from './validation-engine-captacao'
-import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciamento/engine'
+import {
+  simularTodosBancos, calcularAnalise,
+  calcularMaxFinanciavel, calcularIdadeEmAnos, calcularPrazoMaximo, getMipRate, taxaAnualParaMensal,
+} from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import { TODOS_BANCOS } from '@/lib/simuladorFinanciamento/constantes'
+import { TODOS_BANCOS, BANCOS_CONFIG } from '@/lib/simuladorFinanciamento/constantes'
+import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import { enviarPDFUazapi } from './uazapi-helpers'
 
 export interface WorkflowConsultaContexto {
@@ -34,6 +38,8 @@ export interface WorkflowConsultaContexto {
   instancia_token?: string
   telefone_destino?: string
   telefone_remetente?: string
+  /** Simulação avulsa sem CPF — não vincula a cliente existente */
+  tipo_vinculo?: 'AVULSA_SEM_CPF'
 }
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -77,6 +83,42 @@ export async function executarWorkflowConsulta(
   // ── Etapa 2: Normalizador ────────────────────────────────────────────────
   const dados = normalizarDadosCaptacao(raw)
 
+  // ── Etapa 2.1: Produto não habilitado no motor ──────────────────────────────
+  const PRODUTOS_BLOQUEADOS: Array<typeof dados.produto_normalizado> = [
+    'CGI_HOME_EQUITY', 'CONSTRUCAO', 'CONSORCIO', 'PORTABILIDADE',
+  ]
+  if (PRODUTOS_BLOQUEADOS.includes(dados.produto_normalizado)) {
+    return 'A simulação automática desse produto ainda não está habilitada. Envie os dados pelo comando *cria cliente para que o comercial responsável analise no lead.'
+  }
+
+  // ── Etapa 2.5: Detectar conflito de prazos ──────────────────────────────────
+  // Se vierem múltiplos prazos (ex: "120 240 360 e prazo máximo"), rejeitar antes de simular
+  const prazosNum = dados.prazos_detectados ?? []
+  if (prazosNum.length > 1 || (prazosNum.length >= 1 && dados.prazo_maximo)) {
+    const labels = [
+      ...prazosNum.map((p) => `${p} meses`),
+      ...(dados.prazo_maximo ? ['prazo máximo'] : []),
+    ]
+    return [
+      `⚠️ Identifiquei mais de um prazo: ${labels.join(', ')}.`,
+      `Para manter a simulação objetiva, envie apenas um prazo ou use futuramente o modo comparar prazos.`,
+    ].join(' ')
+  }
+
+  // ── Etapa 2.6: Conflito de valores (imóvel ≠ entrada + financiado) ──────────
+  if (dados.conflito_valores) {
+    return [
+      '⚠️ *Há divergência entre os valores informados.*',
+      '',
+      dados.conflito_valores_descricao ?? '',
+      '',
+      'Confirme os dados corretos para simular:',
+      '• Valor do imóvel',
+      '• Entrada (ou percentual)',
+      '• Valor a financiar',
+    ].join('\n')
+  }
+
   // ── Etapa 3: Validation Engine (modo consulta) ───────────────────────────
   const validacao = validarDadosCaptacao(dados, { modo: 'consulta' })
 
@@ -102,9 +144,14 @@ export async function executarWorkflowConsulta(
   // ── Etapa 5: Motor de Crédito ────────────────────────────────────────────
   const dbOverrides = await carregarOverridesBancos(supabase, empresa_id)
 
-  // Aplica prazo customizado via overrides (se informado)
+  // ── Modo VALOR_MAXIMO_PELA_RENDA — desvio para cálculo de capacidade ─────
+  if (dados.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA') {
+    return await responderCapacidadeMaxima(dados, bancosIds, dbOverrides, ctx, usuario_id, usuario_nome, supabase)
+  }
+
+  // Aplica prazo customizado via overrides (se informado e não for "prazo máximo")
   let overrides: Partial<Record<string, BancoSimOverrides>> = { ...dbOverrides }
-  if (dados.prazo_meses) {
+  if (dados.prazo_meses && !dados.prazo_maximo) {
     for (const id of bancosIds) {
       overrides[id] = { ...(overrides[id] ?? {}), prazoMaximoMeses: dados.prazo_meses }
     }
@@ -147,7 +194,7 @@ export async function executarWorkflowConsulta(
       tipo_simulacao: 'consulta',
       origem_canal:   'whatsapp',
       nome_cliente:   nomeDisplay,
-      cpf_cliente:    dados.cpf ?? null,
+      cpf_cliente:    ctx.tipo_vinculo === 'AVULSA_SEM_CPF' ? null : (dados.cpf ?? null),
       banco:          melhor?.bancoNome ?? null,
       responsavel_id: usuario_id,
       resultado_json: resultado as unknown as Record<string, unknown>,
@@ -239,11 +286,147 @@ export async function executarWorkflowConsulta(
     linhas.push('', `❌ *Inelegíveis:*`, listaInelegiveis)
   }
 
+  if (dados.usou_idade_aproximada) {
+    linhas.push('', `ℹ️ _Usei a idade informada para calcular. Para maior precisão, envie a data de nascimento completa._`)
+  }
+
   linhas.push(
     '',
     linhaPDF,
     '',
     `⚠️ _Esta é uma consulta rápida. Não representa aprovação de crédito. Valores, taxas e prazos estão sujeitos a alteração conforme análise documental e política de crédito do banco._`,
+  )
+
+  return linhas.join('\n')
+}
+
+// ── Capacidade Máxima de Financiamento pela Renda ─────────────────────────────
+
+async function responderCapacidadeMaxima(
+  dados: DadosCaptacaoNormalizados,
+  bancosIds: BancoId[],
+  dbOverrides: Partial<Record<string, BancoSimOverrides>>,
+  ctx: WorkflowConsultaContexto,
+  usuario_id: string,
+  usuario_nome: string,
+  supabase: SupabaseClient,
+): Promise<string> {
+  const rendaMensal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+  const idadeAnos = calcularIdadeEmAnos(dados.data_nascimento!)
+  const mip = getMipRate(idadeAnos)
+
+  interface ItemCapacidade {
+    bancoId: BancoId
+    bancoNome: string
+    maxFinanciavel: number
+    entradaMinima: number | null
+    prazoUsado: number
+    taxaAnual: number
+  }
+
+  const resultados: ItemCapacidade[] = bancosIds
+    .map((bancoId): ItemCapacidade | null => {
+      const cfg = BANCOS_CONFIG[bancoId]
+      const override = dbOverrides[bancoId] as BancoSimOverrides | undefined
+
+      const taxaAnual = override?.taxaAnual
+        ?? (dados.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
+      const taxaMensal = taxaAnualParaMensal(taxaAnual)
+
+      const prazoBase = override?.prazoMaximoMeses ?? cfg.prazoMaximoMeses
+      // prazo_maximo=true → usa prazo máximo do banco (respeitando idade)
+      const prazoReq = dados.prazo_maximo ? prazoBase : (dados.prazo_meses ?? prazoBase)
+      const prazoEfetivo = calcularPrazoMaximo(dados.data_nascimento!, prazoReq)
+
+      if (prazoEfetivo < 12) return null  // mutuário próximo dos 80 anos
+
+      // Referência para cálculo: valor do imóvel ou teto genérico de 5 M
+      const valorRef = dados.valor_imovel ?? 5_000_000
+      const maxByIncome = calcularMaxFinanciavel(rendaMensal, valorRef, taxaMensal, prazoEfetivo, mip)
+
+      // Aplica restrição LTV (se imóvel informado)
+      const maxLtv = dados.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv
+      const maxByLtv = dados.valor_imovel ? Math.round(dados.valor_imovel * maxLtv) : Infinity
+      const maxFinal = Math.max(0, Math.min(maxByIncome, maxByLtv))
+
+      return {
+        bancoId,
+        bancoNome: cfg.nome,
+        maxFinanciavel: maxFinal,
+        entradaMinima: dados.valor_imovel ? Math.max(0, dados.valor_imovel - maxFinal) : null,
+        prazoUsado:    prazoEfetivo,
+        taxaAnual,
+      }
+    })
+    .filter((r): r is ItemCapacidade => r !== null)
+
+  // Salva no histórico (resultado_json simplificado)
+  const nomeDisplay = dados.nome?.trim() || 'Cliente não identificado'
+  const melhorCapacidade = resultados.reduce(
+    (best, r) => r.maxFinanciavel > (best?.maxFinanciavel ?? 0) ? r : best,
+    null as ItemCapacidade | null,
+  )
+
+  await supabase.from('simulacoes_central').insert({
+    empresa_id:     ctx.empresa_id,
+    tipo:           'financiamento',
+    status:         'concluida',
+    tipo_simulacao: 'capacidade_maxima',
+    origem_canal:   'whatsapp',
+    nome_cliente:   nomeDisplay,
+    cpf_cliente:    ctx.tipo_vinculo === 'AVULSA_SEM_CPF' ? null : (dados.cpf ?? null),
+    banco:          melhorCapacidade?.bancoNome ?? null,
+    responsavel_id: usuario_id,
+    resultado_json: { modo: 'VALOR_MAXIMO_PELA_RENDA', renda: rendaMensal, bancos: resultados } as unknown as Record<string, unknown>,
+    lead_id:        null,
+    pdf_status:     'nao_gerado',
+  })
+
+  // Monta resposta
+  const prazoLabel = dados.prazo_maximo
+    ? 'prazo máximo por banco'
+    : dados.prazo_meses
+      ? `${dados.prazo_meses} meses`
+      : 'prazo máximo por banco'
+
+  const linhas: string[] = [
+    `📋 *Capacidade Máxima — ${nomeDisplay}*`,
+    '',
+    `📊 *Parâmetros:*`,
+    `Renda: ${fmt.format(rendaMensal)} | ${dados.tipo_amortizacao} | ${prazoLabel}`,
+  ]
+
+  if (dados.valor_imovel) {
+    linhas.push(`Imóvel de referência: ${fmt.format(dados.valor_imovel)}`)
+  }
+
+  linhas.push('', `🏦 *Financiamento máximo suportado pela renda:*`)
+
+  if (resultados.length === 0) {
+    linhas.push('• Nenhum banco disponível (idade máxima ou prazo insuficiente)')
+  } else {
+    for (const r of resultados) {
+      if (r.maxFinanciavel <= 0) {
+        linhas.push(`• ${r.bancoNome} — Renda insuficiente para este banco`)
+        continue
+      }
+      const entradaStr = r.entradaMinima !== null
+        ? ` | Entrada mín. ${fmt.format(r.entradaMinima)}`
+        : ''
+      const taxaStr = (r.taxaAnual * 100).toFixed(2).replace('.', ',')
+      linhas.push(
+        `• ${r.bancoNome} — até ${fmt.format(r.maxFinanciavel)}${entradaStr} | ${r.prazoUsado} m | ${taxaStr}% a.a.`,
+      )
+    }
+  }
+
+  if (dados.usou_idade_aproximada) {
+    linhas.push('', `ℹ️ _Usei a idade informada para calcular. Para maior precisão, envie a data de nascimento completa._`)
+  }
+
+  linhas.push(
+    '',
+    `⚠️ _Estimativa de capacidade pela renda (30% de comprometimento, SAC). Sujeita a análise de crédito, LTV, políticas do banco e avaliação do imóvel._`,
   )
 
   return linhas.join('\n')

@@ -35,6 +35,13 @@ export interface DadosCaptacaoNormalizados {
   fgts_valor:            number | null   // valor FGTS disponível (informativo)
   usa_fgts:              boolean         // true se fgts_valor > 0 ou menção a FGTS
   todos_bancos:          boolean         // true se usuário pediu todos os bancos
+  modo_calculo:          'VALOR_MAXIMO_PELA_RENDA' | null
+  prazo_maximo:          boolean         // true se "prazo máximo" foi solicitado
+  prazos_detectados:     number[] | null // todos os prazos numéricos válidos (120–420)
+  produto_normalizado:   'AQUISICAO' | 'CGI_HOME_EQUITY' | 'CONSTRUCAO' | 'CONSORCIO' | 'PORTABILIDADE'
+  usou_idade_aproximada: boolean         // true se data_nascimento foi derivada de "X anos"
+  conflito_valores:      boolean         // imóvel ≠ entrada + financiado (quando os três informados)
+  conflito_valores_descricao: string | null
 }
 
 // Mapa de aliases de bancos → BancoId
@@ -106,17 +113,47 @@ function normalizarData(data: string | null | undefined): string | null {
   return null
 }
 
+function normalizarProduto(produto: string | null | undefined): DadosCaptacaoNormalizados['produto_normalizado'] {
+  if (!produto) return 'AQUISICAO'
+  const p = produto.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim()
+  if (p === 'cgi' || p.includes('home equity') || p.includes('homeequity') || p.includes('home_equity'))
+    return 'CGI_HOME_EQUITY'
+  if (p.includes('constru')) return 'CONSTRUCAO'
+  if (p.includes('consorcio')) return 'CONSORCIO'
+  if (p.includes('portab')) return 'PORTABILIDADE'
+  return 'AQUISICAO'
+}
+
 export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNormalizados {
-  const valorImovel    = raw.valor_imovel    ?? null
-  const valorEntradaRaw = raw.valor_entrada  ?? null
+  const valorImovel        = raw.valor_imovel    ?? null
+  const valorEntradaRaw    = raw.valor_entrada   ?? null
   const valorFinanciadoRaw = raw.valor_financiado ?? null
-  const percentualRaw  = raw.percentual_financiado ?? null
+  const percentualFinRaw   = raw.percentual_financiado ?? null
+  const percentualEntRaw   = raw.percentual_entrada    ?? null
+
+  // Converte percentual_entrada → percentual_financiado quando o segundo não veio
+  const percentualRaw = percentualFinRaw !== null
+    ? percentualFinRaw
+    : percentualEntRaw !== null
+      ? Math.round(100 - percentualEntRaw)
+      : null
+
+  // Detecta conflito: todos três informados e imóvel ≠ entrada + financiado (tolerância R$100)
+  const TOLERANCIA_CONFLITO = 100
+  const conflito = valorImovel !== null && valorEntradaRaw !== null && valorFinanciadoRaw !== null
+    && Math.abs(valorImovel - (valorEntradaRaw + valorFinanciadoRaw)) > TOLERANCIA_CONFLITO
+  const conflitoDescricao = conflito
+    ? `Imóvel R$${valorImovel.toLocaleString('pt-BR')}, entrada R$${valorEntradaRaw!.toLocaleString('pt-BR')} + financiamento R$${valorFinanciadoRaw!.toLocaleString('pt-BR')} = R$${(valorEntradaRaw! + valorFinanciadoRaw!).toLocaleString('pt-BR')} (diferença: R$${Math.abs(valorImovel - valorEntradaRaw! - valorFinanciadoRaw!).toLocaleString('pt-BR')})`
+    : null
 
   // Deriva campos faltantes a partir das combinações disponíveis
+  // Quando há conflito, não tenta derivar — deixa os valores como vieram para que o workflow sinalize
   let valorEntrada    = valorEntradaRaw
   let valorFinanciado = valorFinanciadoRaw
 
-  if (valorImovel !== null) {
+  if (!conflito && valorImovel !== null) {
     if (valorEntrada === null && valorFinanciado !== null) {
       // imóvel + financiado → entrada
       valorEntrada = Math.round(valorImovel - valorFinanciado)
@@ -168,6 +205,31 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
   const fgtsValor = typeof raw.fgts_valor === 'number' ? raw.fgts_valor : null
   const usaFgts = fgtsValor !== null && fgtsValor > 0
 
+  // Idade aproximada — detectada quando data_nascimento vier como "X anos"
+  const usouIdadeAproximada = /^\d{1,3}\s*anos?$/i.test((raw.data_nascimento ?? '').trim())
+
+  // Produto normalizado
+  const produtoNormalizado = normalizarProduto(raw.produto)
+
+  // Modo de cálculo
+  const modoCalculo = raw.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA'
+    ? 'VALOR_MAXIMO_PELA_RENDA' as const
+    : null
+
+  // Prazo máximo
+  const prazoMaximo = raw.prazo_maximo === true
+
+  // Todos os prazos numéricos detectados (validados 120–420)
+  const prazosDetectados = Array.isArray(raw.prazos_detectados)
+    ? raw.prazos_detectados
+        .filter((p): p is number => typeof p === 'number')
+        .map((p) => Math.round(p))
+        .filter((p) => p >= 120 && p <= 420)
+    : null
+  const prazosDetectadosFinal = prazosDetectados && prazosDetectados.length > 0
+    ? prazosDetectados
+    : null
+
   return {
     nome:                raw.nome?.trim()   ?? null,
     cpf:                 normalizarCpf(raw.cpf),
@@ -189,5 +251,12 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
     fgts_valor:          fgtsValor,
     usa_fgts:            usaFgts,
     todos_bancos:        raw.todos_bancos === true,
+    modo_calculo:             modoCalculo,
+    prazo_maximo:             prazoMaximo,
+    prazos_detectados:        prazosDetectadosFinal,
+    produto_normalizado:      produtoNormalizado,
+    usou_idade_aproximada:    usouIdadeAproximada,
+    conflito_valores:         conflito,
+    conflito_valores_descricao: conflitoDescricao,
   }
 }

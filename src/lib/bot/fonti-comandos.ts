@@ -1079,9 +1079,12 @@ export async function processarComandoFonti(
     // Extrai CPF do texto (regex rápida, sem chamar parser completo)
     const cpfMatch = instrucao.match(/\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.\s]?\d{2})\b/)
     const cpfBruto = cpfMatch ? cpfMatch[1].replace(/\D/g, '') : null
-    const telefoneCtx = ctx.telefone_cliente ?? ctx.telefone_remetente
 
-    const leadCtx = await buscarLeadAbertoParaSimula(supabase, empresa_id, cpfBruto, telefoneCtx)
+    // Regra de vinculação: busca lead SOMENTE se CPF vier explicitamente no texto.
+    // Nunca usar telefone como fallback — evita vincular simulação ao cliente errado.
+    const leadCtx = cpfBruto
+      ? await buscarLeadAbertoParaSimula(supabase, empresa_id, cpfBruto, null)
+      : null
 
     if (leadCtx) {
       try {
@@ -1115,6 +1118,7 @@ export async function processarComandoFonti(
       }
     }
 
+    // Sem CPF explícito → simulação avulsa sem vinculação a cliente existente
     try {
       const { executarWorkflowConsulta } = await import('@/lib/workflows/workflow-consulta')
       return await executarWorkflowConsulta(instrucao, {
@@ -1125,6 +1129,7 @@ export async function processarComandoFonti(
         instancia_token:    ctx.instancia_token,
         telefone_destino:   ctx.telefone_destino,
         telefone_remetente: ctx.telefone_remetente,
+        tipo_vinculo:       cpfBruto ? undefined : 'AVULSA_SEM_CPF',
       })
     } catch (err) {
       console.error('[fonti] Erro inesperado no Workflow de Consulta:', err)
