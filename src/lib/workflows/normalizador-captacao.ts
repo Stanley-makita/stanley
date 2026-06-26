@@ -91,23 +91,32 @@ function normalizarData(data: string | null | undefined): string | null {
   // YYYY-MM-DD (já no formato correto)
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
 
-  // DD/MM/YYYY ou DD-MM-YYYY
-  const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
-  if (dmyMatch) {
-    const [, d, m, y] = dmyMatch
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (ano com 4 dígitos)
+  const dmy4 = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/)
+  if (dmy4) {
+    const [, d, m, y] = dmy4
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
   }
 
-  // MM/DD/YYYY (fallback improvável no contexto br, mas tratado)
-  const mdyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
-  if (mdyMatch) return null  // ambíguo, não tenta
+  // DD/MM/YY, DD-MM-YY, DD.MM.YY (ano com 2 dígitos — ex: 93 → 1993)
+  const dmy2 = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/)
+  if (dmy2) {
+    const [, d, m, yy] = dmy2
+    const yyNum   = parseInt(yy, 10)
+    const anoAtual = new Date().getFullYear()
+    // Escolhe século com base em faixa etária plausível para financiamento (18–80 anos)
+    const ano19    = 1900 + yyNum
+    const idade19  = anoAtual - ano19
+    const anoFinal = (idade19 >= 18 && idade19 <= 90) ? ano19 : (2000 + yyNum)
+    return `${anoFinal}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
 
   // Apenas "45 anos" — converte para data aproximada
   const anosMatch = s.match(/^(\d{1,3})\s*anos?$/i)
   if (anosMatch) {
     const anos = parseInt(anosMatch[1], 10)
     const anoNasc = new Date().getFullYear() - anos
-    return `${anoNasc}-01-01`  // aproximação (dia e mês desconhecidos)
+    return `${anoNasc}-01-01`
   }
 
   return null

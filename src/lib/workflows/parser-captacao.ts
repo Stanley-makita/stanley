@@ -84,8 +84,15 @@ CPF: Retorna exatamente como escrito (com ou sem pontuação). null se ausente.
 
 TELEFONE: Número do CLIENTE (não do comercial). Retorna como escrito. null se ausente.
 
-DATA_NASCIMENTO: Retorna como o usuário escreveu (ex: "25/10/1978", "10-05-1990"). null se ausente.
-Aliases: nascimento, nasc., DN, data nasc., data de nascimento, aniversário, idade (se informar somente a idade, retornar a idade em anos como string ex: "45 anos").
+DATA_NASCIMENTO: Retorna exatamente como o usuário escreveu. null se ausente.
+Aliases: nascimento, nasc, nasc., nasc:, DN, data nasc., data de nascimento, aniversário, idade.
+Formatos aceitos: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, DD/MM/YY, DD-MM-YY, DD.MM.YY.
+Exemplos: "nasc 21.01.93", "21/01/93", "21.01.1993", "21-01-93".
+REGRA DATA SOLTA: se houver uma data no formato DD/MM/YY, DD/MM/YYYY, DD.MM.YY ou DD.MM.YYYY
+  sem label explícito e nenhum outro dado naquela linha indicar outro tipo de informação,
+  interpretar como data de nascimento.
+  Exemplos de data solta: "21/01/93", "21.01.1993" numa linha sozinha → data_nascimento.
+Se informar apenas idade (ex: "32 anos"), retornar como string "32 anos".
 
 CIDADE_IMOVEL: Cidade do imóvel. null se ausente.
 
@@ -93,6 +100,9 @@ TIPO_IMOVEL: "novo" se imóvel novo/lançamento/planta. "usado" se imóvel usado
 
 VALOR_IMOVEL: Valor do imóvel. Converter para número inteiro (ex: "500 mil" → 500000, "1,2mi" → 1200000, "R$ 350.000" → 350000).
 Aliases: valor do imóvel, imóvel X, imovel X, valor de compra e venda, valor da compra, avaliação, preço X, valor venda X, VGV, valor do bem.
+REGRA VALOR SOLTO: se houver um único valor com "mil", "k" ou "m" (ex: "400 mil", "350k", "1,2m")
+  sem label de entrada/renda/financiamento próximo, interpretar como valor_imovel.
+  Exemplos: "400 mil" numa linha sozinha, "400mil", "400k" → valor_imovel = 400000.
 null se ausente.
 
 VALOR_ENTRADA: Valor de entrada/recursos próprios do cliente.
