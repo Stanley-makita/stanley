@@ -19,7 +19,7 @@ import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { AbaOperacional } from './LeadDetalhe/AbaOperacional'
 import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
 import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
-import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
+import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLeadChecklist'
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
@@ -107,6 +107,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const { data: fases = [] } = useFases('leads')
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
+  const completarItem = useCompletarChecklistItem()
   const abas = useConfigAbas()
 
   const contextoSolicitacao: ContextoSolicitacao | undefined = lead ? {
@@ -358,6 +359,14 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       key={aba.id}
                       onClick={() => {
                         if (aba.id === 'credito' && !consultaRestritivosRespondido) {
+                          const itensPendentesRestritivos = itensChecklist.filter(i => i.tipo === 'restritivos')
+                          const jaRespondidoNoChecklist = itensPendentesRestritivos.length > 0
+                            && itensPendentesRestritivos.every(i => i.concluido)
+                          if (jaRespondidoNoChecklist) {
+                            setConsultaRestritivosRespondido(true)
+                            setAbaAtiva('credito')
+                            return
+                          }
                           setConsultaRestritivosAberto(true)
                           return
                         }
@@ -487,9 +496,21 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           <DialogFooter>
             <Button
               size="sm"
-              disabled={temRestricao === null}
+              disabled={temRestricao === null || completarItem.isPending}
               className="w-full bg-fonti-primary hover:bg-fonti-primary-hover text-white disabled:opacity-40"
-              onClick={() => {
+              onClick={async () => {
+                const resultado = temRestricao ? 'com_restritivos' : 'sem_restritivos'
+                const pendentes = itensChecklist.filter(i => i.tipo === 'restritivos' && !i.concluido)
+                for (const item of pendentes) {
+                  await completarItem.mutateAsync({
+                    lead_id:     lead!.id,
+                    fase_id:     lead!.fase_id,
+                    item_id:     item.id,
+                    execucao_id: item.execucao_id,
+                    concluido:   true,
+                    resultado,
+                  })
+                }
                 setConsultaRestritivosRespondido(true)
                 setConsultaRestritivosAberto(false)
                 setAbaAtiva('credito')
