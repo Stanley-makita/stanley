@@ -57,7 +57,8 @@ export interface CorretorForm {
 
 // ── Parceiros comerciais ─────────────────────────────────────
 
-export type TipoParceiro = 'pessoa_fisica' | 'empresa'
+export type TipoParceiro     = 'pessoa_fisica' | 'empresa'
+export type TipoParceiroPapel = 'corretor' | 'imobiliaria' | 'indicador' | 'cliente_indicador' | 'outro'
 
 export interface Parceiro {
   id: string
@@ -70,6 +71,12 @@ export interface Parceiro {
   ativo: boolean
   criado_em: string
   atualizado_em: string
+  // campos v2 (migration 115)
+  empresa_id?:      string | null
+  pessoa_id?:       string | null
+  tipo_parceiro?:   TipoParceiroPapel | null
+  imobiliaria?:     string | null
+  origem_cadastro?: string | null
 }
 
 export interface ParceiroForm {
@@ -77,7 +84,9 @@ export interface ParceiroForm {
   telefone?: string
   email?: string
   tipo: TipoParceiro
+  tipo_parceiro?: TipoParceiroPapel
   cpf_cnpj?: string
+  imobiliaria?: string
   observacao?: string
 }
 
@@ -148,4 +157,12 @@ export const PAPEL_CORRETOR_LABEL: Record<PapelCorretorProcesso, string> = {
 export const TIPO_PARCEIRO_LABEL: Record<TipoParceiro, string> = {
   pessoa_fisica: 'Pessoa Física',
   empresa: 'Empresa',
+}
+
+export const TIPO_PARCEIRO_PAPEL_LABEL: Record<TipoParceiroPapel, string> = {
+  corretor:          'Corretor',
+  imobiliaria:       'Imobiliária',
+  indicador:         'Indicador',
+  cliente_indicador: 'Cliente indicador',
+  outro:             'Outro',
 }
