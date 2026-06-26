@@ -459,3 +459,191 @@ export async function gerarPDFFinanciamentoBuffer(
 
   return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)
 }
+
+// ── PDF de Capacidade Máxima pela Renda ──────────────────────────────────────
+// Estrutura de dados diferente do ResultadoCompleto — layout simplificado.
+
+export interface PDFCapacidadeMaximaInput {
+  rendaMensal:      number
+  idadeAnos:        number
+  tipoAmortizacao:  'SAC' | 'PRICE'
+  prazoLabel:       string
+  nomeCliente?:     string | null
+  cpfCliente?:      string | null
+  valorImovelRef?:  number | null
+  cidadeImovel?:    string | null
+  tipoImovel?:      'novo' | 'usado' | null
+  dataSimulacao:    string
+  tipoVinculo?:     'AVULSA_SEM_CPF'
+  bancos: Array<{
+    bancoNome:      string
+    maxFinanciavel: number
+    entradaMinima:  number | null
+    prazoUsado:     number
+    taxaAnual:      number
+  }>
+}
+
+export async function gerarPDFCapacidadeMaximaBuffer(
+  input: PDFCapacidadeMaximaInput,
+  options: PDFBufferOptions = {},
+): Promise<Buffer> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+  const pageW  = doc.internal.pageSize.getWidth()
+  const pageH  = doc.internal.pageSize.getHeight()
+  const mL = 12, mR = 12, mTop = 10, mBot = 12
+  const usableW = pageW - mL - mR
+
+  let y = mTop
+
+  // ── CABEÇALHO ─────────────────────────────────────────────────────────────
+  const HEADER_H = 24
+  setFill(doc, COR_VERDE)
+  doc.rect(mL, y, usableW, HEADER_H, 'F')
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('FONTI', mL + 4, y + 9)
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
+  doc.text('Sistema Operacional de Credito', mL + 4, y + 15)
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
+  doc.text('by Fontinhas Assessoria', mL + 4, y + 21)
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('Capacidade Maxima de Financiamento', pageW - mR - 2, y + HEADER_H / 2 + 3, { align: 'right' })
+  y += HEADER_H + 4
+
+  // ── LINHA DE IDENTIFICAÇÃO ────────────────────────────────────────────────
+  const rowH = 9
+  setFill(doc, COR_VERDE)
+  doc.rect(mL, y, usableW, rowH, 'F')
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+
+  const d = new Date(input.dataSimulacao)
+  const dataHoje = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  const horaHoje = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+
+  const identificacao = input.tipoVinculo === 'AVULSA_SEM_CPF'
+    ? 'Simulacao Avulsa (sem CPF)'
+    : [input.nomeCliente, input.cpfCliente ? `CPF: ${input.cpfCliente}` : null].filter(Boolean).join('   |   ')
+  const infoText = [identificacao, `${dataHoje} ${horaHoje}`, options.responsavelNome].filter(Boolean).join('   |   ')
+  doc.text(infoText, pageW / 2, y + rowH / 2 + 2.5, { align: 'center' })
+  y += rowH + 4
+
+  // ── PARÂMETROS ───────────────────────────────────────────────────────────
+  y = drawSectionTitle(doc, 'Parametros da Simulacao', y, mL, usableW)
+
+  const params: [string, string][] = [
+    ['Renda Mensal',    BRL.format(input.rendaMensal)],
+    ['Amortizacao',     input.tipoAmortizacao],
+    ['Prazo',           input.prazoLabel],
+    ['Idade estimada',  `${input.idadeAnos} anos`],
+  ]
+  if (input.valorImovelRef)  params.push(['Imovel de referencia', BRL.format(input.valorImovelRef)])
+  if (input.cidadeImovel)    params.push(['Cidade/UF',            input.cidadeImovel])
+  if (input.tipoImovel)      params.push(['Tipo Imovel',          input.tipoImovel === 'novo' ? 'Novo/Lancamento' : 'Usado'])
+  params.push(['Modo',       'Capacidade Maxima pela Renda'])
+
+  const colW = usableW / 3
+  let px = mL
+  params.forEach(([label, val], i) => {
+    if (i > 0 && i % 3 === 0) { px = mL; y += 13 }
+    if (i % 3 === 0 && i > 0 && i % 3 === 0) { /* already reset */ }
+    const cx = mL + (i % 3) * colW
+    if (i % 3 === 0 && i > 0) y += 0  // handled above
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+    doc.text(pdf(label), cx + 2, y + 4)
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#222222')
+    doc.text(pdf(val),   cx + 2, y + 9.5)
+    px += colW
+  })
+  y += 16
+
+  // ── TABELA DE BANCOS ──────────────────────────────────────────────────────
+  y = drawSectionTitle(doc, 'Financiamento Maximo Suportado pela Renda', y, mL, usableW)
+
+  // Cabeçalho da tabela
+  const cols = [
+    { label: 'Banco',           w: usableW * 0.25 },
+    { label: 'Max. Financiavel',w: usableW * 0.25 },
+    { label: 'Entrada Minima',  w: usableW * 0.20 },
+    { label: 'Prazo',           w: usableW * 0.15 },
+    { label: 'Taxa a.a.',       w: usableW * 0.15 },
+  ]
+  setFill(doc, '#E8F0E8')
+  doc.rect(mL, y, usableW, 7, 'F')
+  let cx = mL
+  cols.forEach((col) => {
+    doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+    doc.text(col.label, cx + col.w / 2, y + 4.5, { align: 'center' })
+    cx += col.w
+  })
+  y += 7
+
+  const elegiveisMap = input.bancos.filter((b) => b.maxFinanciavel > 0)
+  elegiveisMap.forEach((b, i) => {
+    if (y + 8 > pageH - mBot - 15) { doc.addPage(); y = mTop }
+    if (i % 2 === 0) { setFill(doc, '#F8FAF8'); doc.rect(mL, y, usableW, 8, 'F') }
+    let bx = mL
+    const row = [
+      pdf(b.bancoNome),
+      BRL.format(b.maxFinanciavel),
+      b.entradaMinima !== null ? BRL.format(b.entradaMinima) : '—',
+      `${b.prazoUsado} meses`,
+      `${(b.taxaAnual * 100).toFixed(2).replace('.', ',')}%`,
+    ]
+    row.forEach((val, ci) => {
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', ci === 0 ? 'bold' : 'normal')
+      setTxt(doc, ci === 0 ? '#222222' : '#444444')
+      doc.text(val, bx + cols[ci].w / 2, y + 5, { align: 'center' })
+      bx += cols[ci].w
+    })
+    y += 8
+  })
+
+  if (elegiveisMap.length === 0) {
+    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
+    doc.text('Renda insuficiente para todos os bancos analisados.', mL + 4, y + 6)
+    y += 12
+  } else {
+    y += 4
+    // Nota sobre 1ª prestação
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#777777')
+    doc.text(pdf('1a prestacao nao calculada neste modo — estimativa baseada em 30% de comprometimento de renda.'), mL, y)
+    y += 10
+  }
+
+  // ── RODAPÉ ────────────────────────────────────────────────────────────────
+  if (y + 30 > pageH - mBot) { doc.addPage(); y = mTop } else { y += 4 }
+  setDraw(doc, COR_DOURADO); doc.setLineWidth(0.4)
+  doc.line(mL, y, pageW - mR, y)
+  y += 5
+
+  const qrSize = 16
+  const qrX = pageW - mR - qrSize
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fonti.app.br'
+    const qrDataUrl = await QRCode.toDataURL(appUrl, {
+      width: 120, margin: 1, color: { dark: '#253B29', light: '#FFFFFF' },
+    })
+    doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSize, qrSize)
+    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+    doc.text(appUrl.replace(/^https?:\/\//, ''), qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
+  } catch { /* QR opcional */ }
+
+  const now2 = new Date()
+  const dg = `${String(now2.getDate()).padStart(2, '0')}/${String(now2.getMonth() + 1).padStart(2, '0')}/${now2.getFullYear()}`
+  const hg = `${String(now2.getHours()).padStart(2, '0')}:${String(now2.getMinutes()).padStart(2, '0')}`
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#555555')
+  doc.text('Gerado automaticamente pelo Motor de Credito Fonti', mL, y + 4)
+  doc.setFontSize(6.5); setTxt(doc, '#777777')
+  doc.text(`${dg} as ${hg}`, mL, y + 9)
+  y += qrSize + 6
+
+  const footerText = 'Simulacao preliminar sujeita a analise de credito, regras do banco e validacao documental. Estimativa de capacidade calculada com base em 30% de comprometimento de renda (SAC). Valores, taxas e prazos estao sujeitos a alteracao conforme politicas vigentes de cada instituicao.'
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
+  const wrapped2 = doc.splitTextToSize(footerText, usableW - qrSize - 4)
+  doc.text(wrapped2, mL, y, { lineHeightFactor: 1.4 })
+
+  return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)
+}

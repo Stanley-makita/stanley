@@ -366,7 +366,7 @@ async function responderCapacidadeMaxima(
     null as ItemCapacidade | null,
   )
 
-  await supabase.from('simulacoes_central').insert({
+  const { data: simDataCap } = await supabase.from('simulacoes_central').insert({
     empresa_id:     ctx.empresa_id,
     tipo:           'financiamento',
     status:         'concluida',
@@ -382,7 +382,58 @@ async function responderCapacidadeMaxima(
     } as unknown as Record<string, unknown>,
     lead_id:        null,
     pdf_status:     'nao_gerado',
-  })
+  }).select('id').single()
+  const simulacaoIdCap: string | null = simDataCap?.id ?? null
+
+  // ── PDF + WhatsApp (capacidade máxima) ──────────────────────────────────────
+  const tokenCapPDF   = ctx.instancia_token || process.env.UAZAPI_INSTANCE_TOKEN || ''
+  const destinoCapPDF = ctx.telefone_destino || ctx.telefone_remetente || ''
+  let linhaPDFCap = '⚠️ PDF indisponível — resumo acima é válido.'
+
+  const prazoLabelCap = dados.prazo_maximo
+    ? 'prazo maximo por banco'
+    : dados.prazo_meses
+      ? `${dados.prazo_meses} meses`
+      : 'prazo maximo por banco'
+
+  if (tokenCapPDF && destinoCapPDF) {
+    try {
+      const { gerarPDFCapacidadeMaximaBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
+      const pdfBuffer = await gerarPDFCapacidadeMaximaBuffer({
+        rendaMensal,
+        idadeAnos,
+        tipoAmortizacao: dados.tipo_amortizacao,
+        prazoLabel:      prazoLabelCap,
+        nomeCliente:     dados.nome,
+        cpfCliente:      ctx.tipo_vinculo === 'AVULSA_SEM_CPF' ? null : dados.cpf,
+        valorImovelRef:  dados.valor_imovel,
+        cidadeImovel:    dados.cidade_imovel,
+        tipoImovel:      dados.tipo_imovel,
+        dataSimulacao:   new Date().toISOString(),
+        tipoVinculo:     ctx.tipo_vinculo,
+        bancos:          resultados,
+      }, { responsavelNome: usuario_nome })
+      const hoje = new Date().toISOString().slice(0, 10)
+      const nome = dados.nome?.trim() || 'Capacidade Maxima'
+      await enviarPDFUazapi(destinoCapPDF, pdfBuffer, tokenCapPDF, `Capacidade Maxima - ${nome} - ${hoje}.pdf`)
+      if (simulacaoIdCap) {
+        await supabase.from('simulacoes_central').update({
+          pdf_status: 'enviado', pdf_enviado_em: new Date().toISOString(),
+        }).eq('id', simulacaoIdCap)
+      }
+      linhaPDFCap = '📎 PDF completo enviado acima.'
+    } catch (errPdf) {
+      const msg = errPdf instanceof Error ? errPdf.message : String(errPdf)
+      console.error('[workflow-consulta] PDF capacidade falhou:', msg)
+      if (simulacaoIdCap) {
+        await supabase.from('simulacoes_central').update({
+          pdf_status: 'erro', pdf_erro: msg,
+        }).eq('id', simulacaoIdCap)
+      }
+    }
+  } else {
+    console.warn('[workflow-consulta] PDF capacidade pulado — token ou destino ausente')
+  }
 
   // Monta resposta
   const prazoLabel = dados.prazo_maximo
@@ -427,6 +478,8 @@ async function responderCapacidadeMaxima(
   }
 
   linhas.push(
+    '',
+    linhaPDFCap,
     '',
     `⚠️ _Estimativa de capacidade pela renda (30% de comprometimento, SAC). Sujeita a análise de crédito, LTV, políticas do banco e avaliação do imóvel._`,
   )
