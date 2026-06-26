@@ -390,6 +390,10 @@ function simularBancoComTaxa(
   const maxLtvValue = input.valorImovel * maxLtv
 
   // ── Verificações de elegibilidade ────────────────────────────────
+  if (input.tipoAmortizacao === 'PRICE' && !cfg.suportaPrice) {
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId,
+      'Não oferece financiamento na modalidade PRICE')
+  }
   if (idadeAnos >= 80) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Idade máxima de 80 anos atingida')
   }

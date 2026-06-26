@@ -25,7 +25,7 @@ import {
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import { TODOS_BANCOS, BANCOS_CONFIG } from '@/lib/simuladorFinanciamento/constantes'
+import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE } from '@/lib/simuladorFinanciamento/constantes'
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import { enviarPDFUazapi } from './uazapi-helpers'
 
@@ -132,10 +132,15 @@ export async function executarWorkflowConsulta(
 
   // ── Etapa 4: Bancos ──────────────────────────────────────────────────────
   // Se nenhum banco foi informado, ou se o usuário pediu "todos", usar lista completa
-  const bancosIds: BancoId[] =
+  let bancosIds: BancoId[] =
     dados.todos_bancos || dados.bancos_ids.length === 0
       ? (TODOS_BANCOS as BancoId[])
       : (dados.bancos_ids as BancoId[])
+
+  // PRICE sem banco específico → usar apenas bancos habilitados para PRICE
+  if (dados.tipo_amortizacao === 'PRICE' && (dados.todos_bancos || dados.bancos_ids.length === 0)) {
+    bancosIds = BANCOS_PRICE as BancoId[]
+  }
 
   // ── Etapa 5: Motor de Crédito ────────────────────────────────────────────
   const dbOverrides = await carregarOverridesBancos(supabase, empresa_id)

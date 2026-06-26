@@ -185,7 +185,10 @@ Detectar: "Uniclass", "Personnalité", "Personalite", "Van Gogh", "Select", "Exc
 null se não mencionado.
 
 TIPO_AMORTIZACAO_RAW: Sistema de amortização mencionado. Retornar como escrito ou null.
-Detectar: "SAC", "Price", "PRICE", "tabela price", "tabela SAC".
+Detectar PRICE (qualquer variação): "price", "PRICE", "Price", "tabela price", "tabela PRICE",
+  "sistema price", "amortização price", "amortizacao price", "modalidade price".
+Detectar SAC (qualquer variação): "sac", "SAC", "tabela sac", "tabela SAC", "sistema sac",
+  "amortização sac", "amortizacao sac", "modalidade sac".
 null se não mencionado.
 
 TODOS_BANCOS: true se o usuário disser explicitamente "todos os bancos", "todos", "qualquer banco".

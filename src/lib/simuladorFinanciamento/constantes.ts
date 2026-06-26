@@ -12,6 +12,7 @@ export interface BancoConfig {
   maxLtvCorrentista: number    // LTV com relacionamento (alguns bancos diferem)
   maxLtvPrice?: number         // LTV máximo PRICE — Caixa = 70% (doc seção 3.1)
   comprometimentoMaxPrice?: number // comprometimento máximo renda PRICE — Caixa = 25%
+  suportaPrice?: boolean       // banco oferece modalidade PRICE (padrão: false)
   maxValorImovel: number       // 0 = sem limite
   prazoMaximoMeses: number     // prazo máximo independente de idade
   aceitaMcmv: boolean          // agente operador do MCMV/FGTS
@@ -33,6 +34,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     maxLtvCorrentista: 0.80,
     maxLtvPrice: 0.70,            // PRICE: cota máxima 70% (doc seção 3.1)
     comprometimentoMaxPrice: 0.25, // PRICE: comprometimento máximo 25% (doc seção 3.2)
+    suportaPrice: true,
     maxValorImovel: 2_250_000,    // teto SFH 2026
     prazoMaximoMeses: 420,
     aceitaMcmv: true,
@@ -47,6 +49,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
+    suportaPrice: true,
     maxValorImovel: 0,
     prazoMaximoMeses: 420,
     aceitaMcmv: false,
@@ -246,6 +249,11 @@ export const CAIXA_PRO_COTISTA = {
 export const TODOS_BANCOS: BancoId[] = [
   'caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval',
 ]
+
+/** Bancos que oferecem financiamento na modalidade PRICE */
+export const BANCOS_PRICE: BancoId[] = TODOS_BANCOS.filter(
+  (id) => BANCOS_CONFIG[id].suportaPrice,
+)
 
 // ─── Inter — Sompo SuperHab SFH ──────────────────────────────────────────────
 // Alíquota MIP mensal sobre saldo devedor, faixas de 5 anos

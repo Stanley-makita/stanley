@@ -22,7 +22,7 @@ import {
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import { TODOS_BANCOS, BANCOS_CONFIG } from '@/lib/simuladorFinanciamento/constantes'
+import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE } from '@/lib/simuladorFinanciamento/constantes'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared } from './uazapi-helpers'
@@ -590,14 +590,25 @@ export async function executarWorkflowCaptacao(
   // ── Etapa 7: Motor de Crédito ─────────────────────────────────────────────
   const overrides = await carregarOverridesBancos(supabase, empresa_id)
 
+  // Resolve lista de bancos (mesma lógica do workflow-consulta)
+  let bancosIdsFinal: BancoId[] =
+    dados.todos_bancos || dados.bancos_ids.length === 0
+      ? (TODOS_BANCOS as BancoId[])
+      : (dados.bancos_ids as BancoId[])
+
+  // PRICE sem banco específico → usar apenas bancos habilitados para PRICE
+  if (dados.tipo_amortizacao === 'PRICE' && (dados.todos_bancos || dados.bancos_ids.length === 0)) {
+    bancosIdsFinal = BANCOS_PRICE as BancoId[]
+  }
+
   const input: InputFinanciamento = {
     valorImovel:     dados.valor_imovel!,
     valorEntrada:    dados.valor_entrada!,
     dataNascimento:  dados.data_nascimento!,
     rendaMensal:     (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0),
-    tipoAmortizacao: 'SAC',
-    correntista:     false,
-    bancosIds:       dados.bancos_ids as BancoId[],
+    tipoAmortizacao: dados.tipo_amortizacao,
+    correntista:     dados.correntista,
+    bancosIds:       bancosIdsFinal,
     nomeCliente:     dados.nome ?? undefined,
     cpfCliente:      dados.cpf ?? undefined,
     tipoImovel:      dados.tipo_imovel ?? undefined,
