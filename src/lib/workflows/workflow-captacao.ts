@@ -16,9 +16,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarPedidoSimulacao } from './normalizador-captacao'
 import { validarDadosCaptacao } from './validation-engine-captacao'
-import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciamento/engine'
+import {
+  simularTodosBancos, calcularAnalise,
+  calcularMaxFinanciavel, calcularIdadeEmAnos, getMipRate, taxaAnualParaMensal,
+} from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
+import { TODOS_BANCOS, BANCOS_CONFIG } from '@/lib/simuladorFinanciamento/constantes'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared } from './uazapi-helpers'
@@ -463,6 +467,38 @@ export async function executarWorkflowCaptacao(
   } else {
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'documentos_nao_encontrados',
       `Nenhum doc encontrado para ${telefoneConversa}`)
+  }
+
+  // ── Auto-deriva entrada quando apenas imóvel informado ─────────────────────
+  if (dados.valor_entrada === null && dados.valor_financiado === null && dados.valor_imovel !== null) {
+    const bancosRef: BancoId[] =
+      dados.todos_bancos || dados.bancos_ids.length === 0
+        ? (TODOS_BANCOS as BancoId[])
+        : (dados.bancos_ids as BancoId[])
+
+    const ltvMin = bancosRef.reduce((acc, id) => {
+      const cfg = BANCOS_CONFIG[id]
+      return Math.min(acc, dados.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv)
+    }, 0.80)
+
+    let maxByRenda = Math.round(dados.valor_imovel * ltvMin)
+    if ((dados.renda_formal ?? 0) + (dados.renda_informal ?? 0) > 0 && dados.data_nascimento) {
+      const rendaTotal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+      const idadeCalc  = calcularIdadeEmAnos(dados.data_nascimento)
+      const mipCalc    = getMipRate(idadeCalc)
+      const prazoCalc  = dados.prazo_meses ?? 360
+      const bancoRef   = bancosRef[0]
+      const taxaRef    = bancoRef
+        ? (dados.correntista ? BANCOS_CONFIG[bancoRef].taxaAnualCorrentista : BANCOS_CONFIG[bancoRef].taxaAnualBase)
+        : 0.10
+      maxByRenda = calcularMaxFinanciavel(
+        rendaTotal, dados.valor_imovel, taxaAnualParaMensal(taxaRef), prazoCalc, mipCalc,
+      )
+    }
+
+    const maxByLtv = Math.round(dados.valor_imovel * ltvMin)
+    dados.valor_financiado = Math.max(0, Math.min(maxByRenda, maxByLtv, dados.valor_imovel))
+    dados.valor_entrada    = dados.valor_imovel - dados.valor_financiado
   }
 
   // ── Etapa 6: Validation Engine ───────────────────────────────────────────

@@ -145,6 +145,34 @@ export async function executarWorkflowConsulta(
     return await responderCapacidadeMaxima(dados, bancosIds, dbOverrides, ctx, usuario_id, usuario_nome, supabase)
   }
 
+  // ── Auto-deriva entrada quando apenas imóvel informado ─────────────────────
+  // Regra: valor_financiado = min(LTV máximo por banco, capacidade máxima pela renda)
+  if (dados.valor_entrada === null && dados.valor_financiado === null && dados.valor_imovel !== null) {
+    const rendaTotal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+    const idadeCalc  = calcularIdadeEmAnos(dados.data_nascimento!)
+    const mipCalc    = getMipRate(idadeCalc)
+    const prazoCalc  = dados.prazo_meses ?? 360
+
+    // LTV conservador: mínimo entre os bancos solicitados
+    const ltvMin = bancosIds.reduce((acc, id) => {
+      const cfg = BANCOS_CONFIG[id]
+      return Math.min(acc, dados.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv)
+    }, 0.80)
+
+    // Taxa do primeiro banco como referência para estimativa de capacidade
+    const bancoRef = bancosIds[0]
+    const taxaRef  = bancoRef
+      ? (dados.correntista ? BANCOS_CONFIG[bancoRef].taxaAnualCorrentista : BANCOS_CONFIG[bancoRef].taxaAnualBase)
+      : 0.10
+    const maxByRenda = rendaTotal > 0
+      ? calcularMaxFinanciavel(rendaTotal, dados.valor_imovel, taxaAnualParaMensal(taxaRef), prazoCalc, mipCalc)
+      : dados.valor_imovel
+    const maxByLtv = Math.round(dados.valor_imovel * ltvMin)
+
+    dados.valor_financiado = Math.max(0, Math.min(maxByRenda, maxByLtv, dados.valor_imovel))
+    dados.valor_entrada    = dados.valor_imovel - dados.valor_financiado
+  }
+
   // Aplica prazo customizado via overrides (se informado e não for "prazo máximo")
   let overrides: Partial<Record<string, BancoSimOverrides>> = { ...dbOverrides }
   if (dados.prazo_meses && !dados.prazo_maximo) {

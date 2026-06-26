@@ -39,11 +39,13 @@ const CAMPOS_OBRIGATORIOS: Array<{
   {
     campo: 'valor_entrada',
     label: 'Entrada ou valor financiado',
-    // em modo VALOR_MAXIMO, não se exige entrada nem valor financiado
+    // Ausente quando: modo VALOR_MAXIMO, ou entrada/financiado fornecidos,
+    // ou imóvel + renda presentes → sistema calcula automaticamente
     condicao: (d) =>
       d.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA' ||
       (d.valor_entrada ?? 0) > 0 ||
-      (d.valor_financiado ?? 0) > 0,
+      (d.valor_financiado ?? 0) > 0 ||
+      d.valor_imovel !== null,
   },
   // Banco NÃO é obrigatório — sem banco informado usa todos os habilitados para aquisição
 ]
