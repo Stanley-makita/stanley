@@ -46,6 +46,11 @@ interface EditarLeadInput {
   renda_considerada?: number | null
   status_analise?: Lead['status_analise']
   status_id?: string | null
+  // Captação / campanha
+  canal?: string | null
+  campanha?: string | null
+  produto_subtipo?: string | null
+  parceiro_id?: string | null
 }
 
 export function useEditarLead() {

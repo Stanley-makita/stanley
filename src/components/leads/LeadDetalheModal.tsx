@@ -18,6 +18,8 @@ import { AbaDocumentos } from './LeadDetalhe/AbaDocumentos'
 import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { AbaOperacional } from './LeadDetalhe/AbaOperacional'
 import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
+import { AbaPessoa } from './LeadDetalhe/AbaPessoa'
+import { AbaOportunidade } from './LeadDetalhe/AbaOportunidade'
 import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
 import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLeadChecklist'
 import { NovoProcessoModal } from './NovoProcessoModal'
@@ -41,7 +43,7 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useConfigAbas } from '@/hooks/leads/useConfigAbas'
 
-type Aba = 'resumo' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
+type Aba = 'resumo' | 'pessoa' | 'oportunidade' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
 function fmtMoeda(v: number | null) {
   if (v == null) return null
@@ -202,10 +204,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-7 text-xs gap-1"
-                      onClick={() => setEditarAberto(true)}
+                      onClick={() => setAbaAtiva('oportunidade')}
                     >
                       <DollarSign className="h-3 w-3" />
-                      Dados
+                      Oportunidade
                     </Button>
                     {pode('leads.excluir') && (
                       <Button
@@ -225,10 +227,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs gap-1 text-fonti-primary border-fonti-accent/50 hover:bg-fonti-accent-hover/40"
-                        onClick={() => setCompletarDadosAberto(true)}
+                        onClick={() => setAbaAtiva('pessoa')}
                       >
                         <ClipboardList className="h-3 w-3" />
-                        <span className="truncate">Completar</span>
+                        <span className="truncate">Pessoa</span>
                       </Button>
                     )}
                     <Button
@@ -429,6 +431,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     : 'overflow-y-auto px-3 py-4 sm:px-5'
                 )}>
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
+                  {abaAtiva === 'pessoa'       && <AbaPessoa       lead={lead} />}
+                  {abaAtiva === 'oportunidade' && <AbaOportunidade  lead={lead} />}
                   {abaAtiva === 'credito'      && <AbaCredito      lead={lead} />}
                   {abaAtiva === 'operacional'  && <AbaOperacional  lead={lead} />}
                   {abaAtiva === 'formularios'  && <AbaFormularios  lead={lead} />}

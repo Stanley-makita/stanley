@@ -12,6 +12,8 @@ export interface AbaConfig {
 
 export const ABAS_DEFAULT: AbaConfig[] = [
   { id: 'resumo',       label: 'Resumo' },
+  { id: 'pessoa',       label: 'Pessoa' },
+  { id: 'oportunidade', label: 'Oportunidade' },
   { id: 'notas',        label: 'Notas' },
   { id: 'tarefas',      label: 'Tarefas' },
   { id: 'operacional',  label: 'Checklist' },
@@ -25,7 +27,8 @@ export const ABAS_DEFAULT: AbaConfig[] = [
 ]
 
 const VALID_IDS = new Set([
-  'resumo', 'notas', 'tarefas', 'operacional', 'credito',
+  'resumo', 'pessoa', 'oportunidade',
+  'notas', 'tarefas', 'operacional', 'credito',
   'documentos', 'solicitacoes', 'formularios', 'simulador', 'processos', 'historico',
 ])
 
