@@ -76,6 +76,17 @@ function produtoCfg(produto: string | null | undefined) {
   return { label: produto, className: 'bg-gray-100 text-gray-600' }
 }
 
+const SUBTIPO_LABEL: Record<string, string> = {
+  consorcio_imobiliario: 'Consórcio Imobiliário',
+  consorcio_veiculo:     'Consórcio de Veículo',
+  nao_sabe:              'Ainda não sabe',
+}
+
+const CAMPANHA_LABEL: Record<string, string> = {
+  folder_consorcio_itau:   'Folder Consórcio Itaú',
+  campanha_feira_negocios: 'Feira de Negócios',
+}
+
 // Abas que ficam no painel direito — não precisam aparecer no menu de abas superior
 const ABAS_PAINEL_DIREITO = new Set(['notas', 'tarefas', 'operacional'])
 
@@ -261,6 +272,31 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     <p className="text-xs text-gray-400 mb-1">Origem</p>
                     <LeadOrigemBadge origem={lead.origem} />
                   </div>
+                  {lead.parceiro && (
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Indicado por</p>
+                      <p className="text-sm font-medium text-gray-800">{lead.parceiro.nome}</p>
+                      {lead.parceiro.imobiliaria && (
+                        <p className="text-xs text-gray-500">{lead.parceiro.imobiliaria}</p>
+                      )}
+                    </div>
+                  )}
+                  {lead.produto_subtipo && (
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Interesse</p>
+                      <p className="text-sm text-gray-700">
+                        {SUBTIPO_LABEL[lead.produto_subtipo] ?? lead.produto_subtipo}
+                      </p>
+                    </div>
+                  )}
+                  {lead.campanha && (
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Campanha</p>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 inline-block">
+                        {CAMPANHA_LABEL[lead.campanha] ?? lead.campanha}
+                      </span>
+                    </div>
+                  )}
                   {lead.responsavel && (
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Comercial</p>

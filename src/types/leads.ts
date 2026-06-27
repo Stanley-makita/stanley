@@ -80,6 +80,11 @@ export interface Lead {
   status_analise: StatusAnalise
   // Status configurável por fase
   status_id: string | null
+  // Campanha / indicação
+  canal:           string | null
+  campanha:        string | null
+  parceiro_id:     string | null
+  produto_subtipo: string | null
   // Joins
   responsavel?: { id: string; nome: string } | null
   responsavel_operacional?: { id: string; nome: string } | null
@@ -87,6 +92,7 @@ export interface Lead {
   status?: { id: string; nome: string; cor: string } | null
   conjuge_pessoa?: { id: string; nome: string; cpf: string | null; renda_formal: number | null; renda_informal: number | null } | null
   vendedor_pessoa?: { id: string; nome: string; cpf: string | null } | null
+  parceiro?: { id: string; nome: string; imobiliaria: string | null; tipo_parceiro: string | null } | null
 }
 
 export interface FaseStatus {
