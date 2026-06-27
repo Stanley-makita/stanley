@@ -24,10 +24,14 @@ export interface OcrResultado {
   rg?: string
   data_nascimento?: string    // YYYY-MM-DD
   cidade_nascimento?: string
+  estado_nascimento?: string  // UF 2 letras do estado de nascimento
   data_emissao?: string       // YYYY-MM-DD
   orgao_emissor?: string
   filiacao_mae?: string
   filiacao_pai?: string
+  // Campos do RG embutido na CNH (campo 4c DOC.IDENTIDADE / ORG.EMISSOR / UF)
+  rg_orgao_emissor?: string   // órgão emissor do RG (ex: "SESP", "SSP")
+  rg_uf_emissor?: string      // UF emissora do RG (ex: "PR", "SP")
   // Campos específicos de CNH
   registro_cnh?: string
   validade_cnh?: string              // YYYY-MM-DD
@@ -66,7 +70,9 @@ Para documentos comuns (RG, CNH, comprovante):
   "orgao_emissor": "órgão expedidor (ex: SESP/PR para RG, DETRAN/PR para CNH) ou null",
   "filiacao_mae": "nome da mãe ou null",
   "filiacao_pai": "nome do pai ou null",
-  "registro_cnh": "número de registro da CNH (campo REGISTRO, diferente do nº do documento) ou null",
+  "rg_orgao_emissor": "órgão emissor do RG extraído do campo '4c ORG.EMISSOR' da CNH (ex: 'SESP', 'SSP', 'PC') ou null",
+  "rg_uf_emissor": "UF do orgão emissor do RG extraído do campo 'UF' dentro de 4c da CNH (ex: 'PR', 'SP') ou null",
+  "registro_cnh": "número de registro da CNH EXCLUSIVAMENTE do campo '5 Nº REGISTRO' (9-11 dígitos) ou null",
   "validade_cnh": "YYYY-MM-DD data de validade da habilitação ou null",
   "primeira_habilitacao_cnh": "YYYY-MM-DD data da primeira habilitação (campo 1ª HABILITAÇÃO) ou null",
   "endereco_rua": "logradouro ou null",
@@ -85,13 +91,19 @@ Regras para RG / Novo Documento de Identidade:
 - estado_nascimento: parte da UF no campo NATURALIDADE (ex: "Maringá/PR" → estado_nascimento: "PR")
 - data_emissao: data de expedição do documento
 
-Regras para CNH:
-- registro_cnh: número no campo "REGISTRO" (geralmente 9-11 dígitos, diferente do nº do documento)
-- validade_cnh: data de VALIDADE da habilitação, converter para YYYY-MM-DD
-- primeira_habilitacao_cnh: campo "1ª HABILITAÇÃO" ou "PRIMEIRA HABILITAÇÃO", YYYY-MM-DD
-- orgao_emissor: usar "DETRAN/" + UF emissora (ex: "DETRAN/PR")
-- rg: null para CNH (CNH não tem campo RG separado)
-- campos ausentes ou não aplicáveis ao tipo: null (não invente)
+Regras para CNH (ATENÇÃO — campos numerados com risco de confusão):
+- cpf: extrair EXCLUSIVAMENTE do campo "4d CPF" ou "CPF". NUNCA usar o valor de "4c DOC.IDENTIDADE" como CPF. O número do documento de identidade (RG) e o CPF são campos diferentes na CNH.
+- rg: extrair do campo "4c DOC. IDENTIDADE" — é o número do RG da pessoa (ex: "13131972-0"). Incluir dígito verificador com traço. NÃO é o CPF nem o Nº Registro da CNH.
+- rg_orgao_emissor: extrair do subcampo "ORG.EMISSOR" dentro de 4c (ex: "SESP", "SSP", "PC"). Apenas o nome do órgão, sem a UF.
+- rg_uf_emissor: extrair da coluna "UF" dentro de 4c (ex: "PR", "SP"). Apenas 2 letras.
+- registro_cnh: extrair EXCLUSIVAMENTE do campo "5 Nº REGISTRO" ou "N REGISTRO" (geralmente 9-11 dígitos). Este número NÃO é o RG nem o CPF.
+- orgao_emissor: órgão emissor da CNH = "DETRAN/" + UF (ex: "DETRAN/PR"). É diferente do orgao_emissor do RG.
+- data_emissao: campo "4a DATA EMISSÃO" da CNH, converter para YYYY-MM-DD
+- validade_cnh: campo "4b VALIDADE", converter para YYYY-MM-DD
+- primeira_habilitacao_cnh: campo "1ª HABILITAÇÃO", converter para YYYY-MM-DD
+- cidade_nascimento: parte do município no campo "DATA, LOCAL E UF DE NASCIMENTO" (ex: "PAICANDU/PR" → "PAICANDU")
+- estado_nascimento: parte da UF no campo de nascimento (ex: "PAICANDU/PR" → "PR")
+- campos ausentes ou não aplicáveis: null (não invente)
 
 Regras para comprovante_endereco:
 - cpf: null (NÃO extrair CPF de comprovante de endereço — foco é endereço)

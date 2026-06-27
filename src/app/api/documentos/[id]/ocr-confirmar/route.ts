@@ -108,99 +108,110 @@ export async function POST(
   ]
 
   const camposNaoAplicados: string[] = []
+  const pessoaId = doc.pessoa_id as string  // já validado acima (400 se null)
 
-  if (tipo_confirmado && TIPOS_DOCUMENTO_VALIDOS.includes(tipo_confirmado)) {
-    // Monta payload para a nova tabela conforme tipo
-    type DocPayload = {
-      numero?: string | null
-      orgao_emissor?: string | null
-      uf_emissor?: string | null
-      data_emissao?: string | null
-      data_validade?: string | null
-      data_primeira_habilitacao?: string | null
-      cartorio?: string | null
-      cidade_emissao?: string | null
-      uf_emissao?: string | null
-    }
+  type DocPayload = Record<string, string | null>
 
-    const c = camposFiltrados as Record<string, string>
-    let novoDoc: DocPayload = {}
-
-    if (tipo_confirmado === 'rg') {
-      novoDoc = {
-        numero:        c.rg          ?? null,
-        orgao_emissor: c.orgao_emissor ?? null,
-        data_emissao:  c.data_emissao  ?? null,
-      }
-    } else if (tipo_confirmado === 'cnh') {
-      novoDoc = {
-        numero:                   c.registro_cnh             ?? null,
-        orgao_emissor:            c.orgao_emissor            ?? null,
-        data_emissao:             c.data_emissao             ?? null,
-        data_validade:            c.validade_cnh             ?? null,
-        data_primeira_habilitacao: c.primeira_habilitacao_cnh ?? null,
-      }
-    } else if (tipo_confirmado === 'certidao_nascimento') {
-      // orgao_emissor vira cartório na certidão
-      // data_emissao = data de emissão da certidão (diferente do data_nascimento da pessoa)
-      // cidade_nascimento/estado_nascimento = local de emissão
-      novoDoc = {
-        cartorio:      c.orgao_emissor    ?? null,
-        data_emissao:  c.data_emissao     ?? null,
-        cidade_emissao: c.cidade_nascimento ?? null,
-        uf_emissao:    c.estado_nascimento  ?? null,
-      }
-    } else if (tipo_confirmado === 'certidao_casamento') {
-      // data_casamento (data da cerimônia) ≠ data_emissao (data de emissão da certidão)
-      // data_casamento vai para pessoas.data_casamento (já salvo acima)
-      // data_emissao só é preenchida se o OCR trouxer explicitamente
-      novoDoc = {
-        cartorio:     c.orgao_emissor ?? null,
-        data_emissao: c.data_emissao   ?? null, // null se OCR não extraiu emissão da certidão
-      }
-    }
-
-    const payloadOcr = doc.ocr_dados as Record<string, unknown> | null
-
-    // Buscar documento existente do mesmo tipo para essa pessoa
-    const { data: docExistente } = await supabase
+  // Upsert seguro: insere novo ou atualiza apenas campos null no existente.
+  // Retorna lista de campos que tinham valor divergente e não foram sobrescritos.
+  async function upsertDocPessoa(
+    tipo: string,
+    dadosDoc: DocPayload,
+    payloadOcr: Record<string, unknown> | null,
+  ): Promise<string[]> {
+    const naoAplicados: string[] = []
+    const { data: existente } = await supabase
       .from('pessoa_documentos_identificacao')
       .select('*')
-      .eq('pessoa_id', doc.pessoa_id)
-      .eq('tipo_documento', tipo_confirmado)
+      .eq('pessoa_id', pessoaId)
+      .eq('tipo_documento', tipo)
       .maybeSingle()
 
-    if (!docExistente) {
-      // Inserir documento novo
-      await supabase
-        .from('pessoa_documentos_identificacao')
-        .insert({
-          empresa_id:           empresa_id,
-          pessoa_id:            doc.pessoa_id,
-          tipo_documento:       tipo_confirmado,
-          payload_ocr:          payloadOcr,
-          documento_cliente_id: documentoId,
-          ...novoDoc,
-        })
+    if (!existente) {
+      await supabase.from('pessoa_documentos_identificacao').insert({
+        empresa_id,
+        pessoa_id:            pessoaId,
+        tipo_documento:       tipo,
+        payload_ocr:          payloadOcr,
+        documento_cliente_id: documentoId,
+        ...dadosDoc,
+      })
     } else {
-      // Atualizar apenas campos null — não sobrescrever campos preenchidos divergentes
       const updates: Record<string, unknown> = { payload_ocr: payloadOcr }
-
-      for (const [campo, valor] of Object.entries(novoDoc)) {
+      for (const [campo, valor] of Object.entries(dadosDoc)) {
         if (valor === null || valor === undefined) continue
-        const existente = (docExistente as Record<string, unknown>)[campo]
-        if (existente === null || existente === undefined) {
+        const val = (existente as Record<string, unknown>)[campo]
+        if (val === null || val === undefined) {
           updates[campo] = valor
-        } else if (existente !== valor) {
-          camposNaoAplicados.push(campo)
+        } else if (val !== valor) {
+          naoAplicados.push(campo)
         }
       }
-
       if (Object.keys(updates).length > 0) {
         await supabase
           .from('pessoa_documentos_identificacao')
           .update(updates)
-          .eq('id', docExistente.id)
+          .eq('id', existente.id)
+      }
+    }
+    return naoAplicados
+  }
+
+  if (tipo_confirmado && TIPOS_DOCUMENTO_VALIDOS.includes(tipo_confirmado)) {
+    const c = camposFiltrados as Record<string, string>
+    // rg_orgao_emissor e rg_uf_emissor não passam por CAMPOS_PERMITIDOS
+    // (não existem em pessoas), lê do body original
+    const rawCampos = campos as Record<string, string>
+    const payloadOcr = doc.ocr_dados as Record<string, unknown> | null
+
+    let novoDoc: DocPayload = {}
+
+    if (tipo_confirmado === 'rg') {
+      novoDoc = {
+        numero:        c.rg            ?? null,
+        orgao_emissor: c.orgao_emissor  ?? null,
+        data_emissao:  c.data_emissao   ?? null,
+      }
+    } else if (tipo_confirmado === 'cnh') {
+      novoDoc = {
+        numero:                    c.registro_cnh              ?? null,
+        orgao_emissor:             c.orgao_emissor             ?? null,
+        data_emissao:              c.data_emissao              ?? null,
+        data_validade:             c.validade_cnh              ?? null,
+        data_primeira_habilitacao: c.primeira_habilitacao_cnh  ?? null,
+      }
+    } else if (tipo_confirmado === 'certidao_nascimento') {
+      novoDoc = {
+        cartorio:       c.orgao_emissor     ?? null,
+        data_emissao:   c.data_emissao      ?? null,
+        cidade_emissao: c.cidade_nascimento  ?? null,
+        uf_emissao:     c.estado_nascimento  ?? null,
+      }
+    } else if (tipo_confirmado === 'certidao_casamento') {
+      // data_casamento (data da cerimônia) ≠ data_emissao (data de emissão da certidão)
+      novoDoc = {
+        cartorio:     c.orgao_emissor ?? null,
+        data_emissao: c.data_emissao  ?? null,
+      }
+    }
+
+    const naoAplicadosDoc = await upsertDocPessoa(tipo_confirmado, novoDoc, payloadOcr)
+    camposNaoAplicados.push(...naoAplicadosDoc)
+
+    // Ao confirmar CNH: também popular card RG com dados do campo 4c (DOC.IDENTIDADE)
+    if (tipo_confirmado === 'cnh') {
+      const rgNumeroCnh   = c.rg                            ?? rawCampos.rg            ?? null
+      const rgOrgao       = rawCampos.rg_orgao_emissor                                 ?? null
+      const rgUf          = rawCampos.rg_uf_emissor                                    ?? null
+
+      if (rgNumeroCnh || rgOrgao || rgUf) {
+        const rgDocDaCnh: DocPayload = {
+          numero:        rgNumeroCnh ?? null,
+          orgao_emissor: rgOrgao     ?? null,
+          uf_emissor:    rgUf        ?? null,
+        }
+        // payload_ocr do card RG vem do mesmo documento de CNH
+        await upsertDocPessoa('rg', rgDocDaCnh, payloadOcr)
       }
     }
   }
