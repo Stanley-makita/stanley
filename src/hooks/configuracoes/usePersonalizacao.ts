@@ -7,11 +7,14 @@ import { useAuthContext } from '@/contexts/AuthContext'
 const CACHE_KEY = 'fonti:logo_url'
 
 function getCachedLogoUrl(): string | null {
-  try { return sessionStorage.getItem(CACHE_KEY) } catch { return null }
+  try {
+    const v = localStorage.getItem(CACHE_KEY)
+    return v === '__none__' ? null : v
+  } catch { return null }
 }
 
-function setCachedLogoUrl(url: string) {
-  try { sessionStorage.setItem(CACHE_KEY, url) } catch { /* */ }
+function setCachedLogoUrl(url: string | null) {
+  try { localStorage.setItem(CACHE_KEY, url ?? '__none__') } catch { /* */ }
 }
 
 export function usePersonalizacao() {
@@ -37,7 +40,7 @@ export function usePersonalizacao() {
         .eq('id', empresaId!)
         .single()
       if (error) throw error
-      if (data?.logo_url) setCachedLogoUrl(data.logo_url)
+      setCachedLogoUrl(data?.logo_url ?? null)
       return data
     },
   })
