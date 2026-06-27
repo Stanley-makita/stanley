@@ -105,3 +105,45 @@ export const STATUS_IDENTIDADE_CORES: Record<StatusIdentidade, string> = {
   duplicada:  'bg-orange-100 text-orange-700 border-orange-200',
   arquivada:  'bg-gray-100 text-gray-500 border-gray-200',
 }
+
+// ── Documentos de Identidade por Pessoa ─────────────────────────────────────
+
+export type TipoDocumentoPessoa =
+  | 'rg' | 'cnh' | 'cpf'
+  | 'certidao_nascimento' | 'certidao_casamento'
+  | 'passaporte' | 'rne' | 'outro'
+
+export interface PessoaDocumento {
+  id: string
+  empresa_id: string
+  pessoa_id: string
+  tipo_documento: TipoDocumentoPessoa
+  numero: string | null
+  orgao_emissor: string | null
+  uf_emissor: string | null
+  data_emissao: string | null
+  data_validade: string | null
+  data_primeira_habilitacao: string | null
+  cartorio: string | null
+  matricula: string | null
+  livro: string | null
+  folha: string | null
+  termo: string | null
+  cidade_emissao: string | null
+  uf_emissao: string | null
+  payload_ocr: Record<string, unknown> | null
+  documento_cliente_id: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export const TIPO_DOCUMENTO_LABEL: Record<TipoDocumentoPessoa, string> = {
+  rg:                  'RG / Identidade',
+  cnh:                 'CNH',
+  cpf:                 'CPF',
+  certidao_nascimento: 'Certidão de Nascimento',
+  certidao_casamento:  'Certidão de Casamento',
+  passaporte:          'Passaporte',
+  rne:                 'RNE',
+  outro:               'Outro',
+}

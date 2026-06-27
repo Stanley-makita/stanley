@@ -100,6 +100,111 @@ export async function POST(
     }
   }
 
+  // ── Gravar em pessoa_documentos_identificacao ─────────────────────────────
+
+  const TIPOS_DOCUMENTO_VALIDOS = [
+    'rg', 'cnh', 'cpf', 'certidao_nascimento', 'certidao_casamento',
+    'passaporte', 'rne', 'outro',
+  ]
+
+  const camposNaoAplicados: string[] = []
+
+  if (tipo_confirmado && TIPOS_DOCUMENTO_VALIDOS.includes(tipo_confirmado)) {
+    // Monta payload para a nova tabela conforme tipo
+    type DocPayload = {
+      numero?: string | null
+      orgao_emissor?: string | null
+      uf_emissor?: string | null
+      data_emissao?: string | null
+      data_validade?: string | null
+      data_primeira_habilitacao?: string | null
+      cartorio?: string | null
+      cidade_emissao?: string | null
+      uf_emissao?: string | null
+    }
+
+    const c = camposFiltrados as Record<string, string>
+    let novoDoc: DocPayload = {}
+
+    if (tipo_confirmado === 'rg') {
+      novoDoc = {
+        numero:        c.rg          ?? null,
+        orgao_emissor: c.orgao_emissor ?? null,
+        data_emissao:  c.data_emissao  ?? null,
+      }
+    } else if (tipo_confirmado === 'cnh') {
+      novoDoc = {
+        numero:                   c.registro_cnh             ?? null,
+        orgao_emissor:            c.orgao_emissor            ?? null,
+        data_emissao:             c.data_emissao             ?? null,
+        data_validade:            c.validade_cnh             ?? null,
+        data_primeira_habilitacao: c.primeira_habilitacao_cnh ?? null,
+      }
+    } else if (tipo_confirmado === 'certidao_nascimento') {
+      // orgao_emissor vira cartório na certidão
+      // data_emissao = data de emissão da certidão (diferente do data_nascimento da pessoa)
+      // cidade_nascimento/estado_nascimento = local de emissão
+      novoDoc = {
+        cartorio:      c.orgao_emissor    ?? null,
+        data_emissao:  c.data_emissao     ?? null,
+        cidade_emissao: c.cidade_nascimento ?? null,
+        uf_emissao:    c.estado_nascimento  ?? null,
+      }
+    } else if (tipo_confirmado === 'certidao_casamento') {
+      // data_casamento (data da cerimônia) ≠ data_emissao (data de emissão da certidão)
+      // data_casamento vai para pessoas.data_casamento (já salvo acima)
+      // data_emissao só é preenchida se o OCR trouxer explicitamente
+      novoDoc = {
+        cartorio:     c.orgao_emissor ?? null,
+        data_emissao: c.data_emissao   ?? null, // null se OCR não extraiu emissão da certidão
+      }
+    }
+
+    const payloadOcr = doc.ocr_dados as Record<string, unknown> | null
+
+    // Buscar documento existente do mesmo tipo para essa pessoa
+    const { data: docExistente } = await supabase
+      .from('pessoa_documentos_identificacao')
+      .select('*')
+      .eq('pessoa_id', doc.pessoa_id)
+      .eq('tipo_documento', tipo_confirmado)
+      .maybeSingle()
+
+    if (!docExistente) {
+      // Inserir documento novo
+      await supabase
+        .from('pessoa_documentos_identificacao')
+        .insert({
+          empresa_id:           empresa_id,
+          pessoa_id:            doc.pessoa_id,
+          tipo_documento:       tipo_confirmado,
+          payload_ocr:          payloadOcr,
+          documento_cliente_id: documentoId,
+          ...novoDoc,
+        })
+    } else {
+      // Atualizar apenas campos null — não sobrescrever campos preenchidos divergentes
+      const updates: Record<string, unknown> = { payload_ocr: payloadOcr }
+
+      for (const [campo, valor] of Object.entries(novoDoc)) {
+        if (valor === null || valor === undefined) continue
+        const existente = (docExistente as Record<string, unknown>)[campo]
+        if (existente === null || existente === undefined) {
+          updates[campo] = valor
+        } else if (existente !== valor) {
+          camposNaoAplicados.push(campo)
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase
+          .from('pessoa_documentos_identificacao')
+          .update(updates)
+          .eq('id', docExistente.id)
+      }
+    }
+  }
+
   // Marca documento como revisado, atualizando classificacao se o usuário confirmou o tipo
   await supabase
     .from('documentos_clientes')
@@ -109,7 +214,12 @@ export async function POST(
     })
     .eq('id', documentoId)
 
-  return NextResponse.json({ ok: true, cpf_divergente, camposSalvos: Object.keys(camposFiltrados) })
+  return NextResponse.json({
+    ok: true,
+    cpf_divergente,
+    camposSalvos: Object.keys(camposFiltrados),
+    ...(camposNaoAplicados.length > 0 ? { camposNaoAplicados } : {}),
+  })
 }
 
 // Ignora o documento (não salva dados mas marca como revisado)

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
+import { DocumentosIdentidadeSection } from './DocumentosIdentidadeSection'
 
 const ESTADOS_CIVIS = [
   { value: 'solteiro',      label: 'Solteiro(a)' },
@@ -391,57 +392,13 @@ export function CompletarDadosPessoaDrawer({
 
             {/* Documentos de identidade */}
             <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-fonti-primary mb-3">Documentos de Identidade</p>
-
-              {/* Sub-bloco RG / Identidade */}
-              <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 mb-3">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">RG / Identidade</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Órgão emissor</label>
-                    <Input value={form.orgao_emissor} onChange={(e) => f({ orgao_emissor: e.target.value })} placeholder="Ex: SESP/PR" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Data de emissão</label>
-                    <Input type="date" value={form.data_emissao} onChange={(e) => f({ data_emissao: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Cidade de nascimento</label>
-                    <Input value={form.cidade_nascimento} onChange={(e) => f({ cidade_nascimento: e.target.value })} placeholder="Ex: Maringá" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">UF de nascimento</label>
-                    <Input value={form.estado_nascimento} onChange={(e) => f({ estado_nascimento: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Nome da mãe</label>
-                    <Input value={form.filiacao_mae} onChange={(e) => f({ filiacao_mae: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Nome do pai</label>
-                    <Input value={form.filiacao_pai} onChange={(e) => f({ filiacao_pai: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sub-bloco CNH */}
-              <div className="rounded-lg bg-blue-50/40 border border-blue-100 p-3">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">CNH</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Nº Registro CNH</label>
-                    <Input value={form.registro_cnh} onChange={(e) => f({ registro_cnh: e.target.value })} placeholder="Ex: 00123456789" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Validade da habilitação</label>
-                    <Input type="date" value={form.validade_cnh} onChange={(e) => f({ validade_cnh: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 mb-1 block">Primeira habilitação</label>
-                    <Input type="date" value={form.primeira_habilitacao_cnh} onChange={(e) => f({ primeira_habilitacao_cnh: e.target.value })} />
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs font-semibold text-fonti-primary mb-3">Documentos da Pessoa</p>
+              {pessoaId && usuario?.empresa_id && (
+                <DocumentosIdentidadeSection
+                  pessoaId={pessoaId}
+                  empresaId={usuario.empresa_id}
+                />
+              )}
             </div>
 
             {/* Dados financeiros */}
