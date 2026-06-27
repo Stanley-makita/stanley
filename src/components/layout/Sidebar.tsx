@@ -59,9 +59,10 @@ interface SidebarProps {
   onNavigate?: () => void
   collapsed?: boolean
   onToggleCollapse?: () => void
+  initialLogoUrl?: string | null
 }
 
-export function Sidebar({ className, onNavigate, collapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ className, onNavigate, collapsed = false, onToggleCollapse, initialLogoUrl }: SidebarProps) {
   const pathname = usePathname()
   const { data: usuario } = useUsuarioAtual()
   const { sair } = useAuth()
@@ -71,7 +72,10 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
   const { data: conversasBadge = 0 } = useConversasBadge()
 
   const { data: empresa } = usePersonalizacao()
-  const logoUrl = empresa?.logo_url ?? '/logo-fonti-horizontal.png'
+  // initialLogoUrl vem do servidor (SSR) — garante que o logo correto
+  // já está no HTML inicial, eliminando o flash no F5.
+  // empresa.logo_url toma precedência após o query do cliente completar.
+  const logoUrl = empresa?.logo_url ?? initialLogoUrl ?? '/logo-fonti-horizontal.png'
 
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'

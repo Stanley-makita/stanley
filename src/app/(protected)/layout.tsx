@@ -18,9 +18,15 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   if (!perfil || !perfil.ativo) redirect('/login')
 
+  const { data: empresa } = await supabase
+    .from('empresas')
+    .select('logo_url')
+    .eq('id', perfil.empresa_id)
+    .single()
+
   return (
     <AuthProvider initialUser={perfil as SessaoUsuario}>
-      <ProtectedShell>
+      <ProtectedShell initialLogoUrl={empresa?.logo_url ?? null}>
         {children}
       </ProtectedShell>
     </AuthProvider>

@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
-export function ProtectedShell({ children }: { children: ReactNode }) {
+export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNode; initialLogoUrl?: string | null }) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
 
@@ -27,12 +27,13 @@ export function ProtectedShell({ children }: { children: ReactNode }) {
         className="hidden lg:flex"
         collapsed={collapsed}
         onToggleCollapse={toggleCollapsed}
+        initialLogoUrl={initialLogoUrl}
       />
 
       <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
         <SheetContent side="left" className="w-72 max-w-[85vw] overflow-hidden border-0 bg-fonti-primary p-0 text-white">
           <SheetTitle className="sr-only">Menu principal</SheetTitle>
-          <Sidebar className="h-full w-full" onNavigate={() => setMenuAberto(false)} />
+          <Sidebar className="h-full w-full" onNavigate={() => setMenuAberto(false)} initialLogoUrl={initialLogoUrl} />
         </SheetContent>
       </Sheet>
 
