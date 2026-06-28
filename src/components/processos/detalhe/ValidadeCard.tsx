@@ -11,10 +11,15 @@ import { useSalvarValidadeProcesso } from '@/hooks/processos/useSalvarValidadePr
 import type { TipoValidade } from '@/hooks/processos/useSalvarValidadeProcesso'
 
 interface Props {
-  processoId: string
-  tipo: TipoValidade
+  processoId?: string
+  tipo?: TipoValidade
   label: string
   data: string | null | undefined
+  /** Quando fornecido, substitui o save via processoId+tipo (uso no Lead) */
+  onSalvar?: (data: string | null) => Promise<void>
+  isPending?: boolean
+  /** Botão de atalho "+X dias" exibido no dialog de edição */
+  atalho?: { texto: string; dias: number }
 }
 
 function badgeDias(dias: number) {
@@ -25,15 +30,17 @@ function badgeDias(dias: number) {
   return { texto: `${dias}d restantes`, cor: 'bg-green-100 text-green-700' }
 }
 
-export function ValidadeCard({ processoId, tipo, label, data }: Props) {
+export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPending: isPendingExt, atalho }: Props) {
   const [aberto, setAberto] = useState(false)
   const [novaData, setNovaData] = useState('')
-  const salvar = useSalvarValidadeProcesso()
+  const salvarProcesso = useSalvarValidadeProcesso()
 
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
   const diasRestantes = data ? differenceInDays(parseISO(data), hoje) : null
   const badge = diasRestantes !== null ? badgeDias(diasRestantes) : null
+
+  const isPending = isPendingExt ?? salvarProcesso.isPending
 
   function abrirEditor() {
     setNovaData(data ?? '')
@@ -41,7 +48,11 @@ export function ValidadeCard({ processoId, tipo, label, data }: Props) {
   }
 
   async function handleSalvar() {
-    await salvar.mutateAsync({ processoId, tipo, data: novaData || null })
+    if (onSalvar) {
+      await onSalvar(novaData || null)
+    } else {
+      await salvarProcesso.mutateAsync({ processoId: processoId!, tipo: tipo!, data: novaData || null })
+    }
     setAberto(false)
   }
 
@@ -99,6 +110,15 @@ export function ValidadeCard({ processoId, tipo, label, data }: Props) {
                 + 180 dias (prazo padrão engenharia)
               </button>
             )}
+            {atalho && (
+              <button
+                type="button"
+                onClick={() => setNovaData(format(addDays(new Date(), atalho.dias), 'yyyy-MM-dd'))}
+                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {atalho.texto}
+              </button>
+            )}
             <Input
               type="date"
               value={novaData}
@@ -111,7 +131,7 @@ export function ValidadeCard({ processoId, tipo, label, data }: Props) {
             <Button
               size="sm"
               className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-              disabled={salvar.isPending}
+              disabled={isPending}
               onClick={handleSalvar}
             >
               Salvar

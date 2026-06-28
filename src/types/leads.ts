@@ -78,6 +78,8 @@ export interface Lead {
   cidade_imovel: string | null
   renda_considerada: number | null
   status_analise: StatusAnalise
+  data_credito: string | null
+  validade_credito: string | null
   // Status configurável por fase
   status_id: string | null
   // Campanha / indicação

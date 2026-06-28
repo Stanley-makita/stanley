@@ -45,6 +45,8 @@ interface EditarLeadInput {
   cidade_imovel?: string | null
   renda_considerada?: number | null
   status_analise?: Lead['status_analise']
+  data_credito?: string | null
+  validade_credito?: string | null
   status_id?: string | null
   // Captação / campanha
   canal?: string | null

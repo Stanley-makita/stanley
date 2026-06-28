@@ -22,6 +22,10 @@ export interface Processo {
   valor_financiado: number | null
   valor_entrada: number | null
   valor_fgts?: number | null
+  // Validades
+  validade_credito?: string | null
+  validade_engenharia?: string | null
+  validade_matricula?: string | null
   // Banco
   banco_id: string | null
   // Contrato

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 
 // ── Tipos internos ────────────────────────────────────────────
 
@@ -189,7 +190,10 @@ export function AbaCredito({ lead }: Props) {
       {/* 3. Operação */}
       <BlocoOperacao lead={lead} />
 
-      {/* 4+5. Imóvel e Vendedor lado a lado */}
+      {/* 4. Aprovação de Crédito */}
+      <BlocoAprovacaoCredito lead={lead} />
+
+      {/* 5+6. Imóvel e Vendedor lado a lado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BlocoImovel lead={lead} />
         <BlocoVendedor
@@ -668,6 +672,53 @@ function BlocoOperacao({ lead }: { lead: Lead }) {
               {FINALIDADES.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── BlocoAprovacaoCredito ─────────────────────────────────────
+
+function BlocoAprovacaoCredito({ lead }: { lead: Lead }) {
+  const editar = useEditarLead()
+  const [dataCredito, setDataCredito] = useState(lead.data_credito ?? '')
+
+  function salvarDataCredito() {
+    const valor = dataCredito || null
+    if (valor !== lead.data_credito) {
+      editar.mutate({ id: lead.id, data_credito: valor })
+    }
+  }
+
+  async function salvarValidade(data: string | null) {
+    await editar.mutateAsync({ id: lead.id, validade_credito: data })
+  }
+
+  return (
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
+      <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Aprovação de Crédito</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-xs text-gray-500">Data da Aprovação</p>
+          <input
+            type="date"
+            className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            value={dataCredito}
+            onChange={e => setDataCredito(e.target.value)}
+            onBlur={salvarDataCredito}
+          />
+          {editar.isPending && <p className="text-[10px] text-gray-400">Salvando…</p>}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-gray-500">Validade do Crédito</p>
+          <ValidadeCard
+            label="Crédito"
+            data={lead.validade_credito}
+            onSalvar={salvarValidade}
+            isPending={editar.isPending}
+            atalho={{ texto: '+90 dias (padrão crédito)', dias: 90 }}
+          />
         </div>
       </div>
     </div>
