@@ -630,8 +630,8 @@ export function simularTodosBancos(
       })
       continue
     }
-    // Comercial: outros bancos só se parametrizados (override do DB presente)
-    if (id !== 'caixa' && op === 'comercial' && ov === undefined) {
+    // Comercial: apenas Caixa opera — outros bancos sempre inelegíveis
+    if (id !== 'caixa' && op === 'comercial') {
       todos.push({
         ...makeInelegivelModalidade(id, inputNorm, 'Imóvel comercial: banco não parametrizado para esta modalidade. Consulte nossa equipe para verificar condições.'),
         observacao,

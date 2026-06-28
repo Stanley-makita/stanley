@@ -17,6 +17,15 @@ const COR_VERDE   = '#253B29'
 const COR_DOURADO = '#C2AA6A'
 const COR_BEGE    = '#E7E0C4'
 
+const BANCO_ABREV: Record<string, string> = {
+  caixa: 'Caixa', itau: 'Itau', bradesco: 'Bradesco',
+  santander: 'Santander', bb: 'BB', inter: 'Inter', daycoval: 'Daycoval',
+}
+function abrevBanco(bancoId: string, bancoNome: string): string {
+  const id = bancoId.split('-')[0]
+  return BANCO_ABREV[id] ?? bancoNome.split(' ')[0]
+}
+
 const MODALIDADE_LABEL: Record<string, string> = {
   aquisicao:                  'Aquisicao de Imovel Residencial',
   comercial:                  'Aquisicao de Imovel Comercial',
@@ -312,7 +321,7 @@ export async function gerarPDFFinanciamentoBuffer(
       setTxt(doc, idx === 0 ? COR_VERDE : '#333333')
       // Melhor banco: desloca o nome para cima e adiciona badge "melhor" abaixo
       const nameY = idx === 0 ? midY - 1.5 : midY
-      doc.text(pdf(r.bancoNome.split(' ')[0]), cx + 2, nameY)
+      doc.text(pdf(abrevBanco(r.bancoId, r.bancoNome)), cx + 2, nameY)
       if (idx === 0) {
         doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#1E7B34')
         doc.text('melhor', cx + 2, nameY + 3.5)
@@ -467,7 +476,7 @@ export async function gerarPDFFinanciamentoBuffer(
       if (y + 6 > pageH - mBot - 10) { doc.addPage(); y = mTop }
       if (i % 2 === 0) { setFill(doc, '#F8F8F5'); doc.rect(mL, y, usableW, 6, 'F') }
       doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, '#555555')
-      doc.text(r.bancoNome.split(' ')[0], mL + 2, y + 4.5)
+      doc.text(abrevBanco(r.bancoId, r.bancoNome), mL + 2, y + 4.5)
       doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
       doc.text(r.motivoInelegivel ?? 'Não elegível', mL + 32, y + 4.5)
       y += 6

@@ -8,6 +8,15 @@ const COR_VERDE = '#253B29'
 const COR_DOURADO = '#C2AA6A'
 const COR_BEGE = '#E7E0C4'
 
+const BANCO_ABREV: Record<string, string> = {
+  caixa: 'Caixa', itau: 'Itaú', bradesco: 'Bradesco',
+  santander: 'Santander', bb: 'BB', inter: 'Inter', daycoval: 'Daycoval',
+}
+function abrevBanco(bancoId: string, bancoNome: string): string {
+  const id = bancoId.split('-')[0] // 'caixa-sbpe' → 'caixa'
+  return BANCO_ABREV[id] ?? bancoNome.split(' ')[0]
+}
+
 const MODALIDADE_LABEL: Record<string, string> = {
   aquisicao:                  'Aquisição de Imóvel Residencial',
   comercial:                  'Aquisição de Imóvel Comercial',
@@ -407,7 +416,7 @@ export async function gerarPDFFinanciamento(
       cx = mL
       doc.setFontSize(7.5); doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal')
       setTxt(doc, idx === 0 ? COR_VERDE : '#333333')
-      const nomeBanco = r.bancoNome.split(' ')[0]
+      const nomeBanco = abrevBanco(r.bancoId, r.bancoNome)
       doc.text(nomeBanco, cx + 2, midY)
       if (idx === 0) {
         doc.setFontSize(5.5); setTxt(doc, '#1E7B34')
@@ -584,7 +593,7 @@ export async function gerarPDFFinanciamento(
       if (y + 6 > pageH - mBot - 10) { doc.addPage(); y = mTop }
       if (i % 2 === 0) { setFill(doc, '#F8F8F5'); doc.rect(mL, y, usableW, 6, 'F') }
       doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, '#555555')
-      doc.text(r.bancoNome.split(' ')[0], mL + 2, y + 4.5)
+      doc.text(abrevBanco(r.bancoId, r.bancoNome), mL + 2, y + 4.5)
       doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
       doc.text(r.motivoInelegivel ?? 'Não elegível', mL + 32, y + 4.5)
       y += 6
