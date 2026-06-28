@@ -132,6 +132,8 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
             <ResultadosFinanciamento
               resultados={resultado.bancos}
               valorImovel={resultado.input.valorImovel}
+              rendaMensal={resultado.input.rendaMensal}
+              rendaMinimaNecessaria={resultado.analise.rendaMinimaNecessaria}
               onPDFBanco={baixarPDFBanco}
               salvandoId={gerandoPDFId ?? undefined}
             />

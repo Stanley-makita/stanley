@@ -15,6 +15,18 @@ const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 
 const COR_VERDE   = '#253B29'
 const COR_DOURADO = '#C2AA6A'
+const COR_BEGE    = '#E7E0C4'
+
+const MODALIDADE_LABEL: Record<string, string> = {
+  aquisicao:                  'Aquisicao de Imovel Residencial',
+  comercial:                  'Aquisicao de Imovel Comercial',
+  lote_urbanizado:            'Aquisicao de Lote Urbanizado',
+  construcao_terreno_proprio: 'Construcao em Terreno Proprio',
+  terreno_mais_construcao:    'Aquisicao de Terreno + Construcao',
+}
+const MODALIDADE_SUBTITULO: Record<string, string> = {
+  lote_urbanizado: '(Terreno / Lote / Data / Gleba)',
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -78,20 +90,33 @@ export async function gerarPDFFinanciamentoBuffer(
 
   let y = mTop
 
+  const tipoOp = resultado.input.tipoOperacao ?? 'aquisicao'
+  const modalidadeLabel     = MODALIDADE_LABEL[tipoOp] ?? 'Financiamento Imobiliario'
+  const modalidadeSubtitulo = MODALIDADE_SUBTITULO[tipoOp] ?? null
+
   // ── CABEÇALHO ─────────────────────────────────────────────────────────────
-  const HEADER_H = 24
+  const HEADER_H = 34
   setFill(doc, COR_VERDE)
   doc.rect(mL, y, usableW, HEADER_H, 'F')
   // Identidade Fonti (esquerda)
   doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-  doc.text('FONTI', mL + 4, y + 9)
+  doc.text('FONTI', mL + 4, y + 11)
   doc.setFontSize(7);  doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
-  doc.text('Sistema Operacional de Credito', mL + 4, y + 15)
+  doc.text('Sistema Operacional de Credito', mL + 4, y + 19)
   doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
-  doc.text('by Fontinhas Assessoria', mL + 4, y + 21)
-  // Subtítulo (direita)
-  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-  doc.text('Simulacao de Financiamento Imobiliario', pageW - mR - 2, y + HEADER_H / 2 + 3, { align: 'right' })
+  doc.text('by Fontinhas Assessoria', mL + 4, y + 25)
+  // Título do documento (direita)
+  const rightEdge = pageW - mR - 2
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, COR_DOURADO)
+  doc.text('SIMULACAO PRELIMINAR', rightEdge, y + 7, { align: 'right' })
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('FINANCIAMENTO IMOBILIARIO', rightEdge, y + 15, { align: 'right' })
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_DOURADO)
+  doc.text(pdf(modalidadeLabel), rightEdge, y + 23, { align: 'right' })
+  if (modalidadeSubtitulo) {
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); setTxt(doc, COR_BEGE)
+    doc.text(modalidadeSubtitulo, rightEdge, y + 29, { align: 'right' })
+  }
   y += HEADER_H + 4
 
   // ── LINHA DE IDENTIFICAÇÃO ────────────────────────────────────────────────
@@ -116,24 +141,25 @@ export async function gerarPDFFinanciamentoBuffer(
 
   // ── MELHOR CENÁRIO ────────────────────────────────────────────────────────
   const melhorBanco = resultado.bancos.find((b) => b.elegivel)
-  const melhorH = 24
+  const melhorH     = 24
+  const stripH      = 12  // strip inferior com modalidade+produto quando elegível
+  const orientH     = 36  // altura quando sem elegíveis (texto orientativo)
+  const totalCardH  = melhorBanco ? melhorH + stripH : orientH
+
   setFill(doc, '#EEF5EE')
-  doc.rect(mL, y, usableW, melhorH, 'F')
-  // Borda lateral esquerda de destaque
+  doc.rect(mL, y, usableW, totalCardH, 'F')
   setFill(doc, COR_VERDE)
-  doc.rect(mL, y, 3, melhorH, 'F')
-  // Título
+  doc.rect(mL, y, 3, totalCardH, 'F')
   doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
   doc.text('Melhor Cenario Encontrado', mL + 6, y + 6)
 
   if (melhorBanco) {
-    // Larguras proporcionais: Banco recebe mais espaço para nomes longos
     const cellWidths = [
-      usableW * 0.30,  // Banco
-      usableW * 0.20,  // Financiado
-      usableW * 0.18,  // 1a Parcela
-      usableW * 0.16,  // Prazo
-      usableW * 0.16,  // Amortizacao
+      usableW * 0.30,
+      usableW * 0.20,
+      usableW * 0.18,
+      usableW * 0.16,
+      usableW * 0.16,
     ]
     const cells: [string, string][] = [
       ['Banco',       pdf(melhorBanco.bancoNome)],
@@ -148,7 +174,6 @@ export async function gerarPDFFinanciamentoBuffer(
       doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#777777')
       doc.text(label, cx + cw / 2, y + 13, { align: 'center' })
       doc.setFontSize(i === 0 ? 8 : 9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
-      // Banco: quebra em 2 linhas se necessário
       if (i === 0) {
         const lines = doc.splitTextToSize(val, cw - 4)
         const lineY = lines.length > 1 ? y + 17 : y + 20
@@ -158,11 +183,41 @@ export async function gerarPDFFinanciamentoBuffer(
       }
       cx += cw
     })
+
+    // Strip inferior: Modalidade | Produto | Banco
+    const stripY = y + melhorH
+    setFill(doc, '#D8E8D8')
+    doc.rect(mL + 3, stripY, usableW - 3, stripH, 'F')
+    const stripFields: [string, string][] = [
+      ['Modalidade', pdf(modalidadeLabel)],
+      ['Produto',    pdf(melhorBanco.programa)],
+      ['Banco',      pdf(melhorBanco.bancoNome)],
+    ]
+    const sfW = (usableW - 3) / 3
+    stripFields.forEach(([label, val], i) => {
+      const sx = mL + 3 + i * sfW
+      doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#557755')
+      doc.text(label, sx + sfW / 2, stripY + 4, { align: 'center' })
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+      doc.text(doc.splitTextToSize(val, sfW - 4)[0], sx + sfW / 2, stripY + 9.5, { align: 'center' })
+    })
   } else {
-    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
-    doc.text('Nenhum banco elegivel com os parametros informados.', mL + 6, y + melhorH / 2 + 3)
+    // Resposta orientativa quando nenhum banco é elegível
+    const rendaMensal = resultado.input.rendaMensal
+    const parcelaMax  = rendaMensal * 0.30
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#B00000')
+    doc.text('Nenhum banco elegivel automaticamente com os dados informados.', mL + 6, y + 12)
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#444444')
+    const orientText = pdf(
+      `Com a renda de ${BRL.format(rendaMensal)}, a parcela maxima estimada e de ` +
+      `${BRL.format(parcelaMax)} (30% da renda — o limite pode variar conforme a modalidade). ` +
+      `Para atingir o objetivo, considere aumentar a entrada, buscar imovel de menor valor ` +
+      `ou compor renda com outra pessoa. Nossa equipe esta disponivel para avaliar alternativas.`
+    )
+    const wrapped = doc.splitTextToSize(orientText, usableW - 12)
+    doc.text(wrapped, mL + 6, y + 19)
   }
-  y += melhorH + 5
+  y += totalCardH + 5
 
   // ── SEÇÃO 1 — Dados da simulação ──────────────────────────────────────────
   y = drawSectionTitle(doc, 'Dados da Simulação', y, mL, usableW)

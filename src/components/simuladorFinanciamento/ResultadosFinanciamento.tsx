@@ -8,9 +8,11 @@ import type { ResultadoBanco } from '@/lib/simuladorFinanciamento/tipos'
 interface Props {
   resultados: ResultadoBanco[]
   valorImovel?: number
+  rendaMensal?: number
+  rendaMinimaNecessaria?: number
   onSalvarBanco?: (banco: ResultadoBanco) => void
   onPDFBanco?: (banco: ResultadoBanco) => void
-  salvandoId?: string   // resultadoId do banco sendo salvo
+  salvandoId?: string
 }
 
 function fmtMoeda(v: number) {
@@ -30,7 +32,7 @@ function nomeAbrev(r: ResultadoBanco): string {
   return NOME_ABREV[r.bancoId] ?? r.bancoNome.split(' ')[0]
 }
 
-export function ResultadosFinanciamento({ resultados, valorImovel, onSalvarBanco, onPDFBanco, salvandoId }: Props) {
+export function ResultadosFinanciamento({ resultados, valorImovel, rendaMensal, rendaMinimaNecessaria, onSalvarBanco, onPDFBanco, salvandoId }: Props) {
   const elegiveis    = resultados.filter((r) => r.elegivel)
   const inaplicaveis = resultados.filter((r) => !r.elegivel)
   const comAviso     = elegiveis.filter((r) => r.avisoRenda)
@@ -223,6 +225,32 @@ export function ResultadosFinanciamento({ resultados, valorImovel, onSalvarBanco
           </div>
         ))}
       </div>
+
+      {/* ── Banner orientativo quando nenhum banco elegível ── */}
+      {elegiveis.length === 0 && rendaMensal && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-orange-800 font-semibold text-sm">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            Nenhum banco elegível automaticamente com os dados informados
+          </div>
+          <p className="text-sm text-orange-800">
+            Com a renda informada de <strong>{fmtMoeda(rendaMensal)}</strong>,
+            a parcela máxima estimada é de{' '}
+            <strong>{fmtMoeda(rendaMensal * 0.30)}</strong>,
+            considerando 30% da renda — o limite pode variar conforme a modalidade.
+            {rendaMinimaNecessaria != null && rendaMinimaNecessaria > 0 && (
+              <> A renda mínima necessária estimada para este financiamento é de{' '}
+              <strong>{fmtMoeda(rendaMinimaNecessaria)}</strong>.</>
+            )}
+          </p>
+          <p className="text-sm text-orange-700">
+            Você pode ajustar o tamanho do sonho aumentando a entrada ou buscando
+            um imóvel de menor valor. Outra possibilidade é{' '}
+            <strong>compor renda com outra pessoa</strong>. Fale com um de nossos
+            comerciais para avaliarmos alternativas para atingir esse objetivo.
+          </p>
+        </div>
+      )}
 
       {/* ── Incompatíveis (LTV, idade, teto) ── */}
       {inaplicaveis.length > 0 && (

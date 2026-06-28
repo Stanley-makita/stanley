@@ -240,8 +240,18 @@ export async function gerarPDFFinanciamento(
       doc.text(valLines[0], sx + sfW / 2, stripY + 9.5, { align: 'center' })
     })
   } else {
-    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
-    doc.text('Nenhum banco elegivel com os parametros informados.', mL + 6, y + melhorH / 2 + 3)
+    // Resposta orientativa quando nenhum banco é elegível
+    const parcelaMax = inp.rendaMensal * 0.30
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#B00000')
+    doc.text('Nenhum banco elegivel automaticamente com os dados informados.', mL + 6, y + 9)
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#444444')
+    const orientText =
+      `Com a renda de ${BRL.format(inp.rendaMensal)}, a parcela maxima estimada e de ` +
+      `${BRL.format(parcelaMax)} (30% da renda - o limite pode variar conforme a modalidade). ` +
+      `Para atingir o objetivo, considere aumentar a entrada, buscar imovel de menor valor ` +
+      `ou compor renda com outra pessoa. Nossa equipe esta disponivel para avaliar alternativas.`
+    const wrapped = doc.splitTextToSize(orientText, usableW - 12)
+    doc.text(wrapped, mL + 6, y + 16)
   }
   y += totalCardH + 5
 
