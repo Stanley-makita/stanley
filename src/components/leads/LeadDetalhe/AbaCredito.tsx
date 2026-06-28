@@ -174,8 +174,17 @@ export function AbaCredito({ lead }: Props) {
   return (
     <div className="space-y-5">
 
-      {/* 1. Status da fase */}
-      <StatusFase lead={lead} />
+      {/* 1. Status da fase + Validade do Crédito */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <StatusFase lead={lead} />
+        <ValidadeCard
+          label="Validade do Crédito"
+          data={lead.validade_credito}
+          onSalvar={async (data) => { await editar.mutateAsync({ id: lead.id, validade_credito: data }) }}
+          isPending={editar.isPending}
+          atalho={{ texto: '+90 dias (padrão crédito)', dias: 90 }}
+        />
+      </div>
 
       {/* 2. Participantes */}
       <BlocoParticipantes
@@ -691,35 +700,19 @@ function BlocoAprovacaoCredito({ lead }: { lead: Lead }) {
     }
   }
 
-  async function salvarValidade(data: string | null) {
-    await editar.mutateAsync({ id: lead.id, validade_credito: data })
-  }
-
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Aprovação de Crédito</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <p className="text-xs text-gray-500">Data da Aprovação</p>
-          <input
-            type="date"
-            className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            value={dataCredito}
-            onChange={e => setDataCredito(e.target.value)}
-            onBlur={salvarDataCredito}
-          />
-          {editar.isPending && <p className="text-[10px] text-gray-400">Salvando…</p>}
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs text-gray-500">Validade do Crédito</p>
-          <ValidadeCard
-            label="Crédito"
-            data={lead.validade_credito}
-            onSalvar={salvarValidade}
-            isPending={editar.isPending}
-            atalho={{ texto: '+90 dias (padrão crédito)', dias: 90 }}
-          />
-        </div>
+      <div className="space-y-1">
+        <p className="text-xs text-gray-500">Data da Aprovação</p>
+        <input
+          type="date"
+          className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          value={dataCredito}
+          onChange={e => setDataCredito(e.target.value)}
+          onBlur={salvarDataCredito}
+        />
+        {editar.isPending && <p className="text-[10px] text-gray-400">Salvando…</p>}
       </div>
     </div>
   )
