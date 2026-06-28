@@ -132,13 +132,21 @@ export interface DadosProcessoUpdate {
   processoId: string
   banco_id: string | null
   modalidade: string
+  taxa_juros?: number | null
   tem_assessoria: boolean
   valor_assessoria: number | null
   valor_financiado: number | null
-  valor_entrada: number | null
+  valor_entrada?: number | null
   valor_imovel: number | null
+  valor_fgts?: number | null
+  valor_recursos_proprios?: number | null
   comissao_comercial?: number | null
   comissao_empresa?: number | null
+  prazo_amortizacao_meses?: number | null
+  dia_vencimento_parcela?: number | null
+  sistema_amortizacao?: string | null
+  indexador?: string | null
+  financiar_despesas_cartorariais?: boolean
 }
 
 export function useAtualizarDadosProcesso() {
