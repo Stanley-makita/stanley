@@ -595,6 +595,14 @@ export async function executarWorkflowCaptacao(
     return linhas.join('\n')
   }
 
+  // ── Etapa 6.1b: Pedir esclarecimento de modalidade ──────────────────────────
+  // Deve vir ANTES do bloqueio de produto para que "quero construir" pergunte a modalidade
+  // em vez de cair no "produto não habilitado" por ter produto_normalizado='CONSTRUCAO'.
+  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
+    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    return [`✅ ${acao}.`, '', dados.pergunta_esclarecimento].join('\n')
+  }
+
   // ── Etapa 6.1: Produto não habilitado no motor ──────────────────────────────
   // Construção via Caixa (construcao_terreno_proprio / terreno_mais_construcao) agora é suportada.
   const PRODUTOS_BLOQUEADOS_CAPTACAO: Array<typeof dados.produto_normalizado> = [
@@ -610,12 +618,6 @@ export async function executarWorkflowCaptacao(
       'A simulação automática desse produto ainda não está habilitada.',
       'O lead foi salvo e o comercial responsável pode analisar manualmente.',
     ].join('\n')
-  }
-
-  // ── Etapa 6.1b: Pedir esclarecimento de modalidade ──────────────────────────
-  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
-    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
-    return [`✅ ${acao}.`, '', dados.pergunta_esclarecimento].join('\n')
   }
 
   // ── Etapa 6.2: Conflito de valores ───────────────────────────────────────

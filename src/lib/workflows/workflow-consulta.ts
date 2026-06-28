@@ -79,6 +79,13 @@ export async function executarWorkflowConsulta(
   // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
   const dados = await normalizarPedidoSimulacao(textoBruto)
 
+  // ── Etapa 2.2: Pedir esclarecimento de modalidade ───────────────────────────
+  // Deve vir ANTES do bloqueio de produto para que "quero construir" pergunte a modalidade
+  // em vez de cair no "produto não habilitado" por ter produto_normalizado='CONSTRUCAO'.
+  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
+    return dados.pergunta_esclarecimento
+  }
+
   // ── Etapa 2.1: Produto não habilitado no motor ──────────────────────────────
   // Construção via Caixa (construcao_terreno_proprio / terreno_mais_construcao) agora é suportada.
   const PRODUTOS_BLOQUEADOS: Array<typeof dados.produto_normalizado> = [
@@ -88,11 +95,6 @@ export async function executarWorkflowConsulta(
   if (PRODUTOS_BLOQUEADOS.includes(dados.produto_normalizado) ||
       (dados.produto_normalizado === 'CONSTRUCAO' && !ehConstrucaoSuportada)) {
     return 'A simulação automática desse produto ainda não está habilitada. Envie os dados pelo comando *cria cliente para que o comercial responsável analise no lead.'
-  }
-
-  // ── Etapa 2.2: Pedir esclarecimento de modalidade ───────────────────────────
-  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
-    return dados.pergunta_esclarecimento
   }
 
   // ── Etapa 2.5: Detectar conflito de prazos ──────────────────────────────────
