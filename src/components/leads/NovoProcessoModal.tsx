@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -149,6 +149,11 @@ function formatMoedaInput(v: string): string {
   const num = parseMoeda(v)
   if (!num) return ''
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
+}
+
+function fmtN(n?: number | null): string {
+  if (!n) return ''
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
 }
 
 interface Props {
@@ -342,8 +347,9 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const [comissaoComercial, setComissaoComercial] = useState<number | null>(null)
   const [comissaoEmpresa, setComissaoEmpresa]     = useState<number | null>(null)
   const [modalidade, setModalidade]         = useState('')
-  const [valorImovel, setValorImovel]       = useState('')
-  const [valorFinanciar, setValorFinanciar] = useState('')
+  const [valorImovel, setValorImovel]       = useState(() => fmtN(lead?.valor_imovel))
+  const [valorFinanciar, setValorFinanciar] = useState(() => fmtN(lead?.valor_pretendido))
+  const [valorEntrada, setValorEntrada]     = useState(() => fmtN(lead?.entrada))
 
   // FGTS: null = não escolhido, true = sim, false = não
   const [fgts, setFgts]         = useState<boolean | null>(null)
@@ -358,6 +364,22 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const [comercialId, setComercialId]     = useState(lead?.responsavel_id ?? usuario?.id ?? '')
 
   const [erros, setErros] = useState<Record<string, string>>({})
+
+  // Auto-seleciona banco pelo banco_pretendido do Lead quando a lista de bancos carrega
+  useEffect(() => {
+    if (bancos.length > 0 && !bancoId && lead?.banco_pretendido) {
+      const q = lead.banco_pretendido.toLowerCase()
+      const match = bancos.find(b =>
+        b.nome.toLowerCase().includes(q) || q.includes(b.nome.toLowerCase())
+      )
+      if (match) {
+        setBancoId(match.id)
+        const cp = comissoesPadrao.find(c => c.banco_id === match.id)
+        setComissaoComercial(cp?.comissao_comercial ?? null)
+        setComissaoEmpresa(cp?.comissao_empresa ?? null)
+      }
+    }
+  }, [bancos, comissoesPadrao, lead?.banco_pretendido])
 
   function clr(...keys: string[]) {
     setErros(p => { const n = { ...p }; keys.forEach(k => delete n[k]); return n })
@@ -398,7 +420,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       banco_id:         bancoId,
       valor_imovel:     parseMoeda(valorImovel),
       valor_financiado: parseMoeda(valorFinanciar) || null,
-      valor_entrada:    null,
+      valor_entrada:    parseMoeda(valorEntrada) || null,
       valor_fgts:       fgts ? parseMoeda(valorFgts) : null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'incerteza',
@@ -449,6 +471,17 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   return (
     <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
       <ParceiroBadge lead={lead} />
+      {lead && (lead.banco_pretendido || lead.valor_imovel || lead.valor_pretendido || lead.entrada) && (
+        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-xs text-blue-700">
+          <p className="font-semibold mb-1.5">Dados de crédito herdados do Lead</p>
+          <div className="space-y-0.5 text-blue-600">
+            {lead.banco_pretendido  && <p>Banco pretendido: <span className="font-medium">{lead.banco_pretendido}</span></p>}
+            {lead.valor_imovel      && <p>Valor do imóvel: <span className="font-medium">{fmtN(lead.valor_imovel)}</span></p>}
+            {lead.valor_pretendido  && <p>Valor a financiar: <span className="font-medium">{fmtN(lead.valor_pretendido)}</span></p>}
+            {lead.entrada           && <p>Entrada: <span className="font-medium">{fmtN(lead.entrada)}</span></p>}
+          </div>
+        </div>
+      )}
       <Secao titulo="Dados do Cliente">
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome *">
@@ -533,6 +566,12 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
               onBlur={e => setValorFinanciar(formatMoedaInput(e.target.value))}
               className={cn('h-9 text-sm', erros.valorFinanciar && 'border-red-400')} />
             {erros.valorFinanciar && <p className="text-xs text-red-500 mt-0.5">{erros.valorFinanciar}</p>}
+          </Campo>
+          <Campo label="Entrada">
+            <Input placeholder="R$ 0,00" value={valorEntrada}
+              onChange={e => setValorEntrada(e.target.value)}
+              onBlur={e => setValorEntrada(formatMoedaInput(e.target.value))}
+              className="h-9 text-sm" />
           </Campo>
         </div>
 
