@@ -8,6 +8,25 @@ const COR_VERDE = '#253B29'
 const COR_DOURADO = '#C2AA6A'
 const COR_BEGE = '#E7E0C4'
 
+const MODALIDADE_LABEL: Record<string, string> = {
+  aquisicao:                  'Aquisição de Imóvel Residencial',
+  comercial:                  'Aquisição de Imóvel Comercial',
+  lote_urbanizado:            'Aquisição de Lote Urbanizado',
+  construcao_terreno_proprio: 'Construção em Terreno Próprio',
+  terreno_mais_construcao:    'Aquisição de Terreno + Construção',
+}
+
+const MODALIDADE_SUBTITULO: Record<string, string> = {
+  lote_urbanizado: '(Terreno / Lote / Data / Gleba)',
+}
+
+const RODAPE_DISCLAIMER =
+  'Esta e uma simulacao preliminar elaborada com base nas informacoes fornecidas e nas ' +
+  'condicoes vigentes da instituicao financeira na data da emissao. Os valores apresentados ' +
+  'possuem carater informativo e nao representam aprovacao de credito. A contratacao esta ' +
+  'sujeita a analise cadastral, documental, juridica, de engenharia e as politicas de credito ' +
+  'da instituicao financeira.'
+
 interface ImageInfo { dataUrl: string; naturalW: number; naturalH: number }
 
 async function loadImage(url: string): Promise<ImageInfo | null> {
@@ -83,36 +102,51 @@ export async function gerarPDFFinanciamento(
 
   let y = mTop
 
+  const inp = resultado.input
+  const tipoOp = inp.tipoOperacao ?? 'aquisicao'
+  const modalidadeLabel    = MODALIDADE_LABEL[tipoOp] ?? 'Financiamento Imobiliário'
+  const modalidadeSubtitulo = MODALIDADE_SUBTITULO[tipoOp] ?? null
+
   // ════════════════════════════════════════════════════════════════
   // CABEÇALHO — Fontinhas (comparativo multi-banco)
   // ════════════════════════════════════════════════════════════════
 
-  const HEADER_H = 24
+  const HEADER_H = 34
 
   setFill(doc, COR_VERDE)
   doc.rect(mL, y, usableW, HEADER_H, 'F')
 
   const imgFontinhas = await loadImage('/images/logos/logotipo%20retangular%20fontinhas%20assessoria.jpg')
   if (imgFontinhas) {
-    const [w, h] = fitInBox(imgFontinhas.naturalW, imgFontinhas.naturalH, 75, 14)
-    doc.addImage(imgFontinhas.dataUrl, 'JPEG', mL + 2, y + 2, w, h)
+    const [w, h] = fitInBox(imgFontinhas.naturalW, imgFontinhas.naturalH, 68, 14)
+    doc.addImage(imgFontinhas.dataUrl, 'JPEG', mL + 2, y + 3, w, h)
     doc.setFontSize(6); doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
-    doc.text('Sistema Operacional de Credito', mL + 4, y + 17.5)
+    doc.text('Sistema Operacional de Credito', mL + 4, y + 21)
     doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
-    doc.text('by Fontinhas Assessoria', mL + 4, y + 21.5)
+    doc.text('by Fontinhas Assessoria', mL + 4, y + 25.5)
   } else {
-    // Fallback sem logo: identidade tipográfica FONTI
     doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-    doc.text('FONTI', mL + 4, y + 9)
+    doc.text('FONTI', mL + 4, y + 11)
     doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
-    doc.text('Sistema Operacional de Credito', mL + 4, y + 15)
+    doc.text('Sistema Operacional de Credito', mL + 4, y + 19)
     doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
-    doc.text('by Fontinhas Assessoria', mL + 4, y + 21)
+    doc.text('by Fontinhas Assessoria', mL + 4, y + 25)
   }
 
-  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold')
-  doc.setTextColor(255, 255, 255)
-  doc.text('Simulacao de Financiamento Imobiliario', pageW - mR - 2, y + HEADER_H / 2 + 3, { align: 'right' })
+  // Título do documento (direita)
+  const rightEdge = pageW - mR - 2
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, COR_DOURADO)
+  doc.text('SIMULAÇÃO PRELIMINAR', rightEdge, y + 7, { align: 'right' })
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('FINANCIAMENTO IMOBILIÁRIO', rightEdge, y + 15, { align: 'right' })
+
+  // Modalidade da operação
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_DOURADO)
+  doc.text(modalidadeLabel, rightEdge, y + 23, { align: 'right' })
+  if (modalidadeSubtitulo) {
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); setTxt(doc, COR_BEGE)
+    doc.text(modalidadeSubtitulo, rightEdge, y + 29, { align: 'right' })
+  }
 
   y += HEADER_H + 4
 
@@ -144,11 +178,14 @@ export async function gerarPDFFinanciamento(
   // ════════════════════════════════════════════════════════════════
 
   const melhorBanco = resultado.bancos.find((b) => b.elegivel)
-  const melhorH = 24
+  const melhorH   = 24  // altura do bloco principal de métricas
+  const stripH    = 12  // altura do strip inferior: Modalidade + Produto
+  const totalCardH = melhorBanco ? melhorH + stripH : melhorH
+
   setFill(doc, '#EEF5EE')
-  doc.rect(mL, y, usableW, melhorH, 'F')
+  doc.rect(mL, y, usableW, totalCardH, 'F')
   setFill(doc, COR_VERDE)
-  doc.rect(mL, y, 3, melhorH, 'F')
+  doc.rect(mL, y, 3, totalCardH, 'F')
   doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
   doc.text('Melhor Cenario Encontrado', mL + 6, y + 6)
 
@@ -182,11 +219,31 @@ export async function gerarPDFFinanciamento(
       }
       cx += cw
     })
+
+    // Strip inferior: Modalidade | Produto | Banco
+    const stripY = y + melhorH
+    setFill(doc, '#D8E8D8')
+    doc.rect(mL + 3, stripY, usableW - 3, stripH, 'F')
+
+    const stripFields: [string, string][] = [
+      ['Modalidade', modalidadeLabel],
+      ['Produto',    melhorBanco.programa],
+      ['Banco',      melhorBanco.bancoNome],
+    ]
+    const sfW = (usableW - 3) / 3
+    stripFields.forEach(([label, val], i) => {
+      const sx = mL + 3 + i * sfW
+      doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#557755')
+      doc.text(label, sx + sfW / 2, stripY + 4, { align: 'center' })
+      const valLines = doc.splitTextToSize(val, sfW - 4)
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+      doc.text(valLines[0], sx + sfW / 2, stripY + 9.5, { align: 'center' })
+    })
   } else {
     doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
     doc.text('Nenhum banco elegivel com os parametros informados.', mL + 6, y + melhorH / 2 + 3)
   }
-  y += melhorH + 5
+  y += totalCardH + 5
 
   // ════════════════════════════════════════════════════════════════
   // SEÇÃO 1 — Dados da simulação
@@ -194,7 +251,6 @@ export async function gerarPDFFinanciamento(
 
   y = drawSectionTitle(doc, 'Dados da Simulação', y, mL, usableW)
 
-  const inp = resultado.input
   const valorFinanciado = inp.valorImovel - inp.valorEntrada
 
   let idadeStr = '—'
@@ -260,6 +316,32 @@ export async function gerarPDFFinanciamento(
     doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, '#2255AA')
     doc.text(obsLines, mL + 3, y + 9)
     y += obsH + 4
+  }
+
+  // Composição do Empreendimento — só para construção com terreno + obra
+  if (inp.valorTerreno && inp.valorObra) {
+    if (y + 24 > pageH - mBot - 10) { doc.addPage(); y = mTop }
+    const compH = 24
+    setFill(doc, '#F5F2EC'); setDraw(doc, COR_DOURADO)
+    doc.setLineWidth(0.4)
+    doc.rect(mL, y, usableW * 0.55, compH, 'FD')
+    doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+    doc.text('Composição do Empreendimento', mL + 4, y + 5.5)
+    const compItems: [string, number][] = [
+      ['Terreno', inp.valorTerreno],
+      ['Obra',    inp.valorObra],
+      ['Total',   inp.valorTerreno + inp.valorObra],
+    ]
+    compItems.forEach(([label, val], i) => {
+      const iy = y + 9 + i * 4.5
+      const isTotal = i === compItems.length - 1
+      const dots = ' ' + '.'.repeat(22) + ' '
+      doc.setFontSize(isTotal ? 7.5 : 7)
+      doc.setFont('helvetica', isTotal ? 'bold' : 'normal')
+      setTxt(doc, isTotal ? COR_VERDE : '#555555')
+      doc.text(`${label}${dots}${BRL.format(val)}`, mL + 4, iy)
+    })
+    y += compH + 4
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -536,9 +618,8 @@ export async function gerarPDFFinanciamento(
   y += qrSize + 6
 
   // Disclaimer institucional
-  const footerTextF = 'Esta simulacao possui carater exclusivamente informativo e nao representa aprovacao de credito. A contratacao esta sujeita a analise documental e as politicas vigentes de cada instituicao financeira. Os valores apresentados sao estimativas baseadas nas condicoes vigentes na data de geracao.'
   doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
-  const wrappedF = doc.splitTextToSize(footerTextF, usableW - qrSize - 4)
+  const wrappedF = doc.splitTextToSize(RODAPE_DISCLAIMER, usableW - qrSize - 4)
   doc.text(wrappedF, mL, y, { lineHeightFactor: 1.4 })
 
   const nomeCliente = (options.clienteNome ?? '').trim()
