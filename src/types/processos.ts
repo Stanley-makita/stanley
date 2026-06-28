@@ -38,6 +38,10 @@ export interface Processo {
   juridico_id?: string | null
   corretor_nome: string | null
   corretor_creci: string | null
+  // Origem comercial (fotografia do Lead no momento da criação)
+  parceiro_id?: string | null
+  origem?: string | null
+  campanha?: string | null
   // Consórcio
   administradora?: string | null
   grupo_consorcio?: string | null
@@ -77,6 +81,7 @@ export interface Processo {
   fase_atual?: { id: string; nome: string; cor: string | null } | null
   compradores?: { id: string; nome: string; cpf: string | null; principal: boolean }[]
   vendedores?:  { id: string; nome: string; cpf: string | null }[]
+  parceiro?: { id: string; nome: string; tipo_parceiro: string | null; imobiliaria: string | null } | null
 }
 
 export interface ProcessoComentario {

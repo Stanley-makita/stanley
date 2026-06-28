@@ -99,6 +99,43 @@ function fmtOrigem(origem: string) {
   return map[origem] ?? origem
 }
 
+/** Bloco informativo mostrando os dados de parceiro/origem herdados do Lead. */
+function ParceiroBadge({ lead }: { lead: Lead | null }) {
+  if (!lead?.parceiro && !lead?.origem && !lead?.campanha) return null
+  return (
+    <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm space-y-0.5">
+      <p className="text-xs font-semibold text-blue-700 mb-1">Herdado do Lead</p>
+      {lead.parceiro && (
+        <p className="text-blue-800">
+          <span className="text-blue-500">Parceiro:</span>{' '}
+          <span className="font-medium">{lead.parceiro.nome}</span>
+          {lead.parceiro.tipo_parceiro && (
+            <span className="ml-1 text-blue-500">({lead.parceiro.tipo_parceiro})</span>
+          )}
+        </p>
+      )}
+      {lead.parceiro?.imobiliaria && (
+        <p className="text-blue-800">
+          <span className="text-blue-500">Imobiliária:</span>{' '}
+          <span className="font-medium">{lead.parceiro.imobiliaria}</span>
+        </p>
+      )}
+      {lead.origem && (
+        <p className="text-blue-800">
+          <span className="text-blue-500">Origem:</span>{' '}
+          <span className="font-medium">{fmtOrigem(lead.origem)}</span>
+        </p>
+      )}
+      {lead.campanha && (
+        <p className="text-blue-800">
+          <span className="text-blue-500">Campanha:</span>{' '}
+          <span className="font-medium">{lead.campanha}</span>
+        </p>
+      )}
+    </div>
+  )
+}
+
 async function marcarLeadConvertido(leadId: string) {
   await supabase.rpc('marcar_lead_convertido', { p_lead_id: leadId })
 }
@@ -371,11 +408,18 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
       comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId,
       comercial_id:     comercialId,
-      corretor_nome:    null,
+      corretor_nome:    lead?.parceiro?.tipo_parceiro === 'corretor' ? lead.parceiro!.nome : null,
       corretor_creci:   null,
+      parceiro_id:      lead?.parceiro_id ?? null,
+      origem:           lead?.origem ?? null,
+      campanha:         lead?.campanha ?? null,
       fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
+
+    if (lead?.parceiro_id) {
+      await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
+    }
 
     if (nome.trim()) {
       await supabase.from('processo_compradores').insert({
@@ -403,6 +447,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
 
   return (
     <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
+      <ParceiroBadge lead={lead} />
       <Secao titulo="Dados do Cliente">
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome *">
@@ -649,11 +694,18 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
-      corretor_nome:    null,
+      corretor_nome:    lead?.parceiro?.tipo_parceiro === 'corretor' ? lead.parceiro!.nome : null,
       corretor_creci:   null,
+      parceiro_id:      lead?.parceiro_id ?? null,
+      origem:           lead?.origem ?? null,
+      campanha:         lead?.campanha ?? null,
       fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
+
+    if (lead?.parceiro_id) {
+      await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
+    }
 
     if (clienteNome) {
       await supabase.from('processo_compradores').insert({
@@ -681,6 +733,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 
   return (
     <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
+      <ParceiroBadge lead={lead} />
       <Secao titulo="Dados do Cliente">
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
@@ -816,12 +869,19 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       comissao_empresa:   null,
       operacional_id:   (() => { const v = juridicoId || claudiaId; return v && v !== '__nenhum' ? v : null })(),
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
-      corretor_nome:    null,
+      corretor_nome:    lead?.parceiro?.tipo_parceiro === 'corretor' ? lead.parceiro!.nome : null,
       corretor_creci:   null,
+      parceiro_id:      lead?.parceiro_id ?? null,
+      origem:           lead?.origem ?? null,
+      campanha:         lead?.campanha ?? null,
       numero_contrato:  TIPO_CONTRATO_LABELS[tipoContrato],
       fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
+
+    if (lead?.parceiro_id) {
+      await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
+    }
 
     if (clienteNome) {
       await supabase.from('processo_compradores').insert({
@@ -849,6 +909,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 
   return (
     <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
+      <ParceiroBadge lead={lead} />
       <Secao titulo="Dados do Cliente">
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
@@ -959,11 +1020,18 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       comissao_empresa:   null,
       operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
-      corretor_nome:    administradoraFinal || null,
+      corretor_nome:    administradoraFinal || null,   // Consórcio usa administradora, não parceiro
       corretor_creci:   null,
+      parceiro_id:      lead?.parceiro_id ?? null,
+      origem:           lead?.origem ?? null,
+      campanha:         lead?.campanha ?? null,
       fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
+
+    if (lead?.parceiro_id) {
+      await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
+    }
 
     if (clienteNome) {
       await supabase.from('processo_compradores').insert({
@@ -1006,6 +1074,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 
   return (
     <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
+      <ParceiroBadge lead={lead} />
       <Secao titulo="Dados do Cliente">
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Nome"><Input value={clienteNome} readOnly className="bg-gray-50 h-9 text-sm" /></Campo>
