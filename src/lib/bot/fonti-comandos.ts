@@ -1312,6 +1312,83 @@ function _detectarTipoEsclarecimento(texto: string): 'construcao_terreno_proprio
   return null
 }
 
+/** Extrai um valor numérico de uma string em formato BR/informal. */
+function _parseValorBR(s: string): number | null {
+  const t = s.trim().replace(/[Rr]\$\s*/g, '').replace(/\./g, '')
+  const kMatch = t.match(/^(\d+(?:[.,]\d+)?)\s*k$/i)
+  if (kMatch) return parseFloat(kMatch[1].replace(',', '.')) * 1000
+  const milMatch = t.match(/^(\d+(?:[.,]\d+)?)\s*mil\b/i)
+  if (milMatch) return parseFloat(milMatch[1].replace(',', '.')) * 1000
+  const numMatch = t.match(/^(\d+)$/)
+  if (numMatch) {
+    const n = parseInt(t)
+    return n < 10000 ? n * 1000 : n  // "300" → 300.000; "300000" → 300.000
+  }
+  return null
+}
+
+/**
+ * Extrai um ou dois valores de construção de uma mensagem livre.
+ * Aceita: "300\n400", "300k 400k", "1-300\n2-400", "300 mil obra 400 mil", etc.
+ */
+function _extrairValoresConstricao(
+  texto: string,
+): { terreno: number; obra: number } | { unico: number } | null {
+  const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const linhas = t.split(/[\n\r,;]+/).map((s) => s.trim()).filter(Boolean)
+  const vals: number[] = []
+
+  for (const linha of linhas) {
+    const limpa = linha
+      .replace(/^[12]\s*[-:]\s*/, '')
+      .replace(/(terreno|obra|valor)\s*/gi, '')
+      .trim()
+    const v = _parseValorBR(limpa)
+    if (v !== null && v > 0) vals.push(v)
+  }
+
+  // Fallback: duas palavras na mesma linha ("300k 400k")
+  if (vals.length === 0) {
+    for (const tok of t.trim().split(/\s+/)) {
+      const v = _parseValorBR(tok)
+      if (v !== null && v > 0) vals.push(v)
+    }
+  }
+
+  if (vals.length === 0) return null
+  if (vals.length === 1) return { unico: vals[0] }
+  return { terreno: vals[0], obra: vals[1] }
+}
+
+/** Salva confirmação de construção (terreno + obra + total). */
+async function _confirmarConstricao(
+  dados: Partial<import('@/lib/workflows/normalizador-captacao').DadosCaptacaoNormalizados>,
+  pendente: WorkflowPendente,
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneOp: string,
+): Promise<string> {
+  const { salvarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+  const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+  const terreno = dados.valor_terreno ?? 0
+  const obra = dados.valor_obra ?? 0
+  const total = terreno + obra
+  dados.valor_imovel = total
+  await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+    ...pendente,
+    motivo: 'confirmacao',
+    dadosCapturados: dados,
+  })
+  return [
+    'Só para confirmar:',
+    `• Terreno: ${moeda.format(terreno)}`,
+    `• Obra: ${moeda.format(obra)}`,
+    `• Valor total do empreendimento: ${moeda.format(total)}`,
+    '',
+    'Está correto?',
+  ].join('\n')
+}
+
 /**
  * Processa uma mensagem sem '*' do operador que está respondendo a uma pergunta
  * feita pelo Fonti em um *simula anterior.
@@ -1402,14 +1479,76 @@ export async function processarRespostaPendente(
   const faltaImovel = novosDados.valor_imovel == null && !ehConstrucao
 
   if (faltaValoresObra) {
-    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
-      ...pendente,
-      motivo: 'completar_dados_simulacao',
-      dadosCapturados: novosDados,
-    })
-    return novosDados.tipo_operacao === 'terreno_mais_construcao'
-      ? 'Para simular terreno + construção, preciso de dois valores:\n1. Qual o valor de compra do terreno?\n2. Quanto estima gastar na obra?'
-      : 'Para simular construção em terreno próprio, qual o valor estimado da obra?\n(Pode informar o valor do terreno também, se quiser.)'
+    const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+    const faltaAmbos    = novosDados.valor_terreno == null && novosDados.valor_obra == null
+    const faltaSoObra   = novosDados.valor_terreno != null && novosDados.valor_obra == null
+    const faltaSoTerreno = novosDados.valor_terreno == null && novosDados.valor_obra != null
+
+    if (faltaAmbos) {
+      const ext = _extrairValoresConstricao(texto)
+      if (ext && 'terreno' in ext) {
+        novosDados.valor_terreno = ext.terreno
+        novosDados.valor_obra = ext.obra
+        return await _confirmarConstricao(novosDados, pendente, supabase, empresa_id, telefoneOp)
+      }
+      if (ext && 'unico' in ext) {
+        novosDados.valor_terreno = ext.unico  // tentativo — aguarda "1" ou "2"
+        await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+          ...pendente, motivo: 'completar_dados_simulacao', dadosCapturados: novosDados,
+        })
+        return `Esse valor de ${moeda.format(ext.unico)} se refere a:\n1 - Terreno\n2 - Obra`
+      }
+      await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+        ...pendente, motivo: 'completar_dados_simulacao', dadosCapturados: novosDados,
+      })
+      return novosDados.tipo_operacao === 'terreno_mais_construcao'
+        ? 'Para simular terreno + construção, preciso de dois valores:\n1. Qual o valor de compra do terreno?\n2. Quanto estima gastar na obra?'
+        : 'Para simular construção em terreno próprio, qual o valor estimado da obra?\n(Pode informar o valor do terreno também, se quiser.)'
+    }
+
+    if (faltaSoObra) {
+      const valorTerreno = novosDados.valor_terreno!
+      const tN = _normalizarTexto(texto)
+      // Resposta "1"/"2" ao "Esse valor é Terreno ou Obra?"
+      if (/^[12]$/.test(tN) || tN === 'terreno' || tN === 'obra') {
+        if (tN === '2' || tN === 'obra') {
+          novosDados.valor_obra = valorTerreno
+          novosDados.valor_terreno = null
+          await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+            ...pendente, motivo: 'completar_dados_simulacao', dadosCapturados: novosDados,
+          })
+          return `Obra: ${moeda.format(valorTerreno)}.\nE o valor do terreno?`
+        }
+        // "1"/"terreno" — confirmou terreno, pede obra
+        await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+          ...pendente, motivo: 'completar_dados_simulacao', dadosCapturados: novosDados,
+        })
+        return `Terreno: ${moeda.format(valorTerreno)}.\nE o valor estimado da obra?`
+      }
+      const ext = _extrairValoresConstricao(texto)
+      if (ext) {
+        const obraV = 'terreno' in ext ? ext.obra : ext.unico
+        novosDados.valor_obra = obraV
+        return await _confirmarConstricao(novosDados, pendente, supabase, empresa_id, telefoneOp)
+      }
+      await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+        ...pendente, motivo: 'completar_dados_simulacao', dadosCapturados: novosDados,
+      })
+      return `Qual o valor estimado da obra? (Terreno: ${moeda.format(valorTerreno)})`
+    }
+
+    if (faltaSoTerreno) {
+      const ext = _extrairValoresConstricao(texto)
+      if (ext) {
+        const terrenoV = 'terreno' in ext ? ext.terreno : ext.unico
+        novosDados.valor_terreno = terrenoV
+        return await _confirmarConstricao(novosDados, pendente, supabase, empresa_id, telefoneOp)
+      }
+      await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+        ...pendente, motivo: 'completar_dados_simulacao', dadosCapturados: novosDados,
+      })
+      return `Qual o valor do terreno? (Obra: ${moeda.format(novosDados.valor_obra!)})`
+    }
   }
 
   if (faltaImovel) {
@@ -1441,11 +1580,19 @@ export async function processarRespostaPendente(
   if (pendente.motivo === 'completar_dados_simulacao') {
     const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
     const linhas = ['Ótimo! Antes de simular, só confirmar os dados:']
-    if (novosDados.valor_imovel)    linhas.push(`• Imóvel: ${moeda.format(novosDados.valor_imovel)}`)
-    if (novosDados.valor_entrada)   linhas.push(`• Entrada: ${moeda.format(novosDados.valor_entrada)}`)
+    if (ehConstrucao && novosDados.valor_terreno && novosDados.valor_obra) {
+      const total = novosDados.valor_terreno + novosDados.valor_obra
+      novosDados.valor_imovel = total
+      linhas.push(`• Terreno: ${moeda.format(novosDados.valor_terreno)}`)
+      linhas.push(`• Obra: ${moeda.format(novosDados.valor_obra)}`)
+      linhas.push(`• Total do empreendimento: ${moeda.format(total)}`)
+    } else if (novosDados.valor_imovel) {
+      linhas.push(`• Imóvel: ${moeda.format(novosDados.valor_imovel)}`)
+    }
+    if (novosDados.valor_entrada)    linhas.push(`• Entrada: ${moeda.format(novosDados.valor_entrada)}`)
     if (novosDados.valor_financiado) linhas.push(`• Financiamento: ${moeda.format(novosDados.valor_financiado)}`)
-    if (rendaTotal > 0)             linhas.push(`• Renda mensal: ${moeda.format(rendaTotal)}`)
-    if (novosDados.data_nascimento) linhas.push(`• Nascimento: ${novosDados.data_nascimento}`)
+    if (rendaTotal > 0)              linhas.push(`• Renda mensal: ${moeda.format(rendaTotal)}`)
+    if (novosDados.data_nascimento)  linhas.push(`• Nascimento: ${novosDados.data_nascimento}`)
     linhas.push('', 'Está tudo certo? (sim / não)')
     await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
       ...pendente,
@@ -1466,6 +1613,14 @@ async function _resimular(
   ctx: FontiContexto,
   usuario: { id: string; nome: string },
 ): Promise<string> {
+  // Regra de negócio: para construção, valor_imovel sempre = terreno + obra
+  const dadosFinais = { ...dados }
+  const ehConstrR = dadosFinais.tipo_operacao === 'construcao_terreno_proprio'
+    || dadosFinais.tipo_operacao === 'terreno_mais_construcao'
+  if (ehConstrR && dadosFinais.valor_terreno && dadosFinais.valor_obra) {
+    dadosFinais.valor_imovel = dadosFinais.valor_terreno + dadosFinais.valor_obra
+  }
+
   const ctxWorkflow = {
     empresa_id:         ctx.empresa_id,
     usuario_id:         usuario.id,
@@ -1478,7 +1633,7 @@ async function _resimular(
     arquivos:           ctx.arquivos,
     vem_de_pendente:    true,
     forcar_simulacao:   true,
-    dados_pre_normalizados: dados,
+    dados_pre_normalizados: dadosFinais,
     lead_id_existente:  pendente.leadIdExistente,
     pessoa_id_existente: pendente.pessoaIdExistente,
   }
