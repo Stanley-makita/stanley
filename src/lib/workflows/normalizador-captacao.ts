@@ -114,7 +114,9 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
   const temDataTerreno = /\bdata\b(?!\s*(?:de\s+nasci|nasc|\/|\d{2}[\/\-\.]))/.test(t)
     && !t.includes('data de nascimento') && !t.includes('data nasc')
   const temLote = termosLote.some((k) => t.includes(norm(k))) || temDataTerreno
-  const temConstrucao = t.includes('construc') || temObra
+  // 'constru' captura 'construir', 'construção', 'construcao', 'construção' — necessário
+  // porque 'quero construir' não contém o substring 'construc' (sem acento e sem ão).
+  const temConstrucao = t.includes('construc') || t.includes('constru') || temObra
 
   if (temLote && !temConstrucao) {
     return { tipoOperacao: 'lote_urbanizado', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }

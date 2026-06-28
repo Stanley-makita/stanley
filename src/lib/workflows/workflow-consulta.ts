@@ -151,13 +151,21 @@ export async function executarWorkflowConsulta(
 
   if (!validacao.valido) {
     const lista = validacao.camposFaltantes.map((c) => `• ${c}`).join('\n')
+    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'completar_dados_simulacao',
+        dadosCapturados: dados,
+        usouConsulta: true,
+      })
+    }
     return [
       '⚠️ *Consulta incompleta — dados insuficientes para simular.*',
       '',
       'Faltam as seguintes informações:',
       lista,
       '',
-      'Envie novamente com os dados completos.',
+      'Responda com os dados faltantes para continuar.',
     ].join('\n')
   }
 

@@ -585,15 +585,23 @@ export async function executarWorkflowCaptacao(
 
     if (!validacao.valido) {
       const lista = validacao.camposFaltantes.map((c) => `• ${c}`).join('\n')
+      if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+        const { salvarSimulaPendente } = await import('./simula-pendente')
+        await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+          motivo: 'completar_dados_simulacao',
+          dadosCapturados: dados,
+          usouConsulta: false,
+          leadIdExistente: lead_id,
+          pessoaIdExistente: pessoa_id ?? undefined,
+        })
+      }
       return [
         `✅ ${acao}.${linhasDocs}${aviso}`,
         '',
         'Faltam os seguintes dados para executar a simulação:',
         lista,
         '',
-        'Para complementar:',
-        '• Responda nesta conversa com os dados faltantes + *simula',
-        '• Ou reenvie *cria cliente com os dados completos — o Fonti atualizará este Lead.',
+        'Responda com os dados faltantes para continuar.',
         linhaPendentes,
       ].join('\n')
     }

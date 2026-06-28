@@ -12,7 +12,7 @@ import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 
 export interface WorkflowPendente {
   /** Motivo da pendência — só influencia qual pergunta fazer; nunca limita o parser. */
-  motivo: 'esclarecer_tipo_construcao' | 'completar_dados_simulacao'
+  motivo: 'esclarecer_tipo_construcao' | 'completar_dados_simulacao' | 'confirmacao'
   /** Dados já capturados na mensagem original (snapshot de DadosCaptacaoNormalizados). */
   dadosCapturados: Partial<DadosCaptacaoNormalizados>
   /** true = chamar executarWorkflowConsulta; false = executarWorkflowCaptacao */

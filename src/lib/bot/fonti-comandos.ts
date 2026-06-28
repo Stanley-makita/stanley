@@ -1246,29 +1246,49 @@ export async function processarRespostaPendente(
   usuario: { id: string; nome: string },
 ): Promise<string> {
   const { empresa_id, supabase } = ctx
-  const { dadosCapturados, usouConsulta } = pendente
+  const { dadosCapturados } = pendente
   const telefoneOp = ctx.telefone_remetente
 
-  // Detectar abandono / mensagem social
-  if (/^(ok[,.]?$|obrigad|valeu|certo|entendido|blz|depois|mais\s+tarde|manda\s+para|encerra|cancela)/i.test(texto.trim())) {
-    const { limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+
+  // ── Pendência de confirmação ─────────────────────────────────────────────────
+  // Fonti mostrou o resumo e perguntou "Está tudo certo?".
+  // Não rodar o parser LLM — a resposta é sempre sim ou não.
+  if (pendente.motivo === 'confirmacao') {
+    const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+    const positivo = /^(sim|isso|isso mesmo|correto|ok|certo|confere|pode|seguir|bora|exato|perfeito|show|isso ai|isso ai)/.test(t)
+      || /👍|✅/.test(texto)
+    const negativo = /^(nao|n[aã]o|errado|corrigir|tem erro|volta|incorreto|ta errado)/.test(t)
+
+    if (positivo) {
+      await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+      return await _resimular(dadosCapturados, pendente, ctx, usuario)
+    }
+    if (negativo) {
+      await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+      return 'Sem problema! Reenvie *simula com os dados corrigidos.'
+    }
+    return 'Não entendi. Responda *sim* para simular ou *não* para corrigir os dados.'
+  }
+
+  // ── Detectar abandono ────────────────────────────────────────────────────────
+  const textoLower = texto.toLowerCase().trim()
+  if (/^(obrigad|valeu|depois|mais tarde|manda para|encerra|cancela|desisti|esquece)/.test(textoLower)) {
     await limparSimulaPendente(supabase, empresa_id, telefoneOp)
     return 'Tudo bem! Se precisar, é só enviar *simula novamente com os dados.'
   }
 
   // ── Reprocessamento completo ─────────────────────────────────────────────────
-  // O parser analisa a mensagem INTEIRA — não apenas o campo "esperado".
-  // Aproveitar qualquer informação que o operador forneça espontaneamente.
+  // O parser analisa a mensagem INTEIRA — nunca limitado pelo motivo da pendência.
   const { normalizarPedidoSimulacao } = await import('@/lib/workflows/normalizador-captacao')
-  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
-
   const novosParsed = await normalizarPedidoSimulacao(texto)
   const novosDados = mergeCapturados(dadosCapturados, novosParsed)
 
-  // Tipo de construção ainda ambíguo após nova mensagem?
+  // Tipo de construção ainda ambíguo?
   if (novosParsed.pedir_esclarecimento_operacao) {
     await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
       ...pendente,
+      motivo: 'esclarecer_tipo_construcao',
       dadosCapturados: novosDados,
     })
     return 'Só para confirmar: você já possui o terreno onde vai construir, ou quer financiar a compra do terreno junto com a obra?'
@@ -1317,14 +1337,43 @@ export async function processarRespostaPendente(
     return `Para completar a simulação, preciso da ${campos}.\nEx: "renda 30000 nascimento 25/01/1981"`
   }
 
-  // ── Todos os dados presentes → re-simular ────────────────────────────────────
-  await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+  // ── Todos os dados presentes ──────────────────────────────────────────────────
+  // De "completar_dados_simulacao": confirmar antes de simular (o operador acabou
+  // de informar campos faltantes — sempre vale revisar antes de disparar).
+  // De "esclarecer_tipo_construcao": simular diretamente (clarificação explícita feita).
+  if (pendente.motivo === 'completar_dados_simulacao') {
+    const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+    const linhas = ['Ótimo! Antes de simular, só confirmar os dados:']
+    if (novosDados.valor_imovel)    linhas.push(`• Imóvel: ${moeda.format(novosDados.valor_imovel)}`)
+    if (novosDados.valor_entrada)   linhas.push(`• Entrada: ${moeda.format(novosDados.valor_entrada)}`)
+    if (novosDados.valor_financiado) linhas.push(`• Financiamento: ${moeda.format(novosDados.valor_financiado)}`)
+    if (rendaTotal > 0)             linhas.push(`• Renda mensal: ${moeda.format(rendaTotal)}`)
+    if (novosDados.data_nascimento) linhas.push(`• Nascimento: ${novosDados.data_nascimento}`)
+    linhas.push('', 'Está tudo certo? (sim / não)')
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      motivo: 'confirmacao',
+      dadosCapturados: novosDados,
+    })
+    return linhas.join('\n')
+  }
 
+  // esclarecer_tipo_construcao → simular diretamente
+  await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+  return await _resimular(novosDados, pendente, ctx, usuario)
+}
+
+async function _resimular(
+  dados: Partial<import('@/lib/workflows/normalizador-captacao').DadosCaptacaoNormalizados>,
+  pendente: WorkflowPendente,
+  ctx: FontiContexto,
+  usuario: { id: string; nome: string },
+): Promise<string> {
   const ctxWorkflow = {
-    empresa_id,
+    empresa_id:         ctx.empresa_id,
     usuario_id:         usuario.id,
     usuario_nome:       usuario.nome,
-    supabase,
+    supabase:           ctx.supabase,
     instancia_token:    ctx.instancia_token,
     telefone_destino:   ctx.telefone_destino,
     telefone_remetente: ctx.telefone_remetente,
@@ -1332,18 +1381,17 @@ export async function processarRespostaPendente(
     arquivos:           ctx.arquivos,
     vem_de_pendente:    true,
     forcar_simulacao:   true,
-    dados_pre_normalizados: novosDados,
+    dados_pre_normalizados: dados,
     lead_id_existente:  pendente.leadIdExistente,
     pessoa_id_existente: pendente.pessoaIdExistente,
   }
-
   try {
-    if (usouConsulta) {
+    if (pendente.usouConsulta) {
       const { executarWorkflowConsulta } = await import('@/lib/workflows/workflow-consulta')
-      return await executarWorkflowConsulta(texto, ctxWorkflow)
+      return await executarWorkflowConsulta('', ctxWorkflow)
     } else {
       const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
-      return await executarWorkflowCaptacao(texto, ctxWorkflow)
+      return await executarWorkflowCaptacao('', ctxWorkflow)
     }
   } catch (err) {
     console.error('[fonti] Erro ao re-simular de pendente:', err)
