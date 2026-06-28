@@ -152,12 +152,16 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
     }
     setFgtsErro('')
 
-    // Consistência financeira
+    // Consistência financeira: Imóvel = Financiado + FGTS + Recursos Próprios
     if (recursosProprios < 0) {
-      toast.error(
-        `Inconsistência: recursos próprios negativos (${fmtMoeda(recursosProprios)}). `
-        + 'Verifique os valores informados.'
-      )
+      const diferenca = Math.abs(recursosProprios)
+      toast.error('Os valores financeiros da operação não fecham.', {
+        description:
+          `Imóvel: ${fmtMoeda(valorImovel)} | Financiado: ${fmtMoeda(valorFinanciado)} | `
+          + `FGTS: ${fmtMoeda(valorFgtsEfetivo)} | Recursos próprios: ${fmtMoeda(recursosProprios)} | `
+          + `Diferença: ${fmtMoeda(diferenca)}`,
+        duration: 8000,
+      })
       return
     }
 
@@ -181,7 +185,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         indexador:                      dados.indexador ?? null,
         financiar_despesas_cartorariais: dados.financiar_despesas_cartorariais,
       })
-      toast.success('Dados do negócio atualizados')
+      toast.success('Dados financeiros atualizados com sucesso.')
       onFechar()
     } catch {
       toast.error('Não foi possível salvar. Tente novamente.')

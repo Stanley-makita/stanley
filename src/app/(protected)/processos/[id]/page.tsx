@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { differenceInDays } from 'date-fns'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
@@ -96,6 +96,22 @@ export default function ProcessoDetalhePage() {
   }
   const [abaAtiva, setAbaAtiva] = useState(searchParams.get('aba') ?? 'resumo')
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
+
+  // Dados financeiros obrigatórios: bloqueia avanço de fase se incompletos ou inconsistentes
+  const dadosFinanceirosPendentes = useMemo(() => {
+    if (!processo) return false
+    const p = processo as any
+    if (!p.banco_id)                                    return true
+    if (!p.taxa_juros  || p.taxa_juros  <= 0)           return true
+    if (!p.sistema_amortizacao)                         return true
+    if (!p.valor_imovel    || p.valor_imovel    <= 0)   return true
+    if (!p.valor_financiado || p.valor_financiado <= 0) return true
+    if (p.valor_fgts === null || p.valor_fgts === undefined) return true
+    // Consistência: imóvel deve cobrir financiado + FGTS
+    const rp = p.valor_imovel - p.valor_financiado - (p.valor_fgts ?? 0)
+    if (rp < 0) return true
+    return false
+  }, [processo])
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
   const { alertasBloqueantes, alertasVencidos, confirmar: confirmarAlertas } = useAlertasVencimento(id, {
@@ -395,7 +411,7 @@ export default function ProcessoDetalhePage() {
               <AbaVendedores processoId={id} />
             </TabsContent>
             <TabsContent value="fases" className="m-0">
-              <AbaFases processoId={id} processo={processo} itensObrigatoriosPendentes={itensObrigatoriosPendentes} />
+              <AbaFases processoId={id} processo={processo} itensObrigatoriosPendentes={itensObrigatoriosPendentes} dadosFinanceirosPendentes={dadosFinanceirosPendentes} />
             </TabsContent>
             <TabsContent value="documentos" className="m-0">
               <AbaDocumentos processoId={id} />

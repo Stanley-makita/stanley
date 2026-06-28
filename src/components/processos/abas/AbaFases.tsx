@@ -40,6 +40,7 @@ interface Props {
   processoId: string
   processo: Processo
   itensObrigatoriosPendentes?: boolean
+  dadosFinanceirosPendentes?: boolean
 }
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ function StepperFases({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = false }: Props) {
+export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = false, dadosFinanceirosPendentes = false }: Props) {
   useAuth()
   const { pode } = usePermissao()
   const { data: historico = [], isLoading } = useProcessoFasesHistorico(processoId)
@@ -215,12 +216,18 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
               <Button
                 className="bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleAvancar}
-                disabled={avancarFase.isPending || itensObrigatoriosPendentes}
+                disabled={avancarFase.isPending || itensObrigatoriosPendentes || dadosFinanceirosPendentes}
               >
                 <ChevronRight className="h-4 w-4" />
                 Avançar para <strong className="ml-0.5">{proximaFase.nome}</strong>
               </Button>
-              {itensObrigatoriosPendentes && (
+              {dadosFinanceirosPendentes && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  Existem informações financeiras obrigatórias pendentes. Complete os Dados do Negócio para continuar.
+                </p>
+              )}
+              {!dadosFinanceirosPendentes && itensObrigatoriosPendentes && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 shrink-0" />
                   Complete os itens obrigatórios do checklist antes de avançar.
