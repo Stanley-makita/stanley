@@ -1485,7 +1485,12 @@ export async function processarRespostaPendente(
     const faltaSoTerreno = novosDados.valor_terreno == null && novosDados.valor_obra != null
 
     if (faltaAmbos) {
-      const ext = _extrairValoresConstricao(texto)
+      // Não extrair valores da mensagem que serviu para escolher o tipo ("1"/"2").
+      // Quando motivo era 'esclarecer_tipo_construcao', a mensagem foi consumida pelo
+      // mini-detector acima — usá-la no extrator geraria valores absurdos (R$2.000).
+      const ext = pendente.motivo !== 'esclarecer_tipo_construcao'
+        ? _extrairValoresConstricao(texto)
+        : null
       if (ext && 'terreno' in ext) {
         novosDados.valor_terreno = ext.terreno
         novosDados.valor_obra = ext.obra
