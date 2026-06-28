@@ -88,6 +88,33 @@ export function AuthProvider({
     }
   }, [carregarPerfil])
 
+  // Segurança: desfaz sessão ao fechar/recarregar a página.
+  // pagehide dispara em: F5, fechar aba, fechar browser, navegar para outro site.
+  // NÃO dispara em navegação interna do Next.js (Link/router.push) — sessão preservada.
+  useEffect(() => {
+    function handlePageHide() {
+      // supabase.auth.signOut() apaga os cookies de forma síncrona antes do
+      // request de revogação — garante que o middleware não encontre sessão válida.
+      supabase.auth.signOut({ scope: 'local' })
+    }
+
+    function handlePageShow(e: PageTransitionEvent) {
+      // BFCache: página restaurada do cache após pagehide — cookies já foram apagados.
+      if (e.persisted) {
+        supabase.auth.signOut({ scope: 'local' }).then(() => {
+          window.location.replace('/login')
+        })
+      }
+    }
+
+    window.addEventListener('pagehide', handlePageHide)
+    window.addEventListener('pageshow', handlePageShow)
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [])
+
   // Realtime: detecta mudanças no perfil/ativo do usuário logado sem precisar de F5
   useEffect(() => {
     if (!usuario?.id) return
