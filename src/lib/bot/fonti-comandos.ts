@@ -1238,12 +1238,14 @@ export async function processarComandoFonti(
  * falta de contexto — este detector usa regras simples que só fazem sentido nesse contexto.
  */
 function _detectarTipoEsclarecimento(texto: string): 'construcao_terreno_proprio' | 'terreno_mais_construcao' | null {
-  const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+  // Normaliza e colapsa newlines para que "300 mil terreno\n400 obra" seja tratado como linha única
+  const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
 
   // Terreno + obra: quer COMPRAR o terreno
+  // [\s\S]* em vez de .* para cruzar eventuais newlines remanescentes
   if (/\b(compra|comprar|junto|financiar)\b/.test(t)
-    || /terreno.*(obra|construc)/.test(t)
-    || /lote.*(obra|construc)/.test(t)) {
+    || /terreno[\s\S]*(obra|construc)/.test(t)
+    || /lote[\s\S]*(obra|construc)/.test(t)) {
     return 'terreno_mais_construcao'
   }
 
@@ -1308,7 +1310,10 @@ export async function processarRespostaPendente(
   const novosDados = mergeCapturados(dadosCapturados, novosParsed)
 
   // Tipo de construção ainda ambíguo?
-  if (novosParsed.pedir_esclarecimento_operacao) {
+  // Só entra neste bloco se o tipo_operacao NÃO foi resolvido pelo merge com dados anteriores.
+  // "300 mil terreno\n400 obra" com pending já tendo tipo=terreno_mais_construcao não re-pergunta.
+  const tipoJaResolvido = novosDados.tipo_operacao && novosDados.tipo_operacao !== 'aquisicao'
+  if (novosParsed.pedir_esclarecimento_operacao && !tipoJaResolvido) {
     // Quando o usuário está RESPONDENDO à pergunta de esclarecimento, respostas curtas
     // como "junto com a obra" ou "próprio" não são resolvidas pelo parser por falta de
     // contexto. O mini-detector aplica regras simples nesse contexto específico.
