@@ -1,4 +1,4 @@
-import type { BancoId } from './tipos'
+import type { BancoId, TipoOperacao } from './tipos'
 
 export interface BancoConfig {
   id: BancoId
@@ -285,3 +285,32 @@ export const DAYCOVAL_MIP_RATE = 0.000230
 // DFI Daycoval — sobre VALOR ESTIMADO do imóvel
 // Verificado: R$20,00 em R$500.000 = 0,004%/mês; R$12,00 em R$300.000 = 0,004%/mês
 export const DAYCOVAL_DFI_RATE = 0.000040
+
+// ─── Vocabulário regional — terreno/lote ─────────────────────────────────────
+// Termos sinônimos para uso em camada de interpretação e ajuda contextual no formulário.
+// Em Maringá/PR e região, "data" é termo popular para lote/terreno urbano.
+// "greba" é variação comum de "gleba". Todos mapeiam para tipoOperacao = 'lote_urbanizado'.
+export const TERMOS_TERRENO = [
+  'terreno', 'lote', 'lote urbano', 'lote urbanizado',
+  'data', 'data de terra',
+  'gleba', 'greba',
+  'fração de terra', 'fracao de terra',
+  'pedaço de terra', 'pedaco de terra',
+  'terreno vazio', 'terreno próprio', 'lote próprio', 'data própria', 'gleba própria',
+] as const
+
+// Teto Caixa SBPE para lote urbanizado (mesmo teto do SFH geral)
+export const LOTE_URBANIZADO_MAX_VALOR = 2_250_000
+
+// Observações contextuais por modalidade — exibidas no resultado e no PDF
+export const OBSERVACOES_MODALIDADE: Record<TipoOperacao, string> = {
+  aquisicao: '',
+  comercial:
+    'Imóvel comercial não se enquadra em MCMV ou Pró-Cotista. Simulação gerada via Carta de Crédito SBPE/SFI da Caixa. Para outros bancos, nossa equipe verifica condições específicas.',
+  lote_urbanizado:
+    'Para terreno/lote urbanizado, a Caixa é a principal referência operacional. Em Maringá e região, os termos terreno, lote, data, gleba e greba referem-se ao mesmo tipo de operação. Simulação sujeita à análise documental e de engenharia.',
+  construcao_terreno_proprio:
+    'O valor considerado é a soma do terreno estimado com o orçamento da obra. A liberação dos recursos pela Caixa depende de análise de engenharia, documentação do imóvel/projeto e evolução da obra.',
+  terreno_mais_construcao:
+    'O valor considerado é a soma do valor de compra do terreno com o orçamento da obra. A liberação dos recursos ocorre conforme regras da Caixa, documentação e evolução da obra.',
+}

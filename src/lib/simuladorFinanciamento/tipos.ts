@@ -2,6 +2,13 @@ export type TipoAmortizacao = 'SAC' | 'PRICE'
 export type TipoImovel = 'novo' | 'usado'
 export type FinalidadeImovel = 'residencial' | 'comercial'
 
+export type TipoOperacao =
+  | 'aquisicao'                    // aquisição imóvel pronto (padrão)
+  | 'comercial'                    // imóvel comercial / misto
+  | 'lote_urbanizado'              // terreno / lote / data / gleba isolado
+  | 'construcao_terreno_proprio'   // cliente já tem o terreno, vai construir
+  | 'terreno_mais_construcao'      // compra o terreno e executa obra
+
 export type BancoId =
   | 'caixa'
   | 'itau'
@@ -21,9 +28,14 @@ export interface InputFinanciamento {
   bancosIds: BancoId[]
   nomeCliente?: string
   cpfCliente?: string
+  // Tipo de operação — define a modalidade e controla elegibilidade por banco
+  tipoOperacao?: TipoOperacao
   // Características do imóvel
   tipoImovel?: TipoImovel         // novo ou usado — afeta LTV Caixa (usado = -10pp)
   finalidade?: FinalidadeImovel   // residencial = elegível MCMV; comercial = SBPE apenas
+  // Valores decompostos para operações de construção (substituem valorImovel no input bruto)
+  valorTerreno?: number           // valor do terreno (próprio ou a comprar)
+  valorObra?: number              // orçamento estimado da obra
   // FGTS / elegibilidade MCMV
   usaFgts?: boolean               // 3+ anos FGTS → Pró-Cotista elegível
   jaRecebeuSubsidio?: boolean     // true → bloqueia MCMV
@@ -54,6 +66,7 @@ export interface ResultadoBanco {
   elegivel: boolean
   motivoInelegivel?: string
   avisoRenda?: boolean
+  observacao?: string              // nota contextual por modalidade (lote, construção, comercial)
 }
 
 export interface AnalisePredicativa {

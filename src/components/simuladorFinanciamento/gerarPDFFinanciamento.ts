@@ -206,8 +206,15 @@ export async function gerarPDFFinanciamento(
     idadeStr = `${anos} anos`
   }
 
+  const labelPrincipal =
+    inp.tipoOperacao === 'lote_urbanizado'          ? 'Valor do Terreno/Lote' :
+    inp.tipoOperacao === 'construcao_terreno_proprio' || inp.tipoOperacao === 'terreno_mais_construcao'
+      ? 'Total do Empreendimento' : 'Valor do Imóvel'
+
   const dadosItems: [string, string][] = [
-    ['Valor do Imóvel',   BRL.format(inp.valorImovel)],
+    [labelPrincipal,      BRL.format(inp.valorImovel)],
+    ...(inp.valorTerreno ? [['Valor do Terreno', BRL.format(inp.valorTerreno)] as [string, string]] : []),
+    ...(inp.valorObra    ? [['Orçamento da Obra', BRL.format(inp.valorObra)]   as [string, string]] : []),
     ['Entrada',           BRL.format(inp.valorEntrada)],
     ['Valor Financiado',  BRL.format(valorFinanciado)],
     ['Renda Mensal',      BRL.format(inp.rendaMensal)],
@@ -238,6 +245,22 @@ export async function gerarPDFFinanciamento(
   })
 
   y += ROWS * dadoH + 5
+
+  // Nota de modalidade — exibida quando a operação não é aquisição simples
+  const observacaoModalidade = resultado.bancos.find((b) => b.observacao)?.observacao ?? ''
+  if (observacaoModalidade) {
+    if (y + 16 > pageH - mBot - 10) { doc.addPage(); y = mTop }
+    const obsLines = doc.splitTextToSize(observacaoModalidade, usableW - 8)
+    const obsH = Math.max(12, obsLines.length * 4 + 7)
+    setFill(doc, '#EEF4FF'); setDraw(doc, '#AACCEE')
+    doc.setLineWidth(0.3)
+    doc.rect(mL, y, usableW, obsH, 'FD')
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#1A44AA')
+    doc.text('Nota:', mL + 3, y + 5)
+    doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, '#2255AA')
+    doc.text(obsLines, mL + 3, y + 9)
+    y += obsH + 4
+  }
 
   // ════════════════════════════════════════════════════════════════
   // SEÇÃO 2 — Comparativo de bancos

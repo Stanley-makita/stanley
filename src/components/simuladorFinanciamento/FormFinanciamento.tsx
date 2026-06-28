@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { BANCOS_CONFIG, TODOS_BANCOS } from '@/lib/simuladorFinanciamento/constantes'
-import type { BancoId, InputFinanciamento, TipoAmortizacao, TipoImovel, FinalidadeImovel } from '@/lib/simuladorFinanciamento/tipos'
+import type { BancoId, InputFinanciamento, TipoAmortizacao, TipoImovel, FinalidadeImovel, TipoOperacao } from '@/lib/simuladorFinanciamento/tipos'
 
 export interface InitialValuesFinanciamento {
   valorImovel?: string
@@ -57,6 +57,9 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
     if (initialValues?.rendaMensal && !touchedRef.current.rendaMensal)
       setRendaMensal(initialValues.rendaMensal)
   }, [initialValues?.valorImovel, initialValues?.valorEntrada, initialValues?.dataNascimento, initialValues?.rendaMensal])
+  const [tipoOperacao, setTipoOperacao] = useState<TipoOperacao>('aquisicao')
+  const [valorTerreno, setValorTerreno] = useState('')
+  const [valorObra, setValorObra] = useState('')
   const [tipoAmortizacao, setTipoAmortizacao] = useState<TipoAmortizacao>('SAC')
   const [tipoImovel, setTipoImovel] = useState<TipoImovel>('novo')
   const [finalidade, setFinalidade] = useState<FinalidadeImovel>('residencial')
@@ -65,7 +68,12 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
   const [correntista, setCorrentista] = useState(false)
   const [bancosIds, setBancosIds] = useState<BancoId[]>([...TODOS_BANCOS])
 
-  const vImovel = parseMoeda(valorImovel)
+  const ehObra = tipoOperacao === 'construcao_terreno_proprio' || tipoOperacao === 'terreno_mais_construcao'
+  const ehLote = tipoOperacao === 'lote_urbanizado'
+
+  const vTerreno = parseMoeda(valorTerreno)
+  const vObra    = parseMoeda(valorObra)
+  const vImovel  = ehObra ? vTerreno + vObra : parseMoeda(valorImovel)
   const vEntrada = parseMoeda(valorEntrada)
   const vFinanciado = Math.max(0, vImovel - vEntrada)
   const pctEntrada = vImovel > 0 ? ((vEntrada / vImovel) * 100).toFixed(1) : '0.0'
@@ -94,6 +102,12 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
     parseMoeda(rendaMensal) > 0 &&
     bancosIds.length > 0
 
+  // Finalidade implícita pela operação (comercial → comercial; demais → residencial)
+  const finalidadeEfetiva: FinalidadeImovel = tipoOperacao === 'comercial' ? 'comercial' : finalidade
+
+  // FGTS se aplica apenas para aquisição e construção (lote e comercial não têm MCMV/Pró-Cotista)
+  const fgtsAplicavel = tipoOperacao === 'aquisicao' || tipoOperacao === 'construcao_terreno_proprio' || tipoOperacao === 'terreno_mais_construcao'
+
   function handleSubmit() {
     if (!podeSimular) return
     onSimular({
@@ -102,10 +116,13 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
       dataNascimento,
       rendaMensal: parseMoeda(rendaMensal),
       tipoAmortizacao,
-      tipoImovel,
-      finalidade,
-      usaFgts,
-      jaRecebeuSubsidio: usaFgts ? jaRecebeuSubsidio : false,
+      tipoOperacao,
+      tipoImovel: tipoOperacao === 'aquisicao' ? tipoImovel : undefined,
+      finalidade: finalidadeEfetiva,
+      valorTerreno: ehObra ? vTerreno || undefined : undefined,
+      valorObra:    ehObra ? vObra    || undefined : undefined,
+      usaFgts:       fgtsAplicavel ? usaFgts : false,
+      jaRecebeuSubsidio: fgtsAplicavel && usaFgts ? jaRecebeuSubsidio : false,
       correntista,
       bancosIds,
       nomeCliente,
@@ -115,42 +132,132 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
 
   return (
     <div className="space-y-5">
-      {/* Valores */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-gray-500">Valor do Imóvel</Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
-            <Input
-              className="pl-8 text-sm"
-              placeholder="0,00"
-              value={valorImovel}
-              onChange={(e) => handleMoedaInput(e, setValorImovel, 'valorImovel')}
-            />
-          </div>
-        </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs text-gray-500">
-            Valor de Entrada
-            {vImovel > 0 && (
-              <span className="ml-1 text-fonti-primary font-medium">{pctEntrada}%</span>
-            )}
-          </Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
-            <Input
-              className="pl-8 text-sm"
-              placeholder="0,00"
-              value={valorEntrada}
-              onChange={(e) => handleMoedaInput(e, setValorEntrada, 'valorEntrada')}
-            />
-          </div>
+      {/* Tipo de Operação */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-gray-500">Tipo de Operação</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            { value: 'aquisicao',                label: 'Aquisição',       hint: null },
+            { value: 'comercial',                label: 'Comercial',       hint: null },
+            { value: 'lote_urbanizado',          label: 'Lote / Terreno',  hint: 'terreno, lote, data, gleba' },
+            { value: 'construcao_terreno_proprio', label: 'Constr. Própria', hint: null },
+            { value: 'terreno_mais_construcao',  label: 'Terreno + Obra',  hint: null },
+          ] as const).map(({ value, label, hint }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTipoOperacao(value)}
+              title={hint ?? label}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                tipoOperacao === value
+                  ? 'bg-fonti-primary text-white border-fonti-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+        {ehLote && (
+          <p className="text-xs text-gray-400">Inclui: terreno, lote, data, data de terra, gleba, greba, fração de terra, pedaço de terra</p>
+        )}
       </div>
 
-      {/* Barra de referência: percentuais do valor do imóvel (clicáveis → preenchem entrada) */}
-      {vImovel > 0 && (
+      {/* Valores — campos variam por tipo de operação */}
+      {ehObra ? (
+        /* Construção: dois campos separados */
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-500">
+                {tipoOperacao === 'construcao_terreno_proprio' ? 'Valor estimado do terreno' : 'Valor de compra do terreno'}
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
+                <Input
+                  className="pl-8 text-sm"
+                  placeholder="0,00"
+                  value={valorTerreno}
+                  onChange={(e) => setValorTerreno(fmtMoedaInput(e.target.value.replace(/\D/g, '')))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-500">Orçamento estimado da obra</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
+                <Input
+                  className="pl-8 text-sm"
+                  placeholder="0,00"
+                  value={valorObra}
+                  onChange={(e) => setValorObra(fmtMoedaInput(e.target.value.replace(/\D/g, '')))}
+                />
+              </div>
+            </div>
+          </div>
+          {vImovel > 0 && (
+            <div className="rounded-lg bg-fonti-primary/5 border border-fonti-primary/20 px-3 py-2 text-sm text-fonti-primary font-medium">
+              Total do empreendimento: {vImovel.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-500">
+              Valor de Entrada
+              {vImovel > 0 && <span className="ml-1 text-fonti-primary font-medium">{pctEntrada}%</span>}
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
+              <Input
+                className="pl-8 text-sm"
+                placeholder="0,00"
+                value={valorEntrada}
+                onChange={(e) => handleMoedaInput(e, setValorEntrada, 'valorEntrada')}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Aquisição / Lote / Comercial: campo único */
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-500">
+              {ehLote ? 'Valor do Terreno / Lote' : 'Valor do Imóvel'}
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
+              <Input
+                className="pl-8 text-sm"
+                placeholder="0,00"
+                value={valorImovel}
+                onChange={(e) => handleMoedaInput(e, setValorImovel, 'valorImovel')}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-500">
+              Valor de Entrada
+              {vImovel > 0 && (
+                <span className="ml-1 text-fonti-primary font-medium">{pctEntrada}%</span>
+              )}
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
+              <Input
+                className="pl-8 text-sm"
+                placeholder="0,00"
+                value={valorEntrada}
+                onChange={(e) => handleMoedaInput(e, setValorEntrada, 'valorEntrada')}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barra de referência — só para aquisição simples */}
+      {!ehObra && vImovel > 0 && (
         <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md bg-yellow-300 px-3 py-1.5 text-xs font-bold text-yellow-900">
           {([80, 90, 75, 5] as const).map((pct) => {
             const val = (vImovel * pct) / 100
@@ -169,8 +276,8 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
         </div>
       )}
 
-      {/* Preview financiado */}
-      {vFinanciado > 0 && (
+      {/* Preview financiado — só para aquisição (obra já mostra o total embutido) */}
+      {!ehObra && vFinanciado > 0 && (
         <div className="rounded-lg bg-fonti-primary/5 border border-fonti-primary/20 px-3 py-2 text-sm text-fonti-primary font-medium">
           Valor financiado: {vFinanciado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
         </div>
@@ -229,79 +336,83 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
         </p>
       </div>
 
-      {/* Tipo de imóvel + Finalidade */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-gray-500">Tipo de Imóvel</Label>
-          <div className="flex gap-2">
-            {(['novo', 'usado'] as TipoImovel[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTipoImovel(t)}
-                className={cn(
-                  'flex-1 py-2 rounded-lg text-sm font-medium border transition-all capitalize',
-                  tipoImovel === t
-                    ? 'bg-fonti-primary text-white border-fonti-primary'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                )}
-              >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
+      {/* Tipo de imóvel + Finalidade — só para aquisição */}
+      {tipoOperacao === 'aquisicao' && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-500">Tipo de Imóvel</Label>
+            <div className="flex gap-2">
+              {(['novo', 'usado'] as TipoImovel[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTipoImovel(t)}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-all capitalize',
+                    tipoImovel === t
+                      ? 'bg-fonti-primary text-white border-fonti-primary'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-500">Finalidade</Label>
+            <div className="flex gap-2">
+              {(['residencial', 'comercial'] as FinalidadeImovel[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFinalidade(f)}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
+                    finalidade === f
+                      ? 'bg-fonti-primary text-white border-fonti-primary'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-gray-500">Finalidade</Label>
-          <div className="flex gap-2">
-            {(['residencial', 'comercial'] as FinalidadeImovel[]).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFinalidade(f)}
-                className={cn(
-                  'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
-                  finalidade === f
-                    ? 'bg-fonti-primary text-white border-fonti-primary'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                )}
-              >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* FGTS */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={usaFgts}
-            onChange={(e) => { setUsaFgts(e.target.checked); if (!e.target.checked) setJaRecebeuSubsidio(false) }}
-            className="w-4 h-4 accent-fonti-primary"
-          />
-          <span className="text-sm text-gray-700">
-            Possui 3+ anos de trabalho no regime FGTS
-            <span className="ml-1 text-xs text-gray-400">(habilita Pró-Cotista)</span>
-          </span>
-        </label>
-        {usaFgts && (
-          <label className="flex items-center gap-3 cursor-pointer select-none ml-7">
+      {/* FGTS — só para aquisição e construção (lote e comercial não têm MCMV/Pró-Cotista) */}
+      {fgtsAplicavel && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={jaRecebeuSubsidio}
-              onChange={(e) => setJaRecebeuSubsidio(e.target.checked)}
+              checked={usaFgts}
+              onChange={(e) => { setUsaFgts(e.target.checked); if (!e.target.checked) setJaRecebeuSubsidio(false) }}
               className="w-4 h-4 accent-fonti-primary"
             />
             <span className="text-sm text-gray-700">
-              Já foi beneficiado com subsídio FGTS/União
-              <span className="ml-1 text-xs text-gray-400">(bloqueia MCMV)</span>
+              Possui 3+ anos de trabalho no regime FGTS
+              <span className="ml-1 text-xs text-gray-400">(habilita Pró-Cotista)</span>
             </span>
           </label>
-        )}
-      </div>
+          {usaFgts && (
+            <label className="flex items-center gap-3 cursor-pointer select-none ml-7">
+              <input
+                type="checkbox"
+                checked={jaRecebeuSubsidio}
+                onChange={(e) => setJaRecebeuSubsidio(e.target.checked)}
+                className="w-4 h-4 accent-fonti-primary"
+              />
+              <span className="text-sm text-gray-700">
+                Já foi beneficiado com subsídio FGTS/União
+                <span className="ml-1 text-xs text-gray-400">(bloqueia MCMV)</span>
+              </span>
+            </label>
+          )}
+        </div>
+      )}
 
       {/* Correntista */}
       <label className="flex items-center gap-3 cursor-pointer select-none">

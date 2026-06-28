@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { AlertTriangle, Download, Save } from 'lucide-react'
+import { AlertTriangle, Download, Info, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ResultadoBanco } from '@/lib/simuladorFinanciamento/tipos'
 
@@ -179,6 +179,16 @@ export function ResultadosFinanciamento({ resultados, valorImovel, onSalvarBanco
                 {r.maxFinanciavel30 > 0 && (
                   <p>Máx. financiável com 30% da renda: <span className="font-semibold">{fmtMoeda(r.maxFinanciavel30)}</span></p>
                 )}
+              </div>
+            )}
+
+            {/* Observação por modalidade */}
+            {r.observacao && (
+              <div className="mx-4 mb-3 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
+                <div className="flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{r.observacao}</span>
+                </div>
               </div>
             )}
 

@@ -1,5 +1,5 @@
-import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE } from './constantes'
+import type { BancoId, TipoOperacao, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE, OBSERVACOES_MODALIDADE } from './constantes'
 import type { BancoConfig } from './constantes'
 
 // Overrides por banco, vindos do banco de dados (Configurações > Bancos)
@@ -490,22 +490,23 @@ export function simularBanco(
 }
 
 // Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre)
-function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverrides): ResultadoBanco[] {
+function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverrides, op?: TipoOperacao): ResultadoBanco[] {
   const cfg = BANCOS_CONFIG['caixa']
   const results: ResultadoBanco[] = []
 
-  // Elegibilidade MCMV/Pró-Cotista: apenas residencial e sem subsídio anterior
-  const podeAcessarMcmv = input.finalidade !== 'comercial' && !input.jaRecebeuSubsidio
+  // Lote urbanizado: apenas SBPE (normativa MO43000269 seção 3.1.2 — MCMV/Pró-Cotista não contemplam lote isolado)
+  // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
+  const podeMcmvProcotista = op !== 'lote_urbanizado' && input.finalidade !== 'comercial' && !input.jaRecebeuSubsidio
 
   // Pró-Cotista (imóveis até R$350k, FGTS 3+ anos)
-  if (podeAcessarMcmv && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
+  if (podeMcmvProcotista && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
     results.push(
       simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista', MIP_RATE_MCMV, overrides)
     )
   }
 
   // MCMV (se renda e imóvel se enquadram)
-  if (podeAcessarMcmv) {
+  if (podeMcmvProcotista) {
     const faixaMcmv = MCMV_FAIXAS.filter(
       (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
     )
@@ -595,14 +596,53 @@ export function simularTodosBancos(
   input: InputFinanciamento,
   overridesMap?: Partial<Record<string, BancoSimOverrides>>,
 ): ResultadoBanco[] {
+  const op: TipoOperacao = input.tipoOperacao ?? 'aquisicao'
+
+  // Para construção, valorImovel = terreno + obra
+  let inputNorm = input
+  if (op === 'construcao_terreno_proprio' || op === 'terreno_mais_construcao') {
+    const base = (input.valorTerreno ?? 0) + (input.valorObra ?? 0)
+    if (base > 0) inputNorm = { ...input, valorImovel: base }
+  }
+  // Comercial: garante finalidade='comercial' mesmo que o formulário não tenha setado
+  if (op === 'comercial') {
+    inputNorm = { ...inputNorm, finalidade: 'comercial' }
+  }
+  // Lote: tipoImovel não se aplica (lote não é "novo" nem "usado" no sentido habitacional).
+  // Deixamos undefined para que o motor não aplique a penalidade de imóvel usado da Caixa.
+  if (op === 'lote_urbanizado') {
+    inputNorm = { ...inputNorm, tipoImovel: undefined }
+  }
+
+  const observacao = op !== 'aquisicao' ? OBSERVACOES_MODALIDADE[op] : ''
+
   const todos: ResultadoBanco[] = []
 
-  for (const id of input.bancosIds) {
+  for (const id of inputNorm.bancosIds) {
     const ov = overridesMap?.[id]
+
+    // ── Bloqueios por modalidade ──────────────────────────────────────────────
+    // Lote e construção: somente Caixa opera nesta etapa
+    if (id !== 'caixa' && (op === 'lote_urbanizado' || op === 'construcao_terreno_proprio' || op === 'terreno_mais_construcao')) {
+      todos.push({
+        ...makeInelegivelModalidade(id, inputNorm, 'Para esta modalidade, a Caixa é o banco operador padrão nesta etapa. Consulte nossa equipe para outras instituições.'),
+        observacao,
+      })
+      continue
+    }
+    // Comercial: outros bancos só se parametrizados (override do DB presente)
+    if (id !== 'caixa' && op === 'comercial' && ov === undefined) {
+      todos.push({
+        ...makeInelegivelModalidade(id, inputNorm, 'Imóvel comercial: banco não parametrizado para esta modalidade. Consulte nossa equipe para verificar condições.'),
+        observacao,
+      })
+      continue
+    }
+
     if (id === 'caixa') {
-      todos.push(...simularCaixaDuplo(input, ov))
+      todos.push(...simularCaixaDuplo(inputNorm, ov, op).map(r => ({ ...r, observacao })))
     } else {
-      todos.push(simularBanco(id, input, ov))
+      todos.push({ ...simularBanco(id, inputNorm, ov), observacao })
     }
   }
 
@@ -611,6 +651,31 @@ export function simularTodosBancos(
     if (!a.elegivel && b.elegivel) return 1
     return a.primeiraParcela - b.primeiraParcela
   })
+}
+
+function makeInelegivelModalidade(bancoId: BancoId, input: InputFinanciamento, motivoInelegivel: string): ResultadoBanco {
+  const cfg = BANCOS_CONFIG[bancoId]
+  const valorFinanciado = Math.max(0, input.valorImovel - input.valorEntrada)
+  return {
+    resultadoId: `${bancoId}-modalidade`,
+    bancoId: cfg.id,
+    bancoNome: cfg.nome,
+    corBanco: cfg.cor,
+    programa: cfg.programa,
+    valorFinanciado,
+    maxFinanciavel30: 0,
+    parcelas: 0,
+    primeiraParcela: 0,
+    ultimaParcela: 0,
+    taxaMensal: 0,
+    taxaAnual: cfg.taxaAnualBase,
+    totalJuros: 0,
+    totalSeguros: 0,
+    totalPago: valorFinanciado,
+    tipoAmortizacao: input.tipoAmortizacao,
+    elegivel: false,
+    motivoInelegivel,
+  }
 }
 
 export function calcularAnalise(
