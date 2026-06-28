@@ -39,6 +39,9 @@ export interface DadosCaptacaoRaw {
   prazo_maximo?: boolean                // true se "prazo máximo" foi solicitado
   prazos_detectados?: number[] | null   // TODOS os prazos numéricos encontrados (em meses)
   percentual_entrada?: number | null    // ex: "entrada 20%" → 20 (complementa percentual_financiado)
+  // Campos para operações de construção / terreno
+  valor_terreno?: number | null         // "tenho um terreno de 300000" → 300000
+  valor_obra?: number | null            // "obra 600000", "orçamento da obra 600k" → 600000
 }
 
 const SYSTEM_PROMPT = `Você é um parser de dados imobiliários. Sua única tarefa é extrair informações do texto e retornar um JSON estruturado.
@@ -73,7 +76,9 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
   "modo_calculo": "VALOR_MAXIMO_PELA_RENDA|null",
   "prazo_maximo": true_ou_false,
   "prazos_detectados": [array_de_prazos_em_meses_ou_null],
-  "percentual_entrada": numero_inteiro_ou_null
+  "percentual_entrada": numero_inteiro_ou_null,
+  "valor_terreno": numero_inteiro_ou_null,
+  "valor_obra": numero_inteiro_ou_null
 }
 
 Regras de extração:
@@ -194,6 +199,18 @@ null se não mencionado.
 TODOS_BANCOS: true se o usuário disser explicitamente "todos os bancos", "todos", "qualquer banco".
 false se mencionar bancos específicos ou não mencionar bancos. false por padrão.
 
+VALOR_TERRENO: Valor do terreno/lote em operações de construção.
+Aliases: "terreno de X", "lote de X", "data de X", "gleba de X", "meu terreno vale X", "terreno avaliado em X".
+Converter para inteiro. null se ausente.
+Exemplos: "tenho um terreno de 300000" → 300000; "meu lote vale 200 mil" → 200000.
+IMPORTANTE: em "tenho um terreno de 300000 e quero construir", o 300000 é valor_terreno, NÃO valor_imovel.
+
+VALOR_OBRA: Orçamento estimado da obra/construção.
+Aliases: "obra X", "obra de X", "orçamento X", "orçamento da obra X", "custo da obra X", "construção X", "construir X".
+Converter para inteiro. null se ausente.
+Exemplos: "obra 600000" → 600000; "orçamento da construção 400 mil" → 400000.
+REGRA: quando valor_terreno e valor_obra forem extraídos, NÃO preencher valor_imovel com a soma — deixar null.
+
 REGRAS DE CONSISTÊNCIA PRAZO:
 - "prazo 360" → prazo_meses=360, prazos_detectados=[360], prazo_maximo=false
 - "prazo máximo" → prazo_meses=null, prazos_detectados=null, prazo_maximo=true
@@ -246,6 +263,8 @@ export async function parsearTextoCaptacao(texto: string): Promise<DadosCaptacao
                                 ? parsed.prazos_detectados.filter((p): p is number => typeof p === 'number')
                                 : null,
       percentual_entrada:     typeof parsed.percentual_entrada === 'number' ? parsed.percentual_entrada : null,
+      valor_terreno:          typeof parsed.valor_terreno === 'number' ? parsed.valor_terreno : null,
+      valor_obra:             typeof parsed.valor_obra    === 'number' ? parsed.valor_obra    : null,
     }
   } catch (err) {
     console.error('[parser-captacao] Erro ao parsear texto:', err)

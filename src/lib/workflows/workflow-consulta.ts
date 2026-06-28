@@ -80,11 +80,19 @@ export async function executarWorkflowConsulta(
   const dados = await normalizarPedidoSimulacao(textoBruto)
 
   // ── Etapa 2.1: Produto não habilitado no motor ──────────────────────────────
+  // Construção via Caixa (construcao_terreno_proprio / terreno_mais_construcao) agora é suportada.
   const PRODUTOS_BLOQUEADOS: Array<typeof dados.produto_normalizado> = [
-    'CGI_HOME_EQUITY', 'CONSTRUCAO', 'CONSORCIO', 'PORTABILIDADE',
+    'CGI_HOME_EQUITY', 'CONSORCIO', 'PORTABILIDADE',
   ]
-  if (PRODUTOS_BLOQUEADOS.includes(dados.produto_normalizado)) {
+  const ehConstrucaoSuportada = dados.tipo_operacao === 'construcao_terreno_proprio' || dados.tipo_operacao === 'terreno_mais_construcao'
+  if (PRODUTOS_BLOQUEADOS.includes(dados.produto_normalizado) ||
+      (dados.produto_normalizado === 'CONSTRUCAO' && !ehConstrucaoSuportada)) {
     return 'A simulação automática desse produto ainda não está habilitada. Envie os dados pelo comando *cria cliente para que o comercial responsável analise no lead.'
+  }
+
+  // ── Etapa 2.2: Pedir esclarecimento de modalidade ───────────────────────────
+  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
+    return dados.pergunta_esclarecimento
   }
 
   // ── Etapa 2.5: Detectar conflito de prazos ──────────────────────────────────
@@ -196,7 +204,10 @@ export async function executarWorkflowConsulta(
     bancosIds,
     nomeCliente:     dados.nome ?? undefined,
     tipoImovel:      dados.tipo_imovel ?? undefined,
-    finalidade:      'residencial',
+    finalidade:      dados.finalidade_efetiva,
+    tipoOperacao:    dados.tipo_operacao,
+    valorTerreno:    dados.valor_terreno ?? undefined,
+    valorObra:       dados.valor_obra    ?? undefined,
     usaFgts:         dados.usa_fgts || undefined,
   }
 

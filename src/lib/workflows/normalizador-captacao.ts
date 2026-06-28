@@ -11,7 +11,7 @@
  */
 
 import type { DadosCaptacaoRaw } from './parser-captacao'
-import type { BancoId } from '@/lib/simuladorFinanciamento/tipos'
+import type { BancoId, TipoOperacao } from '@/lib/simuladorFinanciamento/tipos'
 
 export interface DadosCaptacaoNormalizados {
   nome:                  string | null
@@ -39,12 +39,112 @@ export interface DadosCaptacaoNormalizados {
   prazo_maximo:          boolean         // true se "prazo máximo" foi solicitado
   prazos_detectados:     number[] | null // todos os prazos numéricos válidos (120–420)
   produto_normalizado:   'AQUISICAO' | 'CGI_HOME_EQUITY' | 'CONSTRUCAO' | 'CONSORCIO' | 'PORTABILIDADE'
-  usou_idade_aproximada: boolean         // true se data_nascimento foi derivada de "X anos"
-  conflito_valores:      boolean         // imóvel ≠ entrada + financiado (quando os três informados)
+  usou_idade_aproximada: boolean
+  conflito_valores:      boolean
   conflito_valores_descricao: string | null
+  // Campos de modalidade de operação (novos)
+  tipo_operacao:         TipoOperacao
+  finalidade_efetiva:    'residencial' | 'comercial'
+  valor_terreno:         number | null
+  valor_obra:            number | null
+  pedir_esclarecimento_operacao: boolean   // true quando a intenção é ambígua
+  pergunta_esclarecimento:       string | null
 }
 
-// Mapa de aliases de bancos → BancoId
+// ── Classificador determinístico de tipo de operação ──────────────────────────
+// Aplica regras de palavras-chave sobre o texto original normalizado.
+// Tem precedência sobre qualquer valor vindo do LLM parser para evitar
+// que o default 'aquisicao residencial' seja aplicado indevidamente.
+
+interface ClassificacaoOperacao {
+  tipoOperacao: TipoOperacao
+  finalidade: 'residencial' | 'comercial'
+  pedirEsclarecimento: boolean
+  pergunta: string | null
+}
+
+function norm(texto: string): string {
+  return texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+export function classificarIntencaoOperacao(textoOriginal: string): ClassificacaoOperacao {
+  const t = norm(textoOriginal)
+
+  // 1. Comercial — prioridade máxima, nunca pode cair como residencial
+  const termosComercial = [
+    'comercial', 'sala comercial', 'loja', 'ponto comercial',
+    'conjunto comercial', 'imovel misto', 'imovel comercial', 'misto',
+  ]
+  if (termosComercial.some((k) => t.includes(norm(k)))) {
+    return { tipoOperacao: 'comercial', finalidade: 'comercial', pedirEsclarecimento: false, pergunta: null }
+  }
+
+  // 2. Terreno + construção (COMPRA do terreno + obra)
+  const termosTerrCons = [
+    'comprar terreno e construir', 'comprar lote e construir', 'comprar data e construir',
+    'financiar terreno e obra', 'financiar lote e obra', 'financiar data e obra',
+    'terreno mais construcao', 'terreno + construcao', 'lote mais construcao',
+    'data mais construcao', 'lote + construcao', 'data + construcao',
+  ]
+  if (termosTerrCons.some((k) => t.includes(norm(k)))) {
+    return { tipoOperacao: 'terreno_mais_construcao', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
+  }
+
+  // 3. Construção em terreno próprio (JÁ TEM o terreno)
+  const temTerreno = [
+    'tenho um terreno', 'tenho terreno', 'tenho lote', 'tenho uma data',
+    'tenho data', 'tenho gleba', 'tenho greba', 'meu terreno', 'minha data',
+    'meu lote', 'minha gleba',
+  ].some((k) => t.includes(norm(k)))
+
+  const querConstruir = [
+    'quero construir', 'construir no meu', 'construir na minha',
+    'construcao em terreno proprio', 'construcao no terreno', 'vou construir',
+  ].some((k) => t.includes(norm(k)))
+  // "obra" como palavra isolada também indica construção quando há terreno
+  const temObra = /\bobra\b/.test(t)
+
+  if (temTerreno && (querConstruir || temObra)) {
+    return { tipoOperacao: 'construcao_terreno_proprio', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
+  }
+
+  // 4. Lote urbanizado (terreno/lote/data/gleba SEM intenção de construção)
+  const termosLote = ['terreno', 'lote', 'gleba', 'greba', 'data de terra', 'lote urbano', 'lote urbanizado']
+  // "data" como terreno: não confundir com data de nascimento
+  const temDataTerreno = /\bdata\b(?!\s*(?:de\s+nasci|nasc|\/|\d{2}[\/\-\.]))/.test(t)
+    && !t.includes('data de nascimento') && !t.includes('data nasc')
+  const temLote = termosLote.some((k) => t.includes(norm(k))) || temDataTerreno
+  const temConstrucao = t.includes('construc') || temObra
+
+  if (temLote && !temConstrucao) {
+    return { tipoOperacao: 'lote_urbanizado', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
+  }
+
+  // 5. Terreno + intenção de construção sem deixar claro se já tem ou vai comprar
+  if (temLote && temConstrucao) {
+    return {
+      tipoOperacao: 'aquisicao', // placeholder — pede esclarecimento antes de simular
+      finalidade: 'residencial',
+      pedirEsclarecimento: true,
+      pergunta: 'Você já possui o terreno/lote ou pretende comprar o terreno e depois construir? Isso define a modalidade de financiamento.',
+    }
+  }
+
+  // 6. Construção mencionada sem contexto de terreno — pede esclarecimento
+  if (temConstrucao) {
+    return {
+      tipoOperacao: 'aquisicao',
+      finalidade: 'residencial',
+      pedirEsclarecimento: true,
+      pergunta: 'Você já tem o terreno onde vai construir ou quer financiar a compra do terreno + obra?',
+    }
+  }
+
+  // 7. Default seguro: aquisição residencial
+  return { tipoOperacao: 'aquisicao', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
+}
+
+// ── Mapa de aliases de bancos → BancoId ───────────────────────────────────────
 const BANCO_ALIAS_MAP: Record<string, BancoId> = {
   caixa:           'caixa',
   'caixa economica':'caixa',
@@ -142,11 +242,14 @@ function normalizarProduto(produto: string | null | undefined): DadosCaptacaoNor
  */
 export async function normalizarPedidoSimulacao(texto: string): Promise<DadosCaptacaoNormalizados> {
   const { parsearTextoCaptacao } = await import('./parser-captacao')
-  const raw = await parsearTextoCaptacao(texto)
-  return normalizarDadosCaptacao(raw)
+  const [raw, classificacao] = await Promise.all([
+    parsearTextoCaptacao(texto),
+    Promise.resolve(classificarIntencaoOperacao(texto)),
+  ])
+  return normalizarDadosCaptacao(raw, classificacao)
 }
 
-export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNormalizados {
+export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw, classificacao?: ClassificacaoOperacao): DadosCaptacaoNormalizados {
   const valorImovel        = raw.valor_imovel    ?? null
   const valorEntradaRaw    = raw.valor_entrada   ?? null
   const valorFinanciadoRaw = raw.valor_financiado ?? null
@@ -228,6 +331,21 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
   // Idade aproximada — detectada quando data_nascimento vier como "X anos"
   const usouIdadeAproximada = /^\d{1,3}\s*anos?$/i.test((raw.data_nascimento ?? '').trim())
 
+  // Classificação de operação (determinística, baseada em palavras-chave)
+  const cls = classificacao ?? { tipoOperacao: 'aquisicao' as const, finalidade: 'residencial' as const, pedirEsclarecimento: false, pergunta: null }
+
+  // Para construção: valorImovel = terreno + obra (override do parser)
+  const valorTerreno = typeof raw.valor_terreno === 'number' ? raw.valor_terreno : null
+  const valorObra    = typeof raw.valor_obra    === 'number' ? raw.valor_obra    : null
+  const ehConstrucao = cls.tipoOperacao === 'construcao_terreno_proprio' || cls.tipoOperacao === 'terreno_mais_construcao'
+  if (ehConstrucao && valorTerreno !== null && valorObra !== null) {
+    // valorImovel será recalculado abaixo; já está em valorImovel caso o parser extraiu
+    // Se o parser não extraiu valor_imovel separado, computar a partir dos dois
+  }
+  const valorImovelEfetivo = ehConstrucao && valorTerreno !== null && valorObra !== null
+    ? valorTerreno + valorObra
+    : valorImovel
+
   // Produto normalizado
   const produtoNormalizado = normalizarProduto(raw.produto)
 
@@ -257,7 +375,7 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
     data_nascimento:     normalizarData(raw.data_nascimento),
     cidade_imovel:       raw.cidade_imovel?.trim() ?? null,
     tipo_imovel:         tipoImovel,
-    valor_imovel:        valorImovel,
+    valor_imovel:        valorImovelEfetivo,
     valor_entrada:       valorEntrada,
     valor_financiado:    valorFinanciado,
     renda_formal:        raw.renda_formal   ?? null,
@@ -278,5 +396,12 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw): DadosCaptacaoNor
     usou_idade_aproximada:    usouIdadeAproximada,
     conflito_valores:         conflito,
     conflito_valores_descricao: conflitoDescricao,
+    // Campos de modalidade
+    tipo_operacao:                cls.tipoOperacao,
+    finalidade_efetiva:           cls.finalidade,
+    valor_terreno:                valorTerreno,
+    valor_obra:                   valorObra,
+    pedir_esclarecimento_operacao: cls.pedirEsclarecimento,
+    pergunta_esclarecimento:      cls.pergunta,
   }
 }

@@ -596,10 +596,13 @@ export async function executarWorkflowCaptacao(
   }
 
   // ── Etapa 6.1: Produto não habilitado no motor ──────────────────────────────
+  // Construção via Caixa (construcao_terreno_proprio / terreno_mais_construcao) agora é suportada.
   const PRODUTOS_BLOQUEADOS_CAPTACAO: Array<typeof dados.produto_normalizado> = [
-    'CGI_HOME_EQUITY', 'CONSTRUCAO', 'CONSORCIO', 'PORTABILIDADE',
+    'CGI_HOME_EQUITY', 'CONSORCIO', 'PORTABILIDADE',
   ]
-  if (PRODUTOS_BLOQUEADOS_CAPTACAO.includes(dados.produto_normalizado)) {
+  const ehConstrucaoSuportada = dados.tipo_operacao === 'construcao_terreno_proprio' || dados.tipo_operacao === 'terreno_mais_construcao'
+  if (PRODUTOS_BLOQUEADOS_CAPTACAO.includes(dados.produto_normalizado) ||
+      (dados.produto_normalizado === 'CONSTRUCAO' && !ehConstrucaoSuportada)) {
     const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
     return [
       `✅ ${acao}.`,
@@ -607,6 +610,12 @@ export async function executarWorkflowCaptacao(
       'A simulação automática desse produto ainda não está habilitada.',
       'O lead foi salvo e o comercial responsável pode analisar manualmente.',
     ].join('\n')
+  }
+
+  // ── Etapa 6.1b: Pedir esclarecimento de modalidade ──────────────────────────
+  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
+    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    return [`✅ ${acao}.`, '', dados.pergunta_esclarecimento].join('\n')
   }
 
   // ── Etapa 6.2: Conflito de valores ───────────────────────────────────────
@@ -651,7 +660,11 @@ export async function executarWorkflowCaptacao(
     nomeCliente:     dados.nome ?? undefined,
     cpfCliente:      dados.cpf ?? undefined,
     tipoImovel:      dados.tipo_imovel ?? undefined,
-    finalidade:      'residencial',
+    finalidade:      dados.finalidade_efetiva,
+    tipoOperacao:    dados.tipo_operacao,
+    valorTerreno:    dados.valor_terreno ?? undefined,
+    valorObra:       dados.valor_obra    ?? undefined,
+    usaFgts:         dados.usa_fgts || undefined,
   }
 
   const bancosResult = simularTodosBancos(input, overrides)
