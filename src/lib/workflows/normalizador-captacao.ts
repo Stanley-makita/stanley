@@ -85,6 +85,11 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
     'financiar terreno e obra', 'financiar lote e obra', 'financiar data e obra',
     'terreno mais construcao', 'terreno + construcao', 'lote mais construcao',
     'data mais construcao', 'lote + construcao', 'data + construcao',
+    // Padrões de respostas contextuais a "já tem o terreno ou vai comprar?"
+    'compra do terreno', 'comprar o terreno', 'compra de terreno',
+    'terreno + obra', 'terreno e obra', 'terreno mais obra',
+    'lote + obra', 'lote e obra', 'lote mais obra',
+    'junto com a obra', 'junto com obra', 'terreno junto',
   ]
   if (termosTerrCons.some((k) => t.includes(norm(k)))) {
     return { tipoOperacao: 'terreno_mais_construcao', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }

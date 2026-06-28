@@ -1233,6 +1233,29 @@ export async function processarComandoFonti(
 // ── Resolução de workflow pendente ────────────────────────────────────────────
 
 /**
+ * Mini-detector contextual para respostas à pergunta "terreno próprio ou terreno+obra?".
+ * Respostas curtas ("junto", "próprio") não são resolvidas pelo classificador LLM por
+ * falta de contexto — este detector usa regras simples que só fazem sentido nesse contexto.
+ */
+function _detectarTipoEsclarecimento(texto: string): 'construcao_terreno_proprio' | 'terreno_mais_construcao' | null {
+  const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
+  // Terreno + obra: quer COMPRAR o terreno
+  if (/\b(compra|comprar|junto|financiar)\b/.test(t)
+    || /terreno.*(obra|construc)/.test(t)
+    || /lote.*(obra|construc)/.test(t)) {
+    return 'terreno_mais_construcao'
+  }
+
+  // Terreno próprio: JÁ TEM o terreno
+  if (/\b(tenho|propri|possuo|meu|minha|ja tem|proprio)\b/.test(t)) {
+    return 'construcao_terreno_proprio'
+  }
+
+  return null
+}
+
+/**
  * Processa uma mensagem sem '*' do operador que está respondendo a uma pergunta
  * feita pelo Fonti em um *simula anterior.
  *
@@ -1286,12 +1309,31 @@ export async function processarRespostaPendente(
 
   // Tipo de construção ainda ambíguo?
   if (novosParsed.pedir_esclarecimento_operacao) {
-    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
-      ...pendente,
-      motivo: 'esclarecer_tipo_construcao',
-      dadosCapturados: novosDados,
-    })
-    return 'Só para confirmar: você já possui o terreno onde vai construir, ou quer financiar a compra do terreno junto com a obra?'
+    // Quando o usuário está RESPONDENDO à pergunta de esclarecimento, respostas curtas
+    // como "junto com a obra" ou "próprio" não são resolvidas pelo parser por falta de
+    // contexto. O mini-detector aplica regras simples nesse contexto específico.
+    if (pendente.motivo === 'esclarecer_tipo_construcao') {
+      const tipoDetectado = _detectarTipoEsclarecimento(texto)
+      if (tipoDetectado) {
+        novosDados.tipo_operacao = tipoDetectado
+        // Pula direto para a checagem de campos faltando
+      } else {
+        // Genuinamente ambíguo mesmo após mini-detector
+        await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+          ...pendente,
+          motivo: 'esclarecer_tipo_construcao',
+          dadosCapturados: novosDados,
+        })
+        return 'Não entendi direito. Para confirmar:\n• *Terreno próprio* — você já tem o terreno e quer só financiar a construção\n• *Terreno + obra* — você quer financiar a compra do terreno e a construção juntos\n\nQual é o caso?'
+      }
+    } else {
+      await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+        ...pendente,
+        motivo: 'esclarecer_tipo_construcao',
+        dadosCapturados: novosDados,
+      })
+      return 'Só para confirmar: você já possui o terreno onde vai construir, ou quer financiar a compra do terreno junto com a obra?'
+    }
   }
 
   // ── Verificar campos faltando (em ordem de prioridade) ─────────────────────
