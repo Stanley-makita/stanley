@@ -95,8 +95,9 @@ export async function executarWorkflowConsulta(
   // ── Etapa 2.2: Pedir esclarecimento de modalidade ───────────────────────────
   // Deve vir ANTES do bloqueio de produto para que "quero construir" pergunte a modalidade
   // em vez de cair no "produto não habilitado" por ter produto_normalizado='CONSTRUCAO'.
-  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
-    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+  // vem_de_pendente: tipo já foi resolvido no processarRespostaPendente — skip total.
+  if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento && !ctx.vem_de_pendente) {
+    if (ctx.telefone_operador) {
       const { salvarSimulaPendente } = await import('./simula-pendente')
       await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
         motivo: 'esclarecer_tipo_construcao',

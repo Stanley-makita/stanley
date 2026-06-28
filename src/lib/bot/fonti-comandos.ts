@@ -1363,36 +1363,32 @@ export async function processarRespostaPendente(
   const novosParsed = await normalizarPedidoSimulacao(texto)
   const novosDados = mergeCapturados(dadosCapturados, novosParsed)
 
-  // Tipo de construção ainda ambíguo?
-  // Só entra neste bloco se o tipo_operacao NÃO foi resolvido pelo merge com dados anteriores.
-  // "300 mil terreno\n400 obra" com pending já tendo tipo=terreno_mais_construcao não re-pergunta.
+  // ── Resolver tipo de construção ───────────────────────────────────────────────
+  // Quando o motivo é 'esclarecer_tipo_construcao', o mini-detector SEMPRE corre
+  // (independente do que o parser retornou) porque a mensagem é uma resposta à
+  // pergunta "1 ou 2?" — o parser LLM não tem contexto para interpretar "2" como tipo.
   const tipoJaResolvido = novosDados.tipo_operacao && novosDados.tipo_operacao !== 'aquisicao'
-  if (novosParsed.pedir_esclarecimento_operacao && !tipoJaResolvido) {
-    // Quando o usuário está RESPONDENDO à pergunta de esclarecimento, respostas curtas
-    // como "junto com a obra" ou "próprio" não são resolvidas pelo parser por falta de
-    // contexto. O mini-detector aplica regras simples nesse contexto específico.
-    if (pendente.motivo === 'esclarecer_tipo_construcao') {
-      const tipoDetectado = _detectarTipoEsclarecimento(texto)
-      if (tipoDetectado) {
-        novosDados.tipo_operacao = tipoDetectado
-        // Pula direto para a checagem de campos faltando
-      } else {
-        // Genuinamente ambíguo mesmo após mini-detector
-        await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
-          ...pendente,
-          motivo: 'esclarecer_tipo_construcao',
-          dadosCapturados: novosDados,
-        })
-        return PERGUNTA_TIPO_CONSTRUCAO_REASK
-      }
+  if (pendente.motivo === 'esclarecer_tipo_construcao' && !tipoJaResolvido) {
+    const tipoDetectado = _detectarTipoEsclarecimento(texto)
+    if (tipoDetectado) {
+      novosDados.tipo_operacao = tipoDetectado
+      // tipo resolvido — continua para checagem de campos faltando
     } else {
+      // Genuinamente ambíguo
       await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
         ...pendente,
-        motivo: 'esclarecer_tipo_construcao',
         dadosCapturados: novosDados,
       })
       return PERGUNTA_TIPO_CONSTRUCAO_REASK
     }
+  } else if (novosParsed.pedir_esclarecimento_operacao && !tipoJaResolvido) {
+    // Parser achou construção ambígua numa mensagem que não veio de esclarecimento
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      motivo: 'esclarecer_tipo_construcao',
+      dadosCapturados: novosDados,
+    })
+    return PERGUNTA_TIPO_CONSTRUCAO_REASK
   }
 
   // ── Verificar campos faltando (em ordem de prioridade) ─────────────────────

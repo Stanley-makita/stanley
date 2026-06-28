@@ -486,15 +486,18 @@ export async function POST(request: NextRequest) {
   const textoParaFonti = texto.trim().slice(0, 20)
     .normalize('NFD').replace(/[̀-ͯ]/g, '') + texto.trim().slice(20)
 
-  // ── Resposta de operador a workflow *simula pendente ───────────────────────
-  // Mensagens sem '*' de operadores que estão respondendo a uma pergunta do Fonti.
+  // ── Operadores internos: bloquear antes de chegar ao bot de cliente ──────────
+  // Mensagens sem '*' de usuários internos são sempre contexto de workflow pendente
+  // ou mensagens informais. NUNCA devem ser processadas pelo bot de atendimento.
   if (!textoParaFonti.startsWith('*')) {
-    const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
-    const pendente = await buscarSimulaPendente(supabase, empresa_id, telefone)
-    if (pendente) {
-      const { verificarUsuarioInterno, processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
-      const usuarioPendente = await verificarUsuarioInterno(supabase, empresa_id, telefone)
-      if (usuarioPendente) {
+    const { verificarUsuarioInterno, processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
+    const usuarioInterno = await verificarUsuarioInterno(supabase, empresa_id, telefone)
+
+    if (usuarioInterno) {
+      const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+      const pendente = await buscarSimulaPendente(supabase, empresa_id, telefone)
+
+      if (pendente) {
         const resposta = await processarRespostaPendente(texto.trim(), pendente, {
           empresa_id,
           telefone_remetente: telefone,
@@ -504,10 +507,12 @@ export async function POST(request: NextRequest) {
             : [],
           instancia_token: instanciaToken,
           telefone_destino: telefone,
-        }, usuarioPendente)
+        }, usuarioInterno)
         await enviarMensagemUazapi(telefone, resposta)
-        return NextResponse.json({ ok: true })
       }
+      // Sem pendente: mensagem informal de operador — ignorar silenciosamente.
+      // Operadores usam *simula, *fonti, etc. para interagir com o sistema.
+      return NextResponse.json({ ok: true })
     }
   }
 
