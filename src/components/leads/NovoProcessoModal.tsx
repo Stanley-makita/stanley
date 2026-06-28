@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward } from 'lucide-react'
+import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Lead } from '@/types/leads'
 import { useBancos } from '@/hooks/useBancos'
@@ -36,6 +36,7 @@ interface DocumentoParaVincular {
   validade_dias: number | null
   created_at: string
   pessoa_id: string | null
+  storage_path: string
 }
 
 interface ProcessoCriadoPayload {
@@ -177,7 +178,7 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
       setBuscandoDocs(true)
       const { data: docs } = await supabase
         .from('documentos_clientes')
-        .select('id, nome_original, nome_exibicao, classificacao, permanente, validade_data, validade_dias, created_at, pessoa_id')
+        .select('id, nome_original, nome_exibicao, classificacao, permanente, validade_data, validade_dias, created_at, pessoa_id, storage_path')
         .in('pessoa_id', pessoaIds)
         .eq('empresa_id', payload.empresaId)
         .is('deleted_at', null)
@@ -1218,6 +1219,20 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
     }
   }
 
+  async function handleVisualizar(doc: DocumentoParaVincular) {
+    const { data, error } = await supabase.storage
+      .from('documentos-clientes')
+      .createSignedUrl(doc.storage_path, 3600)
+    if (error || !data?.signedUrl) { toast.error('Não foi possível abrir o documento.'); return }
+    const a = document.createElement('a')
+    a.href = data.signedUrl
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   async function handleVincular(ids: Set<string>) {
     if (ids.size === 0) { onPular(processoId); return }
     setVinculando(true)
@@ -1259,6 +1274,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
           docs={docsComprador}
           selecionados={selecionados}
           onToggle={toggle}
+          onVisualizar={handleVisualizar}
         />
         {pessoaIdConjuge && docsConjuge.length > 0 && (
           <GrupoDocumentos
@@ -1266,6 +1282,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
             docs={docsConjuge}
             selecionados={selecionados}
             onToggle={toggle}
+            onVisualizar={handleVisualizar}
           />
         )}
       </div>
@@ -1297,11 +1314,12 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
   )
 }
 
-function GrupoDocumentos({ titulo, docs, selecionados, onToggle }: {
+function GrupoDocumentos({ titulo, docs, selecionados, onToggle, onVisualizar }: {
   titulo: string
   docs: DocumentoParaVincular[]
   selecionados: Set<string>
   onToggle: (id: string) => void
+  onVisualizar: (doc: DocumentoParaVincular) => void
 }) {
   if (docs.length === 0) return null
   return (
@@ -1336,6 +1354,14 @@ function GrupoDocumentos({ titulo, docs, selecionados, onToggle }: {
                   {ICONES_VALIDADE[status]} {LABELS_VALIDADE[status]}
                 </span>
               )}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); onVisualizar(doc) }}
+                className="shrink-0 p-1 rounded text-gray-400 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
+                title="Visualizar documento"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
             </label>
           )
         })}
