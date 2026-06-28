@@ -55,6 +55,12 @@ export interface WorkflowCaptacaoContexto {
   }
   // Forçar simulação mesmo que solicitar_simulacao venha false (acionado pelo *simula)
   forcar_simulacao?: boolean
+  // Workflow pendente: telefone do operador para salvar/limpar pendência
+  telefone_operador?: string
+  // true quando re-chamado a partir de resolução de pendência — pula criação de nova pendência
+  vem_de_pendente?: boolean
+  // Dados já normalizados de pendência anterior — mescla sobre a saída do parser
+  dados_pre_normalizados?: Partial<import('./normalizador-captacao').DadosCaptacaoNormalizados>
 }
 
 type EventoWorkflow =
@@ -228,6 +234,13 @@ export async function executarWorkflowCaptacao(
     if (!dados.valor_entrada)   dados.valor_entrada   = b.valor_entrada   ?? null
     if (!dados.renda_formal)    dados.renda_formal    = b.renda_formal    ?? null
     if (!dados.renda_informal)  dados.renda_informal  = b.renda_informal  ?? null
+  }
+  // Mescla dados pré-normalizados de workflow pendente (campos já capturados).
+  // Campos não-null do parser na nova mensagem têm precedência; pre_normalizados preenchem nulls.
+  if (ctx.dados_pre_normalizados) {
+    const { mergeCapturados } = await import('./simula-pendente')
+    const merged = mergeCapturados(ctx.dados_pre_normalizados, dados)
+    Object.assign(dados, merged)
   }
   if (ctx.forcar_simulacao) dados.solicitar_simulacao = true
 
@@ -599,6 +612,16 @@ export async function executarWorkflowCaptacao(
   // Deve vir ANTES do bloqueio de produto para que "quero construir" pergunte a modalidade
   // em vez de cair no "produto não habilitado" por ter produto_normalizado='CONSTRUCAO'.
   if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
+    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'esclarecer_tipo_construcao',
+        dadosCapturados: dados,
+        usouConsulta: false,
+        leadIdExistente: lead_id,
+        pessoaIdExistente: pessoa_id ?? undefined,
+      })
+    }
     const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
     return [`✅ ${acao}.`, '', dados.pergunta_esclarecimento].join('\n')
   }

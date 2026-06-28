@@ -7,6 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extrairProduto, extrairNumero } from './state-machine'
+import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -1097,6 +1098,7 @@ export async function processarComandoFonti(
           instancia_token:    ctx.instancia_token,
           telefone_destino:   ctx.telefone_destino,
           telefone_remetente: ctx.telefone_remetente,
+          telefone_operador:  ctx.telefone_remetente,
           telefone_cliente:   ctx.telefone_cliente,
           arquivos:           ctx.arquivos,
           lead_id_existente:  leadCtx.lead_id,
@@ -1129,6 +1131,7 @@ export async function processarComandoFonti(
         instancia_token:    ctx.instancia_token,
         telefone_destino:   ctx.telefone_destino,
         telefone_remetente: ctx.telefone_remetente,
+        telefone_operador:  ctx.telefone_remetente,
         tipo_vinculo:       cpfBruto ? undefined : 'AVULSA_SEM_CPF',
       })
     } catch (err) {
@@ -1225,4 +1228,125 @@ export async function processarComandoFonti(
 
   // Subcomando não reconhecido
   return `❓ Comando não reconhecido: "${corpo}"\n\nDigite *fonti ajuda* para ver os comandos disponíveis.`
+}
+
+// ── Resolução de workflow pendente ────────────────────────────────────────────
+
+/**
+ * Processa uma mensagem sem '*' do operador que está respondendo a uma pergunta
+ * feita pelo Fonti em um *simula anterior.
+ *
+ * REGRA: o parser LLM analisa a mensagem INTEIRA. O motivo da pendência
+ * serve apenas para decidir qual pergunta fazer — nunca limita a extração.
+ */
+export async function processarRespostaPendente(
+  texto: string,
+  pendente: WorkflowPendente,
+  ctx: FontiContexto,
+  usuario: { id: string; nome: string },
+): Promise<string> {
+  const { empresa_id, supabase } = ctx
+  const { dadosCapturados, usouConsulta } = pendente
+  const telefoneOp = ctx.telefone_remetente
+
+  // Detectar abandono / mensagem social
+  if (/^(ok[,.]?$|obrigad|valeu|certo|entendido|blz|depois|mais\s+tarde|manda\s+para|encerra|cancela)/i.test(texto.trim())) {
+    const { limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+    await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+    return 'Tudo bem! Se precisar, é só enviar *simula novamente com os dados.'
+  }
+
+  // ── Reprocessamento completo ─────────────────────────────────────────────────
+  // O parser analisa a mensagem INTEIRA — não apenas o campo "esperado".
+  // Aproveitar qualquer informação que o operador forneça espontaneamente.
+  const { normalizarPedidoSimulacao } = await import('@/lib/workflows/normalizador-captacao')
+  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+
+  const novosParsed = await normalizarPedidoSimulacao(texto)
+  const novosDados = mergeCapturados(dadosCapturados, novosParsed)
+
+  // Tipo de construção ainda ambíguo após nova mensagem?
+  if (novosParsed.pedir_esclarecimento_operacao) {
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      dadosCapturados: novosDados,
+    })
+    return 'Só para confirmar: você já possui o terreno onde vai construir, ou quer financiar a compra do terreno junto com a obra?'
+  }
+
+  // ── Verificar campos faltando (em ordem de prioridade) ─────────────────────
+  const ehConstrucao = novosDados.tipo_operacao === 'construcao_terreno_proprio'
+    || novosDados.tipo_operacao === 'terreno_mais_construcao'
+  const faltaValoresObra = ehConstrucao
+    && (novosDados.valor_terreno == null || novosDados.valor_obra == null)
+  const rendaTotal = (novosDados.renda_formal ?? 0) + (novosDados.renda_informal ?? 0)
+  const faltaRenda = rendaTotal === 0
+  const faltaNascimento = novosDados.data_nascimento == null
+  const faltaImovel = novosDados.valor_imovel == null && !ehConstrucao
+
+  if (faltaValoresObra) {
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      motivo: 'completar_dados_simulacao',
+      dadosCapturados: novosDados,
+    })
+    return novosDados.tipo_operacao === 'terreno_mais_construcao'
+      ? 'Para simular terreno + construção, preciso de dois valores:\n1. Qual o valor de compra do terreno?\n2. Quanto estima gastar na obra?'
+      : 'Para simular construção em terreno próprio, qual o valor estimado da obra?\n(Pode informar o valor do terreno também, se quiser.)'
+  }
+
+  if (faltaImovel) {
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      motivo: 'completar_dados_simulacao',
+      dadosCapturados: novosDados,
+    })
+    return 'Qual o valor do imóvel que deseja financiar?'
+  }
+
+  if (faltaRenda || faltaNascimento) {
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      motivo: 'completar_dados_simulacao',
+      dadosCapturados: novosDados,
+    })
+    const campos = [
+      faltaRenda && 'renda mensal',
+      faltaNascimento && 'data de nascimento',
+    ].filter(Boolean).join(' e ')
+    return `Para completar a simulação, preciso da ${campos}.\nEx: "renda 30000 nascimento 25/01/1981"`
+  }
+
+  // ── Todos os dados presentes → re-simular ────────────────────────────────────
+  await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+
+  const ctxWorkflow = {
+    empresa_id,
+    usuario_id:         usuario.id,
+    usuario_nome:       usuario.nome,
+    supabase,
+    instancia_token:    ctx.instancia_token,
+    telefone_destino:   ctx.telefone_destino,
+    telefone_remetente: ctx.telefone_remetente,
+    telefone_operador:  ctx.telefone_remetente,
+    arquivos:           ctx.arquivos,
+    vem_de_pendente:    true,
+    forcar_simulacao:   true,
+    dados_pre_normalizados: novosDados,
+    lead_id_existente:  pendente.leadIdExistente,
+    pessoa_id_existente: pendente.pessoaIdExistente,
+  }
+
+  try {
+    if (usouConsulta) {
+      const { executarWorkflowConsulta } = await import('@/lib/workflows/workflow-consulta')
+      return await executarWorkflowConsulta(texto, ctxWorkflow)
+    } else {
+      const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
+      return await executarWorkflowCaptacao(texto, ctxWorkflow)
+    }
+  } catch (err) {
+    console.error('[fonti] Erro ao re-simular de pendente:', err)
+    return '❌ Erro ao processar a simulação. Tente novamente com *simula.'
+  }
 }

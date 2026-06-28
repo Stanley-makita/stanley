@@ -39,6 +39,12 @@ export interface WorkflowConsultaContexto {
   telefone_remetente?: string
   /** Simulação avulsa sem CPF — não vincula a cliente existente */
   tipo_vinculo?: 'AVULSA_SEM_CPF'
+  // Workflow pendente: telefone do operador para salvar/limpar pendência
+  telefone_operador?: string
+  // true quando re-chamado a partir de resolução de pendência — pula criação de nova pendência
+  vem_de_pendente?: boolean
+  // Dados já normalizados de pendência anterior — mescla sobre a saída do parser
+  dados_pre_normalizados?: Partial<DadosCaptacaoNormalizados>
 }
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -77,12 +83,27 @@ export async function executarWorkflowConsulta(
   const { empresa_id, usuario_id, usuario_nome, supabase } = ctx
 
   // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
-  const dados = await normalizarPedidoSimulacao(textoBruto)
+  let dados = await normalizarPedidoSimulacao(textoBruto)
+
+  // Mescla dados pré-normalizados de workflow pendente (campos já capturados).
+  if (ctx.dados_pre_normalizados) {
+    const { mergeCapturados } = await import('./simula-pendente')
+    const merged = mergeCapturados(ctx.dados_pre_normalizados, dados)
+    dados = { ...dados, ...merged } as typeof dados
+  }
 
   // ── Etapa 2.2: Pedir esclarecimento de modalidade ───────────────────────────
   // Deve vir ANTES do bloqueio de produto para que "quero construir" pergunte a modalidade
   // em vez de cair no "produto não habilitado" por ter produto_normalizado='CONSTRUCAO'.
   if (dados.pedir_esclarecimento_operacao && dados.pergunta_esclarecimento) {
+    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'esclarecer_tipo_construcao',
+        dadosCapturados: dados,
+        usouConsulta: true,
+      })
+    }
     return dados.pergunta_esclarecimento
   }
 

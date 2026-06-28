@@ -485,6 +485,32 @@ export async function POST(request: NextRequest) {
   // Normaliza os primeiros chars: remove acentos (autocorrect coloca *Fontì com acento)
   const textoParaFonti = texto.trim().slice(0, 20)
     .normalize('NFD').replace(/[̀-ͯ]/g, '') + texto.trim().slice(20)
+
+  // ── Resposta de operador a workflow *simula pendente ───────────────────────
+  // Mensagens sem '*' de operadores que estão respondendo a uma pergunta do Fonti.
+  if (!textoParaFonti.startsWith('*')) {
+    const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+    const pendente = await buscarSimulaPendente(supabase, empresa_id, telefone)
+    if (pendente) {
+      const { verificarUsuarioInterno, processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
+      const usuarioPendente = await verificarUsuarioInterno(supabase, empresa_id, telefone)
+      if (usuarioPendente) {
+        const resposta = await processarRespostaPendente(texto.trim(), pendente, {
+          empresa_id,
+          telefone_remetente: telefone,
+          supabase,
+          arquivos: fileUrl
+            ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
+            : [],
+          instancia_token: instanciaToken,
+          telefone_destino: telefone,
+        }, usuarioPendente)
+        await enviarMensagemUazapi(telefone, resposta)
+        return NextResponse.json({ ok: true })
+      }
+    }
+  }
+
   if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?)\b/i.test(textoParaFonti)) {
     const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
