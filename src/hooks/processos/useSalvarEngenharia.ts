@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { toast } from 'sonner'
 
 interface Input {
   processoId: string
@@ -16,7 +17,6 @@ export function useSalvarEngenharia() {
 
   return useMutation({
     mutationFn: async ({ processoId, validadeEngenharia, valorEngenharia }: Input) => {
-      // Salva validade + valor no processo
       const { error: errP } = await supabase
         .from('processos')
         .update({
@@ -26,14 +26,12 @@ export function useSalvarEngenharia() {
         .eq('id', processoId)
       if (errP) throw errP
 
-      // Busca imovel_id vinculado ao processo
       const { data: proc } = await supabase
         .from('processos')
         .select('imovel_id')
         .eq('id', processoId)
         .single()
 
-      // Se tem imóvel vinculado, registra no histórico de avaliações
       if (proc?.imovel_id) {
         const { error: errA } = await supabase.from('imovel_avaliacoes').insert({
           empresa_id:          usuario!.empresa_id,
@@ -48,7 +46,12 @@ export function useSalvarEngenharia() {
       }
     },
     onSuccess: (_, { processoId }) => {
-      qc.invalidateQueries({ queryKey: ['processo', processoId] })
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['processos'] })
+      toast.success('Validade atualizada com sucesso.')
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar a validade. Tente novamente.')
     },
   })
 }

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CalendarClock, Pencil } from 'lucide-react'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 import { useSalvarEngenharia } from '@/hooks/processos/useSalvarEngenharia'
 
 function formatarMoeda(v: number | null | undefined) {
@@ -29,30 +30,42 @@ interface Props {
 }
 
 export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia }: Props) {
-  const [aberto, setAberto]         = useState(false)
-  const [novaData, setNovaData]     = useState('')
-  const [novoValor, setNovoValor]   = useState('')
+  const [aberto, setAberto]       = useState(false)
+  const [novaData, setNovaData]   = useState('')
+  const [novoValor, setNovoValor] = useState('')
+  // Estado local garante atualização imediata sem depender de re-render do pai
+  const [localValidade, setLocalValidade] = useState<string | null>(validadeEngenharia ?? null)
+  const [localValor, setLocalValor]       = useState<number | null>(valorEngenharia ?? null)
   const salvar = useSalvarEngenharia()
+
+  // Sincroniza quando o pai eventualmente re-renderiza com dados novos
+  useEffect(() => { setLocalValidade(validadeEngenharia ?? null) }, [validadeEngenharia])
+  useEffect(() => { setLocalValor(valorEngenharia ?? null) },       [valorEngenharia])
 
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
-  const diasRestantes = validadeEngenharia ? differenceInDays(parseISO(validadeEngenharia), hoje) : null
+  const diasRestantes = localValidade ? differenceInDays(parseISO(localValidade), hoje) : null
   const badge = diasRestantes !== null ? badgeDias(diasRestantes) : null
 
   function abrirEditor() {
-    setNovaData(validadeEngenharia ?? '')
-    setNovoValor(valorEngenharia ? String(valorEngenharia) : '')
+    setNovaData(localValidade ?? '')
+    setNovoValor(localValor ? String(localValor) : '')
     setAberto(true)
   }
 
   async function handleSalvar() {
     const valor = parseFloat(novoValor.replace(/\./g, '').replace(',', '.'))
     if (!novaData || isNaN(valor) || valor <= 0) return
-    await salvar.mutateAsync({ processoId, validadeEngenharia: novaData, valorEngenharia: valor })
-    setAberto(false)
+    try {
+      await salvar.mutateAsync({ processoId, validadeEngenharia: novaData, valorEngenharia: valor })
+      // Atualiza exibição imediatamente sem aguardar re-render do pai
+      setLocalValidade(novaData)
+      setLocalValor(valor)
+      setAberto(false)
+    } catch {
+      toast.error('Não foi possível atualizar a validade. Tente novamente.')
+    }
   }
-
-  const temDados = validadeEngenharia || valorEngenharia
 
   return (
     <>
@@ -68,15 +81,15 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
             Validade Engenharia
             <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />
           </p>
-          {validadeEngenharia ? (
+          {localValidade ? (
             <p className="text-sm font-bold text-fonti-primary">
-              {format(parseISO(validadeEngenharia), 'dd/MM/yyyy', { locale: ptBR })}
+              {format(parseISO(localValidade), 'dd/MM/yyyy', { locale: ptBR })}
             </p>
           ) : (
             <p className="text-sm text-gray-400 italic">Não informado</p>
           )}
-          {valorEngenharia ? (
-            <p className="text-xs text-gray-500 mt-0.5">{formatarMoeda(valorEngenharia)}</p>
+          {localValor ? (
+            <p className="text-xs text-gray-500 mt-0.5">{formatarMoeda(localValor)}</p>
           ) : null}
           {badge && (
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${badge.cor}`}>
