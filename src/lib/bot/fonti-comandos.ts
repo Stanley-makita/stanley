@@ -8,6 +8,10 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extrairProduto, extrairNumero } from './state-machine'
 import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
+import { PERGUNTA_TIPO_CONSTRUCAO } from '@/lib/workflows/normalizador-captacao'
+
+// Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
+const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -1232,25 +1236,76 @@ export async function processarComandoFonti(
 
 // ── Resolução de workflow pendente ────────────────────────────────────────────
 
+// ── Helpers de detecção contextual ────────────────────────────────────────────
+
+function _normalizarTexto(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')   // remove acentos
+    .replace(/[^\w\s]/g, '')  // remove pontuação
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const _POSITIVOS = new Set([
+  'sim', 's', 'isso', 'isto', 'isso mesmo', 'correto', 'certo', 'positivo',
+  'claro', 'acertou', 'ok', 'blz', 'beleza', 'pode seguir', 'pode continuar',
+  'confere', 'crto', 'coreto', 'pstivo', 'iso', 'iso mesmo', 'assertou',
+])
+
+const _NEGATIVOS = new Set([
+  'nao', 'n', 'negativo', 'errado', 'corrigir', 'corrige', 'tem erro',
+  'voltar', 'volta', 'nao esta certo', 'nao esta certo',
+])
+
+function _ehPositivo(texto: string): boolean {
+  const n = _normalizarTexto(texto)
+  return _POSITIVOS.has(n) || /👍|✅/.test(texto)
+}
+
+function _ehNegativo(texto: string): boolean {
+  return _NEGATIVOS.has(_normalizarTexto(texto))
+}
+
 /**
- * Mini-detector contextual para respostas à pergunta "terreno próprio ou terreno+obra?".
- * Respostas curtas ("junto", "próprio") não são resolvidas pelo classificador LLM por
- * falta de contexto — este detector usa regras simples que só fazem sentido nesse contexto.
+ * Mini-detector contextual para respostas à pergunta de tipo de construção (opção 1 ou 2).
+ * Respostas curtas ("1", "junto", "próprio") não são resolvidas pelo classificador LLM.
  */
 function _detectarTipoEsclarecimento(texto: string): 'construcao_terreno_proprio' | 'terreno_mais_construcao' | null {
-  // Normaliza e colapsa newlines para que "300 mil terreno\n400 obra" seja tratado como linha única
-  const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+  const t = _normalizarTexto(texto)
 
-  // Terreno + obra: quer COMPRAR o terreno
-  // [\s\S]* em vez de .* para cruzar eventuais newlines remanescentes
+  // ── Resposta numérica ──────────────────────────────────────────────────────
+  if (/^1\b/.test(t)) return 'construcao_terreno_proprio'
+  if (/^2\b/.test(t)) return 'terreno_mais_construcao'
+
+  // ── Opção 1: já tem o terreno ──────────────────────────────────────────────
+  const PROPRIO = [
+    'ja tenho terreno', 'ja tenho o terreno', 'tenho terreno', 'tenho o terreno',
+    'terreno proprio', 'terreno propria', 'meu terreno', 'minha data',
+    'meu lote', 'tenho lote', 'tenho uma data', 'tenho gleba', 'tenho greba',
+  ]
+  if (PROPRIO.some((k) => t.includes(k))) return 'construcao_terreno_proprio'
+
+  // ── Opção 2: quer comprar o terreno + construir ───────────────────────────
+  const TERRENO_MAIS_OBRA = [
+    'terreno mais obra', 'terreno  obra', 'tereno mai obra', 'terreno e obra',
+    'compra do terreno  obra', 'comprar terreno e construir', 'financiar terreno mais obra',
+    'fianciar terreno mais obra', 'fianciar terreno obra', 'financiar terreno  obra',
+    'financiar a compra do terreno junto com a obra', 'quero financiar terreno e obra',
+    'junto com a obra', 'compra do terreno junto com a obra',
+    'compra do terreno', 'comprar o terreno',
+  ]
+  if (TERRENO_MAIS_OBRA.some((k) => t.includes(k))) return 'terreno_mais_construcao'
+
+  // ── Padrões gerais ─────────────────────────────────────────────────────────
   if (/\b(compra|comprar|junto|financiar)\b/.test(t)
-    || /terreno[\s\S]*(obra|construc)/.test(t)
-    || /lote[\s\S]*(obra|construc)/.test(t)) {
+    || /terreno.*(obra|construc)/.test(t)
+    || /lote.*(obra|construc)/.test(t)) {
     return 'terreno_mais_construcao'
   }
 
-  // Terreno próprio: JÁ TEM o terreno
-  if (/\b(tenho|propri|possuo|meu|minha|ja tem|proprio)\b/.test(t)) {
+  if (/\b(tenho|propri|possuo)\b/.test(t)) {
     return 'construcao_terreno_proprio'
   }
 
@@ -1278,20 +1333,19 @@ export async function processarRespostaPendente(
 
   // ── Pendência de confirmação ─────────────────────────────────────────────────
   // Fonti mostrou o resumo e perguntou "Está tudo certo?".
-  // Não rodar o parser LLM — a resposta é sempre sim ou não.
+  // NÃO rodar o parser LLM — "sim"/"isso"/"ok" não devem ser parseados como dados.
   if (pendente.motivo === 'confirmacao') {
-    const t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
-    const positivo = /^(sim|isso|isso mesmo|correto|ok|certo|confere|pode|seguir|bora|exato|perfeito|show|isso ai|isso ai)/.test(t)
-      || /👍|✅/.test(texto)
-    const negativo = /^(nao|n[aã]o|errado|corrigir|tem erro|volta|incorreto|ta errado)/.test(t)
-
-    if (positivo) {
+    if (_ehPositivo(texto)) {
       await limparSimulaPendente(supabase, empresa_id, telefoneOp)
       return await _resimular(dadosCapturados, pendente, ctx, usuario)
     }
-    if (negativo) {
-      await limparSimulaPendente(supabase, empresa_id, telefoneOp)
-      return 'Sem problema! Reenvie *simula com os dados corrigidos.'
+    if (_ehNegativo(texto)) {
+      // Manter pendência ativa com motivo completar — operador vai corrigir
+      await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+        ...pendente,
+        motivo: 'completar_dados_simulacao',
+      })
+      return 'Qual informação deseja corrigir? Informe os dados corretos e eu refaço a simulação.'
     }
     return 'Não entendi. Responda *sim* para simular ou *não* para corrigir os dados.'
   }
@@ -1329,7 +1383,7 @@ export async function processarRespostaPendente(
           motivo: 'esclarecer_tipo_construcao',
           dadosCapturados: novosDados,
         })
-        return 'Não entendi direito. Para confirmar:\n• *Terreno próprio* — você já tem o terreno e quer só financiar a construção\n• *Terreno + obra* — você quer financiar a compra do terreno e a construção juntos\n\nQual é o caso?'
+        return PERGUNTA_TIPO_CONSTRUCAO_REASK
       }
     } else {
       await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
@@ -1337,7 +1391,7 @@ export async function processarRespostaPendente(
         motivo: 'esclarecer_tipo_construcao',
         dadosCapturados: novosDados,
       })
-      return 'Só para confirmar: você já possui o terreno onde vai construir, ou quer financiar a compra do terreno junto com a obra?'
+      return PERGUNTA_TIPO_CONSTRUCAO_REASK
     }
   }
 

@@ -67,6 +67,15 @@ function norm(texto: string): string {
   return texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
+export const PERGUNTA_TIPO_CONSTRUCAO = [
+  'Para simular construção, escolha uma opção:',
+  '',
+  '1 - Já tenho o terreno onde vou construir',
+  '2 - Quero financiar a compra do terreno + obra',
+  '',
+  'Responda apenas 1 ou 2.',
+].join('\n')
+
 export function classificarIntencaoOperacao(textoOriginal: string): ClassificacaoOperacao {
   const t = norm(textoOriginal)
 
@@ -133,7 +142,7 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
       tipoOperacao: 'aquisicao', // placeholder — pede esclarecimento antes de simular
       finalidade: 'residencial',
       pedirEsclarecimento: true,
-      pergunta: 'Você já possui o terreno/lote ou pretende comprar o terreno e depois construir? Isso define a modalidade de financiamento.',
+      pergunta: PERGUNTA_TIPO_CONSTRUCAO,
     }
   }
 
@@ -143,7 +152,7 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
       tipoOperacao: 'aquisicao',
       finalidade: 'residencial',
       pedirEsclarecimento: true,
-      pergunta: 'Você já tem o terreno onde vai construir ou quer financiar a compra do terreno + obra?',
+      pergunta: PERGUNTA_TIPO_CONSTRUCAO,
     }
   }
 
