@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 export type TipoValidade = 'credito' | 'engenharia' | 'matricula'
 
@@ -35,7 +36,13 @@ export function useSalvarValidadeProcesso() {
       if (error) throw error
     },
     onSuccess: (_, { processoId }) => {
-      qc.invalidateQueries({ queryKey: ['processo', processoId] })
+      // Invalida tanto o detalhe individual quanto a lista
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['processos'] })
+      toast.success('Validade atualizada com sucesso.')
+    },
+    onError: () => {
+      toast.error('Não foi possível atualizar a validade. Tente novamente.')
     },
   })
 }

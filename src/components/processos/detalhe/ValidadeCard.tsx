@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CalendarClock, Pencil } from 'lucide-react'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 import { useSalvarValidadeProcesso } from '@/hooks/processos/useSalvarValidadeProcesso'
 import type { TipoValidade } from '@/hooks/processos/useSalvarValidadeProcesso'
 
@@ -33,27 +34,41 @@ function badgeDias(dias: number) {
 export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPending: isPendingExt, atalho }: Props) {
   const [aberto, setAberto] = useState(false)
   const [novaData, setNovaData] = useState('')
+  // Estado local garante atualização imediata sem depender do re-render do pai
+  const [localData, setLocalData] = useState<string | null>(data ?? null)
   const salvarProcesso = useSalvarValidadeProcesso()
+
+  // Sincroniza quando o pai eventualmente re-renderiza com dados novos
+  useEffect(() => {
+    setLocalData(data ?? null)
+  }, [data])
 
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
-  const diasRestantes = data ? differenceInDays(parseISO(data), hoje) : null
+  const diasRestantes = localData ? differenceInDays(parseISO(localData), hoje) : null
   const badge = diasRestantes !== null ? badgeDias(diasRestantes) : null
 
   const isPending = isPendingExt ?? salvarProcesso.isPending
 
   function abrirEditor() {
-    setNovaData(data ?? '')
+    setNovaData(localData ?? '')
     setAberto(true)
   }
 
   async function handleSalvar() {
-    if (onSalvar) {
-      await onSalvar(novaData || null)
-    } else {
-      await salvarProcesso.mutateAsync({ processoId: processoId!, tipo: tipo!, data: novaData || null })
+    const valorSalvar = novaData || null
+    try {
+      if (onSalvar) {
+        await onSalvar(valorSalvar)
+      } else {
+        await salvarProcesso.mutateAsync({ processoId: processoId!, tipo: tipo!, data: valorSalvar })
+      }
+      // Atualiza exibição imediatamente sem aguardar re-render do pai
+      setLocalData(valorSalvar)
+      setAberto(false)
+    } catch {
+      toast.error('Não foi possível atualizar a validade. Tente novamente.')
     }
-    setAberto(false)
   }
 
   return (
@@ -70,9 +85,9 @@ export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPendin
             {label}
             <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />
           </p>
-          {data ? (
+          {localData ? (
             <p className="text-sm font-bold text-fonti-primary">
-              {format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR })}
+              {format(parseISO(localData), 'dd/MM/yyyy', { locale: ptBR })}
             </p>
           ) : (
             <p className="text-sm text-gray-400 italic">Não informado</p>
