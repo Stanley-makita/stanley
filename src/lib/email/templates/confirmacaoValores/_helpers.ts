@@ -48,18 +48,52 @@ export function layoutEmail(titulo: string, corpo: string, assinaturaHtml: strin
 }
 
 export function blocoConfirmacao(url: string): string {
-  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+  return `
+<!-- Bloco de confirmação -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px;">
   <tr>
-    <td style="border-top:1px solid #e5e5e5;padding-top:24px;text-align:center;">
-      <p style="font-size:13px;color:#555;margin:0 0 20px;line-height:1.5;">
-        Para confirmar o recebimento e ciência dos valores apresentados,<br>clique no botão abaixo:
-      </p>
-      <a href="${url}" style="display:inline-block;background:#1a7a3c;color:#ffffff;font-size:18px;font-weight:bold;padding:22px 72px;border-radius:12px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 3px 12px rgba(26,122,60,0.4);">
-        ✓&nbsp;&nbsp;Confirmar ciência e aceite
-      </a>
-      <p style="font-size:11px;color:#aaa;margin:16px 0 0;">
-        Este link é individual e de uso único.
-      </p>
+    <td style="border-top:1px solid #e5e5e5;padding-top:28px;">
+
+      <!-- Card com borda -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+        style="border:2px solid #253B29;border-radius:14px;overflow:hidden;background:#f7fbf8;">
+        <tr>
+          <!-- Faixa verde lateral -->
+          <td width="6" style="background:#253B29;">&nbsp;</td>
+          <td style="padding:24px 28px;text-align:center;">
+
+            <!-- Ícone -->
+            <div style="font-size:32px;line-height:1;margin-bottom:10px;">📋</div>
+
+            <!-- Título -->
+            <p style="font-size:15px;font-weight:700;color:#253B29;margin:0 0 6px;letter-spacing:0.2px;">
+              Confirmação de Ciência e Aceite
+            </p>
+
+            <!-- Subtítulo -->
+            <p style="font-size:13px;color:#4a6b55;margin:0 0 24px;line-height:1.55;">
+              Revise os valores acima e, estando de acordo,<br>
+              clique no botão para registrar seu aceite.
+            </p>
+
+            <!-- Botão principal -->
+            <a href="${url}"
+              style="display:inline-block;background:#1a7a3c;color:#ffffff;font-size:17px;font-weight:800;
+                     padding:20px 64px;border-radius:10px;text-decoration:none;
+                     letter-spacing:1px;text-transform:uppercase;
+                     box-shadow:0 4px 16px rgba(26,122,60,0.45);">
+              ✔&nbsp; Confirmar Ciência e Aceite
+            </a>
+
+            <!-- Nota -->
+            <p style="font-size:11px;color:#8fa898;margin:18px 0 0;font-style:italic;">
+              Este link é individual, seguro e de uso único.
+            </p>
+
+          </td>
+        </tr>
+      </table>
+
     </td>
   </tr>
 </table>`
