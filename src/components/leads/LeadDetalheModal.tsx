@@ -140,8 +140,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
     responsavelSugeridoId: lead.responsavel_id ?? undefined,
   } : undefined
 
-  const camposContatoPendentes = lead ? getCamposContatoPendentes({ telefone: lead.telefone, email: lead.email }) : []
-  const creditoLiberado = !!lead && temContatoObrigatorioParaCredito({ telefone: lead.telefone, email: lead.email })
+  const camposContatoPendentes = lead ? getCamposContatoPendentes({ telefone: lead.telefone, email: lead.email, data_nascimento: lead.data_nascimento }) : []
+  const creditoLiberado = !!lead && temContatoObrigatorioParaCredito({ telefone: lead.telefone, email: lead.email, data_nascimento: lead.data_nascimento })
 
   function fechar() {
     setAbaAtiva('resumo')
@@ -258,19 +258,37 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
 
                 {/* Campos de dados */}
                 <div className="flex-1 space-y-3.5 overflow-y-auto p-4">
-                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('telefone') ? 'border-amber-300 bg-amber-50' : 'border-transparent bg-transparent')}>
-                    <InfoRow icone={<Phone className="h-3.5 w-3.5" />} label="Telefone" valor={lead.telefone || '—'} />
+                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('telefone') ? 'border-red-300 bg-red-50' : 'border-transparent bg-transparent')}>
+                    <InfoRow icone={<Phone className={cn('h-3.5 w-3.5', camposContatoPendentes.includes('telefone') && 'text-red-400')} />} label="Telefone" valor={lead.telefone || '—'} />
+                    {camposContatoPendentes.includes('telefone') && lead.telefone && (
+                      <p className="text-[10px] text-red-500 mt-0.5">Número inválido</p>
+                    )}
                   </div>
                   {lead.cpf && (
                     <InfoRow icone={<CreditCard className="h-3.5 w-3.5" />} label="CPF" valor={lead.cpf} />
                   )}
-                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('email') ? 'border-amber-300 bg-amber-50' : 'border-transparent bg-transparent')}>
+                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('email') ? 'border-red-300 bg-red-50' : 'border-transparent bg-transparent')}>
                     {lead.email ? (
-                      <InfoRow icone={<Mail className="h-3.5 w-3.5" />} label="E-mail" valor={lead.email} />
+                      <>
+                        <InfoRow icone={<Mail className={cn('h-3.5 w-3.5', camposContatoPendentes.includes('email') && 'text-red-400')} />} label="E-mail" valor={lead.email} />
+                        {camposContatoPendentes.includes('email') && (
+                          <p className="text-[10px] text-red-500 mt-0.5">E-mail inválido (sem @)</p>
+                        )}
+                      </>
                     ) : (
                       <div className="min-w-0">
                         <p className="text-xs text-gray-400">E-mail</p>
-                        <p className="text-sm font-medium text-amber-700">Faltando</p>
+                        <p className="text-sm font-medium text-red-600">Faltando</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('data_nascimento') ? 'border-red-300 bg-red-50' : 'border-transparent bg-transparent')}>
+                    {lead.data_nascimento ? (
+                      <InfoRow icone={<Calendar className="h-3.5 w-3.5" />} label="Nascimento" valor={fmtData(lead.data_nascimento + 'T12:00:00')} />
+                    ) : (
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-400">Data de Nascimento</p>
+                        <p className="text-sm font-medium text-red-600">Faltando</p>
                       </div>
                     )}
                   </div>
@@ -419,8 +437,9 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                         key={aba.id}
                         onClick={() => {
                           if (bloqueado) {
-                            toast.warning('Complete os dados de contato antes de entrar em Crédito', {
-                              description: 'Informe telefone e e-mail para liberar a aba de crédito.',
+                            const LABELS: Record<string, string> = { telefone: 'Telefone válido', email: 'E-mail com @', data_nascimento: 'Data de nascimento' }
+                            toast.warning('Campos obrigatórios pendentes', {
+                              description: camposContatoPendentes.map(c => LABELS[c] ?? c).join(' · '),
                             })
                             return
                           }
@@ -453,9 +472,14 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     : 'overflow-y-auto px-3 py-4 sm:px-5'
                 )}>
                   {!creditoLiberado && abaAtiva === 'credito' && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                      <p className="font-semibold">Dados de contato obrigatórios</p>
-                      <p className="mt-1">Preencha telefone e e-mail para liberar a análise de crédito.</p>
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 mb-3">
+                      <p className="font-semibold mb-1">Campos obrigatórios para acessar Crédito</p>
+                      <ul className="list-disc ml-4 space-y-0.5 text-red-700">
+                        {camposContatoPendentes.includes('telefone') && <li>Telefone válido (mín. 10 dígitos, sem sequências repetidas)</li>}
+                        {camposContatoPendentes.includes('email') && <li>E-mail com @</li>}
+                        {camposContatoPendentes.includes('data_nascimento') && <li>Data de nascimento</li>}
+                      </ul>
+                      <p className="mt-2 text-xs text-red-500">Edite o lead para preencher os campos em vermelho.</p>
                     </div>
                   )}
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}

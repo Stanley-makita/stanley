@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Lead } from '@/types/leads'
 import { toast } from 'sonner'
+import { temContatoObrigatorioParaCredito } from '@/components/leads/leadContactValidation'
 
 interface EditarLeadInput {
   id: string
@@ -162,9 +163,16 @@ export function useEditarLead() {
         queryClient.invalidateQueries({ queryKey: ['processos'] })
       }
 
-      toast.success('Lead atualizado.', {
-        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
+      const contatoCompleto = temContatoObrigatorioParaCredito({
+        telefone:        data.telefone,
+        email:           data.email,
+        data_nascimento: data.data_nascimento,
       })
+      if (contatoCompleto) {
+        toast.success('Lead atualizado.', {
+          className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
+        })
+      }
     },
     onError: (err: any) => {
       console.error('Erro ao editar lead:', err)
