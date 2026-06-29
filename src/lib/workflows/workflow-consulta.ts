@@ -328,26 +328,44 @@ export async function executarWorkflowConsulta(
   }
 
   // ── Etapa 8: Resposta ────────────────────────────────────────────────────
-  const elegiveis   = bancosResult.filter((b) => b.elegivel)
-  const inelegiveis = bancosResult.filter((b) => !b.elegivel)
+  const rendaMensal  = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+  const semRenda     = rendaMensal === 0
+  const elegiveis    = bancosResult.filter((b) => b.elegivel)
+  const inelegiveis  = bancosResult.filter((b) => !b.elegivel)
 
   const listaBancos = elegiveis.length > 0
     ? elegiveis.map((b) => {
         const prog = b.programa !== b.bancoNome ? ` (${b.programa})` : ''
-        return `• ${b.bancoNome}${prog} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
+        let linha = `• ${b.bancoNome}${prog} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
+
+        if (semRenda) {
+          // Renda não informada: estimar renda mínima necessária (30% de comprometimento)
+          const rendaNecessaria = Math.ceil(b.primeiraParcela / 0.30)
+          linha += `\n  _Renda necessária estimada: ~${fmt.format(rendaNecessaria)}/mês_`
+        } else if (b.avisoRenda) {
+          // Renda insuficiente para o valor solicitado: diagnóstico claro
+          const rendaNecessaria = Math.ceil(b.primeiraParcela / 0.30)
+          const podeFinanciar   = b.maxFinanciavel30 ?? 0
+          linha += `\n  ⚠️ *Diagnóstico — renda incompatível com o valor solicitado.*`
+          if (podeFinanciar > 0) {
+            linha += `\n  Com a renda informada: estimativa de capacidade até ${fmt.format(podeFinanciar)}.`
+          }
+          linha += `\n  Para financiar ${fmt.format(dados.valor_financiado ?? b.valorFinanciado)}: renda aproximada necessária ${fmt.format(rendaNecessaria)}/mês.`
+        }
+
+        return linha
       }).join('\n')
     : null
 
   // Sumário dos parâmetros usados
-  const prazoUsado = dados.prazo_meses
-    ? `${dados.prazo_meses} meses`
-    : 'prazo máximo por banco'
+  const prazoUsado  = dados.prazo_meses ? `${dados.prazo_meses} meses` : 'prazo máximo por banco'
+  const rendaLabel  = semRenda ? 'Renda: não informada' : `Renda: ${fmt.format(rendaMensal)}`
 
   const linhas: string[] = [
     `📋 *Consulta Rápida — ${nomeDisplay}*`,
     '',
     `📊 *Simulação — ${fmt.format(dados.valor_imovel!)} | Entrada ${fmt.format(dados.valor_entrada!)}*`,
-    `Renda: ${fmt.format((dados.renda_formal ?? 0) + (dados.renda_informal ?? 0))} | ${dados.tipo_amortizacao} | ${prazoUsado}`,
+    `${rendaLabel} | ${dados.tipo_amortizacao} | ${prazoUsado}`,
   ]
 
   if (listaBancos) {
@@ -360,6 +378,12 @@ export async function executarWorkflowConsulta(
       '',
       `Não encontrei simulação válida para os dados informados. Verifique produto, valor do imóvel, valor financiado, renda, idade e modalidade.`,
     )
+  }
+
+  if (semRenda) {
+    linhas.push('', `ℹ️ _Renda não informada. Valores de renda necessária são estimativas para comprometimento máximo de 30% (SAC)._`)
+  } else if (elegiveis.some((b) => b.avisoRenda)) {
+    linhas.push('', `ℹ️ _Os valores acima são diagnóstico de capacidade — não representam aprovação. Para o valor solicitado, a renda informada é insuficiente conforme política de crédito dos bancos._`)
   }
 
   if (dados.usou_idade_aproximada) {

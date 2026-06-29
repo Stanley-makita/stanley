@@ -1081,6 +1081,13 @@ export async function processarComandoFonti(
   if (PADRAO_SIMULA.test(corpo)) {
     const instrucao = corpo.replace(PADRAO_SIMULA, '').trim()
 
+    // *simula novo → limpa sessão pendente e reinicia
+    if (/^novo$/i.test(instrucao)) {
+      const { limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+      await limparSimulaPendente(supabase, empresa_id, ctx.telefone_remetente)
+      return '🔄 Sessão reiniciada. Envie os dados para a nova simulação.'
+    }
+
     // Extrai CPF do texto (regex rápida, sem chamar parser completo)
     const cpfMatch = instrucao.match(/\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.\s]?\d{2})\b/)
     const cpfBruto = cpfMatch ? cpfMatch[1].replace(/\D/g, '') : null
@@ -1565,17 +1572,13 @@ export async function processarRespostaPendente(
     return 'Qual o valor do imóvel que deseja financiar?'
   }
 
-  if (faltaRenda || faltaNascimento) {
+  if (faltaNascimento) {
     await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
       ...pendente,
       motivo: 'completar_dados_simulacao',
       dadosCapturados: novosDados,
     })
-    const campos = [
-      faltaRenda && 'renda mensal',
-      faltaNascimento && 'data de nascimento',
-    ].filter(Boolean).join(' e ')
-    return `Para completar a simulação, preciso da ${campos}.\nEx: "renda 30000 nascimento 25/01/1981"`
+    return `Para completar a simulação, preciso da data de nascimento.\nEx: "nascimento 25/01/1981"`
   }
 
   // ── Todos os dados presentes ──────────────────────────────────────────────────

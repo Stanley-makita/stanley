@@ -9,7 +9,6 @@
  */
 
 import type { ResultadoCompleto } from './tipos'
-import QRCode from 'qrcode'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -490,21 +489,6 @@ export async function gerarPDFFinanciamentoBuffer(
   doc.line(mL, y, pageW - mR, y)
   y += 5
 
-  // QR Code (canto superior direito do rodapé)
-  const qrSize = 16
-  const qrX = pageW - mR - qrSize
-  try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fonti.app.br'
-    const qrDataUrl = await QRCode.toDataURL(appUrl, {
-      width: 120, margin: 1, color: { dark: '#253B29', light: '#FFFFFF' },
-    })
-    doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSize, qrSize)
-    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-    doc.text(appUrl.replace(/^https?:\/\//, ''), qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
-  } catch {
-    // QR opcional — não bloqueia geração do PDF
-  }
-
   // Assinatura (esquerda)
   const now = new Date()
   const dataGer = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
@@ -513,12 +497,12 @@ export async function gerarPDFFinanciamentoBuffer(
   doc.text('Gerado automaticamente pelo Motor de Credito Fonti', mL, y + 4)
   doc.setFontSize(6.5); setTxt(doc, '#777777')
   doc.text(`${dataGer} as ${horaGer}`, mL, y + 9)
-  y += qrSize + 6
+  y += 22
 
   // Disclaimer institucional
   const footerText = 'Esta simulacao possui carater exclusivamente informativo e nao representa aprovacao de credito. A contratacao esta sujeita a analise documental e as politicas vigentes de cada instituicao financeira. Os valores apresentados sao estimativas baseadas nas condicoes vigentes na data de geracao.'
   doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
-  const wrapped = doc.splitTextToSize(footerText, usableW - qrSize - 4)
+  const wrapped = doc.splitTextToSize(footerText, usableW)
   doc.text(wrapped, mL, y, { lineHeightFactor: 1.4 })
 
   return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)
@@ -683,18 +667,6 @@ export async function gerarPDFCapacidadeMaximaBuffer(
   doc.line(mL, y, pageW - mR, y)
   y += 5
 
-  const qrSize = 16
-  const qrX = pageW - mR - qrSize
-  try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fonti.app.br'
-    const qrDataUrl = await QRCode.toDataURL(appUrl, {
-      width: 120, margin: 1, color: { dark: '#253B29', light: '#FFFFFF' },
-    })
-    doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSize, qrSize)
-    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-    doc.text(appUrl.replace(/^https?:\/\//, ''), qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
-  } catch { /* QR opcional */ }
-
   const now2 = new Date()
   const dg = `${String(now2.getDate()).padStart(2, '0')}/${String(now2.getMonth() + 1).padStart(2, '0')}/${now2.getFullYear()}`
   const hg = `${String(now2.getHours()).padStart(2, '0')}:${String(now2.getMinutes()).padStart(2, '0')}`
@@ -702,11 +674,11 @@ export async function gerarPDFCapacidadeMaximaBuffer(
   doc.text('Gerado automaticamente pelo Motor de Credito Fonti', mL, y + 4)
   doc.setFontSize(6.5); setTxt(doc, '#777777')
   doc.text(`${dg} as ${hg}`, mL, y + 9)
-  y += qrSize + 6
+  y += 22
 
   const footerText = 'Simulacao preliminar sujeita a analise de credito, regras do banco e validacao documental. Estimativa de capacidade calculada com base em 30% de comprometimento de renda (SAC). Valores, taxas e prazos estao sujeitos a alteracao conforme politicas vigentes de cada instituicao.'
   doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
-  const wrapped2 = doc.splitTextToSize(footerText, usableW - qrSize - 4)
+  const wrapped2 = doc.splitTextToSize(footerText, usableW)
   doc.text(wrapped2, mL, y, { lineHeightFactor: 1.4 })
 
   return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)

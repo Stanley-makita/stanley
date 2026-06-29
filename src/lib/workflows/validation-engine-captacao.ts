@@ -59,7 +59,7 @@ export function validarDadosCaptacao(
 
   // Em modo consulta: nome e CPF não são obrigatórios (sem Pessoa criada)
   const camposIgnorados = new Set<keyof DadosCaptacaoNormalizados>(
-    modo === 'consulta' ? ['nome'] : [],
+    modo === 'consulta' ? ['nome', 'renda_formal'] : [],
   )
 
   for (const regra of CAMPOS_OBRIGATORIOS) {

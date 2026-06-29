@@ -1,5 +1,4 @@
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import QRCode from 'qrcode'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -611,21 +610,6 @@ export async function gerarPDFFinanciamento(
   doc.line(mL, y, pageW - mR, y)
   y += 5
 
-  // QR Code (canto superior direito do rodapé)
-  const qrSize = 16
-  const qrX = pageW - mR - qrSize
-  try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://fonti.app.br'
-    const qrDataUrl = await QRCode.toDataURL(appUrl, {
-      width: 120, margin: 1, color: { dark: '#253B29', light: '#FFFFFF' },
-    })
-    doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSize, qrSize)
-    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-    doc.text(appUrl.replace(/^https?:\/\//, ''), qrX + qrSize / 2, y + qrSize + 3, { align: 'center' })
-  } catch {
-    // QR opcional — não bloqueia geração do PDF
-  }
-
   // Assinatura (esquerda)
   const nowF = new Date()
   const dataGerF = `${String(nowF.getDate()).padStart(2, '0')}/${String(nowF.getMonth() + 1).padStart(2, '0')}/${nowF.getFullYear()}`
@@ -634,11 +618,11 @@ export async function gerarPDFFinanciamento(
   doc.text('Gerado automaticamente pelo Motor de Credito Fonti', mL, y + 4)
   doc.setFontSize(6.5); setTxt(doc, '#777777')
   doc.text(`${dataGerF} as ${horaGerF}`, mL, y + 9)
-  y += qrSize + 6
+  y += 22
 
   // Disclaimer institucional
   doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
-  const wrappedF = doc.splitTextToSize(RODAPE_DISCLAIMER, usableW - qrSize - 4)
+  const wrappedF = doc.splitTextToSize(RODAPE_DISCLAIMER, usableW)
   doc.text(wrappedF, mL, y, { lineHeightFactor: 1.4 })
 
   const nomeCliente = (options.clienteNome ?? '').trim()
