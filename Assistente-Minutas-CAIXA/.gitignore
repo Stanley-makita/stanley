@@ -1,5 +1,0 @@
-geradas/*.docx
-__pycache__/
-*.pyc
-.venv/
-server*.log
