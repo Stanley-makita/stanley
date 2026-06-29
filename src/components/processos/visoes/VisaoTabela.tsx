@@ -207,6 +207,11 @@ export function VisaoTabela({ produtoFixo }: Props) {
   // Reset página ao mudar filtros
   useEffect(() => { setPagina(1) }, [busca, statusFiltro, colFilters])
 
+  const totalValorFinanciado = useMemo(
+    () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
+    [filteredProcessos],
+  )
+
   const totalPaginas = Math.max(1, Math.ceil(filteredProcessos.length / ROWS_PER_PAGE))
   const paginados = useMemo(() => {
     const start = (pagina - 1) * ROWS_PER_PAGE
@@ -394,6 +399,20 @@ export function VisaoTabela({ produtoFixo }: Props) {
                 })
               )}
             </TableBody>
+            <tfoot>
+              <tr className="border-t-2 border-fonti-primary/20 bg-fonti-primary/[0.04]">
+                <td
+                  colSpan={6}
+                  className="px-2.5 py-2 text-right text-xs font-semibold text-gray-500 whitespace-nowrap"
+                >
+                  {activeFilters.length > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
+                </td>
+                <td className="px-2.5 py-2 text-xs font-bold text-fonti-primary whitespace-nowrap">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalValorFinanciado)}
+                </td>
+                <td colSpan={7 + (isGestor ? 3 : 0)} />
+              </tr>
+            </tfoot>
           </Table>
       </TableShell>
 
