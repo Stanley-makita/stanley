@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { type Lead } from '@/types/leads'
+import { type Lead, type LeadAnaliseCredito } from '@/types/leads'
+import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
 import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
@@ -170,8 +171,22 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
   const [vinculacao, setVinculacao] = useState<VinculacaoState | null>(null)
   const [buscandoDocs, setBuscandoDocs] = useState(false)
 
+  // undefined = seletor não mostrado, null = sem análise, string = id da análise escolhida
+  const [analiseId, setAnaliseId] = useState<string | null | undefined>(undefined)
+  const { analises } = useAnalisesCredito(lead?.id ?? '')
+
+  const analise = analises.find(a => a.id === analiseId) ?? null
+
+  // Mostrar seletor de análise somente para financiamento quando há análises cadastradas
+  const showSeletorAnalise =
+    tipo === 'financiamento' &&
+    analiseId === undefined &&
+    lead !== null &&
+    analises.length > 0
+
   function fechar() {
     setTipo(null)
+    setAnaliseId(undefined)
     setVinculacao(null)
     onFechar()
   }
@@ -202,12 +217,16 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
 
   const tituloHeader = vinculacao
     ? 'Vincular documentos ao processo'
+    : showSeletorAnalise
+    ? 'Selecionar Análise de Crédito'
     : !tipo
     ? 'Novo Processo'
     : `Novo Processo de ${PRODUTOS.find(p => p.id === tipo)?.nome}`
 
   const subtituloHeader = vinculacao
     ? 'Selecione quais documentos existentes devem ser aproveitados neste processo'
+    : showSeletorAnalise
+    ? 'Selecione qual análise de crédito será usada neste processo'
     : !tipo
     ? 'Selecione o tipo de processo para o cliente'
     : 'Preencha os dados do processo'
@@ -233,8 +252,14 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
           />
         ) : !tipo ? (
           <SeletorTipo lead={lead} pessoa={pessoa} onSelecionar={setTipo} onFechar={fechar} />
+        ) : showSeletorAnalise ? (
+          <SeletorAnalise
+            analises={analises}
+            onSelecionar={setAnaliseId}
+            onVoltar={() => setTipo(null)}
+          />
         ) : tipo === 'financiamento' ? (
-          <FormFinanciamento lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
+          <FormFinanciamento lead={lead} pessoa={pessoa} analise={analise} onVoltar={() => { setTipo(null); setAnaliseId(undefined) }} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
         ) : tipo === 'consorcio' ? (
           <FormConsorcio lead={lead} pessoa={pessoa} onVoltar={() => setTipo(null)} onFechar={fechar} onProcessoCriado={handleProcessoCriado} />
         ) : tipo === 'cgi' ? (
@@ -322,10 +347,73 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
   )
 }
 
+/* ── Seletor de Análise de Crédito ── */
+function SeletorAnalise({ analises, onSelecionar, onVoltar }: {
+  analises: LeadAnaliseCredito[]
+  onSelecionar: (id: string | null) => void
+  onVoltar: () => void
+}) {
+  return (
+    <div className="space-y-4 px-4 pb-5 pt-4 sm:px-5">
+      <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+        {analises.map((analise) => (
+          <button
+            key={analise.id}
+            onClick={() => onSelecionar(analise.id)}
+            className="w-full flex items-start gap-3 px-4 py-3 text-left bg-white hover:bg-fonti-accent-hover/30 transition-colors cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-fonti-accent-hover text-fonti-primary mt-0.5">
+              <CreditCard className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-fonti-primary">{analise.nome}</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                {analise.banco_pretendido && (
+                  <span className="text-xs text-gray-500">{analise.banco_pretendido}</span>
+                )}
+                {analise.valor_pretendido != null && (
+                  <span className="text-xs text-gray-500">Financiar: {fmtMoeda(analise.valor_pretendido)}</span>
+                )}
+                {analise.valor_imovel != null && (
+                  <span className="text-xs text-gray-500">Imóvel: {fmtMoeda(analise.valor_imovel)}</span>
+                )}
+                {analise.prazo_meses != null && (
+                  <span className="text-xs text-gray-500">{analise.prazo_meses} meses</span>
+                )}
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-gray-300 shrink-0 mt-1" />
+          </button>
+        ))}
+        <button
+          onClick={() => onSelecionar(null)}
+          className="w-full flex items-center gap-3 px-4 py-3 text-left bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gray-100 text-gray-400">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-600">Preencher manualmente</p>
+            <p className="text-xs text-gray-400 mt-0.5">Usar dados gerais do lead</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+        </button>
+      </div>
+
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={onVoltar} className="h-9 w-full sm:w-auto">
+          Voltar
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 /* ── Formulário Financiamento ── */
-function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
+function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProcessoCriado }: {
   lead: Lead | null
   pessoa?: PessoaMinima | null
+  analise?: LeadAnaliseCredito | null
   onVoltar: () => void
   onFechar: () => void
   onProcessoCriado: (payload: ProcessoCriadoPayload) => Promise<void>
@@ -335,6 +423,9 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const { data: usuarios = [] } = useUsuariosEmpresa()
   const criarProcesso = useCriarProcesso()
   const { data: comissoesPadrao = [] } = useComissoesPadrao()
+
+  // Dados de crédito: análise selecionada tem prioridade sobre campos do lead
+  const fonte = analise ?? lead
 
   // Dados do cliente (editáveis se vazios)
   const [nome, setNome]         = useState(lead?.nome ?? pessoa?.nome ?? '')
@@ -347,9 +438,9 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   const [comissaoComercial, setComissaoComercial] = useState<number | null>(null)
   const [comissaoEmpresa, setComissaoEmpresa]     = useState<number | null>(null)
   const [modalidade, setModalidade]         = useState('')
-  const [valorImovel, setValorImovel]       = useState(() => fmtN(lead?.valor_imovel))
-  const [valorFinanciar, setValorFinanciar] = useState(() => fmtN(lead?.valor_pretendido))
-  const [valorEntrada, setValorEntrada]     = useState(() => fmtN(lead?.entrada))
+  const [valorImovel, setValorImovel]       = useState(() => fmtN(fonte?.valor_imovel))
+  const [valorFinanciar, setValorFinanciar] = useState(() => fmtN(fonte?.valor_pretendido))
+  const [valorEntrada, setValorEntrada]     = useState(() => fmtN(fonte?.entrada))
 
   // FGTS: null = não escolhido, true = sim, false = não
   const [fgts, setFgts]         = useState<boolean | null>(null)
@@ -365,10 +456,11 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
 
   const [erros, setErros] = useState<Record<string, string>>({})
 
-  // Auto-seleciona banco pelo banco_pretendido do Lead quando a lista de bancos carrega
+  // Auto-seleciona banco: análise tem prioridade sobre o campo do lead
   useEffect(() => {
-    if (bancos.length > 0 && !bancoId && lead?.banco_pretendido) {
-      const q = lead.banco_pretendido.toLowerCase()
+    const bancoPretendido = fonte?.banco_pretendido
+    if (bancos.length > 0 && !bancoId && bancoPretendido) {
+      const q = bancoPretendido.toLowerCase()
       const match = bancos.find(b =>
         b.nome.toLowerCase().includes(q) || q.includes(b.nome.toLowerCase())
       )
@@ -379,7 +471,7 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
         setComissaoEmpresa(cp?.comissao_empresa ?? null)
       }
     }
-  }, [bancos, comissoesPadrao, lead?.banco_pretendido])
+  }, [bancos, comissoesPadrao, fonte?.banco_pretendido])
 
   function clr(...keys: string[]) {
     setErros(p => { const n = { ...p }; keys.forEach(k => delete n[k]); return n })
@@ -472,14 +564,16 @@ function FormFinanciamento({ lead, pessoa, onVoltar, onFechar, onProcessoCriado 
   return (
     <div className="max-h-[75svh] space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
       <ParceiroBadge lead={lead} />
-      {lead && (lead.banco_pretendido || lead.valor_imovel || lead.valor_pretendido || lead.entrada) && (
+      {fonte && (fonte.banco_pretendido || fonte.valor_imovel || fonte.valor_pretendido || fonte.entrada) && (
         <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-xs text-blue-700">
-          <p className="font-semibold mb-1.5">Dados de crédito herdados do Lead</p>
+          <p className="font-semibold mb-1.5">
+            {analise ? `Dados da análise: ${analise.nome}` : 'Dados de crédito herdados do Lead'}
+          </p>
           <div className="space-y-0.5 text-blue-600">
-            {lead.banco_pretendido  && <p>Banco pretendido: <span className="font-medium">{lead.banco_pretendido}</span></p>}
-            {lead.valor_imovel      && <p>Valor do imóvel: <span className="font-medium">{fmtN(lead.valor_imovel)}</span></p>}
-            {lead.valor_pretendido  && <p>Valor a financiar: <span className="font-medium">{fmtN(lead.valor_pretendido)}</span></p>}
-            {lead.entrada           && <p>Entrada: <span className="font-medium">{fmtN(lead.entrada)}</span></p>}
+            {fonte.banco_pretendido  && <p>Banco pretendido: <span className="font-medium">{fonte.banco_pretendido}</span></p>}
+            {fonte.valor_imovel      && <p>Valor do imóvel: <span className="font-medium">{fmtN(fonte.valor_imovel)}</span></p>}
+            {fonte.valor_pretendido  && <p>Valor a financiar: <span className="font-medium">{fmtN(fonte.valor_pretendido)}</span></p>}
+            {fonte.entrada           && <p>Entrada: <span className="font-medium">{fmtN(fonte.entrada)}</span></p>}
           </div>
         </div>
       )}

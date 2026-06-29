@@ -5,8 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { supabase } from '@/lib/supabase'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
+import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
-import type { Lead } from '@/types/leads'
+import type { Lead, LeadAnaliseCredito } from '@/types/leads'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -196,10 +197,13 @@ export function AbaCredito({ lead }: Props) {
         onCriarConjuge={vincularCriarConjuge}
       />
 
-      {/* 3. Operação */}
-      <BlocoOperacao lead={lead} />
+      {/* 3. Produto */}
+      <BlocoProduto lead={lead} />
 
-      {/* 4. Aprovação de Crédito */}
+      {/* 4. Análises de Crédito */}
+      <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} />
+
+      {/* 5. Aprovação de Crédito */}
       <BlocoAprovacaoCredito lead={lead} />
 
       {/* 5+6. Imóvel e Vendedor lado a lado */}
@@ -586,102 +590,258 @@ function RendaCampoEditavel({ label, value, onChange, onBlur }: {
   )
 }
 
-// ── BlocoOperacao ─────────────────────────────────────────────
+// ── BlocoProduto ──────────────────────────────────────────────
 
-function BlocoOperacao({ lead }: { lead: Lead }) {
+function BlocoProduto({ lead }: { lead: Lead }) {
   const editar = useEditarLead()
-  const [form, setForm] = useState({
-    produto_interesse: lead.produto_interesse ?? '',
-    banco_pretendido:  lead.banco_pretendido  ?? '',
-    valor_imovel:      fmtMoedaInput(lead.valor_imovel),
-    valor_pretendido:  fmtMoedaInput(lead.valor_pretendido),
-    entrada:           fmtMoedaInput(lead.entrada),
-    prazo_meses:       lead.prazo_meses != null ? String(lead.prazo_meses) : '',
-    finalidade:        lead.finalidade ?? '',
-  })
-  const [dirty, setDirty] = useState(false)
+  return (
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
+      <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">Produto de Interesse</p>
+      <Select
+        value={lead.produto_interesse ?? ''}
+        onValueChange={v => editar.mutate({ id: lead.id, produto_interesse: (v as Lead['produto_interesse']) || null })}
+        disabled={editar.isPending}
+      >
+        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar produto..." /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="financiamento">Financiamento Imobiliário</SelectItem>
+          <SelectItem value="consorcio">Consórcio</SelectItem>
+          <SelectItem value="cgi">CGI</SelectItem>
+          <SelectItem value="portabilidade">Portabilidade</SelectItem>
+          <SelectItem value="contrato">Contrato</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
-  function set(campo: keyof typeof form, valor: string) {
-    setForm(f => ({ ...f, [campo]: valor }))
-    setDirty(true)
-  }
+// ── BlocoAnalises ─────────────────────────────────────────────
 
-  function salvar() {
-    editar.mutate({
-      id: lead.id,
-      produto_interesse: (form.produto_interesse as Lead['produto_interesse']) || null,
-      banco_pretendido:  form.banco_pretendido || null,
-      valor_imovel:      parseMoeda(form.valor_imovel),
-      valor_pretendido:  parseMoeda(form.valor_pretendido),
-      entrada:           parseMoeda(form.entrada),
-      prazo_meses:       form.prazo_meses ? parseInt(form.prazo_meses) : null,
-      finalidade:        form.finalidade || null,
-    }, { onSuccess: () => setDirty(false) })
-  }
+function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: string }) {
+  const { analises, isLoading, criar, editar, deletar } = useAnalisesCredito(leadId)
+  const [criando, setCriando] = useState(false)
+  const [editandoId, setEditandoId] = useState<string | null>(null)
 
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Operação</p>
-        {dirty && (
-          <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
-            {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-            Salvar
-          </Button>
-        )}
+      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Análises de Crédito</p>
+        <button
+          onClick={() => { setCriando(true); setEditandoId(null) }}
+          className="flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium"
+        >
+          <Plus className="h-3 w-3" /> Nova Análise
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <div>
-          <Label className="text-xs text-gray-500">Produto</Label>
-          <Select value={form.produto_interesse} onValueChange={v => set('produto_interesse', v)}>
-            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="financiamento">Financiamento Imobiliário</SelectItem>
-              <SelectItem value="consorcio">Consórcio</SelectItem>
-              <SelectItem value="cgi">CGI</SelectItem>
-              <SelectItem value="portabilidade">Portabilidade</SelectItem>
-              <SelectItem value="contrato">Contrato</SelectItem>
-            </SelectContent>
-          </Select>
+      {isLoading && <p className="text-xs text-gray-400">Carregando...</p>}
+
+      {!isLoading && analises.length === 0 && !criando && (
+        <p className="text-xs text-gray-400 italic">Nenhuma análise de crédito. Clique em "Nova Análise" para começar.</p>
+      )}
+
+      {analises.map((analise, i) =>
+        editandoId === analise.id ? (
+          <AnaliseForm
+            key={analise.id}
+            inicial={analise}
+            onSalvar={async (campos) => {
+              await editar.mutateAsync({ id: analise.id, ...campos })
+              setEditandoId(null)
+            }}
+            onCancelar={() => setEditandoId(null)}
+            isPending={editar.isPending}
+          />
+        ) : (
+          <AnaliseCard
+            key={analise.id}
+            analise={analise}
+            numero={i + 1}
+            onEditar={() => { setEditandoId(analise.id); setCriando(false) }}
+            onDeletar={() => deletar.mutate(analise.id)}
+            deletando={deletar.isPending}
+          />
+        )
+      )}
+
+      {criando && (
+        <AnaliseForm
+          numero={analises.length + 1}
+          onSalvar={async (campos) => {
+            await criar.mutateAsync({ empresa_id: empresaId, lead_id: leadId, ...campos })
+            setCriando(false)
+          }}
+          onCancelar={() => setCriando(false)}
+          isPending={criar.isPending}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── AnaliseCard ───────────────────────────────────────────────
+
+function AnaliseCard({ analise, numero, onEditar, onDeletar, deletando }: {
+  analise: LeadAnaliseCredito
+  numero: number
+  onEditar: () => void
+  onDeletar: () => void
+  deletando: boolean
+}) {
+  const temDados = analise.banco_pretendido || analise.valor_imovel || analise.valor_pretendido || analise.entrada
+  return (
+    <div className="border border-gray-200 rounded-lg p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-700">{analise.nome}</p>
+        <div className="flex items-center gap-2">
+          <button onClick={onEditar} className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-fonti-primary">
+            <Pencil className="h-3 w-3" /> Editar
+          </button>
+          <button onClick={onDeletar} disabled={deletando} className="text-gray-300 hover:text-red-400 disabled:opacity-50">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <div>
+      </div>
+      {temDados ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
+          {analise.banco_pretendido && (
+            <div>
+              <p className="text-[10px] text-gray-400">Banco</p>
+              <p className="text-xs font-medium text-gray-800">{analise.banco_pretendido}</p>
+            </div>
+          )}
+          {analise.valor_imovel != null && (
+            <div>
+              <p className="text-[10px] text-gray-400">Valor Imóvel</p>
+              <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.valor_imovel)}</p>
+            </div>
+          )}
+          {analise.valor_pretendido != null && (
+            <div>
+              <p className="text-[10px] text-gray-400">A Financiar</p>
+              <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.valor_pretendido)}</p>
+            </div>
+          )}
+          {analise.entrada != null && (
+            <div>
+              <p className="text-[10px] text-gray-400">Entrada</p>
+              <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.entrada)}</p>
+            </div>
+          )}
+          {analise.prazo_meses != null && (
+            <div>
+              <p className="text-[10px] text-gray-400">Prazo</p>
+              <p className="text-xs font-medium text-gray-800">{analise.prazo_meses} meses</p>
+            </div>
+          )}
+          {analise.finalidade && (
+            <div>
+              <p className="text-[10px] text-gray-400">Finalidade</p>
+              <p className="text-xs font-medium text-gray-800">
+                {FINALIDADES.find(f => f.value === analise.finalidade)?.label ?? analise.finalidade}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 italic">Análise vazia — clique em Editar para preencher.</p>
+      )}
+    </div>
+  )
+}
+
+// ── AnaliseForm ───────────────────────────────────────────────
+
+type AnaliseFormInput = Omit<LeadAnaliseCredito, 'id' | 'empresa_id' | 'lead_id' | 'created_at' | 'updated_at'>
+
+function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
+  inicial?: LeadAnaliseCredito
+  numero?: number
+  onSalvar: (campos: AnaliseFormInput) => Promise<void>
+  onCancelar: () => void
+  isPending: boolean
+}) {
+  const defaultNome = inicial?.nome ?? `Análise ${numero ?? ''}`
+  const [nome, setNome]               = useState(inicial?.nome ?? defaultNome)
+  const [banco, setBanco]             = useState(inicial?.banco_pretendido ?? '')
+  const [valorImovel, setValorImovel] = useState(fmtMoedaInput(inicial?.valor_imovel))
+  const [valorFin, setValorFin]       = useState(fmtMoedaInput(inicial?.valor_pretendido))
+  const [entrada, setEntrada]         = useState(fmtMoedaInput(inicial?.entrada))
+  const [prazo, setPrazo]             = useState(inicial?.prazo_meses != null ? String(inicial.prazo_meses) : '')
+  const [finalidade, setFinalidade]   = useState(inicial?.finalidade ?? '')
+
+  async function handleSalvar() {
+    await onSalvar({
+      nome:             nome.trim() || defaultNome,
+      banco_pretendido: banco || null,
+      valor_imovel:     parseMoeda(valorImovel),
+      valor_pretendido: parseMoeda(valorFin),
+      entrada:          parseMoeda(entrada),
+      prazo_meses:      prazo ? parseInt(prazo) : null,
+      finalidade:       finalidade || null,
+    })
+  }
+
+  return (
+    <div className="border border-fonti-primary/20 rounded-lg p-3 space-y-3 bg-fonti-accent-hover/10">
+      <div>
+        <Label className="text-xs text-gray-500">Nome da análise</Label>
+        <Input
+          className="h-7 text-sm mt-1"
+          value={nome}
+          onChange={e => setNome(e.target.value)}
+          placeholder={defaultNome}
+        />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="sm:col-span-2">
           <Label className="text-xs text-gray-500">Banco Pretendido</Label>
-          <Select value={form.banco_pretendido} onValueChange={v => set('banco_pretendido', v)}>
-            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+          <Select value={banco} onValueChange={setBanco}>
+            <SelectTrigger className="h-7 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
             <SelectContent>
               {BANCOS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-
         <div>
           <Label className="text-xs text-gray-500">Valor do Imóvel</Label>
-          <Input className="h-8 text-sm mt-1" placeholder="0,00" value={form.valor_imovel} onChange={e => set('valor_imovel', e.target.value)} />
+          <Input className="h-7 text-sm mt-1" placeholder="0,00" value={valorImovel} onChange={e => setValorImovel(e.target.value)} />
         </div>
         <div>
           <Label className="text-xs text-gray-500">Entrada</Label>
-          <Input className="h-8 text-sm mt-1" placeholder="0,00" value={form.entrada} onChange={e => set('entrada', e.target.value)} />
+          <Input className="h-7 text-sm mt-1" placeholder="0,00" value={entrada} onChange={e => setEntrada(e.target.value)} />
         </div>
-
         <div>
           <Label className="text-xs text-gray-500">Valor a Financiar</Label>
-          <Input className="h-8 text-sm mt-1" placeholder="0,00" value={form.valor_pretendido} onChange={e => set('valor_pretendido', e.target.value)} />
+          <Input className="h-7 text-sm mt-1" placeholder="0,00" value={valorFin} onChange={e => setValorFin(e.target.value)} />
         </div>
         <div>
           <Label className="text-xs text-gray-500">Prazo (meses)</Label>
-          <Input className="h-8 text-sm mt-1" type="number" placeholder="360" value={form.prazo_meses} onChange={e => set('prazo_meses', e.target.value)} />
+          <Input className="h-7 text-sm mt-1" type="number" placeholder="360" value={prazo} onChange={e => setPrazo(e.target.value)} />
         </div>
-
         <div className="sm:col-span-2">
           <Label className="text-xs text-gray-500">Finalidade</Label>
-          <Select value={form.finalidade} onValueChange={v => set('finalidade', v)}>
-            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+          <Select value={finalidade} onValueChange={setFinalidade}>
+            <SelectTrigger className="h-7 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
             <SelectContent>
               {FINALIDADES.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancelar} disabled={isPending}>
+          Cancelar
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+          onClick={handleSalvar}
+          disabled={isPending}
+        >
+          {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+          Salvar
+        </Button>
       </div>
     </div>
   )

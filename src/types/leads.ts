@@ -100,6 +100,21 @@ export interface Lead {
   parceiro?: { id: string; nome: string; imobiliaria: string | null; tipo_parceiro: string | null } | null
 }
 
+export interface LeadAnaliseCredito {
+  id: string
+  empresa_id: string
+  lead_id: string
+  nome: string
+  banco_pretendido: string | null
+  valor_imovel: number | null
+  valor_pretendido: number | null
+  entrada: number | null
+  prazo_meses: number | null
+  finalidade: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface FaseStatus {
   id: string
   fase_id: string
