@@ -336,10 +336,6 @@ export async function executarWorkflowConsulta(
         const prog = b.programa !== b.bancoNome ? ` (${b.programa})` : ''
         return `• ${b.bancoNome}${prog} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
       }).join('\n')
-    : '• Nenhum banco elegível com os parâmetros informados'
-
-  const listaInelegiveis = inelegiveis.length > 0
-    ? inelegiveis.map((b) => `• ${b.bancoNome} — ${b.motivoInelegivel ?? 'inelegível'}`).join('\n')
     : null
 
   // Sumário dos parâmetros usados
@@ -352,13 +348,18 @@ export async function executarWorkflowConsulta(
     '',
     `📊 *Simulação — ${fmt.format(dados.valor_imovel!)} | Entrada ${fmt.format(dados.valor_entrada!)}*`,
     `Renda: ${fmt.format((dados.renda_formal ?? 0) + (dados.renda_informal ?? 0))} | ${dados.tipo_amortizacao} | ${prazoUsado}`,
-    '',
-    `🏦 *Bancos Elegíveis:*`,
-    listaBancos,
   ]
 
-  if (listaInelegiveis) {
-    linhas.push('', `❌ *Inelegíveis:*`, listaInelegiveis)
+  if (listaBancos) {
+    linhas.push('', `🏦 *Bancos:*`, listaBancos)
+    if (inelegiveis.length > 0) {
+      linhas.push('', `_Os demais bancos não simulam ou não estão parametrizados para este produto._`)
+    }
+  } else {
+    linhas.push(
+      '',
+      `Não encontrei simulação válida para os dados informados. Verifique produto, valor do imóvel, valor financiado, renda, idade e modalidade.`,
+    )
   }
 
   if (dados.usou_idade_aproximada) {
