@@ -8,8 +8,8 @@ describe('lead contact validation', () => {
   })
 
   it('libera quando ambos os campos são válidos', () => {
-    expect(getCamposContatoPendentes({ telefone: '(44) 99999-9999', email: 'cliente@email.com' })).toEqual([])
-    expect(temContatoObrigatorioParaCredito({ telefone: '(44) 99999-9999', email: 'cliente@email.com' })).toBe(true)
+    expect(getCamposContatoPendentes({ telefone: '5544998765432', email: 'cliente@email.com' })).toEqual([])
+    expect(temContatoObrigatorioParaCredito({ telefone: '5544998765432', email: 'cliente@email.com' })).toBe(true)
   })
 
   it('bloqueia quando apenas email está preenchido', () => {
@@ -18,32 +18,40 @@ describe('lead contact validation', () => {
   })
 
   it('bloqueia quando apenas telefone está preenchido', () => {
-    expect(getCamposContatoPendentes({ telefone: '5544999990000', email: null })).toEqual(['email'])
-    expect(temContatoObrigatorioParaCredito({ telefone: '5544999990000', email: null })).toBe(false)
+    expect(getCamposContatoPendentes({ telefone: '5544998765432', email: null })).toEqual(['email'])
+    expect(temContatoObrigatorioParaCredito({ telefone: '5544998765432', email: null })).toBe(false)
   })
 
-  it('rejeita telefone com todos os dígitos iguais (zeros)', () => {
+  it('rejeita telefone com todos os dígitos iguais — zeros', () => {
     expect(temContatoObrigatorioParaCredito({ telefone: '00000000000', email: 'x@y.com' })).toBe(false)
   })
 
-  it('rejeita telefone com todos os dígitos iguais (uns)', () => {
+  it('rejeita telefone com todos os dígitos iguais — uns', () => {
     expect(temContatoObrigatorioParaCredito({ telefone: '11111111111', email: 'x@y.com' })).toBe(false)
   })
 
-  it('rejeita telefone com dígitos repetidos mesmo com formatação', () => {
-    // (99) 99999-9999 → dígitos: 9999999999 → tudo 9
+  it('rejeita telefone com todos os dígitos iguais — dois', () => {
+    expect(temContatoObrigatorioParaCredito({ telefone: '22222222222', email: 'x@y.com' })).toBe(false)
+  })
+
+  it('rejeita telefone com apenas 2 dígitos distintos — 22222333333', () => {
+    expect(temContatoObrigatorioParaCredito({ telefone: '22222333333', email: 'x@y.com' })).toBe(false)
+  })
+
+  it('rejeita telefone com apenas 2 dígitos distintos com formatação', () => {
+    // (99) 99999-9999 → dígitos 9999999999 → 1 único
     expect(temContatoObrigatorioParaCredito({ telefone: '(99) 99999-9999', email: 'x@y.com' })).toBe(false)
   })
 
   it('rejeita telefone com menos de 10 dígitos', () => {
-    expect(temContatoObrigatorioParaCredito({ telefone: '123456789', email: 'x@y.com' })).toBe(false)
+    expect(temContatoObrigatorioParaCredito({ telefone: '233333', email: 'x@y.com' })).toBe(false)
   })
 
   it('aceita telefone válido no formato internacional', () => {
-    expect(temContatoObrigatorioParaCredito({ telefone: '5544999990000', email: 'x@y.com' })).toBe(true)
+    expect(temContatoObrigatorioParaCredito({ telefone: '5544998765432', email: 'x@y.com' })).toBe(true)
   })
 
   it('aceita telefone válido com formatação', () => {
-    expect(temContatoObrigatorioParaCredito({ telefone: '+55 (44) 9 9999-0000', email: 'x@y.com' })).toBe(true)
+    expect(temContatoObrigatorioParaCredito({ telefone: '+55 (44) 9 9876-5432', email: 'x@y.com' })).toBe(true)
   })
 })
