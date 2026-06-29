@@ -74,6 +74,23 @@ export async function POST(
       ?? (processo.compradores as any[])?.[0]
     const paraEmail: string = compradorPrincipal?.email ?? ''
 
+    // Busca tarifa do banco em Configurações > Simulador > Tarifas por Banco
+    // Preferência: 'residencial'; fallback: qualquer tipo disponível para o banco
+    let tarifaBanco: number | null = null
+    if (bancoNome) {
+      const { data: tarifaRows } = await supabaseAdmin
+        .from('simulador_custas_config')
+        .select('tipo, valor')
+        .eq('empresa_id', usuario.empresa_id)
+        .ilike('banco_nome', bancoNome)
+        .eq('ativo', true)
+        .order('tipo')
+      if (tarifaRows && tarifaRows.length > 0) {
+        const residencial = tarifaRows.find((r) => r.tipo === 'residencial')
+        tarifaBanco = Number((residencial ?? tarifaRows[0]).valor)
+      }
+    }
+
     const dados: DadosConfirmacaoValores = {
       cliente_nome:           compradorPrincipal?.nome ?? 'Cliente',
       banco_nome:             bancoNome,
@@ -90,7 +107,7 @@ export async function POST(
       amortizacao:            (processo as any).sistema_amortizacao,
       taxa:                   null,
       iof:                    null,
-      tarifa_banco:           null,
+      tarifa_banco:           tarifaBanco,
       observacoes:            null,
       usuario_nome:           usuario.nome,
       usuario_funcao:         usuario.perfil,
