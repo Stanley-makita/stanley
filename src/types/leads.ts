@@ -82,6 +82,9 @@ export interface Lead {
   validade_credito: string | null
   // Status configurável por fase
   status_id: string | null
+  // Consulta de restritivos (CPF/CNPJ/SCR)
+  restricao_consultada: boolean
+  restricao_resultado:  string | null
   // Campanha / indicação
   canal:           string | null
   campanha:        string | null

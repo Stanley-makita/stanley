@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -112,8 +114,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
   const [msgInicial, setMsgInicial] = useState('')
   const [consultaRestritivosAberto, setConsultaRestritivosAberto] = useState(false)
-  const [consultaRestritivosRespondido, setConsultaRestritivosRespondido] = useState(false)
   const [temRestricao, setTemRestricao] = useState<boolean | null>(null)
+  const queryClient = useQueryClient()
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
@@ -122,6 +124,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
   const completarItem = useCompletarChecklistItem()
+
+  const restritivosNoChecklist = itensChecklist.filter(i => i.tipo === 'restritivos')
+  const consultaRestritivosRespondido =
+    (lead?.restricao_consultada ?? false) ||
+    (restritivosNoChecklist.length > 0 && restritivosNoChecklist.every(i => i.concluido))
   const abas = useConfigAbas()
 
   const contextoSolicitacao: ContextoSolicitacao | undefined = lead ? {
@@ -418,14 +425,6 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                             return
                           }
                           if (aba.id === 'credito' && !consultaRestritivosRespondido) {
-                            const itensPendentesRestritivos = itensChecklist.filter(i => i.tipo === 'restritivos')
-                            const jaRespondidoNoChecklist = itensPendentesRestritivos.length > 0
-                              && itensPendentesRestritivos.every(i => i.concluido)
-                            if (jaRespondidoNoChecklist) {
-                              setConsultaRestritivosRespondido(true)
-                              setAbaAtiva('credito')
-                              return
-                            }
                             setConsultaRestritivosAberto(true)
                             return
                           }
@@ -580,7 +579,12 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     resultado,
                   })
                 }
-                setConsultaRestritivosRespondido(true)
+                // Persiste no lead para não reaparecer ao reabrir o modal
+                await supabase
+                  .from('leads')
+                  .update({ restricao_consultada: true, restricao_resultado: resultado })
+                  .eq('id', lead!.id)
+                queryClient.invalidateQueries({ queryKey: ['leads', lead!.id] })
                 setConsultaRestritivosAberto(false)
                 setAbaAtiva('credito')
               }}
