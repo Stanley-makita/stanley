@@ -216,7 +216,8 @@ export default function ConfirmacaoForm({ token, template, dadosJson, jaConfirma
           <button
             onClick={confirmar}
             disabled={!podeConfirmar || enviando}
-            className="w-full py-5 rounded-xl text-base font-bold tracking-wide transition-all duration-150 bg-fonti-primary text-fonti-accent shadow-md hover:bg-fonti-primary-hover hover:shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-fonti-primary"
+            className="w-full py-5 rounded-xl text-base font-bold tracking-wide transition-all duration-150 text-white shadow-md hover:shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+            style={{ backgroundColor: '#1a7a3c' }}
           >
             {enviando ? 'Registrando confirmação...' : '✓ Confirmar ciência e aceite'}
           </button>

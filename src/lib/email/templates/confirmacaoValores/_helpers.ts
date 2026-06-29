@@ -50,14 +50,14 @@ export function layoutEmail(titulo: string, corpo: string, assinaturaHtml: strin
 export function blocoConfirmacao(url: string): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
   <tr>
-    <td style="border-top:1px solid #e5e5e5;padding-top:20px;text-align:center;">
-      <p style="font-size:13px;color:#555;margin:0 0 14px;line-height:1.5;">
+    <td style="border-top:1px solid #e5e5e5;padding-top:24px;text-align:center;">
+      <p style="font-size:13px;color:#555;margin:0 0 20px;line-height:1.5;">
         Para confirmar o recebimento e ciência dos valores apresentados,<br>clique no botão abaixo:
       </p>
-      <a href="${url}" style="display:inline-block;background:#253B29;color:#C2AA6A;font-size:14px;font-weight:bold;padding:12px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.3px;">
-        Confirmar ciência e aceite
+      <a href="${url}" style="display:inline-block;background:#1a7a3c;color:#ffffff;font-size:16px;font-weight:bold;padding:18px 56px;border-radius:10px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 2px 8px rgba(26,122,60,0.35);">
+        ✓ Confirmar ciência e aceite
       </a>
-      <p style="font-size:11px;color:#aaa;margin:12px 0 0;">
+      <p style="font-size:11px;color:#aaa;margin:16px 0 0;">
         Este link é individual e de uso único.
       </p>
     </td>

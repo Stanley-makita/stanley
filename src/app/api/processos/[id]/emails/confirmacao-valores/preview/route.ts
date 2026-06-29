@@ -75,19 +75,22 @@ export async function POST(
     const paraEmail: string = compradorPrincipal?.email ?? ''
 
     // Busca tarifa do banco em Configurações > Simulador > Tarifas por Banco
-    // Preferência: 'residencial'; fallback: qualquer tipo disponível para o banco
+    // Suporta schema novo (colunas tipo+valor) e antigo (tarifa_avaliacao)
     let tarifaBanco: number | null = null
     if (bancoNome) {
       const { data: tarifaRows } = await supabaseAdmin
         .from('simulador_custas_config')
-        .select('tipo, valor')
+        .select('*')
         .eq('empresa_id', usuario.empresa_id)
         .ilike('banco_nome', bancoNome)
         .eq('ativo', true)
-        .order('tipo')
       if (tarifaRows && tarifaRows.length > 0) {
-        const residencial = tarifaRows.find((r) => r.tipo === 'residencial')
-        tarifaBanco = Number((residencial ?? tarifaRows[0]).valor)
+        // Schema novo: tem 'tipo' e 'valor'; preferência por 'residencial'
+        const residencial = tarifaRows.find((r: any) => r.tipo === 'residencial')
+        const row: any = residencial ?? tarifaRows[0]
+        // valor (novo) → tarifa_avaliacao (antigo) → 0
+        const v = Number(row.valor ?? row.tarifa_avaliacao ?? 0)
+        tarifaBanco = v > 0 ? v : null
       }
     }
 
