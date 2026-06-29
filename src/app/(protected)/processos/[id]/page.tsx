@@ -248,8 +248,9 @@ export default function ProcessoDetalhePage() {
                 </Button>
               )}
 
-              {/* Confirmação de Valores — apenas na fase Análise Jurídica */}
-              {processo.fase_atual?.nome?.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes('juridica') && (
+              {/* Confirmação de Valores — a partir da fase Engenharia */}
+              {(processo.fase_atual?.nome?.toLowerCase().includes('engenharia') ||
+                fasesHistorico.some(h => h.fase?.nome?.toLowerCase().includes('engenharia'))) && (
                 <Button
                   size="sm"
                   variant="outline"
