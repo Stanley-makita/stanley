@@ -305,8 +305,8 @@ export function SimuladorCustas({
     return Array.from(new Set([...CIDADES_REGIAO, ...fromDb])).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [itbiConfigs])
   const bancosDisponiveis = useMemo(() => {
-    const fromDb = custasConfigs.map((c) => c.bancoNome).filter(Boolean)
-    const extras = fromDb.filter((b) => !BANCOS_PRIORITY.some((p) => p.toLowerCase() === b.toLowerCase()))
+    const uniqueNames = Array.from(new Set(custasConfigs.map((c) => c.bancoNome).filter(Boolean)))
+    const extras = uniqueNames.filter((b) => !BANCOS_PRIORITY.some((p) => p.toLowerCase() === b.toLowerCase()))
     return [...BANCOS_PRIORITY, ...extras.sort((a, b) => a.localeCompare(b, 'pt-BR'))]
   }, [custasConfigs])
 
@@ -315,8 +315,11 @@ export function SimuladorCustas({
     [itbiConfigs, form.cidade],
   )
   const custasDosBanco = useMemo(
-    () => custasConfigs.find((c) => c.bancoNome.toLowerCase() === form.banco.toLowerCase()),
-    [custasConfigs, form.banco],
+    () => custasConfigs.find((c) =>
+      c.bancoNome.toLowerCase() === form.banco.toLowerCase() &&
+      c.tipo === form.tipoImovel.toLowerCase()
+    ),
+    [custasConfigs, form.banco, form.tipoImovel],
   )
 
   const recursosPropriosValue = useMemo(

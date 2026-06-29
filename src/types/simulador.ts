@@ -68,9 +68,8 @@ export interface SimuladorItbiConfig {
 export interface SimuladorCustasConfig {
   id?: string
   bancoNome: string
-  tarifaAvaliacao: number
-  tarifaCorrespondente: number
-  tarifaOutros: number
+  tipo: 'residencial' | 'comercial'
+  valor: number
 }
 
 export interface SimuladorConfigGeral {

@@ -170,7 +170,7 @@ export function calcularCustas(
   custasConfig: SimuladorCustasConfig | undefined,
 ): ResultadoSimulador {
   const bancoEhCaixa = isCaixa(entrada.banco)
-  const tarifa = custasConfig?.tarifaAvaliacao ?? 0
+  const tarifa = custasConfig?.valor ?? 0
 
   const itbiSem = calcItbiSemDesconto(entrada, itbiConfig)
   const itbiCom = calcItbiComDesconto(entrada)

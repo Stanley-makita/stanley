@@ -35,15 +35,16 @@ export function useCustasConfig() {
     queryFn: async (): Promise<SimuladorCustasConfig[]> => {
       const { data, error } = await supabase
         .from('simulador_custas_config')
-        .select('*')
+        .select('id, banco_nome, tipo, valor')
         .eq('ativo', true)
         .order('banco_nome')
+        .order('tipo')
       if (error) throw error
       return (data ?? []).map((r) => ({
+        id:        r.id,
         bancoNome: r.banco_nome,
-        tarifaAvaliacao: Number(r.tarifa_avaliacao),
-        tarifaCorrespondente: Number(r.tarifa_correspondente),
-        tarifaOutros: Number(r.tarifa_outros),
+        tipo:      (r.tipo ?? 'residencial') as 'residencial' | 'comercial',
+        valor:     Number(r.valor ?? 0),
       }))
     },
   })
@@ -120,25 +121,40 @@ export function useSalvarTarifaBanco() {
     mutationFn: async (payload: {
       id?: string
       bancoNome: string
-      tarifaAvaliacao: number
-      tarifaCorrespondente: number
-      tarifaOutros: number
+      tipo: 'residencial' | 'comercial'
+      valor: number
     }) => {
       const row = {
         empresa_id: usuario!.empresa_id,
         banco_nome: payload.bancoNome,
-        tarifa_avaliacao: payload.tarifaAvaliacao,
-        tarifa_correspondente: payload.tarifaCorrespondente,
-        tarifa_outros: payload.tarifaOutros,
+        tipo:       payload.tipo,
+        valor:      payload.valor,
         updated_at: new Date().toISOString(),
       }
       if (payload.id) {
         const { error } = await supabase.from('simulador_custas_config').update(row).eq('id', payload.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('simulador_custas_config').insert(row)
+        const { error } = await supabase
+          .from('simulador_custas_config')
+          .upsert(row, { onConflict: 'empresa_id,banco_nome,tipo' })
         if (error) throw error
       }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['simulador-custas-config'] }),
+  })
+}
+
+export function useExcluirTarifaBanco() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('simulador_custas_config')
+        .update({ ativo: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['simulador-custas-config'] }),
   })

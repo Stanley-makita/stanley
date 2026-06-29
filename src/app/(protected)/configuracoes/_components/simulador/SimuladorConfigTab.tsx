@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Pencil, Check, X } from 'lucide-react'
+import { Plus, Pencil, Check, X, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useItbiConfig,
@@ -13,8 +13,10 @@ import {
   useConfigGeral,
   useSalvarConfigGeral,
   useSalvarTarifaBanco,
+  useExcluirTarifaBanco,
   useSalvarItbi,
 } from '@/hooks/simulador/useSimuladorConfig'
+import { useBancos } from '@/hooks/useBancos'
 import type { SimuladorItbiConfig, SimuladorCustasConfig } from '@/types/simulador'
 import { SIMULADOR_CONFIG_DEFAULTS } from '@/types/simulador'
 
@@ -137,36 +139,41 @@ function SecaoParametrosGerais() {
 // ── Seção de tarifas bancárias ─────────────────────────────────────────────
 function SecaoTarifas() {
   const { data: tarifas = [] } = useCustasConfig()
+  const { data: bancos = [] } = useBancos()
   const salvar = useSalvarTarifaBanco()
+  const excluir = useExcluirTarifaBanco()
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [novoAberto, setNovoAberto] = useState(false)
-  const [formNovo, setFormNovo] = useState<Omit<SimuladorCustasConfig, never> & { id?: string }>({
-    bancoNome: '', tarifaAvaliacao: 0, tarifaCorrespondente: 0, tarifaOutros: 0,
-  })
 
-  async function salvarTarifa(payload: typeof formNovo) {
+  const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  const bancosNomes = Array.from(new Set([
+    ...(bancos as Array<{ nome: string }>).map((b) => b.nome).filter(Boolean),
+    ...tarifas.map((t) => t.bancoNome).filter(Boolean),
+  ])).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  async function handleSalvar(payload: SimuladorCustasConfig) {
     await salvar.mutateAsync(payload)
     toast.success('Tarifa salva')
     setNovoAberto(false)
     setEditandoId(null)
   }
 
-  const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-fonti-primary">Tarifas por Banco</h3>
-        <Button size="sm" variant="outline" className="gap-1 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover" onClick={() => { setFormNovo({ bancoNome: '', tarifaAvaliacao: 0, tarifaCorrespondente: 0, tarifaOutros: 0 }); setNovoAberto(true) }}>
+        <Button size="sm" variant="outline" className="gap-1 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
+          onClick={() => { setNovoAberto(true); setEditandoId(null) }}>
           <Plus className="h-3.5 w-3.5" /> Adicionar
         </Button>
       </div>
 
       {novoAberto && (
         <TarifaForm
-          form={formNovo}
-          onChange={setFormNovo}
-          onSalvar={() => salvarTarifa(formNovo)}
+          inicial={{ bancoNome: '', tipo: 'residencial', valor: 0 }}
+          bancosNomes={bancosNomes}
+          onSalvar={handleSalvar}
           onCancelar={() => setNovoAberto(false)}
           pending={salvar.isPending}
         />
@@ -176,37 +183,43 @@ function SecaoTarifas() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              {['Banco', 'Avaliação', 'Correspondente', 'Outros', ''].map((h) => (
+              {['Banco', 'Tipo', 'Valor', ''].map((h) => (
                 <th key={h} className="text-left text-xs text-gray-500 font-medium px-4 py-2.5">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {tarifas.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma tarifa configurada.</td></tr>
+              <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhuma tarifa configurada.</td></tr>
             ) : tarifas.map((t, i) => (
-              editandoId === t.bancoNome ? (
-                <tr key={t.bancoNome} className="border-b border-gray-50">
-                  <td colSpan={5} className="px-4 py-3">
+              editandoId === t.id ? (
+                <tr key={t.id} className="border-b border-gray-50">
+                  <td colSpan={4} className="px-4 py-3">
                     <TarifaForm
-                      form={t}
-                      onChange={() => {}}
-                      onSalvar={() => salvarTarifa(t)}
+                      inicial={t}
+                      bancosNomes={bancosNomes}
+                      onSalvar={handleSalvar}
                       onCancelar={() => setEditandoId(null)}
                       pending={salvar.isPending}
                     />
                   </td>
                 </tr>
               ) : (
-                <tr key={t.bancoNome} className={`border-b border-gray-50 last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                <tr key={t.id ?? `${t.bancoNome}-${t.tipo}`} className={`border-b border-gray-50 last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                   <td className="px-4 py-2.5 font-medium text-fonti-primary">{t.bancoNome}</td>
-                  <td className="px-4 py-2.5">{BRL.format(t.tarifaAvaliacao)}</td>
-                  <td className="px-4 py-2.5">{BRL.format(t.tarifaCorrespondente)}</td>
-                  <td className="px-4 py-2.5">{BRL.format(t.tarifaOutros)}</td>
+                  <td className="px-4 py-2.5 capitalize">{t.tipo}</td>
+                  <td className="px-4 py-2.5">{BRL.format(t.valor)}</td>
                   <td className="px-4 py-2.5">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditandoId(t.bancoNome)}>
-                      <Pencil className="h-3.5 w-3.5 text-gray-400" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => { setEditandoId(t.id ?? null); setNovoAberto(false) }}>
+                        <Pencil className="h-3.5 w-3.5 text-gray-400" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => t.id && excluir.mutate(t.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               )
@@ -218,39 +231,79 @@ function SecaoTarifas() {
   )
 }
 
-function TarifaForm({ form, onChange, onSalvar, onCancelar, pending }: {
-  form: { bancoNome: string; tarifaAvaliacao: number; tarifaCorrespondente: number; tarifaOutros: number }
-  onChange: (v: typeof form) => void
-  onSalvar: () => void
+function TarifaForm({ inicial, bancosNomes, onSalvar, onCancelar, pending }: {
+  inicial: SimuladorCustasConfig
+  bancosNomes: string[]
+  onSalvar: (payload: SimuladorCustasConfig) => void
   onCancelar: () => void
   pending: boolean
 }) {
-  const [local, setLocal] = useState({ ...form })
-  const set = (k: string, v: string | number) => setLocal((f) => ({ ...f, [k]: v }))
+  const [local, setLocal] = useState({ ...inicial })
+  const [valorStr, setValorStr] = useState(
+    inicial.valor > 0 ? inicial.valor.toFixed(2).replace('.', ',') : ''
+  )
+
+  function parseValor(s: string) {
+    return Number(s.replace(/\./g, '').replace(',', '.')) || 0
+  }
+
+  function handleValorBlur() {
+    const num = parseValor(valorStr)
+    setLocal((f) => ({ ...f, valor: num }))
+  }
+
+  function handleSalvar() {
+    onSalvar({ ...local, valor: parseValor(valorStr) })
+  }
 
   return (
     <div className="space-y-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/50 rounded-lg">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <Label className="text-xs text-gray-500">Banco</Label>
-          <Input className="mt-1 h-8 text-sm" value={local.bancoNome} onChange={(e) => set('bancoNome', e.target.value)} placeholder="Ex: Caixa Econômica" />
+          <select
+            className="mt-1 w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-fonti-primary"
+            value={local.bancoNome}
+            onChange={(e) => setLocal((f) => ({ ...f, bancoNome: e.target.value }))}
+          >
+            <option value="">Selecione...</option>
+            {bancosNomes.map((nome) => (
+              <option key={nome} value={nome}>{nome}</option>
+            ))}
+          </select>
         </div>
         <div>
-          <Label className="text-xs text-gray-500">Avaliação (R$)</Label>
-          <Input className="mt-1 h-8 text-sm" type="number" value={local.tarifaAvaliacao} onChange={(e) => set('tarifaAvaliacao', Number(e.target.value))} />
+          <Label className="text-xs text-gray-500">Tipo</Label>
+          <select
+            className="mt-1 w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-fonti-primary"
+            value={local.tipo}
+            onChange={(e) => setLocal((f) => ({ ...f, tipo: e.target.value as 'residencial' | 'comercial' }))}
+          >
+            <option value="residencial">Residencial</option>
+            <option value="comercial">Comercial</option>
+          </select>
         </div>
         <div>
-          <Label className="text-xs text-gray-500">Correspondente (R$)</Label>
-          <Input className="mt-1 h-8 text-sm" type="number" value={local.tarifaCorrespondente} onChange={(e) => set('tarifaCorrespondente', Number(e.target.value))} />
-        </div>
-        <div>
-          <Label className="text-xs text-gray-500">Outros (R$)</Label>
-          <Input className="mt-1 h-8 text-sm" type="number" value={local.tarifaOutros} onChange={(e) => set('tarifaOutros', Number(e.target.value))} />
+          <Label className="text-xs text-gray-500">Valor (R$)</Label>
+          <Input
+            className="mt-1 h-8 text-sm"
+            value={valorStr}
+            onChange={(e) => setValorStr(e.target.value)}
+            onBlur={handleValorBlur}
+            placeholder="Ex: 1.950,00"
+          />
         </div>
       </div>
       <div className="flex gap-2 justify-end">
-        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={onCancelar}><X className="h-3.5 w-3.5" /> Cancelar</Button>
-        <Button size="sm" className="h-8 text-xs bg-fonti-primary text-white gap-1" onClick={() => { onChange(local); onSalvar() }} disabled={!local.bancoNome || pending}>
+        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={onCancelar}>
+          <X className="h-3.5 w-3.5" /> Cancelar
+        </Button>
+        <Button
+          size="sm"
+          className="h-8 text-xs bg-fonti-primary text-white gap-1"
+          onClick={handleSalvar}
+          disabled={!local.bancoNome || pending}
+        >
           <Check className="h-3.5 w-3.5" /> Salvar
         </Button>
       </div>
