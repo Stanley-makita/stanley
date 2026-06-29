@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
-import type { Lead, LeadAnaliseCredito } from '@/types/leads'
+import type { Lead, LeadAnaliseCredito, StatusAnaliseCredito } from '@/types/leads'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -138,6 +138,8 @@ interface Props { lead: Lead }
 export function AbaCredito({ lead }: Props) {
   const editar = useEditarLead()
   const qc = useQueryClient()
+  const { analises } = useAnalisesCredito(lead.id)
+  const analiseDefinida = analises.find(a => a.banco_definido) ?? null
   const [completarPessoaAberto, setCompletarPessoaAberto] = useState(false)
   const [conjugePessoaDrawer, setConjugePessoaDrawer] = useState<string | null>(null)
   const [vendedorPessoaDrawer, setVendedorPessoaDrawer] = useState<string | null>(null)
@@ -204,7 +206,7 @@ export function AbaCredito({ lead }: Props) {
       <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} />
 
       {/* 5. Aprovação de Crédito */}
-      <BlocoAprovacaoCredito lead={lead} />
+      <BlocoAprovacaoCredito lead={lead} analiseDefinida={analiseDefinida} />
 
       {/* 5+6. Imóvel e Vendedor lado a lado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -615,12 +617,29 @@ function BlocoProduto({ lead }: { lead: Lead }) {
   )
 }
 
+// ── Constante status ──────────────────────────────────────────
+
+const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; classe: string }> = {
+  em_analise: { label: 'Em Análise', classe: 'bg-amber-50  border-amber-200  text-amber-700'  },
+  aprovado:   { label: 'Aprovado',   classe: 'bg-green-50  border-green-200  text-green-700'  },
+  recusado:   { label: 'Recusado',   classe: 'bg-red-50    border-red-200    text-red-700'    },
+  pendente:   { label: 'Pendente',   classe: 'bg-gray-50   border-gray-200   text-gray-500'   },
+}
+
 // ── BlocoAnalises ─────────────────────────────────────────────
 
 function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: string }) {
-  const { analises, isLoading, criar, editar, deletar } = useAnalisesCredito(leadId)
+  const { analises, isLoading, criar, editar, deletar, definirBanco } = useAnalisesCredito(leadId)
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
+
+  function handleStatusChange(id: string, status: StatusAnaliseCredito) {
+    editar.mutate({ id, status })
+  }
+
+  function handleDataRespostaChange(id: string, data_resposta: string | null) {
+    editar.mutate({ id, data_resposta })
+  }
 
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
@@ -659,7 +678,11 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
             numero={i + 1}
             onEditar={() => { setEditandoId(analise.id); setCriando(false) }}
             onDeletar={() => deletar.mutate(analise.id)}
+            onDefinirBanco={() => definirBanco.mutate(analise.id)}
+            onStatusChange={(s) => handleStatusChange(analise.id, s)}
+            onDataRespostaChange={(d) => handleDataRespostaChange(analise.id, d)}
             deletando={deletar.isPending}
+            definindoBanco={definirBanco.isPending}
           />
         )
       )}
@@ -668,7 +691,7 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
         <AnaliseForm
           numero={analises.length + 1}
           onSalvar={async (campos) => {
-            await criar.mutateAsync({ empresa_id: empresaId, lead_id: leadId, ...campos })
+            await criar.mutateAsync({ empresa_id: empresaId, lead_id: leadId, banco_definido: false, ...campos })
             setCriando(false)
           }}
           onCancelar={() => setCriando(false)}
@@ -681,19 +704,46 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
 
 // ── AnaliseCard ───────────────────────────────────────────────
 
-function AnaliseCard({ analise, numero, onEditar, onDeletar, deletando }: {
+function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onStatusChange, onDataRespostaChange, deletando, definindoBanco }: {
   analise: LeadAnaliseCredito
   numero: number
   onEditar: () => void
   onDeletar: () => void
+  onDefinirBanco: () => void
+  onStatusChange: (s: StatusAnaliseCredito) => void
+  onDataRespostaChange: (d: string | null) => void
   deletando: boolean
+  definindoBanco: boolean
 }) {
   const temDados = analise.banco_pretendido || analise.valor_imovel || analise.valor_pretendido || analise.entrada
+  const statusCfg = STATUS_ANALISE[analise.status] ?? STATUS_ANALISE.em_analise
+
   return (
-    <div className="border border-gray-200 rounded-lg p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-700">{analise.nome}</p>
-        <div className="flex items-center gap-2">
+    <div className={cn(
+      'border rounded-lg p-3 space-y-2.5 transition-colors',
+      analise.banco_definido ? 'border-green-300 bg-green-50/30' : 'border-gray-200'
+    )}>
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Toggle banco definido */}
+          <button
+            onClick={onDefinirBanco}
+            disabled={definindoBanco || analise.banco_definido}
+            title={analise.banco_definido ? 'Banco definido' : 'Definir como banco escolhido'}
+            className={cn(
+              'flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 transition-colors',
+              analise.banco_definido
+                ? 'bg-green-100 border-green-400 text-green-700 cursor-default'
+                : 'bg-white border-gray-300 text-gray-400 hover:border-fonti-primary hover:text-fonti-primary disabled:opacity-50'
+            )}
+          >
+            <span className={cn('w-2 h-2 rounded-full shrink-0', analise.banco_definido ? 'bg-green-500' : 'bg-gray-300')} />
+            {analise.banco_definido ? 'Banco Definido' : 'Definir banco'}
+          </button>
+          <p className="text-xs font-semibold text-gray-700 truncate">{analise.nome}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <button onClick={onEditar} className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-fonti-primary">
             <Pencil className="h-3 w-3" /> Editar
           </button>
@@ -702,6 +752,8 @@ function AnaliseCard({ analise, numero, onEditar, onDeletar, deletando }: {
           </button>
         </div>
       </div>
+
+      {/* Dados da simulação */}
       {temDados ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
           {analise.banco_pretendido && (
@@ -746,13 +798,45 @@ function AnaliseCard({ analise, numero, onEditar, onDeletar, deletando }: {
       ) : (
         <p className="text-xs text-gray-400 italic">Análise vazia — clique em Editar para preencher.</p>
       )}
+
+      {/* Status + Data resposta */}
+      <div className="flex flex-wrap items-center gap-3 pt-1.5 border-t border-gray-100">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-gray-400 shrink-0">Status</span>
+          <Select
+            value={analise.status}
+            onValueChange={(v) => onStatusChange(v as StatusAnaliseCredito)}
+          >
+            <SelectTrigger className={cn(
+              'h-6 text-[11px] px-2 py-0 rounded-full border font-medium w-auto gap-1',
+              statusCfg.classe,
+            )}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.entries(STATUS_ANALISE) as [StatusAnaliseCredito, { label: string; classe: string }][]).map(([v, cfg]) => (
+                <SelectItem key={v} value={v} className="text-xs">{cfg.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-gray-400 shrink-0">Data da resposta</span>
+          <input
+            type="date"
+            className="h-6 text-[11px] border border-gray-200 rounded px-2 bg-white focus:outline-none focus:ring-1 focus:ring-fonti-primary/30 text-gray-700"
+            value={analise.data_resposta ?? ''}
+            onChange={e => onDataRespostaChange(e.target.value || null)}
+          />
+        </div>
+      </div>
     </div>
   )
 }
 
 // ── AnaliseForm ───────────────────────────────────────────────
 
-type AnaliseFormInput = Omit<LeadAnaliseCredito, 'id' | 'empresa_id' | 'lead_id' | 'created_at' | 'updated_at'>
+type AnaliseFormInput = Omit<LeadAnaliseCredito, 'id' | 'empresa_id' | 'lead_id' | 'banco_definido' | 'created_at' | 'updated_at'>
 
 function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
   inicial?: LeadAnaliseCredito
@@ -769,6 +853,8 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
   const [entrada, setEntrada]         = useState(fmtMoedaInput(inicial?.entrada))
   const [prazo, setPrazo]             = useState(inicial?.prazo_meses != null ? String(inicial.prazo_meses) : '')
   const [finalidade, setFinalidade]   = useState(inicial?.finalidade ?? '')
+  const [status, setStatus]           = useState<StatusAnaliseCredito>(inicial?.status ?? 'em_analise')
+  const [dataResposta, setDataResposta] = useState(inicial?.data_resposta ?? '')
 
   async function handleSalvar() {
     await onSalvar({
@@ -779,6 +865,8 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
       entrada:          parseMoeda(entrada),
       prazo_meses:      prazo ? parseInt(prazo) : null,
       finalidade:       finalidade || null,
+      status,
+      data_resposta:    dataResposta || null,
     })
   }
 
@@ -828,6 +916,21 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs text-gray-500">Status</Label>
+          <Select value={status} onValueChange={v => setStatus(v as StatusAnaliseCredito)}>
+            <SelectTrigger className="h-7 text-sm mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.entries(STATUS_ANALISE) as [StatusAnaliseCredito, { label: string }][]).map(([v, cfg]) => (
+                <SelectItem key={v} value={v} className="text-xs">{cfg.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-gray-500">Data da resposta</Label>
+          <Input className="h-7 text-sm mt-1" type="date" value={dataResposta} onChange={e => setDataResposta(e.target.value)} />
+        </div>
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancelar} disabled={isPending}>
@@ -849,7 +952,7 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
 
 // ── BlocoAprovacaoCredito ─────────────────────────────────────
 
-function BlocoAprovacaoCredito({ lead }: { lead: Lead }) {
+function BlocoAprovacaoCredito({ lead, analiseDefinida }: { lead: Lead; analiseDefinida: LeadAnaliseCredito | null }) {
   const editar = useEditarLead()
   const [dataCredito, setDataCredito] = useState(lead.data_credito ?? '')
 
@@ -863,6 +966,24 @@ function BlocoAprovacaoCredito({ lead }: { lead: Lead }) {
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Aprovação de Crédito</p>
+
+      {analiseDefinida ? (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+          <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wide">Banco Definido</p>
+            <p className="text-sm font-bold text-green-800 truncate">
+              {analiseDefinida.banco_pretendido ?? analiseDefinida.nome}
+            </p>
+          </div>
+          {analiseDefinida.valor_pretendido != null && (
+            <p className="ml-auto text-xs text-green-700 shrink-0">{fmtMoeda(analiseDefinida.valor_pretendido)}</p>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 italic">Nenhum banco definido. Marque uma análise como "Banco Definido".</p>
+      )}
+
       <div className="space-y-1">
         <p className="text-xs text-gray-500">Data da Aprovação</p>
         <input

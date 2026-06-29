@@ -67,5 +67,27 @@ export function useAnalisesCredito(leadId: string) {
     onError: (e: any) => toast.error(`Erro ao remover análise: ${e?.message ?? 'Tente novamente'}`),
   })
 
-  return { analises, isLoading, criar, editar, deletar }
+  // Define qual análise é o banco escolhido (exclusivo por lead)
+  const definirBanco = useMutation({
+    mutationFn: async (id: string) => {
+      // Desmarca todas as análises do lead
+      await supabase
+        .from('lead_analises_credito')
+        .update({ banco_definido: false })
+        .eq('lead_id', leadId)
+      // Marca a escolhida
+      const { data, error } = await supabase
+        .from('lead_analises_credito')
+        .update({ banco_definido: true })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data as LeadAnaliseCredito
+    },
+    onSuccess: invalidar,
+    onError: (e: any) => toast.error(`Erro ao definir banco: ${e?.message ?? 'Tente novamente'}`),
+  })
+
+  return { analises, isLoading, criar, editar, deletar, definirBanco }
 }

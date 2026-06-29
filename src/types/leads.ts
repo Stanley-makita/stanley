@@ -100,6 +100,8 @@ export interface Lead {
   parceiro?: { id: string; nome: string; imobiliaria: string | null; tipo_parceiro: string | null } | null
 }
 
+export type StatusAnaliseCredito = 'em_analise' | 'aprovado' | 'recusado' | 'pendente'
+
 export interface LeadAnaliseCredito {
   id: string
   empresa_id: string
@@ -111,6 +113,9 @@ export interface LeadAnaliseCredito {
   entrada: number | null
   prazo_meses: number | null
   finalidade: string | null
+  status: StatusAnaliseCredito
+  data_resposta: string | null
+  banco_definido: boolean
   created_at: string
   updated_at: string
 }
