@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Phone, Mail, CalendarDays, DollarSign, UserRound } from 'lucide-react'
+import { Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Filter, X, Phone, Mail, CalendarDays, DollarSign, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
 import { useLeadsInativos } from '@/hooks/leads/useLeadsDashboard'
@@ -11,8 +12,7 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
-import { type Lead } from '@/types/leads'
+import { type Lead, type ProdutoInteresse } from '@/types/leads'
 
 interface Props {
   busca: string
@@ -28,6 +28,7 @@ type ColKey =
   | 'fase'
   | 'status'
   | 'origem'
+  | 'produto'
   | 'comercial'
   | 'operacional'
   | 'valor'
@@ -35,7 +36,20 @@ type ColKey =
 
 type SortDir = 'asc' | 'desc'
 
-const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'comercial', 'operacional'])
+const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'comercial', 'operacional'])
+
+const PRODUTO_LABELS: Record<ProdutoInteresse, string> = {
+  financiamento: 'Financiamento',
+  consorcio: 'Consórcio',
+  cgi: 'CGI',
+  portabilidade: 'Portabilidade',
+  contrato: 'Contrato',
+}
+
+function produtoLabel(v: ProdutoInteresse | null): string {
+  if (!v) return ''
+  return PRODUTO_LABELS[v] ?? v
+}
 
 function fmtValor(v: number | null) {
   if (!v) return '—'
@@ -48,16 +62,17 @@ function fmtValor(v: number | null) {
 
 function getColValue(lead: Lead, col: ColKey): string {
   switch (col) {
-    case 'nome':       return lead.nome.toLowerCase()
-    case 'contato':    return lead.telefone ?? ''
-    case 'fase':       return lead.fase?.nome ?? ''
-    case 'status':     return lead.status?.nome ?? ''
-    case 'origem':     return lead.origem ?? ''
-    case 'comercial':  return lead.responsavel?.nome ?? ''
-    case 'operacional': return (lead as any).responsavel_operacional?.nome ?? ''
-    case 'valor':      return String(lead.valor_pretendido ?? 0)
-    case 'criado_em':  return lead.created_at
-    default:           return ''
+    case 'nome':         return lead.nome.toLowerCase()
+    case 'contato':      return lead.telefone ?? ''
+    case 'fase':         return lead.fase?.nome ?? ''
+    case 'status':       return lead.status?.nome ?? ''
+    case 'origem':       return lead.origem ?? ''
+    case 'produto':      return produtoLabel(lead.produto_interesse)
+    case 'comercial':    return lead.responsavel?.nome ?? ''
+    case 'operacional':  return (lead as any).responsavel_operacional?.nome ?? ''
+    case 'valor':        return String(lead.valor_pretendido ?? 0)
+    case 'criado_em':    return lead.created_at
+    default:             return ''
   }
 }
 
@@ -85,15 +100,16 @@ function getUniqueValues(leads: Lead[], col: ColKey): string[] {
   return Array.from(values).sort()
 }
 
-function applyFilters(leads: Lead[], filters: Partial<Record<ColKey, string[]>>): Lead[] {
+function applyFilters(leads: Lead[], colFilters: Record<string, string>): Lead[] {
   return leads.filter(lead =>
-    Object.entries(filters).every(([col, vals]) => {
-      if (!vals || vals.length === 0) return true
-      const val = getColValue(lead, col as ColKey)
-      return vals.includes(val)
+    Object.entries(colFilters).every(([col, val]) => {
+      if (!val) return true
+      return getColValue(lead, col as ColKey) === val
     })
   )
 }
+
+type DropdownPos = { top: number; left: number }
 
 export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroEspecial }: Props) {
   const { pode } = usePermissao()
@@ -101,7 +117,9 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
   const [leadParaExcluir, setLeadParaExcluir] = useState<{ id: string; faseId: string; nome: string } | null>(null)
   const [sortCol, setSortCol] = useState<ColKey>('criado_em')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({})
+  const [colFilters, setColFilters] = useState<Record<string, string>>({})
+  const [openFilter, setOpenFilter] = useState<ColKey | null>(null)
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
 
   const isInativos = filtroEspecial === 'inativos'
 
@@ -115,7 +133,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     ? leadsInativos.filter(l => !busca || l.nome.toLowerCase().includes(busca.toLowerCase()) || l.telefone?.includes(busca))
     : faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
 
-  const leadsFiltrados = applyFilters(leadsBase, filters)
+  const leadsFiltrados = applyFilters(leadsBase, colFilters)
   const leads = sortLeads(leadsFiltrados, sortCol, sortDir)
 
   const totalPorFase = todosLeads.reduce<Record<string, number>>((acc, l) => {
@@ -123,7 +141,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     return acc
   }, {})
 
-  const hasFilters = Object.values(filters).some(v => v && v.length > 0)
+  const hasFilters = Object.values(colFilters).some(v => !!v)
 
   function handleSort(col: ColKey) {
     if (sortCol === col) {
@@ -134,12 +152,8 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     }
   }
 
-  function setFilter(col: ColKey, vals: string[]) {
-    setFilters(prev => ({ ...prev, [col]: vals.length ? vals : undefined }))
-  }
-
   function clearAllFilters() {
-    setFilters({})
+    setColFilters({})
   }
 
   return (
@@ -237,20 +251,40 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/60">
-                    <ColHeader label="Nome"              col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
-                    <ColHeader label="Contato"           col="contato"     active={sortCol} dir={sortDir} onSort={handleSort} />
-                    <ColHeader label="Fase"              col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable filterOptions={getUniqueValues(leadsBase, 'fase')} activeFilter={filters.fase ?? []} onFilterChange={v => setFilter('fase', v)} />
-                    <ColHeader label="Status"            col="status"      active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable filterOptions={getUniqueValues(leadsBase, 'status')} activeFilter={filters.status ?? []} onFilterChange={v => setFilter('status', v)} />
-                    <ColHeader label="Origem"            col="origem"      active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable filterOptions={getUniqueValues(leadsBase, 'origem')} activeFilter={filters.origem ?? []} onFilterChange={v => setFilter('origem', v)} />
-                    <ColHeader label="Comercial"         col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable filterOptions={getUniqueValues(leadsBase, 'comercial')} activeFilter={filters.comercial ?? []} onFilterChange={v => setFilter('comercial', v)} />
-                    <ColHeader label="Operacional"       col="operacional" active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable filterOptions={getUniqueValues(leadsBase, 'operacional')} activeFilter={filters.operacional ?? []} onFilterChange={v => setFilter('operacional', v)} />
-                    <ColHeader label="Valor pretendido"  col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
-                    <ColHeader label="Criado em"         col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Nome"             col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Contato"          col="contato"     active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Fase"             col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Status"           col="status"      active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Origem"           col="origem"      active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Produto"          col="produto"     active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Comercial"        col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Operacional"      col="operacional" active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Valor pretendido" col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <ColHeader label="Criado em"        col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
                     {podeExcluir && <th className="w-10 px-2 py-3" />}
                   </tr>
                 </thead>
@@ -344,6 +378,11 @@ function LeadMobileCard({
               </span>
             )}
             <LeadOrigemBadge origem={lead.origem} />
+            {lead.produto_interesse && (
+              <span className="inline-flex items-center rounded-full border border-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                {produtoLabel(lead.produto_interesse)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -403,83 +442,15 @@ function LeadMobileCard({
   )
 }
 
-// ─── FilterPopover ────────────────────────────────────────────────────────────
-
-function FilterPopover({
-  options,
-  selected,
-  onChange,
-}: {
-  options: string[]
-  selected: string[]
-  onChange: (vals: string[]) => void
-}) {
-  const hasFilter = selected.length > 0
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          onClick={e => e.stopPropagation()}
-          className={cn(
-            'relative inline-flex items-center justify-center p-0.5 rounded transition-colors',
-            hasFilter ? 'text-fonti-primary' : 'text-gray-300 hover:text-gray-500',
-          )}
-          title="Filtrar coluna"
-        >
-          <Filter className="h-3 w-3" />
-          {hasFilter && (
-            <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-fonti-primary text-white text-[9px] font-bold flex items-center justify-center leading-none">
-              {selected.length}
-            </span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-52 p-0 border-gray-200">
-        <div className="px-2 py-1.5 border-b border-gray-100 flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-600">Filtrar por valor</span>
-          {hasFilter && (
-            <button
-              onClick={() => onChange([])}
-              className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
-            >
-              Limpar
-            </button>
-          )}
-        </div>
-        {options.length === 0 ? (
-          <p className="px-3 py-3 text-xs text-gray-400">Sem opções disponíveis</p>
-        ) : (
-          <div className="max-h-52 overflow-y-auto py-1">
-            {options.map(opt => (
-              <label
-                key={opt}
-                className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-fonti-primary accent-fonti-primary"
-                  checked={selected.includes(opt)}
-                  onChange={e => {
-                    if (e.target.checked) onChange([...selected, opt])
-                    else onChange(selected.filter(v => v !== opt))
-                  }}
-                />
-                <span className="text-xs text-gray-700 truncate">{opt}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 // ─── ColHeader ────────────────────────────────────────────────────────────────
 
 function ColHeader({
   label, col, active, dir, onSort, align = 'left',
-  filterable = false, filterOptions = [], activeFilter = [], onFilterChange,
+  filterable = false,
+  colFilters, setColFilters,
+  openFilter, setOpenFilter,
+  dropdownPos, setDropdownPos,
+  allLeads = [],
 }: {
   label: string
   col: ColKey
@@ -488,40 +459,123 @@ function ColHeader({
   onSort: (col: ColKey) => void
   align?: 'left' | 'right'
   filterable?: boolean
-  filterOptions?: string[]
-  activeFilter?: string[]
-  onFilterChange?: (vals: string[]) => void
+  colFilters?: Record<string, string>
+  setColFilters?: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  openFilter?: ColKey | null
+  setOpenFilter?: (col: ColKey | null) => void
+  dropdownPos?: DropdownPos | null
+  setDropdownPos?: (pos: DropdownPos | null) => void
+  allLeads?: Lead[]
 }) {
   const isActive = active === col
-  const hasFilter = activeFilter.length > 0
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const unique = useMemo(() => getUniqueValues(allLeads, col), [allLeads, col])
 
-  return (
-    <th className={cn('px-3 py-2 whitespace-nowrap', align === 'right' ? 'text-right' : 'text-left')}>
-      <div className={cn('inline-flex items-center gap-1', align === 'right' && 'flex-row-reverse')}>
+  const activeVal = colFilters?.[col] ?? ''
+  const isFiltered = !!activeVal
+  const isOpen = openFilter === col
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!setOpenFilter || !setDropdownPos) return
+    if (isOpen) {
+      setOpenFilter(null)
+      setDropdownPos(null)
+    } else {
+      const rect = btnRef.current?.getBoundingClientRect()
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      setOpenFilter(col)
+    }
+  }
+
+  const handleSelect = (val: string) => {
+    if (!setColFilters || !setOpenFilter || !setDropdownPos) return
+    setColFilters(prev => ({ ...prev, [col]: val }))
+    setOpenFilter(null)
+    setDropdownPos(null)
+  }
+
+  const handleClearFilter = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setColFilters?.(prev => ({ ...prev, [col]: '' }))
+  }
+
+  if (filterable) {
+    return (
+      <th className="px-3 py-2 whitespace-nowrap text-left">
         <button
-          onClick={() => onSort(col)}
+          ref={btnRef}
+          onClick={handleOpen}
           className={cn(
             'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
-            isActive ? 'text-fonti-primary' : 'text-gray-500 hover:text-gray-700',
+            isFiltered ? 'text-fonti-primary' : 'text-gray-500 hover:text-gray-700',
           )}
         >
-          {label}
-          {isActive
-            ? dir === 'asc'
-              ? <ArrowUp className="h-3 w-3" />
-              : <ArrowDown className="h-3 w-3" />
-            : <ArrowUpDown className="h-3 w-3 opacity-40" />
+          {isFiltered && <Filter className="h-3 w-3 shrink-0" />}
+          <span className="max-w-[120px] truncate">{isFiltered ? activeVal : label}</span>
+          {isFiltered
+            ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={handleClearFilter} />
+            : <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           }
         </button>
-        {filterable && onFilterChange && (
-          <FilterPopover
-            options={filterOptions}
-            selected={activeFilter}
-            onChange={onFilterChange}
-          />
+
+        {isOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
+          <div
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+            className="min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="max-h-56 overflow-y-auto py-1">
+              <button
+                onClick={() => handleSelect('')}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors',
+                  !activeVal ? 'text-fonti-primary font-semibold' : 'text-gray-500',
+                )}
+              >
+                Todos
+              </button>
+              {unique.length === 0
+                ? <p className="px-3 py-2 text-xs text-gray-400">Sem opções</p>
+                : unique.map(val => (
+                  <button
+                    key={val}
+                    onClick={() => handleSelect(val)}
+                    className={cn(
+                      'w-full text-left px-3 py-2 text-xs hover:bg-fonti-primary/5 transition-colors',
+                      activeVal === val ? 'text-fonti-primary font-semibold bg-fonti-primary/5' : 'text-gray-700',
+                    )}
+                  >
+                    {val || '—'}
+                  </button>
+                ))
+              }
+            </div>
+          </div>,
+          document.body,
         )}
-        {hasFilter && !filterable && null}
-      </div>
+      </th>
+    )
+  }
+
+  // Sort-only header
+  return (
+    <th className={cn('px-3 py-2 whitespace-nowrap', align === 'right' ? 'text-right' : 'text-left')}>
+      <button
+        onClick={() => onSort(col)}
+        className={cn(
+          'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
+          isActive ? 'text-fonti-primary' : 'text-gray-500 hover:text-gray-700',
+        )}
+      >
+        {label}
+        {isActive
+          ? dir === 'asc'
+            ? <ArrowUp className="h-3 w-3" />
+            : <ArrowDown className="h-3 w-3" />
+          : <ArrowUpDown className="h-3 w-3 opacity-40" />
+        }
+      </button>
     </th>
   )
 }
@@ -597,6 +651,13 @@ function LeadRow({
       {/* Origem */}
       <td className="px-3 py-1.5">
         <LeadOrigemBadge origem={lead.origem} />
+      </td>
+
+      {/* Produto */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">
+          {lead.produto_interesse ? produtoLabel(lead.produto_interesse) : <span className="text-gray-300">—</span>}
+        </span>
       </td>
 
       {/* Comercial */}
