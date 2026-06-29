@@ -176,9 +176,10 @@ function StaticHead({ children }: { children: React.ReactNode }) {
 
 interface Props {
   produtoFixo?: ProdutoFiltro
+  responsavelId?: string
 }
 
-export function VisaoTabela({ produtoFixo }: Props) {
+export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
   const router = useRouter()
   const { usuario } = useAuth()
 
@@ -204,6 +205,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
     produto: produtoFixo ?? 'todos',
     chance: 'todos',
     busca,
+    responsavelId,
   })
 
   const { data: produtosConfig = [] } = useProdutos()

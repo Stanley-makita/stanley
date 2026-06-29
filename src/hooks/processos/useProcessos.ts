@@ -14,6 +14,7 @@ interface FiltrosProcessos {
   produto?: ProdutoFiltro
   busca?: string
   chance?: 'certeza' | 'incerteza' | 'todos'
+  responsavelId?: string
 }
 
 export function useProcessos(filtros: FiltrosProcessos = {}) {
@@ -62,6 +63,12 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
       if (filtros.busca) {
         query = query.or(
           `nome_imovel.ilike.%${filtros.busca}%,numero_processo.ilike.%${filtros.busca}%`
+        )
+      }
+
+      if (filtros.responsavelId) {
+        query = query.or(
+          `comercial_id.eq.${filtros.responsavelId},operacional_id.eq.${filtros.responsavelId}`
         )
       }
 

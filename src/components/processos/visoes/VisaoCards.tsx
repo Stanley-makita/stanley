@@ -165,9 +165,10 @@ function KanbanColuna({
 
 // ─── Visão principal ──────────────────────────────────────────────────────────
 
-export function VisaoCards({ modulo = 'processos', produtoFixo }: {
+export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId }: {
   modulo?: string
   produtoFixo?: ProdutoFiltro
+  responsavelId?: string
 }) {
   const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>('todos')
   const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
@@ -178,6 +179,7 @@ export function VisaoCards({ modulo = 'processos', produtoFixo }: {
     produto: produtoFixo ?? produtoFiltro,
     chance: chanceFiltro,
     busca,
+    responsavelId,
   })
 
   const isLoading = fasesLoading || processosLoading
