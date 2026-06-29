@@ -1,28 +1,30 @@
 'use client'
 
 import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
+import { buildTimelineSummary, getTimelineBadge } from './timelineUtils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare } from 'lucide-react'
+import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList } from 'lucide-react'
 
 const ICONES = {
-  criacao:      Plus,
+  historico: Edit,
+  simulacao: Calculator,
+  documento: FileText,
+  solicitacao: ClipboardList,
+  criacao: Plus,
   fase_mudanca: GitBranch,
-  edicao:       Edit,
-  comentario:   MessageSquare,
+  comentario: MessageSquare,
 }
-
-const TIPOS_SISTEMA = ['criacao', 'fase_mudanca', 'edicao', 'comentario']
 
 interface Props { leadId: string }
 
 export function AbaHistorico({ leadId }: Props) {
-  const { data: eventos = [], isLoading } = useLeadHistorico(leadId, TIPOS_SISTEMA)
+  const { data: eventos = [], isLoading } = useLeadHistorico(leadId)
 
   return (
     <div className="space-y-4">
       <p className="text-xs text-gray-400">
-        Registro automático de todas as alterações e movimentações deste lead.
+        Linha do tempo consolidada com alterações, simulações, documentos e solicitações deste lead.
       </p>
 
       {isLoading ? (
@@ -48,8 +50,20 @@ export function AbaHistorico({ leadId }: Props) {
 
           <div className="space-y-3">
             {eventos.map((item) => {
-              const tipo = item.tipo as keyof typeof ICONES
-              const Icone = ICONES[tipo] ?? Edit
+              const Icone = ICONES[item.kind as keyof typeof ICONES] ?? Edit
+              const titulo = item.kind === 'historico' && item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova
+                ? 'Mudança de fase'
+                : item.kind === 'historico' && item.tipo === 'criacao'
+                  ? 'Lead criado'
+                  : item.kind === 'historico' && item.tipo === 'comentario'
+                    ? 'Comentário'
+                    : item.kind === 'simulacao'
+                      ? 'Simulação salva'
+                      : item.kind === 'documento'
+                        ? 'Documento anexado'
+                        : item.kind === 'solicitacao'
+                          ? 'Solicitação operacional'
+                          : 'Evento'
 
               return (
                 <div key={item.id} className="flex gap-3 relative">
@@ -58,8 +72,15 @@ export function AbaHistorico({ leadId }: Props) {
                   </div>
 
                   <div className="flex-1 pb-3">
-                    {item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova ? (
-                      <p className="text-sm text-gray-600">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-gray-700">{titulo}</p>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {getTimelineBadge(item.kind, item)}
+                      </span>
+                    </div>
+
+                    {item.kind === 'historico' && item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova ? (
+                      <p className="text-sm text-gray-600 mt-1">
                         Movido de{' '}
                         <span className="font-medium text-fonti-primary">{item.fase_anterior.nome}</span>
                         {' '}
@@ -68,13 +89,13 @@ export function AbaHistorico({ leadId }: Props) {
                         <span className="font-medium text-fonti-primary">{item.fase_nova.nome}</span>
                       </p>
                     ) : (
-                      <p className="text-sm text-gray-600">
-                        {item.descricao ?? (item.tipo === 'criacao' ? 'Lead criado' : item.tipo)}
+                      <p className="text-sm text-gray-600 mt-1">
+                        {buildTimelineSummary(item.kind, item)}
                       </p>
                     )}
 
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {item.usuario?.nome} ·{' '}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {item.usuario?.nome ?? 'Sistema'} ·{' '}
                       {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ptBR })}
                     </p>
                   </div>
