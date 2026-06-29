@@ -10,6 +10,8 @@ import type { InputFinanciamento, ResultadoBanco, ResultadoCompleto } from '@/li
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { useBancos } from '@/app/(protected)/configuracoes/_hooks/useBancos'
+import { imprimirSimulacaoComPersistencia } from './printFlow'
+import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 
 interface Props {
   nomeCliente?: string
@@ -25,6 +27,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   const [loading, setLoading] = useState(false)
   const [gerandoPDF, setGerandoPDF] = useState(false)
   const [gerandoPDFId, setGerandoPDFId] = useState<string | null>(null)
+  const salvarSimulacaoCentral = useSalvarSimulacaoCentral()
 
   // Busca configurações dos bancos do banco de dados
   // Bancos com simulador_key vinculado sobrescrevem os valores fixados em constantes.ts
@@ -52,8 +55,18 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
     setGerandoPDF(true)
     try {
       const { gerarPDFFinanciamento } = await import('./gerarPDFFinanciamento')
-      await gerarPDFFinanciamento(resultado, {
-        clienteNome: resultado.input.nomeCliente ?? nomeCliente,
+      await imprimirSimulacaoComPersistencia({
+        resultado,
+        onSalvarAntesImprimir: async (sim) => {
+          if (_leadId) {
+            await salvarSimulacaoCentral.mutateAsync({ resultado: sim, leadId: _leadId })
+          }
+        },
+        gerarPdf: async (sim) => {
+          await gerarPDFFinanciamento(sim, {
+            clienteNome: sim.input.nomeCliente ?? nomeCliente,
+          })
+        },
       })
     } finally {
       setGerandoPDF(false)
