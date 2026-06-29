@@ -44,12 +44,16 @@ const navItemsTop = [
 
 const navItemsBottom = [
   { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
-  { href: '/operacional',       label: 'Operacional',  icon: ClipboardList },
   { href: '/simuladores',       label: 'Simuladores',  icon: Calculator },
   { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2,      mobileHidden: true },
   { href: '/notificacoes',      label: 'Notificações', icon: Bell,           mobileHidden: true },
   { href: '/agenda',            label: 'Agenda',       icon: Calendar,       mobileHidden: true },
   { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen,       mobileHidden: true },
+]
+
+const navItemsOperacional = [
+  { href: '/processos', label: 'Processos', icon: Briefcase },
+  { href: '/operacional', label: 'Solicitações', icon: ClipboardList },
 ]
 
 const GESTAO_ROUTES = ['/gestao', '/rh', '/financeiro', '/configuracoes']
@@ -80,6 +84,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
   const isAdmin = usuario?.perfil === 'admin'
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
 
+  const isOperacionalAtivo = pathname === '/operacional' || pathname.startsWith('/operacional/') || pathname === '/processos' || pathname.startsWith('/processos/')
   const isGestaoAtivo = GESTAO_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
   const [gestaoAberto, setGestaoAberto] = useState(isGestaoAtivo)
 
@@ -161,7 +166,6 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
         {navItemsBottom.map(({ href, label, icon: Icon, mobileHidden }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isAgenda = href === '/agenda'
-          const isOperacional = href === '/operacional'
           const isConversas = href === '/conversas'
           return (
             <div key={href} className={cn('relative', mobileHidden && 'hidden lg:block')}>
@@ -174,11 +178,6 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
                   {agendaBadge > 99 ? '99+' : agendaBadge}
                 </span>
               )}
-              {isOperacional && operacionalBadge > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none">
-                  {operacionalBadge > 99 ? '99+' : operacionalBadge}
-                </span>
-              )}
               {isConversas && conversasBadge > 0 && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-[16px] rounded-full bg-fonti-accent text-fonti-primary text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none">
                   {conversasBadge > 99 ? '99+' : conversasBadge}
@@ -187,6 +186,45 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
             </div>
           )
         })}
+
+        <div className="mt-2">
+          {!collapsed ? (
+            <>
+              <div className={cn('px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em]', isOperacionalAtivo ? 'text-fonti-accent' : 'text-white/35')}>
+                Operacional
+              </div>
+              <div className="space-y-0.5">
+                {navItemsOperacional.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || pathname.startsWith(href + '/')
+                  return (
+                    <div key={href} className="relative">
+                      <Link href={href} onClick={onNavigate} className={linkCls(active)} title={collapsed ? label : undefined}>
+                        <Icon className="h-[18px] w-[18px] shrink-0" />
+                        {!collapsed && label}
+                      </Link>
+                      {href === '/operacional' && operacionalBadge > 0 && (
+                        <span className="absolute top-1 right-1 min-w-[16px] h-[16px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none">
+                          {operacionalBadge > 99 ? '99+' : operacionalBadge}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1 px-1">
+              {navItemsOperacional.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || pathname.startsWith(href + '/')
+                return (
+                  <Link key={href} href={href} onClick={onNavigate} className={linkCls(active)} title={label}>
+                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         {/* ── Gestão (grupo colapsável) — apenas desktop ── */}
         <div className="my-2 border-t border-white/10 hidden lg:block" />
