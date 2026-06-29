@@ -38,10 +38,22 @@ function formatarComissaoRS(valorFinanciado: number | null, pct: number | null) 
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valor)
 }
 
+const MODALIDADE_LABELS: Record<string, string> = {
+  SFI:         'SFI',
+  SBPE:        'SBPE',
+  PMCMV:       'MCMV',
+  Pro_Cotista: 'Pró-Cotista',
+  CGI:         'CGI',
+  Consorcio:   'Consórcio',
+  Contrato:    'Contrato',
+  Registro:    'Registro',
+}
+
 const EXTRACTORS: Record<string, (p: Processo) => string> = {
   Operacional:  (p) => p.operacional?.nome ?? '',
   Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
   Modalidade:   (p) => p.modalidade,
+  Produto:      (p) => MODALIDADE_LABELS[p.modalidade] ?? p.modalidade,
   Proposta:     (p) => p.numero_proposta ?? '',
   Fase:         (p) => p.fase_atual?.nome ?? '',
   Banco:        (p) => p.banco?.nome ?? '',
@@ -224,7 +236,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = 14 + (isGestor ? 3 : 0)
+  const totalColunas = 15 + (isGestor ? 3 : 0)
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos }
 
@@ -300,6 +312,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
                 <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
                 <StaticHead>CPF</StaticHead>
                 <FilterHead col="Modalidade"  {...filterProps}>Modalidade</FilterHead>
+                <FilterHead col="Produto"     {...filterProps}>Produto</FilterHead>
                 <FilterHead col="Proposta"    {...filterProps}>Proposta</FilterHead>
                 <FilterHead col="Fase"        {...filterProps}>Fase</FilterHead>
                 <StaticHead>Valor Financiado</StaticHead>
@@ -347,6 +360,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
                       <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{MODALIDADE_LABELS[p.modalidade] ?? p.modalidade}</TableCell>
                       <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
                       <TableCell>
                         {p.fase_atual
@@ -402,7 +416,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
             <tfoot>
               <tr className="border-t-2 border-fonti-primary/20 bg-fonti-primary/[0.04]">
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-2.5 py-2 text-right text-xs font-semibold text-gray-500 whitespace-nowrap"
                 >
                   {activeFilters.length > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
