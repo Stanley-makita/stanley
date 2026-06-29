@@ -17,6 +17,7 @@ import { ApuracaoRendaCard } from '@/components/leads/ApuracaoRendaCard'
 import { type Lead } from '@/types/leads'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { getCamposContatoPendentes } from './leadContactValidation'
 
 const schema = z.object({
   // Dados pessoais
@@ -81,6 +82,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
 
   const estadoCivil = useWatch({ control: form.control, name: 'estado_civil' })
   const temConjuge = estadoCivil === 'casado' || estadoCivil === 'uniao_estavel'
+  const camposContatoPendentes = getCamposContatoPendentes({ telefone: form.watch('telefone'), email: form.watch('email') })
 
   useEffect(() => {
     if (aberto) form.reset(leadToForm(lead))
@@ -139,6 +141,11 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
 
             {/* ── DADOS PESSOAIS ── */}
             <Secao titulo="Dados Pessoais">
+              {camposContatoPendentes.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Para liberar a aba de Crédito, preencha {camposContatoPendentes.includes('telefone') && camposContatoPendentes.includes('email') ? 'telefone e e-mail' : camposContatoPendentes[0] === 'telefone' ? 'telefone' : 'e-mail'}.
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField control={form.control} name="nome" render={({ field }) => (
                   <FormItem className="col-span-2">
@@ -167,7 +174,13 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                 <FormField control={form.control} name="email" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email <Opcional /></FormLabel>
-                    <FormControl><Input type="email" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        {...field}
+                        className={cn(camposContatoPendentes.includes('email') ? 'border-amber-400 focus-visible:ring-amber-400' : '')}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -175,7 +188,13 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                 <FormField control={form.control} name="telefone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone / WhatsApp</FormLabel>
-                    <FormControl><Input placeholder="(44) 99999-9999" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        placeholder="(44) 99999-9999"
+                        {...field}
+                        className={cn(camposContatoPendentes.includes('telefone') ? 'border-amber-400 focus-visible:ring-amber-400' : '')}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

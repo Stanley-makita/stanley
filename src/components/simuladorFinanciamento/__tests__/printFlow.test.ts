@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import { imprimirSimulacaoComPersistencia } from '../printFlow'
+import { executarAcaoComPersistencia, imprimirSimulacaoComPersistencia } from '../printFlow'
 
 const resultadoBase: ResultadoCompleto = {
   input: {
@@ -38,5 +38,22 @@ describe('imprimirSimulacaoComPersistencia', () => {
     expect(salvarAntesImprimir).toHaveBeenCalledWith(resultadoBase)
     expect(gerarPdf).toHaveBeenCalledWith(resultadoBase)
     expect(salvarAntesImprimir.mock.invocationCallOrder[0]).toBeLessThan(gerarPdf.mock.invocationCallOrder[0])
+  })
+})
+
+describe('executarAcaoComPersistencia', () => {
+  it('salva a simulação antes de executar a ação de compartilhamento', async () => {
+    const salvarAntesAcao = vi.fn().mockResolvedValue(undefined)
+    const compartilhar = vi.fn().mockResolvedValue(undefined)
+
+    await executarAcaoComPersistencia({
+      resultado: resultadoBase,
+      onSalvarAntesAcao: salvarAntesAcao,
+      onExecutarAcao: compartilhar,
+    })
+
+    expect(salvarAntesAcao).toHaveBeenCalledWith(resultadoBase)
+    expect(compartilhar).toHaveBeenCalledWith(resultadoBase)
+    expect(salvarAntesAcao.mock.invocationCallOrder[0]).toBeLessThan(compartilhar.mock.invocationCallOrder[0])
   })
 })

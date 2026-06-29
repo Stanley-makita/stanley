@@ -24,6 +24,8 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { type Lead } from '@/types/leads'
 import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
+import { getCamposContatoPendentes } from './leadContactValidation'
 
 const schema = z.object({
   nome: z.string().min(2, 'Informe o nome completo'),
@@ -74,6 +76,11 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
       fase_id: faseIdInicial ?? '',
       origem: 'indicacao',
     },
+  })
+
+  const camposContatoPendentes = getCamposContatoPendentes({
+    telefone: form.watch('telefone'),
+    email: form.watch('email'),
   })
 
   useEffect(() => {
@@ -154,10 +161,22 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                 </FormItem>
               )} />
 
+              {camposContatoPendentes.length > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Para liberar a aba de Crédito, preencha {camposContatoPendentes.includes('telefone') && camposContatoPendentes.includes('email') ? 'telefone e e-mail' : camposContatoPendentes[0] === 'telefone' ? 'telefone' : 'e-mail'}.
+                </div>
+              )}
+
               <FormField control={form.control} name="telefone" render={({ field }) => (
                 <FormItem>
                   <FormLabel>WhatsApp</FormLabel>
-                  <FormControl><Input placeholder="(44) 99999-9999" {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      placeholder="(44) 99999-9999"
+                      {...field}
+                      className={cn(camposContatoPendentes.includes('telefone') ? 'border-amber-400 focus-visible:ring-amber-400' : '')}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -165,7 +184,14 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
               <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem>
                   <FormLabel>E-mail <span className="text-gray-400 font-normal">(opcional)</span></FormLabel>
-                  <FormControl><Input type="email" placeholder="joao@email.com" {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="joao@email.com"
+                      {...field}
+                      className={cn(camposContatoPendentes.includes('email') ? 'border-amber-400 focus-visible:ring-amber-400' : '')}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

@@ -8,9 +8,9 @@ import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciament
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { InputFinanciamento, ResultadoBanco, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Printer, Send } from 'lucide-react'
 import { useBancos } from '@/app/(protected)/configuracoes/_hooks/useBancos'
-import { imprimirSimulacaoComPersistencia } from './printFlow'
+import { executarAcaoComPersistencia, imprimirSimulacaoComPersistencia } from './printFlow'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 
 interface Props {
@@ -26,6 +26,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   const [resultado, setResultado] = useState<ResultadoCompleto | null>(null)
   const [loading, setLoading] = useState(false)
   const [gerandoPDF, setGerandoPDF] = useState(false)
+  const [enviando, setEnviando] = useState(false)
   const [gerandoPDFId, setGerandoPDFId] = useState<string | null>(null)
   const salvarSimulacaoCentral = useSalvarSimulacaoCentral()
 
@@ -87,6 +88,26 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
     }
   }
 
+  async function compartilharSimulacao() {
+    if (!resultado) return
+    setEnviando(true)
+    try {
+      await executarAcaoComPersistencia({
+        resultado,
+        onSalvarAntesAcao: async (sim) => {
+          if (_leadId) {
+            await salvarSimulacaoCentral.mutateAsync({ resultado: sim, leadId: _leadId })
+          }
+        },
+        onExecutarAcao: async () => {
+          window.open(`https://wa.me/?text=${encodeURIComponent('Simulação de financiamento pronta para análise.')}`, '_blank', 'noopener,noreferrer')
+        },
+      })
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   function handleSimular(input: InputFinanciamento) {
     setLoading(true)
     try {
@@ -126,6 +147,16 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
             >
               <Printer className="w-3.5 h-3.5" />
               {gerandoPDF ? 'Gerando...' : 'Imprimir PDF'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 border-green-600 text-green-700 hover:bg-green-50"
+              onClick={compartilharSimulacao}
+              disabled={enviando || !resultado}
+            >
+              <Send className="w-3.5 h-3.5" />
+              {enviando ? 'Enviando...' : 'Compartilhar'}
             </Button>
             {onSalvar && (
               <Button

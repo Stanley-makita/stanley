@@ -42,6 +42,7 @@ import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useConfigAbas } from '@/hooks/leads/useConfigAbas'
+import { getCamposContatoPendentes, temContatoObrigatorioParaCredito } from './leadContactValidation'
 
 type Aba = 'resumo' | 'pessoa' | 'oportunidade' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
@@ -131,6 +132,9 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
     produto: lead.produto_interesse ?? undefined,
     responsavelSugeridoId: lead.responsavel_id ?? undefined,
   } : undefined
+
+  const camposContatoPendentes = lead ? getCamposContatoPendentes({ telefone: lead.telefone, email: lead.email }) : []
+  const creditoLiberado = !!lead && temContatoObrigatorioParaCredito({ telefone: lead.telefone, email: lead.email })
 
   function fechar() {
     setAbaAtiva('resumo')
@@ -247,13 +251,22 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
 
                 {/* Campos de dados */}
                 <div className="flex-1 space-y-3.5 overflow-y-auto p-4">
-                  <InfoRow icone={<Phone className="h-3.5 w-3.5" />} label="Telefone" valor={lead.telefone} />
+                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('telefone') ? 'border-amber-300 bg-amber-50' : 'border-transparent bg-transparent')}>
+                    <InfoRow icone={<Phone className="h-3.5 w-3.5" />} label="Telefone" valor={lead.telefone || '—'} />
+                  </div>
                   {lead.cpf && (
                     <InfoRow icone={<CreditCard className="h-3.5 w-3.5" />} label="CPF" valor={lead.cpf} />
                   )}
-                  {lead.email && (
-                    <InfoRow icone={<Mail className="h-3.5 w-3.5" />} label="E-mail" valor={lead.email} />
-                  )}
+                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('email') ? 'border-amber-300 bg-amber-50' : 'border-transparent bg-transparent')}>
+                    {lead.email ? (
+                      <InfoRow icone={<Mail className="h-3.5 w-3.5" />} label="E-mail" valor={lead.email} />
+                    ) : (
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-400">E-mail</p>
+                        <p className="text-sm font-medium text-amber-700">Faltando</p>
+                      </div>
+                    )}
+                  </div>
                   {lead.valor_pretendido != null && (
                     <InfoRow
                       icone={<DollarSign className="h-3.5 w-3.5" />}
@@ -392,35 +405,45 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
 
                 {/* Tab bar */}
                 <div className="flex shrink-0 overflow-x-auto border-b border-gray-100 bg-white px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                  {abas.filter(a => !ABAS_PAINEL_DIREITO.has(a.id)).map((aba) => (
-                    <button
-                      key={aba.id}
-                      onClick={() => {
-                        if (aba.id === 'credito' && !consultaRestritivosRespondido) {
-                          const itensPendentesRestritivos = itensChecklist.filter(i => i.tipo === 'restritivos')
-                          const jaRespondidoNoChecklist = itensPendentesRestritivos.length > 0
-                            && itensPendentesRestritivos.every(i => i.concluido)
-                          if (jaRespondidoNoChecklist) {
-                            setConsultaRestritivosRespondido(true)
-                            setAbaAtiva('credito')
+                  {abas.filter(a => !ABAS_PAINEL_DIREITO.has(a.id)).map((aba) => {
+                    const bloqueado = aba.id === 'credito' && !creditoLiberado
+                    return (
+                      <button
+                        key={aba.id}
+                        onClick={() => {
+                          if (bloqueado) {
+                            toast.warning('Complete os dados de contato antes de entrar em Crédito', {
+                              description: 'Informe telefone e e-mail para liberar a aba de crédito.',
+                            })
                             return
                           }
-                          setConsultaRestritivosAberto(true)
-                          return
-                        }
-                        setAbaAtiva(aba.id as Aba)
-                      }}
-                      className={cn(
-                        'px-2.5 py-3 text-center text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap sm:px-4',
-                        abaAtiva === aba.id
-                          ? 'border-fonti-primary text-fonti-primary'
-                          : 'border-transparent text-gray-400 hover:text-gray-600',
-                        ['solicitacoes', 'formularios', 'historico'].includes(aba.id) && 'hidden lg:flex'
-                      )}
-                    >
-                      {aba.label}
-                    </button>
-                  ))}
+                          if (aba.id === 'credito' && !consultaRestritivosRespondido) {
+                            const itensPendentesRestritivos = itensChecklist.filter(i => i.tipo === 'restritivos')
+                            const jaRespondidoNoChecklist = itensPendentesRestritivos.length > 0
+                              && itensPendentesRestritivos.every(i => i.concluido)
+                            if (jaRespondidoNoChecklist) {
+                              setConsultaRestritivosRespondido(true)
+                              setAbaAtiva('credito')
+                              return
+                            }
+                            setConsultaRestritivosAberto(true)
+                            return
+                          }
+                          setAbaAtiva(aba.id as Aba)
+                        }}
+                        className={cn(
+                          'px-2.5 py-3 text-center text-xs font-medium border-b-2 transition-all -mb-px whitespace-nowrap sm:px-4',
+                          abaAtiva === aba.id
+                            ? 'border-fonti-primary text-fonti-primary'
+                            : 'border-transparent text-gray-400 hover:text-gray-600',
+                          bloqueado && 'cursor-not-allowed opacity-60',
+                          ['solicitacoes', 'formularios', 'historico'].includes(aba.id) && 'hidden lg:flex'
+                        )}
+                      >
+                        {aba.label}
+                      </button>
+                    )
+                  })}
                 </div>
 
                 {/* Conteúdo da aba */}
@@ -430,6 +453,12 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     ? 'overflow-hidden'
                     : 'overflow-y-auto px-3 py-4 sm:px-5'
                 )}>
+                  {!creditoLiberado && abaAtiva === 'credito' && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                      <p className="font-semibold">Dados de contato obrigatórios</p>
+                      <p className="mt-1">Preencha telefone e e-mail para liberar a análise de crédito.</p>
+                    </div>
+                  )}
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
                   {abaAtiva === 'pessoa'       && <AbaPessoa       lead={lead} />}
                   {abaAtiva === 'oportunidade' && <AbaOportunidade  lead={lead} />}
