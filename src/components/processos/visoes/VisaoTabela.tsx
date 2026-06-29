@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { useProdutos } from '@/app/(protected)/configuracoes/_hooks/useProdutos'
 import { ChanceBadge } from '../ChanceBadge'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -38,22 +39,22 @@ function formatarComissaoRS(valorFinanciado: number | null, pct: number | null) 
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valor)
 }
 
-const MODALIDADE_LABELS: Record<string, string> = {
-  SFI:         'SFI',
-  SBPE:        'SBPE',
-  PMCMV:       'MCMV',
-  Pro_Cotista: 'Pró-Cotista',
-  CGI:         'CGI',
+// Fallback usado quando nenhum produto está configurado em Configurações > Produtos
+const MODALIDADE_PRODUTO_FALLBACK: Record<string, string> = {
+  SFI:         'Financiamento',
+  SBPE:        'Financiamento',
+  PMCMV:       'FGTS',
+  Pro_Cotista: 'FGTS',
+  CGI:         'Empréstimo',
+  Contrato:    'Empréstimo',
   Consorcio:   'Consórcio',
-  Contrato:    'Contrato',
   Registro:    'Registro',
 }
 
-const EXTRACTORS: Record<string, (p: Processo) => string> = {
+const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Operacional:  (p) => p.operacional?.nome ?? '',
   Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
   Modalidade:   (p) => p.modalidade,
-  Produto:      (p) => MODALIDADE_LABELS[p.modalidade] ?? p.modalidade,
   Proposta:     (p) => p.numero_proposta ?? '',
   Fase:         (p) => p.fase_atual?.nome ?? '',
   Banco:        (p) => p.banco?.nome ?? '',
@@ -63,8 +64,8 @@ const EXTRACTORS: Record<string, (p: Processo) => string> = {
   Assessoria:   (p) => p.tem_assessoria ? 'Sim' : 'Não',
 }
 
-function getUniqueValues(col: string, processos: Processo[]): string[] {
-  const ext = EXTRACTORS[col]
+function getUniqueValues(col: string, processos: Processo[], extractors: Record<string, (p: Processo) => string>): string[] {
+  const ext = extractors[col]
   if (!ext) return []
   const set = new Set(processos.map(ext).filter(Boolean))
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
@@ -73,7 +74,7 @@ function getUniqueValues(col: string, processos: Processo[]): string[] {
 type DropdownPos = { top: number; left: number }
 
 function FilterHead({
-  col, colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos, children,
+  col, colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos, extractors, children,
 }: {
   col: string
   colFilters: Record<string, string>
@@ -83,12 +84,13 @@ function FilterHead({
   dropdownPos: DropdownPos | null
   setDropdownPos: (pos: DropdownPos | null) => void
   allProcessos: Processo[]
+  extractors: Record<string, (p: Processo) => string>
   children: React.ReactNode
 }) {
   const isActive = !!colFilters[col]
   const isOpen = openFilter === col
   const btnRef = useRef<HTMLButtonElement>(null)
-  const unique = useMemo(() => getUniqueValues(col, allProcessos), [col, allProcessos])
+  const unique = useMemo(() => getUniqueValues(col, allProcessos, extractors), [col, allProcessos, extractors])
 
   function handleOpen(e: React.MouseEvent) {
     e.stopPropagation()
@@ -204,7 +206,26 @@ export function VisaoTabela({ produtoFixo }: Props) {
     busca,
   })
 
+  const { data: produtosConfig = [] } = useProdutos()
+
   const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+
+  // Mapa modalidade → nome do produto, dinâmico a partir de Configurações > Produtos
+  const modalidadeProdutoMap = useMemo<Record<string, string>>(() => {
+    if (produtosConfig.length === 0) return MODALIDADE_PRODUTO_FALLBACK
+    const map: Record<string, string> = {}
+    for (const p of produtosConfig) {
+      for (const m of (p as any).modalidades ?? []) {
+        map[m] = p.nome
+      }
+    }
+    return Object.keys(map).length > 0 ? map : MODALIDADE_PRODUTO_FALLBACK
+  }, [produtosConfig])
+
+  const EXTRACTORS = useMemo<Record<string, (p: Processo) => string>>(() => ({
+    ...EXTRACTORS_BASE,
+    Produto: (p: Processo) => modalidadeProdutoMap[p.modalidade] ?? p.modalidade,
+  }), [modalidadeProdutoMap])
 
   const filteredProcessos = useMemo(() => {
     return processos.filter(p =>
@@ -214,7 +235,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
         return ext ? ext(p) === val : true
       })
     )
-  }, [processos, colFilters])
+  }, [processos, colFilters, EXTRACTORS])
 
   // Reset página ao mudar filtros
   useEffect(() => { setPagina(1) }, [busca, statusFiltro, colFilters])
@@ -238,7 +259,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
   const totalColunas = 15 + (isGestor ? 3 : 0)
 
-  const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos }
+  const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos, extractors: EXTRACTORS }
 
   return (
     <div className="space-y-3">
@@ -360,7 +381,7 @@ export function VisaoTabela({ produtoFixo }: Props) {
                       <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
                       <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{MODALIDADE_LABELS[p.modalidade] ?? p.modalidade}</TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{modalidadeProdutoMap[p.modalidade] ?? p.modalidade}</TableCell>
                       <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
                       <TableCell>
                         {p.fase_atual

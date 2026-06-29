@@ -73,6 +73,7 @@ export type Database = {
           nome: string
           descricao: string | null
           ativo: boolean
+          modalidades: string[]
           created_at: string
           updated_at: string
         }
