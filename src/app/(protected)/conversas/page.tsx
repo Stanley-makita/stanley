@@ -566,7 +566,7 @@ export default function ConversasPage() {
   ]
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Sidebar de conversas */}
       <div className={cn(
         'border-r border-gray-200 flex flex-col bg-white shrink-0 w-full lg:w-80',

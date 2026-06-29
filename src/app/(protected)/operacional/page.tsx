@@ -267,7 +267,7 @@ export default function OperacionalPage() {
   }))
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] px-4 pt-4 md:px-6 md:pt-6">
+    <div className="flex flex-col h-full px-4 pt-4 md:px-6 md:pt-6">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
         <div>

@@ -148,7 +148,7 @@ export default function ProcessoDetalhePage() {
     : 0
 
   return (
-    <div className="flex min-h-[calc(100vh-80px)] flex-col gap-5 p-4 lg:h-[calc(100vh-80px)] lg:flex-row lg:gap-6 lg:p-6">
+    <div className="flex flex-col gap-5 p-4 lg:h-full lg:flex-row lg:gap-6 lg:p-6">
       {/* Conteúdo principal */}
       <div className="min-w-0 flex-1 space-y-5 overflow-visible lg:overflow-y-auto">
         {/* Header do processo */}

@@ -207,7 +207,7 @@ export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId }:
   }, {} as Record<string, Processo[]>)
 
   return (
-    <div className="flex min-h-[calc(100vh-220px)] flex-col md:h-[calc(100vh-180px)] md:min-h-0">
+    <div className="flex min-h-[calc(100dvh_/_0.8_-_220px)] flex-col md:h-[calc(100dvh_/_0.8_-_180px)] md:min-h-0">
       {/* ── Filtros ── */}
       <div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5">
 

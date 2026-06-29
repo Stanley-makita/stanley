@@ -145,7 +145,7 @@ export function ListaAgenda({
       </div>
 
       {/* Lista */}
-      <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[calc(100dvh_/_0.8_-_320px)] overflow-y-auto pr-1">
         {filtradas.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400">
             {diaSelecionado ? 'Nenhuma tarefa neste dia.' : 'Nenhuma tarefa encontrada.'}

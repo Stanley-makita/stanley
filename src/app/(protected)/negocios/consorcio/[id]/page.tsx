@@ -91,7 +91,7 @@ export default function ConsorcioDetalhePage() {
   }
 
   return (
-    <div className="flex gap-6 p-6 h-[calc(100vh-80px)]">
+    <div className="flex gap-6 p-6 h-full">
       {/* Conteúdo principal */}
       <div className="flex-1 overflow-y-auto space-y-5">
 
