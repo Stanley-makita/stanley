@@ -75,22 +75,49 @@ export async function POST(
     const paraEmail: string = compradorPrincipal?.email ?? ''
 
     // Busca tarifa do banco em Configurações > Simulador > Tarifas por Banco
-    // Suporta schema novo (colunas tipo+valor) e antigo (tarifa_avaliacao)
+    // Fallback hardcoded (usado até a migration _135 ser aplicada no Supabase)
+    const TARIFAS_DEFAULT: Record<string, number> = {
+      'itaú':                   1950,
+      'itau':                   1950,
+      'santander':               1950,
+      'bradesco':                2114.03,
+      'banco do brasil':         1940,
+      'caixa econômica federal': 3600,
+      'caixa economica federal': 3600,
+      'caixa':                   3600,
+      'inter':                   5000,
+      'safra':                   0,
+      'sicoob':                  0,
+    }
+
     let tarifaBanco: number | null = null
     if (bancoNome) {
+      // 1) Tenta buscar do banco de dados (suporta schema novo e antigo)
       const { data: tarifaRows } = await supabaseAdmin
         .from('simulador_custas_config')
         .select('*')
         .eq('empresa_id', usuario.empresa_id)
         .ilike('banco_nome', bancoNome)
         .eq('ativo', true)
+
       if (tarifaRows && tarifaRows.length > 0) {
-        // Schema novo: tem 'tipo' e 'valor'; preferência por 'residencial'
         const residencial = tarifaRows.find((r: any) => r.tipo === 'residencial')
         const row: any = residencial ?? tarifaRows[0]
-        // valor (novo) → tarifa_avaliacao (antigo) → 0
         const v = Number(row.valor ?? row.tarifa_avaliacao ?? 0)
-        tarifaBanco = v > 0 ? v : null
+        if (v > 0) tarifaBanco = v
+      }
+
+      // 2) Fallback: usa defaults hardcoded se não encontrou nada no banco
+      if (tarifaBanco === null) {
+        const chave = bancoNome.toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace('econômica', 'economica')
+        const dfChave = Object.keys(TARIFAS_DEFAULT).find((k) =>
+          chave.includes(k) || k.includes(chave)
+        )
+        if (dfChave && TARIFAS_DEFAULT[dfChave] > 0) {
+          tarifaBanco = TARIFAS_DEFAULT[dfChave]
+        }
       }
     }
 

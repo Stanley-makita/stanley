@@ -54,8 +54,8 @@ export function blocoConfirmacao(url: string): string {
       <p style="font-size:13px;color:#555;margin:0 0 20px;line-height:1.5;">
         Para confirmar o recebimento e ciência dos valores apresentados,<br>clique no botão abaixo:
       </p>
-      <a href="${url}" style="display:inline-block;background:#1a7a3c;color:#ffffff;font-size:16px;font-weight:bold;padding:18px 56px;border-radius:10px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 2px 8px rgba(26,122,60,0.35);">
-        ✓ Confirmar ciência e aceite
+      <a href="${url}" style="display:inline-block;background:#1a7a3c;color:#ffffff;font-size:18px;font-weight:bold;padding:22px 72px;border-radius:12px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 3px 12px rgba(26,122,60,0.4);">
+        ✓&nbsp;&nbsp;Confirmar ciência e aceite
       </a>
       <p style="font-size:11px;color:#aaa;margin:16px 0 0;">
         Este link é individual e de uso único.
