@@ -967,33 +967,41 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida }: { lead: Lead; analiseD
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Aprovação de Crédito</p>
 
-      {analiseDefinida ? (
-        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-          <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wide">Banco Definido</p>
-            <p className="text-sm font-bold text-green-800 truncate">
-              {analiseDefinida.banco_pretendido ?? analiseDefinida.nome}
-            </p>
-          </div>
-          {analiseDefinida.valor_pretendido != null && (
-            <p className="ml-auto text-xs text-green-700 shrink-0">{fmtMoeda(analiseDefinida.valor_pretendido)}</p>
+      <div className="flex items-center gap-3">
+        {/* Banco definido */}
+        <div className="flex-1 min-w-0">
+          {analiseDefinida ? (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 h-[52px]">
+              <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wide leading-none mb-0.5">Banco Definido</p>
+                <p className="text-sm font-bold text-green-800 truncate leading-tight">
+                  {analiseDefinida.banco_pretendido ?? analiseDefinida.nome}
+                </p>
+              </div>
+              {analiseDefinida.valor_pretendido != null && (
+                <p className="text-xs text-green-700 shrink-0">{fmtMoeda(analiseDefinida.valor_pretendido)}</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 h-[52px]">
+              <p className="text-xs text-gray-400 italic">Nenhum banco definido</p>
+            </div>
           )}
         </div>
-      ) : (
-        <p className="text-xs text-gray-400 italic">Nenhum banco definido. Marque uma análise como "Banco Definido".</p>
-      )}
 
-      <div className="space-y-1">
-        <p className="text-xs text-gray-500">Data da Aprovação</p>
-        <input
-          type="date"
-          className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          value={dataCredito}
-          onChange={e => setDataCredito(e.target.value)}
-          onBlur={salvarDataCredito}
-        />
-        {editar.isPending && <p className="text-[10px] text-gray-400">Salvando…</p>}
+        {/* Data da Aprovação */}
+        <div className="shrink-0 space-y-1">
+          <p className="text-xs text-gray-500">Data da Aprovação</p>
+          <input
+            type="date"
+            className="h-8 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={dataCredito}
+            onChange={e => setDataCredito(e.target.value)}
+            onBlur={salvarDataCredito}
+          />
+          {editar.isPending && <p className="text-[10px] text-gray-400">Salvando…</p>}
+        </div>
       </div>
     </div>
   )
