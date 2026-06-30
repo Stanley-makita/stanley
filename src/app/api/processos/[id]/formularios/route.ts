@@ -6,6 +6,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { buscarDadosFormulario } from '@/lib/formularios/dados'
 import { preencherPdf } from '@/lib/formularios/engine'
+import { sincronizarDocumentoUnificado } from '@/lib/documentos/sincronizarDocumentoUnificado'
 
 // Bradesco
 import { mapaAutorizacao }  from '@/lib/formularios/bradesco/autorizacao'
@@ -166,13 +167,25 @@ export async function POST(
 
       // --- 3. Registrar no banco ---
       try {
+        const { data: antigos } = await supabaseAdmin.from('documentos_clientes')
+          .select('id')
+          .eq('processo_id', params.id)
+          .eq('nome_original', form.nomeArquivo)
+          .eq('empresa_id', dados.empresa_id)
+
         await supabaseAdmin.from('documentos_clientes')
           .delete()
           .eq('processo_id', params.id)
           .eq('nome_original', form.nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
-        const { error: dbErr } = await supabaseAdmin.from('documentos_clientes').insert({
+        // Limpa também a linha espelhada no modelo unificado, senão fica
+        // órfã apontando pra um id que não existe mais em documentos_clientes
+        if (antigos?.length) {
+          await supabaseAdmin.from('documentos').delete().in('id', antigos.map(d => d.id))
+        }
+
+        const { data: docInserido, error: dbErr } = await supabaseAdmin.from('documentos_clientes').insert({
           empresa_id:    dados.empresa_id,
           processo_id:   params.id,
           nome_original: form.nomeArquivo,
@@ -181,7 +194,23 @@ export async function POST(
           storage_path:  storagePath,
           canal_origem:  'upload_manual',
         })
+          .select('id')
+          .single()
         if (dbErr) throw dbErr
+
+        if (docInserido) {
+          await sincronizarDocumentoUnificado(supabaseAdmin, {
+            id: docInserido.id,
+            empresa_id: dados.empresa_id,
+            processo_id: params.id,
+            nome_original: form.nomeArquivo,
+            mime_type: 'application/pdf',
+            tamanho_bytes: pdfBytes.byteLength,
+            storage_bucket: 'documentos-clientes',
+            storage_path: storagePath,
+            canal_origem: 'upload_manual',
+          })
+        }
       } catch (err: any) {
         const msg = `DB: ${err?.message ?? err}`
         console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
