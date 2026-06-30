@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -22,6 +22,7 @@ import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCom
 import { ApuracaoRendaModal } from '@/components/documentos/ApuracaoRendaModal'
 import { ExtracaoDadosModal } from '@/components/documentos/ExtracaoDadosModal'
 import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
+import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDocumento'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -103,6 +104,16 @@ export function AbaDocumentos({ processoId }: Props) {
 
   const { ultima: ultimaApuracao } = useApuracaoRenda({ processoId })
   const queryKey = ['documentos-processo', processoId]
+
+  // Fase A (catálogo): lê o catálogo único de tipos de documento; mantém
+  // TIPOS_DOCUMENTO como fallback enquanto o catálogo carrega ou se vier vazio.
+  const { data: catalogoTipos } = useCatalogoTiposDocumento()
+  const tiposDocumento = useMemo(() => {
+    const base = catalogoTipos && catalogoTipos.length > 0
+      ? catalogoTipos.map(t => ({ value: t.codigo, label: t.nome }))
+      : TIPOS_DOCUMENTO.filter(t => t.value !== 'auto')
+    return [{ value: 'auto', label: 'Detectar automaticamente' }, ...base]
+  }, [catalogoTipos])
 
   const CAMPOS_DOC = 'id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at, permanente, validade_data, validade_dias'
 
@@ -380,7 +391,7 @@ export function AbaDocumentos({ processoId }: Props) {
 
   function labelTipo(classificacao: string | null) {
     if (classificacao === 'auto') return 'Detectando...'
-    return TIPOS_DOCUMENTO.find(t => t.value === classificacao)?.label ?? classificacao ?? '—'
+    return tiposDocumento.find(t => t.value === classificacao)?.label ?? classificacao ?? '—'
   }
 
   function BadgeOcr({ doc }: { doc: DocumentoCliente }) {
@@ -760,7 +771,7 @@ export function AbaDocumentos({ processoId }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_DOCUMENTO.map(t => (
+                      {tiposDocumento.map(t => (
                         <SelectItem key={t.value} value={t.value} className="text-xs">
                           {t.label}
                         </SelectItem>

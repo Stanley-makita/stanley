@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -25,6 +25,7 @@ import { OcrEnriquecimentoCard } from '@/components/leads/OcrEnriquecimentoCard'
 import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModal'
 import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
 import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
+import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDocumento'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -102,6 +103,16 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
 
   const ocrSugestoes = useOcrSugestoes(leadId)
   const { ultima: ultimaApuracao } = useApuracaoRenda({ leadId })
+
+  // Fase A (catálogo): Lead só usa tipos do Acervo Documental (matrícula/contrato
+  // são processo_trabalho, não aparecem aqui). Fallback enquanto carrega/se vazio.
+  const { data: catalogoTipos } = useCatalogoTiposDocumento('acervo_documental')
+  const tiposDocumento = useMemo(() => {
+    const base = catalogoTipos && catalogoTipos.length > 0
+      ? catalogoTipos.map(t => ({ value: t.codigo, label: t.nome }))
+      : TIPOS_DOCUMENTO.filter(t => t.value !== 'auto')
+    return [{ value: 'auto', label: 'Detectar automaticamente' }, ...base]
+  }, [catalogoTipos])
 
   const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
@@ -339,7 +350,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
 
   function labelTipo(classificacao: string | null) {
     if (classificacao === 'auto') return 'Detectando...'
-    return TIPOS_DOCUMENTO.find(t => t.value === classificacao)?.label ?? classificacao ?? '—'
+    return tiposDocumento.find(t => t.value === classificacao)?.label ?? classificacao ?? '—'
   }
 
   function BadgeOcr({ doc }: { doc: DocumentoCliente }) {
@@ -724,7 +735,7 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_DOCUMENTO.map(t => (
+                      {tiposDocumento.map(t => (
                         <SelectItem key={t.value} value={t.value} className="text-xs">
                           {t.label}
                         </SelectItem>
