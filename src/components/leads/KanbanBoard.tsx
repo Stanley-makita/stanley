@@ -14,6 +14,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { type Lead } from '@/types/leads'
 import { KanbanColuna } from './KanbanColuna'
 import { KanbanCard } from './KanbanCard'
+import { ModalConcluirLead } from './ModalConcluirLead'
+import { NovoProcessoModal } from './NovoProcessoModal'
 import { useMoverLeadKanban } from '@/hooks/leads/useMoverLeadKanban'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useLeadsTarefasStatus } from '@/hooks/leads/useLeadsTarefasStatus'
@@ -30,12 +32,20 @@ interface Props {
   onAbrirLead: (id: string) => void
 }
 
+interface PendenteConclusao {
+  leadId: string
+  faseDestinoId: string
+  lead: Lead
+}
+
 export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
   const { data: todasFases = [] } = useFases('leads')
   const moverLead = useMoverLeadKanban()
   const tarefasStatus = useLeadsTarefasStatus()
   const [leadAtivo, setLeadAtivo] = useState<Lead | null>(null)
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false)
+  const [pendenteConclusao, setPendenteConclusao] = useState<PendenteConclusao | null>(null)
+  const [novoProcessoLead, setNovoProcessoLead] = useState<Lead | null>(null)
   const queryClient = useQueryClient()
   const { usuario } = useAuth()
 
@@ -143,6 +153,20 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
         }
       }
 
+      // Se o destino é "Concluído" e vem de outra fase, abrir modal de decisão
+      const faseDestino = todasFases.find(f => f.id === faseDestinoId)
+      const faseOrigem  = todasFases.find(f => f.id === faseOrigemId)
+      if (
+        faseDestino?.nome === FASE_CONCLUIDO &&
+        faseOrigem?.nome !== FASE_CONCLUIDO &&
+        lead
+      ) {
+        // Move primeiro, depois pergunta
+        moverLead.mutate({ lead_id: leadId, fase_id_destino: faseDestinoId, ordem_destino: 0 })
+        setPendenteConclusao({ leadId, faseDestinoId, lead })
+        return
+      }
+
       moverLead.mutate({
         lead_id: leadId,
         fase_id_destino: faseDestinoId,
@@ -193,6 +217,32 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
       <DragOverlay>
         {leadAtivo && <KanbanCard lead={leadAtivo} overlay onAbrirLead={onAbrirLead} />}
       </DragOverlay>
+
+      {pendenteConclusao && (
+        <ModalConcluirLead
+          aberto={!!pendenteConclusao}
+          lead={{
+            id:             pendenteConclusao.lead.id,
+            nome:           pendenteConclusao.lead.nome,
+            empresa_id:     pendenteConclusao.lead.empresa_id,
+            responsavel_id: pendenteConclusao.lead.responsavel_id,
+          }}
+          onCriarProcesso={() => {
+            setNovoProcessoLead(pendenteConclusao.lead)
+            setPendenteConclusao(null)
+          }}
+          onAindaNao={() => setPendenteConclusao(null)}
+          onFechar={() => setPendenteConclusao(null)}
+        />
+      )}
+
+      {novoProcessoLead && (
+        <NovoProcessoModal
+          aberto={!!novoProcessoLead}
+          onFechar={() => setNovoProcessoLead(null)}
+          lead={novoProcessoLead}
+        />
+      )}
     </DndContext>
   )
 }

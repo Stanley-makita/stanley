@@ -31,6 +31,26 @@ export function useCriarProcesso() {
 
       if (processo.lead_id) {
         await avancarFaseLead(supabase, queryClient, processo.lead_id, 'Concluído')
+
+        // Encerra follow-up ativo deste lead (se existir)
+        await supabase
+          .from('lead_followups')
+          .update({
+            status:              'encerrado',
+            motivo_encerramento: 'processo_criado',
+            encerrado_em:        new Date().toISOString(),
+          })
+          .eq('lead_id', processo.lead_id)
+          .eq('status', 'ativo')
+
+        // Registra no histórico
+        await supabase.from('lead_historico').insert({
+          lead_id:    processo.lead_id,
+          empresa_id: usuario!.empresa_id,
+          usuario_id: usuario!.id,
+          tipo:       'followup_encerrado',
+          descricao:  'Processo criado — acompanhamento automático encerrado.',
+        })
       }
     },
     onError: (err: any) => {

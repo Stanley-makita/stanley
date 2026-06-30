@@ -25,6 +25,7 @@ import { AbaOportunidade } from './LeadDetalhe/AbaOportunidade'
 import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
 import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLeadChecklist'
 import { NovoProcessoModal } from './NovoProcessoModal'
+import { ModalConcluirLead } from './ModalConcluirLead'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
@@ -111,6 +112,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
   const [completarDadosAberto, setCompletarDadosAberto] = useState(false)
   const [excluirAberto, setExcluirAberto] = useState(false)
+  const [concluirAberto, setConcluirAberto] = useState(false)
   const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
   const [msgInicial, setMsgInicial] = useState('')
   const [consultaRestritivosAberto, setConsultaRestritivosAberto] = useState(false)
@@ -403,6 +405,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                             })
                             return
                           }
+                          if (proxFase.nome === 'Concluído') {
+                            editarLead.mutate({ id: lead.id, fase_id: proxFase.id })
+                            setConcluirAberto(true)
+                            return
+                          }
                           editarLead.mutate({ id: lead.id, fase_id: proxFase.id })
                         }}
                       >
@@ -527,6 +534,13 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
         aberto={novoProcessoAberto}
         onFechar={() => setNovoProcessoAberto(false)}
         lead={lead}
+      />
+      <ModalConcluirLead
+        aberto={concluirAberto}
+        lead={{ id: lead.id, nome: lead.nome, empresa_id: lead.empresa_id, responsavel_id: lead.responsavel_id }}
+        onCriarProcesso={() => { setConcluirAberto(false); setNovoProcessoAberto(true) }}
+        onAindaNao={() => setConcluirAberto(false)}
+        onFechar={() => setConcluirAberto(false)}
       />
       <LeadEditarModal
         aberto={editarAberto}

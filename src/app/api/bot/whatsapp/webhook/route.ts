@@ -494,6 +494,16 @@ export async function POST(request: NextRequest) {
     const usuarioInterno = await verificarUsuarioInterno(supabase, empresa_id, telefone)
 
     if (usuarioInterno) {
+      // Verifica resposta de follow-up (1/2/3) antes do simula pendente
+      const { processarRespostaFollowup } = await import('@/lib/leads/followup')
+      const respostaFollowup = await processarRespostaFollowup(
+        texto.trim(), usuarioInterno.id, usuarioInterno.nome, empresa_id, supabase
+      )
+      if (respostaFollowup !== null) {
+        await enviarMensagemUazapi(telefone, respostaFollowup, instanciaToken)
+        return NextResponse.json({ ok: true })
+      }
+
       const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
       const pendente = await buscarSimulaPendente(supabase, empresa_id, telefone)
 

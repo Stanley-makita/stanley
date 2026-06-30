@@ -4,7 +4,7 @@ import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { buildTimelineSummary, getTimelineBadge } from './timelineUtils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList } from 'lucide-react'
+import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList, Bell, CheckCircle2, XCircle } from 'lucide-react'
 
 const ICONES = {
   historico: Edit,
@@ -14,6 +14,10 @@ const ICONES = {
   criacao: Plus,
   fase_mudanca: GitBranch,
   comentario: MessageSquare,
+  followup_iniciado: Bell,
+  followup_notificacao: Bell,
+  followup_resposta: CheckCircle2,
+  followup_encerrado: XCircle,
 }
 
 interface Props { leadId: string }
@@ -50,20 +54,29 @@ export function AbaHistorico({ leadId }: Props) {
 
           <div className="space-y-3">
             {eventos.map((item) => {
-              const Icone = ICONES[item.kind as keyof typeof ICONES] ?? Edit
+              const tipoIcone = (item.kind === 'historico' ? item.tipo : item.kind) as keyof typeof ICONES
+              const Icone = ICONES[tipoIcone] ?? Edit
               const titulo = item.kind === 'historico' && item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova
                 ? 'Mudança de fase'
                 : item.kind === 'historico' && item.tipo === 'criacao'
                   ? 'Lead criado'
                   : item.kind === 'historico' && item.tipo === 'comentario'
                     ? 'Comentário'
-                    : item.kind === 'simulacao'
-                      ? 'Simulação salva'
-                      : item.kind === 'documento'
-                        ? 'Documento anexado'
-                        : item.kind === 'solicitacao'
-                          ? 'Solicitação operacional'
-                          : 'Evento'
+                    : item.kind === 'historico' && item.tipo === 'followup_iniciado'
+                      ? 'Acompanhamento iniciado'
+                      : item.kind === 'historico' && item.tipo === 'followup_notificacao'
+                        ? 'Follow-up enviado'
+                        : item.kind === 'historico' && item.tipo === 'followup_resposta'
+                          ? 'Resposta do comercial'
+                          : item.kind === 'historico' && item.tipo === 'followup_encerrado'
+                            ? 'Acompanhamento encerrado'
+                            : item.kind === 'simulacao'
+                              ? 'Simulação salva'
+                              : item.kind === 'documento'
+                                ? 'Documento anexado'
+                                : item.kind === 'solicitacao'
+                                  ? 'Solicitação operacional'
+                                  : 'Evento'
 
               return (
                 <div key={item.id} className="flex gap-3 relative">

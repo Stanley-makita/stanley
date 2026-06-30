@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/leads/followup/notificar",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
