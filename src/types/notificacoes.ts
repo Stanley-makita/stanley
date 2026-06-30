@@ -12,7 +12,7 @@ export type TipoNotificacao =
   | 'solicitacao_respondida'
   | 'solicitacao_retorno'
 
-export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'solicitacao'
+export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao'
 
 export interface Notificacao {
   id: string

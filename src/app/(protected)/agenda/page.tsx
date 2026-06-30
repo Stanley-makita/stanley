@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { format, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
@@ -57,6 +58,16 @@ export default function AgendaPage() {
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeTarefa | 'todas'>('todas')
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('todos')
   const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
+
+  // Deep-link vindo de notificação (toast/sino): /agenda?tarefa=ID&fonte=lead|processo
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const tarefaId = searchParams.get('tarefa')
+    const fonte = searchParams.get('fonte')
+    if (tarefaId && (fonte === 'processo' || fonte === 'lead')) {
+      setTarefaAberta({ id: tarefaId, fonte })
+    }
+  }, [searchParams])
 
   const responsavelId = filtroResponsavel === 'todos' ? undefined : filtroResponsavel
 

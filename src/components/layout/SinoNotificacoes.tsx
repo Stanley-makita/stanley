@@ -11,6 +11,7 @@ import {
 import { useNotificacoes } from '@/hooks/useNotificacoes'
 import { useMarcarTodasLidas, useMarcarNotificacoesLidas } from '@/hooks/useMarcarNotificacoesLidas'
 import { NotificacaoItem } from '@/components/notificacoes/NotificacaoItem'
+import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
 
 export function SinoNotificacoes() {
   const router = useRouter()
@@ -21,13 +22,10 @@ export function SinoNotificacoes() {
   const naoLidas = notificacoes.filter((n) => !n.lida)
 
   function handleClick(notificacaoId: string, entidade: string | null, entidadeId: string | null) {
-    // Marcar como lida
     marcarLidas([notificacaoId])
-    // Navegar para a entidade
-    if (entidade === 'processo' && entidadeId) {
-      router.push(`/processos/${entidadeId}`)
-    } else if (entidade === 'lead') {
-      router.push('/leads')
+    const rota = resolverRotaNotificacao(entidade, entidadeId)
+    if (rota) {
+      router.push(rota)
     }
   }
 
