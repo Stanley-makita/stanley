@@ -196,13 +196,17 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
 
     if (pessoaIds.length > 0) {
       setBuscandoDocs(true)
+      // Lê do Acervo Documental unificado (não mais documentos_clientes): também
+      // traz documentos cuja pessoa_id só foi resolvida via lead/comprador pelo
+      // trigger de sincronização, não só os que já tinham pessoa_id direto.
       const { data: docs } = await supabase
-        .from('documentos_clientes')
-        .select('id, nome_original, nome_exibicao, classificacao, permanente, validade_data, validade_dias, created_at, pessoa_id, storage_path')
+        .from('documentos')
+        .select('id, nome_original, nome_exibicao, classificacao:classificacao_legado, permanente, validade_data, validade_dias, created_at:recebido_em, pessoa_id, storage_path')
+        .eq('dominio', 'acervo_documental')
         .in('pessoa_id', pessoaIds)
         .eq('empresa_id', payload.empresaId)
         .is('deleted_at', null)
-        .order('classificacao', { ascending: true })
+        .order('classificacao_legado', { ascending: true })
       setBuscandoDocs(false)
 
       if (docs && docs.length > 0) {
