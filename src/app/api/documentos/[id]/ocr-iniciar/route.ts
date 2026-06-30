@@ -7,15 +7,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-async function resolveEmpresa(token: string): Promise<string | null> {
+async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id')
+    .select('id, empresa_id')
     .eq('auth_user_id', user.id)
     .single()
-  return usuario?.empresa_id ?? null
+  if (!usuario) return null
+  return { empresa_id: usuario.empresa_id, usuario_id: usuario.id }
 }
 
 export async function POST(
@@ -23,8 +24,9 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const empresa_id = await resolveEmpresa(token)
-  if (!empresa_id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const resolvido = await resolveUsuario(token)
+  if (!resolvido) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { empresa_id, usuario_id } = resolvido
 
   const documentoId = params.id
 
@@ -49,7 +51,7 @@ export async function POST(
     return NextResponse.json({ ok: true, skipped: true, motivo: 'aguardando_apuracao' })
   }
 
-  const { erro } = await processarOcrDocumento(supabase, documentoId, empresa_id)
+  const { erro } = await processarOcrDocumento(supabase, documentoId, empresa_id, { solicitadoPor: usuario_id })
 
   const { data: atualizado } = await supabase
     .from('documentos_clientes')

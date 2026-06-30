@@ -231,10 +231,15 @@ function limparJson(texto: string): string {
   return texto.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
 }
 
+const PROVIDER = 'claude_vision'
+const MODELO = 'claude-haiku-4-5-20251001'
+const VERSAO_PROMPT = 'v1'
+
 export async function processarOcrDocumento(
   supabaseCliente: SupabaseClient,
   documentoId: string,
   empresa_id: string,
+  opcoes?: { solicitadoPor?: string | null },
 ): Promise<{ erro?: string }> {
   const supabase = serviceSupabase()
 
@@ -250,6 +255,52 @@ export async function processarOcrDocumento(
   await supabase.from('documentos_clientes')
     .update({ ocr_status: 'processando' })
     .eq('id', documentoId)
+
+  // Fase B (histórico de OCR): registra esta execução em extracoes_ocr.
+  // documentos_clientes.ocr_dados continua sendo escrito como espelho.
+  const inicio = Date.now()
+  const { data: extracao } = await supabase
+    .from('extracoes_ocr')
+    .insert({
+      empresa_id,
+      documento_id: documentoId,
+      provider: PROVIDER,
+      modelo: MODELO,
+      versao: VERSAO_PROMPT,
+      status: 'processando',
+      solicitado_por: opcoes?.solicitadoPor ?? null,
+    })
+    .select('id')
+    .single()
+  const extracaoId = extracao?.id as string | undefined
+
+  async function finalizarExtracao(patch: {
+    status: 'concluido' | 'erro' | 'ignorado'
+    dados?: unknown
+    confianca?: string | null
+    erro_mensagem?: string
+  }) {
+    if (!extracaoId) return
+    const vigente = patch.status === 'concluido'
+    if (vigente) {
+      // Só pode existir uma extração vigente por documento
+      await supabase.from('extracoes_ocr')
+        .update({ vigente: false })
+        .eq('documento_id', documentoId)
+        .eq('vigente', true)
+    }
+    await supabase.from('extracoes_ocr')
+      .update({
+        status: patch.status,
+        dados: patch.dados ?? null,
+        confianca: patch.confianca ?? null,
+        erro_mensagem: patch.erro_mensagem ?? null,
+        concluido_em: new Date().toISOString(),
+        tempo_processamento_ms: Date.now() - inicio,
+        vigente,
+      })
+      .eq('id', extracaoId)
+  }
 
   try {
     // Download único — reutilizado nas duas fases
@@ -269,6 +320,7 @@ export async function processarOcrDocumento(
     const contentBlock = montarContentBlock(base64, mimeType)
     if (!contentBlock) {
       await supabase.from('documentos_clientes').update({ ocr_status: 'ignorado' }).eq('id', documentoId)
+      await finalizarExtracao({ status: 'ignorado', erro_mensagem: `mime_type não suportado: ${mimeType}` })
       console.log('[ocr] mime_type não suportado, ignorado:', documentoId, '| mime:', mimeType)
       return {}
     }
@@ -296,6 +348,7 @@ export async function processarOcrDocumento(
         ocr_status: 'aguardando_apuracao',
         classificacao: 'extrato_bancario',
       }).eq('id', documentoId)
+      await finalizarExtracao({ status: 'ignorado', dados: classificacao, confianca: classificacao.confianca })
       console.log('[ocr] Extrato bancário detectado automaticamente:', documentoId)
       return {}
     }
@@ -306,6 +359,7 @@ export async function processarOcrDocumento(
         ocr_status: 'ignorado',
         classificacao: tipo === 'outro' ? null : tipo,
       }).eq('id', documentoId)
+      await finalizarExtracao({ status: 'ignorado', dados: classificacao, confianca: classificacao.confianca })
       console.log('[ocr] Classificado como não-essencial, ignorado:', documentoId, '| tipo:', tipo)
       return {}
     }
@@ -331,6 +385,7 @@ export async function processarOcrDocumento(
       ocr_dados: resultado,
       classificacao: resultado.tipo_documento,
     }).eq('id', documentoId)
+    await finalizarExtracao({ status: 'concluido', dados: resultado, confianca: resultado.confianca })
 
     console.log('[ocr] Documento processado:', documentoId, '| tipo:', resultado.tipo_documento, '| confiança:', resultado.confianca)
     return {}
@@ -340,6 +395,7 @@ export async function processarOcrDocumento(
     await supabase.from('documentos_clientes')
       .update({ ocr_status: 'erro' })
       .eq('id', documentoId)
+    await finalizarExtracao({ status: 'erro', erro_mensagem: msg })
     return { erro: msg }
   }
 }

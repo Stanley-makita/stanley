@@ -105,6 +105,54 @@ export interface DocumentoParaAnalise {
 }
 
 // ============================================================
+// Histórico de OCR (Fase B — Sprint Inteligência Documental)
+// ============================================================
+// A apuração de renda analisa N documentos numa única chamada de IA, mas o
+// histórico (extracoes_ocr) é por documento — grava uma linha por extrato
+// participante, todas com o mesmo resultado agregado em `dados`, igual ao
+// pipeline genérico de OCR (provider diferente: 'apuracao_renda').
+
+export async function registrarExtracoesApuracaoRenda(
+  supabase: SupabaseClient,
+  params: {
+    empresaId: string
+    documentoIds: string[]
+    status: 'concluido' | 'erro'
+    dados?: ResultadoApuracao
+    confianca?: 'alta' | 'media' | 'baixa' | null
+    erroMensagem?: string
+    solicitadoPor: string
+    tempoProcessamentoMs: number
+  },
+): Promise<void> {
+  const { empresaId, documentoIds, status, dados, confianca, erroMensagem, solicitadoPor, tempoProcessamentoMs } = params
+
+  for (const documentoId of documentoIds) {
+    if (status === 'concluido') {
+      await supabase.from('extracoes_ocr')
+        .update({ vigente: false })
+        .eq('documento_id', documentoId)
+        .eq('vigente', true)
+    }
+    await supabase.from('extracoes_ocr').insert({
+      empresa_id: empresaId,
+      documento_id: documentoId,
+      provider: 'apuracao_renda',
+      modelo: 'claude-haiku-4-5-20251001',
+      versao: 'v1',
+      status,
+      dados: dados ?? null,
+      confianca: confianca ?? null,
+      erro_mensagem: erroMensagem ?? null,
+      solicitado_por: solicitadoPor,
+      concluido_em: new Date().toISOString(),
+      tempo_processamento_ms: tempoProcessamentoMs,
+      vigente: status === 'concluido',
+    })
+  }
+}
+
+// ============================================================
 // Validação de datas
 // ============================================================
 

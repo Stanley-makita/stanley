@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { analisarExtratosRenda } from '@/lib/documentos/apurar-renda'
+import { analisarExtratosRenda, registrarExtracoesApuracaoRenda } from '@/lib/documentos/apurar-renda'
 
 export const maxDuration = 300
 
@@ -63,6 +63,9 @@ export async function POST(
     return NextResponse.json({ error: 'Nenhum extrato bancário encontrado para este processo' }, { status: 400 })
   }
 
+  const inicio = Date.now()
+  const documentosOcrIds = documentos.map(d => d.id)
+
   try {
     const resultado = await analisarExtratosRenda(supabase, documentos, { faturamentoDeclarado })
 
@@ -78,7 +81,7 @@ export async function POST(
         media_liquida:         resultado.media_liquida,
         periodo_inicio:        resultado.periodo_inicio,
         periodo_fim:           resultado.periodo_fim,
-        documentos_ids:        documentos.map(d => d.id),
+        documentos_ids:        documentosOcrIds,
         confianca:             resultado.confianca,
         status:                'concluida',
         resultado_json:        resultado,
@@ -88,9 +91,27 @@ export async function POST(
 
     if (insertError) throw new Error(insertError.message)
 
+    await registrarExtracoesApuracaoRenda(supabase, {
+      empresaId: empresa_id,
+      documentoIds: documentosOcrIds,
+      status: 'concluido',
+      dados: resultado,
+      confianca: resultado.confianca,
+      solicitadoPor: usuario_id,
+      tempoProcessamentoMs: Date.now() - inicio,
+    })
+
     return NextResponse.json({ ok: true, apuracao })
   } catch (err) {
     console.error('[apurar-renda processo] Erro na análise:', err)
+    await registrarExtracoesApuracaoRenda(supabase, {
+      empresaId: empresa_id,
+      documentoIds: documentosOcrIds,
+      status: 'erro',
+      erroMensagem: err instanceof Error ? err.message : String(err),
+      solicitadoPor: usuario_id,
+      tempoProcessamentoMs: Date.now() - inicio,
+    }).catch(() => {})
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Erro ao processar extratos' },
       { status: 500 },
