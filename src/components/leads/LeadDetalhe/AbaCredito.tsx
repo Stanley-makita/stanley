@@ -715,121 +715,189 @@ function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onS
   deletando: boolean
   definindoBanco: boolean
 }) {
-  const temDados = analise.banco_pretendido || analise.valor_imovel || analise.valor_pretendido || analise.entrada
+  const [expandido, setExpandido] = useState(false)
   const statusCfg = STATUS_ANALISE[analise.status] ?? STATUS_ANALISE.em_analise
 
   return (
-    <div className={cn(
-      'border rounded-lg p-3 space-y-2.5 transition-colors',
-      analise.banco_definido ? 'border-green-300 bg-green-50/30' : 'border-gray-200'
-    )}>
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {/* Toggle banco definido */}
-          <button
-            onClick={onDefinirBanco}
-            disabled={definindoBanco || analise.banco_definido}
-            title={analise.banco_definido ? 'Banco definido' : 'Definir como banco escolhido'}
-            className={cn(
-              'flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 transition-colors',
-              analise.banco_definido
-                ? 'bg-green-100 border-green-400 text-green-700 cursor-default'
-                : 'bg-white border-gray-300 text-gray-400 hover:border-fonti-primary hover:text-fonti-primary disabled:opacity-50'
-            )}
-          >
-            <span className={cn('w-2 h-2 rounded-full shrink-0', analise.banco_definido ? 'bg-green-500' : 'bg-gray-300')} />
-            {analise.banco_definido ? 'Banco Definido' : 'Definir banco'}
-          </button>
-          <p className="text-xs font-semibold text-gray-700 truncate">{analise.nome}</p>
+    <div
+      className={cn(
+        'border rounded-lg transition-colors',
+        analise.banco_definido ? 'border-green-300 bg-green-50/30' : 'border-gray-200',
+      )}
+    >
+      {/* ── Linha compacta (sempre visível) — clica para expandir ── */}
+      <button
+        type="button"
+        className="w-full text-left px-3 py-2.5 flex items-center gap-2 group"
+        onClick={() => setExpandido(v => !v)}
+      >
+        {/* Badge banco definido */}
+        <span
+          onClick={e => { e.stopPropagation(); onDefinirBanco() }}
+          title={analise.banco_definido ? 'Banco definido' : 'Definir como banco escolhido'}
+          className={cn(
+            'flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 transition-colors cursor-pointer',
+            analise.banco_definido
+              ? 'bg-green-100 border-green-400 text-green-700'
+              : 'bg-white border-gray-300 text-gray-400 hover:border-fonti-primary hover:text-fonti-primary',
+          )}
+        >
+          <span className={cn('w-2 h-2 rounded-full shrink-0', analise.banco_definido ? 'bg-green-500' : 'bg-gray-300')} />
+          {analise.banco_definido ? 'Banco Definido' : 'Definir banco'}
+        </span>
+
+        {/* Nome + valores compactos */}
+        <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
+          <p className="text-xs font-semibold text-gray-700 shrink-0">{analise.nome}</p>
+          {analise.banco_pretendido && (
+            <p className="text-xs text-gray-500 truncate">{analise.banco_pretendido}</p>
+          )}
+          {!expandido && (
+            <>
+              {analise.valor_imovel != null && (
+                <span className="text-[11px] text-gray-400 shrink-0 hidden sm:inline">
+                  Imóvel <span className="text-gray-600 font-medium">{fmtMoeda(analise.valor_imovel)}</span>
+                </span>
+              )}
+              {analise.entrada != null && (
+                <span className="text-[11px] text-gray-400 shrink-0 hidden sm:inline">
+                  Entrada <span className="text-gray-600 font-medium">{fmtMoeda(analise.entrada)}</span>
+                </span>
+              )}
+              {analise.valor_pretendido != null && analise.entrada == null && (
+                <span className="text-[11px] text-gray-400 shrink-0 hidden sm:inline">
+                  A Financiar <span className="text-gray-600 font-medium">{fmtMoeda(analise.valor_pretendido)}</span>
+                </span>
+              )}
+              {/* Status badge compacto */}
+              <span
+                onClick={e => e.stopPropagation()}
+                className="shrink-0"
+              >
+                <Select
+                  value={analise.status}
+                  onValueChange={(v) => onStatusChange(v as StatusAnaliseCredito)}
+                >
+                  <SelectTrigger className={cn(
+                    'h-5 text-[10px] px-2 py-0 rounded-full border font-medium w-auto gap-0.5',
+                    statusCfg.classe,
+                  )}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(STATUS_ANALISE) as [StatusAnaliseCredito, { label: string; classe: string }][]).map(([v, cfg]) => (
+                      <SelectItem key={v} value={v} className="text-xs">{cfg.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </span>
+            </>
+          )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={onEditar} className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-fonti-primary">
+
+        {/* Ações — sem fechar card */}
+        <div
+          className="flex items-center gap-2 shrink-0"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={onEditar}
+            className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-fonti-primary"
+          >
             <Pencil className="h-3 w-3" /> Editar
           </button>
-          <button onClick={onDeletar} disabled={deletando} className="text-gray-300 hover:text-red-400 disabled:opacity-50">
+          <button
+            onClick={onDeletar}
+            disabled={deletando}
+            className="text-gray-300 hover:text-red-400 disabled:opacity-50"
+          >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
-      </div>
+      </button>
 
-      {/* Dados da simulação */}
-      {temDados ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
-          {analise.banco_pretendido && (
-            <div>
-              <p className="text-[10px] text-gray-400">Banco</p>
-              <p className="text-xs font-medium text-gray-800">{analise.banco_pretendido}</p>
-            </div>
+      {/* ── Detalhe expandido ── */}
+      {expandido && (
+        <div className="px-3 pb-3 pt-0 space-y-2.5 border-t border-gray-100">
+          {/* Grid completo de campos */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 pt-2.5">
+            {analise.banco_pretendido && (
+              <div>
+                <p className="text-[10px] text-gray-400">Banco</p>
+                <p className="text-xs font-medium text-gray-800">{analise.banco_pretendido}</p>
+              </div>
+            )}
+            {analise.valor_imovel != null && (
+              <div>
+                <p className="text-[10px] text-gray-400">Valor Imóvel</p>
+                <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.valor_imovel)}</p>
+              </div>
+            )}
+            {analise.valor_pretendido != null && (
+              <div>
+                <p className="text-[10px] text-gray-400">A Financiar</p>
+                <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.valor_pretendido)}</p>
+              </div>
+            )}
+            {analise.entrada != null && (
+              <div>
+                <p className="text-[10px] text-gray-400">Entrada</p>
+                <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.entrada)}</p>
+              </div>
+            )}
+            {analise.prazo_meses != null && (
+              <div>
+                <p className="text-[10px] text-gray-400">Prazo</p>
+                <p className="text-xs font-medium text-gray-800">{analise.prazo_meses} meses</p>
+              </div>
+            )}
+            {analise.finalidade && (
+              <div>
+                <p className="text-[10px] text-gray-400">Finalidade</p>
+                <p className="text-xs font-medium text-gray-800">
+                  {FINALIDADES.find(f => f.value === analise.finalidade)?.label ?? analise.finalidade}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {!analise.banco_pretendido && !analise.valor_imovel && !analise.valor_pretendido && !analise.entrada && (
+            <p className="text-xs text-gray-400 italic pt-2">Análise vazia — clique em Editar para preencher.</p>
           )}
-          {analise.valor_imovel != null && (
-            <div>
-              <p className="text-[10px] text-gray-400">Valor Imóvel</p>
-              <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.valor_imovel)}</p>
+
+          {/* Status + Data resposta */}
+          <div className="flex flex-wrap items-center gap-3 pt-1.5 border-t border-gray-100">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-400 shrink-0">Status</span>
+              <Select
+                value={analise.status}
+                onValueChange={(v) => onStatusChange(v as StatusAnaliseCredito)}
+              >
+                <SelectTrigger className={cn(
+                  'h-6 text-[11px] px-2 py-0 rounded-full border font-medium w-auto gap-1',
+                  statusCfg.classe,
+                )}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(STATUS_ANALISE) as [StatusAnaliseCredito, { label: string; classe: string }][]).map(([v, cfg]) => (
+                    <SelectItem key={v} value={v} className="text-xs">{cfg.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          {analise.valor_pretendido != null && (
-            <div>
-              <p className="text-[10px] text-gray-400">A Financiar</p>
-              <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.valor_pretendido)}</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-400 shrink-0">Data da resposta</span>
+              <input
+                type="date"
+                className="h-6 text-[11px] border border-gray-200 rounded px-2 bg-white focus:outline-none focus:ring-1 focus:ring-fonti-primary/30 text-gray-700"
+                value={analise.data_resposta ?? ''}
+                onChange={e => onDataRespostaChange(e.target.value || null)}
+              />
             </div>
-          )}
-          {analise.entrada != null && (
-            <div>
-              <p className="text-[10px] text-gray-400">Entrada</p>
-              <p className="text-xs font-medium text-gray-800">{fmtMoeda(analise.entrada)}</p>
-            </div>
-          )}
-          {analise.prazo_meses != null && (
-            <div>
-              <p className="text-[10px] text-gray-400">Prazo</p>
-              <p className="text-xs font-medium text-gray-800">{analise.prazo_meses} meses</p>
-            </div>
-          )}
-          {analise.finalidade && (
-            <div>
-              <p className="text-[10px] text-gray-400">Finalidade</p>
-              <p className="text-xs font-medium text-gray-800">
-                {FINALIDADES.find(f => f.value === analise.finalidade)?.label ?? analise.finalidade}
-              </p>
-            </div>
-          )}
+          </div>
         </div>
-      ) : (
-        <p className="text-xs text-gray-400 italic">Análise vazia — clique em Editar para preencher.</p>
       )}
-
-      {/* Status + Data resposta */}
-      <div className="flex flex-wrap items-center gap-3 pt-1.5 border-t border-gray-100">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-gray-400 shrink-0">Status</span>
-          <Select
-            value={analise.status}
-            onValueChange={(v) => onStatusChange(v as StatusAnaliseCredito)}
-          >
-            <SelectTrigger className={cn(
-              'h-6 text-[11px] px-2 py-0 rounded-full border font-medium w-auto gap-1',
-              statusCfg.classe,
-            )}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.entries(STATUS_ANALISE) as [StatusAnaliseCredito, { label: string; classe: string }][]).map(([v, cfg]) => (
-                <SelectItem key={v} value={v} className="text-xs">{cfg.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-gray-400 shrink-0">Data da resposta</span>
-          <input
-            type="date"
-            className="h-6 text-[11px] border border-gray-200 rounded px-2 bg-white focus:outline-none focus:ring-1 focus:ring-fonti-primary/30 text-gray-700"
-            value={analise.data_resposta ?? ''}
-            onChange={e => onDataRespostaChange(e.target.value || null)}
-          />
-        </div>
-      </div>
     </div>
   )
 }
