@@ -9,6 +9,7 @@ import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
+import { sincronizarDocumentoUnificado } from '@/lib/documentos/sincronizarDocumentoUnificado'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -105,18 +106,37 @@ async function salvarDocumentoCliente(params: {
     }
   }
 
-  const { error: insertError } = await supabase.from('documentos_clientes').insert({
-    empresa_id,
-    conversa_id,
-    pessoa_id: pessoa_id ?? undefined,
-    nome_original: nomeOriginal,
-    mime_type: mimeType ?? null,
-    tamanho_bytes: tamanhoBytes,
-    storage_path: storagePath,
-    canal_origem: 'whatsapp',
-    ocr_status: ocrStatus,
-  })
+  const { data: docInserido, error: insertError } = await supabase
+    .from('documentos_clientes')
+    .insert({
+      empresa_id,
+      conversa_id,
+      pessoa_id: pessoa_id ?? undefined,
+      nome_original: nomeOriginal,
+      mime_type: mimeType ?? null,
+      tamanho_bytes: tamanhoBytes,
+      storage_path: storagePath,
+      canal_origem: 'whatsapp',
+      ocr_status: ocrStatus,
+    })
+    .select('id')
+    .single()
   if (insertError) throw new Error(`DB insert falhou: ${insertError.message}`)
+
+  if (docInserido) {
+    await sincronizarDocumentoUnificado(supabase, {
+      id: docInserido.id,
+      empresa_id,
+      pessoa_id,
+      nome_original: nomeOriginal,
+      mime_type: mimeType ?? null,
+      tamanho_bytes: tamanhoBytes,
+      storage_bucket: 'documentos-clientes',
+      storage_path: storagePath,
+      canal_origem: 'whatsapp',
+      ocr_status: ocrStatus,
+    })
+  }
 }
 
 async function baixarMidiaUazapi(messageid: string, tipoMidia: string): Promise<string | null> {

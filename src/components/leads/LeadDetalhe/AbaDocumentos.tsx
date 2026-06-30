@@ -26,6 +26,7 @@ import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModa
 import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
 import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
 import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDocumento'
+import { sincronizarDocumentoUnificado } from '@/lib/documentos/sincronizarDocumentoUnificado'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -263,6 +264,23 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
     if (dbError) {
       supabase.storage.from(BUCKET).remove([storagePath])
       throw new Error(dbError.message)
+    }
+
+    if (docInserido?.id) {
+      sincronizarDocumentoUnificado(supabase, {
+        id: docInserido.id,
+        empresa_id: usuario!.empresa_id,
+        pessoa_id: pessoaId ?? null,
+        lead_id: leadId,
+        nome_original: arquivo.name,
+        storage_bucket: BUCKET,
+        storage_path: storagePath,
+        canal_origem: 'upload_manual',
+        classificacao: tipoArquivo,
+        ocr_status: 'pendente',
+        permanente: validade.permanente,
+        validade_dias: validade.validade_dias,
+      }, { vinculadoPor: usuario!.id }).catch(console.error)
     }
 
     if (docInserido?.id && token && extrairAposUpload) {
