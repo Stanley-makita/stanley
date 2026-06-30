@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import type { TipoSolicitacao, PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
 import { avancarFaseLead } from '@/lib/leads/avancarFaseLead'
 
@@ -43,6 +44,9 @@ export function useCriarSolicitacao() {
     },
     onSuccess: async (_, params) => {
       qc.invalidateQueries({ queryKey: ['solicitacoes'] })
+      toast.success('Solicitação criada.', {
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
+      })
 
       if (!params.lead_id) return
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import type { SolicitacaoOperacional, StatusSolicitacao, TipoSolicitacao, PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
@@ -26,6 +27,21 @@ const ORDEM_PRIORIDADE: Record<string, number> = { urgente: 0, alta: 1, normal: 
 
 export function useSolicitacoesFila(filtros: FiltrosFila = {}) {
   const { usuario } = useAuth()
+  const qc = useQueryClient()
+
+  // Real-time: atualiza fila quando qualquer solicitação da empresa mudar
+  useEffect(() => {
+    if (!usuario?.empresa_id) return
+    const channel = supabase
+      .channel(`fila-operacional-${usuario.empresa_id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes_operacionais', filter: `empresa_id=eq.${usuario.empresa_id}` },
+        () => qc.invalidateQueries({ queryKey: ['solicitacoes'] })
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [usuario?.empresa_id, qc])
 
   return useQuery({
     queryKey: ['solicitacoes', 'fila', usuario?.id, usuario?.empresa_id, filtros],

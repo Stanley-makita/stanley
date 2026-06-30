@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { useCriarSolicitacao } from '@/hooks/solicitacoes/useCriarSolicitacao'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import {
@@ -97,9 +98,18 @@ export function NovaSolicitacaoDrawer({
   const [prioridade, setPrioridade] = useState<PrioridadeSolicitacao>('normal')
   const [responsavelId, setResponsavelId] = useState<string>('none')
 
-  // Inicializa campos quando o drawer abre
+  // Inicializa ao abrir; limpa ao fechar (após animação para evitar flash)
   useEffect(() => {
-    if (!aberto) return
+    if (!aberto) {
+      const timer = setTimeout(() => {
+        setTipo('simulacao')
+        setTitulo('')
+        setDescricao('')
+        setPrioridade('normal')
+        setResponsavelId('none')
+      }, 200)
+      return () => clearTimeout(timer)
+    }
     const tipoInicial: TipoSolicitacao = 'simulacao'
     setTipo(tipoInicial)
     setTitulo(gerarTitulo(tipoInicial, contexto))
@@ -141,6 +151,7 @@ export function NovaSolicitacaoDrawer({
       onFechar()
     } catch (err) {
       console.error(err)
+      toast.error('Erro ao criar solicitação.')
     }
   }
 
