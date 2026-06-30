@@ -6,15 +6,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-async function resolveEmpresa(token: string): Promise<string | null> {
+async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id')
+    .select('id, empresa_id')
     .eq('auth_user_id', user.id)
     .single()
-  return usuario?.empresa_id ?? null
+  if (!usuario) return null
+  return { empresa_id: usuario.empresa_id, usuario_id: usuario.id }
 }
 
 export async function POST(
@@ -22,8 +23,9 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const empresa_id = await resolveEmpresa(token)
-  if (!empresa_id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const resolvido = await resolveUsuario(token)
+  if (!resolvido) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { empresa_id, usuario_id } = resolvido
 
   const documentoId = params.id
 
@@ -225,6 +227,18 @@ export async function POST(
     })
     .eq('id', documentoId)
 
+  // Fase C (validação): operador confirmou os dados — promove a extração
+  // vigente a "Validado". A partir daqui dados_validados é a fonte oficial.
+  await supabase
+    .from('extracoes_ocr')
+    .update({
+      validado_em: new Date().toISOString(),
+      validado_por: usuario_id,
+      dados_validados: { ...campos, tipo_confirmado: tipo_confirmado ?? null },
+    })
+    .eq('documento_id', documentoId)
+    .eq('vigente', true)
+
   return NextResponse.json({
     ok: true,
     cpf_divergente,
@@ -239,14 +253,14 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const empresa_id = await resolveEmpresa(token)
-  if (!empresa_id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const resolvido = await resolveUsuario(token)
+  if (!resolvido) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   await supabase
     .from('documentos_clientes')
     .update({ ocr_status: 'ignorado' })
     .eq('id', params.id)
-    .eq('empresa_id', empresa_id)
+    .eq('empresa_id', resolvido.empresa_id)
 
   return NextResponse.json({ ok: true })
 }

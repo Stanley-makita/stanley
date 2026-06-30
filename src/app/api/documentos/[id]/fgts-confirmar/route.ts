@@ -6,15 +6,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-async function resolveUsuario(token: string): Promise<{ empresa_id: string } | null> {
+async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id')
+    .select('id, empresa_id')
     .eq('auth_user_id', user.id)
     .single()
-  return usuario ? { empresa_id: usuario.empresa_id } : null
+  return usuario ? { empresa_id: usuario.empresa_id, usuario_id: usuario.id } : null
 }
 
 interface ContaFgts {
@@ -32,7 +32,7 @@ export async function POST(
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const documentoId = params.id
-  const { empresa_id } = usuario
+  const { empresa_id, usuario_id } = usuario
 
   const { data: doc } = await supabase
     .from('documentos_clientes')
@@ -139,6 +139,18 @@ export async function POST(
     .from('documentos_clientes')
     .update({ ocr_status: 'revisado' })
     .eq('id', documentoId)
+
+  // Fase C (validação): operador confirmou as contas FGTS — promove a
+  // extração vigente a "Validado".
+  await supabase
+    .from('extracoes_ocr')
+    .update({
+      validado_em: new Date().toISOString(),
+      validado_por: usuario_id,
+      dados_validados: { nome: body.nome ?? null, pis_pasep, data_extrato, contas },
+    })
+    .eq('documento_id', documentoId)
+    .eq('vigente', true)
 
   return NextResponse.json({ ok: true, salvas })
 }
