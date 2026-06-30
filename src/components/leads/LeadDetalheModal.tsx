@@ -23,6 +23,7 @@ import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
 import { AbaPessoa } from './LeadDetalhe/AbaPessoa'
 import { AbaOportunidade } from './LeadDetalhe/AbaOportunidade'
 import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
+import { PipelineBarLead } from './PipelineBarLead'
 import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLeadChecklist'
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { ModalConcluirLead } from './ModalConcluirLead'
@@ -37,8 +38,8 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
-  Plus, MessageCircle, Pencil, Loader2, Trash2,
-  Phone, Mail, CreditCard, DollarSign, Calendar, CalendarClock, ClipboardList, ChevronRight, ArrowLeft,
+  Plus, MessageCircle, Loader2, Trash2,
+  Phone, Mail, CreditCard, DollarSign, Calendar, ClipboardList, ArrowLeft,
 } from 'lucide-react'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
@@ -159,7 +160,15 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* ── Barra de Fases ── */}
+          <PipelineBarLead
+            lead={lead}
+            fases={fases}
+            onConcluido={() => setConcluirAberto(true)}
+          />
+
+          <div className="flex min-h-0 flex-1 overflow-hidden lg:flex-row">
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
               <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
@@ -379,48 +388,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                 </div>
 
                 {/* Ação principal */}
-                <div className="space-y-2 border-t border-gray-200 p-4">
-                  {(() => {
-                    const idx = fases.findIndex(f => f.id === lead.fase_id)
-                    const proxFase = idx >= 0 && idx < fases.length - 1 ? fases[idx + 1] : null
-                    if (!proxFase) return null
-                    const itensBloqueadores = itensChecklist.filter(i => i.bloqueia_avanco && !i.concluido)
-                    const temBloqueio = itensBloqueadores.length > 0
-                    return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          'w-full h-8 text-xs gap-1.5',
-                          temBloqueio
-                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                            : 'text-fonti-primary border-fonti-primary/30 hover:bg-fonti-primary/5'
-                        )}
-                        disabled={editarLead.isPending}
-                        onClick={() => {
-                          if (temBloqueio) {
-                            const pendentes = itensBloqueadores.map(i => i.descricao ?? 'item').join(', ')
-                            toast.error('Checklist obrigatório pendente', {
-                              description: `Conclua antes de avançar: ${pendentes}`,
-                            })
-                            return
-                          }
-                          if (proxFase.nome === 'Concluído') {
-                            editarLead.mutate({ id: lead.id, fase_id: proxFase.id })
-                            setConcluirAberto(true)
-                            return
-                          }
-                          editarLead.mutate({ id: lead.id, fase_id: proxFase.id })
-                        }}
-                      >
-                        {editarLead.isPending
-                          ? <Loader2 className="h-3 w-3 animate-spin" />
-                          : <ChevronRight className="h-3 w-3" />
-                        }
-                        Avançar → {proxFase.nome}
-                      </Button>
-                    )
-                  })()}
+                <div className="border-t border-gray-200 p-4">
                   <Button
                     size="sm"
                     className="w-full h-8 text-xs gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
@@ -524,7 +492,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               </div>
 
             </div>
-          )}
+          </div>
+        )}
   </>
 )
 

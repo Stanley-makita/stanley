@@ -4,10 +4,9 @@ import { useState } from 'react'
 import { type Lead } from '@/types/leads'
 import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { useLeadTarefas } from '@/hooks/leads/useLeadTarefas'
-import { useFases } from '@/hooks/configuracoes/useFases'
 import { formatDistanceToNow, differenceInDays, isPast, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageSquare, Calendar, TrendingUp, Banknote, Users, ArrowRight, AlertCircle, Clock, CheckCircle2, CalendarClock } from 'lucide-react'
+import { MessageSquare, Calendar, TrendingUp, Banknote, Users, AlertCircle, Clock, CheckCircle2, CalendarClock } from 'lucide-react'
 import { cn, fmtData } from '@/lib/utils'
 import { useSolicitacoesAbertasPorLead } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorLead'
 
@@ -42,14 +41,11 @@ interface Props { lead: Lead; onMudarAba?: (aba: string) => void }
 
 export function AbaResumo({ lead, onMudarAba }: Props) {
   const { data: notas = [] } = useLeadHistorico(lead.id, ['comentario'])
-  const { data: fases = [] } = useFases('leads')
   const { data: tarefas = [] } = useLeadTarefas(lead.id)
 
   const { data: pendencias = [] } = useSolicitacoesAbertasPorLead(lead.id)
   const diasComoLead = differenceInDays(new Date(), new Date(lead.created_at))
   const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0)
-  const fasesOrdenadas = fases
-  const idxFaseAtual = fasesOrdenadas.findIndex(f => f.id === lead.fase_id)
 
   const tarefasVencidas  = tarefas.filter(t => !t.concluida && t.data_prazo && isPast(parseISO(t.data_prazo + 'T23:59:59'))).length
   const tarefasPendentes = tarefas.filter(t => !t.concluida && !(t.data_prazo && isPast(parseISO(t.data_prazo + 'T23:59:59')))).length
@@ -138,55 +134,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
         />
       </div>
 
-      {/* ── Pipeline de Fases ── */}
-      {fases.length > 0 && (
-        <div className="border border-gray-300 rounded-xl p-4 bg-white shadow">
-          <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">Progresso no Pipeline</p>
-          <div className="flex items-center gap-1 overflow-x-auto pb-1">
-            {fasesOrdenadas.map((fase, idx) => {
-              const isAtual = fase.id === lead.fase_id
-              const isPast  = idx < idxFaseAtual
-              return (
-                <div key={fase.id} className="flex items-center gap-1 shrink-0">
-                  <div
-                    className={cn(
-                      'px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
-                      isAtual
-                        ? 'text-white shadow-sm'
-                        : isPast
-                          ? 'bg-gray-100 text-gray-400'
-                          : 'bg-gray-50 text-gray-300'
-                    )}
-                    style={isAtual ? { backgroundColor: fase.cor ?? 'var(--fonti-primary)' } : undefined}
-                  >
-                    {fase.nome}
-                  </div>
-                  {idx < fasesOrdenadas.length - 1 && (
-                    <ArrowRight className={cn('h-3 w-3 shrink-0', isPast ? 'text-gray-300' : 'text-gray-200')} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          {idxFaseAtual >= 0 && (
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>{idxFaseAtual + 1} de {fasesOrdenadas.length} fases</span>
-                <span>{Math.round(((idxFaseAtual) / Math.max(fasesOrdenadas.length - 1, 1)) * 100)}%</span>
-              </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.round(((idxFaseAtual) / Math.max(fasesOrdenadas.length - 1, 1)) * 100)}%`,
-                    backgroundColor: lead.fase?.cor ?? 'var(--fonti-primary)',
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Pipeline de fases removido — agora exibido na barra superior (PipelineBarLead) */}
 
       {/* ── Dados Pessoais (se preenchidos) ── */}
       {(lead.profissao || lead.estado_civil || lead.data_nascimento) && (

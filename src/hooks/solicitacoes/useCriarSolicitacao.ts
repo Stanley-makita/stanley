@@ -4,12 +4,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import type { TipoSolicitacao, PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
-import { avancarFaseLead } from '@/lib/leads/avancarFaseLead'
-
-// Tipos que NÃO disparam avanço para "Atendimento" (apenas regra 1 se estiver em "Novo")
-const TIPOS_SEM_AVANCO: TipoSolicitacao[] = [
-  'custas', 'documentos', 'analise_credito', 'engenharia', 'formalizacao', 'registro',
-]
 
 interface CriarSolicitacaoParams {
   tipo: TipoSolicitacao
@@ -42,25 +36,11 @@ export function useCriarSolicitacao() {
       if (error) throw error
       return data as string
     },
-    onSuccess: async (_, params) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['solicitacoes'] })
       toast.success('Solicitação criada.', {
         className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
-
-      if (!params.lead_id) return
-
-      let faseDestino: string | null = null
-
-      if (params.tipo === 'simulacao') {
-        faseDestino = 'Simulação'
-      } else if (!TIPOS_SEM_AVANCO.includes(params.tipo)) {
-        faseDestino = 'Prospecção'
-      }
-
-      if (faseDestino) {
-        await avancarFaseLead(supabase, qc, params.lead_id, faseDestino)
-      }
     },
   })
 }
