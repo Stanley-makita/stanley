@@ -1,11 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calculator, Home, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { Calculator, Home, Clock, ChevronDown, ChevronUp, Download, Send, Trash2, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { toast } from 'sonner'
+import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
+import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
+import type { ResultadoSimulador } from '@/types/simulador'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -140,6 +146,11 @@ interface Props { leadId: string }
 
 export function HistoricoSimulacoesLead({ leadId }: Props) {
   const [expandido, setExpandido] = useState<string | null>(null)
+  const [baixandoId, setBaixandoId] = useState<string | null>(null)
+  const [compartilharSim, setCompartilharSim] = useState<SimItem | null>(null)
+  const [excluirSim, setExcluirSim] = useState<SimItem | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const qc = useQueryClient()
 
   const { data: simulacoes = [], isLoading } = useQuery({
     queryKey: ['simulacoes-lead', leadId],
@@ -189,6 +200,45 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
       )
     },
   })
+
+  async function baixarPDF(sim: SimItem) {
+    if (!sim.resultado_json) return
+    setBaixandoId(sim.id)
+    try {
+      if (sim.tipo === 'financiamento') {
+        const { gerarPDFFinanciamento } = await import('@/components/simuladorFinanciamento/gerarPDFFinanciamento')
+        await gerarPDFFinanciamento(sim.resultado_json as unknown as ResultadoCompleto, {})
+      } else {
+        const { gerarPDFSimulacao } = await import('@/components/simulador/gerarPDF')
+        const res = sim.resultado_json as unknown as ResultadoSimulador
+        await gerarPDFSimulacao(res, {
+          valorAssessoria: res.entrada?.servicoRegistro,
+          valorContratoServico: res.entrada?.contratoParticular,
+        })
+      }
+    } catch {
+      toast.error('Erro ao gerar PDF da simulação.')
+    } finally {
+      setBaixandoId(null)
+    }
+  }
+
+  async function confirmarExcluir() {
+    if (!excluirSim) return
+    setExcluindo(true)
+    try {
+      const tabela = excluirSim.tipo === 'custas' ? 'processo_custas_simulacoes' : 'simulacoes_central'
+      const { error } = await supabase.from(tabela).delete().eq('id', excluirSim.id)
+      if (error) throw error
+      toast.success('Simulação excluída.')
+      qc.invalidateQueries({ queryKey: ['simulacoes-lead', leadId] })
+      setExcluirSim(null)
+    } catch {
+      toast.error('Erro ao excluir simulação.')
+    } finally {
+      setExcluindo(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -258,11 +308,82 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
                     ? <DetalheCustas json={sim.resultado_json} />
                     : <DetalheFinanciamento json={sim.resultado_json} />}
                 </div>
+                <div className="flex gap-2 mt-2.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
+                    onClick={() => baixarPDF(sim)}
+                    disabled={baixandoId === sim.id}
+                  >
+                    {baixandoId === sim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                    Baixar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-green-600 text-green-700 hover:bg-green-50"
+                    onClick={() => setCompartilharSim(sim)}
+                  >
+                    <Send className="w-3 h-3" /> Compartilhar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={() => setExcluirSim(sim)}
+                  >
+                    <Trash2 className="w-3 h-3" /> Excluir
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         )
       })}
+
+      {compartilharSim && (
+        <SimulacaoCompartilharModal
+          simulacao={{
+            id: compartilharSim.id,
+            tipo: compartilharSim.tipo,
+            nome: `Simulação de ${compartilharSim.tipo === 'custas' ? 'Custas' : 'Financiamento'}${compartilharSim.banco ? ` — ${compartilharSim.banco}` : ''}`,
+          }}
+          leadId={leadId}
+          onClose={() => setCompartilharSim(null)}
+          onEnviado={() => setCompartilharSim(null)}
+        />
+      )}
+
+      <Dialog open={!!excluirSim} onOpenChange={(o) => { if (!o) setExcluirSim(null) }}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">Excluir Simulação</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700 py-2">
+            Tem certeza que deseja excluir esta simulação? Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => setExcluirSim(null)}
+              disabled={excluindo}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={confirmarExcluir}
+              disabled={excluindo}
+            >
+              {excluindo ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

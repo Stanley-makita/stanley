@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Calculator, Clock, Download, Eye, Printer, Save } from 'lucide-react'
+import { Calculator, Clock, Download, Eye, Printer, Save, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { calcularCustas, calcIofVisivel } from '@/lib/simulador/calcular'
 import { useItbiConfig, useCustasConfig } from '@/hooks/simulador/useSimuladorConfig'
 import { useSalvarSimulacao, useHistoricoSimulacoes } from '@/hooks/simulador/useSalvarSimulacao'
+import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
 import type {
   EntradaSimulador,
   ResultadoSimulador,
@@ -284,6 +285,8 @@ export function SimuladorCustas({
     ...(entradaInicial ? entradaParaForm(entradaInicial) : {}),
   }))
   const [abaAtiva, setAbaAtiva] = useState<'simulador' | 'historico'>('simulador')
+  const [enviando, setEnviando] = useState(false)
+  const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
   const jaCarregouHistorico = useRef(false)
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
@@ -389,6 +392,22 @@ export function SimuladorCustas({
       valorAssessoria: parseBRL(form.servicoRegistro),
       valorContratoServico: parseBRL(form.contratoParticular),
     })
+  }
+
+  async function compartilharSimulacao() {
+    if (!resultado) return
+    setEnviando(true)
+    try {
+      const salvo = await salvar.mutateAsync({ processoId, leadId, resultado })
+      setModalCompartilhar({
+        id: salvo.id,
+        nome: `Simulação de Custas${resultado.entrada.banco ? ` — ${resultado.entrada.banco}` : ''}`,
+      })
+    } catch {
+      toast.error('Erro ao salvar simulação para compartilhamento.')
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -672,10 +691,29 @@ export function SimuladorCustas({
               >
                 <Printer className="h-3 w-3" /> Imprimir PDF
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-green-600 text-green-700 hover:bg-green-50 gap-1"
+                onClick={compartilharSimulacao}
+                disabled={!resultado || enviando}
+              >
+                <Send className="h-3 w-3" /> {enviando ? 'Enviando...' : 'Compartilhar'}
+              </Button>
             </div>
           </div>
 
         </div>
+      )}
+
+      {modalCompartilhar && (
+        <SimulacaoCompartilharModal
+          simulacao={{ id: modalCompartilhar.id, tipo: 'custas', nome: modalCompartilhar.nome }}
+          leadId={leadId}
+          processoId={processoId}
+          onClose={() => setModalCompartilhar(null)}
+          onEnviado={() => setModalCompartilhar(null)}
+        />
       )}
     </div>
   )

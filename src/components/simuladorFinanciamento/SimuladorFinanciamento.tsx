@@ -4,14 +4,16 @@ import { useState, useMemo } from 'react'
 import { FormFinanciamento, type InitialValuesFinanciamento } from './FormFinanciamento'
 import { ResultadosFinanciamento } from './ResultadosFinanciamento'
 import { AnalisePredicativaCard } from './AnalisePredicativaCard'
+import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
 import { simularTodosBancos, calcularAnalise } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { InputFinanciamento, ResultadoBanco, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Printer, Send } from 'lucide-react'
 import { useBancos } from '@/app/(protected)/configuracoes/_hooks/useBancos'
-import { executarAcaoComPersistencia, imprimirSimulacaoComPersistencia } from './printFlow'
+import { imprimirSimulacaoComPersistencia } from './printFlow'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
+import { toast } from 'sonner'
 
 interface Props {
   nomeCliente?: string
@@ -28,6 +30,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   const [gerandoPDF, setGerandoPDF] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [gerandoPDFId, setGerandoPDFId] = useState<string | null>(null)
+  const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
   const salvarSimulacaoCentral = useSalvarSimulacaoCentral()
 
   // Busca configurações dos bancos do banco de dados
@@ -92,17 +95,14 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
     if (!resultado) return
     setEnviando(true)
     try {
-      await executarAcaoComPersistencia({
-        resultado,
-        onSalvarAntesAcao: async (sim) => {
-          if (_leadId) {
-            await salvarSimulacaoCentral.mutateAsync({ resultado: sim, leadId: _leadId })
-          }
-        },
-        onExecutarAcao: async () => {
-          window.open(`https://wa.me/?text=${encodeURIComponent('Simulação de financiamento pronta para análise.')}`, '_blank', 'noopener,noreferrer')
-        },
+      const salvo = await salvarSimulacaoCentral.mutateAsync({ resultado, leadId: _leadId })
+      const melhor = resultado.bancos.find((b) => b.elegivel)
+      setModalCompartilhar({
+        id: salvo.id,
+        nome: `Simulação Financiamento${melhor ? ` — ${melhor.bancoNome}` : ''}`,
       })
+    } catch {
+      toast.error('Erro ao salvar simulação para compartilhamento.')
     } finally {
       setEnviando(false)
     }
@@ -186,6 +186,15 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
             <AnalisePredicativaCard analise={resultado.analise} />
           </div>
         </div>
+
+        {modalCompartilhar && (
+          <SimulacaoCompartilharModal
+            simulacao={{ id: modalCompartilhar.id, tipo: 'financiamento', nome: modalCompartilhar.nome }}
+            leadId={_leadId}
+            onClose={() => setModalCompartilhar(null)}
+            onEnviado={() => setModalCompartilhar(null)}
+          />
+        )}
       </div>
     )
   }
