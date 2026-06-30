@@ -19,6 +19,10 @@ export interface WorkflowPendente {
   usouConsulta: boolean
   leadIdExistente?: string
   pessoaIdExistente?: string
+  /** Concatenação de todas as mensagens recebidas nesta sessão (debounce de encaminhamentos). */
+  texto_acumulado?: string
+  /** ISO timestamp da última mensagem gravada — usado para last-writer-wins no debounce. */
+  ultima_msg_em?: string
 }
 
 const TTL_MS = 30 * 60 * 1000  // 30 minutos

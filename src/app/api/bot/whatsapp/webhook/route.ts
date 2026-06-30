@@ -508,7 +508,9 @@ export async function POST(request: NextRequest) {
           instancia_token: instanciaToken,
           telefone_destino: telefone,
         }, usuarioInterno)
-        await enviarMensagemUazapi(telefone, resposta)
+        if (resposta !== null) {
+          await enviarMensagemUazapi(telefone, resposta)
+        }
       }
       // Sem pendente: mensagem informal de operador — ignorar silenciosamente.
       // Operadores usam *simula, *fonti, etc. para interagir com o sistema.

@@ -1408,12 +1408,11 @@ export async function processarRespostaPendente(
   pendente: WorkflowPendente,
   ctx: FontiContexto,
   usuario: { id: string; nome: string },
-): Promise<string> {
+): Promise<string | null> {
   const { empresa_id, supabase } = ctx
-  const { dadosCapturados } = pendente
   const telefoneOp = ctx.telefone_remetente
 
-  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente, buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
 
   // ── Pendência de confirmação ─────────────────────────────────────────────────
   // Fonti mostrou o resumo e perguntou "Está tudo certo?".
@@ -1421,7 +1420,7 @@ export async function processarRespostaPendente(
   if (pendente.motivo === 'confirmacao') {
     if (_ehPositivo(texto)) {
       await limparSimulaPendente(supabase, empresa_id, telefoneOp)
-      return await _resimular(dadosCapturados, pendente, ctx, usuario)
+      return await _resimular(pendente.dadosCapturados, pendente, ctx, usuario)
     }
     if (_ehNegativo(texto)) {
       // Manter pendência ativa com motivo completar — operador vai corrigir
@@ -1441,10 +1440,31 @@ export async function processarRespostaPendente(
     return 'Tudo bem! Se precisar, é só enviar *simula novamente com os dados.'
   }
 
+  // ── Debounce para mensagens encaminhadas simultâneas ──────────────────────────
+  // Quando o operador encaminha várias mensagens de uma vez, cada uma chega como
+  // um webhook separado quase ao mesmo tempo. Acumulamos os textos e só o último
+  // call (last-writer-wins) efetivamente processa — os demais retornam null (silêncio).
+  const agora = new Date().toISOString()
+  const pendenteAtual = await buscarSimulaPendente(supabase, empresa_id, telefoneOp) ?? pendente
+  const textoAcumulado = [pendenteAtual.texto_acumulado, texto].filter(Boolean).join('\n')
+  await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+    ...pendenteAtual,
+    texto_acumulado: textoAcumulado,
+    ultima_msg_em: agora,
+  })
+  await new Promise((r) => setTimeout(r, 1800))
+  const pendenteRelido = await buscarSimulaPendente(supabase, empresa_id, telefoneOp)
+  if (!pendenteRelido) return 'Sessão expirou. Envie *simula para reiniciar.'
+  if (pendenteRelido.ultima_msg_em && pendenteRelido.ultima_msg_em !== agora) return null
+  // ────────────────────────────────────────────────────────────────────────────────
+
+  const { dadosCapturados } = pendenteRelido
+
   // ── Reprocessamento completo ─────────────────────────────────────────────────
-  // O parser analisa a mensagem INTEIRA — nunca limitado pelo motivo da pendência.
+  // O parser analisa todo o texto acumulado — nunca limitado pelo motivo da pendência.
+  const textoParaParsear = pendenteRelido.texto_acumulado ?? texto
   const { normalizarPedidoSimulacao } = await import('@/lib/workflows/normalizador-captacao')
-  const novosParsed = await normalizarPedidoSimulacao(texto)
+  const novosParsed = await normalizarPedidoSimulacao(textoParaParsear)
   const novosDados = mergeCapturados(dadosCapturados, novosParsed)
 
   // ── Resolver tipo de construção ───────────────────────────────────────────────

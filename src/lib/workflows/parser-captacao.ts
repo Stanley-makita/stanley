@@ -86,6 +86,13 @@ Regras de extração:
 NOME: Nome completo do cliente. null se ausente.
 
 CPF: Retorna exatamente como escrito (com ou sem pontuação). null se ausente.
+Se houver múltiplos CPFs no formato "Nome: CPF ... / Nome: CPF ...", retornar o CPF do PRIMEIRO nome listado.
+
+MÚLTIPLOS CLIENTES: Se o texto contiver dois ou mais clientes no formato "Nome: CPF DN data / Nome: CPF DN data",
+extrair cpf do PRIMEIRO cliente e data_nascimento do cliente MAIS VELHO (data mais antiga).
+Ignorar barras "/" e ":" como separadores de pessoas, não confundir com valores monetários.
+Exemplo: "Rafael: 262.281.018-03 DN. 04/11/77 / Vanessa: 320.419.578-32 DN. 15/10/83"
+→ cpf = "262.281.018-03" (primeiro), data_nascimento = "04/11/77" (Rafael, nascido em 1977, mais velho que 1983)
 
 TELEFONE: Número do CLIENTE (não do comercial). Retorna como escrito. null se ausente.
 
