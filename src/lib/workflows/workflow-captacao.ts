@@ -26,7 +26,6 @@ import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE } from '@/lib/simuladorFinanc
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared } from './uazapi-helpers'
-import { sincronizarDocumentoUnificado } from '@/lib/documentos/sincronizarDocumentoUnificado'
 
 export interface WorkflowCaptacaoContexto {
   empresa_id: string
@@ -159,35 +158,16 @@ async function salvarArquivoWorkflow(
       })
     if (uploadError) throw uploadError
 
-    const { data: docInserido } = await supabase
-      .from('documentos_clientes')
-      .insert({
-        empresa_id,
-        pessoa_id:     pessoa_id ?? null,
-        lead_id,
-        nome_original: nomeOriginal,
-        mime_type:     mimeType ?? null,
-        tamanho_bytes: fileBuffer.byteLength,
-        storage_path:  storagePath,
-        canal_origem:  'whatsapp',
-      })
-      .select('id')
-      .single()
-
-    if (docInserido) {
-      await sincronizarDocumentoUnificado(supabase, {
-        id: docInserido.id,
-        empresa_id,
-        pessoa_id: pessoa_id ?? null,
-        lead_id,
-        nome_original: nomeOriginal,
-        mime_type: mimeType ?? null,
-        tamanho_bytes: fileBuffer.byteLength,
-        storage_bucket: 'documentos-clientes',
-        storage_path: storagePath,
-        canal_origem: 'whatsapp',
-      })
-    }
+    await supabase.from('documentos_clientes').insert({
+      empresa_id,
+      pessoa_id:     pessoa_id ?? null,
+      lead_id,
+      nome_original: nomeOriginal,
+      mime_type:     mimeType ?? null,
+      tamanho_bytes: fileBuffer.byteLength,
+      storage_path:  storagePath,
+      canal_origem:  'whatsapp',
+    })
     return true
   } catch (err) {
     console.error('[workflow-captacao] Erro ao salvar arquivo:', err)

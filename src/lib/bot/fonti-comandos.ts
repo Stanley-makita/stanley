@@ -9,7 +9,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { extrairProduto, extrairNumero } from './state-machine'
 import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
 import { PERGUNTA_TIPO_CONSTRUCAO } from '@/lib/workflows/normalizador-captacao'
-import { sincronizarDocumentoUnificado } from '@/lib/documentos/sincronizarDocumentoUnificado'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -128,37 +127,17 @@ async function salvarArquivo(
       })
     if (uploadError) throw uploadError
 
-    const { data: docInserido } = await supabase
-      .from('documentos_clientes')
-      .insert({
-        empresa_id,
-        pessoa_id:   entidade.pessoa_id   ?? null,
-        lead_id:     entidade.lead_id     ?? null,
-        processo_id: entidade.processo_id ?? null,
-        nome_original: nomeOriginal,
-        mime_type:   mimeType ?? null,
-        tamanho_bytes: fileBuffer.byteLength,
-        storage_path:  storagePath,
-        canal_origem:  'whatsapp',
-      })
-      .select('id')
-      .single()
-
-    if (docInserido) {
-      await sincronizarDocumentoUnificado(supabase, {
-        id: docInserido.id,
-        empresa_id,
-        pessoa_id: entidade.pessoa_id ?? null,
-        lead_id: entidade.lead_id ?? null,
-        processo_id: entidade.processo_id ?? null,
-        nome_original: nomeOriginal,
-        mime_type: mimeType ?? null,
-        tamanho_bytes: fileBuffer.byteLength,
-        storage_bucket: 'documentos-clientes',
-        storage_path: storagePath,
-        canal_origem: 'whatsapp',
-      })
-    }
+    await supabase.from('documentos_clientes').insert({
+      empresa_id,
+      pessoa_id:   entidade.pessoa_id   ?? null,
+      lead_id:     entidade.lead_id     ?? null,
+      processo_id: entidade.processo_id ?? null,
+      nome_original: nomeOriginal,
+      mime_type:   mimeType ?? null,
+      tamanho_bytes: fileBuffer.byteLength,
+      storage_path:  storagePath,
+      canal_origem:  'whatsapp',
+    })
     return true
   } catch (err) {
     console.error('[fonti] Erro ao salvar arquivo:', err)
