@@ -6,7 +6,7 @@ import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { useLeadTarefas } from '@/hooks/leads/useLeadTarefas'
 import { formatDistanceToNow, differenceInDays, isPast, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageSquare, Calendar, TrendingUp, Banknote, Users, AlertCircle, Clock, CheckCircle2, CalendarClock } from 'lucide-react'
+import { MessageSquare, Calendar, TrendingUp, Banknote, Users, AlertCircle, Clock, CheckCircle2, CalendarClock, Home } from 'lucide-react'
 import { cn, fmtData } from '@/lib/utils'
 import { useSolicitacoesAbertasPorLead } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorLead'
 
@@ -116,8 +116,15 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
         />
       </div>
 
-      {/* ── Métricas financeiras: 2 colunas ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* ── Métricas financeiras: 3 colunas ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <KpiCard
+          icone={<Home className="h-4 w-4" />}
+          label="Valor do Imóvel"
+          valor={fmtMoeda(lead.valor_imovel)}
+          sub={lead.tipo_imovel ?? 'Não informado'}
+          cor="blue"
+        />
         <KpiCard
           icone={<TrendingUp className="h-4 w-4" />}
           label="Valor Pretendido"
@@ -129,7 +136,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           icone={<Banknote className="h-4 w-4" />}
           label="Renda Total"
           valor={rendaTotal > 0 ? fmtMoeda(rendaTotal) : '—'}
-          sub={rendaTotal > 0 ? `Formal: ${fmtMoeda(lead.renda_formal)} + Informal: ${fmtMoeda(lead.renda_informal)}` : 'Não informado'}
+          sub={rendaTotal > 0 ? `Formal: ${fmtMoeda(lead.renda_formal)} + Inf: ${fmtMoeda(lead.renda_informal)}` : 'Não informado'}
           cor="gray"
         />
       </div>

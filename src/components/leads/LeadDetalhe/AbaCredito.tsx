@@ -24,7 +24,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import {
   Save, User, Building2, Handshake, Loader2, X, Plus, Check,
-  ClipboardList, ExternalLink, Pencil, Search,
+  ClipboardList, ExternalLink, Pencil, Search, Home, TrendingUp, Banknote,
 } from 'lucide-react'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -174,11 +174,38 @@ export function AbaCredito({ lead }: Props) {
     qc.invalidateQueries({ queryKey: ['leads', lead.id] })
   }
 
+  const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0)
+
   return (
     <div className="space-y-5">
 
-      {/* 1. Status da fase + Validade do Crédito */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* 1. KPIs financeiros */}
+      <div className="grid grid-cols-3 gap-2">
+        <KpiMetrica
+          icone={<Home className="h-3.5 w-3.5" />}
+          label="Valor do Imóvel"
+          valor={lead.valor_imovel}
+          sub={lead.tipo_imovel ?? undefined}
+          cor="blue"
+        />
+        <KpiMetrica
+          icone={<TrendingUp className="h-3.5 w-3.5" />}
+          label="Valor Pretendido"
+          valor={lead.valor_pretendido}
+          sub={lead.produto_interesse ?? undefined}
+          cor="gold"
+        />
+        <KpiMetrica
+          icone={<Banknote className="h-3.5 w-3.5" />}
+          label="Renda Total"
+          valor={rendaTotal > 0 ? rendaTotal : null}
+          sub={rendaTotal > 0 ? `F: ${fmtMoeda(lead.renda_formal)} + I: ${fmtMoeda(lead.renda_informal)}` : undefined}
+          cor="gray"
+        />
+      </div>
+
+      {/* 2. Status da fase + Validade + Produto (linha compacta) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatusFase lead={lead} />
         <ValidadeCard
           label="Validade do Crédito"
@@ -187,9 +214,10 @@ export function AbaCredito({ lead }: Props) {
           isPending={editar.isPending}
           atalho={{ texto: '+90 dias (padrão crédito)', dias: 90 }}
         />
+        <BlocoProduto lead={lead} />
       </div>
 
-      {/* 2. Participantes */}
+      {/* 3. Participantes */}
       <BlocoParticipantes
         lead={lead}
         onCompletarPessoa={lead.pessoa_id ? () => setCompletarPessoaAberto(true) : undefined}
@@ -198,9 +226,6 @@ export function AbaCredito({ lead }: Props) {
         onDesvincularConjuge={lead.conjuge_pessoa_id ? desvincularConjuge : undefined}
         onCriarConjuge={vincularCriarConjuge}
       />
-
-      {/* 3. Produto */}
-      <BlocoProduto lead={lead} />
 
       {/* 4. Análises de Crédito */}
       <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} />
@@ -255,6 +280,36 @@ export function AbaCredito({ lead }: Props) {
           onCriarPessoa={vincularCriarConjuge}
         />
       )}
+    </div>
+  )
+}
+
+// ── KpiMetrica ────────────────────────────────────────────────
+
+function KpiMetrica({ icone, label, valor, sub, cor }: {
+  icone: React.ReactNode
+  label: string
+  valor: number | null | undefined
+  sub?: string
+  cor: 'blue' | 'gold' | 'gray'
+}) {
+  const cores = {
+    blue: 'bg-blue-50 text-blue-600',
+    gold: 'bg-fonti-surface-warm text-fonti-accent',
+    gray: 'bg-gray-50 text-gray-500',
+  }
+  return (
+    <div className="border border-gray-200 rounded-xl p-3 bg-white shadow-sm">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <div className={cn('w-6 h-6 rounded-md flex items-center justify-center shrink-0', cores[cor])}>
+          {icone}
+        </div>
+        <p className="text-[10px] text-gray-400 font-medium leading-tight">{label}</p>
+      </div>
+      <p className="text-base font-bold text-fonti-primary leading-none">
+        {valor != null ? fmtMoeda(valor) : '—'}
+      </p>
+      {sub && <p className="text-[10px] text-gray-400 mt-1 truncate">{sub}</p>}
     </div>
   )
 }
