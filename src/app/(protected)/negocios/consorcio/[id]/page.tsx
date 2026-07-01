@@ -15,7 +15,7 @@ import { AbaResumoConsorcio } from '@/components/consorcio/AbaResumoConsorcio'
 import { AbaSimulacoes } from '@/components/consorcio/AbaSimulacoes'
 import { EditarConsorcioDrawer } from '@/components/consorcio/EditarConsorcioDrawer'
 import { AbaFases } from '@/components/processos/abas/AbaFases'
-import { AbaDocumentos } from '@/components/processos/abas/AbaDocumentos'
+import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
@@ -222,7 +222,7 @@ export default function ConsorcioDetalhePage() {
               <AbaFases processoId={id} processo={processo} />
             </TabsContent>
             <TabsContent value="documentos" className="m-0">
-              <AbaDocumentos />
+              <AbaDocumentos contexto="processo" processoId={id} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
               <AbaTimeline processoId={id} />
