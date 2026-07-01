@@ -45,13 +45,13 @@ export async function POST(
   const { telefone, mensagem, nome_destino } = body
   if (!telefone) return NextResponse.json({ error: 'telefone é obrigatório' }, { status: 422 })
 
-  // Fase E: mantido lendo de `documentos_clientes` de propósito — `lead_id`/`processo_id`
-  // diretos são usados abaixo para decidir onde registrar o histórico do compartilhamento,
-  // e no modelo novo essa associação só existe via `documento_vinculos` (que pode ter mais
-  // de um vínculo por documento, tornando ambíguo "qual" lead/processo registrar aqui).
+  // Modelo definitivo: lê de `documentos`. lead_id/processo_id diretos não existem mais —
+  // a associação vive em `documento_vinculos` (N:N), resolvida mais abaixo pra registrar
+  // o histórico em TODAS as entidades vinculadas (um documento pode servir a mais de um
+  // lead/processo agora, ao contrário do modelo antigo de 1 coluna só).
   const { data: doc } = await supabase
-    .from('documentos_clientes')
-    .select('id, nome_original, mime_type, storage_path, storage_bucket, lead_id, processo_id, empresa_id')
+    .from('documentos')
+    .select('id, nome_original, mime_type, storage_path, storage_bucket, empresa_id')
     .eq('id', documentoId)
     .eq('empresa_id', usuario.empresa_id)
     .is('deleted_at', null)
@@ -178,27 +178,33 @@ export async function POST(
   const destino = nome_destino?.trim() ? nome_destino.trim() : telefone
   const textoHistorico = `Documento "${doc.nome_original}" enviado para ${destino}${mensagem?.trim() ? ` com mensagem: "${mensagem.trim()}"` : ''}.`
 
-  // Histórico do lead (insert direto — RPC usa auth.uid() incompatível com service_role)
-  if (doc.lead_id) {
-    await supabase.from('lead_historico').insert({
-      lead_id:    doc.lead_id,
-      empresa_id: usuario.empresa_id,
-      usuario_id: usuario.id,
-      tipo:       'comentario',
-      descricao:  textoHistorico,
-    })
-  }
+  // Registra o histórico em TODAS as entidades vinculadas a este documento
+  // (lead_historico para lead, timeline para processo) — insert direto porque
+  // RPC usa auth.uid(), incompatível com service_role.
+  const { data: vinculos } = await supabase
+    .from('documento_vinculos')
+    .select('entidade_tipo, entidade_id')
+    .eq('documento_id', documentoId)
 
-  // Timeline do processo
-  if (doc.processo_id) {
-    await supabase.from('processo_comentarios').insert({
-      empresa_id:        usuario.empresa_id,
-      processo_id:       doc.processo_id,
-      usuario_id:        usuario.id,
-      tipo:              'alteracao',
-      texto:             textoHistorico,
-      notificar_cliente: false,
-    })
+  for (const v of vinculos ?? []) {
+    if (v.entidade_tipo === 'lead') {
+      await supabase.from('lead_historico').insert({
+        lead_id:    v.entidade_id,
+        empresa_id: usuario.empresa_id,
+        usuario_id: usuario.id,
+        tipo:       'comentario',
+        descricao:  textoHistorico,
+      })
+    } else if (v.entidade_tipo === 'processo') {
+      await supabase.from('processo_comentarios').insert({
+        empresa_id:        usuario.empresa_id,
+        processo_id:       v.entidade_id,
+        usuario_id:        usuario.id,
+        tipo:              'alteracao',
+        texto:             textoHistorico,
+        notificar_cliente: false,
+      })
+    }
   }
 
   return NextResponse.json({ ok: true, conversa_id: conversaId })
