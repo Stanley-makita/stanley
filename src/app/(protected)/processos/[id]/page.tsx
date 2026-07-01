@@ -33,7 +33,7 @@ import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
 import { AbaFases } from '@/components/processos/abas/AbaFases'
-import { AbaDocumentos } from '@/components/processos/abas/AbaDocumentos'
+import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { AbaContrato } from '@/components/processos/abas/AbaContrato'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
@@ -415,7 +415,7 @@ export default function ProcessoDetalhePage() {
               <AbaFases processoId={id} processo={processo} itensObrigatoriosPendentes={itensObrigatoriosPendentes} dadosFinanceirosPendentes={dadosFinanceirosPendentes} />
             </TabsContent>
             <TabsContent value="documentos" className="m-0">
-              <AbaDocumentos processoId={id} />
+              <AbaDocumentos contexto="processo" processoId={id} />
             </TabsContent>
             <TabsContent value="financeiro" className="m-0">
               <AbaFinanceiro processoId={id} />
