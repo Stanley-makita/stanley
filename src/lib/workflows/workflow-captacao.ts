@@ -238,8 +238,6 @@ export async function executarWorkflowCaptacao(
     const merged = mergeCapturados(ctx.dados_pre_normalizados, dados)
     Object.assign(dados, merged)
   }
-  if (ctx.forcar_simulacao) dados.solicitar_simulacao = true
-
   if (!dados.nome) {
     return '❌ Não consegui identificar o nome do cliente no texto.\n\nTente incluir o nome completo.'
   }
@@ -527,7 +525,12 @@ export async function executarWorkflowCaptacao(
     descricao: linhasResumo.join('\n'),
   })
 
-  if (!validacao.valido || !dados.solicitar_simulacao) {
+  // O gatilho para simular é a disponibilidade dos dados mínimos — não depende de o texto
+  // ter pedido simulação explicitamente ("já simula", "quero simular" etc). Se o comercial
+  // já informou tudo o que o Motor precisa, a simulação roda automaticamente nesta mesma
+  // mensagem, seja ela um *cria cliente completo de uma vez ou o complemento de dados que
+  // faltavam de uma pendência anterior.
+  if (!validacao.valido) {
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_pendente',
       `Campos faltantes: ${validacao.camposFaltantes.join(', ')}`)
 
@@ -547,37 +550,26 @@ export async function executarWorkflowCaptacao(
         ].join('\n')
       : ''
 
-    if (!validacao.valido) {
-      const lista = validacao.camposFaltantes.map((c) => `• ${c}`).join('\n')
-      if (!ctx.vem_de_pendente && ctx.telefone_operador) {
-        const { salvarSimulaPendente } = await import('./simula-pendente')
-        await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
-          motivo: 'completar_dados_simulacao',
-          dadosCapturados: dados,
-          usouConsulta: false,
-          leadIdExistente: lead_id,
-          pessoaIdExistente: pessoa_id ?? undefined,
-        })
-      }
-      return [
-        `✅ ${acao}.${linhasDocs}${aviso}`,
-        '',
-        'Faltam os seguintes dados para executar a simulação:',
-        lista,
-        '',
-        'Responda com os dados faltantes para continuar.',
-        linhaPendentes,
-      ].join('\n')
+    const lista = validacao.camposFaltantes.map((c) => `• ${c}`).join('\n')
+    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'completar_dados_simulacao',
+        dadosCapturados: dados,
+        usouConsulta: false,
+        leadIdExistente: lead_id,
+        pessoaIdExistente: pessoa_id ?? undefined,
+      })
     }
-
-    // Dados válidos mas sem pedido de simulação
-    const linhas: string[] = [`✅ Lead ${leadAtualizado ? 'atualizado' : 'criado'}: *${dados.nome}*`]
-    if (dados.valor_imovel) linhas.push(`Imóvel: ${fmt.format(dados.valor_imovel)}`)
-    if (docsVinculados > 0) linhas.push(`${docsVinculados} doc(s) vinculado(s)`)
-    if (aviso) linhas.push(aviso.trim())
-    linhas.push('\nPara simular: envie *simula ou inclua "já simula [bancos]" no próximo comando.')
-    if (linhaPendentes) linhas.push(linhaPendentes)
-    return linhas.join('\n')
+    return [
+      `✅ ${acao}.${linhasDocs}${aviso}`,
+      '',
+      'Faltam os seguintes dados para executar a simulação:',
+      lista,
+      '',
+      'Responda com os dados faltantes para continuar.',
+      linhaPendentes,
+    ].join('\n')
   }
 
   // ── Etapa 6.1b: Pedir esclarecimento de modalidade ──────────────────────────

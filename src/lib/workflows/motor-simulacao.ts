@@ -30,7 +30,13 @@ export interface ResultadoValidacaoSimulacao {
   camposFaltantes: string[]
 }
 
-export function validarParaSimulacao(dados: DadosCaptacaoNormalizados): ResultadoValidacaoSimulacao {
+// Aceita um subconjunto dos dados normalizados de propósito: este é o único critério de
+// prontidão para simular em todo o sistema — usado com o resultado completo do normalizador
+// (workflow-consulta/workflow-captacao) e também com dados parcialmente mesclados ao longo
+// de uma conversa (fluxo de pendência do *simula / *cria cliente).
+export function validarParaSimulacao(
+  dados: Partial<Pick<DadosCaptacaoNormalizados, 'data_nascimento' | 'valor_imovel' | 'modo_calculo'>>,
+): ResultadoValidacaoSimulacao {
   const camposFaltantes: string[] = []
 
   if (!dados.data_nascimento) {

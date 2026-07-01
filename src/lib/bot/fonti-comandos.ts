@@ -1601,38 +1601,29 @@ export async function processarRespostaPendente(
     return `Para completar a simulação, preciso da data de nascimento.\nEx: "nascimento 25/01/1981"`
   }
 
-  // ── Todos os dados presentes ──────────────────────────────────────────────────
-  // De "completar_dados_simulacao": confirmar antes de simular (o operador acabou
-  // de informar campos faltantes — sempre vale revisar antes de disparar).
-  // De "esclarecer_tipo_construcao": simular diretamente (clarificação explícita feita).
-  if (pendente.motivo === 'completar_dados_simulacao') {
-    const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
-    const linhas = ['Ótimo! Antes de simular, só confirmar os dados:']
-    if (ehConstrucao && novosDados.valor_terreno && novosDados.valor_obra) {
-      const total = novosDados.valor_terreno + novosDados.valor_obra
-      novosDados.valor_imovel = total
-      linhas.push(`• Terreno: ${moeda.format(novosDados.valor_terreno)}`)
-      linhas.push(`• Obra: ${moeda.format(novosDados.valor_obra)}`)
-      linhas.push(`• Total do empreendimento: ${moeda.format(total)}`)
-    } else if (novosDados.valor_imovel) {
-      linhas.push(`• Imóvel: ${moeda.format(novosDados.valor_imovel)}`)
-    }
-    if (novosDados.valor_entrada)    linhas.push(`• Entrada: ${moeda.format(novosDados.valor_entrada)}`)
-    if (novosDados.valor_financiado) linhas.push(`• Financiamento: ${moeda.format(novosDados.valor_financiado)}`)
-    if (rendaTotal > 0)              linhas.push(`• Renda mensal: ${moeda.format(rendaTotal)}`)
-    if (novosDados.data_nascimento)  linhas.push(`• Nascimento: ${novosDados.data_nascimento}`)
-    linhas.push('', 'Está tudo certo? (sim / não)')
-    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
-      ...pendente,
-      motivo: 'confirmacao',
-      dadosCapturados: novosDados,
-    })
-    return linhas.join('\n')
+  // Construção: terreno e obra podem ter chegado em mensagens separadas — o merge não
+  // recalcula o total sozinho, então recompomos antes de checar prontidão para simular.
+  if (ehConstrucao && novosDados.valor_terreno && novosDados.valor_obra) {
+    novosDados.valor_imovel = novosDados.valor_terreno + novosDados.valor_obra
   }
 
-  // esclarecer_tipo_construcao → simular diretamente
-  await limparSimulaPendente(supabase, empresa_id, telefoneOp)
-  return await _resimular(novosDados, pendente, ctx, usuario)
+  // ── Dados suficientes para simular → executa automaticamente ────────────────────
+  // O gatilho é a disponibilidade dos dados (mesmo critério do Motor de Simulação),
+  // não uma confirmação adicional do operador nem o comando que originou a pendência.
+  const { validarParaSimulacao } = await import('@/lib/workflows/motor-simulacao')
+  if (validarParaSimulacao(novosDados).valido) {
+    await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+    return await _resimular(novosDados, pendente, ctx, usuario)
+  }
+
+  // Defensivo: o Motor não considerou os dados suficientes por algum campo que os
+  // checks acima não cobriram — mantém a pendência para o operador complementar.
+  await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+    ...pendente,
+    motivo: 'completar_dados_simulacao',
+    dadosCapturados: novosDados,
+  })
+  return 'Preciso de mais alguns dados para concluir a simulação. Pode complementar?'
 }
 
 async function _resimular(
