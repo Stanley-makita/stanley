@@ -170,8 +170,8 @@ export async function POST(
   // Marca documentos como revisados
   if (documento_ids_revisados.length > 0) {
     await supabase
-      .from('documentos_clientes')
-      .update({ ocr_status: 'revisado' })
+      .from('documentos')
+      .update({ status_ocr: 'revisado' })
       .in('id', documento_ids_revisados)
       .eq('empresa_id', usuario.empresa_id)
   }
