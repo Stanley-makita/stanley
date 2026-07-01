@@ -60,15 +60,20 @@ function mapProduto(produto: string | undefined | null): string | null {
   return produto
 }
 
+// Modelo definitivo: grava direto em `documentos` (dominio=acervo_documental).
+// pessoa_id é obrigatório (constraint da tabela) — o chamador sempre resolve/cria
+// a Pessoa via buscarOuCriarPessoa() antes de chegar aqui (Pessoa provisória por
+// telefone quando ainda não há nome/CPF confirmado).
 async function salvarDocumentoCliente(params: {
   empresa_id: string
+  pessoa_id: string
+  lead_id?: string | null
   conversa_id: string
-  pessoa_id: string | null
   fileUrl: string
   fileName: string | null
   mimeType: string | null
 }): Promise<void> {
-  const { empresa_id, conversa_id, pessoa_id, fileUrl, fileName, mimeType } = params
+  const { empresa_id, pessoa_id, lead_id, conversa_id, fileUrl, fileName, mimeType } = params
 
   const ext = fileName?.split('.').pop()
     ?? (mimeType?.split('/')[1] ?? 'bin').replace('jpeg', 'jpg')
@@ -105,18 +110,28 @@ async function salvarDocumentoCliente(params: {
     }
   }
 
-  const { error: insertError } = await supabase.from('documentos_clientes').insert({
+  const { data: docInserido, error: insertError } = await supabase.from('documentos').insert({
     empresa_id,
-    conversa_id,
-    pessoa_id: pessoa_id ?? undefined,
+    dominio: 'acervo_documental',
+    pessoa_id,
     nome_original: nomeOriginal,
     mime_type: mimeType ?? null,
     tamanho_bytes: tamanhoBytes,
+    storage_bucket: 'documentos-clientes',
     storage_path: storagePath,
-    canal_origem: 'whatsapp',
-    ocr_status: ocrStatus,
-  })
+    origem: 'whatsapp',
+    status_ocr: ocrStatus,
+  }).select('id').single()
   if (insertError) throw new Error(`DB insert falhou: ${insertError.message}`)
+
+  if (lead_id && docInserido?.id) {
+    await supabase.from('documento_vinculos').insert({
+      empresa_id,
+      documento_id: docInserido.id,
+      entidade_tipo: 'lead',
+      entidade_id: lead_id,
+    })
+  }
 }
 
 async function baixarMidiaUazapi(messageid: string, tipoMidia: string): Promise<string | null> {
@@ -353,14 +368,19 @@ export async function POST(request: NextRequest) {
             .eq('empresa_id', nmEmpresaId).eq('canal', 'whatsapp')
             .in('contato_telefone', nmTelVariantes).maybeSingle()
           if (convNM) {
-            await salvarDocumentoCliente({
-              empresa_id: nmEmpresaId,
-              conversa_id: convNM.id,
-              pessoa_id: null,
-              fileUrl: nmFileUrl,
-              fileName: nmMediaContent?.fileName ?? null,
-              mimeType: nmMediaContent?.mimetype ?? null,
-            }).catch(err => console.error('[fromMe-midia] Erro ao salvar doc:', err))
+            try {
+              const nmPessoaId = await buscarOuCriarPessoa(nmEmpresaId, nmClientPhone, 'Cliente')
+              await salvarDocumentoCliente({
+                empresa_id: nmEmpresaId,
+                pessoa_id: nmPessoaId,
+                conversa_id: convNM.id,
+                fileUrl: nmFileUrl,
+                fileName: nmMediaContent?.fileName ?? null,
+                mimeType: nmMediaContent?.mimetype ?? null,
+              })
+            } catch (err) {
+              console.error('[fromMe-midia] Erro ao salvar doc:', err)
+            }
           }
         }
       }
@@ -684,11 +704,14 @@ export async function POST(request: NextRequest) {
 
   // Auto-save de arquivos no Supabase Storage (fora do bot — salva sempre)
   // await garante que o registro existe no banco antes de retornar (vincular do *fonti depende disso)
-  if (isMidia && fileUrl) {
+  // pessoaId só fica null se buscarOuCriarPessoa falhou acima (já logado) — sem pessoa
+  // resolvível não há como gravar no acervo documental (constraint exige pessoa_id).
+  if (isMidia && fileUrl && pessoaId) {
     await salvarDocumentoCliente({
       empresa_id,
-      conversa_id,
       pessoa_id: pessoaId,
+      lead_id: leadIdVinculo,
+      conversa_id,
       fileUrl,
       fileName: mediaContent?.fileName ?? null,
       mimeType: mediaContent?.mimetype ?? null,
