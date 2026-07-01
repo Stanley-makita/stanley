@@ -34,14 +34,11 @@ export async function POST(
   const documentoId = params.id
   const { empresa_id, usuario_id } = usuario
 
-  // Nota: a resolução de pessoa_id abaixo (linhas seguintes) é mais completa do que a do
-  // modelo novo — inclui fallback por CPF/nome do comprador que o trigger de sincronização
-  // não replica (deliberadamente, para evitar fuzzy match em massa). Por isso continua lendo
-  // de `documentos_clientes`, que também é a única fonte com `lead_id`/`processo_id` diretos
-  // (no modelo novo essas associações só existem via `documento_vinculos`).
+  // Modelo definitivo: documentos.pessoa_id é sempre preenchido (constraint do acervo
+  // documental) — não precisa mais resolver via lead/processo/CPF/nome como antes.
   const { data: doc } = await supabase
-    .from('documentos_clientes')
-    .select('id, pessoa_id, lead_id, processo_id, ocr_status')
+    .from('documentos')
+    .select('id, pessoa_id, ocr_status:status_ocr')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
@@ -49,46 +46,7 @@ export async function POST(
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
   if (doc.ocr_status !== 'concluido') return NextResponse.json({ error: 'OCR não concluído' }, { status: 400 })
 
-  // Resolve pessoa_id: 1) direto no doc, 2) via lead, 3) via comprador principal do processo
-  let pessoa_id: string | null = doc.pessoa_id ?? null
-  if (!pessoa_id && doc.lead_id) {
-    const { data: lead } = await supabase
-      .from('leads')
-      .select('pessoa_id')
-      .eq('id', doc.lead_id)
-      .maybeSingle()
-    pessoa_id = lead?.pessoa_id ?? null
-  }
-  if (!pessoa_id && doc.processo_id) {
-    const { data: comprador } = await supabase
-      .from('processo_compradores')
-      .select('pessoa_id, cpf, nome')
-      .eq('processo_id', doc.processo_id)
-      .eq('empresa_id', empresa_id)
-      .eq('principal', true)
-      .maybeSingle()
-    if (comprador?.pessoa_id) {
-      pessoa_id = comprador.pessoa_id
-    } else if (comprador?.cpf) {
-      const { data: p } = await supabase
-        .from('pessoas')
-        .select('id')
-        .eq('empresa_id', empresa_id)
-        .eq('cpf', comprador.cpf)
-        .maybeSingle()
-      pessoa_id = p?.id ?? null
-    } else if (comprador?.nome) {
-      const { data: p } = await supabase
-        .from('pessoas')
-        .select('id')
-        .eq('empresa_id', empresa_id)
-        .ilike('nome', comprador.nome)
-        .maybeSingle()
-      pessoa_id = p?.id ?? null
-    }
-  }
-
-  if (!pessoa_id) return NextResponse.json({ error: 'Não foi possível encontrar a pessoa vinculada a este documento' }, { status: 400 })
+  const pessoa_id = doc.pessoa_id
 
   const body = await request.json() as {
     nome?: string
@@ -141,8 +99,8 @@ export async function POST(
   }
 
   await supabase
-    .from('documentos_clientes')
-    .update({ ocr_status: 'revisado' })
+    .from('documentos')
+    .update({ status_ocr: 'revisado' })
     .eq('id', documentoId)
 
   // Fase C (validação): operador confirmou as contas FGTS — promove a
@@ -169,8 +127,8 @@ export async function DELETE(
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   await supabase
-    .from('documentos_clientes')
-    .update({ ocr_status: 'ignorado' })
+    .from('documentos')
+    .update({ status_ocr: 'ignorado' })
     .eq('id', params.id)
     .eq('empresa_id', usuario.empresa_id)
 
