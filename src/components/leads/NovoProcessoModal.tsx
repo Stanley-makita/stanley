@@ -1374,15 +1374,18 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
   async function handleVincular(ids: Set<string>) {
     if (ids.size === 0) { onPular(processoId); return }
     setVinculando(true)
+    // Fase 1.1 (modelo definitivo): grava direto em documento_vinculos — não
+    // depende mais de trigger nenhum pra o Processo enxergar o documento reaproveitado.
     const rows = Array.from(ids).map(docId => ({
       empresa_id:    empresaId,
       documento_id:  docId,
-      processo_id:   processoId,
+      entidade_tipo: 'processo',
+      entidade_id:   processoId,
       vinculado_por: usuario?.id ?? null,
     }))
     const { error } = await supabase
-      .from('documento_processo_vinculos')
-      .upsert(rows, { onConflict: 'documento_id,processo_id' })
+      .from('documento_vinculos')
+      .upsert(rows, { onConflict: 'documento_id,entidade_tipo,entidade_id' })
     setVinculando(false)
     if (error) {
       console.error('[VincularStep] erro ao vincular documentos:', error)
