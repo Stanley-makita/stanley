@@ -127,13 +127,17 @@ async function buscarLeadAbertoPorPessoa(
   return data?.id ?? null
 }
 
-// Salva arquivo enviado junto ao comando diretamente no Storage e em documentos_clientes.
+// Modelo definitivo: grava direto em `documentos` (dominio=acervo_documental) +
+// `documento_vinculos` (lead) em vez de documentos_clientes. pessoa_id obrigatório —
+// se ainda não tiver sido resolvida, cria Pessoa provisória pelo telefone da conversa
+// (mesma regra do webhook e de fonti-comandos.ts).
 async function salvarArquivoWorkflow(
   supabase: SupabaseClient,
   arquivo: { fileUrl: string; fileName: string | null; mimeType: string | null },
   empresa_id: string,
   pessoa_id: string | null,
   lead_id: string,
+  telefoneFallback: string,
 ): Promise<boolean> {
   try {
     const { fileUrl, fileName, mimeType } = arquivo
@@ -154,15 +158,23 @@ async function salvarArquivoWorkflow(
       })
     if (uploadError) throw uploadError
 
-    await supabase.from('documentos_clientes').insert({
+    const pessoaIdEfetiva = pessoa_id ?? await buscarOuCriarPessoa(empresa_id, telefoneFallback, 'Cliente')
+
+    const { data: docInserido, error: dbError } = await supabase.from('documentos').insert({
       empresa_id,
-      pessoa_id:     pessoa_id ?? null,
-      lead_id,
+      dominio: 'acervo_documental',
+      pessoa_id: pessoaIdEfetiva,
       nome_original: nomeOriginal,
       mime_type:     mimeType ?? null,
       tamanho_bytes: fileBuffer.byteLength,
+      storage_bucket: 'documentos-clientes',
       storage_path:  storagePath,
-      canal_origem:  'whatsapp',
+      origem:        'whatsapp',
+    }).select('id').single()
+    if (dbError) throw dbError
+
+    await supabase.from('documento_vinculos').insert({
+      empresa_id, documento_id: docInserido!.id, entidade_tipo: 'lead', entidade_id: lead_id,
     })
     return true
   } catch (err) {
@@ -405,12 +417,16 @@ export async function executarWorkflowCaptacao(
   // 5a. Salva arquivos enviados junto ao comando
   let arquivosSalvos = 0
   for (const arq of ctx.arquivos ?? []) {
-    const ok = await salvarArquivoWorkflow(supabase, arq, empresa_id, pessoa_id, lead_id)
+    const ok = await salvarArquivoWorkflow(supabase, arq, empresa_id, pessoa_id, lead_id, telefoneConversa)
     if (ok) arquivosSalvos++
   }
   docsVinculados += arquivosSalvos
 
-  // 5b. Vincula docs enviados antes do comando na conversa do cliente
+  // 5b. Vincula docs enviados antes do comando na conversa do cliente.
+  // Modelo definitivo: candidatos são documentos do acervo da(s) pessoa(s) envolvida(s)
+  // (a resolvida nesta chamada + a da própria conversa, que pode ser uma Pessoa
+  // provisória diferente se o *cria cliente identificou a pessoa por outro caminho,
+  // ex: CPF explícito no texto) — não depende mais de conversa_id em `documentos`.
   let marcaAt: Date | null = null
   if (telefoneConversa) {
     const { data: marca } = await supabase
@@ -429,44 +445,54 @@ export async function executarWorkflowCaptacao(
 
   const { data: conversa } = await supabase
     .from('conversas')
-    .select('id')
+    .select('pessoa_id')
     .eq('empresa_id', empresa_id)
     .eq('canal', 'whatsapp')
     .in('contato_telefone', telVariantes)
     .limit(1)
     .maybeSingle()
 
-  if (conversa?.id) {
+  const pessoaIdsCandidatos = Array.from(new Set(
+    [pessoa_id, conversa?.pessoa_id].filter((id): id is string => !!id),
+  ))
+
+  if (pessoaIdsCandidatos.length > 0) {
     const limite = marcaAt ?? (() => {
       const d = new Date()
       d.setMinutes(d.getMinutes() - 15)
       return d
     })()
 
-    const { data: docs } = await supabase
-      .from('documentos_clientes')
-      .select('id, nome_original, created_at, ocr_dados')
+    const { data: docsCandidatos } = await supabase
+      .from('documentos')
+      .select('id, nome_original, recebido_em')
       .eq('empresa_id', empresa_id)
-      .eq('conversa_id', conversa.id)
-      .is('lead_id', null)
+      .eq('dominio', 'acervo_documental')
+      .in('pessoa_id', pessoaIdsCandidatos)
       .is('deleted_at', null)
-      .gte('created_at', limite.toISOString())
+      .gte('recebido_em', limite.toISOString())
 
-    if (docs?.length) {
-      const cpfNorm      = dados.cpf ? dados.cpf.replace(/\D/g, '') : null
+    if (docsCandidatos?.length) {
+      const idsTodos = docsCandidatos.map((d) => d.id)
+      const { data: vinculosExistentes } = await supabase
+        .from('documento_vinculos')
+        .select('documento_id')
+        .eq('entidade_tipo', 'lead')
+        .in('documento_id', idsTodos)
+      const idsComLead = new Set((vinculosExistentes ?? []).map((v) => v.documento_id))
+      const docsSemLead = docsCandidatos.filter((d) => !idsComLead.has(d.id))
+
       const corteImediato = new Date(Date.now() - 2 * 60 * 1000)   // 2 min
       const idsAutoVincular: string[] = []
 
-      for (const doc of docs) {
-        const docCpf       = (doc.ocr_dados as Record<string, string> | null)?.cpf?.replace(/\D/g, '')
-        const cpfBate      = !!(cpfNorm && docCpf && docCpf === cpfNorm)
-        const muitoRecente = new Date(doc.created_at as string) >= corteImediato
+      for (const doc of docsSemLead) {
+        const muitoRecente = new Date(doc.recebido_em as string) >= corteImediato
 
-        if (marcaAt || cpfBate || muitoRecente) {
+        if (marcaAt || muitoRecente) {
           idsAutoVincular.push(doc.id as string)
           if (marcaAt) docsVinculadosPorMarca++
         } else {
-          const hora = new Date(doc.created_at as string)
+          const hora = new Date(doc.recebido_em as string)
             .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
           docsConversaPendentes.push({
             nome:    (doc.nome_original as string | null) ?? 'Documento',
@@ -477,9 +503,10 @@ export async function executarWorkflowCaptacao(
 
       if (idsAutoVincular.length > 0) {
         await supabase
-          .from('documentos_clientes')
-          .update({ pessoa_id, lead_id })
-          .in('id', idsAutoVincular)
+          .from('documento_vinculos')
+          .insert(idsAutoVincular.map((documento_id) => ({
+            empresa_id, documento_id, entidade_tipo: 'lead', entidade_id: lead_id,
+          })))
         docsVinculados += idsAutoVincular.length
       }
     }
