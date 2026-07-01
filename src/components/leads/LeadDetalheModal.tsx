@@ -16,7 +16,7 @@ import { AbaTarefas } from './LeadDetalhe/AbaTarefas'
 import { AbaProcessos } from './LeadDetalhe/AbaProcessos'
 import { AbaSimulador } from './LeadDetalhe/AbaSimulador'
 import { AbaCredito } from './LeadDetalhe/AbaCredito'
-import { AbaDocumentos } from './LeadDetalhe/AbaDocumentos'
+import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { AbaOperacional } from './LeadDetalhe/AbaOperacional'
 import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
@@ -476,6 +476,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                   {abaAtiva === 'historico' && <AbaHistorico leadId={lead.id} />}
                   {abaAtiva === 'documentos' && (
                     <AbaDocumentos
+                      contexto="lead"
                       leadId={lead.id}
                       pessoaId={lead.pessoa_id}
                     />
