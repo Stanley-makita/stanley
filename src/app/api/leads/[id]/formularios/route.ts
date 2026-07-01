@@ -131,13 +131,22 @@ export async function POST(
 
     const { data: lead } = await supabaseAdmin
       .from('leads')
-      .select('id')
+      .select('id, pessoa_id')
       .eq('id', params.id)
       .eq('empresa_id', usuario.empresa_id)
       .is('deleted_at', null)
       .maybeSingle()
 
     if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+
+    // Modelo definitivo: formulário gerado entra no acervo documental da Pessoa,
+    // que exige pessoa_id — sem Pessoa vinculada ao lead não há onde salvar.
+    if (!lead.pessoa_id) {
+      return NextResponse.json(
+        { error: 'Lead sem Pessoa vinculada. Complete os dados do cliente antes de gerar formulários.' },
+        { status: 400 },
+      )
+    }
 
     const body = await request.json() as { banco: string; formularios: string[] }
     const banco = normalizarBanco(body.banco ?? '')
@@ -188,22 +197,29 @@ export async function POST(
       }
 
       try {
-        await supabaseAdmin.from('documentos_clientes')
+        // Remove formulário homônimo anterior desta pessoa (regeneração).
+        await supabaseAdmin.from('documentos')
           .delete()
-          .eq('lead_id', params.id)
+          .eq('pessoa_id', lead.pessoa_id)
           .eq('nome_original', form.nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
-        const { error: dbErr } = await supabaseAdmin.from('documentos_clientes').insert({
+        const { data: docInserido, error: dbErr } = await supabaseAdmin.from('documentos').insert({
           empresa_id:    dados.empresa_id,
-          lead_id:       params.id,
+          dominio:       'acervo_documental',
+          pessoa_id:     lead.pessoa_id,
           nome_original: form.nomeArquivo,
           mime_type:     'application/pdf',
           tamanho_bytes: pdfBytes.byteLength,
+          storage_bucket: 'documentos-clientes',
           storage_path:  storagePath,
-          canal_origem:  'upload_manual',
-        })
+          origem:        'upload_manual',
+        }).select('id').single()
         if (dbErr) throw dbErr
+
+        await supabaseAdmin.from('documento_vinculos').insert({
+          empresa_id: dados.empresa_id, documento_id: docInserido!.id, entidade_tipo: 'lead', entidade_id: params.id,
+        })
       } catch (err: any) {
         erros.push(`${form.label} (DB: ${err?.message ?? err})`)
         continue

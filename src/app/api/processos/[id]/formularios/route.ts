@@ -113,6 +113,35 @@ export async function POST(
 
     if (!processo) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
 
+    // Modelo definitivo: formulário gerado entra no acervo documental da Pessoa,
+    // que exige pessoa_id — resolve pelo comprador principal (mesma cadeia usada
+    // em outros pontos do sistema: pessoa_id direto → CPF → nome).
+    const { data: comprador } = await supabaseAdmin
+      .from('processo_compradores')
+      .select('pessoa_id, cpf, nome')
+      .eq('processo_id', params.id)
+      .eq('empresa_id', usuario.empresa_id)
+      .eq('principal', true)
+      .maybeSingle()
+
+    let pessoaIdProcesso: string | null = comprador?.pessoa_id ?? null
+    if (!pessoaIdProcesso && comprador?.cpf) {
+      const { data: p } = await supabaseAdmin.from('pessoas').select('id')
+        .eq('empresa_id', usuario.empresa_id).eq('cpf', comprador.cpf).maybeSingle()
+      pessoaIdProcesso = p?.id ?? null
+    }
+    if (!pessoaIdProcesso && comprador?.nome) {
+      const { data: p } = await supabaseAdmin.from('pessoas').select('id')
+        .eq('empresa_id', usuario.empresa_id).ilike('nome', comprador.nome).maybeSingle()
+      pessoaIdProcesso = p?.id ?? null
+    }
+    if (!pessoaIdProcesso) {
+      return NextResponse.json(
+        { error: 'Não foi possível identificar a Pessoa (comprador principal) deste processo para salvar os formulários.' },
+        { status: 400 },
+      )
+    }
+
     const bancoParam = request.nextUrl.searchParams.get('banco') ?? ''
     const banco = normalizarBanco(bancoParam)
 
@@ -166,22 +195,29 @@ export async function POST(
 
       // --- 3. Registrar no banco ---
       try {
-        await supabaseAdmin.from('documentos_clientes')
+        // Remove formulário homônimo anterior desta pessoa (regeneração).
+        await supabaseAdmin.from('documentos')
           .delete()
-          .eq('processo_id', params.id)
+          .eq('pessoa_id', pessoaIdProcesso)
           .eq('nome_original', form.nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
-        const { error: dbErr } = await supabaseAdmin.from('documentos_clientes').insert({
+        const { data: docInserido, error: dbErr } = await supabaseAdmin.from('documentos').insert({
           empresa_id:    dados.empresa_id,
-          processo_id:   params.id,
+          dominio:       'acervo_documental',
+          pessoa_id:     pessoaIdProcesso,
           nome_original: form.nomeArquivo,
           mime_type:     'application/pdf',
           tamanho_bytes: pdfBytes.byteLength,
+          storage_bucket: 'documentos-clientes',
           storage_path:  storagePath,
-          canal_origem:  'upload_manual',
-        })
+          origem:        'upload_manual',
+        }).select('id').single()
         if (dbErr) throw dbErr
+
+        await supabaseAdmin.from('documento_vinculos').insert({
+          empresa_id: dados.empresa_id, documento_id: docInserido!.id, entidade_tipo: 'processo', entidade_id: params.id,
+        })
       } catch (err: any) {
         const msg = `DB: ${err?.message ?? err}`
         console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
