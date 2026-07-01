@@ -243,12 +243,25 @@ export async function processarOcrDocumento(
 ): Promise<{ erro?: string }> {
   const supabase = serviceSupabase()
 
-  const { data: doc } = await supabase
-    .from('documentos_clientes')
-    .select('id, storage_path, storage_bucket, mime_type, ocr_status, pessoa_id')
+  // Fase E (corte de leitura): lê do modelo unificado `documentos`. Fallback para
+  // `documentos_clientes` cobre o resíduo conhecido da Fase D (pessoa_id não resolvível).
+  let doc: { id: string; storage_path: string; storage_bucket: string | null; mime_type: string | null; ocr_status: string | null } | null = null
+  const { data: docNovo } = await supabase
+    .from('documentos')
+    .select('id, storage_path, storage_bucket, mime_type, ocr_status:status_ocr')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
+  doc = docNovo as typeof doc
+  if (!doc) {
+    const { data: docAntigo } = await supabase
+      .from('documentos_clientes')
+      .select('id, storage_path, storage_bucket, mime_type, ocr_status')
+      .eq('id', documentoId)
+      .eq('empresa_id', empresa_id)
+      .maybeSingle()
+    doc = docAntigo
+  }
 
   if (!doc || ['concluido', 'aguardando_apuracao'].includes(doc.ocr_status ?? '')) return {}
 

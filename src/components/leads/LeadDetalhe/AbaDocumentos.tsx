@@ -116,24 +116,66 @@ export function AbaDocumentos({ leadId, pessoaId }: Props) {
 
   const queryKey = ['documentos-clientes', 'lead', leadId, pessoaId]
 
+  // Fase E (corte de leitura): lê do modelo unificado `documentos`/`extracoes_ocr`.
+  // "Documentos deste lead" = tem vínculo (entidade_tipo='lead') para este leadId.
+  // "Documentos da pessoa ainda sem lead atribuído" = pertencem ao acervo da pessoa
+  // e não têm NENHUM vínculo de lead ainda (equivalente ao antigo lead_id IS NULL).
   const { data: documentos = [], isLoading } = useQuery({
     queryKey,
     queryFn: async (): Promise<DocumentoCliente[]> => {
-      // Documentos deste lead OU documentos da pessoa ainda sem lead atribuído
-      const filtro = pessoaId
-        ? `lead_id.eq.${leadId},and(pessoa_id.eq.${pessoaId},lead_id.is.null)`
-        : `lead_id.eq.${leadId}`
-
-      const { data, error } = await supabase
-        .from('documentos_clientes')
-        .select('id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at')
-        .or(filtro)
+      const { data: vinculosLead } = await supabase
+        .from('documento_vinculos')
+        .select('documento_id')
+        .eq('entidade_tipo', 'lead')
+        .eq('entidade_id', leadId)
         .eq('empresa_id', usuario!.empresa_id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+      const idsDireto = new Set((vinculosLead ?? []).map(v => v.documento_id))
+
+      let todosIds = Array.from(idsDireto)
+      if (pessoaId) {
+        const { data: docsPessoa } = await supabase
+          .from('documentos')
+          .select('id')
+          .eq('dominio', 'acervo_documental')
+          .eq('pessoa_id', pessoaId)
+          .eq('empresa_id', usuario!.empresa_id)
+          .is('deleted_at', null)
+        const idsPessoa = (docsPessoa ?? []).map(d => d.id)
+
+        let idsComLead = new Set<string>()
+        if (idsPessoa.length > 0) {
+          const { data: vinculosExistentes } = await supabase
+            .from('documento_vinculos')
+            .select('documento_id')
+            .eq('entidade_tipo', 'lead')
+            .in('documento_id', idsPessoa)
+          idsComLead = new Set((vinculosExistentes ?? []).map(v => v.documento_id))
+        }
+        const idsSemLead = idsPessoa.filter(id => !idsComLead.has(id))
+        todosIds = Array.from(new Set([...Array.from(idsDireto), ...idsSemLead]))
+      }
+
+      if (todosIds.length === 0) return []
+
+      const [{ data, error }, { data: extracoes }] = await Promise.all([
+        supabase
+          .from('documentos')
+          .select('id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao:classificacao_legado, ocr_status:status_ocr, created_at:recebido_em')
+          .in('id', todosIds)
+          .is('deleted_at', null),
+        supabase
+          .from('extracoes_ocr')
+          .select('documento_id, dados, dados_validados')
+          .in('documento_id', todosIds)
+          .eq('vigente', true),
+      ])
 
       if (error) throw error
-      return data ?? []
+
+      const ocrPorDocumento = new Map((extracoes ?? []).map(e => [e.documento_id, e.dados_validados ?? e.dados ?? null]))
+      return ((data ?? []) as unknown as DocumentoCliente[])
+        .map(d => ({ ...d, ocr_dados: ocrPorDocumento.get(d.id) ?? null }))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     },
     enabled: !!usuario && !!leadId,
     refetchInterval: (query) => {

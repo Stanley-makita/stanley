@@ -44,17 +44,30 @@ export async function POST(
   const documentoIds: string[] | undefined = Array.isArray(body?.documento_ids) ? body.documento_ids : undefined
   const faturamentoDeclarado: number | undefined = typeof body?.faturamento_declarado === 'number' ? body.faturamento_declarado : undefined
 
+  // Fase E (corte de leitura): lê do modelo unificado `documentos`. Quando não há seleção
+  // manual, descobre os IDs via `documento_vinculos` (só vínculo direto do processo — mesmo
+  // escopo de antes, que não considerava documentos reaproveitados via junction table).
+  let idsFiltro: string[] | null = null
+  if (!documentoIds?.length) {
+    const { data: vinculos } = await supabase
+      .from('documento_vinculos')
+      .select('documento_id')
+      .eq('entidade_tipo', 'processo')
+      .eq('entidade_id', processoId)
+      .eq('empresa_id', empresa_id)
+    idsFiltro = (vinculos ?? []).map(v => v.documento_id)
+  }
+
   let query = supabase
-    .from('documentos_clientes')
+    .from('documentos')
     .select('id, nome_original, storage_path, storage_bucket, mime_type')
-    .eq('processo_id', processoId)
     .eq('empresa_id', empresa_id)
     .is('deleted_at', null)
 
   if (documentoIds?.length) {
     query = query.in('id', documentoIds)
   } else {
-    query = query.eq('classificacao', 'extrato_bancario')
+    query = query.in('id', idsFiltro ?? []).eq('classificacao_legado', 'extrato_bancario')
   }
 
   const { data: documentos } = await query

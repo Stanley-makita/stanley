@@ -76,15 +76,49 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
 
       if (!pessoa) return []
 
+      // Fase E (corte de leitura): descobre IDs via documento_vinculos (lead) + acervo da
+      // pessoa (documentos), lê OCR de extracoes_ocr (vigente).
+      const [{ data: vinculosLead }, { data: docsPessoa }] = await Promise.all([
+        supabase
+          .from('documento_vinculos')
+          .select('documento_id')
+          .eq('entidade_tipo', 'lead')
+          .eq('entidade_id', leadId)
+          .eq('empresa_id', usuario!.empresa_id),
+        supabase
+          .from('documentos')
+          .select('id')
+          .eq('dominio', 'acervo_documental')
+          .eq('pessoa_id', lead.pessoa_id)
+          .eq('empresa_id', usuario!.empresa_id),
+      ])
+      const idsCandidatos = Array.from(new Set([
+        ...(vinculosLead ?? []).map(v => v.documento_id),
+        ...(docsPessoa ?? []).map(d => d.id),
+      ]))
+      if (idsCandidatos.length === 0) return []
+
       // Busca documentos com OCR concluído (exceto FGTS)
-      const { data: docs } = await supabase
-        .from('documentos_clientes')
-        .select('id, ocr_dados, classificacao')
+      const { data: docsBase } = await supabase
+        .from('documentos')
+        .select('id, classificacao:classificacao_legado')
+        .in('id', idsCandidatos)
         .eq('empresa_id', usuario!.empresa_id)
-        .eq('ocr_status', 'concluido')
-        .not('ocr_dados', 'is', null)
-        .neq('classificacao', 'extrato_fgts')
-        .or(`lead_id.eq.${leadId},pessoa_id.eq.${lead.pessoa_id}`)
+        .eq('status_ocr', 'concluido')
+        .neq('classificacao_legado', 'extrato_fgts')
+
+      if (!docsBase || docsBase.length === 0) return []
+
+      const { data: extracoes } = await supabase
+        .from('extracoes_ocr')
+        .select('documento_id, dados, dados_validados')
+        .in('documento_id', docsBase.map(d => d.id))
+        .eq('vigente', true)
+
+      const ocrPorDocumento = new Map((extracoes ?? []).map(e => [e.documento_id, e.dados_validados ?? e.dados ?? null]))
+      const docs = docsBase
+        .map(d => ({ ...d, ocr_dados: ocrPorDocumento.get(d.id) ?? null }))
+        .filter(d => d.ocr_dados !== null)
 
       if (!docs || docs.length === 0) return []
 

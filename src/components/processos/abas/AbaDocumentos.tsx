@@ -115,47 +115,57 @@ export function AbaDocumentos({ processoId }: Props) {
     return [{ value: 'auto', label: 'Detectar automaticamente' }, ...base]
   }, [catalogoTipos])
 
-  const CAMPOS_DOC = 'id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao, ocr_status, ocr_dados, created_at, permanente, validade_data, validade_dias'
+  // Fase E (corte de leitura): lê do modelo unificado `documentos`/`extracoes_ocr`.
+  // Descoberta de IDs continua nas duas fontes de vínculo existentes — `documento_vinculos`
+  // (trigger, espelha o antigo processo_id direto) e `documento_processo_vinculos` (junction
+  // antiga, ainda é o caminho de escrita real de "reaproveitar documento" no NovoProcessoModal,
+  // e não é espelhada por trigger nenhum) — só a leitura final dos documentos migrou de tabela.
+  const CAMPOS_DOC = 'id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao:classificacao_legado, ocr_status:status_ocr, created_at:recebido_em, permanente, validade_data, validade_dias'
 
   const { data: documentos = [], isLoading } = useQuery({
     queryKey,
     enabled: !!usuario && !!processoId,
     queryFn: async (): Promise<DocumentoCliente[]> => {
-      const { data: resDiretos, error } = await supabase
-        .from('documentos_clientes')
-        .select(CAMPOS_DOC)
-        .eq('processo_id', processoId!)
-        .eq('empresa_id', usuario!.empresa_id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+      const [{ data: vinculosDiretos }, { data: vinculosReuso }] = await Promise.all([
+        supabase
+          .from('documento_vinculos')
+          .select('documento_id')
+          .eq('entidade_tipo', 'processo')
+          .eq('entidade_id', processoId!)
+          .eq('empresa_id', usuario!.empresa_id),
+        supabase
+          .from('documento_processo_vinculos')
+          .select('documento_id')
+          .eq('processo_id', processoId!)
+          .eq('empresa_id', usuario!.empresa_id),
+      ])
+
+      const diretosIds = new Set((vinculosDiretos ?? []).map(v => v.documento_id))
+      const reusoIds = (vinculosReuso ?? []).map(v => v.documento_id).filter(id => !diretosIds.has(id))
+      const todosIds = [...Array.from(diretosIds), ...reusoIds]
+      if (todosIds.length === 0) return []
+
+      const [{ data: docs, error }, { data: extracoes }] = await Promise.all([
+        supabase
+          .from('documentos')
+          .select(CAMPOS_DOC)
+          .in('id', todosIds)
+          .is('deleted_at', null),
+        supabase
+          .from('extracoes_ocr')
+          .select('documento_id, dados, dados_validados')
+          .in('documento_id', todosIds)
+          .eq('vigente', true),
+      ])
 
       if (error) throw error
 
-      const diretos = (resDiretos ?? []).map(d => ({ ...d, vinculado: false })) as DocumentoCliente[]
-      const diretosIds = new Set(diretos.map(d => d.id))
+      const reusoIdsSet = new Set(reusoIds)
+      const ocrPorDocumento = new Map((extracoes ?? []).map(e => [e.documento_id, e.dados_validados ?? e.dados ?? null]))
 
-      // Buscar IDs dos docs vinculados via junction table
-      const { data: vinculos } = await supabase
-        .from('documento_processo_vinculos')
-        .select('documento_id')
-        .eq('processo_id', processoId!)
-        .eq('empresa_id', usuario!.empresa_id)
-
-      const vinculoIds = (vinculos ?? []).map(v => v.documento_id).filter(id => !diretosIds.has(id))
-
-      let vinculados: DocumentoCliente[] = []
-      if (vinculoIds.length > 0) {
-        const { data: docsVinculados } = await supabase
-          .from('documentos_clientes')
-          .select(CAMPOS_DOC)
-          .in('id', vinculoIds)
-          .is('deleted_at', null)
-        vinculados = (docsVinculados ?? []).map(d => ({ ...d, vinculado: true })) as DocumentoCliente[]
-      }
-
-      return [...diretos, ...vinculados].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
+      return ((docs ?? []) as unknown as DocumentoCliente[])
+        .map(d => ({ ...d, ocr_dados: ocrPorDocumento.get(d.id) ?? null, vinculado: reusoIdsSet.has(d.id) }))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     },
     refetchInterval: (query) => {
       const docs = (query.state.data as DocumentoCliente[] | undefined) ?? []

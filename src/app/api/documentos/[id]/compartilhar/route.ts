@@ -45,7 +45,10 @@ export async function POST(
   const { telefone, mensagem, nome_destino } = body
   if (!telefone) return NextResponse.json({ error: 'telefone é obrigatório' }, { status: 422 })
 
-  // Busca documento
+  // Fase E: mantido lendo de `documentos_clientes` de propósito — `lead_id`/`processo_id`
+  // diretos são usados abaixo para decidir onde registrar o histórico do compartilhamento,
+  // e no modelo novo essa associação só existe via `documento_vinculos` (que pode ter mais
+  // de um vínculo por documento, tornando ambíguo "qual" lead/processo registrar aqui).
   const { data: doc } = await supabase
     .from('documentos_clientes')
     .select('id, nome_original, mime_type, storage_path, storage_bucket, lead_id, processo_id, empresa_id')

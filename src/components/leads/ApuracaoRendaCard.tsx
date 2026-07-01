@@ -43,14 +43,23 @@ export function ApuracaoRendaCard({ leadId }: Props) {
     enabled: !!usuario && !!leadId,
     staleTime: 1000 * 60 * 2,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('documentos_clientes')
-        .select('id, nome_original, classificacao')
-        .eq('lead_id', leadId)
+      // Fase E (corte de leitura): descobre IDs via documento_vinculos, lê de `documentos`.
+      const { data: vinculos } = await supabase
+        .from('documento_vinculos')
+        .select('documento_id')
+        .eq('entidade_tipo', 'lead')
+        .eq('entidade_id', leadId)
         .eq('empresa_id', usuario!.empresa_id)
-        .eq('classificacao', 'extrato_bancario')
+      const ids = (vinculos ?? []).map(v => v.documento_id)
+      if (ids.length === 0) return []
+
+      const { data } = await supabase
+        .from('documentos')
+        .select('id, nome_original, classificacao:classificacao_legado')
+        .in('id', ids)
+        .eq('classificacao_legado', 'extrato_bancario')
         .is('deleted_at', null)
-      return (data ?? []) as DocumentoSimples[]
+      return (data ?? []) as unknown as DocumentoSimples[]
     },
   })
 

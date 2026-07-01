@@ -29,10 +29,12 @@ export async function POST(
 
   const documentoId = params.id
 
-  // Busca o documento e confirma que pertence à empresa e tem OCR pronto
+  // Fase E (corte de leitura): lê do modelo unificado `documentos`/`extracoes_ocr`.
+  // Sem fallback para a tabela antiga aqui — esta rota já exige pessoa_id resolvida
+  // (400 abaixo), a mesma condição que impede a linha de existir em `documentos`.
   const { data: doc } = await supabase
-    .from('documentos_clientes')
-    .select('id, pessoa_id, ocr_dados, ocr_status')
+    .from('documentos')
+    .select('id, pessoa_id, ocr_status:status_ocr')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
@@ -40,6 +42,13 @@ export async function POST(
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
   if (!doc.pessoa_id) return NextResponse.json({ error: 'Documento sem pessoa vinculada' }, { status: 400 })
   if (doc.ocr_status !== 'concluido') return NextResponse.json({ error: 'OCR não concluído' }, { status: 400 })
+
+  const { data: extracaoVigente } = await supabase
+    .from('extracoes_ocr')
+    .select('dados, dados_validados')
+    .eq('documento_id', documentoId)
+    .eq('vigente', true)
+    .maybeSingle()
 
   const body = await request.json() as { campos: Record<string, unknown>; tipo_confirmado?: string }
   const { campos, tipo_confirmado } = body
@@ -164,7 +173,7 @@ export async function POST(
     // rg_orgao_emissor e rg_uf_emissor não passam por CAMPOS_PERMITIDOS
     // (não existem em pessoas), lê do body original
     const rawCampos = campos as Record<string, string>
-    const payloadOcr = doc.ocr_dados as Record<string, unknown> | null
+    const payloadOcr = (extracaoVigente?.dados_validados ?? extracaoVigente?.dados ?? null) as Record<string, unknown> | null
 
     let novoDoc: DocPayload = {}
 

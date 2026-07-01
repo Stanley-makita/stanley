@@ -34,6 +34,11 @@ export async function POST(
   const documentoId = params.id
   const { empresa_id, usuario_id } = usuario
 
+  // Nota: a resolução de pessoa_id abaixo (linhas seguintes) é mais completa do que a do
+  // modelo novo — inclui fallback por CPF/nome do comprador que o trigger de sincronização
+  // não replica (deliberadamente, para evitar fuzzy match em massa). Por isso continua lendo
+  // de `documentos_clientes`, que também é a única fonte com `lead_id`/`processo_id` diretos
+  // (no modelo novo essas associações só existem via `documento_vinculos`).
   const { data: doc } = await supabase
     .from('documentos_clientes')
     .select('id, pessoa_id, lead_id, processo_id, ocr_status')
