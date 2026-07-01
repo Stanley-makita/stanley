@@ -243,34 +243,22 @@ export async function processarOcrDocumento(
 ): Promise<{ erro?: string }> {
   const supabase = serviceSupabase()
 
-  // Fase E (corte de leitura): lê do modelo unificado `documentos`. Fallback para
-  // `documentos_clientes` cobre o resíduo conhecido da Fase D (pessoa_id não resolvível).
-  let doc: { id: string; storage_path: string; storage_bucket: string | null; mime_type: string | null; ocr_status: string | null } | null = null
-  const { data: docNovo } = await supabase
+  // Modelo definitivo: lê e escreve exclusivamente em `documentos`.
+  const { data: doc } = await supabase
     .from('documentos')
     .select('id, storage_path, storage_bucket, mime_type, ocr_status:status_ocr')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
-  doc = docNovo as typeof doc
-  if (!doc) {
-    const { data: docAntigo } = await supabase
-      .from('documentos_clientes')
-      .select('id, storage_path, storage_bucket, mime_type, ocr_status')
-      .eq('id', documentoId)
-      .eq('empresa_id', empresa_id)
-      .maybeSingle()
-    doc = docAntigo
-  }
 
   if (!doc || ['concluido', 'aguardando_apuracao'].includes(doc.ocr_status ?? '')) return {}
 
-  await supabase.from('documentos_clientes')
-    .update({ ocr_status: 'processando' })
+  await supabase.from('documentos')
+    .update({ status_ocr: 'processando' })
     .eq('id', documentoId)
 
-  // Fase B (histórico de OCR): registra esta execução em extracoes_ocr.
-  // documentos_clientes.ocr_dados continua sendo escrito como espelho.
+  // Histórico de OCR: cada execução vira uma linha em extracoes_ocr (dados brutos
+  // ficam só lá — `documentos` guarda apenas o status resumido).
   const inicio = Date.now()
   const { data: extracao } = await supabase
     .from('extracoes_ocr')
@@ -332,7 +320,7 @@ export async function processarOcrDocumento(
 
     const contentBlock = montarContentBlock(base64, mimeType)
     if (!contentBlock) {
-      await supabase.from('documentos_clientes').update({ ocr_status: 'ignorado' }).eq('id', documentoId)
+      await supabase.from('documentos').update({ status_ocr: 'ignorado' }).eq('id', documentoId)
       await finalizarExtracao({ status: 'ignorado', erro_mensagem: `mime_type não suportado: ${mimeType}` })
       console.log('[ocr] mime_type não suportado, ignorado:', documentoId, '| mime:', mimeType)
       return {}
@@ -357,9 +345,9 @@ export async function processarOcrDocumento(
 
     // Extrato bancário detectado em modo auto → encaminha para apuração de renda
     if (tipo === 'extrato_bancario') {
-      await supabase.from('documentos_clientes').update({
-        ocr_status: 'aguardando_apuracao',
-        classificacao: 'extrato_bancario',
+      await supabase.from('documentos').update({
+        status_ocr: 'aguardando_apuracao',
+        classificacao_legado: 'extrato_bancario',
       }).eq('id', documentoId)
       await finalizarExtracao({ status: 'ignorado', dados: classificacao, confianca: classificacao.confianca })
       console.log('[ocr] Extrato bancário detectado automaticamente:', documentoId)
@@ -368,9 +356,9 @@ export async function processarOcrDocumento(
 
     // Não é documento essencial — ignora sem extração
     if (!TIPOS_ESSENCIAIS.has(tipo)) {
-      await supabase.from('documentos_clientes').update({
-        ocr_status: 'ignorado',
-        classificacao: tipo === 'outro' ? null : tipo,
+      await supabase.from('documentos').update({
+        status_ocr: 'ignorado',
+        classificacao_legado: tipo === 'outro' ? null : tipo,
       }).eq('id', documentoId)
       await finalizarExtracao({ status: 'ignorado', dados: classificacao, confianca: classificacao.confianca })
       console.log('[ocr] Classificado como não-essencial, ignorado:', documentoId, '| tipo:', tipo)
@@ -393,10 +381,9 @@ export async function processarOcrDocumento(
 
     const resultado = JSON.parse(limparJson(blocoExt.text)) as OcrResultado
 
-    await supabase.from('documentos_clientes').update({
-      ocr_status: 'concluido',
-      ocr_dados: resultado,
-      classificacao: resultado.tipo_documento,
+    await supabase.from('documentos').update({
+      status_ocr: 'concluido',
+      classificacao_legado: resultado.tipo_documento,
     }).eq('id', documentoId)
     await finalizarExtracao({ status: 'concluido', dados: resultado, confianca: resultado.confianca })
 
@@ -405,8 +392,8 @@ export async function processarOcrDocumento(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ocr] Erro ao processar documento:', documentoId, msg)
-    await supabase.from('documentos_clientes')
-      .update({ ocr_status: 'erro' })
+    await supabase.from('documentos')
+      .update({ status_ocr: 'erro' })
       .eq('id', documentoId)
     await finalizarExtracao({ status: 'erro', erro_mensagem: msg })
     return { erro: msg }

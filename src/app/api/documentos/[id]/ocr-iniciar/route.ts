@@ -30,27 +30,13 @@ export async function POST(
 
   const documentoId = params.id
 
-  // Fase E (corte de leitura): lê do modelo unificado `documentos`. Fallback para
-  // `documentos_clientes` cobre o resíduo conhecido da Fase D (documentos cujo
-  // pessoa_id não é resolvível — não entram em `documentos`, mas continuam existindo
-  // e precisando de OCR na tabela antiga).
-  let doc: { id: string; ocr_status: string | null; classificacao: string | null } | null = null
-  const { data: docNovo } = await supabase
+  // Modelo definitivo: lê e escreve exclusivamente em `documentos`.
+  const { data: doc } = await supabase
     .from('documentos')
     .select('id, ocr_status:status_ocr, classificacao:classificacao_legado')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
-  doc = docNovo as typeof doc
-  if (!doc) {
-    const { data: docAntigo } = await supabase
-      .from('documentos_clientes')
-      .select('id, ocr_status, classificacao')
-      .eq('id', documentoId)
-      .eq('empresa_id', empresa_id)
-      .maybeSingle()
-    doc = docAntigo
-  }
 
   if (!doc) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
   if (['concluido', 'aguardando_apuracao'].includes(doc.ocr_status ?? '')) {
@@ -60,8 +46,8 @@ export async function POST(
   const classificacao = doc.classificacao ?? null
 
   if (classificacao === 'extrato_bancario') {
-    await supabase.from('documentos_clientes')
-      .update({ ocr_status: 'aguardando_apuracao' })
+    await supabase.from('documentos')
+      .update({ status_ocr: 'aguardando_apuracao' })
       .eq('id', documentoId)
     return NextResponse.json({ ok: true, skipped: true, motivo: 'aguardando_apuracao' })
   }
@@ -69,8 +55,8 @@ export async function POST(
   const { erro } = await processarOcrDocumento(supabase, documentoId, empresa_id, { solicitadoPor: usuario_id })
 
   const { data: atualizado } = await supabase
-    .from('documentos_clientes')
-    .select('ocr_status, classificacao, mime_type')
+    .from('documentos')
+    .select('ocr_status:status_ocr, classificacao:classificacao_legado, mime_type')
     .eq('id', documentoId)
     .single()
 

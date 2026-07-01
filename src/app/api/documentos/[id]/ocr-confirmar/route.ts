@@ -229,10 +229,10 @@ export async function POST(
 
   // Marca documento como revisado, atualizando classificacao se o usuário confirmou o tipo
   await supabase
-    .from('documentos_clientes')
+    .from('documentos')
     .update({
-      ocr_status: 'revisado',
-      ...(tipo_confirmado ? { classificacao: tipo_confirmado } : {}),
+      status_ocr: 'revisado',
+      ...(tipo_confirmado ? { classificacao_legado: tipo_confirmado } : {}),
     })
     .eq('id', documentoId)
 
@@ -266,8 +266,8 @@ export async function DELETE(
   if (!resolvido) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   await supabase
-    .from('documentos_clientes')
-    .update({ ocr_status: 'ignorado' })
+    .from('documentos')
+    .update({ status_ocr: 'ignorado' })
     .eq('id', params.id)
     .eq('empresa_id', resolvido.empresa_id)
 
