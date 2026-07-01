@@ -1,5 +1,5 @@
 // API: GET /api/leads/[id]/formularios?banco=<nome>&formularios=arq1,arq2
-// Gera PDFs selecionados e salva em documentos_clientes vinculados ao lead
+// Gera PDFs selecionados e salva no acervo documental da Pessoa, vinculados ao lead
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'

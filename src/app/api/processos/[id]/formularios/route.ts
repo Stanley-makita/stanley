@@ -1,5 +1,5 @@
 // API: POST /api/processos/[id]/formularios?banco=<nome do banco>
-// Gera PDFs preenchidos e salva diretamente no CRM (documentos_clientes)
+// Gera PDFs preenchidos e salva no acervo documental da Pessoa, vinculados ao processo
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
