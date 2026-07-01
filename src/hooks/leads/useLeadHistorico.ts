@@ -72,11 +72,21 @@ export function useLeadHistorico(leadId: string, tipos?: string[]) {
           }))
         })(),
         (async () => {
+          const { data: vinculos, error: vinculosError } = await supabase
+            .from('documento_vinculos')
+            .select('documento_id')
+            .eq('entidade_tipo', 'lead')
+            .eq('entidade_id', leadId)
+          if (vinculosError) throw vinculosError
+
+          const ids = (vinculos ?? []).map((v) => v.documento_id)
+          if (ids.length === 0) return []
+
           const { data, error } = await supabase
-            .from('documentos_clientes')
-            .select('id, nome_original, ocr_status, created_at')
-            .eq('lead_id', leadId)
-            .order('created_at', { ascending: false })
+            .from('documentos')
+            .select('id, nome_original, ocr_status:status_ocr, created_at:recebido_em')
+            .in('id', ids)
+            .order('recebido_em', { ascending: false })
 
           if (error) throw error
           return (data ?? []).map((item) => ({
