@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { extrairProduto, extrairNumero } from './state-machine'
 import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
 import { PERGUNTA_TIPO_CONSTRUCAO } from '@/lib/workflows/normalizador-captacao'
+import { buscarOuCriarPessoa } from '@/lib/pessoa'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -98,6 +99,10 @@ export async function verificarUsuarioInterno(
 
 // ── Upload de arquivo para Storage e registro na tabela ───────────────────────
 
+// Modelo definitivo: grava direto em `documentos` (dominio=acervo_documental) +
+// `documento_vinculos` (lead/processo, quando houver). pessoa_id é obrigatório —
+// se a entidade não trouxer uma (ex: processo sem comprador com pessoa resolvida),
+// resolve/cria uma Pessoa provisória pelo telefone da conversa, mesma regra do webhook.
 async function salvarArquivo(
   supabase: SupabaseClient,
   arquivo: FontiArquivo,
@@ -107,6 +112,7 @@ async function salvarArquivo(
     lead_id?: string | null
     processo_id?: string | null
   },
+  telefoneFallback: string,
 ): Promise<boolean> {
   try {
     const { fileUrl, fileName, mimeType } = arquivo
@@ -127,17 +133,27 @@ async function salvarArquivo(
       })
     if (uploadError) throw uploadError
 
-    await supabase.from('documentos_clientes').insert({
+    const pessoaId = entidade.pessoa_id ?? await buscarOuCriarPessoa(empresa_id, telefoneFallback, 'Cliente')
+
+    const { data: docInserido, error: dbError } = await supabase.from('documentos').insert({
       empresa_id,
-      pessoa_id:   entidade.pessoa_id   ?? null,
-      lead_id:     entidade.lead_id     ?? null,
-      processo_id: entidade.processo_id ?? null,
+      dominio: 'acervo_documental',
+      pessoa_id: pessoaId,
       nome_original: nomeOriginal,
-      mime_type:   mimeType ?? null,
+      mime_type: mimeType ?? null,
       tamanho_bytes: fileBuffer.byteLength,
-      storage_path:  storagePath,
-      canal_origem:  'whatsapp',
-    })
+      storage_bucket: 'documentos-clientes',
+      storage_path: storagePath,
+      origem: 'whatsapp',
+    }).select('id').single()
+    if (dbError) throw dbError
+
+    const vinculos: Array<{ empresa_id: string; documento_id: string; entidade_tipo: string; entidade_id: string }> = []
+    if (entidade.lead_id) vinculos.push({ empresa_id, documento_id: docInserido!.id, entidade_tipo: 'lead', entidade_id: entidade.lead_id })
+    if (entidade.processo_id) vinculos.push({ empresa_id, documento_id: docInserido!.id, entidade_tipo: 'processo', entidade_id: entidade.processo_id })
+    if (vinculos.length > 0) {
+      await supabase.from('documento_vinculos').insert(vinculos)
+    }
     return true
   } catch (err) {
     console.error('[fonti] Erro ao salvar arquivo:', err)
@@ -171,6 +187,11 @@ async function vincularDocumentosConversa(
 // marcaAt: se fornecida, usada como início da janela (via *fonti inicio). Senão: now() - janela_minutos.
 // processo_id: se fornecido, filtra docs sem processo vinculado e seta processo_id (modo processo).
 // Retorna { count, ids } para que o caller possa disparar OCR nos docs vinculados.
+// Modelo definitivo: pessoa_id já vem sempre preenchido no documento desde a criação
+// (webhook/salvarArquivo resolvem via buscarOuCriarPessoa) — não existe mais o estado
+// "documento sem dono" que essa função precisava backfillar. O que resta fazer aqui é
+// só criar o vínculo com lead/processo para os documentos recentes dessa pessoa que
+// ainda não têm esse vínculo.
 async function vincularDocumentosRecentesPorTelefone(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -181,16 +202,24 @@ async function vincularDocumentosRecentesPorTelefone(
   marcaAt?: Date,
   processo_id?: string,
 ): Promise<{ count: number; ids: string[] }> {
+  // pessoa_id pode não ter sido resolvido pelo chamador (ex: processo sem comprador
+  // com pessoa vinculada) — cai pra pessoa já associada à conversa (webhook garante
+  // que toda conversa tem pessoa_id assim que a primeira mídia/mensagem chega).
   const { data: conversa } = await supabase
     .from('conversas')
-    .select('id')
+    .select('pessoa_id')
     .eq('empresa_id', empresa_id)
     .eq('canal', 'whatsapp')
     .eq('contato_telefone', telefoneConversa)
     .limit(1)
     .maybeSingle()
 
-  if (!conversa?.id) return { count: 0, ids: [] }
+  const pessoaIdEfetiva = pessoa_id ?? conversa?.pessoa_id ?? null
+  if (!pessoaIdEfetiva) return { count: 0, ids: [] }
+
+  const entidadeTipo: 'lead' | 'processo' = processo_id ? 'processo' : 'lead'
+  const entidadeId = processo_id ?? lead_id
+  if (!entidadeId) return { count: 0, ids: [] }
 
   const limite = marcaAt ?? (() => {
     const d = new Date()
@@ -198,48 +227,40 @@ async function vincularDocumentosRecentesPorTelefone(
     return d
   })()
 
-  // Modo processo: busca docs sem processo vinculado
-  // Modo lead: busca docs sem lead vinculado (comportamento original)
-  let query = supabase
-    .from('documentos_clientes')
+  const { data: docsCandidatos } = await supabase
+    .from('documentos')
     .select('id')
     .eq('empresa_id', empresa_id)
-    .eq('conversa_id', conversa.id)
+    .eq('dominio', 'acervo_documental')
+    .eq('pessoa_id', pessoaIdEfetiva)
     .is('deleted_at', null)
-    .gte('created_at', limite.toISOString())
+    .gte('recebido_em', limite.toISOString())
 
-  if (processo_id) {
-    query = query.is('processo_id', null)
-  } else {
-    query = query.is('lead_id', null)
-  }
+  if (!docsCandidatos?.length) return { count: 0, ids: [] }
 
-  const { data: docs } = await query
+  const idsCandidatos = docsCandidatos.map((d) => d.id)
+  const { data: vinculosExistentes } = await supabase
+    .from('documento_vinculos')
+    .select('documento_id')
+    .eq('entidade_tipo', entidadeTipo)
+    .in('documento_id', idsCandidatos)
+  const idsComVinculo = new Set((vinculosExistentes ?? []).map((v) => v.documento_id))
+  const idsParaVincular = idsCandidatos.filter((id) => !idsComVinculo.has(id))
 
-  if (!docs?.length) return { count: 0, ids: [] }
-
-  const updates: Record<string, string | null> = {}
-  if (processo_id) {
-    if (pessoa_id) updates.pessoa_id = pessoa_id
-    updates.processo_id = processo_id
-  } else {
-    if (pessoa_id) updates.pessoa_id = pessoa_id
-    if (lead_id) updates.lead_id = lead_id
-  }
-
-  if (Object.keys(updates).length === 0) return { count: 0, ids: [] }
+  if (idsParaVincular.length === 0) return { count: 0, ids: [] }
 
   const { error } = await supabase
-    .from('documentos_clientes')
-    .update(updates)
-    .in('id', docs.map((d) => d.id))
+    .from('documento_vinculos')
+    .insert(idsParaVincular.map((documento_id) => ({
+      empresa_id, documento_id, entidade_tipo: entidadeTipo, entidade_id: entidadeId,
+    })))
 
   if (error) {
     console.error('[fonti] Erro ao vincular documentos:', error)
     return { count: 0, ids: [] }
   }
 
-  return { count: docs.length, ids: docs.map((d) => d.id) }
+  return { count: idsParaVincular.length, ids: idsParaVincular }
 }
 
 // ── Marca de sessão *fonti inicio ─────────────────────────────────────────────
@@ -413,7 +434,7 @@ async function salvarParaProcesso(
 
   let salvos = 0
   for (const arq of arquivos) {
-    const ok = await salvarArquivo(supabase, arq, empresa_id, { pessoa_id, processo_id: processo.id })
+    const ok = await salvarArquivo(supabase, arq, empresa_id, { pessoa_id, processo_id: processo.id }, telefoneConversa)
     if (ok) salvos++
   }
 
@@ -948,7 +969,7 @@ export async function processarComandoFonti(
         pessoa_id:   entidade.tipo === 'pessoa'   ? entidade.id : (entidade.pessoa_id ?? null),
         lead_id:     entidade.lead_id ?? null,
         processo_id: entidade.tipo === 'processo' ? entidade.id : null,
-      })
+      }, telefoneConversaSalva)
       if (ok) salvos++
     }
 
