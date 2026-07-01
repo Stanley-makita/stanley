@@ -11,8 +11,9 @@ import {
   ArrowLeft, Phone, Mail, User, MessageSquare, Briefcase,
   Plus, Trash2, Edit2, Check, X, GitMerge, ExternalLink,
   UserPlus, MessageCirclePlus, FileText, Building2, FolderPlus,
-  CreditCard, Calendar, MapPin, DollarSign, History, Heart,
+  CreditCard, Calendar, MapPin, DollarSign, History, Heart, FolderOpen,
 } from 'lucide-react'
+import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { usePessoaAlteracoes } from '@/hooks/pessoas/usePessoaAlteracoes'
 import { ExcluirPessoaDialog } from '@/components/pessoas/ExcluirPessoaDialog'
 import { Button } from '@/components/ui/button'
@@ -240,7 +241,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   const router = useRouter()
   const qc = useQueryClient()
 
-  const [abaAtiva, setAbaAtiva] = useState<'telefones' | 'leads' | 'conversas' | 'processos' | 'fgts'>('telefones')
+  const [abaAtiva, setAbaAtiva] = useState<'telefones' | 'leads' | 'conversas' | 'processos' | 'documentos' | 'fgts'>('telefones')
   const [editando, setEditando] = useState(false)
   const [form, setForm] = useState({
     telefone: '',
@@ -1060,6 +1061,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               { id: 'leads',      label: `Leads (${pessoa.leads.length})`,          icon: Briefcase },
               { id: 'conversas',  label: `Conversas (${pessoa.conversas.length})`,  icon: MessageSquare },
               { id: 'processos',  label: `Processos (${processos.length})`,         icon: FileText },
+              { id: 'documentos', label: 'Documentos',                              icon: FolderOpen },
               { id: 'fgts',       label: `FGTS (${fgtsContas.length})`,             icon: DollarSign },
             ] as const).map(({ id, label, icon: Icon }) => (
               <button
@@ -1294,6 +1296,11 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 </div>
               )
             })()}
+
+            {/* Aba Documentos */}
+            {abaAtiva === 'documentos' && (
+              <AbaDocumentos contexto="pessoa" pessoaId={params.id} />
+            )}
 
             {/* Aba FGTS */}
             {abaAtiva === 'fgts' && (
