@@ -15,14 +15,10 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarPedidoSimulacao } from './normalizador-captacao'
-import { validarDadosCaptacao } from './validation-engine-captacao'
 import {
-  simularTodosBancos, calcularAnalise,
-  calcularMaxFinanciavel, calcularIdadeEmAnos, getMipRate, taxaAnualParaMensal,
-} from '@/lib/simuladorFinanciamento/engine'
+  validarParaSimulacao, executarSimulacao, montarRespostaSimulacao, gerarPdfSimulacao,
+} from './motor-simulacao'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
-import type { BancoId, InputFinanciamento, ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE } from '@/lib/simuladorFinanciamento/constantes'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared } from './uazapi-helpers'
@@ -509,40 +505,8 @@ export async function executarWorkflowCaptacao(
       .eq('telefone_conversa', telefoneConversa)
   }
 
-  // ── Auto-deriva entrada quando apenas imóvel informado ─────────────────────
-  if (dados.valor_entrada === null && dados.valor_financiado === null && dados.valor_imovel !== null) {
-    const bancosRef: BancoId[] =
-      dados.todos_bancos || dados.bancos_ids.length === 0
-        ? (TODOS_BANCOS as BancoId[])
-        : (dados.bancos_ids as BancoId[])
-
-    const ltvMin = bancosRef.reduce((acc, id) => {
-      const cfg = BANCOS_CONFIG[id]
-      return Math.min(acc, dados.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv)
-    }, 0.80)
-
-    let maxByRenda = Math.round(dados.valor_imovel * ltvMin)
-    if ((dados.renda_formal ?? 0) + (dados.renda_informal ?? 0) > 0 && dados.data_nascimento) {
-      const rendaTotal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
-      const idadeCalc  = calcularIdadeEmAnos(dados.data_nascimento)
-      const mipCalc    = getMipRate(idadeCalc)
-      const prazoCalc  = dados.prazo_meses ?? 360
-      const bancoRef   = bancosRef[0]
-      const taxaRef    = bancoRef
-        ? (dados.correntista ? BANCOS_CONFIG[bancoRef].taxaAnualCorrentista : BANCOS_CONFIG[bancoRef].taxaAnualBase)
-        : 0.10
-      maxByRenda = calcularMaxFinanciavel(
-        rendaTotal, dados.valor_imovel, taxaAnualParaMensal(taxaRef), prazoCalc, mipCalc,
-      )
-    }
-
-    const maxByLtv = Math.round(dados.valor_imovel * ltvMin)
-    dados.valor_financiado = Math.max(0, Math.min(maxByRenda, maxByLtv, dados.valor_imovel))
-    dados.valor_entrada    = dados.valor_imovel - dados.valor_financiado
-  }
-
-  // ── Etapa 6: Validation Engine ───────────────────────────────────────────
-  const validacao = validarDadosCaptacao(dados)
+  // ── Etapa 6: Validação (Motor de Simulação) ──────────────────────────────
+  const validacao = validarParaSimulacao(dados)
 
   // Resumo comercial legível — salvo sempre após a validação (conhecemos as pendências)
   const linhasResumo: string[] = [
@@ -570,7 +534,7 @@ export async function executarWorkflowCaptacao(
     await supabase.from('leads').update({ status_analise: 'aguardando_documentos' }).eq('id', lead_id)
 
     const linhasDocs = docsVinculados > 0 ? `\n${docsVinculados} documento(s) anexado(s).` : ''
-    const aviso = pessoaCriada ? '\n⚠️ Pessoa criada sem CPF validado. Verifique duplicidade.' : ''
+    const aviso = pessoaCriada && !dados.cpf ? '\n⚠️ Pessoa criada sem CPF validado. Verifique duplicidade.' : ''
     const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
 
     const linhaPendentes = docsConversaPendentes.length > 0
@@ -669,66 +633,39 @@ export async function executarWorkflowCaptacao(
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_aprovada',
     `Bancos: ${dados.bancos_ids.join(', ')}`)
 
-  // ── Etapa 7: Motor de Crédito ─────────────────────────────────────────────
+  // ── Etapa 7: Motor de Simulação ──────────────────────────────────────────
   const overrides = await carregarOverridesBancos(supabase, empresa_id)
+  const resultado = await executarSimulacao(dados, overrides)
 
-  // Resolve lista de bancos (mesma lógica do workflow-consulta)
-  let bancosIdsFinal: BancoId[] =
-    dados.todos_bancos || dados.bancos_ids.length === 0
-      ? (TODOS_BANCOS as BancoId[])
-      : (dados.bancos_ids as BancoId[])
-
-  // PRICE sem banco específico → usar apenas bancos habilitados para PRICE
-  if (dados.tipo_amortizacao === 'PRICE' && (dados.todos_bancos || dados.bancos_ids.length === 0)) {
-    bancosIdsFinal = BANCOS_PRICE as BancoId[]
-  }
-
-  const input: InputFinanciamento = {
-    valorImovel:     dados.valor_imovel!,
-    valorEntrada:    dados.valor_entrada!,
-    dataNascimento:  dados.data_nascimento!,
-    rendaMensal:     (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0),
-    tipoAmortizacao: dados.tipo_amortizacao,
-    correntista:     dados.correntista,
-    bancosIds:       bancosIdsFinal,
-    nomeCliente:     dados.nome ?? undefined,
-    cpfCliente:      dados.cpf ?? undefined,
-    tipoImovel:      dados.tipo_imovel ?? undefined,
-    finalidade:      dados.finalidade_efetiva,
-    tipoOperacao:    dados.tipo_operacao,
-    valorTerreno:    dados.valor_terreno ?? undefined,
-    valorObra:       dados.valor_obra    ?? undefined,
-    usaFgts:         dados.usa_fgts || undefined,
-  }
-
-  const bancosResult = simularTodosBancos(input, overrides)
-  const analise      = calcularAnalise(input, bancosResult)
-
-  const resultado: ResultadoCompleto = {
-    input,
-    bancos:         bancosResult,
-    analise,
-    dataSimulacao:  new Date().toISOString(),
-  }
-
+  const totalElegiveis = resultado.modo === 'CAPACIDADE_MAXIMA'
+    ? (resultado.capacidade ?? []).filter((c) => c.maxFinanciavel > 0).length
+    : (resultado.bancosResult ?? []).filter((b) => b.elegivel).length
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'motor_executado',
-    `${bancosResult.filter((b) => b.elegivel).length} banco(s) elegível(is)`)
+    `${totalElegiveis} banco(s) elegível(is)`)
 
   // ── Etapa 8: Simulação ────────────────────────────────────────────────────
-  const melhor = bancosResult.find((b) => b.elegivel)
+  const melhor = resultado.modo === 'CAPACIDADE_MAXIMA'
+    ? (resultado.capacidade ?? []).reduce(
+        (best, r) => r.maxFinanciavel > (best?.maxFinanciavel ?? 0) ? r : best,
+        null as { bancoNome: string; maxFinanciavel: number } | null,
+      )
+    : (resultado.bancosResult ?? []).find((b) => b.elegivel) ?? null
 
   const { error: simErr } = await supabase.from('simulacoes_central').insert({
     empresa_id,
     tipo:            'financiamento',
     status:          'concluida',
-    tipo_simulacao:  'preliminar',
+    tipo_simulacao:  resultado.modo === 'CAPACIDADE_MAXIMA' ? 'capacidade_maxima' : 'preliminar',
     origem_canal:    'whatsapp',
     nome_cliente:    dados.nome,
     cpf_cliente:     dados.cpf ?? null,
     banco:           melhor?.bancoNome ?? null,
     responsavel_id:  usuario_id,
     resultado_json: {
-      ...(resultado as unknown as Record<string, unknown>),
+      modo: resultado.modo,
+      ...(resultado.modo === 'CAPACIDADE_MAXIMA'
+        ? { renda: resultado.rendaMensal, bancos: resultado.capacidade }
+        : { input: resultado.input, bancos: resultado.bancosResult, analise: resultado.analise }),
       _input_normalizado: dados as unknown as Record<string, unknown>,
     },
     lead_id,
@@ -765,10 +702,10 @@ export async function executarWorkflowCaptacao(
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_erro', pdfErroMsg)
   } else {
     try {
-      const { gerarPDFFinanciamentoBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
-      const pdfBuffer = await gerarPDFFinanciamentoBuffer(resultado, {
+      const pdfBuffer = await gerarPdfSimulacao(resultado, {
         clienteNome:     dados.nome ?? undefined,
         responsavelNome: usuario_nome,
+        cpfCliente:      dados.cpf,
       })
 
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'pdf_gerado')
@@ -790,13 +727,7 @@ export async function executarWorkflowCaptacao(
   // ── Etapa 11: Resposta ────────────────────────────────────────────────────
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'resposta_enviada')
 
-  const elegiveis = bancosResult.filter((b) => b.elegivel)
-  const listaBancos = elegiveis.length > 0
-    ? elegiveis.map((b) => {
-        const prog = b.programa !== b.bancoNome ? ` (${b.programa})` : ''
-        return `• ${b.bancoNome}${prog} — 1ª parcela ${fmt.format(b.primeiraParcela)}`
-      }).join('\n')
-    : '• Nenhum banco elegível com os parâmetros informados'
+  const corpoSimulacao = montarRespostaSimulacao(resultado, { nomeDisplay: dados.nome ?? 'Cliente' })
 
   const acaoFinal = leadAtualizado ? '✅ Lead atualizado com sucesso.' : '✅ Cliente e Lead criados com sucesso.'
   const linhas: string[] = [
@@ -806,7 +737,7 @@ export async function executarWorkflowCaptacao(
       : 'Lead na etapa Captação.',
     '',
     `Motor de Crédito executado.`,
-    `Bancos simulados:\n${listaBancos}`,
+    corpoSimulacao,
   ]
 
   if (pdfEnviado) {
@@ -829,7 +760,7 @@ export async function executarWorkflowCaptacao(
     )
   }
 
-  if (pessoaCriada) {
+  if (pessoaCriada && !dados.cpf) {
     linhas.push('\n⚠️ Pessoa criada sem CPF validado. Verifique possível duplicidade.')
   }
 
