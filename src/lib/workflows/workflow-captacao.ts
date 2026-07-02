@@ -14,9 +14,10 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { normalizarPedidoSimulacao } from './normalizador-captacao'
+import { normalizarPedidoSimulacao, extrairCpfBrutoDoTexto } from './normalizador-captacao'
+import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import {
-  validarParaSimulacao, executarSimulacao, montarRespostaSimulacao, gerarPdfSimulacao,
+  validarParaSimulacao, deveDispararSimulacao, executarSimulacao, montarRespostaSimulacao, gerarPdfSimulacao,
 } from './motor-simulacao'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
@@ -252,6 +253,17 @@ export async function executarWorkflowCaptacao(
   }
   if (!dados.nome) {
     return '❌ Não consegui identificar o nome do cliente no texto.\n\nTente incluir o nome completo.'
+  }
+
+  // Fallback determinístico de CPF: se o parser LLM não extraiu CPF, mas o texto bruto
+  // tem uma sequência plausível de 11 dígitos, usa ela — evita "Pessoa criada sem CPF"
+  // quando o CPF foi de fato informado e só a extração via IA falhou.
+  if (!dados.cpf) {
+    const cpfFallback = extrairCpfBrutoDoTexto(textoBruto)
+    if (cpfFallback) {
+      console.warn('[workflow-captacao] parser não extraiu CPF; usando fallback via regex:', cpfFallback)
+      dados.cpf = cpfFallback
+    }
   }
 
   // ── Etapa 3: Pessoa ──────────────────────────────────────────────────────
@@ -530,8 +542,53 @@ export async function executarWorkflowCaptacao(
       .eq('telefone_conversa', telefoneConversa)
   }
 
-  // ── Etapa 6: Validação (Motor de Simulação) ──────────────────────────────
+  // ── Etapa 6: Decisão de intenção de simular ──────────────────────────────
+  // Simular só quando há intenção clara (palavra-chave detectada pelo parser, "*simula"
+  // explícito via forcar_simulacao, ou dados completos de simulação) — ver
+  // motor-simulacao.ts:deveDispararSimulacao. Sem isso, *cria cliente vira só cadastro:
+  // não pede dados de crédito e não abre sessão de simulação.
+  const decisaoIntencao = deveDispararSimulacao(dados, { forcarSimulacao: ctx.forcar_simulacao })
+
+  if (!decisaoIntencao.deveSimular) {
+    await supabase.from('leads').update({ status_analise: 'aguardando_documentos' }).eq('id', lead_id)
+
+    const linhasDocs = docsVinculados > 0 ? `\n${docsVinculados} documento(s) anexado(s).` : ''
+    const aviso = montarAvisoCpf(pessoaCriada, dados)
+    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+
+    const linhaPendentes = docsConversaPendentes.length > 0
+      ? [
+          '',
+          '📄 *Documentos encontrados nesta conversa (não vinculados automaticamente):*',
+          ...docsConversaPendentes.map((d) => `• ${d.nome} — recebido às ${d.horario}`),
+          '',
+          '_Esses documentos não foram vinculados automaticamente porque não foi possível confirmar que pertencem ao cliente atual. Eles podem ser vinculados posteriormente pelo CRM._',
+        ].join('\n')
+      : ''
+
+    return [`✅ ${acao}.${linhasDocs}${aviso}`, linhaPendentes].filter(Boolean).join('\n')
+  }
+
+  // ── Etapa 6b: Validação (Motor de Simulação) ─────────────────────────────
   const validacao = validarParaSimulacao(dados)
+
+  // Bloqueio de idade é definitivo — nunca abre pendência, nunca chega no motor/PDF.
+  // Deve ser o primeiro branch avaliado, antes de qualquer outra checagem de validação.
+  if (validacao.bloqueioIdade) {
+    if (ctx.telefone_operador) {
+      const { limparSimulaPendente } = await import('./simula-pendente')
+      await limparSimulaPendente(supabase, empresa_id, ctx.telefone_operador)
+    }
+    await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_pendente',
+      `Bloqueio de idade: ${validacao.bloqueioIdade.motivo}`)
+    const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    const idadeTxt = validacao.bloqueioIdade.idadeCalculada != null ? ` (idade calculada: ${validacao.bloqueioIdade.idadeCalculada} anos)` : ''
+    return [
+      `✅ ${acao}.`,
+      '',
+      `❌ Data de nascimento/idade incompatível para simulação${idadeTxt}. Verifique a informação enviada.`,
+    ].join('\n')
+  }
 
   // Resumo comercial legível — salvo sempre após a validação (conhecemos as pendências)
   const linhasResumo: string[] = [
@@ -552,11 +609,6 @@ export async function executarWorkflowCaptacao(
     descricao: linhasResumo.join('\n'),
   })
 
-  // O gatilho para simular é a disponibilidade dos dados mínimos — não depende de o texto
-  // ter pedido simulação explicitamente ("já simula", "quero simular" etc). Se o comercial
-  // já informou tudo o que o Motor precisa, a simulação roda automaticamente nesta mesma
-  // mensagem, seja ela um *cria cliente completo de uma vez ou o complemento de dados que
-  // faltavam de uma pendência anterior.
   if (!validacao.valido) {
     await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_pendente',
       `Campos faltantes: ${validacao.camposFaltantes.join(', ')}`)
@@ -564,7 +616,7 @@ export async function executarWorkflowCaptacao(
     await supabase.from('leads').update({ status_analise: 'aguardando_documentos' }).eq('id', lead_id)
 
     const linhasDocs = docsVinculados > 0 ? `\n${docsVinculados} documento(s) anexado(s).` : ''
-    const aviso = pessoaCriada && !dados.cpf ? '\n⚠️ Pessoa criada sem CPF validado. Verifique duplicidade.' : ''
+    const aviso = montarAvisoCpf(pessoaCriada, dados)
     const acao = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
 
     const linhaPendentes = docsConversaPendentes.length > 0
@@ -779,8 +831,9 @@ export async function executarWorkflowCaptacao(
     )
   }
 
-  if (pessoaCriada && !dados.cpf) {
-    linhas.push('\n⚠️ Pessoa criada sem CPF validado. Verifique possível duplicidade.')
+  const avisoCpfFinal = montarAvisoCpf(pessoaCriada, dados)
+  if (avisoCpfFinal) {
+    linhas.push(avisoCpfFinal)
   }
 
   linhas.push(
@@ -790,6 +843,12 @@ export async function executarWorkflowCaptacao(
   )
 
   return linhas.join('\n')
+}
+
+// Só aparece quando NEM o parser NEM o fallback de regex (extrairCpfBrutoDoTexto)
+// encontraram CPF — ou seja, o cliente de fato não informou CPF nenhum.
+function montarAvisoCpf(pessoaCriada: boolean, dados: DadosCaptacaoNormalizados): string {
+  return pessoaCriada && !dados.cpf ? '\n⚠️ Pessoa criada sem CPF. Verifique possível duplicidade.' : ''
 }
 
 function mapTipoImovelLead(tipo: 'novo' | 'usado' | null): string | null {

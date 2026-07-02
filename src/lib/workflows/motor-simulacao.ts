@@ -12,7 +12,8 @@
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import {
   simularTodosBancos, calcularAnalise,
-  calcularMaxFinanciavel, calcularIdadeEmAnos, calcularPrazoMaximo, getMipRate, taxaAnualParaMensal,
+  calcularMaxFinanciavel, calcularIdadeEmAnos, calcularIdadeEmMeses, calcularPrazoMaximo, getMipRate, taxaAnualParaMensal,
+  LIMITE_IDADE_PRAZO_MESES,
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '@/lib/simuladorFinanciamento/tipos'
@@ -28,6 +29,9 @@ const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 export interface ResultadoValidacaoSimulacao {
   valido: boolean
   camposFaltantes: string[]
+  // Bloqueio definitivo (não retomável via pendência) — data implausível/futura ou
+  // idade incompatível com o prazo mínimo de financiamento.
+  bloqueioIdade?: { motivo: string; idadeCalculada: number | null }
 }
 
 // Aceita um subconjunto dos dados normalizados de propósito: este é o único critério de
@@ -41,6 +45,22 @@ export function validarParaSimulacao(
 
   if (!dados.data_nascimento) {
     camposFaltantes.push('Data de nascimento')
+  } else {
+    const nasc = new Date(dados.data_nascimento)
+    const hoje = new Date()
+    if (isNaN(nasc.getTime()) || nasc > hoje) {
+      return { valido: false, camposFaltantes: [],
+        bloqueioIdade: { motivo: 'Data de nascimento inválida ou no futuro.', idadeCalculada: null } }
+    }
+    // Regra oficial: idade + prazo de financiamento ≤ 80 anos e 6 meses. Cálculo em
+    // meses reais (não idadeAnos*12, que perde granularidade de até 11 meses).
+    const idadeMeses = calcularIdadeEmMeses(dados.data_nascimento)
+    const prazoResidualMeses = LIMITE_IDADE_PRAZO_MESES - idadeMeses
+    if (prazoResidualMeses < 12) {
+      const idadeAnos = calcularIdadeEmAnos(dados.data_nascimento)
+      return { valido: false, camposFaltantes: [],
+        bloqueioIdade: { motivo: 'Idade incompatível com o prazo mínimo de financiamento (80 anos e 6 meses no total).', idadeCalculada: idadeAnos } }
+    }
   }
   // valor_imovel é opcional apenas quando a pergunta é "quanto essa renda comporta" (sem referência de imóvel)
   if (dados.valor_imovel === null && dados.modo_calculo !== 'VALOR_MAXIMO_PELA_RENDA') {
@@ -48,6 +68,41 @@ export function validarParaSimulacao(
   }
 
   return { valido: camposFaltantes.length === 0, camposFaltantes: camposFaltantes }
+}
+
+// ── Decisão de intenção de simular ────────────────────────────────────────────
+// Separado deliberadamente de validarParaSimulacao: aqui decidimos SE o usuário quer
+// simular; validarParaSimulacao só roda depois, para checar se os dados são suficientes.
+// Usado pelos 3 pontos de entrada (workflow-captacao, workflow-consulta, resposta a
+// pendência) e pelo gatilho de conversa natural — nenhum deles deve reimplementar esta
+// regra por conta própria.
+export interface DecisaoIntencaoSimulacao {
+  deveSimular: boolean
+  motivo: 'palavra_chave' | 'dados_completos' | 'forcar_contexto' | 'nenhum'
+}
+
+export function deveDispararSimulacao(
+  dados: Pick<DadosCaptacaoNormalizados,
+    'solicitar_simulacao' | 'valor_imovel' | 'valor_financiado' | 'renda_formal' | 'renda_informal'
+    | 'modo_calculo' | 'prazo_maximo'>,
+  ctxFlags?: { forcarSimulacao?: boolean },
+): DecisaoIntencaoSimulacao {
+  if (ctxFlags?.forcarSimulacao) return { deveSimular: true, motivo: 'forcar_contexto' }
+  if (dados.solicitar_simulacao) return { deveSimular: true, motivo: 'palavra_chave' }
+  if (dados.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA') return { deveSimular: true, motivo: 'palavra_chave' }
+
+  const temImovel = dados.valor_imovel != null
+  const temFinanciamentoOuRenda = dados.valor_financiado != null
+    || (dados.renda_formal ?? 0) > 0 || (dados.renda_informal ?? 0) > 0
+
+  // "prazo máximo" só conta como intenção quando já vem junto de dados financeiros
+  // suficientes — nunca sozinho (regra de negócio explícita).
+  if (dados.prazo_maximo && temImovel && temFinanciamentoOuRenda) {
+    return { deveSimular: true, motivo: 'palavra_chave' }
+  }
+  if (temImovel && temFinanciamentoOuRenda) return { deveSimular: true, motivo: 'dados_completos' }
+
+  return { deveSimular: false, motivo: 'nenhum' }
 }
 
 // ── Resolução de bancos ────────────────────────────────────────────────────────
@@ -286,7 +341,34 @@ function montarRespostaNormal(
       linhas.push('', `_Os demais bancos não simulam ou não estão parametrizados para este produto._`)
     }
   } else {
-    linhas.push('', `Não encontrei simulação válida para os dados informados. Verifique produto, valor do imóvel, valor financiado, renda, idade e modalidade.`)
+    // Nenhum banco elegível — distingue idade (bloqueio já deveria ter ocorrido antes do
+    // motor via validarParaSimulacao para casos extremos; aqui cobre idades "no limiar"
+    // que passam o guard central mas ficam inelegíveis banco a banco) de renda/LTV
+    // (diagnosticável — reaproveita o mesmo cálculo usado quando há avisoRenda acima).
+    const inelegiveisPorIdade = inelegiveis.filter((b) =>
+      (b.motivoInelegivel ?? '').toLowerCase().includes('idade') ||
+      (b.motivoInelegivel ?? '').toLowerCase().includes('prazo insuficiente'))
+    const todosPorIdade = inelegiveis.length > 0 && inelegiveisPorIdade.length === inelegiveis.length
+
+    if (todosPorIdade) {
+      linhas.push('', `Não foi possível simular: idade do cliente é incompatível com o prazo mínimo de financiamento em todos os bancos parametrizados.`)
+    } else if (dados.valor_imovel && rendaMensal > 0) {
+      const bancosIds = resolverBancos(dados)
+      const bancoRefId = bancosIds[0]
+      const taxaRef = bancoRefId
+        ? (dados.correntista ? BANCOS_CONFIG[bancoRefId].taxaAnualCorrentista : BANCOS_CONFIG[bancoRefId].taxaAnualBase)
+        : 0.10
+      const idadeAnos = calcularIdadeEmAnos(dados.data_nascimento!)
+      const mip = getMipRate(idadeAnos)
+      const prazoRef = dados.prazo_meses ?? 360
+      const capacidadeEstimada = calcularMaxFinanciavel(rendaMensal, dados.valor_imovel, taxaAnualParaMensal(taxaRef), prazoRef, mip)
+      linhas.push('',
+        '⚠️ *Diagnóstico de capacidade — não representa aprovação.*',
+        `Com a renda informada (${fmt.format(rendaMensal)}), a capacidade estimada de financiamento é de até ${fmt.format(capacidadeEstimada)}.`,
+        `Para o valor solicitado (${fmt.format(dados.valor_financiado ?? dados.valor_imovel)}), a renda informada é insuficiente conforme política de crédito dos bancos.`)
+    } else {
+      linhas.push('', `Não encontrei simulação válida para os dados informados. Verifique produto, valor do imóvel, valor financiado, renda, idade e modalidade.`)
+    }
   }
 
   if (semRenda) {

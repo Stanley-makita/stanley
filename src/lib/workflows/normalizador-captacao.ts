@@ -190,6 +190,16 @@ function normalizarCpf(cpf: string | null | undefined): string | null {
   return digits.length === 11 ? digits : null
 }
 
+// Fallback determinístico: usado quando o parser LLM falha/erra a extração de CPF
+// (ex: cai no catch de parsearTextoCaptacao) mesmo com CPF explícito no texto bruto.
+const REGEX_CPF_BRUTO = /\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.\s]?\d{2})\b/
+export function extrairCpfBrutoDoTexto(texto: string): string | null {
+  const m = texto.match(REGEX_CPF_BRUTO)
+  if (!m) return null
+  const digits = m[1].replace(/\D/g, '')
+  return digits.length === 11 ? digits : null
+}
+
 function normalizarTelefone(tel: string | null | undefined): string | null {
   if (!tel) return null
   const digits = tel.replace(/\D/g, '')
@@ -235,6 +245,22 @@ function normalizarData(data: string | null | undefined): string | null {
     return `${anoNasc}-01-01`
   }
 
+  return null
+}
+
+// Detecta uma data isolada ou "N anos" quando a mensagem inteira é só isso (ou isso +
+// um rótulo trivial) — fallback determinístico para quando o parser LLM falha em
+// reconhecer uma data solta sem contexto como data_nascimento (ex.: resposta a uma
+// pendência que só pede a data, sem nenhum outro dado na mensagem).
+export function extrairDataNascimentoDeterministica(texto: string): string | null {
+  const candidato = texto.trim()
+    .replace(/\b(nascimento|nasc\.?|data de nascimento|dn|aniversário)\b[:\s]*/gi, '')
+    .trim()
+  const dataPattern = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/
+  const anosPattern = /^\d{1,3}\s*anos?$/i
+  if (dataPattern.test(candidato) || anosPattern.test(candidato)) {
+    return normalizarData(candidato)
+  }
   return null
 }
 

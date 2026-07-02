@@ -847,6 +847,7 @@ export async function processarComandoFonti(
   else if (/^\*atualizar?\b/i.test(_texto))                        _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
   else if (/^\*processo\b/i.test(_texto))                          _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
   else if (/^\*simula(?:r|[cç][aã]o)?\b/i.test(_texto))           _texto = _texto.replace(/^\*simula(?:r|[cç][aã]o)?\b/i, '*fonti simula')
+  else if (/^\*cancelar?\b/i.test(_texto))                        _texto = _texto.replace(/^\*cancelar?\b/i, '*fonti cancelar')
 
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
   const corpo = _texto.replace(/^\*fonti\s*/i, '').trim()
@@ -1092,6 +1093,16 @@ export async function processarComandoFonti(
     if (docsAtualizaCount > 0) linhas.push(`${docsAtualizaCount} doc(s) vinculado(s)`)
     if (dados.telefone) linhas.push(`Tel ${dados.telefone}`)
     return linhas.join('\n')
+  }
+
+  // ── *fonti cancelar / *cancelar ────────────────────────────────────────────
+  // Cancela qualquer sessão de simulação pendente (mesma limpeza do *simula novo),
+  // mas com mensagem de cancelamento explícita — nunca deve cair no fluxo de
+  // atendimento a cliente pedindo nome.
+  if (corpoBaixo === 'cancelar' || corpoBaixo.startsWith('cancelar ')) {
+    const { limparSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+    await limparSimulaPendente(supabase, empresa_id, ctx.telefone_remetente)
+    return 'Simulação cancelada. Quando quiser iniciar novamente, envie *simula.'
   }
 
   // ── *fonti simula / *simula / *simular / *simulação ──────────────────────
@@ -1484,8 +1495,13 @@ export async function processarRespostaPendente(
   // ── Reprocessamento completo ─────────────────────────────────────────────────
   // O parser analisa todo o texto acumulado — nunca limitado pelo motivo da pendência.
   const textoParaParsear = pendenteRelido.texto_acumulado ?? texto
-  const { normalizarPedidoSimulacao } = await import('@/lib/workflows/normalizador-captacao')
+  const { normalizarPedidoSimulacao, extrairDataNascimentoDeterministica } = await import('@/lib/workflows/normalizador-captacao')
+  const dataDeterministica = extrairDataNascimentoDeterministica(textoParaParsear)
   const novosParsed = await normalizarPedidoSimulacao(textoParaParsear)
+  if (dataDeterministica && !novosParsed.data_nascimento) {
+    console.warn('[fonti] LLM não capturou data isolada; usando fallback determinístico:', dataDeterministica)
+    novosParsed.data_nascimento = dataDeterministica
+  }
   const novosDados = mergeCapturados(dadosCapturados, novosParsed)
 
   // ── Resolver tipo de construção ───────────────────────────────────────────────
@@ -1632,7 +1648,16 @@ export async function processarRespostaPendente(
   // O gatilho é a disponibilidade dos dados (mesmo critério do Motor de Simulação),
   // não uma confirmação adicional do operador nem o comando que originou a pendência.
   const { validarParaSimulacao } = await import('@/lib/workflows/motor-simulacao')
-  if (validarParaSimulacao(novosDados).valido) {
+  const validacaoFinal = validarParaSimulacao(novosDados)
+
+  // Bloqueio de idade é definitivo — encerra a pendência em vez de continuar pedindo dados.
+  if (validacaoFinal.bloqueioIdade) {
+    await limparSimulaPendente(supabase, empresa_id, telefoneOp)
+    const idadeTxt = validacaoFinal.bloqueioIdade.idadeCalculada != null ? ` (idade calculada: ${validacaoFinal.bloqueioIdade.idadeCalculada} anos)` : ''
+    return `❌ Data de nascimento/idade incompatível para simulação${idadeTxt}. Verifique a informação enviada.`
+  }
+
+  if (validacaoFinal.valido) {
     await limparSimulaPendente(supabase, empresa_id, telefoneOp)
     return await _resimular(novosDados, pendente, ctx, usuario)
   }

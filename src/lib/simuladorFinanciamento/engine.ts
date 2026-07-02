@@ -151,7 +151,7 @@ export function calcularIdadeEmAnos(dataNasc: string): number {
   return anos
 }
 
-function calcularIdadeEmMeses(dataNasc: string): number {
+export function calcularIdadeEmMeses(dataNasc: string): number {
   const nasc = new Date(dataNasc)
   const hoje = new Date()
   return (
@@ -160,13 +160,16 @@ function calcularIdadeEmMeses(dataNasc: string): number {
   )
 }
 
-// Prazo máximo: min(prazo do banco, limite de idade = 963 meses de vida - idade atual em meses)
+// Regra oficial: idade + prazo de financiamento não pode ultrapassar 80 anos e 6 meses.
+export const LIMITE_IDADE_PRAZO_MESES = 966 // 80 anos e 6 meses
+
+// Prazo máximo: min(prazo do banco, limite de idade = LIMITE_IDADE_PRAZO_MESES - idade atual em meses)
 export function calcularPrazoMaximo(
   dataNasc: string,
   prazoMaxBanco: number
 ): number {
   const idadeMeses = calcularIdadeEmMeses(dataNasc)
-  const limiteIdade = 963 - idadeMeses // 80 anos e 6 meses = 966 meses de vida
+  const limiteIdade = LIMITE_IDADE_PRAZO_MESES - idadeMeses
   return Math.max(12, Math.min(limiteIdade, prazoMaxBanco))
 }
 

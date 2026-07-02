@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
     const textoNormFM = textoFromMe.slice(0, 20).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(20)
 
-    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?)\b/i.test(textoNormFM)) {
+    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|cancelar?)\b/i.test(textoNormFM)) {
       const fmToken = payload.token || process.env.UAZAPI_INSTANCE_TOKEN || ''
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
@@ -541,14 +541,44 @@ export async function POST(request: NextRequest) {
         if (resposta !== null) {
           await enviarMensagemUazapi(telefone, resposta)
         }
+      } else {
+        // Sem pendência ativa — antes de descartar, verifica se a mensagem tem "cara"
+        // de dados de simulação (nome + intenção clara), mesma regra do *cria cliente.
+        // Pré-filtro barato evita gastar uma chamada LLM em mensagens triviais.
+        const textoNatural = texto.trim()
+        if (textoNatural.length > 15 && /\d/.test(textoNatural)) {
+          const { normalizarPedidoSimulacao } = await import('@/lib/workflows/normalizador-captacao')
+          const { deveDispararSimulacao } = await import('@/lib/workflows/motor-simulacao')
+          const dadosCandidatos = await normalizarPedidoSimulacao(textoNatural)
+          const decisao = deveDispararSimulacao(dadosCandidatos)
+
+          if (dadosCandidatos.nome && decisao.deveSimular) {
+            const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
+            const resposta = await executarWorkflowCaptacao('', {
+              empresa_id,
+              usuario_id: usuarioInterno.id,
+              usuario_nome: usuarioInterno.nome,
+              supabase,
+              telefone_remetente: telefone,
+              telefone_operador: telefone,
+              instancia_token: instanciaToken,
+              telefone_destino: telefone,
+              arquivos: fileUrl
+                ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
+                : [],
+              forcar_simulacao: true,
+              dados_pre_normalizados: dadosCandidatos,
+            })
+            await enviarMensagemUazapi(telefone, resposta)
+          }
+          // Sem nome+intenção: mensagem informal — ignorar silenciosamente, como hoje.
+        }
       }
-      // Sem pendente: mensagem informal de operador — ignorar silenciosamente.
-      // Operadores usam *simula, *fonti, etc. para interagir com o sistema.
       return NextResponse.json({ ok: true })
     }
   }
 
-  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?)\b/i.test(textoParaFonti)) {
+  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|cancelar?)\b/i.test(textoParaFonti)) {
     const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
       telefone_remetente: telefone,

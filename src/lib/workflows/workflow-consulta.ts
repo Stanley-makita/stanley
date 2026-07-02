@@ -143,7 +143,19 @@ export async function executarWorkflowConsulta(
   }
 
   // ── Etapa 3: Validação (Motor de Simulação) ──────────────────────────────
+  // Sem checagem de intenção aqui: chegar neste workflow já é *simula explícito
+  // (roteado só pelo comando), então a intenção está implícita por natureza do comando.
   const validacao = validarParaSimulacao(dados)
+
+  // Bloqueio de idade é definitivo — nunca abre pendência, nunca chega no motor/PDF.
+  if (validacao.bloqueioIdade) {
+    if (ctx.telefone_operador) {
+      const { limparSimulaPendente } = await import('./simula-pendente')
+      await limparSimulaPendente(supabase, empresa_id, ctx.telefone_operador)
+    }
+    const idadeTxt = validacao.bloqueioIdade.idadeCalculada != null ? ` (idade calculada: ${validacao.bloqueioIdade.idadeCalculada} anos)` : ''
+    return `❌ Data de nascimento/idade incompatível para simulação${idadeTxt}. Verifique a informação enviada.`
+  }
 
   if (!validacao.valido) {
     const lista = validacao.camposFaltantes.map((c) => `• ${c}`).join('\n')
