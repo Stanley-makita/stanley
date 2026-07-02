@@ -24,6 +24,9 @@ export function useItbiConfig() {
         temDesconto: r.tem_desconto,
         aliquotaDesconto: r.aliquota_desconto ? Number(r.aliquota_desconto) : undefined,
         limiteDesconto: r.limite_desconto ? Number(r.limite_desconto) : undefined,
+        formulaComDesconto: (r.formula_com_desconto as 'percentual' | 'composta' | null) ?? 'percentual',
+        aliquotaDescontoFinanciado: r.aliquota_desconto_financiado ? Number(r.aliquota_desconto_financiado) : undefined,
+        excecaoPrimeiraAquisicao: r.excecao_primeira_aquisicao ?? false,
       }))
     },
   })
@@ -181,6 +184,9 @@ export function useSalvarItbi() {
         tem_desconto: payload.temDesconto,
         aliquota_desconto: payload.aliquotaDesconto ?? null,
         limite_desconto: payload.limiteDesconto ?? null,
+        formula_com_desconto: payload.formulaComDesconto ?? 'percentual',
+        aliquota_desconto_financiado: payload.aliquotaDescontoFinanciado ?? null,
+        excecao_primeira_aquisicao: payload.excecaoPrimeiraAquisicao ?? false,
         updated_at: new Date().toISOString(),
       }
       if (payload.id) {

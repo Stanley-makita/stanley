@@ -322,7 +322,7 @@ function SecaoItbi() {
   const salvar = useSalvarItbi()
   const [novoAberto, setNovoAberto] = useState(false)
   const [formNovo, setFormNovo] = useState<SimuladorItbiConfig>({
-    municipio: '', aliquota: 0.03, temDesconto: false,
+    municipio: '', aliquota: 0.03, temDesconto: false, formulaComDesconto: 'percentual', excecaoPrimeiraAquisicao: false,
   })
 
   async function salvarItbi(payload: SimuladorItbiConfig) {
@@ -343,6 +343,7 @@ function SecaoItbi() {
       {novoAberto && (
         <ItbiForm
           form={formNovo}
+          itbis={itbis}
           onSalvar={salvarItbi}
           onCancelar={() => setNovoAberto(false)}
           pending={salvar.isPending}
@@ -353,25 +354,33 @@ function SecaoItbi() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              {['Município', 'Alíquota', 'Tem Desconto?', 'Alíquota Desconto', 'Limite'].map((h) => (
+              {['Município', 'Alíquota', 'Tem Desconto?', 'Fórmula', 'Alíquota Desconto', 'Limite', '1ª Aquisição'].map((h) => (
                 <th key={h} className="text-left text-xs text-gray-500 font-medium px-4 py-2.5">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {itbis.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhum município configurado.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-xs">Nenhum município configurado.</td></tr>
             ) : itbis.map((it, i) => (
               <tr key={it.municipio} className={`border-b border-gray-50 last:border-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                 <td className="px-4 py-2.5 font-medium text-fonti-primary">{it.municipio}</td>
                 <td className="px-4 py-2.5">{(it.aliquota * 100).toFixed(2)}%</td>
                 <td className="px-4 py-2.5">{it.temDesconto ? 'Sim' : 'Não'}</td>
-                <td className="px-4 py-2.5">{it.aliquotaDesconto ? `${(it.aliquotaDesconto * 100).toFixed(2)}%` : '—'}</td>
+                <td className="px-4 py-2.5">
+                  {!it.temDesconto ? '—' : it.formulaComDesconto === 'composta'
+                    ? `Composta (${it.aliquotaDescontoFinanciado ? (it.aliquotaDescontoFinanciado * 100).toFixed(2) : '0'}% fin. + ${it.aliquotaDesconto ? (it.aliquotaDesconto * 100).toFixed(2) : '0'}% C&V)`
+                    : 'Percentual'}
+                </td>
+                <td className="px-4 py-2.5">
+                  {it.formulaComDesconto !== 'composta' && it.aliquotaDesconto ? `${(it.aliquotaDesconto * 100).toFixed(2)}%` : '—'}
+                </td>
                 <td className="px-4 py-2.5">
                   {it.limiteDesconto
                     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(it.limiteDesconto)
                     : '—'}
                 </td>
+                <td className="px-4 py-2.5">{it.excecaoPrimeiraAquisicao ? 'Perde desconto acima do limite' : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -381,8 +390,9 @@ function SecaoItbi() {
   )
 }
 
-function ItbiForm({ form: initial, onSalvar, onCancelar, pending }: {
+function ItbiForm({ form: initial, itbis, onSalvar, onCancelar, pending }: {
   form: SimuladorItbiConfig
+  itbis: SimuladorItbiConfig[]
   onSalvar: (v: SimuladorItbiConfig) => void
   onCancelar: () => void
   pending: boolean
@@ -390,8 +400,38 @@ function ItbiForm({ form: initial, onSalvar, onCancelar, pending }: {
   const [form, setForm] = useState({ ...initial })
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }))
 
+  function usarConfigDe(municipioOrigem: string) {
+    const origem = itbis.find((it) => it.municipio === municipioOrigem)
+    if (!origem) return
+    setForm((f) => ({
+      ...f,
+      aliquota: origem.aliquota,
+      temDesconto: origem.temDesconto,
+      aliquotaDesconto: origem.aliquotaDesconto,
+      limiteDesconto: origem.limiteDesconto,
+      formulaComDesconto: origem.formulaComDesconto ?? 'percentual',
+      aliquotaDescontoFinanciado: origem.aliquotaDescontoFinanciado,
+      excecaoPrimeiraAquisicao: origem.excecaoPrimeiraAquisicao ?? false,
+    }))
+  }
+
   return (
     <div className="space-y-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/50 rounded-lg">
+      {itbis.length > 0 && (
+        <div>
+          <Label className="text-xs text-gray-500">Usar mesmas configurações de</Label>
+          <select
+            className="mt-1 w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-fonti-primary"
+            defaultValue=""
+            onChange={(e) => { if (e.target.value) usarConfigDe(e.target.value) }}
+          >
+            <option value="">Selecione uma cidade já cadastrada...</option>
+            {itbis.map((it) => (
+              <option key={it.municipio} value={it.municipio}>{it.municipio}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <Label className="text-xs text-gray-500">Município</Label>
@@ -408,11 +448,36 @@ function ItbiForm({ form: initial, onSalvar, onCancelar, pending }: {
         {form.temDesconto && (
           <>
             <div>
-              <Label className="text-xs text-gray-500">Alíquota c/ desconto</Label>
+              <Label className="text-xs text-gray-500">Fórmula do desconto</Label>
+              <select
+                className="mt-1 w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-fonti-primary"
+                value={form.formulaComDesconto ?? 'percentual'}
+                onChange={(e) => set('formulaComDesconto', e.target.value)}
+              >
+                <option value="percentual">Percentual único sobre o valor</option>
+                <option value="composta">Composta (% financiado + % C&amp;V)</option>
+              </select>
+            </div>
+            {form.formulaComDesconto === 'composta' && (
+              <div>
+                <Label className="text-xs text-gray-500">Alíquota sobre valor financiado</Label>
+                <Input className="mt-1 h-8 text-sm" type="number" step="0.001" value={form.aliquotaDescontoFinanciado ?? ''} onChange={(e) => set('aliquotaDescontoFinanciado', Number(e.target.value))} />
+              </div>
+            )}
+            <div>
+              <Label className="text-xs text-gray-500">
+                {form.formulaComDesconto === 'composta' ? 'Alíquota sobre C&V/Terreno' : 'Alíquota c/ desconto'}
+              </Label>
               <Input className="mt-1 h-8 text-sm" type="number" step="0.001" value={form.aliquotaDesconto ?? ''} onChange={(e) => set('aliquotaDesconto', Number(e.target.value))} />
             </div>
+            <div className="flex items-center gap-2 mt-5">
+              <Switch checked={form.excecaoPrimeiraAquisicao ?? false} onCheckedChange={(v) => set('excecaoPrimeiraAquisicao', v)} />
+              <Label className="text-xs text-gray-500">Perde desconto na 1ª aquisição acima do limite?</Label>
+            </div>
             <div>
-              <Label className="text-xs text-gray-500">Limite (R$)</Label>
+              <Label className="text-xs text-gray-500">
+                {form.excecaoPrimeiraAquisicao ? 'Limite (R$) — acima disso perde o desconto' : 'Limite (R$) — desconto válido até esse valor'}
+              </Label>
               <Input className="mt-1 h-8 text-sm" type="number" value={form.limiteDesconto ?? ''} onChange={(e) => set('limiteDesconto', Number(e.target.value))} />
             </div>
           </>

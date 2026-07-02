@@ -24,34 +24,72 @@ function isCaixa(banco: string): boolean {
 
 // ── ITBI ─────────────────────────────────────────────────────────────────────
 
+// Curitiba, Grupo Maringá (Maringá/Marialva/Paiçandu/Mandaguaçu) e Sarandi têm regras
+// próprias historicamente hardcoded aqui. Agora, se a cidade estiver cadastrada em
+// Configurações > Simulador > ITBI por Município, a configuração tem prioridade —
+// essas regras hardcoded só entram como fallback para cidade não cadastrada (garante
+// zero regressão para quem ainda não configurou nada).
+
 function calcItbiSemDesconto(e: EntradaSimulador, cfg?: SimuladorItbiConfig): number {
   const cidade = normCity(e.cidade)
   const isTC = e.modalidade === 'terreno_construcao'
+  const base = isTC ? e.valorTerreno : e.valorCV
+
+  if (cfg) {
+    return arredondar(base * cfg.aliquota)
+  }
 
   if (cidade === 'curitiba') {
     return arredondar(e.valorCV * 0.027)
   }
 
-  const aliquota = cfg?.aliquota ?? 0.02
-  const base = isTC ? e.valorTerreno : e.valorCV
-  return arredondar(base * aliquota)
+  return arredondar(base * 0.02)
 }
 
-function calcItbiComDesconto(e: EntradaSimulador): number {
+function calcItbiComDesconto(e: EntradaSimulador, cfg?: SimuladorItbiConfig): number {
   const cidade = normCity(e.cidade)
   const isTC = e.modalidade === 'terreno_construcao'
+  const base = isTC ? e.valorTerreno : e.valorCV
+  const baseFinanciado = isTC ? e.valorTerreno : e.valorFinanciado
 
+  if (cfg) {
+    // Exceção: perde o desconto (usa alíquota cheia) se for primeira aquisição com
+    // C&V maior ou igual ao limite configurado — regra hoje hardcoded, só de Maringá.
+    if (
+      cfg.excecaoPrimeiraAquisicao &&
+      e.primeiraAquisicao === 'sim' &&
+      cfg.limiteDesconto != null &&
+      e.valorCV >= cfg.limiteDesconto &&
+      !isTC
+    ) {
+      return arredondar(base * cfg.aliquota)
+    }
+
+    // Fórmula composta: % sobre o valor financiado (ou terreno) + % sobre o C&V (ou
+    // terreno) — equivalente à regra hoje hardcoded de Maringá/Sarandi.
+    if (cfg.formulaComDesconto === 'composta' && cfg.aliquotaDescontoFinanciado != null && cfg.aliquotaDesconto != null) {
+      return arredondar(baseFinanciado * cfg.aliquotaDescontoFinanciado + base * cfg.aliquotaDesconto)
+    }
+
+    // Fórmula percentual simples: um único percentual sobre a base, com desconto
+    // válido até o limite configurado (sem limite = sem teto).
+    const dentroDoLimite = cfg.temDesconto
+      && cfg.aliquotaDesconto != null
+      && (cfg.limiteDesconto == null || e.valorCV <= cfg.limiteDesconto)
+    const aliquota = dentroDoLimite ? cfg.aliquotaDesconto! : cfg.aliquota
+    return arredondar(base * aliquota)
+  }
+
+  // Cidade sem configuração cadastrada: mantém as regras históricas hardcoded.
   if (cidade === 'curitiba') {
     return arredondar(e.valorCV * 0.027)
   }
 
-  // Grupo Maringá (inclui Marialva, Paiçandu, Mandaguaçu)
   const grupoMaringa = ['maringa', 'marialva', 'paicandu', 'mandaguacu']
   const isMaringaGrupo = grupoMaringa.includes(cidade)
   const isMaringaEspecifica = cidade === 'maringa'
 
   if (isMaringaGrupo) {
-    // Exceção exclusiva de Maringá
     if (
       isMaringaEspecifica &&
       e.primeiraAquisicao === 'sim' &&
@@ -173,7 +211,7 @@ export function calcularCustas(
   const tarifa = custasConfig?.valor ?? 0
 
   const itbiSem = calcItbiSemDesconto(entrada, itbiConfig)
-  const itbiCom = calcItbiComDesconto(entrada)
+  const itbiCom = calcItbiComDesconto(entrada, itbiConfig)
   const funrejus = calcFunRejus(entrada)
   const recipr = calcReciprocidade(entrada, tarifa)
   const registroSem = 2100

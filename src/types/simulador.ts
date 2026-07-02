@@ -63,6 +63,14 @@ export interface SimuladorItbiConfig {
   temDesconto: boolean
   aliquotaDesconto?: number
   limiteDesconto?: number
+  // 'percentual': aliquotaDesconto aplicada direto sobre o valor (C&V ou terreno).
+  // 'composta': aliquotaDescontoFinanciado sobre o valor financiado/terreno + aliquotaDesconto sobre o C&V/terreno
+  // (equivalente à regra hoje hardcoded de Maringá/Sarandi: % sobre financiado + % sobre C&V).
+  formulaComDesconto?: 'percentual' | 'composta'
+  aliquotaDescontoFinanciado?: number
+  // Quando true: se for primeira aquisição E o C&V for maior ou igual ao limiteDesconto,
+  // perde o desconto e usa a alíquota cheia (regra hoje hardcoded, exclusiva de Maringá).
+  excecaoPrimeiraAquisicao?: boolean
 }
 
 export interface SimuladorCustasConfig {
