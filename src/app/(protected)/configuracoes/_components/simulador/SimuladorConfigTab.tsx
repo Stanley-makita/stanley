@@ -153,10 +153,15 @@ function SecaoTarifas() {
   ])).sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
   async function handleSalvar(payload: SimuladorCustasConfig) {
-    await salvar.mutateAsync(payload)
-    toast.success('Tarifa salva')
-    setNovoAberto(false)
-    setEditandoId(null)
+    try {
+      await salvar.mutateAsync(payload)
+      toast.success('Tarifa salva')
+      setNovoAberto(false)
+      setEditandoId(null)
+    } catch {
+      // Erro já exibido via onError de useSalvarTarifaBanco — mantém o formulário
+      // aberto para o usuário corrigir, em vez de fechar como se tivesse salvado.
+    }
   }
 
   return (

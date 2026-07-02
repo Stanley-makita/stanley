@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import type { SimuladorItbiConfig, SimuladorCustasConfig, SimuladorConfigGeral } from '@/types/simulador'
@@ -109,6 +110,7 @@ export function useSalvarConfigGeral() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['simulador-config-geral'] }),
+    onError: (e: Error) => toast.error(e.message ?? 'Erro ao salvar configuração'),
   })
 }
 
@@ -135,13 +137,17 @@ export function useSalvarTarifaBanco() {
         const { error } = await supabase.from('simulador_custas_config').update(row).eq('id', payload.id)
         if (error) throw error
       } else {
+        // ativo: true reativa uma tarifa previamente excluída (soft-delete) do mesmo
+        // banco+tipo — sem isso, o upsert "sucede" mas a linha some da lista (que
+        // filtra ativo=true), indistinguível de "nada aconteceu" ao salvar.
         const { error } = await supabase
           .from('simulador_custas_config')
-          .upsert(row, { onConflict: 'empresa_id,banco_nome,tipo' })
+          .upsert({ ...row, ativo: true }, { onConflict: 'empresa_id,banco_nome,tipo' })
         if (error) throw error
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['simulador-custas-config'] }),
+    onError: (e: Error) => toast.error(e.message ?? 'Erro ao salvar tarifa'),
   })
 }
 
@@ -157,6 +163,7 @@ export function useExcluirTarifaBanco() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['simulador-custas-config'] }),
+    onError: (e: Error) => toast.error(e.message ?? 'Erro ao excluir tarifa'),
   })
 }
 
@@ -185,5 +192,6 @@ export function useSalvarItbi() {
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['simulador-itbi-config'] }),
+    onError: (e: Error) => toast.error(e.message ?? 'Erro ao salvar alíquota'),
   })
 }
