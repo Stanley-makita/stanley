@@ -6,6 +6,16 @@ const COR_VERDE  = '#253B29'
 const COR_DOURADO = '#C2AA6A'
 const COR_BEGE   = '#E7E0C4'
 
+function arredondar(v: number): number {
+  return Math.round(v * 100) / 100
+}
+
+// No PDF (independente de onde a simulação foi solicitada), a Reciprocidade
+// (Caixa) sai zerada — é negociada com o gerente, não um valor fechado. Na
+// tela do CRM continua mostrando o valor calculado normalmente (uso interno).
+const RECIPROCIDADE_DESC_PDF =
+  'Valor estimado de 1,5 a 2% do valor do financiamento. É negociado entre você cliente e com o gerente da Caixa Econômica Federal na data da entrevista ou da assinatura. Podendo haver a oferta de produtos e estreitamento do relacionamento.'
+
 interface ImageInfo { dataUrl: string; naturalW: number; naturalH: number }
 
 async function loadImage(url: string): Promise<ImageInfo | null> {
@@ -70,6 +80,19 @@ export async function gerarPDFSimulacao(
 
   const e = resultado.entrada
   const isCaixa = e.banco.toLowerCase().includes('caixa')
+
+  // Linhas/totais específicos do PDF: reciprocidade zerada, totais recalculados
+  // sem ela — a tela do CRM (resultado original) não é afetada por isso.
+  const linhasPdf = resultado.linhas.map((linha) =>
+    linha.id === 'reciprocidade'
+      ? { ...linha, semDesconto: 0, comDesconto: 0, descricaoPDF: RECIPROCIDADE_DESC_PDF }
+      : linha,
+  )
+  const visiveisPdf = linhasPdf.filter((l) => l.visivel)
+  const totalSemPdf = arredondar(visiveisPdf.reduce((s, l) => s + l.semDesconto, 0))
+  const totalComPdf = arredondar(visiveisPdf.reduce((s, l) => s + l.comDesconto, 0))
+  const pctSemPdf = e.valorCV > 0 ? arredondar((totalSemPdf / e.valorCV) * 100 * 10) / 10 : 0
+  const pctComPdf = e.valorCV > 0 ? arredondar((totalComPdf / e.valorCV) * 100 * 10) / 10 : 0
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
   const mL = 12
@@ -285,7 +308,7 @@ export async function gerarPDFSimulacao(
   y += thH
 
   // Linhas
-  const linhasVisiveis = resultado.linhas.filter((l) => l.visivel)
+  const linhasVisiveis = visiveisPdf
   const descFontSize = 6.5
 
   linhasVisiveis.forEach((linha, idx) => {
@@ -371,8 +394,8 @@ export async function gerarPDFSimulacao(
   setTextColor(doc, COR_VERDE)
   doc.text('ESTIMATIVA TOTAL', mL + 2, y + 8)
 
-  doc.text(BRL.format(resultado.totalSemDesconto), mL + colItem + colSem / 2, y + 8, { align: 'center' })
-  doc.text(BRL.format(resultado.totalComDesconto), mL + colItem + colSem + colCom / 2, y + 8, { align: 'center' })
+  doc.text(BRL.format(totalSemPdf), mL + colItem + colSem / 2, y + 8, { align: 'center' })
+  doc.text(BRL.format(totalComPdf), mL + colItem + colSem + colCom / 2, y + 8, { align: 'center' })
 
   doc.setFontSize(6)
   doc.setFont('helvetica', 'italic')
@@ -392,13 +415,13 @@ export async function gerarPDFSimulacao(
   doc.setFont('helvetica', 'bold')
   setTextColor(doc, COR_VERDE)
   doc.text(
-    `${resultado.percentualSemDesconto.toFixed(1)}%`,
+    `${pctSemPdf.toFixed(1)}%`,
     mL + colItem + colSem / 2,
     y + 5,
     { align: 'center' },
   )
   doc.text(
-    `${resultado.percentualComDesconto.toFixed(1)}%`,
+    `${pctComPdf.toFixed(1)}%`,
     mL + colItem + colSem + colCom / 2,
     y + 5,
     { align: 'center' },

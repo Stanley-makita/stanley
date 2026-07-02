@@ -24,6 +24,11 @@ function normalizarTelefone(tel: string): string {
   return `55${digits}`
 }
 
+// No PDF (independente de onde a simulação foi compartilhada), a Reciprocidade
+// (Caixa) sai zerada — é negociada com o gerente, não um valor fechado.
+const RECIPROCIDADE_DESC_PDF =
+  'Valor estimado de 1,5 a 2% do valor do financiamento. É negociado entre você cliente e com o gerente da Caixa Econômica Federal na data da entrevista ou da assinatura. Podendo haver a oferta de produtos e estreitamento do relacionamento.'
+
 async function gerarCustasBuffer(json: Record<string, unknown>): Promise<Buffer> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -52,7 +57,11 @@ async function gerarCustasBuffer(json: Record<string, unknown>): Promise<Buffer>
     y += 10
   }
 
-  const linhas = json.linhas as Array<{ label: string; comDesconto: number; visivel: boolean }> | undefined
+  const linhasOriginais = json.linhas as Array<{ label: string; semDesconto: number; comDesconto: number; visivel: boolean }> | undefined
+  const reciprocidadeOriginal = linhasOriginais?.find(l => l.label === 'Reciprocidade' && l.visivel)
+  const linhas = linhasOriginais?.map(l =>
+    l.label === 'Reciprocidade' ? { ...l, semDesconto: 0, comDesconto: 0 } : l,
+  )
   const visiveis = linhas?.filter(l => l.visivel) ?? []
 
   if (visiveis.length > 0) {
@@ -69,17 +78,32 @@ async function gerarCustasBuffer(json: Record<string, unknown>): Promise<Buffer>
     doc.setTextColor(40, 40, 40)
     for (const l of visiveis) {
       doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(40, 40, 40)
       doc.text(l.label, mL + 2, y + 4)
       doc.text(BRL(l.comDesconto), W - mR - 2, y + 4, { align: 'right' })
       doc.setDrawColor(220, 220, 220)
       doc.line(mL, y + 7, W - mR, y + 7)
       y += 8
+
+      if (l.label === 'Reciprocidade') {
+        doc.setFontSize(6.5)
+        doc.setFont('helvetica', 'italic')
+        doc.setTextColor(100, 100, 100)
+        const wrapped = doc.splitTextToSize(RECIPROCIDADE_DESC_PDF, usableW - 4)
+        doc.text(wrapped, mL + 2, y + 3, { lineHeightFactor: 1.3 })
+        y += wrapped.length * 2.8 + 3
+      }
     }
     y += 4
   }
 
-  const totalCom = typeof json.totalComDesconto === 'number' ? json.totalComDesconto : null
-  const totalSem = typeof json.totalSemDesconto === 'number' ? json.totalSemDesconto : null
+  const totalComOriginal = typeof json.totalComDesconto === 'number' ? json.totalComDesconto : null
+  const totalSemOriginal = typeof json.totalSemDesconto === 'number' ? json.totalSemDesconto : null
+  const reciprocidadeSem = reciprocidadeOriginal?.semDesconto ?? 0
+  const reciprocidadeCom = reciprocidadeOriginal?.comDesconto ?? 0
+  const totalSem = totalSemOriginal !== null ? Math.round((totalSemOriginal - reciprocidadeSem) * 100) / 100 : null
+  const totalCom = totalComOriginal !== null ? Math.round((totalComOriginal - reciprocidadeCom) * 100) / 100 : null
 
   if (totalCom !== null || totalSem !== null) {
     doc.setFillColor(231, 224, 196)
