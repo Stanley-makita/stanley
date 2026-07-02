@@ -32,8 +32,10 @@ import { BlocoImovel } from '@/components/imoveis/BlocoImovel'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
-import { AbaFases } from '@/components/processos/abas/AbaFases'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
+import { PipelineBarProcesso } from '@/components/processos/PipelineBarProcesso'
+import { useFases } from '@/hooks/configuracoes/useFases'
+import { MODULO_POR_MODALIDADE } from '@/lib/processos/fasesConfig'
 import { AbaContrato } from '@/components/processos/abas/AbaContrato'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
@@ -120,6 +122,8 @@ export default function ProcessoDetalhePage() {
     validade_matricula:  (processo as any)?.validade_matricula,
   })
   const { data: fasesHistorico = [] } = useProcessoFasesHistorico(id)
+  const modulo = processo ? (MODULO_POR_MODALIDADE[processo.modalidade] ?? 'processos') : 'processos'
+  const { data: fases = [] } = useFases(modulo)
 
   if (carregando || isLoading) {
     return (
@@ -163,21 +167,7 @@ export default function ProcessoDetalhePage() {
                 ?? processo.compradores?.[0]?.nome
                 ?? processo.nome_imovel}
             </h1>
-            {processo.fase_atual ? (
-              <Badge
-                variant="outline"
-                className="text-xs font-medium"
-                style={processo.fase_atual.cor ? {
-                  backgroundColor: processo.fase_atual.cor + '20',
-                  borderColor: processo.fase_atual.cor + '60',
-                  color: processo.fase_atual.cor,
-                } : undefined}
-              >
-                {processo.fase_atual.nome}
-              </Badge>
-            ) : (
-              <ProcessoStatusBadge status={processo.status_processo} />
-            )}
+            {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
               <Badge className="text-xs bg-fonti-accent-hover text-fonti-primary border-fonti-accent">
@@ -186,6 +176,17 @@ export default function ProcessoDetalhePage() {
             )}
             <EmailConfirmacaoBadge processoId={id} />
           </div>
+          {/* Barra de fases (igual ao Lead) — avança sequencial, respeitando checklist/dados financeiros */}
+          {fases.length > 0 && (
+            <div className="mb-1.5">
+              <PipelineBarProcesso
+                processo={processo}
+                fases={fases}
+                itensObrigatoriosPendentes={itensObrigatoriosPendentes}
+                dadosFinanceirosPendentes={dadosFinanceirosPendentes}
+              />
+            </div>
+          )}
           {/* Row 2: botões de ação */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
               {/* Toggle Certeza / Incerteza */}
@@ -377,7 +378,7 @@ export default function ProcessoDetalhePage() {
           <TabsList className="inline-flex h-9 min-w-max bg-gray-100">
             {([
               ['resumo','Resumo'],['compradores','Compradores'],['vendedores','Vendedores'],
-              ['fases','Fases'],['documentos','Documentos'],['financeiro','Financeiro'],
+              ['documentos','Documentos'],['financeiro','Financeiro'],
               ...(MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])
                 ? [['custas','Custas']] as [string,string][]
                 : []),
@@ -410,9 +411,6 @@ export default function ProcessoDetalhePage() {
             </TabsContent>
             <TabsContent value="vendedores" className="m-0">
               <AbaVendedores processoId={id} />
-            </TabsContent>
-            <TabsContent value="fases" className="m-0">
-              <AbaFases processoId={id} processo={processo} itensObrigatoriosPendentes={itensObrigatoriosPendentes} dadosFinanceirosPendentes={dadosFinanceirosPendentes} />
             </TabsContent>
             <TabsContent value="documentos" className="m-0">
               <AbaDocumentos contexto="processo" processoId={id} />
