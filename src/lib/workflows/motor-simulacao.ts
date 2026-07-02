@@ -39,12 +39,17 @@ export interface ResultadoValidacaoSimulacao {
 // (workflow-consulta/workflow-captacao) e também com dados parcialmente mesclados ao longo
 // de uma conversa (fluxo de pendência do *simula / *cria cliente).
 export function validarParaSimulacao(
-  dados: Partial<Pick<DadosCaptacaoNormalizados, 'data_nascimento' | 'valor_imovel' | 'modo_calculo'>>,
+  dados: Partial<Pick<DadosCaptacaoNormalizados, 'data_nascimento' | 'valor_imovel' | 'modo_calculo' | 'prazo_maximo'>>,
 ): ResultadoValidacaoSimulacao {
   const camposFaltantes: string[] = []
 
   if (!dados.data_nascimento) {
-    camposFaltantes.push('Data de nascimento')
+    // "Prazo máximo" sem nascimento não bloqueia: o Motor assume uma idade compatível
+    // com o maior prazo entre os bancos resolvidos (ver executarSimulacao) e avisa na
+    // resposta. Sem "prazo máximo", nascimento continua obrigatório como antes.
+    if (!dados.prazo_maximo) {
+      camposFaltantes.push('Data de nascimento')
+    }
   } else {
     const nasc = new Date(dados.data_nascimento)
     const hoje = new Date()
@@ -150,12 +155,33 @@ export interface ResultadoSimulacaoUnificado {
 
 // ── Execução ────────────────────────────────────────────────────────────────────
 
+// Data de nascimento sintética (ISO) para uma idade de exatamente `idadeMeses` hoje.
+function dataNascimentoParaIdadeEmMeses(idadeMeses: number): string {
+  const hoje = new Date()
+  const data = new Date(hoje.getFullYear(), hoje.getMonth() - idadeMeses, hoje.getDate())
+  return data.toISOString().slice(0, 10)
+}
+
 export async function executarSimulacao(
   dadosEntrada: DadosCaptacaoNormalizados,
   overridesBanco: Partial<Record<string, BancoSimOverrides>>,
 ): Promise<ResultadoSimulacaoUnificado> {
   const dados = { ...dadosEntrada }
   const bancosIds = resolverBancos(dados)
+
+  // "Prazo máximo" pedido sem data de nascimento: assume a idade mais velha ainda
+  // compatível com o MAIOR prazo máximo entre os bancos resolvidos — isso garante que
+  // cada banco individual receba seu próprio teto real (nenhum é truncado por engano),
+  // já que um banco com prazo menor sempre cabe dentro da folga calculada para o maior.
+  // Nunca deixa data_nascimento ausente chegar no motor (engine.ts trataria como NaN
+  // silenciosamente — ver calcularPrazoMaximo).
+  if (!dados.data_nascimento && dados.prazo_maximo) {
+    const maiorPrazoBanco = Math.max(...bancosIds.map((id) => BANCOS_CONFIG[id].prazoMaximoMeses))
+    const idadeMesesAssumida = LIMITE_IDADE_PRAZO_MESES - maiorPrazoBanco
+    dados.data_nascimento = dataNascimentoParaIdadeEmMeses(idadeMesesAssumida)
+    dados.idade_assumida_prazo_maximo = true
+  }
+
   const rendaMensal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
   const semRenda = rendaMensal === 0
 
@@ -379,6 +405,8 @@ function montarRespostaNormal(
 
   if (dados.usou_idade_aproximada) {
     linhas.push('', `ℹ️ _Usei a idade informada para calcular. Para maior precisão, envie a data de nascimento completa._`)
+  } else if (dados.idade_assumida_prazo_maximo) {
+    linhas.push('', `ℹ️ _Esta simulação foi feita considerando que o cliente tem idade compatível para financiar no prazo máximo. Essa idade assumida também afeta o valor do seguro e da parcela. Caso queira uma simulação em prazo diferente, informe o prazo desejado ou a data de nascimento do cliente._`)
   }
 
   return linhas.join('\n')
@@ -417,6 +445,8 @@ function montarRespostaCapacidadeMaxima(
 
   if (dados.usou_idade_aproximada) {
     linhas.push('', `ℹ️ _Usei a idade informada para calcular. Para maior precisão, envie a data de nascimento completa._`)
+  } else if (dados.idade_assumida_prazo_maximo) {
+    linhas.push('', `ℹ️ _Esta simulação foi feita considerando que o cliente tem idade compatível para financiar no prazo máximo. Essa idade assumida também afeta o valor do seguro e da parcela. Caso queira uma simulação em prazo diferente, informe o prazo desejado ou a data de nascimento do cliente._`)
   }
 
   return linhas.join('\n')

@@ -40,6 +40,10 @@ export interface DadosCaptacaoNormalizados {
   prazos_detectados:     number[] | null // todos os prazos numéricos válidos (120–420)
   produto_normalizado:   'AQUISICAO' | 'CGI_HOME_EQUITY' | 'CONSTRUCAO' | 'CONSORCIO' | 'PORTABILIDADE'
   usou_idade_aproximada: boolean
+  // true quando "prazo máximo" foi pedido sem data de nascimento — o Motor de
+  // Simulação assumiu uma idade compatível com o maior prazo entre os bancos
+  // resolvidos (ver motor-simulacao.ts:executarSimulacao). Nunca vem do parser.
+  idade_assumida_prazo_maximo: boolean
   conflito_valores:      boolean
   conflito_valores_descricao: string | null
   // Campos de modalidade de operação (novos)
@@ -436,6 +440,7 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw, classificacao?: C
     prazos_detectados:        prazosDetectadosFinal,
     produto_normalizado:      produtoNormalizado,
     usou_idade_aproximada:    usouIdadeAproximada,
+    idade_assumida_prazo_maximo: false,
     conflito_valores:         conflito,
     conflito_valores_descricao: conflitoDescricao,
     // Campos de modalidade
