@@ -699,6 +699,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
       <Dialog open={aberto} onOpenChange={fechar}>
         <DialogContent className="flex h-[96svh] w-[calc(100vw-1rem)] max-w-[98vw] flex-col gap-0 overflow-hidden p-0">
           {innerContent}
+          {lead && (
+            <div className="xl:hidden shrink-0 max-h-[40svh] overflow-y-auto border-t border-gray-200 bg-white">
+              <PainelDireitoLead lead={lead} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       {secondaryDialogs}
