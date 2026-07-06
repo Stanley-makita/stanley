@@ -17,12 +17,13 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarPedidoSimulacao, extrairCpfBrutoDoTexto } from './normalizador-captacao'
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import {
-  validarParaSimulacao, deveDispararSimulacao, executarSimulacao, montarRespostaSimulacao, gerarPdfSimulacao,
+  validarParaSimulacao, deveDispararSimulacao, executarSimulacao, executarSimulacaoComparativaPrazos,
+  montarRespostaSimulacao, gerarPdfSimulacao,
 } from './motor-simulacao'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
-import { enviarPDFUazapi as _enviarPDFUazapiShared } from './uazapi-helpers'
+import { enviarPDFUazapi as _enviarPDFUazapiShared, enviarTextoUazapi } from './uazapi-helpers'
 
 export interface WorkflowCaptacaoContexto {
   empresa_id: string
@@ -701,16 +702,74 @@ export async function executarWorkflowCaptacao(
     ].join('\n')
   }
 
+  // ── Etapa 6.2b: Confirmar valores com formatação numérica ambígua ──────────
+  // Ex.: "4500.000" pode ter sido digitado errado (ponto na posição errada) — em vez de
+  // simular direto com a interpretação do parser, confirma com o operador antes.
+  if (dados.valores_ambiguos_brutos?.length && !ctx.vem_de_pendente) {
+    if (ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'confirmacao',
+        dadosCapturados: dados,
+        usouConsulta: false,
+        leadIdExistente: lead_id,
+        pessoaIdExistente: pessoa_id ?? undefined,
+      })
+    }
+    const acaoConf = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    const moedaConf = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    const trechos = dados.valores_ambiguos_brutos.map((v) => `"${v}"`).join(', ')
+    return [
+      `✅ ${acaoConf}.`,
+      '',
+      `⚠️ Identifiquei ${trechos} com formatação de número que pode gerar confusão de valor.`,
+      dados.valor_imovel != null ? `Interpretei o valor do imóvel como ${moedaConf.format(dados.valor_imovel)}.` : '',
+      '',
+      'Confirma? Responda *sim* para simular ou *não* para corrigir.',
+    ].filter(Boolean).join('\n')
+  }
+
+  // ── Etapa 6.2c: Detectar múltiplos prazos ───────────────────────────────────
+  // "prazo numérico + prazo máximo" ao mesmo tempo continua sendo rejeitado (ambíguo por
+  // natureza). Múltiplos prazos numéricos passam a gerar uma comparação (ver Etapa 7).
+  const prazosNum = dados.prazos_detectados ?? []
+  if (prazosNum.length >= 1 && dados.prazo_maximo) {
+    const acaoPrazo = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    const labels = [...prazosNum.map((p) => `${p} meses`), 'prazo máximo']
+    return [
+      `✅ ${acaoPrazo}.`,
+      '',
+      `⚠️ Identifiquei mais de um prazo: ${labels.join(', ')}. Para manter a simulação objetiva, envie apenas um prazo.`,
+    ].join('\n')
+  }
+  const compararPrazos = prazosNum.length > 1
+
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_aprovada',
     `Bancos: ${dados.bancos_ids.join(', ')}`)
 
   // ── Etapa 7: Motor de Simulação ──────────────────────────────────────────
   const overrides = await carregarOverridesBancos(supabase, empresa_id)
-  const resultado = await executarSimulacao(dados, overrides)
+
+  if (compararPrazos) {
+    const tokenAviso   = ctx.instancia_token  || process.env.UAZAPI_INSTANCE_TOKEN || ''
+    const destinoAviso = ctx.telefone_destino || ctx.telefone_cliente || ctx.telefone_remetente || ''
+    if (tokenAviso && destinoAviso) {
+      const anosLabels = Array.from(new Set(prazosNum.map((m) => Math.round(m / 12)))).join(', ')
+      await enviarTextoUazapi(destinoAviso,
+        `📊 Identifiquei um pedido de comparação de prazos (${anosLabels} anos). Vou gerar uma simulação comparativa.`,
+        tokenAviso)
+    }
+  }
+
+  const resultado = compararPrazos
+    ? await executarSimulacaoComparativaPrazos(dados, prazosNum, overrides)
+    : await executarSimulacao(dados, overrides)
 
   const totalElegiveis = resultado.modo === 'CAPACIDADE_MAXIMA'
     ? (resultado.capacidade ?? []).filter((c) => c.maxFinanciavel > 0).length
-    : (resultado.bancosResult ?? []).filter((b) => b.elegivel).length
+    : resultado.modo === 'COMPARACAO_PRAZOS'
+      ? (resultado.comparativoPrazos ?? []).flatMap((item) => item.bancosResult).filter((b) => b.elegivel).length
+      : (resultado.bancosResult ?? []).filter((b) => b.elegivel).length
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'motor_executado',
     `${totalElegiveis} banco(s) elegível(is)`)
 
@@ -720,7 +779,9 @@ export async function executarWorkflowCaptacao(
         (best, r) => r.maxFinanciavel > (best?.maxFinanciavel ?? 0) ? r : best,
         null as { bancoNome: string; maxFinanciavel: number } | null,
       )
-    : (resultado.bancosResult ?? []).find((b) => b.elegivel) ?? null
+    : resultado.modo === 'COMPARACAO_PRAZOS'
+      ? (resultado.comparativoPrazos ?? []).flatMap((item) => item.bancosResult).find((b) => b.elegivel) ?? null
+      : (resultado.bancosResult ?? []).find((b) => b.elegivel) ?? null
 
   const { error: simErr } = await supabase.from('simulacoes_central').insert({
     empresa_id,
@@ -736,7 +797,9 @@ export async function executarWorkflowCaptacao(
       modo: resultado.modo,
       ...(resultado.modo === 'CAPACIDADE_MAXIMA'
         ? { renda: resultado.rendaMensal, bancos: resultado.capacidade }
-        : { input: resultado.input, bancos: resultado.bancosResult, analise: resultado.analise }),
+        : resultado.modo === 'COMPARACAO_PRAZOS'
+          ? { comparativoPrazos: resultado.comparativoPrazos }
+          : { input: resultado.input, bancos: resultado.bancosResult, analise: resultado.analise }),
       _input_normalizado: dados as unknown as Record<string, unknown>,
     },
     lead_id,

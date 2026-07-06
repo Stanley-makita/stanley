@@ -53,6 +53,9 @@ export interface DadosCaptacaoNormalizados {
   valor_obra:            number | null
   pedir_esclarecimento_operacao: boolean   // true quando a intenção é ambígua
   pergunta_esclarecimento:       string | null
+  // Trechos do texto bruto com formatação numérica ambígua (ex.: "4500.000") — quando
+  // presente, o workflow deve confirmar com o operador antes de simular.
+  valores_ambiguos_brutos: string[] | null
 }
 
 // ── Classificador determinístico de tipo de operação ──────────────────────────
@@ -252,20 +255,43 @@ function normalizarData(data: string | null | undefined): string | null {
   return null
 }
 
-// Detecta uma data isolada ou "N anos" quando a mensagem inteira é só isso (ou isso +
+// Detecta uma data isolada ou "N anos" quando uma LINHA do texto é só isso (ou isso +
 // um rótulo trivial) — fallback determinístico para quando o parser LLM falha em
 // reconhecer uma data solta sem contexto como data_nascimento (ex.: resposta a uma
 // pendência que só pede a data, sem nenhum outro dado na mensagem).
+// Escaneia linha por linha (não apenas o texto inteiro) porque mensagens encaminhadas em
+// sequência são acumuladas com quebras de linha (ver fonti-comandos.ts texto_acumulado) —
+// a data deixa de estar "sozinha" no texto todo, mas continua isolada na própria linha.
 export function extrairDataNascimentoDeterministica(texto: string): string | null {
-  const candidato = texto.trim()
-    .replace(/\b(nascimento|nasc\.?|data de nascimento|dn|aniversário)\b[:\s]*/gi, '')
-    .trim()
   const dataPattern = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/
   const anosPattern = /^\d{1,3}\s*anos?$/i
-  if (dataPattern.test(candidato) || anosPattern.test(candidato)) {
-    return normalizarData(candidato)
+  for (const linha of texto.split(/\r?\n/)) {
+    const candidato = linha.trim()
+      .replace(/\b(nascimento|nasc\.?|data de nascimento|dn|aniversário)\b[:\s]*/gi, '')
+      .trim()
+    if (dataPattern.test(candidato) || anosPattern.test(candidato)) {
+      return normalizarData(candidato)
+    }
   }
   return null
+}
+
+// Detecta tokens numéricos com agrupamento de milhar irregular (formato BR válido usa
+// grupos de exatamente 3 dígitos entre pontos, ex. "4.500.000"). Padrões como "4500.000"
+// ou "45000.000" são ambíguos — quem digitou pode ter errado a posição do ponto — então
+// pedimos confirmação em vez de simular direto com a interpretação do parser LLM.
+const REGEX_VALOR_AMBIGUO_1 = /\b\d{4,}\.\d{3}\b/g       // ex: 4500.000, 45000.000
+const REGEX_VALOR_AMBIGUO_2 = /\b\d\.\d{4,}\.\d{3}\b/g   // ex: 4.5000.000
+export function detectarValoresAmbiguos(textoBruto: string): string[] | null {
+  // Padrão 2 é mais específico (ex.: "4.5000.000") e sempre contém um trecho que também
+  // bate no padrão 1 (ex.: "5000.000") — prioriza o match mais longo para não reportar
+  // o mesmo número ambíguo duas vezes.
+  const maisEspecificos = Array.from(textoBruto.matchAll(REGEX_VALOR_AMBIGUO_2)).map((m) => m[0])
+  const genericos = Array.from(textoBruto.matchAll(REGEX_VALOR_AMBIGUO_1))
+    .map((m) => m[0])
+    .filter((valor) => !maisEspecificos.some((esp) => esp.includes(valor)))
+  const achados = new Set([...maisEspecificos, ...genericos])
+  return achados.size > 0 ? Array.from(achados) : null
 }
 
 function normalizarProduto(produto: string | null | undefined): DadosCaptacaoNormalizados['produto_normalizado'] {
@@ -292,10 +318,14 @@ export async function normalizarPedidoSimulacao(texto: string): Promise<DadosCap
     parsearTextoCaptacao(texto),
     Promise.resolve(classificarIntencaoOperacao(texto)),
   ])
-  return normalizarDadosCaptacao(raw, classificacao)
+  return normalizarDadosCaptacao(raw, classificacao, detectarValoresAmbiguos(texto))
 }
 
-export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw, classificacao?: ClassificacaoOperacao): DadosCaptacaoNormalizados {
+export function normalizarDadosCaptacao(
+  raw: DadosCaptacaoRaw,
+  classificacao?: ClassificacaoOperacao,
+  valoresAmbiguosBrutos?: string[] | null,
+): DadosCaptacaoNormalizados {
   const valorImovel        = raw.valor_imovel    ?? null
   const valorEntradaRaw    = raw.valor_entrada   ?? null
   const valorFinanciadoRaw = raw.valor_financiado ?? null
@@ -450,5 +480,6 @@ export function normalizarDadosCaptacao(raw: DadosCaptacaoRaw, classificacao?: C
     valor_obra:                   valorObra,
     pedir_esclarecimento_operacao: cls.pedirEsclarecimento,
     pergunta_esclarecimento:      cls.pergunta,
+    valores_ambiguos_brutos:      valoresAmbiguosBrutos ?? null,
   }
 }

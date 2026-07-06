@@ -20,11 +20,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarPedidoSimulacao } from './normalizador-captacao'
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import {
-  validarParaSimulacao, executarSimulacao, montarRespostaSimulacao,
+  validarParaSimulacao, executarSimulacao, executarSimulacaoComparativaPrazos, montarRespostaSimulacao,
   gerarPdfSimulacao, tipoSimulacaoParaPersistencia,
 } from './motor-simulacao'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
-import { enviarPDFUazapi } from './uazapi-helpers'
+import { enviarPDFUazapi, enviarTextoUazapi } from './uazapi-helpers'
 
 export interface WorkflowConsultaContexto {
   empresa_id: string
@@ -114,19 +114,40 @@ export async function executarWorkflowConsulta(
     return 'A simulação automática desse produto ainda não está habilitada. Envie os dados pelo comando *cria cliente para que o comercial responsável analise no lead.'
   }
 
-  // ── Etapa 2.5: Detectar conflito de prazos ──────────────────────────────────
-  // Se vierem múltiplos prazos (ex: "120 240 360 e prazo máximo"), rejeitar antes de simular
+  // ── Etapa 2.4: Confirmar valores com formatação numérica ambígua ────────────
+  // Ex.: "4500.000" pode ter sido digitado errado (ponto na posição errada) — em vez de
+  // simular direto com a interpretação do parser, confirma com o operador antes.
+  if (dados.valores_ambiguos_brutos?.length && !ctx.vem_de_pendente) {
+    if (ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'confirmacao',
+        dadosCapturados: dados,
+        usouConsulta: true,
+      })
+    }
+    const moedaConf = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    const trechos = dados.valores_ambiguos_brutos.map((v) => `"${v}"`).join(', ')
+    return [
+      `⚠️ Identifiquei ${trechos} com formatação de número que pode gerar confusão de valor.`,
+      dados.valor_imovel != null ? `Interpretei o valor do imóvel como ${moedaConf.format(dados.valor_imovel)}.` : '',
+      '',
+      'Confirma? Responda *sim* para simular ou *não* para corrigir.',
+    ].filter(Boolean).join('\n')
+  }
+
+  // ── Etapa 2.5: Detectar múltiplos prazos ────────────────────────────────────
+  // "prazo numérico + prazo máximo" ao mesmo tempo continua sendo rejeitado (ambíguo por
+  // natureza). Múltiplos prazos numéricos passam a gerar uma comparação (ver Etapa 4).
   const prazosNum = dados.prazos_detectados ?? []
-  if (prazosNum.length > 1 || (prazosNum.length >= 1 && dados.prazo_maximo)) {
-    const labels = [
-      ...prazosNum.map((p) => `${p} meses`),
-      ...(dados.prazo_maximo ? ['prazo máximo'] : []),
-    ]
+  if (prazosNum.length >= 1 && dados.prazo_maximo) {
+    const labels = [...prazosNum.map((p) => `${p} meses`), 'prazo máximo']
     return [
       `⚠️ Identifiquei mais de um prazo: ${labels.join(', ')}.`,
-      `Para manter a simulação objetiva, envie apenas um prazo ou use futuramente o modo comparar prazos.`,
+      `Para manter a simulação objetiva, envie apenas um prazo.`,
     ].join(' ')
   }
+  const compararPrazos = prazosNum.length > 1
 
   // ── Etapa 2.6: Conflito de valores (imóvel ≠ entrada + financiado) ──────────
   if (dados.conflito_valores) {
@@ -179,7 +200,21 @@ export async function executarWorkflowConsulta(
 
   // ── Etapa 4: Motor de Simulação ──────────────────────────────────────────
   const dbOverrides = await carregarOverridesBancos(supabase, empresa_id)
-  const resultado = await executarSimulacao(dados, dbOverrides)
+
+  if (compararPrazos) {
+    const tokenAviso   = ctx.instancia_token || process.env.UAZAPI_INSTANCE_TOKEN || ''
+    const destinoAviso = ctx.telefone_destino || ctx.telefone_remetente || ''
+    if (tokenAviso && destinoAviso) {
+      const anosLabels = Array.from(new Set(prazosNum.map((m) => Math.round(m / 12)))).join(', ')
+      await enviarTextoUazapi(destinoAviso,
+        `📊 Identifiquei um pedido de comparação de prazos (${anosLabels} anos). Vou gerar uma simulação comparativa.`,
+        tokenAviso)
+    }
+  }
+
+  const resultado = compararPrazos
+    ? await executarSimulacaoComparativaPrazos(dados, prazosNum, dbOverrides)
+    : await executarSimulacao(dados, dbOverrides)
 
   // ── Etapa 5: Salvar em simulacoes_central ────────────────────────────────
   const nomeDisplay = dados.nome?.trim() || 'Cliente não identificado'
@@ -188,7 +223,9 @@ export async function executarWorkflowConsulta(
         (best, r) => r.maxFinanciavel > (best?.maxFinanciavel ?? 0) ? r : best,
         null as { bancoNome: string; maxFinanciavel: number } | null,
       )?.bancoNome ?? null
-    : (resultado.bancosResult ?? []).find((b) => b.elegivel)?.bancoNome ?? null
+    : resultado.modo === 'COMPARACAO_PRAZOS'
+      ? (resultado.comparativoPrazos ?? []).flatMap((item) => item.bancosResult).find((b) => b.elegivel)?.bancoNome ?? null
+      : (resultado.bancosResult ?? []).find((b) => b.elegivel)?.bancoNome ?? null
 
   const { data: simData, error: simErr } = await supabase
     .from('simulacoes_central')
@@ -206,7 +243,9 @@ export async function executarWorkflowConsulta(
         modo: resultado.modo,
         ...(resultado.modo === 'CAPACIDADE_MAXIMA'
           ? { renda: resultado.rendaMensal, bancos: resultado.capacidade }
-          : { input: resultado.input, bancos: resultado.bancosResult, analise: resultado.analise }),
+          : resultado.modo === 'COMPARACAO_PRAZOS'
+            ? { comparativoPrazos: resultado.comparativoPrazos }
+            : { input: resultado.input, bancos: resultado.bancosResult, analise: resultado.analise }),
         _input_normalizado: dados as unknown as Record<string, unknown>,
       } as unknown as Record<string, unknown>,
       lead_id:        null,
@@ -248,7 +287,11 @@ export async function executarWorkflowConsulta(
       })
       const hoje = new Date().toISOString().slice(0, 10)
       const nomeBase = dados.nome?.trim() || (resultado.modo === 'CAPACIDADE_MAXIMA' ? 'Capacidade Maxima' : 'Consulta Comercial')
-      const prefixoArquivo = resultado.modo === 'CAPACIDADE_MAXIMA' ? 'Capacidade Maxima' : 'Simulacao Preliminar'
+      const prefixoArquivo = resultado.modo === 'CAPACIDADE_MAXIMA'
+        ? 'Capacidade Maxima'
+        : resultado.modo === 'COMPARACAO_PRAZOS'
+          ? 'Comparacao de Prazos'
+          : 'Simulacao Preliminar'
       const nomeArquivo = `${prefixoArquivo} - ${nomeBase} - ${hoje}.pdf`
       await enviarPDFUazapi(destinoEfetivo, pdfBuffer, tokenEfetivo, nomeArquivo)
       await atualizarPdfStatus('enviado', { enviado_em: new Date().toISOString() })
@@ -266,7 +309,9 @@ export async function executarWorkflowConsulta(
   // ── Etapa 7: Resposta ────────────────────────────────────────────────────
   const cabecalho = resultado.modo === 'CAPACIDADE_MAXIMA'
     ? `📋 *Capacidade Máxima — ${nomeDisplay}*`
-    : `📋 *Consulta Rápida — ${nomeDisplay}*`
+    : resultado.modo === 'COMPARACAO_PRAZOS'
+      ? `📋 *Comparação de Prazos — ${nomeDisplay}*`
+      : `📋 *Consulta Rápida — ${nomeDisplay}*`
 
   const corpo = montarRespostaSimulacao(resultado, { nomeDisplay })
 

@@ -683,3 +683,169 @@ export async function gerarPDFCapacidadeMaximaBuffer(
 
   return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)
 }
+
+// ── PDF Comparativo de Prazos ────────────────────────────────────────────────
+// Gerado quando o operador pede mais de um prazo na mesma mensagem (ex.: "5 anos,
+// 10 anos, 15 anos"). Uma seção por banco elegível, com uma tabela de prazos dentro.
+
+export interface PDFComparacaoPrazosInput {
+  clienteNome?:     string | null
+  cpfCliente?:      string | null
+  valorImovel:      number | null
+  valorFinanciado:  number | null
+  tipoAmortizacao:  'SAC' | 'PRICE'
+  dataSimulacao:    string
+  itens: Array<{
+    prazoMeses: number
+    bancos: Array<{ bancoNome: string; parcela: number; taxaAnual: number; rendaMinima: number }>
+  }>
+}
+
+export async function gerarPDFComparacaoPrazosBuffer(
+  input: PDFComparacaoPrazosInput,
+  options: PDFBufferOptions = {},
+): Promise<Buffer> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+  const pageW  = doc.internal.pageSize.getWidth()
+  const pageH  = doc.internal.pageSize.getHeight()
+  const mL = 12, mR = 12, mTop = 10, mBot = 12
+  const usableW = pageW - mL - mR
+
+  let y = mTop
+
+  // ── CABEÇALHO ─────────────────────────────────────────────────────────────
+  const HEADER_H = 24
+  setFill(doc, COR_VERDE)
+  doc.rect(mL, y, usableW, HEADER_H, 'F')
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('FONTI', mL + 4, y + 9)
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
+  doc.text('Sistema Operacional de Credito', mL + 4, y + 15)
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
+  doc.text('by Fontinhas Assessoria', mL + 4, y + 21)
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.text('Simulacao Comparativa de Prazos', pageW - mR - 2, y + HEADER_H / 2 + 3, { align: 'right' })
+  y += HEADER_H + 4
+
+  // ── LINHA DE IDENTIFICAÇÃO ────────────────────────────────────────────────
+  const rowH = 9
+  setFill(doc, COR_VERDE)
+  doc.rect(mL, y, usableW, rowH, 'F')
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+
+  const d = new Date(input.dataSimulacao)
+  const dataHoje = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  const horaHoje = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+
+  const identificacao = [input.clienteNome, input.cpfCliente ? `CPF: ${input.cpfCliente}` : null]
+    .filter(Boolean).join('   |   ') || 'Cliente nao identificado'
+  const infoText = [identificacao, `${dataHoje} ${horaHoje}`, options.responsavelNome].filter(Boolean).join('   |   ')
+  doc.text(infoText, pageW / 2, y + rowH / 2 + 2.5, { align: 'center' })
+  y += rowH + 4
+
+  // ── DADOS DA SIMULAÇÃO ────────────────────────────────────────────────────
+  y = drawSectionTitle(doc, 'Dados da Simulacao', y, mL, usableW)
+
+  const dadosItems: [string, string][] = [
+    ['Valor do Imovel',     input.valorImovel != null ? BRL.format(input.valorImovel) : '—'],
+    ['Valor Financiado',    input.valorFinanciado != null ? BRL.format(input.valorFinanciado) : '—'],
+    ['Amortizacao',         input.tipoAmortizacao],
+  ]
+  const col3W = usableW / 3
+  dadosItems.forEach(([label, val], i) => {
+    const x = mL + i * col3W
+    setFill(doc, i % 2 === 0 ? '#F5F5F0' : '#FAFAF8')
+    doc.rect(x, y, col3W, 14, 'F')
+    setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.3)
+    doc.rect(x, y, col3W, 14, 'S')
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#777777')
+    doc.text(pdf(label), x + col3W / 2, y + 5, { align: 'center' })
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+    doc.text(pdf(val), x + col3W / 2, y + 11, { align: 'center' })
+  })
+  y += 14 + 5
+
+  // ── UMA SEÇÃO POR BANCO ───────────────────────────────────────────────────
+  const bancosNomes = Array.from(new Set(input.itens.flatMap((item) => item.bancos.map((b) => b.bancoNome))))
+
+  const cols = [
+    { label: 'Prazo',        w: usableW * 0.25 },
+    { label: 'Parcela',      w: usableW * 0.30 },
+    { label: 'Taxa a.a.',    w: usableW * 0.20 },
+    { label: 'Renda Minima', w: usableW * 0.25 },
+  ]
+
+  bancosNomes.forEach((bancoNome) => {
+    const linhasBanco = input.itens
+      .map((item) => ({ prazoMeses: item.prazoMeses, banco: item.bancos.find((b) => b.bancoNome === bancoNome) }))
+      .filter((r): r is { prazoMeses: number; banco: NonNullable<typeof r.banco> } => !!r.banco)
+
+    if (linhasBanco.length === 0) return
+
+    const secaoH = 8 + 7 + linhasBanco.length * 8
+    if (y + secaoH > pageH - mBot - 10) { doc.addPage(); y = mTop }
+
+    y = drawSectionTitle(doc, pdf(bancoNome), y, mL, usableW)
+
+    setFill(doc, '#E8F0E8')
+    doc.rect(mL, y, usableW, 7, 'F')
+    let cx = mL
+    cols.forEach((col) => {
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+      doc.text(col.label, cx + col.w / 2, y + 4.5, { align: 'center' })
+      cx += col.w
+    })
+    y += 7
+
+    linhasBanco.forEach(({ prazoMeses, banco }, i) => {
+      if (y + 8 > pageH - mBot - 15) { doc.addPage(); y = mTop }
+      if (i % 2 === 0) { setFill(doc, '#F8FAF8'); doc.rect(mL, y, usableW, 8, 'F') }
+      let bx = mL
+      const row = [
+        `${prazoMeses} meses`,
+        BRL.format(banco.parcela),
+        `${(banco.taxaAnual * 100).toFixed(2).replace('.', ',')}%`,
+        BRL.format(banco.rendaMinima),
+      ]
+      row.forEach((val, ci) => {
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', ci === 0 ? 'bold' : 'normal')
+        setTxt(doc, ci === 0 ? '#222222' : '#444444')
+        doc.text(val, bx + cols[ci].w / 2, y + 5, { align: 'center' })
+        bx += cols[ci].w
+      })
+      y += 8
+    })
+    y += 5
+  })
+
+  if (bancosNomes.length === 0) {
+    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setTxt(doc, '#888888')
+    doc.text('Nenhum banco elegivel para os prazos informados.', mL + 2, y + 6)
+    y += 12
+  }
+
+  // ── RODAPÉ ────────────────────────────────────────────────────────────────
+  if (y + 30 > pageH - mBot) { doc.addPage(); y = mTop } else { y += 4 }
+  setDraw(doc, COR_DOURADO); doc.setLineWidth(0.4)
+  doc.line(mL, y, pageW - mR, y)
+  y += 5
+
+  const now3 = new Date()
+  const dg3 = `${String(now3.getDate()).padStart(2, '0')}/${String(now3.getMonth() + 1).padStart(2, '0')}/${now3.getFullYear()}`
+  const hg3 = `${String(now3.getHours()).padStart(2, '0')}:${String(now3.getMinutes()).padStart(2, '0')}`
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#555555')
+  doc.text('Gerado automaticamente pelo Motor de Credito Fonti', mL, y + 4)
+  doc.setFontSize(6.5); setTxt(doc, '#777777')
+  doc.text(`${dg3} as ${hg3}`, mL, y + 9)
+  y += 22
+
+  const footerText = 'Esta simulacao possui carater exclusivamente informativo e nao representa aprovacao de credito. Renda minima estimada com base em 30% de comprometimento de renda (SAC). Taxas, parcelas e prazos estao sujeitos a alteracao conforme analise documental e politicas vigentes de cada instituicao financeira.'
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#666666')
+  const wrapped3 = doc.splitTextToSize(footerText, usableW)
+  doc.text(wrapped3, mL, y, { lineHeightFactor: 1.4 })
+
+  return Buffer.from(doc.output('arraybuffer') as ArrayBuffer)
+}

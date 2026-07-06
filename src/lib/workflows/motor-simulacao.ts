@@ -136,7 +136,13 @@ export interface ItemCapacidade {
   taxaAnual: number
 }
 
-export type ModoResultadoSimulacao = 'NORMAL' | 'CAPACIDADE_MAXIMA'
+export type ModoResultadoSimulacao = 'NORMAL' | 'CAPACIDADE_MAXIMA' | 'COMPARACAO_PRAZOS'
+
+// Um prazo pedido pelo operador, com o resultado por banco naquele prazo.
+export interface ItemComparativoPrazo {
+  prazoMeses: number
+  bancosResult: ResultadoBanco[]
+}
 
 export interface ResultadoSimulacaoUnificado {
   modo: ModoResultadoSimulacao
@@ -151,6 +157,14 @@ export interface ResultadoSimulacaoUnificado {
   analise?: AnalisePredicativa
   // modo CAPACIDADE_MAXIMA (sem valor_imovel informado)
   capacidade?: ItemCapacidade[]
+  // modo COMPARACAO_PRAZOS (múltiplos prazos pedidos na mesma mensagem)
+  comparativoPrazos?: ItemComparativoPrazo[]
+}
+
+// Renda mensal aproximada necessária para comportar uma parcela dentro do
+// comprometimento máximo de 30% (regra usada em toda a composição de resposta).
+export function calcularRendaNecessaria(parcela: number): number {
+  return Math.ceil(parcela / 0.30)
 }
 
 // ── Execução ────────────────────────────────────────────────────────────────────
@@ -239,6 +253,40 @@ export async function executarSimulacao(
   return { modo: 'NORMAL', dados, bancosIds, prazoLabel, rendaMensal, semRenda, input, bancosResult, analise }
 }
 
+// Executa o Motor uma vez por prazo pedido (ex.: "5 anos, 10 anos, 15 anos" na mesma
+// mensagem) e agrega os resultados por banco em vez de rejeitar o pedido — reaproveita
+// integralmente executarSimulacao (derivação de entrada/financiado, overrides, elegibilidade
+// por banco) para nenhuma regra de negócio ficar duplicada entre simulação simples e comparativa.
+export async function executarSimulacaoComparativaPrazos(
+  dadosEntrada: DadosCaptacaoNormalizados,
+  prazosMeses: number[],
+  overridesBanco: Partial<Record<string, BancoSimOverrides>>,
+): Promise<ResultadoSimulacaoUnificado> {
+  const comparativoPrazos: ItemComparativoPrazo[] = []
+  let ultimoResultado: ResultadoSimulacaoUnificado | null = null
+
+  for (const prazoMeses of prazosMeses) {
+    const resultadoPrazo = await executarSimulacao(
+      { ...dadosEntrada, prazo_meses: prazoMeses, prazo_maximo: false },
+      overridesBanco,
+    )
+    comparativoPrazos.push({ prazoMeses, bancosResult: resultadoPrazo.bancosResult ?? [] })
+    ultimoResultado = resultadoPrazo
+  }
+
+  const base = ultimoResultado ?? await executarSimulacao(dadosEntrada, overridesBanco)
+
+  return {
+    modo: 'COMPARACAO_PRAZOS',
+    dados: base.dados,
+    bancosIds: base.bancosIds,
+    prazoLabel: `comparação entre ${prazosMeses.length} prazos`,
+    rendaMensal: base.rendaMensal,
+    semRenda: base.semRenda,
+    comparativoPrazos,
+  }
+}
+
 // Deriva entrada/financiado quando só o imóvel foi informado.
 // ignorarRenda: usado quando o pedido é pelo máximo financiamento — o teto vira só LTV, não renda.
 function autoDerivarEntradaFinanciado(
@@ -320,9 +368,39 @@ export function montarRespostaSimulacao(
   resultado: ResultadoSimulacaoUnificado,
   opts: { nomeDisplay: string },
 ): string {
-  return resultado.modo === 'CAPACIDADE_MAXIMA'
-    ? montarRespostaCapacidadeMaxima(resultado, opts)
-    : montarRespostaNormal(resultado, opts)
+  if (resultado.modo === 'CAPACIDADE_MAXIMA') return montarRespostaCapacidadeMaxima(resultado, opts)
+  if (resultado.modo === 'COMPARACAO_PRAZOS') return montarRespostaComparativaPrazos(resultado)
+  return montarRespostaNormal(resultado, opts)
+}
+
+function montarRespostaComparativaPrazos(resultado: ResultadoSimulacaoUnificado): string {
+  const { dados, comparativoPrazos = [] } = resultado
+
+  const linhas: string[] = [
+    `📊 *Comparação de prazos — ${fmt.format(dados.valor_imovel ?? 0)} | Entrada ${fmt.format(dados.valor_entrada ?? 0)}*`,
+  ]
+
+  // Reagrupa por banco: cada banco elegível ganha uma seção com uma linha por prazo.
+  const bancosNomes = Array.from(new Set(
+    comparativoPrazos.flatMap((item) => item.bancosResult.filter((b) => b.elegivel).map((b) => b.bancoNome)),
+  ))
+
+  if (bancosNomes.length === 0) {
+    linhas.push('', 'Não encontrei banco elegível para os prazos informados.')
+    return linhas.join('\n')
+  }
+
+  for (const bancoNome of bancosNomes) {
+    linhas.push('', `🏦 *${bancoNome}*`)
+    for (const item of comparativoPrazos) {
+      const b = item.bancosResult.find((r) => r.bancoNome === bancoNome && r.elegivel)
+      if (!b) continue
+      const rendaNecessaria = calcularRendaNecessaria(b.primeiraParcela)
+      linhas.push(`  • ${item.prazoMeses} meses — Parcela ${fmt.format(b.primeiraParcela)} | Renda mín. ${fmt.format(rendaNecessaria)}`)
+    }
+  }
+
+  return linhas.join('\n')
 }
 
 function montarRespostaNormal(
@@ -339,10 +417,10 @@ function montarRespostaNormal(
         let linha = `• ${b.bancoNome}${prog} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
 
         if (semRenda) {
-          const rendaNecessaria = Math.ceil(b.primeiraParcela / 0.30)
+          const rendaNecessaria = calcularRendaNecessaria(b.primeiraParcela)
           linha += `\n  _Renda necessária estimada: ~${fmt.format(rendaNecessaria)}/mês_`
         } else if (b.avisoRenda) {
-          const rendaNecessaria = Math.ceil(b.primeiraParcela / 0.30)
+          const rendaNecessaria = calcularRendaNecessaria(b.primeiraParcela)
           const podeFinanciar   = b.maxFinanciavel30 ?? 0
           linha += `\n  ⚠️ *Diagnóstico — renda incompatível com o valor solicitado.*`
           if (podeFinanciar > 0) {
@@ -477,6 +555,30 @@ export async function gerarPdfSimulacao(
     }, { responsavelNome: opts.responsavelNome })
   }
 
+  if (resultado.modo === 'COMPARACAO_PRAZOS') {
+    const { gerarPDFComparacaoPrazosBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
+    const { dados, comparativoPrazos = [] } = resultado
+    return gerarPDFComparacaoPrazosBuffer({
+      clienteNome: dados.nome,
+      cpfCliente: opts.tipoVinculo === 'AVULSA_SEM_CPF' ? null : (opts.cpfCliente ?? dados.cpf),
+      valorImovel: dados.valor_imovel,
+      valorFinanciado: dados.valor_financiado,
+      tipoAmortizacao: dados.tipo_amortizacao,
+      dataSimulacao: new Date().toISOString(),
+      itens: comparativoPrazos.map((item) => ({
+        prazoMeses: item.prazoMeses,
+        bancos: item.bancosResult
+          .filter((b) => b.elegivel)
+          .map((b) => ({
+            bancoNome: b.bancoNome,
+            parcela: b.primeiraParcela,
+            taxaAnual: b.taxaAnual,
+            rendaMinima: calcularRendaNecessaria(b.primeiraParcela),
+          })),
+      })),
+    }, { responsavelNome: opts.responsavelNome })
+  }
+
   const { gerarPDFFinanciamentoBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
   const resultadoCompleto = {
     input: resultado.input!,
@@ -490,6 +592,9 @@ export async function gerarPdfSimulacao(
   })
 }
 
+// tipo_simulacao no banco só aceita 'preliminar' | 'revisada' | 'nova' | 'consulta' (ver
+// migração 20260625_110) — o modo real (inclusive COMPARACAO_PRAZOS) já fica registrado
+// em resultado_json.modo, então aqui mapeamos tudo que não é capacidade máxima para 'consulta'.
 export function tipoSimulacaoParaPersistencia(resultado: ResultadoSimulacaoUnificado): 'consulta' | 'capacidade_maxima' {
   return resultado.modo === 'CAPACIDADE_MAXIMA' ? 'capacidade_maxima' : 'consulta'
 }
