@@ -160,7 +160,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className={cn('flex flex-1 flex-col', pageMode ? 'lg:min-h-0 lg:overflow-hidden' : 'min-h-0 overflow-hidden')}>
           {/* ── Barra de Fases ── */}
           <PipelineBarLead
             lead={lead}
@@ -168,10 +168,16 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
             onConcluido={() => setConcluirAberto(true)}
           />
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+          <div className={cn(
+            'flex flex-col lg:flex-row',
+            pageMode ? 'lg:min-h-0 lg:flex-1 lg:overflow-hidden' : 'min-h-0 flex-1 overflow-hidden'
+          )}>
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
-              <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
+              <div className={cn(
+                'flex w-full shrink-0 flex-col border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r',
+                pageMode ? 'lg:overflow-hidden' : 'max-h-[38svh] overflow-hidden'
+              )}>
 
                 {/* Identidade + ações rápidas */}
                 <div className="space-y-2 border-b border-gray-200 p-4">
@@ -401,7 +407,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               </div>
 
               {/* ── Centro: Abas de Interação ── */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className={cn('flex flex-1 flex-col', pageMode ? 'lg:min-h-0 lg:overflow-hidden' : 'min-h-0 overflow-hidden')}>
 
                 {/* Tab bar */}
                 <div className="flex shrink-0 overflow-x-auto border-b border-gray-100 bg-white px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
@@ -440,10 +446,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
 
                 {/* Conteúdo da aba */}
                 <div className={cn(
-                  'flex-1 min-h-0',
+                  'flex-1',
+                  pageMode ? 'lg:min-h-0' : 'min-h-0',
                   abaAtiva === 'simulador'
-                    ? 'overflow-hidden'
-                    : 'overflow-y-auto px-3 py-4 sm:px-5'
+                    ? cn('overflow-hidden', pageMode && 'min-h-[70svh] lg:min-h-0')
+                    : cn('px-3 py-4 sm:px-5', pageMode ? 'lg:overflow-y-auto' : 'overflow-y-auto')
                 )}>
                   {!creditoLiberado && abaAtiva === 'credito' && (
                     <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 mb-3">
@@ -664,7 +671,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   if (pageMode) {
     return (
       <>
-        <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex flex-col lg:h-full lg:overflow-hidden">
           <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-2.5 shrink-0">
             <button
               type="button"
@@ -678,12 +685,12 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               <span className="text-sm font-semibold text-gray-800 truncate">{lead.nome}</span>
             )}
           </div>
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
             {innerContent}
           </div>
           {/* Mobile-only: Notas + Tarefas + Checklist (painel direito oculto em telas menores que lg) */}
           {lead && (
-            <div className="lg:hidden shrink-0 max-h-[45svh] overflow-y-auto border-t border-gray-200 bg-white">
+            <div className="lg:hidden shrink-0 border-t border-gray-200 bg-white">
               <PainelDireitoLead lead={lead} />
             </div>
           )}
