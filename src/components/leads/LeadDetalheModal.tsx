@@ -168,7 +168,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
             onConcluido={() => setConcluirAberto(true)}
           />
 
-          <div className="flex min-h-0 flex-1 overflow-hidden lg:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
 
               {/* ── Painel Esquerdo: Dados do Lead ── */}
               <div className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-hidden border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r">
@@ -430,7 +430,6 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                             ? 'border-fonti-primary text-fonti-primary'
                             : 'border-transparent text-gray-400 hover:text-gray-600',
                           bloqueado && 'cursor-not-allowed opacity-60',
-                          ['solicitacoes', 'formularios', 'historico'].includes(aba.id) && 'hidden lg:flex'
                         )}
                       >
                         {aba.label}
