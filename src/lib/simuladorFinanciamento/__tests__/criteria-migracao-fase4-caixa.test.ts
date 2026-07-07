@@ -64,8 +64,10 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
   const cenarios: Array<{ nome: string; input: InputFinanciamento; overrides?: BancoSimOverrides }> = [
     { nome: 'SAC padrão, sem correntista', input: { ...BASE_INPUT } },
     { nome: 'SAC padrão, correntista', input: { ...BASE_INPUT, correntista: true } },
-    { nome: 'PRICE dentro do LTV 70%', input: { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 } },
-    { nome: 'PRICE excede LTV 70%', input: { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000 } },
+    // Cenários PRICE de prazo/LTV foram movidos para o describe dedicado abaixo
+    // ("teto de prazo PRICE") — desde a correção do teto de 360 meses, PRICE diverge
+    // de propósito do baseline congelado (que nunca teve essa distinção), então não
+    // faz mais sentido compará-los por equivalência byte-a-byte com o motor antigo.
     { nome: 'SAC LTV 80% no limite', input: { ...BASE_INPUT, valorEntrada: 100_000 } },
     { nome: 'imóvel usado — penalidade de 10pp no LTV', input: { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 100_000 } },
     { nome: 'imóvel usado — dentro do novo limite (70%)', input: { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 150_000 } },
@@ -81,7 +83,6 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
     { nome: 'MCMV Classe Média (renda ≤ 13.000, imóvel ≤ 600k)', input: { ...BASE_INPUT, valorImovel: 550_000, valorEntrada: 100_000, rendaMensal: 12_000 } },
     { nome: 'override: taxaAnual do banco de dados', input: { ...BASE_INPUT }, overrides: { taxaAnual: 0.0999 } },
     { nome: 'override: maxLtv do banco de dados (SAC)', input: { ...BASE_INPUT, valorEntrada: 100_000 }, overrides: { maxLtv: 0.85 } },
-    { nome: 'override: maxLtv do banco de dados (PRICE)', input: { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 130_000 }, overrides: { maxLtv: 0.75 } },
     { nome: 'override: mipRate do banco de dados', input: { ...BASE_INPUT }, overrides: { mipRate: 0.0005 } },
     { nome: 'override: dfiRate do banco de dados (deve ser ignorado — quirk preservado)', input: { ...BASE_INPUT }, overrides: { dfiRate: 0.001 } },
     { nome: 'override: prazoMaximoMeses do banco de dados', input: { ...BASE_INPUT }, overrides: { prazoMaximoMeses: 240 } },
@@ -107,7 +108,8 @@ describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalênci
     { nome: 'comercial — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'comercial', finalidade: 'comercial' } },
     { nome: 'jaRecebeuSubsidio=true — bloqueia MCMV/Pró-Cotista', input: { ...BASE_INPUT, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, jaRecebeuSubsidio: true } },
     { nome: 'usaFgts=false — bloqueia só Pró-Cotista', input: { ...BASE_INPUT, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, usaFgts: false } },
-    { nome: 'PRICE + Pró-Cotista + SBPE', input: { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorImovel: 300_000, valorEntrada: 100_000, rendaMensal: 8_000 } },
+    // 'PRICE + Pró-Cotista + SBPE' movido para o describe "teto de prazo PRICE" abaixo
+    // (mesmo motivo do describe anterior — PRICE agora diverge de propósito do baseline).
     { nome: 'override de taxaAnual aplicado ao SBPE dentro do duplo', input: { ...BASE_INPUT }, overrides: { caixa: { taxaAnual: 0.0999 } } },
   ]
 
@@ -124,6 +126,55 @@ describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalênci
       })
     })
   }
+})
+
+// Teto de prazo PRICE = 360 meses (SAC = 420) — MO30769 v032 seção 3.3, regra normativa
+// confirmada, não calibração. Testado separadamente do baseline congelado (que nunca
+// teve essa distinção) porque a divergência aqui é intencional, não uma regressão.
+describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', () => {
+  it('PRICE respeita 360 meses; SAC continua com 420', () => {
+    const price = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 })
+    const sac = simularBancoNovo('caixa', { ...BASE_INPUT, valorEntrada: 100_000 })
+    expect(price.elegivel).toBe(true)
+    expect(price.parcelas).toBe(360)
+    expect(sac.elegivel).toBe(true)
+    expect(sac.parcelas).toBe(420)
+  })
+
+  it('LTV de PRICE (70%) continua sendo verificado independente do novo teto de prazo', () => {
+    const dentro = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 })
+    const excede = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000 })
+    expect(dentro.elegivel).toBe(true)
+    expect(dentro.parcelas).toBe(360)
+    expect(excede.elegivel).toBe(false)
+    expect(excede.motivoInelegivel).toMatch(/excede.*imóvel/i)
+  })
+
+  it('override de maxLtv do banco de dados (PRICE) não abre exceção ao teto de 360 meses', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 130_000 }, { maxLtv: 0.75 })
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.parcelas).toBe(360)
+  })
+
+  it('override de prazoMaximoMeses do banco de dados não estende PRICE além de 360', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE' }, { prazoMaximoMeses: 420 })
+    expect(resultado.parcelas).toBe(360)
+  })
+
+  it('idade+prazo continua podendo reduzir o teto de PRICE para menos de 360', () => {
+    // Cliente com 68 anos: LIMITE_IDADE_PRAZO_MESES (966) - idade em meses já é < 360.
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000, dataNascimento: '1957-01-01' })
+    expect(resultado.parcelas).toBeLessThan(360)
+  })
+
+  it('Pró-Cotista + SBPE em PRICE: ambos respeitam o teto de 360 meses', () => {
+    const resultados = simularTodosBancosNovo(
+      { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorImovel: 300_000, valorEntrada: 100_000, rendaMensal: 8_000 },
+    )
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+    expect(porId.get('caixa-procotista')?.parcelas).toBe(360)
+    expect(porId.get('caixa-sbpe')?.parcelas).toBe(360)
+  })
 })
 
 describe('Fase 4 — Caixa: varredura de idades (todas as faixas de MIP)', () => {

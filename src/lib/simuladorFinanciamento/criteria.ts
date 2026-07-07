@@ -84,6 +84,13 @@ export interface SimulationCriteria {
   amortizacoesSuportadas: Array<'SAC' | 'PRICE'>
   ltv: CriteriosLtv
   prazoMaximoMeses: number
+  /**
+   * Teto de prazo específico para PRICE, quando menor que o do SAC (hoje: exclusivo da
+   * Caixa — 360 meses vs. 420 do SAC, MO30769 v032 seção 3.3, regra normativa confirmada,
+   * não uma calibração). Omitir cai no `prazoMaximoMeses` padrão (mesmo teto para os dois
+   * sistemas de amortização — comportamento de todos os outros bancos).
+   */
+  prazoMaximoMesesPrice?: number
   /** Regra "idade + prazo" — hoje 966 (80a6m) para todos os bancos; ver plano-calibracao.md seção 4. */
   limiteIdadePrazoMeses: number
   /** Corte duro de idade, independente da regra de idade+prazo. Omitir se não houver regra própria. */

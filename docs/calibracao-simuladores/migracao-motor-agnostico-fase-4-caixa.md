@@ -193,3 +193,56 @@ e `delta-base-caixa.md` (seções 6–7) — não repetido aqui em detalhe, só 
 6. Só depois de calibrar, avaliar se algum dos programas (Pró-Cotista, MCMV, Taxa
    Customizada) justifica virar um `ProgramaEspecial` de fato, ou se a composição local
    de critério (como implementada nesta fase) é suficiente a longo prazo.
+7. **Validar a penalidade de -10pp de LTV para imóvel usado** (`penalidadeImovelUsado = 0.10`,
+   exclusiva da Caixa) contra um simulador oficial — nem o MO30769 v032 nem os demais
+   normativos analisados até agora confirmam essa regra (ver seção "Correção de prazo
+   PRICE" abaixo). Comportamento pré-existente, preservado sem alteração nesta etapa.
+
+## Correção de prazo PRICE (pós-Fase 4, 2026-07-07)
+
+O MO30769 v032 ("Condições do Crédito Imobiliário PF – CCSBPE e Recursos Livres"), seção
+3.3, confirma que o teto de prazo da Caixa **difere por sistema de amortização** para
+Aquisição Residencial TR: SAC 120–420 meses, **PRICE 120–360 meses**. O motor (antes desta
+correção) usava `prazoMaximoMeses = 420` para os dois, herdado do único campo que existia
+em `SimulationCriteria` — toda simulação PRICE da Caixa respondia com até 60 meses a mais
+de prazo do que o produto permite.
+
+Corrigido com um novo campo opcional `prazoMaximoMesesPrice` em `SimulationCriteria`
+(`criteria.ts`), populado só para a Caixa em `criteria-resolver.ts` (`ehCaixa ? 360 :
+undefined`) e consumido em `simularComCriterios` (`engine.ts`): quando
+`input.tipoAmortizacao === 'PRICE'` e o campo está definido, ele substitui
+`prazoMaximoMeses` como teto antes da regra de idade+prazo — nenhum outro banco é afetado
+(campo `undefined` cai no comportamento de sempre). Overrides de `prazoMaximoMeses` do
+banco de dados continuam valendo normalmente para SAC, mas não abrem exceção ao teto de
+360 do PRICE (é uma regra normativa, não um parâmetro calibrável por banco).
+
+**Por que é correção normativa, não calibração**: o valor vem de um documento oficial da
+Caixa (não de um simulador terceirizado nem de uma estimativa), então foi aplicado
+diretamente — diferente da penalidade de imóvel usado (item 7 acima) e das demais
+pendências deste checklist, que seguem sem lastro documental e aguardam a Sprint de
+Calibração.
+
+Testado em `criteria-migracao-fase4-caixa.test.ts`, describe `"teto de prazo PRICE (360
+meses — MO30769 v032)"`: SAC continua 420, PRICE cai para 360 (inclusive combinado com
+Pró-Cotista, override de LTV, override de `prazoMaximoMeses` e a regra de idade+prazo,
+que pode reduzir ainda mais). Os cenários PRICE que antes viviam nos describes de
+equivalência genérica foram movidos para lá, já que passaram a divergir de propósito do
+baseline congelado (que nunca teve essa distinção). `npx tsc --noEmit` limpo, suíte
+completa 185/185 (era 183/183 antes desta correção — 2 testes novos líquidos, o describe
+novo tem 6 casos, 4 vieram dos describes de equivalência que perderam esses cenários).
+
+## Item de evolução (backlog, não implementado): PDF comparativo SAC×PRICE para a Caixa
+
+Registrado a pedido do usuário em 2026-07-07, junto da correção de prazo PRICE acima:
+como a Caixa opera fortemente com a escolha entre SAC e PRICE (ambos suportados,
+`amortizacoesSuportadas` já inclui os dois, tetos de prazo agora diferentes entre si — ver
+seção anterior), faz sentido que a simulação da Caixa retorne automaticamente os dois
+cenários (SAC e PRICE) no mesmo PDF, em vez de exigir duas simulações separadas para
+comparar.
+
+**Não implementado nesta sessão** — só o registro do item. Pontos de entrada prováveis
+para uma implementação futura: `gerarPDFBuffer.ts` (geração server-side) e
+`src/lib/workflows/motor-simulacao.ts` (orquestração da simulação via WhatsApp/`*simula`),
+que hoje chamam `simularBanco`/`simularTodosBancos` com um único `tipoAmortizacao` por
+chamada. Precisa de decisão de produto sobre layout (2 seções no mesmo PDF vs. tabela
+comparativa) antes de iniciar — fora do escopo desta correção.

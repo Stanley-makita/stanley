@@ -193,6 +193,10 @@ export function resolverCriterios(
       penalidadeImovelUsado: ehCaixa ? 0.10 : undefined,
     },
     prazoMaximoMeses: overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses,
+    // Prazo máximo PRICE da Caixa é 360 meses (SAC: 420) — MO30769 v032 seção 3.3,
+    // regra normativa confirmada, não calibração. Único banco migrado com essa distinção
+    // até agora; os demais mantêm o mesmo teto para os dois sistemas de amortização.
+    prazoMaximoMesesPrice: ehCaixa ? 360 : undefined,
     limiteIdadePrazoMeses: LIMITE_IDADE_PRAZO_MESES,
     idadeMaximaAbsoluta: 80,
     comprometimentoRenda: {

@@ -434,7 +434,10 @@ export function simularComCriterios(
   resultadoId: string,
 ): ResultadoBanco {
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
-  const prazo = calcularPrazoMaximo(input.dataNascimento, criteria.prazoMaximoMeses, criteria.limiteIdadePrazoMeses)
+  const prazoMaxBanco = (input.tipoAmortizacao === 'PRICE' && criteria.prazoMaximoMesesPrice != null)
+    ? criteria.prazoMaximoMesesPrice
+    : criteria.prazoMaximoMeses
+  const prazo = calcularPrazoMaximo(input.dataNascimento, prazoMaxBanco, criteria.limiteIdadePrazoMeses)
 
   // Estratégia usada só para elegibilidade/estimativa de capacidade máxima — para o Itaú
   // é deliberadamente diferente da estratégia real usada na parcela (ver comentário do
