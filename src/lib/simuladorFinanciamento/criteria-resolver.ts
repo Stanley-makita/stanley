@@ -183,11 +183,16 @@ export function resolverCriterios(
     ltv: {
       sac: overrides?.maxLtv ?? cfg.maxLtv,
       correntista: overrides?.maxLtv ?? cfg.maxLtvCorrentista,
-      // A Caixa é o primeiro banco desta migração com `maxLtvPrice` real (0.70) — a
-      // fórmula original (`simularBancoComTaxa`) já respeitava `overrides?.maxLtv` também
-      // para PRICE (`overrides?.maxLtv ?? cfg.maxLtvPrice ?? cfg.maxLtv`); os outros bancos
-      // já migrados não têm `maxLtvPrice` definido, então este ajuste não muda nada para eles.
-      price: overrides?.maxLtv ?? cfg.maxLtvPrice,
+      // NÃO usar overrides?.maxLtv aqui. A tabela `bancos` (Configurações > Bancos) só
+      // tem UMA coluna `ltv_maximo` por banco (migration 108) — não existe campo separado
+      // para o teto de PRICE. Aplicar o mesmo override do SAC ao PRICE da Caixa reabria
+      // 70% para 80% sempre que o banco tivesse qualquer `ltv_maximo` configurado (inclusive
+      // o valor padrão da coluna, 80), silenciosamente ignorando o teto normativo do PRICE
+      // (MO30769 v032 seção 3.1) — bug real encontrado em produção em 2026-07-07 (PDF
+      // mostrando PRICE elegível a 80% quando deveria ser rejeitado acima de 70%). `cfg.
+      // maxLtvPrice` é um valor de código, não calibrável por banco de dados, mesma
+      // categoria de `prazoMaximoMesesPrice` abaixo.
+      price: cfg.maxLtvPrice,
       // Não há penalidade de LTV para imóvel usado na Caixa. Havia uma redução de -10pp
       // aqui (herdada do código hardcoded original, sem nenhum lastro em normativo — ver
       // base-criterios-caixa.md, seção 13), removida em 2026-07-07 depois de confirmar

@@ -160,10 +160,26 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
     expect(excede.motivoInelegivel).toMatch(/excede.*imóvel/i)
   })
 
-  it('override de maxLtv do banco de dados (PRICE) não abre exceção ao teto de 360 meses', () => {
-    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 130_000 }, { maxLtv: 0.75 })
+  it('teto de 360 meses do PRICE se mantém mesmo com override de maxLtv presente (mas ignorado pro PRICE)', () => {
+    // financiado 70% (dentro do teto fixo do PRICE) — o override de maxLtv aqui não tem
+    // nenhum efeito sobre o PRICE (ver teste abaixo), só confirma que sua mera presença
+    // não interfere no cálculo de prazo.
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 }, { maxLtv: 0.92 })
     expect(resultado.elegivel).toBe(true)
     expect(resultado.parcelas).toBe(360)
+  })
+
+  it('override de maxLtv do banco de dados NÃO vaza para o teto do PRICE (bug real de produção, 2026-07-07)', () => {
+    // financiado 74% (valorEntrada 130k sobre 500k) — dentro do teto do SAC (mesmo sem
+    // override) e do override de 75% (se vazasse pro PRICE), mas ACIMA do teto real e
+    // fixo do PRICE (70%, cfg.maxLtvPrice — não configurável pela tabela `bancos`, que só
+    // tem uma coluna `ltv_maximo` por banco, sem distinguir SAC de PRICE). A tabela
+    // `bancos` (Configurações > Bancos) é a origem do bug: qualquer `ltv_maximo`
+    // configurado — inclusive o valor padrão da coluna (80) — reabria o teto do PRICE de
+    // 70% para 80%, aprovando financiamentos PRICE acima do que a Caixa realmente permite.
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 130_000 }, { maxLtv: 0.75 })
+    expect(resultado.elegivel).toBe(false)
+    expect(resultado.motivoInelegivel).toMatch(/excede.*imóvel/i)
   })
 
   it('override de prazoMaximoMeses do banco de dados não estende PRICE além de 360', () => {

@@ -255,6 +255,45 @@ LTV estava quebrada). Testado em `criteria-migracao-fase4-caixa.test.ts`, descri
 tipo — é um ponto de extensão genérico, não uma constatação de que algum banco precisa
 dele hoje. Nenhum banco o popula agora.
 
+## Override de `maxLtv` do banco de dados vazando para o teto do PRICE (pós-Fase 4, 2026-07-07)
+
+Achado em produção (deploy `befeb22`, commit da remoção da penalidade de imóvel usado
+acima): mesmo depois de corrigida a penalidade, um PDF real de `*simula` (Caixa, imóvel
+usado, R$430.000, entrada R$86.000) mostrou o **PRICE elegível a 80% de LTV**
+(R$344.000 financiado) quando o teto normativo do PRICE é 70% (R$301.000) — reproduzido
+localmente só depois de passar o override real de banco de dados
+(`{ caixa: { maxLtv: 0.80 } }`), não com uma chamada direta ao motor sem overrides (que já
+estava correta, mascarando o bug nos testes manuais anteriores).
+
+**Causa raiz**: a tabela `bancos` (Configurações > Bancos, migration
+`20260623_108_bancos_simulador_params.sql`) tem uma única coluna `ltv_maximo` por banco
+(`DEFAULT 80`, sem distinguir SAC de PRICE — a distinção só existe desde a Fase 4 do motor
+agnóstico, a coluna é anterior). `SimuladorFinanciamento.tsx` transforma isso em
+`overrides.maxLtv`, e `criteria-resolver.ts` aplicava o **mesmo** valor tanto para
+`ltv.sac` quanto para `ltv.price` (`overrides?.maxLtv ?? cfg.maxLtvPrice`) — herdado
+literalmente da fórmula do código hardcoded original (`simularBancoComTaxa`), que também
+só tinha um campo de override. Como todo banco Caixa cadastrado tem `ltv_maximo` não-nulo
+(nem que seja o padrão da coluna, 80), o override **sempre** disparava, reabrindo 70%→80%
+no PRICE silenciosamente — não é um caso raro de configuração incomum, é o comportamento
+padrão de qualquer empresa com a Caixa cadastrada.
+
+**Correção**: `ltv.price` da Caixa passou a usar sempre `cfg.maxLtvPrice` (0.70, valor de
+código), ignorando `overrides?.maxLtv` por completo — mesma categoria de decisão já tomada
+para `prazoMaximoMesesPrice` (regra normativa fixa, não um parâmetro calibrável por banco
+de dados via um campo que não tem granularidade para representá-la). `ltv.sac` continua
+respeitando o override normalmente — só o teto do PRICE ficou protegido.
+
+Testado em `criteria-migracao-fase4-caixa.test.ts`: `'teto de 360 meses do PRICE se mantém
+mesmo com override de maxLtv presente (mas ignorado pro PRICE)'` e `'override de maxLtv do
+banco de dados NÃO vaza para o teto do PRICE (bug real de produção, 2026-07-07)'`.
+
+**Lição para futuras fases**: qualquer campo de `SimulationCriteria` que precise de um
+valor DIFERENTE para SAC e PRICE (hoje: `ltv.price`/`ltv.sac`,
+`prazoMaximoMesesPrice`/`prazoMaximoMeses`) não pode confiar cegamente em overrides
+genéricos vindos de colunas de banco de dados desenhadas antes dessa distinção existir —
+vale auditar os outros campos overridáveis (`mipRate`, `dfiRate`, `taxaAdmin`) se algum
+banco futuro também precisar de valores distintos por sistema de amortização.
+
 Testado em `criteria-migracao-fase4-caixa.test.ts`, describe `"teto de prazo PRICE (360
 meses — MO30769 v032)"`: SAC continua 420, PRICE cai para 360 (inclusive combinado com
 Pró-Cotista, override de LTV, override de `prazoMaximoMeses` e a regra de idade+prazo,
