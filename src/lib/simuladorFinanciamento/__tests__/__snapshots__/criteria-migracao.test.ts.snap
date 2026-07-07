@@ -1,0 +1,1036 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE) 1`] = `
+{
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, LTV acima do limite (deve ficar inelegível) 1`] = `
+{
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 450.000) excede 80% do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 450000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 450000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, cliente com 80 anos (deve ficar inelegível — corte duro de idade) 1`] = `
+{
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Idade máxima de 80 anos atingida",
+  "parcelas": 12,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, cliente jovem (25 anos) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 377930,
+  "parcelas": 420,
+  "primeiraParcela": 4169.887224264623,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 684683.6440410408,
+  "totalPago": 1059289.519041041,
+  "totalSeguros": 24605.875000000044,
+  "ultimaParcela": 874.3485806927014,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, cliente próximo do limite de idade (78 anos) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 80380,
+  "parcelas": 23,
+  "primeiraParcela": 19483.195195279117,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 39031.846691175444,
+  "totalPago": 401554.29669117543,
+  "totalSeguros": 12522.449999999993,
+  "ultimaParcela": 15434.569734388315,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, correntista, imóvel novo 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 378745,
+  "parcelas": 420,
+  "primeiraParcela": 4160.983255204603,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.116,
+  "taxaMensal": 0.009187856919632198,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 676915.3585539062,
+  "totalPago": 1057415.2335539067,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.3273807663679,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, entrada igual ao valor do imóvel (financiado <= 0, inelegível) 1`] = `
+{
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Valor de entrada maior ou igual ao valor do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 0,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 0,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, entrada mínima (LTV no limite de 80%) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 375389,
+  "parcelas": 420,
+  "primeiraParcela": 4792.849684873855,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 782495.5931897603,
+  "totalPago": 1215363.5931897606,
+  "totalSeguros": 32868.00000000013,
+  "ultimaParcela": 994.5959969821437,
+  "valorFinanciado": 400000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, imóvel usado 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 375389,
+  "parcelas": 420,
+  "primeiraParcela": 4197.887224264623,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 684683.6440410408,
+  "totalPago": 1065183.5190410411,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.4152473593681,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > SAC, não correntista, imóvel novo, cenário padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 375389,
+  "parcelas": 420,
+  "primeiraParcela": 4197.887224264623,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 684683.6440410408,
+  "totalPago": 1065183.5190410411,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.4152473593681,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > com override apenas de mipRate (deve usar taxa flat, ignorando tabela por idade) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 366909,
+  "parcelas": 420,
+  "primeiraParcela": 4294.137224264623,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 684683.6440410408,
+  "totalPago": 1085444.1440410411,
+  "totalSeguros": 50760.50000000046,
+  "ultimaParcela": 874.644414026035,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > com overrides do banco de dados (taxa, LTV, prazo, MIP e DFI customizados) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 369458,
+  "parcelas": 360,
+  "primeiraParcela": 4266.586175138835,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.115,
+  "taxaMensal": 0.009112468436904608,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 575680.1935014429,
+  "totalPago": 950915.1935014428,
+  "totalSeguros": 25234.999999999873,
+  "ultimaParcela": 1016.2760109803091,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > renda baixa (aviso de comprometimento de renda) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 72849,
+  "parcelas": 420,
+  "primeiraParcela": 4197.887224264623,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 684683.6440410408,
+  "totalPago": 1065183.5190410411,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.4152473593681,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > valor de imóvel acima do teto do BB (R$ 6.000.000 — só relevante para BB, mas roda em todos) 1`] = `
+{
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Imóvel acima do teto Banco do Brasil: R$ 5.000.000",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 4200000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 4200000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > valor de imóvel alto (R$ 4.500.000 — testa teto do BB) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bb",
+  "bancoNome": "Banco do Brasil",
+  "corBanco": "#FDCA00",
+  "elegivel": true,
+  "maxFinanciavel30": 353102,
+  "parcelas": 420,
+  "primeiraParcela": 37780.98501838161,
+  "programa": "SBPE",
+  "resultadoId": "bb",
+  "taxaAnual": 0.1174,
+  "taxaMensal": 0.009293296831232256,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 6162152.796369334,
+  "totalPago": 9586651.671369333,
+  "totalSeguros": 274498.8750000009,
+  "ultimaParcela": 7869.737226234242,
+  "valorFinanciado": 3150000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE) 1`] = `
+{
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, LTV acima do limite (deve ficar inelegível) 1`] = `
+{
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 450.000) excede 80% do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 450000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 450000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, cliente com 80 anos (deve ficar inelegível — corte duro de idade) 1`] = `
+{
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Idade máxima de 80 anos atingida",
+  "parcelas": 12,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, cliente jovem (25 anos) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 364944,
+  "parcelas": 420,
+  "primeiraParcela": 4317.080515274506,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 715667.8317986212,
+  "totalPago": 1090273.7067986212,
+  "totalSeguros": 24605.875000000044,
+  "ultimaParcela": 874.6990409093919,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, cliente próximo do limite de idade (78 anos) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 79776,
+  "parcelas": 23,
+  "primeiraParcela": 19630.388486289,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 40798.16618329406,
+  "totalPago": 403320.61618329404,
+  "totalSeguros": 12522.449999999993,
+  "ultimaParcela": 15440.969442693093,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, correntista, imóvel novo 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 362574,
+  "parcelas": 420,
+  "primeiraParcela": 4345.080515274506,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 715667.8317986212,
+  "totalPago": 1096167.7067986217,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.7657075760586,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, entrada igual ao valor do imóvel (financiado <= 0, inelegível) 1`] = `
+{
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Valor de entrada maior ou igual ao valor do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 0,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 0,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, entrada mínima (LTV no limite de 80%) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 362574,
+  "parcelas": 420,
+  "primeiraParcela": 4961.070588885151,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 817906.0934841381,
+  "totalPago": 1250774.0934841384,
+  "totalSeguros": 32868.00000000013,
+  "ultimaParcela": 994.9965229440761,
+  "valorFinanciado": 400000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, imóvel usado 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 362574,
+  "parcelas": 420,
+  "primeiraParcela": 4345.080515274506,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 715667.8317986212,
+  "totalPago": 1096167.7067986217,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.7657075760586,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, não correntista, imóvel novo, cenário padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 362574,
+  "parcelas": 420,
+  "primeiraParcela": 4345.080515274506,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 715667.8317986212,
+  "totalPago": 1096167.7067986217,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.7657075760586,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > com override apenas de mipRate (deve usar taxa flat, ignorando tabela por idade) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 354658,
+  "parcelas": 420,
+  "primeiraParcela": 4441.330515274506,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 715667.8317986212,
+  "totalPago": 1116428.3317986217,
+  "totalSeguros": 50760.50000000046,
+  "ultimaParcela": 874.9948742427255,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > com overrides do banco de dados (taxa, LTV, prazo, MIP e DFI customizados) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 369458,
+  "parcelas": 360,
+  "primeiraParcela": 4266.586175138835,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.115,
+  "taxaMensal": 0.009112468436904608,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 575680.1935014429,
+  "totalPago": 950915.1935014428,
+  "totalSeguros": 25234.999999999873,
+  "ultimaParcela": 1016.2760109803091,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > renda baixa (aviso de comprometimento de renda) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 70362,
+  "parcelas": 420,
+  "primeiraParcela": 4345.080515274506,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 715667.8317986212,
+  "totalPago": 1096167.7067986217,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.7657075760586,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > valor de imóvel acima do teto do BB (R$ 6.000.000 — só relevante para BB, mas roda em todos) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 332976,
+  "parcelas": 420,
+  "primeiraParcela": 52140.966183294084,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 8588013.981583403,
+  "totalPago": 13154012.4815834,
+  "totalSeguros": 365998.4999999966,
+  "ultimaParcela": 10497.188490912604,
+  "valorFinanciado": 4200000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > valor de imóvel alto (R$ 4.500.000 — testa teto do BB) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 341048,
+  "parcelas": 420,
+  "primeiraParcela": 39105.724637470565,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 6441010.486187552,
+  "totalPago": 9865509.361187551,
+  "totalSeguros": 274498.8750000009,
+  "ultimaParcela": 7872.891368184454,
+  "valorFinanciado": 3150000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE) 1`] = `
+{
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, LTV acima do limite (deve ficar inelegível) 1`] = `
+{
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 450.000) excede 80% do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 450000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 450000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, cliente com 80 anos (deve ficar inelegível — corte duro de idade) 1`] = `
+{
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Idade máxima de 80 anos atingida",
+  "parcelas": 12,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, cliente jovem (25 anos) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 360751,
+  "parcelas": 420,
+  "primeiraParcela": 4366.868255446875,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 726148.151104905,
+  "totalPago": 1100754.026104905,
+  "totalSeguros": 24605.875000000044,
+  "ultimaParcela": 874.8175831478977,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, cliente próximo do limite de idade (78 anos) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 79574,
+  "parcelas": 23,
+  "primeiraParcela": 19680.17622646137,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 41395.61906536248,
+  "totalPago": 403918.0690653625,
+  "totalSeguros": 12522.449999999993,
+  "ultimaParcela": 15443.134127048414,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, correntista, imóvel novo 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 376580,
+  "parcelas": 420,
+  "primeiraParcela": 4184.712103339809,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1169,
+  "taxaMensal": 0.009255653628589933,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 681910.2810863665,
+  "totalPago": 1062410.1560863669,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.3838780238328,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, entrada igual ao valor do imóvel (financiado <= 0, inelegível) 1`] = `
+{
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Valor de entrada maior ou igual ao valor do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 0,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 0,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, entrada mínima (LTV no limite de 80%) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 358436,
+  "parcelas": 420,
+  "primeiraParcela": 5017.970863367857,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 829883.6012627482,
+  "totalPago": 1262751.6012627485,
+  "totalSeguros": 32868.00000000013,
+  "ultimaParcela": 995.1319997880828,
+  "valorFinanciado": 400000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, imóvel usado 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 358436,
+  "parcelas": 420,
+  "primeiraParcela": 4394.868255446875,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 726148.151104905,
+  "totalPago": 1106648.0261049054,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.8842498145644,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > SAC, não correntista, imóvel novo, cenário padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 358436,
+  "parcelas": 420,
+  "primeiraParcela": 4394.868255446875,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 726148.151104905,
+  "totalPago": 1106648.0261049054,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.8842498145644,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > com override apenas de mipRate (deve usar taxa flat, ignorando tabela por idade) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 350697,
+  "parcelas": 420,
+  "primeiraParcela": 4491.118255446875,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 726148.151104905,
+  "totalPago": 1126908.6511049054,
+  "totalSeguros": 50760.50000000046,
+  "ultimaParcela": 875.1134164812313,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > com overrides do banco de dados (taxa, LTV, prazo, MIP e DFI customizados) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 369458,
+  "parcelas": 360,
+  "primeiraParcela": 4266.586175138835,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.115,
+  "taxaMensal": 0.009112468436904608,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 575680.1935014429,
+  "totalPago": 950915.1935014428,
+  "totalSeguros": 25234.999999999873,
+  "ultimaParcela": 1016.2760109803091,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > renda baixa (aviso de comprometimento de renda) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 69559,
+  "parcelas": 420,
+  "primeiraParcela": 4394.868255446875,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 726148.151104905,
+  "totalPago": 1106648.0261049054,
+  "totalSeguros": 30499.875000000353,
+  "ultimaParcela": 874.8842498145644,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > valor de imóvel acima do teto do BB (R$ 6.000.000 — só relevante para BB, mas roda em todos) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 329175,
+  "parcelas": 420,
+  "primeiraParcela": 52738.41906536251,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 8713777.81325881,
+  "totalPago": 13279776.313258806,
+  "totalSeguros": 365998.4999999966,
+  "ultimaParcela": 10498.610997774673,
+  "valorFinanciado": 4200000,
+}
+`;
+
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > valor de imóvel alto (R$ 4.500.000 — testa teto do BB) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "santander",
+  "bancoNome": "Santander",
+  "corBanco": "#EC0000",
+  "elegivel": true,
+  "maxFinanciavel30": 337155,
+  "parcelas": 420,
+  "primeiraParcela": 39553.814299021884,
+  "programa": "SBPE",
+  "resultadoId": "santander",
+  "taxaAnual": 0.1249,
+  "taxaMensal": 0.009856099777467264,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 6535333.359944107,
+  "totalPago": 9959832.234944107,
+  "totalSeguros": 274498.8750000009,
+  "ultimaParcela": 7873.958248331005,
+  "valorFinanciado": 3150000,
+}
+`;

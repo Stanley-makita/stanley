@@ -1,0 +1,79 @@
+{
+  "banco": "bradesco",
+  "ultima_atualizacao": "2026-07-06",
+  "status": "caso_ancora_disponivel",
+  "fontes_analisadas": [
+    "_projeto/simuladores bancos/BRADESCO.xlsm"
+  ],
+  "casos": [
+    {
+      "id": "bradesco-comercial-price-001",
+      "banco": "bradesco",
+      "produto": "aquisicao",
+      "modalidade": "comercial",
+      "pessoa": "PF",
+      "produto_bradesco": "Repasse/Aquisição",
+      "sistema_amortizacao": "PRICE",
+      "segmento_relacionamento": "PRIVATE",
+      "valor_imovel": 1500000,
+      "valor_financiado": 750000,
+      "entrada": 750000,
+      "ltv_pct": 0.50,
+      "financia_despesas": false,
+      "prazo_meses": 240,
+      "taxa_utilizada_aa_nominal": 0.1399,
+      "taxa_mensal": 0.010971,
+      "cet_anual": 0.1529,
+      "data_nascimento": "1989-09-14",
+      "idade_aproximada": 36.7,
+      "renda_necessaria_calculada": 60576.41,
+      "comprometimento_renda_maximo_segmento_pct": 0.15,
+      "relacionamento": "PRIVATE",
+      "data_simulacao": "2026-05-21",
+      "origem": "Excel",
+      "arquivo_origem": "BRADESCO.xlsm",
+      "aba_origem": "Simulador Bradesco",
+      "resultado_oficial": {
+        "primeira_parcela": 9086.46,
+        "primeira_parcela_juros": 8228.60,
+        "primeira_parcela_amortizacao": 646.93,
+        "primeira_parcela_mip": 136.05,
+        "primeira_parcela_dfi": 75.00,
+        "tarifa_avaliacao": 3400.00,
+        "iof_valor": 25350.00,
+        "iof_aliquota_pct": 0.0338,
+        "soma_amortizacao_total": 750000,
+        "soma_juros_total": 1380126.93,
+        "soma_mip_total": 28749.99,
+        "soma_dfi_total": 49973.67,
+        "encargo_total": 2226850.60
+      },
+      "resultado_fonti": null,
+      "comparacao": null,
+      "observacoes": "Único caso-âncora com números completos e coerentes entre os 6 bancos analisados nesta rodada em que o produto é COMERCIAL (o motor Fonti hoje só modela aquisição residencial genérica para o Bradesco). Bom caso para validar CET via TIR/XIRR e a fórmula PRICE com correção. Comprometimento de renda do segmento PRIVATE é 15%, não os 30% genéricos usados hoje no motor para todos os segmentos/bancos."
+    }
+  ],
+  "parametros_referencia": {
+    "tabela_taxa_por_segmento_aa": {
+      "nota": "Snapshot da aba Parâmetros no momento da análise — todos os segmentos (Prime/Exclusive/Classic/Principal/Private) mostraram 12,3%-13,99% a.a., sem diferenciação clara por segmento nesta versão salva.",
+      "faixa_observada_min": 0.123,
+      "faixa_observada_max": 0.1399
+    },
+    "tarifa_avaliacao_por_produto": {
+      "lote": 3400,
+      "residencial_ate_2_25mm": 1021.25,
+      "residencial_acima_2_25mm": 2114.03,
+      "comercial_snapshot": 3400
+    },
+    "iof": { "aliquota_pf_pct": 0.03, "adicional_aa_pct": 0.0038 },
+    "ltv_maximo": { "sac": null, "price": null, "nota": "tabela por carteira em Parâmetros!B7:U16, varia por produto (lote/residencial/comercial/PJ) — não extraído valor único" },
+    "prazo_maximo_idade_mais_prazo_anos": 80.5,
+    "limite_despesas_financiaveis_pct_imovel": 0.05,
+    "mip_tabela": "Base de Dados!A2:B64 — faixas de 3 em 3 anos, 18 a 80 anos, 0,01149% (18-20a) a 0,95272% (78-80a) sobre saldo devedor; variantes por segmento concatenadas na mesma coluna (ex. '18PRIME')",
+    "dfi_taxa_mensal": 0.00005,
+    "selic_referencia_usada_no_snapshot": 0.1325,
+    "formula_price": "PMT(taxa_mensal_efetiva, prazo, -valor_financiado_total)",
+    "formula_sac_amortizacao": "valor_financiado_total / prazo",
+    "formula_cet": "XIRR sobre fluxo de caixa completo (liberação líquida vs. encargos mensais)"
+  }
+}

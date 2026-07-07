@@ -1,0 +1,523 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > CGI/Home Equity — cenário padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": true,
+  "maxFinanciavel30": 320857,
+  "parcelas": 360,
+  "primeiraParcela": 2804.4555700598785,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0.010934500072521613,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 394735.45261802623,
+  "totalPago": 608798.452618026,
+  "totalSeguros": 14062.99999999991,
+  "ultimaParcela": 577.7580555958288,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > LTV acima do limite (inelegível) 1`] = `
+{
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 300.000) excede 60% do imóvel",
+  "parcelas": 360,
+  "primeiraParcela": 0,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 300000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 300000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > LTV no limite máximo (60%) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": true,
+  "maxFinanciavel30": 320857,
+  "parcelas": 360,
+  "primeiraParcela": 3362.1466840718535,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0.010934500072521613,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 473682.5431416404,
+  "totalPago": 729406.1431416405,
+  "totalSeguros": 15723.600000000086,
+  "ultimaParcela": 690.1096667150279,
+  "valorFinanciado": 240000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > MIP flat — não deve variar com a idade (verificação da estratégia) 1`] = `
+{
+  "jovem": 14062.99999999991,
+  "maisVelho": 8875.999999999973,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > PRICE (inelegível — Daycoval não oferece) 1`] = `
+{
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
+  "parcelas": 360,
+  "primeiraParcela": 0,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 0,
+  "totalPago": 200000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > com overrides do banco de dados (taxa, LTV, prazo, MIP e DFI customizados) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": true,
+  "maxFinanciavel30": 318273,
+  "parcelas": 240,
+  "primeiraParcela": 2831.0919202499426,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.12,
+  "taxaMensal": 0.009488792934583046,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 228679.90972345113,
+  "totalPago": 443119.9097234511,
+  "totalSeguros": 14439.99999999998,
+  "ultimaParcela": 861.5739941121477,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > correntista 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": true,
+  "maxFinanciavel30": 320857,
+  "parcelas": 360,
+  "primeiraParcela": 2804.4555700598785,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0.010934500072521613,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 394735.45261802623,
+  "totalPago": 608798.452618026,
+  "totalSeguros": 14062.99999999991,
+  "ultimaParcela": 577.7580555958288,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > idade no corte duro de 80 anos (inelegível) 1`] = `
+{
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Idade máxima de 80 anos atingida",
+  "parcelas": 12,
+  "primeiraParcela": 0,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 200000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > idade próxima ao limite (78 anos — prazo reduzido) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": true,
+  "maxFinanciavel30": 81867,
+  "parcelas": 23,
+  "primeiraParcela": 10944.552188417367,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0.010934500072521613,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 26242.80017405186,
+  "totalPago": 227162.80017405187,
+  "totalSeguros": 920,
+  "ultimaParcela": 8808.734783239319,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > prazo máximo atual (360 meses — cliente jovem) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": true,
+  "maxFinanciavel30": 320857,
+  "parcelas": 360,
+  "primeiraParcela": 2804.4555700598785,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0.010934500072521613,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 394735.45261802623,
+  "totalPago": 608798.452618026,
+  "totalSeguros": 14062.99999999991,
+  "ultimaParcela": 577.7580555958288,
+  "valorFinanciado": 200000,
+}
+`;
+
+exports[`Daycoval — regressão antes/depois da migração (Fase 2) > teto de imóvel (R$ 1.000.000 — acima disso é inelegível) 1`] = `
+{
+  "bancoId": "daycoval",
+  "bancoNome": "Daycoval (CGI)",
+  "corBanco": "#1B3F6E",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Imóvel acima do teto Daycoval (CGI): R$ 1.000.000",
+  "parcelas": 360,
+  "primeiraParcela": 0,
+  "programa": "CGI",
+  "resultadoId": "daycoval",
+  "taxaAnual": 0.1394,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 600000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 600000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > LTV acima do limite (inelegível) 1`] = `
+{
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 450.000) excede 80% do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 450000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 450000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > LTV no limite de 80% 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 443188,
+  "parcelas": 420,
+  "primeiraParcela": 4074.3446686139796,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 639207.187267056,
+  "totalPago": 1066137.867267056,
+  "totalSeguros": 26930.68000000005,
+  "ultimaParcela": 1002.5023183719977,
+  "valorFinanciado": 400000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > PRICE (inelegível — Inter não oferece) 1`] = `
+{
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > aquisição residencial padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 443188,
+  "parcelas": 420,
+  "primeiraParcela": 3570.4003350372323,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 559306.288858674,
+  "totalPago": 935117.1088586741,
+  "totalSeguros": 25810.820000000043,
+  "ultimaParcela": 882.5382785754919,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > com overrides do banco de dados (taxa, LTV, prazo, MIP e DFI customizados) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 378150,
+  "parcelas": 360,
+  "primeiraParcela": 4179.330060465389,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.11,
+  "taxaMensal": 0.008734593823551906,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 551807.9648028864,
+  "totalPago": 936960.4648028862,
+  "totalSeguros": 35152.49999999988,
+  "ultimaParcela": 1026.0058551062166,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > com prazo máximo atual (420 meses — cliente jovem, sem restrição de idade) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 445140,
+  "parcelas": 420,
+  "primeiraParcela": 3554.9303350372325,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 559306.288858674,
+  "totalPago": 931860.673858674,
+  "totalSeguros": 22554.385000000028,
+  "ultimaParcela": 882.5014452421585,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > correntista 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 443188,
+  "parcelas": 420,
+  "primeiraParcela": 3570.4003350372323,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 559306.288858674,
+  "totalPago": 935117.1088586741,
+  "totalSeguros": 25810.820000000043,
+  "ultimaParcela": 882.5382785754919,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etárias da tabela MIP própria (Sompo) — idades cobrindo vários tetos 1`] = `
+{
+  "label": "jovem <=30",
+  "primeiraParcela": 3554.9303350372325,
+  "totalSeguros": 22554.385000000028,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etárias da tabela MIP própria (Sompo) — idades cobrindo vários tetos 2`] = `
+{
+  "label": "~40",
+  "primeiraParcela": 3598.8553350372326,
+  "totalSeguros": 31800.597500000098,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etárias da tabela MIP própria (Sompo) — idades cobrindo vários tetos 3`] = `
+{
+  "label": "~55",
+  "primeiraParcela": 4150.16419682585,
+  "totalSeguros": 45519.529999999744,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etárias da tabela MIP própria (Sompo) — idades cobrindo vários tetos 4`] = `
+{
+  "label": "~70",
+  "primeiraParcela": 6876.935039087076,
+  "totalSeguros": 53506.85000000019,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > idade no corte duro de 80 anos (inelegível) 1`] = `
+{
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Idade máxima de 80 anos atingida",
+  "parcelas": 12,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > idade próxima ao limite (78 anos — prazo reduzido pela regra idade+prazo) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 80804,
+  "parcelas": 23,
+  "primeiraParcela": 19390.683306051727,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 31884.44402044677,
+  "totalPago": 400550.19402044674,
+  "totalSeguros": 18665.749999999996,
+  "ultimaParcela": 15439.76834790017,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > imóvel usado 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 443188,
+  "parcelas": 420,
+  "primeiraParcela": 3570.4003350372323,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 559306.288858674,
+  "totalPago": 935117.1088586741,
+  "totalSeguros": 25810.820000000043,
+  "ultimaParcela": 882.5382785754919,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Inter — regressão antes/depois da migração (Fase 2) > renda baixa (aviso de comprometimento de renda) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "inter",
+  "bancoNome": "Banco Inter",
+  "corBanco": "#FF6600",
+  "elegivel": true,
+  "maxFinanciavel30": 86006,
+  "parcelas": 420,
+  "primeiraParcela": 3570.4003350372323,
+  "programa": "SBPE",
+  "resultadoId": "inter",
+  "taxaAnual": 0.095,
+  "taxaMensal": 0.007591534290582569,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 559306.288858674,
+  "totalPago": 935117.1088586741,
+  "totalSeguros": 25810.820000000043,
+  "ultimaParcela": 882.5382785754919,
+  "valorFinanciado": 350000,
+}
+`;

@@ -246,6 +246,14 @@ export const CAIXA_PRO_COTISTA = {
   programa: 'Pró-Cotista FGTS',
 }
 
+// Regra oficial: idade + prazo de financiamento não pode ultrapassar 80 anos e 6 meses.
+// Movida de engine.ts para cá (Fase 1 da migração para o motor agnóstico — ver
+// docs/calibracao-simuladores/arquitetura-motor-agnostico.md) para que tanto engine.ts
+// quanto criteria-resolver.ts possam ler o mesmo valor sem criar import circular entre
+// os dois. engine.ts reexporta esta constante para preservar o import externo existente
+// (src/lib/workflows/motor-simulacao.ts importa LIMITE_IDADE_PRAZO_MESES de engine.ts).
+export const LIMITE_IDADE_PRAZO_MESES = 966 // 80 anos e 6 meses
+
 export const TODOS_BANCOS: BancoId[] = [
   'caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval',
 ]

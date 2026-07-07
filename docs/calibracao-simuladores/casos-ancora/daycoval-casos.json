@@ -1,0 +1,102 @@
+{
+  "banco": "daycoval",
+  "ultima_atualizacao": "2026-07-06",
+  "status": "caso_ancora_disponivel",
+  "fontes_analisadas": [
+    "_projeto/simuladores bancos/DAYCOVAL.xlsx"
+  ],
+  "casos": [
+    {
+      "id": "daycoval-cgi-sac-fixa-001",
+      "banco": "daycoval",
+      "produto": "cgi_home_equity",
+      "modalidade": "residencial",
+      "sistema_amortizacao": "PRICE",
+      "descricao_produto_planilha": "Crédito Com Garantia de Imóvel - CGI",
+      "valor_credito": 200000,
+      "valor_imovel": 500000,
+      "ltv_pct": 0.40,
+      "prazo_meses": null,
+      "taxa_utilizada": null,
+      "data_simulacao": null,
+      "origem": "Excel",
+      "arquivo_origem": "DAYCOVAL.xlsx",
+      "aba_origem": "Cálculos_CGI - SAC FIXA",
+      "resultado_oficial": {
+        "mip_mensal": 46.00,
+        "mip_taxa_mensal": 0.00023,
+        "dfi_mensal": 20.00,
+        "dfi_taxa_mensal": 0.00004
+      },
+      "resultado_fonti": null,
+      "comparacao": null,
+      "observacoes": "Bate exatamente com DAYCOVAL_MIP_RATE (0.00023) e DAYCOVAL_DFI_RATE (0.00004) já usados no motor Fonti — este é provavelmente o caso de origem dessas constantes. A planilha também contém uma tabela de MIP por faixa etária muito granular (0,01284% a 1,1433%) nas linhas 88-151, mas a fórmula viva não a utiliza — o cálculo real usa a taxa flat 0,023% independente da idade. Ou seja, a granularidade existe na planilha mas está desativada/vestigial; o motor Fonti (flat) está alinhado com o comportamento REAL da planilha, não com a tabela por idade que aparenta existir."
+    },
+    {
+      "id": "daycoval-aquisicao-sac-fixa-001",
+      "banco": "daycoval",
+      "produto": "aquisicao",
+      "modalidade": "residencial",
+      "sistema_amortizacao": "SAC",
+      "descricao_produto_planilha": "Financiamento Imobiliário - FI",
+      "valor_credito": 125000,
+      "valor_imovel": 300000,
+      "ltv_pct": 0.4167,
+      "prazo_meses": null,
+      "taxa_utilizada": null,
+      "data_simulacao": null,
+      "origem": "Excel",
+      "arquivo_origem": "DAYCOVAL.xlsx",
+      "aba_origem": "Cálculos_Aquisição_SAC_Fixa",
+      "resultado_oficial": {
+        "mip_mensal": 28.75,
+        "mip_taxa_mensal": 0.00023,
+        "dfi_mensal": 12.00,
+        "dfi_taxa_mensal": 0.00004
+      },
+      "resultado_fonti": null,
+      "comparacao": null,
+      "observacoes": "PRODUTO NÃO MODELADO HOJE NO FONTI: o Daycoval tem uma linha de aquisição/financiamento tradicional (LTV até 70% residencial / 50% comercial-misto-TCC segundo a aba 'Cálculos_CGI e Fin'), distinta do CGI — hoje o motor só modela Daycoval como CGI (programa='CGI' em BANCOS_CONFIG). Mesma taxa de MIP/DFI flat do CGI (0,023%/0,004%) neste caso, mas isso pode não valer para todas as combinações — ver observação do caso 'daycoval-cgi-e-fin-excelsior-001' abaixo, que mostra taxas diferentes para uma variante mais nova da planilha."
+    },
+    {
+      "id": "daycoval-cgi-e-fin-excelsior-001",
+      "banco": "daycoval",
+      "produto": "cgi_home_equity",
+      "modalidade": "residencial",
+      "sistema_amortizacao": null,
+      "descricao_produto_planilha": "CGI (aba 'Cálculos_CGI e Fin', seguradora Excelsior)",
+      "valor_credito": null,
+      "valor_imovel": null,
+      "prazo_meses": null,
+      "taxa_utilizada": null,
+      "seguradora": "Excelsior",
+      "data_simulacao": null,
+      "origem": "Excel",
+      "arquivo_origem": "DAYCOVAL.xlsx",
+      "aba_origem": "Cálculos_CGI e Fin",
+      "resultado_oficial": {
+        "mip_taxa_mensal": 0.000171,
+        "dfi_taxa_mensal": 0.000037,
+        "dfi_taxa_mensal_zurich_acima_10mm": 0.000039
+      },
+      "resultado_fonti": null,
+      "comparacao": null,
+      "observacoes": "CASO INCOMPLETO — só as alíquotas foram confirmadas (fórmula K32/K33), não um valor numérico de imóvel/crédito específico. Alíquotas DIFERENTES das do caso 'daycoval-cgi-sac-fixa-001' (0,0171%/0,0037% vs 0,023%/0,004%) — esta aba parece ser uma versão mais nova/ajustada com seguradora nomeada (Excelsior ou Zurich, escolhida em dropdown J9), enquanto a aba 'Cálculos_CGI - SAC FIXA' usa uma taxa flat mais antiga sem nomear seguradora. Precisa de uma rodada de preenchimento manual desta aba para virar um caso-âncora completo — registrado aqui como pendência, não como dado confiável para calibração ainda."
+    }
+  ],
+  "parametros_referencia": {
+    "ltv_maximo_por_tipo": {
+      "cgi_qualquer_imovel": 0.60,
+      "aquisicao_residencial": 0.70,
+      "aquisicao_comercial_misto_tcc": 0.50
+    },
+    "seguradoras_disponiveis": ["EXCELSIOR", "ZURICH"],
+    "produtos_confirmados_na_planilha": [
+      "CGI (Crédito Com Garantia de Imóvel)",
+      "Financiamento Imobiliário - Aquisição",
+      "Terreno Com Construção Concluída - TCC",
+      "Financiamento Imobiliário - Aquisição TCC"
+    ],
+    "nota_produto_aquisicao": "Confirma que o Daycoval tem produto de aquisição tradicional pleno, não só CGI — hoje ausente do motor Fonti (que só modela 'daycoval' como programa CGI)."
+  }
+}

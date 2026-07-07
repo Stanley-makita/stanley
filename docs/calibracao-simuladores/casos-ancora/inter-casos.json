@@ -1,0 +1,60 @@
+{
+  "banco": "inter",
+  "ultima_atualizacao": "2026-07-06",
+  "status": "caso_ancora_disponivel",
+  "fontes_analisadas": [
+    "_projeto/simuladores bancos/SIMULAÇÃO INTER.xlsx"
+  ],
+  "casos": [
+    {
+      "id": "inter-sfh-sompo-001",
+      "banco": "inter",
+      "produto": "aquisicao",
+      "modalidade": "residencial",
+      "carteira": "SFH",
+      "sistema_amortizacao": "SAC",
+      "valor_imovel": 1690000,
+      "valor_financiado": 1340000,
+      "entrada": 350000,
+      "ltv_pct": 0.7929,
+      "prazo_meses": 420,
+      "taxa_utilizada_aa": 0.095,
+      "data_nascimento": "1981-07-11",
+      "relacionamento": null,
+      "seguradora_apolice": "Sompo SuperHab SFH",
+      "data_simulacao": "2024-11-07",
+      "versao_planilha": "1.0",
+      "origem": "Excel",
+      "arquivo_origem": "SIMULAÇÃO INTER.xlsx",
+      "aba_origem": "Simulador SAC M",
+      "resultado_oficial": {
+        "mip_exemplo_valor": 264.84,
+        "mip_exemplo_saldo_referencia": 1411000,
+        "mip_exemplo_idade": 45,
+        "dfi_mensal": 144.66,
+        "dfi_taxa_mensal_implicita": 0.00008558,
+        "observacao_tabela_mip": "Salto de faixa etária confirmado no mês 20 do contrato (idade 46), consistente com o array INTER_MIP_SOMPO já no código"
+      },
+      "resultado_fonti": null,
+      "comparacao": null,
+      "observacoes": "Este é o caso de origem de INTER_MIP_SOMPO e INTER_DFI_RATE no código atual — confirmado ponto a ponto (mesma tabela de MIP por faixa de 5 anos, mesmo DFI flat 0,008558%, mesmo caso de teste). Vale para a carteira SFH/aquisição do Inter, que é a única modelada hoje no motor Fonti (BANCOS_CONFIG.inter). NÃO confundir com o produto CGI/Home Equity do Inter (ver observação abaixo) — são produtos diferentes com seguradoras diferentes; o motor Fonti hoje não modela o CGI do Inter, então não há risco de mistura no estado atual do código."
+    }
+  ],
+  "parametros_referencia": {
+    "produto_cgi_home_equity_nao_modelado": {
+      "apolice_seguradora": "Liberty CI 112020 SuperHab (revisão especial mar/2023: 'Tx Liberty Especial CI 032023')",
+      "dfi_taxa_mensal_flat": 0.00018,
+      "nota": "Bem mais cara que o DFI da carteira SFH (0.00008558). A tábua de MIP por idade do Liberty (18 a 100 anos) é mais cara que a Sompo nas faixas médias (ex.: 45 anos: Liberty 0,05% vs Sompo 0,01877%). Se o Fonti algum dia modelar o CGI do Inter como produto próprio, ele precisa da tabela Liberty, não da Sompo — são seguradoras e tabelas distintas por produto dentro do mesmo banco."
+    },
+    "abas_da_planilha": {
+      "SAC": "versão condensada (só totais por parcela)",
+      "Price": "versão condensada equivalente para PRICE",
+      "Simulador SAC M": "versão completa/oficial SAC — MIP/DFI explícitos por parcela, campo Apólice",
+      "Simulador PRICE M": "versão completa/oficial PRICE (carteira Home Equity/CGI, apólice Liberty)",
+      "Simulador Backup": "variante PRICE com apólice/tábua alternativa (Tx Liberty Especial CI 032023)",
+      "Tx Liberty CI 112020": "tábua de MIP por idade individual (18-100 anos), carteira Home Equity",
+      "Tx Liberty Especial CI 032023": "revisão de mar/2023 da tábua Liberty, teto de 0,6% a partir dos 71 anos",
+      "Tx Sompo SuperHab SFH": "tábua de MIP por idade (faixas de 5 anos), carteira SFH — a mesma já usada no código"
+    }
+  }
+}

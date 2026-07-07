@@ -1,0 +1,38 @@
+{
+  "banco": "santander",
+  "ultima_atualizacao": "2026-07-06",
+  "status": "sem_caso_ancora_pronto",
+  "fontes_analisadas": [
+    "_projeto/simuladores bancos/Simulador Imóvel Residencial DESTRAVADO - CI Bonificado - 2022.03.14.xlsm"
+  ],
+  "motivo_sem_caso_pronto": "A aba 'Preenchimento' (tela de entrada de dados) estava salva vazia — todos os campos de entrada em branco/zero, gerando erros em cascata (#N/A, #VALUE!, #NUM!) em quase todas as células de resultado. Não há nenhum cenário numérico completo e coerente para extrair. Além disso, a planilha está datada de 14/03/2022 (rótulo interno 'V. Mar/2022') — mais de 4 anos desatualizada, então mesmo que houvesse um caso preenchido, a taxa não deveria ser usada como referência atual, só como referência estrutural.",
+  "casos": [],
+  "parametros_referencia": {
+    "produto": "Crédito Imobiliário Santander (SFH) — Aquisição ou Portabilidade",
+    "ofertas_de_taxa": ["Sem Relacionamento", "CI Bonificado", "Plano Saúde/Leilão (médicos)", "FOPA TJSP & TJPE"],
+    "taxa_sac_sem_relacionamento_aa_2022": 0.1149,
+    "taxa_sac_ci_bonificado_aa_2022": 0.0949,
+    "taxa_price_padrao_aa_2022": 0.115,
+    "taxa_price_funcionarios_aa_2022": 0.113,
+    "ltv_maximo_pct": { "sac": 0.80, "price": 0.80 },
+    "faixas_valor_imovel_que_mudam_enquadramento": {
+      "sac_df_mg_rj_sp": 1500000.01,
+      "sac_demais_estados": 800000.01,
+      "price_df_mg_rj_sp": 750000.01,
+      "price_demais_estados": 650000.01
+    },
+    "comprometimento_renda_maximo_pct": { "renda_ate_1999_99": 0.30, "renda_acima_1999_99": 0.40, "limite_total_com_imobiliario": 0.35 },
+    "renda_minima_requerida": 2500,
+    "seguradoras_disponiveis": ["Zurich Santander", "Zurich Santander Apólice F1-Private", "Tókio Marine (HDI)"],
+    "mip_dfi_por_seguradora": {
+      "nota": "Tabela em Condições!B86:P97 — 3 seguradoras com tábuas próprias por faixa etária ('e mais 1 mês': 18, 31.1, 36.1... 71.1 anos). MIP Zurich cresce de 0,017% (18a) a 0,71% (71a+). DFI fixo 0,005%-0,0053% conforme seguradora, sem variação por idade — diferente do Itaú/Inter, cujo DFI também é flat mas com valores próprios."
+    },
+    "tarifa_servicos_administrativos_tsa": 25.00,
+    "tarifa_avaliacao_garantia": 3300.00,
+    "idade_maxima_mais_prazo_anos": 80.5,
+    "idade_minima": 18,
+    "formula_sac_amortizacao": "Amortizacao = (SaldoAnterior*(1+TR)) / (Prazo - ParcelaAnterior)",
+    "formula_price_parcela": "PMT clássico com correção monetária TR embutida no saldo antes de aplicar a fórmula",
+    "acao_recomendada": "Antes de usar este banco como referência de calibração, preencher manualmente a aba 'Preenchimento' com um cenário real (requer habilitar macros no Excel) para gerar um caso-âncora numérico completo, ou obter uma simulação real do simulador web atual do Santander."
+  }
+}

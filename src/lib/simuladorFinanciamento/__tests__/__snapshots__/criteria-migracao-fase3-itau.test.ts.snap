@@ -1,0 +1,461 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Itaú — caso-âncora real (Henrique Justo Mengue, simulador itau.xlsm) > snapshot completo do caso-âncora (referência para qualquer mudança futura de regra) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 2500618,
+  "parcelas": 396,
+  "primeiraParcela": 14430.80726357538,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.13,
+  "taxaMensal": 0.010236844358176,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 2142758.3465757756,
+  "totalPago": 3465859.759677799,
+  "totalSeguros": 268601.41310202325,
+  "ultimaParcela": 2690.138263575003,
+  "valorFinanciado": 1054500,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > LTV acima do limite (inelegível) 1`] = `
+{
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 450.000) excede 80% do imóvel",
+  "parcelas": 420,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 450000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 450000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > LTV no limite de 80% 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 5000.441514964153,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 792629.448423768,
+  "totalPago": 1243442.3956018637,
+  "totalSeguros": 50812.94717809582,
+  "ultimaParcela": 961.3463346728347,
+  "valorFinanciado": 400000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > PRICE, aquisição residencial padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 3614.644465807284,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 1061386.6756390512,
+  "totalPago": 1490437.5405801013,
+  "totalSeguros": 79050.86494105014,
+  "ultimaParcela": 3360.4444658072844,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > SAC, aquisição residencial padrão 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4382.311325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1089466.3461516309,
+  "totalSeguros": 45915.57878083364,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com ITBI incorporado (5% padrão) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4691.3764202788925,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 743090.1078972749,
+  "totalPago": 1166454.370876739,
+  "totalSeguros": 48364.26297946405,
+  "ultimaParcela": 901.2621887557617,
+  "valorFinanciado": 375000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com ITBI incorporado (percentual customizado) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4567.750382404788,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 723274.3716866743,
+  "totalPago": 1135659.160986685,
+  "totalSeguros": 47384.78930001071,
+  "ultimaParcela": 877.2285303889114,
+  "valorFinanciado": 365000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com dataContratacao explícita (idade calculada na data do contrato, não hoje) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4360.611325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1084786.9162992975,
+  "totalSeguros": 41236.148928500224,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com override de dfiRate 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4382.311325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1089466.3461516309,
+  "totalSeguros": 45915.57878083364,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com override de mipRate (deve usar taxa flat, ignorando a tabela período+idade) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 363317,
+  "parcelas": 420,
+  "primeiraParcela": 4382.311325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1089466.3461516309,
+  "totalSeguros": 45915.57878083364,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com overrides do banco de dados (taxa, LTV, prazo customizados) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 368696,
+  "parcelas": 360,
+  "primeiraParcela": 4415.786175138622,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.115,
+  "taxaMensal": 0.009112468436904,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 575680.1935014046,
+  "totalPago": 958955.0307407099,
+  "totalSeguros": 33274.837239305205,
+  "ultimaParcela": 981.0815665358645,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > com valorAvaliacao diferente de valorImovel (DFI incide sobre avaliação, não sobre o imóvel) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4393.391325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1091793.146151631,
+  "totalSeguros": 48242.37878083363,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > correntista (taxa igual à base no Itaú — sem diferenciação hoje) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4382.311325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1089466.3461516309,
+  "totalSeguros": 45915.57878083364,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > idade 44 anos — fronteira entre valores "estimados" (até 43) e "exatos" (44+) na tabela atual 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 366447,
+  "parcelas": 420,
+  "primeiraParcela": 4451.541325593634,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1144574.116177798,
+  "totalSeguros": 101023.34880700082,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > idade jovem (25 anos) — tabela MIP_P1 faixa baixa 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 374120,
+  "parcelas": 420,
+  "primeiraParcela": 4278.011325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1067405.5555822973,
+  "totalSeguros": 23854.788211500094,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > idade no corte duro de 80 anos (inelegível) 1`] = `
+{
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Idade máxima de 80 anos atingida",
+  "parcelas": 12,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > idade próxima ao limite (78 anos — prazo reduzido pela regra idade+prazo) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 80206,
+  "parcelas": 23,
+  "primeiraParcela": 19280.857256608127,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 39537.33590712358,
+  "totalPago": 394795.3013871236,
+  "totalSeguros": 5257.965479999998,
+  "ultimaParcela": 15360.64252140262,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > imóvel usado (Itaú não aplica penalidade de LTV — só a Caixa aplica) 1`] = `
+{
+  "avisoRenda": false,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 371630,
+  "parcelas": 420,
+  "primeiraParcela": 4382.311325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1089466.3461516309,
+  "totalSeguros": 45915.57878083364,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > prazo longo (420 meses) cruzando a fronteira P1→P2 (mês 121, renovação decenal) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 366447,
+  "parcelas": 420,
+  "primeiraParcela": 5059.641514964152,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 792629.448423768,
+  "totalPago": 1275429.8651860547,
+  "totalSeguros": 82800.4167622867,
+  "ultimaParcela": 961.3463346728347,
+  "valorFinanciado": 400000,
+}
+`;
+
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > renda baixa (aviso de comprometimento de renda) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "itau",
+  "bancoNome": "Itaú",
+  "corBanco": "#EC7000",
+  "elegivel": true,
+  "maxFinanciavel30": 72119,
+  "parcelas": 420,
+  "primeiraParcela": 4382.311325593633,
+  "programa": "SBPE",
+  "resultadoId": "itau",
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 693550.7673707972,
+  "totalPago": 1089466.3461516309,
+  "totalSeguros": 45915.57878083364,
+  "ultimaParcela": 841.1780428387228,
+  "valorFinanciado": 350000,
+}
+`;
