@@ -193,10 +193,9 @@ e `delta-base-caixa.md` (seções 6–7) — não repetido aqui em detalhe, só 
 6. Só depois de calibrar, avaliar se algum dos programas (Pró-Cotista, MCMV, Taxa
    Customizada) justifica virar um `ProgramaEspecial` de fato, ou se a composição local
    de critério (como implementada nesta fase) é suficiente a longo prazo.
-7. **Validar a penalidade de -10pp de LTV para imóvel usado** (`penalidadeImovelUsado = 0.10`,
-   exclusiva da Caixa) contra um simulador oficial — nem o MO30769 v032 nem os demais
-   normativos analisados até agora confirmam essa regra (ver seção "Correção de prazo
-   PRICE" abaixo). Comportamento pré-existente, preservado sem alteração nesta etapa.
+7. ~~Validar a penalidade de -10pp de LTV para imóvel usado contra um simulador oficial~~
+   — **resolvido em 2026-07-07, ver seção "Remoção da penalidade de LTV para imóvel
+   usado" abaixo.**
 
 ## Correção de prazo PRICE (pós-Fase 4, 2026-07-07)
 
@@ -218,9 +217,43 @@ banco de dados continuam valendo normalmente para SAC, mas não abrem exceção 
 
 **Por que é correção normativa, não calibração**: o valor vem de um documento oficial da
 Caixa (não de um simulador terceirizado nem de uma estimativa), então foi aplicado
-diretamente — diferente da penalidade de imóvel usado (item 7 acima) e das demais
-pendências deste checklist, que seguem sem lastro documental e aguardam a Sprint de
-Calibração.
+diretamente — diferente da penalidade de imóvel usado (resolvida separadamente, ver
+seção abaixo) e das demais pendências deste checklist, que seguem sem lastro documental
+e aguardam a Sprint de Calibração.
+
+## Remoção da penalidade de LTV para imóvel usado (pós-Fase 4, 2026-07-07)
+
+`penalidadeImovelUsado = 0.10` (redução de 10pp no LTV para imóvel usado, exclusiva da
+Caixa) era um comportamento herdado do código hardcoded original, preservado sem alteração
+durante a migração da Fase 4 — mas **nunca teve lastro em nenhum normativo analisado**
+(`base-criterios-caixa.md`, seção 13: "Ainda não encontrada em nenhum documento", 5
+documentos verificados).
+
+Removido depois de uma simulação real no simulador oficial da Caixa (SBPE, imóvel usado,
+com relacionamento, R$430.000, renda R$15.971,82, nascimento 04/08/1995, Maringá-PR):
+cota máxima **SAC 80% e PRICE 70%** — idênticas às cotas de imóvel **novo**. Não há
+nenhuma redução para imóvel usado na Caixa; o parâmetro estava simplesmente incorreto.
+
+Efeito colateral corrigido de brinde: a penalidade fantasma fazia o motor rejeitar como
+"nenhum banco elegível" simulações legítimas de imóvel usado nas quais o valor financiado
+ficava entre 70-80% do imóvel (dentro do LTV real, fora do LTV fictício com penalidade) —
+e a mensagem de diagnóstico de "nenhum banco elegível" atribuía a rejeição à renda
+(`montarRespostaNormal`/`calcularAnalise`), quando a causa real era essa penalidade
+inexistente. Achado durante uma simulação de suporte ao usuário (`*simula`, Caixa, imóvel
+usado, "financiando valor máximo", PRICE) que retornava inelegível para os dois sistemas.
+
+**Validação de precisão**: com a penalidade removida, o mesmo cenário real foi recalculado
+pelo motor e comparado campo a campo contra o simulador oficial — 1ª parcela SAC
+99,97% de acerto (R$3.984,38 vs. R$3.985,59 real), última parcela SAC 99,99%
+(R$851,32 vs. R$851,38), 1ª parcela PRICE 99,96% (R$2.892,04 vs. R$2.890,86), última
+parcela PRICE 99,28% (R$2.813,09 vs. R$2.833,58) — todos acima do teto de 95-98% pedido,
+sem precisar recalibrar MIP/DFI/tarifa/taxa (já estavam corretos; só a elegibilidade
+LTV estava quebrada). Testado em `criteria-migracao-fase4-caixa.test.ts`, describe
+`"LTV de imóvel usado (sem penalidade — confirmado por simulação real)"`.
+
+`CriteriosLtv.penalidadeImovelUsado` (`criteria.ts`) continua existindo como campo do
+tipo — é um ponto de extensão genérico, não uma constatação de que algum banco precisa
+dele hoje. Nenhum banco o popula agora.
 
 Testado em `criteria-migracao-fase4-caixa.test.ts`, describe `"teto de prazo PRICE (360
 meses — MO30769 v032)"`: SAC continua 420, PRICE cai para 360 (inclusive combinado com

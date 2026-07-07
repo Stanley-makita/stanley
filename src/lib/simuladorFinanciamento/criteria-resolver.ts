@@ -188,9 +188,12 @@ export function resolverCriterios(
       // para PRICE (`overrides?.maxLtv ?? cfg.maxLtvPrice ?? cfg.maxLtv`); os outros bancos
       // já migrados não têm `maxLtvPrice` definido, então este ajuste não muda nada para eles.
       price: overrides?.maxLtv ?? cfg.maxLtvPrice,
-      // Redução de 10pp no LTV para imóvel usado — hoje exclusiva da Caixa
-      // (`simularBancoComTaxa`: `cfg.id === 'caixa' && input.tipoImovel === 'usado'`).
-      penalidadeImovelUsado: ehCaixa ? 0.10 : undefined,
+      // Não há penalidade de LTV para imóvel usado na Caixa. Havia uma redução de -10pp
+      // aqui (herdada do código hardcoded original, sem nenhum lastro em normativo — ver
+      // base-criterios-caixa.md, seção 13), removida em 2026-07-07 depois de confirmar
+      // por simulação real no simulador oficial da Caixa (SBPE, imóvel usado, com
+      // relacionamento): cota SAC 80% e PRICE 70%, idênticas às de imóvel novo. Nenhum
+      // outro banco populava este campo, então undefined para todos, sempre.
     },
     prazoMaximoMeses: overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses,
     // Prazo máximo PRICE da Caixa é 360 meses (SAC: 420) — MO30769 v032 seção 3.3,

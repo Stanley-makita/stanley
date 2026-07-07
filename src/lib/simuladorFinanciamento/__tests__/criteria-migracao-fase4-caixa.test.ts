@@ -69,8 +69,10 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
     // de propósito do baseline congelado (que nunca teve essa distinção), então não
     // faz mais sentido compará-los por equivalência byte-a-byte com o motor antigo.
     { nome: 'SAC LTV 80% no limite', input: { ...BASE_INPUT, valorEntrada: 100_000 } },
-    { nome: 'imóvel usado — penalidade de 10pp no LTV', input: { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 100_000 } },
-    { nome: 'imóvel usado — dentro do novo limite (70%)', input: { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 150_000 } },
+    // Cenários de imóvel usado movidos para o describe dedicado abaixo ("LTV de imóvel
+    // usado") — a penalidade de -10pp que o baseline aplicava foi removida (não tinha
+    // lastro normativo e foi desmentida por simulação real no simulador oficial da
+    // Caixa em 2026-07-07), então esses cenários agora divergem de propósito do baseline.
     { nome: 'cliente jovem (idade mín. MIP)', input: { ...BASE_INPUT, dataNascimento: '2002-01-01' } },
     { nome: 'cliente 45 anos (faixa MIP intermediária)', input: { ...BASE_INPUT, dataNascimento: '1980-01-01' } },
     { nome: 'cliente 68 anos (faixa MIP alta, prazo reduzido)', input: { ...BASE_INPUT, dataNascimento: '1957-01-01' } },
@@ -182,6 +184,62 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
     const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
     expect(porId.get('caixa-procotista-price')?.parcelas).toBe(360)
     expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(360)
+  })
+})
+
+// LTV de imóvel usado: a Caixa NÃO reduz a cota máxima para imóvel usado — SAC 80% e
+// PRICE 70%, idênticas às de imóvel novo. Havia uma penalidade de -10pp aqui (herdada do
+// código hardcoded original, sem lastro em normativo — base-criterios-caixa.md seção 13),
+// removida em 2026-07-07 após confirmação por simulação real no simulador oficial da
+// Caixa (SBPE, imóvel usado, com relacionamento: cota SAC 80%/PRICE 70%, iguais às de
+// imóvel novo). Testado diretamente (não é mais equivalência contra o baseline, que ainda
+// tem a penalidade antiga).
+describe('Fase 4 — Caixa: LTV de imóvel usado (sem penalidade — confirmado por simulação real)', () => {
+  it('SAC: imóvel usado tem o mesmo teto de 80% que imóvel novo', () => {
+    const usado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 100_000 })
+    const novo  = simularBancoNovo('caixa', { ...BASE_INPUT, tipoImovel: 'novo',  valorEntrada: 100_000 })
+    expect(usado.elegivel).toBe(true)
+    expect(usado.valorFinanciado).toBeCloseTo(novo.valorFinanciado, 6)
+    expect(usado.primeiraParcela).toBeCloseTo(novo.primeiraParcela, 6)
+  })
+
+  it('PRICE: imóvel usado tem o mesmo teto de 70% que imóvel novo', () => {
+    const usado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', tipoImovel: 'usado', valorEntrada: 150_000 })
+    const novo  = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', tipoImovel: 'novo',  valorEntrada: 150_000 })
+    expect(usado.elegivel).toBe(true)
+    expect(usado.valorFinanciado).toBeCloseTo(novo.valorFinanciado, 6)
+    expect(usado.primeiraParcela).toBeCloseTo(novo.primeiraParcela, 6)
+  })
+
+  // Caso-âncora real: simulador oficial da Caixa, 2026-07-07 — SBPE, imóvel usado,
+  // com relacionamento, R$430.000, renda R$15.971,82, nascimento 04/08/1995, Maringá-PR.
+  // SAC: cota 80%, prazo 420, entrada R$86.000, financiado R$344.000, 1ª R$3.985,59,
+  // última R$851,38. PRICE: cota 70%, prazo 360, entrada R$129.000, financiado
+  // R$301.000, 1ª R$2.890,86, última R$2.833,58. Tolerância de R$5 (dentro de 95-98%
+  // de precisão pedido) — o motor não precisa bater ao centavo, os campos de seguro/
+  // tarifa já são calibração empírica, não fórmula oficial publicada.
+  it('caso-âncora real: SAC bate com o simulador oficial dentro de R$5', () => {
+    const r = simularBancoNovo('caixa', {
+      valorImovel: 430_000, valorEntrada: 86_000, dataNascimento: '1995-08-04',
+      rendaMensal: 15_971.82, tipoAmortizacao: 'SAC', correntista: true,
+      bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
+    })
+    expect(r.elegivel).toBe(true)
+    expect(r.parcelas).toBe(420)
+    expect(r.primeiraParcela).toBeCloseTo(3985.59, -1) // tolerância R$5 (diff real: R$1,21)
+    expect(r.ultimaParcela).toBeCloseTo(851.38, -1)    // tolerância R$5 (diff real: R$0,06)
+  })
+
+  it('caso-âncora real: PRICE bate com o simulador oficial dentro de R$50', () => {
+    const r = simularBancoNovo('caixa', {
+      valorImovel: 430_000, valorEntrada: 129_000, dataNascimento: '1995-08-04',
+      rendaMensal: 15_971.82, tipoAmortizacao: 'PRICE', correntista: true,
+      bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
+    })
+    expect(r.elegivel).toBe(true)
+    expect(r.parcelas).toBe(360)
+    expect(r.primeiraParcela).toBeCloseTo(2890.86, -1) // tolerância R$5 (diff real: R$1,18)
+    expect(r.ultimaParcela).toBeCloseTo(2833.58, -2)   // tolerância R$50 (diff real: R$20,49)
   })
 })
 

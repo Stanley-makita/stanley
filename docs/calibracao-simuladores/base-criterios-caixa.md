@@ -418,7 +418,7 @@ Conforme instrução do usuário: **em caso de conflito, prevalece o documento m
 | `maxValorImovel = 2_250_000` / `prazoMaximoMeses = 420` | **Sim, reconfirmado** |
 | `CAIXA_TA_MENSAL = 25.00` | **Ainda não confirmado numericamente para o público geral**, mas agora há um indício indireto (desconto de até R$25 para público FGTS de baixa renda) |
 | `CAIXA_MIP_RATES` / `CAIXA_DFI_RATE` | **Ainda não confirmado para SBPE** (o produto do Fonti); **agora existe uma tabela real, mas só para FGTS/PMCMV** — não usar diretamente sem validar o produto |
-| Penalidade de -10pp de LTV para imóvel usado | **Ainda não encontrada em nenhum documento** (5 documentos verificados nesta rodada) |
+| Penalidade de -10pp de LTV para imóvel usado | **Removida do código em 2026-07-07** — não encontrada em nenhum normativo e desmentida por simulação real no simulador oficial (SAC 80%/PRICE 70% para usado, iguais às de novo). Ver `migracao-motor-agnostico-fase-4-caixa.md`, seção "Remoção da penalidade de LTV para imóvel usado" |
 | `LIMITE_IDADE_PRAZO_MESES = 966` / `idadeMaximaAbsoluta = 80` | **Ainda não encontrada** (busca ampliada, mesmo resultado) |
 | `MCMV_FAIXAS` | **Parcialmente confirmável agora** — a estrutura de faixas existe, mas a granularidade real (renda × porte de município) é maior do que a implementação atual; os valores de teto de imóvel por faixa simples **não batem exatamente** com a matriz completa do MO30824 (ver seção 11, ponto 3) |
 | `CAIXA_PRO_COTISTA.taxaAnual = 0.0866` | **Sim, confirmado exatamente** — MO30824 v040 confirma 8,66% nominal / 9,0121% efetivo |
