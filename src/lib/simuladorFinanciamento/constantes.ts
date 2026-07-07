@@ -184,15 +184,27 @@ export const ITAU_DFI_RATE = 0.0000554 // 0,00554% ao mês
 
 // MIP Itaú — Período 1 (meses 0–120, primeiros 10 anos)
 // Alíquota mensal sobre saldo devedor, por idade inteira (floor) do mutuário
-// Idades 18–43: estimadas com base na progressão observada da tabela Itaú
-// Idades 44–54: extraídas diretamente do simulador oficial (CALCULOS!U, ago/2025)
+//
+// Idades 18–43: CORRIGIDO em 2026-07-06 (Fase 3 da migração para o motor agnóstico) com
+// os valores REAIS da tabela oficial "Tabela MIP" (seguradora Itaú, tabela ATUAL) extraída
+// diretamente de VALIDADE!AH11:AI36 no simulador itau.xlsm — a mesma planilha que já
+// origina as idades 44+ abaixo. Antes desta correção, essas 26 idades eram estimativas
+// interpoladas ("com base na progressão observada"), sem nenhum dado real por trás. A
+// idade 44 (fronteira com o bloco abaixo) bate exatamente entre as duas fontes
+// (0,03829% na tabela vs. 0,0003829 já calibrado), confirmando que é a mesma tabela viva
+// usada pelo simulador oficial. Ver docs/calibracao-simuladores/migracao-motor-agnostico-fase-3-itau.md
+// para o antes/depois completo desta correção e docs/calibracao-simuladores/casos-ancora/itau-casos.json.
+// Idades 44–54: extraídas diretamente do simulador oficial (CALCULOS!U, ago/2025) —
+// não alteradas nesta correção (mantêm mais casas decimais de precisão que a tabela
+// VALIDADE, que arredonda em 7 casas — ver nota no documento da Fase 3 sobre por que
+// não foram unificadas com a mesma fonte).
 export const ITAU_MIP_P1: Record<number, number> = {
-  18: 0.0000900, 19: 0.0000950, 20: 0.0001000,
-  21: 0.0001080, 22: 0.0001140, 23: 0.0001200, 24: 0.0001270, 25: 0.0001350,
-  26: 0.0001450, 27: 0.0001570, 28: 0.0001690, 29: 0.0001810, 30: 0.0001950,
-  31: 0.0002080, 32: 0.0002220, 33: 0.0002370, 34: 0.0002530, 35: 0.0002700,
-  36: 0.0002840, 37: 0.0002990, 38: 0.0003160, 39: 0.0003340, 40: 0.0003480,
-  41: 0.0003580, 42: 0.0003660, 43: 0.0003740,
+  18: 0.0001031, 19: 0.0001031, 20: 0.0001031,
+  21: 0.0001031, 22: 0.0001031, 23: 0.0001031, 24: 0.0001031, 25: 0.0001031,
+  26: 0.0001031, 27: 0.0001031, 28: 0.0001031, 29: 0.0001031, 30: 0.0001031,
+  31: 0.0001581, 32: 0.0001612, 33: 0.0001645, 34: 0.0001683, 35: 0.0001746,
+  36: 0.0002477, 37: 0.0002589, 38: 0.0002730, 39: 0.0002903, 40: 0.0003114,
+  41: 0.0003198, 42: 0.0003185, 43: 0.0003486,
   // Valores exatos do simulador:
   44: 0.0003829000,
   45: 0.0004223775,
