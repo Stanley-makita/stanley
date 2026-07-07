@@ -1,37 +1,19 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { useNotificacoes } from '@/hooks/useNotificacoes'
-import { useMarcarTodasLidas, useMarcarNotificacoesLidas } from '@/hooks/useMarcarNotificacoesLidas'
-import { NotificacaoItem } from '@/components/notificacoes/NotificacaoItem'
-import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { useNotificacoesNaoLidas } from '@/hooks/useNotificacoes'
+import { CentralNotificacoesConteudo } from '@/components/notificacoes/CentralNotificacoesConteudo'
 
 export function SinoNotificacoes() {
-  const router = useRouter()
-  const { data: notificacoes = [] } = useNotificacoes(15)
-  const { mutate: marcarTodas } = useMarcarTodasLidas()
-  const { mutate: marcarLidas } = useMarcarNotificacoesLidas()
-
-  const naoLidas = notificacoes.filter((n) => !n.lida)
-
-  function handleClick(notificacaoId: string, entidade: string | null, entidadeId: string | null) {
-    marcarLidas([notificacaoId])
-    const rota = resolverRotaNotificacao(entidade, entidadeId)
-    if (rota) {
-      router.push(rota)
-    }
-  }
+  const [aberto, setAberto] = useState(false)
+  const naoLidas = useNotificacoesNaoLidas()
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Sheet open={aberto} onOpenChange={setAberto}>
+      <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5 text-gray-600" />
           {naoLidas.length > 0 && (
@@ -40,50 +22,12 @@ export function SinoNotificacoes() {
             </span>
           )}
         </Button>
-      </DropdownMenuTrigger>
+      </SheetTrigger>
 
-      <DropdownMenuContent align="end" className="w-[360px] p-0 shadow-lg" sideOffset={8}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-fonti-primary text-white rounded-t-md">
-          <span className="font-semibold text-sm">Notificações</span>
-          {naoLidas.length > 0 && (
-            <button
-              onClick={() => marcarTodas()}
-              className="text-xs text-fonti-accent hover:text-fonti-accent-hover transition-colors"
-            >
-              Marcar todas como lidas
-            </button>
-          )}
-        </div>
-
-        {/* Lista */}
-        <div className="max-h-[420px] overflow-y-auto">
-          {notificacoes.length === 0 ? (
-            <div className="py-10 text-center text-sm text-gray-400">
-              <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              Nenhuma notificação ainda
-            </div>
-          ) : (
-            notificacoes.map((n) => (
-              <NotificacaoItem
-                key={n.id}
-                notificacao={n}
-                onClick={() => handleClick(n.id, n.entidade, n.entidade_id)}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 py-2 border-t bg-gray-50 rounded-b-md">
-          <button
-            onClick={() => router.push('/notificacoes')}
-            className="w-full text-center text-xs text-fonti-primary hover:text-fonti-accent font-medium transition-colors"
-          >
-            Ver todas as notificações →
-          </button>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      <SheetContent side="right" className="flex w-full max-w-sm flex-col p-0 sm:max-w-md">
+        <SheetTitle className="sr-only">Central de Notificações</SheetTitle>
+        <CentralNotificacoesConteudo variante="drawer" onFechar={() => setAberto(false)} />
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -77,6 +77,12 @@ const config: Config = {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      keyframes: {
+        'fonti-toast-progress': {
+          from: { width: '100%' },
+          to: { width: '0%' },
+        },
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

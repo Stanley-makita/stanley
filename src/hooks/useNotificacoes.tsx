@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
-import { Notificacao } from '@/types/notificacoes'
-import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
+import { Notificacao, NOTIFICACAO_META, DURACAO_POR_SEVERIDADE } from '@/types/notificacoes'
+import { ToastNotificacao } from '@/components/notificacoes/ToastNotificacao'
 
 // Mapa genérico tipo de notificação -> query keys a invalidar (prefix match).
 // Novo evento futuro = uma linha nova aqui, sem mexer no handler do canal.
@@ -26,7 +25,6 @@ export function useNotificacoes(limite = 50) {
   const supabase = useMemo(() => createClient(), [])
   const { data: usuario } = useUsuarioAtual()
   const queryClient = useQueryClient()
-  const router = useRouter()
 
   const query = useQuery({
     queryKey: ['notificacoes', usuario?.id, limite],
@@ -43,7 +41,10 @@ export function useNotificacoes(limite = 50) {
     },
   })
 
-  // Realtime: escuta INSERT na tabela notificacoes filtrado pelo usuario_id
+  // Realtime: INSERT dispara toast + invalidação; UPDATE/DELETE (ex.: marcar
+  // como lida ou excluir em outra aba) só invalidam, para refletir sem F5.
+  // Depende de REPLICA IDENTITY FULL (migration 20260706_150) para o filtro
+  // por usuario_id funcionar em UPDATE/DELETE.
   useEffect(() => {
     if (!usuario?.id) return
 
@@ -53,6 +54,8 @@ export function useNotificacoes(limite = 50) {
     supabase.getChannels()
       .filter((c) => c.topic === `realtime:${channelName}`)
       .forEach((c) => supabase.removeChannel(c))
+
+    const invalidar = () => queryClient.invalidateQueries({ queryKey: ['notificacoes', usuario.id] })
 
     const channel = supabase
       .channel(channelName)
@@ -65,7 +68,7 @@ export function useNotificacoes(limite = 50) {
           filter: `usuario_id=eq.${usuario.id}`,
         },
         (payload) => {
-          queryClient.invalidateQueries({ queryKey: ['notificacoes', usuario.id] })
+          invalidar()
 
           const nova = payload.new as Notificacao
 
@@ -73,22 +76,32 @@ export function useNotificacoes(limite = 50) {
           const keys = INVALIDACOES_POR_TIPO[nova.tipo] ?? []
           keys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }))
 
-          const rota = resolverRotaNotificacao(nova.entidade, nova.entidade_id)
-          toast(nova.titulo, {
-            description: nova.mensagem ?? undefined,
-            duration: 8000,
-            icon: '🔔',
-            action: rota ? { label: 'Abrir', onClick: () => router.push(rota) } : undefined,
-            cancel: { label: 'Fechar', onClick: () => {} },
-          })
+          const meta = NOTIFICACAO_META[nova.tipo]
+          const severidade = nova.severidade ?? meta.severidadePadrao
+          const duracaoMs = DURACAO_POR_SEVERIDADE[severidade]
+
+          toast.custom(
+            (id) => <ToastNotificacao toastId={id} notificacao={nova} duracaoMs={duracaoMs} />,
+            { duration: duracaoMs }
+          )
         }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notificacoes', filter: `usuario_id=eq.${usuario.id}` },
+        invalidar
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notificacoes', filter: `usuario_id=eq.${usuario.id}` },
+        invalidar
       )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [usuario?.id, supabase, queryClient, router])
+  }, [usuario?.id, supabase, queryClient])
 
   return query
 }
