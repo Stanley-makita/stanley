@@ -1,50 +1,40 @@
-import type { BancoId, TipoOperacao, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
-import type { BancoConfig } from './constantes'
-import { resolverCriterios } from './criteria-resolver'
-import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip } from './criteria'
+/**
+ * Cópia EXATA (byte a byte, reconstruída a partir do Read feito no início da sessão da
+ * Fase 4, antes de qualquer edição) de `engine.ts` como ele estava ANTES da migração da
+ * Caixa — usada só para o teste de equivalência `criteria-migracao-fase4-caixa.test.ts`.
+ * Não editar como parte de nenhuma fase futura: este arquivo é congelado no estado
+ * "pré-Fase 4" de propósito, para provar que o motor migrado produz exatamente os mesmos
+ * resultados que o motor hardcoded que ele substitui.
+ */
+import type { BancoId, TipoOperacao, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '../../tipos'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from '../../constantes'
+import type { BancoConfig } from '../../constantes'
+import { resolverCriterios, ehBancoComCriterios } from './criteria-resolver'
+import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip } from '../../criteria'
 
-// Reexportado para preservar o import externo existente
-// (src/lib/workflows/motor-simulacao.ts e outros importam LIMITE_IDADE_PRAZO_MESES daqui).
 export { LIMITE_IDADE_PRAZO_MESES }
-
-// Reexportado para preservar o import externo existente — a definição agora vive em
-// criteria.ts (ver docs/calibracao-simuladores/arquitetura-motor-agnostico.md, seção 9).
 export type { BancoSimOverrides }
 
 export function taxaAnualParaMensal(taxaAnual: number): number {
   return Math.pow(1 + taxaAnual, 1 / 12) - 1
 }
 
-// Conversão de taxa anual → mensal com truncamento em 15 casas decimais — comportamento
-// do simulador oficial do Itaú, generalizado (Fase 3) para não depender do nome do banco:
-// qualquer critério com `metodoConversaoTaxa: 'composta-truncada-15-casas'` usa esta função.
 function taxaAnualParaMensalTruncada15Casas(taxaAnual: number): number {
   const raw = Math.pow(1 + taxaAnual, 1 / 12) - 1
   return Math.trunc(raw * 1e15) / 1e15
 }
 
-// Resolve a alíquota mensal de MIP a partir de uma lista de períodos do contrato (cada um
-// com sua própria tabela por idade inteira) — generalização (Fase 3) de `getItauMipRate`,
-// que importava ITAU_MIP_P1/ITAU_MIP_P2 diretamente. Agora as tabelas vêm do critério.
-// ageFloor = idade inteira (anos completados) no mês em questão
-// month = número do mês de pagamento (0 = pré-pagamento de assinatura)
 function resolverTaxaMipPorPeriodo(periodos: PeriodoMip[], ageFloor: number, month: number): number {
   const periodo = periodos.find((p) => month >= p.mesInicio && (p.mesFimExclusive == null || month < p.mesFimExclusive))
     ?? periodos[0]
   for (let age = ageFloor; age >= 18; age--) {
     if (periodo.tabelaPorIdade[age] !== undefined) return periodo.tabelaPorIdade[age]
   }
-  // Fallback fiel ao comportamento original (`getItauMipRate`): se nenhuma idade do
-  // período atual bater (ex.: cliente jovem cujo mês já caiu no período 2, que só tem
-  // faixas de idade mais altas), cai sempre para a idade mínima do PRIMEIRO período —
-  // não do período atual — replicando literalmente `ITAU_MIP_P1[18] ?? 0.000090`.
   const tabelaBase = periodos[0].tabelaPorIdade
   const idadeMinimaBase = Math.min(...Object.keys(tabelaBase).map(Number))
   return tabelaBase[idadeMinimaBase] ?? 0.000090
 }
 
-// Calcula a idade decimal (anos) a partir de dataBase + mesesAdicionais
 function idadeDecimalEmMeses(dataNasc: string, mesesAdicionais: number, dataBase?: Date): number {
   const nasc = new Date(dataNasc)
   const ref = dataBase ? new Date(dataBase) : new Date()
@@ -60,12 +50,6 @@ interface ResultadoCalculo {
   totalSeguros: number
 }
 
-// SAC com MIP variável por período+idade e pré-pagamento no mês 0 — generalização (Fase 3)
-// de `calcularSACItau`. O comportamento é idêntico ao de sempre (só o Itaú usa esta função
-// hoje, via `criteria.seguro.mip.tipo === 'periodo-e-idade'`), mas as tabelas de MIP e a
-// alíquota de DFI agora chegam como parâmetro (do critério), em vez de vir de constantes
-// importadas — nenhum `cfg.id === 'itau'` sobrevive dentro da função.
-// A "1ª parcela" inclui pré-pagamento de seguros no mês 0 (comportamento do simulador oficial).
 function calcularSACPeriodoIdade(
   valorFinanciadoTotal: number,
   valorAvaliacao: number,
@@ -79,12 +63,10 @@ function calcularSACPeriodoIdade(
   const amortizacao = valorFinanciadoTotal / prazo
   const dfiMensal = valorAvaliacao * dfiTaxaMensal
 
-  // Mês 0: pré-pagamento de seguros (sem amortização nem juros)
-  // Nota: MIP não usa TRUNC (valor raw); DFI usa TRUNC(val, 2) conforme simulador Itaú
   const dfiTrunc = Math.trunc(dfiMensal * 100) / 100
   const idadeM0 = idadeDecimalEmMeses(dataNasc, 0, dataBase)
   const mipRateM0 = resolverTaxaMipPorPeriodo(periodosMip, Math.floor(idadeM0), 0)
-  const mipM0 = valorFinanciadoTotal * mipRateM0 // raw, sem TRUNC
+  const mipM0 = valorFinanciadoTotal * mipRateM0
   const prePayment = mipM0 + dfiTrunc
 
   let saldoDevedor = valorFinanciadoTotal
@@ -98,7 +80,6 @@ function calcularSACPeriodoIdade(
     const idadeI = idadeDecimalEmMeses(dataNasc, i, dataBase)
     const mipRate = resolverTaxaMipPorPeriodo(periodosMip, Math.floor(idadeI), i)
     const juros = saldoDevedor * taxaMensal
-    // No simulador Itaú, última parcela não inclui MIP nem DFI
     const mip = isLast ? 0 : saldoDevedor * mipRate
     const dfi = isLast ? 0 : dfiTrunc
     const parcela = amortizacao + juros + mip + dfi
@@ -114,8 +95,6 @@ function calcularSACPeriodoIdade(
   return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
-// PRICE com MIP variável por período+idade — generalização (Fase 3) de `calcularPRICEItau`,
-// mesma lógica de `calcularSACPeriodoIdade` acima.
 function calcularPRICEPeriodoIdade(
   valorFinanciadoTotal: number,
   valorAvaliacao: number,
@@ -179,10 +158,6 @@ export function calcularIdadeEmMeses(dataNasc: string): number {
   )
 }
 
-// Prazo máximo: min(prazo do banco, limite de idade = limiteIdadePrazoMeses - idade atual em meses)
-// `limiteIdadePrazoMeses` é opcional e mantém o default global de hoje (LIMITE_IDADE_PRAZO_MESES,
-// importado de constantes.ts) para não alterar nenhum chamador existente — o caminho de critérios
-// (ver criteria-resolver.ts) passa esse valor explicitamente por banco a partir da Fase 1.
 export function calcularPrazoMaximo(
   dataNasc: string,
   prazoMaxBanco: number,
@@ -198,8 +173,6 @@ export function getMipRate(idadeAnos: number): number {
   return faixa ? faixa.taxa : MIP_RATES[MIP_RATES.length - 1].taxa
 }
 
-// DFI: fixo sobre valor do imóvel (não sobre saldo devedor)
-// MIP: variável sobre saldo devedor
 export function calcularSAC(
   principal: number,
   valorImovel: number,
@@ -269,25 +242,22 @@ export function calcularPRICE(
   return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
-// SAC com MIP/DFI zerados na última parcela e tarifa de administração mensal fixa somada
-// em toda parcela — generalização (Fase 4) de `calcularSACCaixa`. Usada por qualquer
-// critério com `seguro.incluirNaUltimaParcela === false` que não seja 'periodo-e-idade'
-// (esse caso já tem sua própria função, `calcularSACPeriodoIdade`, acima). Comportamento
-// idêntico ao de sempre (só a Caixa usa esta função hoje, via
-// `!criteria.seguro.incluirNaUltimaParcela` em `simularComCriterios`), mas a alíquota de
-// DFI e a tarifa mensal agora chegam como parâmetro (do critério), em vez de vir de
-// constantes importadas — nenhum `cfg.id === 'caixa'` sobrevive dentro da função.
-function calcularSACComTarifaMensalFixa(
+function getCaixaMipRate(idadeAnos: number): number {
+  for (const faixa of CAIXA_MIP_RATES) {
+    if (idadeAnos <= faixa.maxAge) return faixa.taxa
+  }
+  return CAIXA_MIP_RATES[CAIXA_MIP_RATES.length - 1].taxa
+}
+
+function calcularSACCaixa(
   principal: number,
   valorImovel: number,
   taxaMensal: number,
   prazo: number,
   mipRate: number,
-  dfiTaxaMensal: number,
-  tarifaMensal: number,
 ): ResultadoCalculo {
   const amortizacao = principal / prazo
-  const dfiMensal = valorImovel * dfiTaxaMensal
+  const dfiMensal = valorImovel * CAIXA_DFI_RATE
   let saldoDevedor = principal
   let totalJuros = 0
   let totalSeguros = 0
@@ -299,34 +269,29 @@ function calcularSACComTarifaMensalFixa(
     const juros = saldoDevedor * taxaMensal
     const mip = isLast ? 0 : saldoDevedor * mipRate
     const dfi = isLast ? 0 : dfiMensal
-    const parcela = amortizacao + juros + mip + dfi + tarifaMensal
+    const parcela = amortizacao + juros + mip + dfi + CAIXA_TA_MENSAL
 
     if (i === 1) primeiraParcela = parcela
     if (isLast) ultimaParcela = parcela
 
     totalJuros += juros
-    totalSeguros += mip + dfi + tarifaMensal
+    totalSeguros += mip + dfi + CAIXA_TA_MENSAL
     saldoDevedor -= amortizacao
   }
 
   return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
-// PRICE com MIP/DFI zerados na última parcela e tarifa de administração mensal fixa —
-// generalização (Fase 4) de `calcularPRICECaixa`, mesma lógica de
-// `calcularSACComTarifaMensalFixa` acima.
-function calcularPRICEComTarifaMensalFixa(
+function calcularPRICECaixa(
   principal: number,
   valorImovel: number,
   taxaMensal: number,
   prazo: number,
   mipRate: number,
-  dfiTaxaMensal: number,
-  tarifaMensal: number,
 ): ResultadoCalculo {
   const fator = Math.pow(1 + taxaMensal, prazo)
   const parcelaCJ = principal * (taxaMensal * fator) / (fator - 1)
-  const dfiMensal = valorImovel * dfiTaxaMensal
+  const dfiMensal = valorImovel * CAIXA_DFI_RATE
 
   let saldoDevedor = principal
   let totalJuros = 0
@@ -340,20 +305,19 @@ function calcularPRICEComTarifaMensalFixa(
     const amort = parcelaCJ - juros
     const mip = isLast ? 0 : saldoDevedor * mipRate
     const dfi = isLast ? 0 : dfiMensal
-    const parcela = parcelaCJ + mip + dfi + tarifaMensal
+    const parcela = parcelaCJ + mip + dfi + CAIXA_TA_MENSAL
 
     if (i === 1) primeiraParcela = parcela
     if (isLast) ultimaParcela = parcela
 
     totalJuros += juros
-    totalSeguros += mip + dfi + tarifaMensal
+    totalSeguros += mip + dfi + CAIXA_TA_MENSAL
     saldoDevedor = Math.max(0, saldoDevedor - amort)
   }
 
   return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
-// Busca binária: maior principal cuja 1ª parcela SAC ≤ 30% da renda
 export function calcularMaxFinanciavel(
   renda: number,
   valorImovelEstimado: number,
@@ -373,26 +337,6 @@ export function calcularMaxFinanciavel(
   return Math.floor((lo + hi) / 2)
 }
 
-// ── Fases 1–3 da migração para o motor agnóstico ─────────────────────────────
-// Ver docs/calibracao-simuladores/arquitetura-motor-agnostico.md,
-// docs/calibracao-simuladores/migracao-motor-agnostico-fase-1.md,
-// docs/calibracao-simuladores/migracao-motor-agnostico-fase-2.md e
-// docs/calibracao-simuladores/migracao-motor-agnostico-fase-3-itau.md.
-//
-// Para os bancos já migrados (Fase 1: Bradesco, Santander, Banco do Brasil;
-// Fase 2: Inter, Daycoval; Fase 3: Itaú), o cálculo não lê mais `cfg.id` em
-// nenhum ponto — consome apenas `SimulationCriteria`, montado por
-// `criteria-resolver.ts`. Só a Caixa continua no caminho hardcoded abaixo,
-// intocada, até a Fase 4 (múltiplos programas por banco, não só função de
-// cálculo/estratégia de seguro diferente).
-
-// Resolve a alíquota mensal de MIP a partir de uma estratégia de critério, para as
-// estratégias resolvíveis com um único valor por simulação (não variam mês a mês):
-// 'faixa-etaria' (Bradesco/Santander/BB), 'flat' (Daycoval e qualquer banco com
-// override de mipRate no banco de dados) e 'teto-idade' (Inter). 'periodo-e-idade'
-// (Itaú) NÃO é resolvida aqui — varia a cada mês do contrato (idade avança, e o
-// período 0–120/121+ muda a tabela) — ver `resolverTaxaMipPorPeriodo` e o dispatch
-// dentro de `simularComCriterios` que chama a função de cálculo especializada.
 function resolverTaxaMip(estrategia: EstrategiaSeguroMip, idadeAnos: number): number {
   switch (estrategia.tipo) {
     case 'faixa-etaria': {
@@ -400,8 +344,6 @@ function resolverTaxaMip(estrategia: EstrategiaSeguroMip, idadeAnos: number): nu
       return faixa ? faixa.taxa : estrategia.faixas[estrategia.faixas.length - 1].taxa
     }
     case 'teto-idade': {
-      // Mesma lógica de getCaixaMipRate/getInterMipRate: primeira faixa cujo teto
-      // de idade comporta o cliente; se nenhuma comportar, usa a última (mais alta).
       for (const faixa of estrategia.faixas) {
         if (idadeAnos <= faixa.tetoIdade) return faixa.taxa
       }
@@ -424,9 +366,6 @@ function taxaAnualParaMensalPorMetodo(taxaAnual: number, metodo: MetodoConversao
     : taxaAnualParaMensal(taxaAnual)
 }
 
-// Núcleo de cálculo agnóstico a banco — só consome SimulationCriteria, nunca `cfg.id`.
-// Espelha exatamente a lógica de `simularBancoComTaxa` abaixo para os bancos genéricos,
-// apenas lendo os valores de `criteria` em vez de `cfg`/constantes globais diretamente.
 export function simularComCriterios(
   cfg: BancoConfig,
   criteria: SimulationCriteria,
@@ -436,9 +375,6 @@ export function simularComCriterios(
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const prazo = calcularPrazoMaximo(input.dataNascimento, criteria.prazoMaximoMeses, criteria.limiteIdadePrazoMeses)
 
-  // Estratégia usada só para elegibilidade/estimativa de capacidade máxima — para o Itaú
-  // é deliberadamente diferente da estratégia real usada na parcela (ver comentário do
-  // campo em criteria.ts). Para todos os outros bancos, é a mesma (`seguro.mip`).
   const mipCapacidade = resolverTaxaMip(criteria.mipParaCapacidadeMaxima ?? criteria.seguro.mip, idadeAnos)
   const dfiRate = criteria.seguro.dfi.taxaMensal
 
@@ -456,7 +392,6 @@ export function simularComCriterios(
 
   const taxaAnual = input.correntista ? criteria.taxaAnualCorrentista : criteria.taxaAnualBase
 
-  // ── Verificações de elegibilidade — mesma ordem e mensagens de simularBancoComTaxa ──
   if (input.tipoAmortizacao === 'PRICE' && !suportaPrice) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
       'Não oferece financiamento na modalidade PRICE')
@@ -490,11 +425,6 @@ export function simularComCriterios(
 
   const maxFinanciavel30 = calcularMaxFinanciavel(input.rendaMensal, input.valorImovel, taxaMensal, prazo, mipCapacidade)
 
-  // Dispatch por CAPACIDADE do critério (estratégia de seguro), não por identidade do banco.
-  // 'periodo-e-idade' (hoje só o Itaú) precisa da função de cálculo especializada, porque o
-  // MIP muda a cada mês (idade avança, período 0–120/121+ muda a tabela) e porque o banco
-  // soma pré-pagamento no mês 0, zera seguros na última parcela, cobra DFI sobre o valor de
-  // avaliação (não do imóvel) e pode incorporar ITBI ao saldo financiado.
   let calc: ResultadoCalculo
   let valorFinanciadoEfetivo = valorFinanciado
   if (criteria.seguro.mip.tipo === 'periodo-e-idade') {
@@ -509,13 +439,6 @@ export function simularComCriterios(
     calc = input.tipoAmortizacao === 'SAC'
       ? calcularSACPeriodoIdade(valorFinanciadoEfetivo, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, criteria.seguro.mip.periodos, dfiRate, dataBase)
       : calcularPRICEPeriodoIdade(valorFinanciadoEfetivo, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, criteria.seguro.mip.periodos, dfiRate, dataBase)
-  } else if (!criteria.seguro.incluirNaUltimaParcela) {
-    // Caixa (Fase 4): MIP/DFI zerados na última parcela + tarifa de administração mensal
-    // fixa somada em toda parcela (ver criteria-resolver.ts, comentário de topo, Fase 4).
-    const mip = resolverTaxaMip(criteria.seguro.mip, idadeAnos)
-    calc = input.tipoAmortizacao === 'SAC'
-      ? calcularSACComTarifaMensalFixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip, dfiRate, criteria.tarifaAdministracaoMensal)
-      : calcularPRICEComTarifaMensalFixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip, dfiRate, criteria.tarifaAdministracaoMensal)
   } else {
     const mip = resolverTaxaMip(criteria.seguro.mip, idadeAnos)
     calc = input.tipoAmortizacao === 'SAC'
@@ -535,24 +458,89 @@ export function simularComCriterios(
   }
 }
 
-// Núcleo do cálculo: recebe taxa e programa já resolvidos.
-// Fase 4 completou a migração de todos os 7 bancos para o caminho de critérios — esta
-// função virou um wrapper fino: `taxaAnual`/`programa`/`mipOverride` não são mais lidos
-// (o critério recalcula tudo a partir de `cfg`+`overrides`, sempre chegando ao mesmo
-// resultado que os chamadores já esperavam obter passando esses parâmetros). Assinatura
-// mantida por compatibilidade com os chamadores existentes (`simularBanco`, que ainda
-// monta `taxaAnual`/`programa` para os bancos fora do caminho especial da Caixa).
 function simularBancoComTaxa(
   cfg: BancoConfig,
   input: InputFinanciamento,
-  _taxaAnual: number,
-  _programa: string,
+  taxaAnual: number,
+  programa: string,
   resultadoId: string,
-  _mipOverride?: number,
+  mipOverride?: number,
   overrides?: BancoSimOverrides,
 ): ResultadoBanco {
-  const criteria = resolverCriterios(cfg.id, overrides)
-  return simularComCriterios(cfg, criteria, input, resultadoId)
+  if (ehBancoComCriterios(cfg.id)) {
+    const criteria = resolverCriterios(cfg.id, overrides)
+    return simularComCriterios(cfg, criteria, input, resultadoId)
+  }
+
+  const prazoMaxUsado   = overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses
+  const maxLtvUsado     = overrides?.maxLtv           ?? cfg.maxLtv
+  const maxLtvCorrUsado = overrides?.maxLtv           ?? cfg.maxLtvCorrentista
+
+  const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
+  const prazo = calcularPrazoMaximo(input.dataNascimento, prazoMaxUsado)
+  const mip = mipOverride ?? overrides?.mipRate ?? (
+    cfg.id === 'caixa' ? getCaixaMipRate(idadeAnos) : getMipRate(idadeAnos)
+  )
+  const dfiRate = overrides?.dfiRate
+
+  const valorFinanciado = input.valorImovel - input.valorEntrada
+
+  const baseLtv = input.tipoAmortizacao === 'PRICE'
+    ? (overrides?.maxLtv ?? cfg.maxLtvPrice ?? cfg.maxLtv)
+    : (input.correntista ? maxLtvCorrUsado : maxLtvUsado)
+  const maxLtv = (cfg.id === 'caixa' && input.tipoImovel === 'usado') ? baseLtv - 0.10 : baseLtv
+  const maxLtvValue = input.valorImovel * maxLtv
+
+  if (input.tipoAmortizacao === 'PRICE' && !cfg.suportaPrice) {
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId,
+      'Não oferece financiamento na modalidade PRICE')
+  }
+  if (idadeAnos >= 80) {
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Idade máxima de 80 anos atingida')
+  }
+  if (prazo < 12) {
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Prazo insuficiente — mutuário muito próximo dos 80 anos')
+  }
+  if (valorFinanciado <= 0) {
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId, 'Valor de entrada maior ou igual ao valor do imóvel')
+  }
+  if (valorFinanciado > maxLtvValue) {
+    return inelegivel(
+      cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId,
+      `Financiamento (${fmtMoeda(valorFinanciado)}) excede ${Math.round(maxLtv * 100)}% do imóvel`
+    )
+  }
+  if (cfg.maxValorImovel > 0 && input.valorImovel > cfg.maxValorImovel) {
+    return inelegivel(
+      cfg, valorFinanciado, input, taxaAnual, programa, prazo, resultadoId,
+      `Imóvel acima do teto ${cfg.nome}: ${fmtMoeda(cfg.maxValorImovel)}`
+    )
+  }
+
+  const taxaMensal = taxaAnualParaMensal(taxaAnual)
+
+  const maxFinanciavel30 = calcularMaxFinanciavel(
+    input.rendaMensal, input.valorImovel, taxaMensal, prazo, mip
+  )
+
+  const calc = cfg.id === 'caixa'
+    ? (input.tipoAmortizacao === 'SAC'
+        ? calcularSACCaixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip)
+        : calcularPRICECaixa(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip))
+    : (input.tipoAmortizacao === 'SAC'
+        ? calcularSAC(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip, dfiRate)
+        : calcularPRICE(valorFinanciado, input.valorImovel, taxaMensal, prazo, mip, dfiRate))
+
+  const comprometimentoMax = (input.tipoAmortizacao === 'PRICE' && cfg.comprometimentoMaxPrice)
+    ? cfg.comprometimentoMaxPrice
+    : 0.30
+  const avisoRenda = calc.primeiraParcela > input.rendaMensal * comprometimentoMax
+
+  return {
+    ...baseResult(cfg, valorFinanciado, input, programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
+    elegivel: true,
+    avisoRenda,
+  }
 }
 
 export function simularBanco(
@@ -561,89 +549,51 @@ export function simularBanco(
   overrides?: BancoSimOverrides,
 ): ResultadoBanco {
   const cfg = BANCOS_CONFIG[bancoId]
+  let programa = cfg.programa
+  let taxaAnual = overrides?.taxaAnual
+    ?? (input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
 
-  // Caixa (Fase 4): programa único (Pró-Cotista ou MCMV, senão SBPE) — mesma precedência
-  // de sempre (MCMV vence sobre Pró-Cotista se ambos se aplicarem: o `if` de baixo executa
-  // por último e sobrescreve). A variação de programa é montada localmente sobre o mesmo
-  // critério base — só taxa/programa mudam, LTV/prazo/DFI/tarifa/estratégia de MIP
-  // continuam os do critério padrão (mesmo comportamento do código hardcoded original,
-  // que também não trocava o MIP para Pró-Cotista/MCMV neste caminho — só em
-  // `simularCaixaDuplo`, ver abaixo).
   if (bancoId === 'caixa') {
-    const criteriaBase = resolverCriterios('caixa', overrides)
-    let criteria: SimulationCriteria = criteriaBase
     if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
-      criteria = {
-        ...criteriaBase,
-        taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,
-        taxaAnualCorrentista: CAIXA_PRO_COTISTA.taxaAnual,
-        programa: CAIXA_PRO_COTISTA.programa,
-      }
+      taxaAnual = CAIXA_PRO_COTISTA.taxaAnual
+      programa = CAIXA_PRO_COTISTA.programa
     }
     const faixaMcmv = MCMV_FAIXAS.filter(
       (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
     )
     if (faixaMcmv.length > 0) {
-      const f = faixaMcmv[0]
-      criteria = { ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa }
+      taxaAnual = faixaMcmv[0].taxaAnual
+      programa = faixaMcmv[0].programa
     }
-    return simularComCriterios(cfg, criteria, input, bancoId)
   }
-
-  const programa = cfg.programa
-  const taxaAnual = overrides?.taxaAnual
-    ?? (input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
 
   return simularBancoComTaxa(cfg, input, taxaAnual, programa, bancoId, undefined, overrides)
 }
 
-// Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre).
-// Migrado para o caminho de critérios na Fase 4 — cada variante é o mesmo critério base
-// da Caixa (`resolverCriterios('caixa', overrides)`), só com taxaAnual/programa/estratégia
-// de MIP trocados pontualmente (ver criteria-resolver.ts, comentário de topo, Fase 4).
 function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverrides, op?: TipoOperacao): ResultadoBanco[] {
   const cfg = BANCOS_CONFIG['caixa']
-  const criteriaBase = resolverCriterios('caixa', overrides)
   const results: ResultadoBanco[] = []
 
-  // Lote urbanizado: apenas SBPE (MO43000271 §3.1.2 — MCMV/Pró-Cotista não contemplam lote isolado)
-  // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
   const podeMcmvProcotista = op !== 'lote_urbanizado' && input.finalidade !== 'comercial' && !input.jaRecebeuSubsidio
 
-  // Pró-Cotista (imóveis até R$350k, FGTS 3+ anos)
   if (podeMcmvProcotista && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
-    const criteriaProCotista: SimulationCriteria = {
-      ...criteriaBase,
-      taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,
-      taxaAnualCorrentista: CAIXA_PRO_COTISTA.taxaAnual,
-      programa: CAIXA_PRO_COTISTA.programa,
-      seguro: { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } },
-    }
-    results.push(simularComCriterios(cfg, criteriaProCotista, input, 'caixa-procotista'))
+    results.push(
+      simularBancoComTaxa(cfg, input, CAIXA_PRO_COTISTA.taxaAnual, CAIXA_PRO_COTISTA.programa, 'caixa-procotista', MIP_RATE_MCMV, overrides)
+    )
   }
 
-  // MCMV (se renda e imóvel se enquadram)
   if (podeMcmvProcotista) {
     const faixaMcmv = MCMV_FAIXAS.filter(
       (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
     )
     if (faixaMcmv.length > 0) {
       const f = faixaMcmv[0]
-      const criteriaMcmv: SimulationCriteria = {
-        ...criteriaBase,
-        taxaAnualBase: f.taxaAnual,
-        taxaAnualCorrentista: f.taxaAnual,
-        programa: f.programa,
-        seguro: f.mipSubsidizado
-          ? { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } }
-          : criteriaBase.seguro,
-      }
-      results.push(simularComCriterios(cfg, criteriaMcmv, input, 'caixa-mcmv'))
+      results.push(simularBancoComTaxa(cfg, input, f.taxaAnual, f.programa, 'caixa-mcmv', f.mipSubsidizado ? MIP_RATE_MCMV : undefined, overrides))
     }
   }
 
-  // SBPE — sempre presente como alternativa (é o próprio critério base, sem variação pontual)
-  results.push(simularComCriterios(cfg, criteriaBase, input, 'caixa-sbpe'))
+  const taxaSbpe = overrides?.taxaAnual ?? (input.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
+  results.push(simularBancoComTaxa(cfg, input, taxaSbpe, 'SBPE', 'caixa-sbpe', undefined, overrides))
 
   return results
 }
@@ -723,18 +673,14 @@ export function simularTodosBancos(
 ): ResultadoBanco[] {
   const op: TipoOperacao = input.tipoOperacao ?? 'aquisicao'
 
-  // Para construção, valorImovel = terreno + obra
   let inputNorm = input
   if (op === 'construcao_terreno_proprio' || op === 'terreno_mais_construcao') {
     const base = (input.valorTerreno ?? 0) + (input.valorObra ?? 0)
     if (base > 0) inputNorm = { ...input, valorImovel: base }
   }
-  // Comercial: garante finalidade='comercial' mesmo que o formulário não tenha setado
   if (op === 'comercial') {
     inputNorm = { ...inputNorm, finalidade: 'comercial' }
   }
-  // Lote: tipoImovel não se aplica (lote não é "novo" nem "usado" no sentido habitacional).
-  // Deixamos undefined para que o motor não aplique a penalidade de imóvel usado da Caixa.
   if (op === 'lote_urbanizado') {
     inputNorm = { ...inputNorm, tipoImovel: undefined }
   }
@@ -746,8 +692,6 @@ export function simularTodosBancos(
   for (const id of inputNorm.bancosIds) {
     const ov = overridesMap?.[id]
 
-    // ── Bloqueios por modalidade ──────────────────────────────────────────────
-    // Lote e construção: somente Caixa opera nesta etapa
     if (id !== 'caixa' && (op === 'lote_urbanizado' || op === 'construcao_terreno_proprio' || op === 'terreno_mais_construcao')) {
       todos.push({
         ...makeInelegivelModalidade(id, inputNorm, 'Para esta modalidade, a Caixa é o banco operador padrão nesta etapa. Consulte nossa equipe para outras instituições.'),
@@ -755,7 +699,6 @@ export function simularTodosBancos(
       })
       continue
     }
-    // Comercial: apenas Caixa opera — outros bancos sempre inelegíveis
     if (id !== 'caixa' && op === 'comercial') {
       todos.push({
         ...makeInelegivelModalidade(id, inputNorm, 'Imóvel comercial: banco não parametrizado para esta modalidade. Consulte nossa equipe para verificar condições.'),
@@ -810,8 +753,6 @@ export function calcularAnalise(
   const elegiveis = resultados.filter((r) => r.elegivel)
   const melhor = elegiveis[0]
 
-  // Para métricas de display, usa banco elegível, senão banco com parcela calculada (bloqueado por renda),
-  // senão o primeiro resultado disponível
   const melhorParaMetricas = elegiveis[0]
     ?? resultados.find((r) => !r.elegivel && r.maxFinanciavel30 > 0)
     ?? resultados[0]
@@ -832,7 +773,6 @@ export function calcularAnalise(
   const fatores: AnalisePredicativa['fatores'] = []
   let score = 50
 
-  // Renda
   if (comprometimentoRenda <= 20) {
     score += 20
     fatores.push({ descricao: 'Comprometimento de renda baixo (≤ 20%)', impacto: 'positivo' })
@@ -846,7 +786,6 @@ export function calcularAnalise(
     fatores.push({ descricao: 'Renda insuficiente para a parcela (> 30%)', impacto: 'critico' })
   }
 
-  // LTV / Entrada
   if (ltv <= 0.60) {
     score += 15
     fatores.push({ descricao: 'Entrada elevada (≥ 40%) — baixo risco ao banco', impacto: 'positivo' })
@@ -858,7 +797,6 @@ export function calcularAnalise(
     fatores.push({ descricao: `Entrada baixa — LTV ${(ltv * 100).toFixed(0)}% (entrada mínima recomendada: 20%)`, impacto: 'negativo' })
   }
 
-  // Idade
   if (idadeAnos <= 35) {
     score += 10
     fatores.push({ descricao: 'Idade favorável — prazo máximo de 35 anos disponível', impacto: 'positivo' })
@@ -867,7 +805,6 @@ export function calcularAnalise(
     fatores.push({ descricao: `Idade ${idadeAnos} anos reduz prazo disponível`, impacto: 'negativo' })
   }
 
-  // Nº de bancos elegíveis — conta bancos únicos (não linhas)
   const bancosElegiveis = new Set(elegiveis.map((r) => r.bancoId))
   if (bancosElegiveis.size >= 4) {
     score += 10
@@ -880,13 +817,11 @@ export function calcularAnalise(
     fatores.push({ descricao: `Apenas ${bancosElegiveis.size} banco(s) elegível(is) — opções limitadas`, impacto: 'negativo' })
   }
 
-  // Correntista
   if (input.correntista) {
     score += 5
     fatores.push({ descricao: 'Relacionamento bancário favorece taxa preferencial', impacto: 'positivo' })
   }
 
-  // MCMV elegível (Caixa)
   const temMcmv = elegiveis.some((r) => r.programa.startsWith('MCMV') || r.programa.includes('Cotista'))
   if (temMcmv) {
     score += 10

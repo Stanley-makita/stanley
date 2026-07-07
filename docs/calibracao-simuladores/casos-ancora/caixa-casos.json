@@ -1,0 +1,32 @@
+{
+  "banco": "caixa",
+  "ultima_atualizacao": "2026-07-06",
+  "status": "sem_caso_ancora_pronto",
+  "fontes_analisadas": [
+    "_projeto/simuladores bancos/Juros caixa imobiliario/taxas caixa.pdf",
+    "_projeto/simuladores bancos/Juros caixa imobiliario/MO43000269.pdf"
+  ],
+  "motivo_sem_caso_pronto": "Não há planilha de simulador da Caixa na pasta analisada — apenas 2 PDFs normativos/de tabela de taxas (não são simuladores interativos, não têm um cenário numérico de cliente específico calculado). Para gerar um caso-âncora real da Caixa é necessário rodar uma simulação manual no simulador oficial (web ou correspondente) e registrar o resultado aqui.",
+  "casos": [],
+  "parametros_referencia": {
+    "documento_taxas": "taxas caixa.pdf = MO 30769 (SBPE e Recursos Livres). Vigência mais recente citada: Informe DEHAB DECCI 454/2026, de 20/01/2026.",
+    "cobertura": "Só SBPE/Recursos Livres — MCMV e Pró-Cotista estão em outro manual (MO30824), não incluído nesta pasta.",
+    "quota_maxima_financiamento_tr": { "aquisicao_sac_residencial": 0.80, "aquisicao_price_residencial": 0.70 },
+    "comprometimento_renda_maximo_pct": { "sac": 0.30, "price": 0.25, "fonte_secao": "MO30769 (taxas caixa.pdf) seção 3.2 — confirma o que já está em constantes.ts, mas a citação no código atribui a seção ao MO43000269; na prática o parâmetro numérico vem do MO30769/taxas caixa.pdf" },
+    "lote_urbanizado": "Seção 3.1.2 do MO43000269 confirma 'Aquisição de Lote Urbanizado' como modalidade do programa Carta de Crédito SBPE (residencial apenas) — mesma normativa já citada no código para essa restrição.",
+    "mip_dfi_base_calculo": "MIP sobre saldo devedor atualizado; DFI/DFC sobre valor da garantia — seção 3.18.3.6, mesma lógica já usada no motor Fonti.",
+    "tarifa_administracao": "Seção 3.18.3.5 — valor fixo mensal (não percentual), definido em tabela externa de tarifas não incluída neste PDF (o motor Fonti já usa R$25/mês, mas o valor oficial atual não foi confirmado numericamente nesta rodada).",
+    "tarifa_avaliacao_reforma_1a_etapa": 750.00,
+    "seguradoras_proprias": ["CAIXA Residencial", "Tokio Marine"],
+    "regra_idade_mais_prazo": "Não localizada nos 2 PDFs analisados (busca por 'idade'/'80 anos' não retornou nada) — provavelmente está em anexo não incluído ou no MO30769/MO30824 completos, fora do escopo dos arquivos desta pasta.",
+    "acao_recomendada": "Obter (1) uma simulação real do simulador oficial Caixa (web ou app do correspondente) para gerar o primeiro caso-âncora numérico completo, e (2) o manual MO30824 (MCMV/Pró-Cotista) e a tabela de tarifas vigente, hoje fora desta pasta."
+  },
+  "fase4_equivalencia_arquitetural": {
+    "data": "2026-07-06",
+    "descricao": "A Fase 4 migrou a Caixa para SimulationCriteria sem alterar nenhuma regra/valor. Continua sem existir simulador oficial (planilha) da Caixa no projeto, então não há caso-âncora numérico validado contra fonte externa aqui. O que existe é uma prova de EQUIVALÊNCIA entre o motor antigo (hardcoded) e o motor novo (critérios), rodando 53 cenários lado a lado — ver docs/calibracao-simuladores/migracao-motor-agnostico-fase-4-caixa.md.",
+    "arquivo_teste": "src/lib/simuladorFinanciamento/__tests__/criteria-migracao-fase4-caixa.test.ts",
+    "baseline_congelado": "src/lib/simuladorFinanciamento/__tests__/_baseline-fase4-caixa/ (cópia do engine.ts/criteria-resolver.ts de antes da Fase 4)",
+    "resultado": "53/53 cenários equivalentes (SAC/PRICE, todas as faixas etárias de MIP, Pró-Cotista/MCMV/SBPE isolados e combinados, overrides de banco de dados, casos de inelegibilidade)",
+    "nao_substitui_caso_ancora_real": "Esta prova mostra que o novo motor reproduz o antigo — não confirma que o motor (antigo ou novo) bate com o simulador oficial da Caixa. Isso continua pendente para a Sprint de Calibração."
+  }
+}

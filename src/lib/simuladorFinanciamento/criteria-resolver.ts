@@ -33,12 +33,47 @@
  * diretamente e passaram a receber tabelas/taxas como parâmetro) e viraram
  * o dispatcher `criteria.seguro.mip.tipo === 'periodo-e-idade'` dentro de
  * `simularComCriterios` — não há mais nenhum `cfg.id === 'itau'` no motor.
+ *
+ * FASE 4 (Caixa): diferente das fases anteriores, a Caixa tem MÚLTIPLOS
+ * programas (Pró-Cotista, MCMV por faixa, SBPE) — mas cada um é só uma
+ * variação pontual de taxa/programa/estratégia de MIP sobre o MESMO critério
+ * base (mesmo LTV, mesmo prazo, mesmo DFI, mesma tarifa de administração,
+ * mesmo comprometimento de renda). Por isso esta fase NÃO introduz um
+ * `ProgramaEspecial` — `simularCaixaDuplo`/`simularBanco` (em engine.ts)
+ * continuam responsáveis por decidir qual programa se aplica e montar a
+ * variação do critério localmente, exatamente como decidiam qual
+ * taxa/programa passar para `simularBancoComTaxa` antes desta fase.
+ *
+ * A função de cálculo especializada da Caixa (`calcularSACCaixa`/
+ * `calcularPRICECaixa`) foi generalizada em `engine.ts` para
+ * `calcularSACComTarifaMensalFixa`/`calcularPRICEComTarifaMensalFixa` —
+ * mesmo padrão da Fase 3 (MIP/DFI zerados na última parcela, mas aqui com
+ * uma tarifa de administração mensal fixa somada em toda parcela, em vez de
+ * pré-pagamento no mês 0). O dispatch em `simularComCriterios` usa o campo
+ * `seguro.incluirNaUltimaParcela === false` (já existente desde a Fase 1,
+ * documentado ali como "hoje: Itaú e Caixa", nunca antes consumido) para
+ * escolher essa função — não a estratégia de MIP, porque a Caixa usa
+ * `'teto-idade'`, o mesmo tipo já usado pelo Inter (que NÃO zera seguros na
+ * última parcela nem tem tarifa fixa).
+ *
+ * Duas correções necessárias para equivalência exata, preservadas de propósito
+ * (não são melhoria de regra, são bugs/quirks pré-existentes replicados):
+ * - `dfi.taxaMensal` da Caixa ignora `overrides?.dfiRate` — assim como o Itaú,
+ *   porque `calcularSACCaixa`/`calcularPRICECaixa` originais nunca recebiam
+ *   um parâmetro de override de DFI (só liam `CAIXA_DFI_RATE` direto).
+ * - `ltv.price` agora respeita `overrides?.maxLtv` (antes só lia
+ *   `cfg.maxLtvPrice`) — a Caixa é o PRIMEIRO banco desta migração com um
+ *   `maxLtvPrice` real (0.70) e cuja fórmula original
+ *   (`overrides?.maxLtv ?? cfg.maxLtvPrice ?? cfg.maxLtv`) respeitava esse
+ *   override; sem este ajuste, um override de LTV configurado no banco de
+ *   dados deixaria de fazer efeito em simulações PRICE da Caixa.
  */
 
 import {
   BANCOS_CONFIG, MIP_RATES, DFI_RATE_MENSAL, LIMITE_IDADE_PRAZO_MESES,
   INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE,
   ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE,
+  CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL,
 } from './constantes'
 import type { BancoSimOverrides, SimulationCriteria, EstrategiaSeguroMip } from './criteria'
 
@@ -54,9 +89,13 @@ export const BANCOS_FASE2: BancoFase2Id[] = ['inter', 'daycoval']
 export type BancoFase3Id = 'itau'
 export const BANCOS_FASE3: BancoFase3Id[] = ['itau']
 
+// ── Fase 4 ────────────────────────────────────────────────────────────────
+export type BancoFase4Id = 'caixa'
+export const BANCOS_FASE4: BancoFase4Id[] = ['caixa']
+
 // ── União de todos os bancos já migrados para o caminho de critérios ──────
-export type BancoComCriteriosId = BancoGenericoId | BancoFase2Id | BancoFase3Id
-export const BANCOS_COM_CRITERIOS: BancoComCriteriosId[] = [...BANCOS_GENERICOS, ...BANCOS_FASE2, ...BANCOS_FASE3]
+export type BancoComCriteriosId = BancoGenericoId | BancoFase2Id | BancoFase3Id | BancoFase4Id
+export const BANCOS_COM_CRITERIOS: BancoComCriteriosId[] = [...BANCOS_GENERICOS, ...BANCOS_FASE2, ...BANCOS_FASE3, ...BANCOS_FASE4]
 
 export function ehBancoComCriterios(bancoId: string): bancoId is BancoComCriteriosId {
   return (BANCOS_COM_CRITERIOS as string[]).includes(bancoId)
@@ -68,6 +107,18 @@ function estrategiaMipInter(): EstrategiaSeguroMip {
   return {
     tipo: 'teto-idade',
     faixas: INTER_MIP_SOMPO.map((f) => ({ tetoIdade: f.maxAge, taxa: f.taxa })),
+  }
+}
+
+// Estratégia de MIP da Caixa (CAIXA_MIP_RATES) traduzida para o tipo genérico
+// 'teto-idade' — mesmo padrão de `estrategiaMipInter()`, só troca a tabela de origem.
+// É a estratégia "padrão SBPE"; Pró-Cotista e MCMV subsidizado sobrescrevem para
+// `{ tipo: 'flat', taxa: MIP_RATE_MCMV }` diretamente em `simularCaixaDuplo`
+// (engine.ts), fora deste resolvedor — ver comentário de topo do arquivo (Fase 4).
+function estrategiaMipCaixaSbpe(): EstrategiaSeguroMip {
+  return {
+    tipo: 'teto-idade',
+    faixas: CAIXA_MIP_RATES.map((f) => ({ tetoIdade: f.maxAge, taxa: f.taxa })),
   }
 }
 
@@ -84,17 +135,37 @@ function estrategiaMipItau(): EstrategiaSeguroMip {
   }
 }
 
+/**
+ * Monta o critério de simulação de um banco já migrado (Fases 1 e 2).
+ *
+ * Precedência preservada idêntica à de `simularBancoComTaxa` hoje:
+ * - taxa/LTV/prazo: override do banco de dados > valor de `BANCOS_CONFIG`
+ *   (o mesmo override, quando presente, vale tanto para a variante base
+ *   quanto para a correntista — replica `overrides?.taxaAnual ?? (...)`)
+ * - MIP: override do banco de dados (`mipRate`) vira uma taxa fixa que
+ *   ignora a estratégia própria do banco por completo — exatamente como
+ *   hoje (`mipOverride ?? overrides?.mipRate ?? (dispatch por cfg.id)`,
+ *   sem `mipOverride`, que só é usado pela Caixa via `simularCaixaDuplo`).
+ * - DFI: override do banco de dados (`dfiRate`) ou o valor próprio do banco
+ *   (genérico `DFI_RATE_MENSAL` para Bradesco/Santander/BB; `INTER_DFI_RATE`
+ *   para o Inter; `DAYCOVAL_DFI_RATE` para o Daycoval).
+ * - Nenhum destes 5 bancos tem `maxLtvPrice`, `comprometimentoMaxPrice`,
+ *   `suportaPrice=true`, tarifa mensal, ITBI ou programa especial hoje —
+ *   todos esses campos ficam com o valor "ausente" equivalente.
+ */
 export function resolverCriterios(
   bancoId: BancoComCriteriosId,
   overrides?: BancoSimOverrides,
 ): SimulationCriteria {
   const cfg = BANCOS_CONFIG[bancoId]
   const ehItau = bancoId === 'itau'
+  const ehCaixa = bancoId === 'caixa'
 
   const mipPadrao: EstrategiaSeguroMip =
     bancoId === 'inter'    ? estrategiaMipInter() :
     bancoId === 'daycoval' ? { tipo: 'flat', taxa: DAYCOVAL_MIP_RATE } :
     bancoId === 'itau'     ? estrategiaMipItau() :
+    bancoId === 'caixa'    ? estrategiaMipCaixaSbpe() :
     { tipo: 'faixa-etaria', faixas: MIP_RATES }
 
   const dfiPadrao =
@@ -112,8 +183,14 @@ export function resolverCriterios(
     ltv: {
       sac: overrides?.maxLtv ?? cfg.maxLtv,
       correntista: overrides?.maxLtv ?? cfg.maxLtvCorrentista,
-      price: cfg.maxLtvPrice,
-      penalidadeImovelUsado: undefined,
+      // A Caixa é o primeiro banco desta migração com `maxLtvPrice` real (0.70) — a
+      // fórmula original (`simularBancoComTaxa`) já respeitava `overrides?.maxLtv` também
+      // para PRICE (`overrides?.maxLtv ?? cfg.maxLtvPrice ?? cfg.maxLtv`); os outros bancos
+      // já migrados não têm `maxLtvPrice` definido, então este ajuste não muda nada para eles.
+      price: overrides?.maxLtv ?? cfg.maxLtvPrice,
+      // Redução de 10pp no LTV para imóvel usado — hoje exclusiva da Caixa
+      // (`simularBancoComTaxa`: `cfg.id === 'caixa' && input.tipoImovel === 'usado'`).
+      penalidadeImovelUsado: ehCaixa ? 0.10 : undefined,
     },
     prazoMaximoMeses: overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses,
     limiteIdadePrazoMeses: LIMITE_IDADE_PRAZO_MESES,
@@ -124,20 +201,51 @@ export function resolverCriterios(
     },
     maxValorImovel: cfg.maxValorImovel,
     seguro: {
+      // ATENÇÃO Itaú: os overrides `mipRate`/`dfiRate` do banco de dados NUNCA chegam
+      // até aqui para o Itaú — a função de cálculo especializada (`calcularSACPeriodoIdade`/
+      // `calcularPRICEPeriodoIdade`) é fiel ao comportamento original (`calcularSACItau`/
+      // `calcularPRICEItau`), que sempre usava as tabelas/taxa próprias do banco
+      // (ITAU_MIP_P1/P2, ITAU_DFI_RATE) e nunca lia esses overrides — só a estimativa de
+      // capacidade máxima (`mipParaCapacidadeMaxima` abaixo) já respeitava `mipRate`, e
+      // `dfiRate` nunca teve efeito algum no Itaú, nem na estimativa. Isso é uma limitação
+      // pré-existente preservada de propósito nesta migração — ver o documento da Fase 3.
       mip: ehItau
         ? mipPadrao
         : (overrides?.mipRate != null ? { tipo: 'flat', taxa: overrides.mipRate } : mipPadrao),
       dfi: {
+        // Itaú calcula o DFI sobre o valor de AVALIAÇÃO do imóvel (input.valorAvaliacao,
+        // com fallback para valorImovel), não sobre o valor do imóvel em si — todos os
+        // demais bancos usam valor do imóvel. Ver simularComCriterios em engine.ts.
         base: ehItau ? 'valor-avaliacao' : 'valor-imovel',
-        taxaMensal: ehItau ? ITAU_DFI_RATE : (overrides?.dfiRate ?? dfiPadrao),
+        // ATENÇÃO Caixa: `overrides?.dfiRate` também nunca chegava até `calcularSACCaixa`/
+        // `calcularPRICECaixa` originais (ambas só liam `CAIXA_DFI_RATE` direto, sem
+        // parâmetro de override) — mesma limitação pré-existente do Itaú, preservada aqui.
+        taxaMensal: ehItau ? ITAU_DFI_RATE : ehCaixa ? CAIXA_DFI_RATE : (overrides?.dfiRate ?? dfiPadrao),
       },
-      incluirNaUltimaParcela: !ehItau,
+      // Itaú zera MIP/DFI na última parcela e soma um pré-pagamento no "mês 0"; a Caixa
+      // também zera MIP/DFI na última parcela (mas sem pré-pagamento — em vez disso soma
+      // uma tarifa de administração mensal fixa em toda parcela, ver `tarifaAdministracaoMensal`
+      // abaixo). Ambos os comportamentos ficam encapsulados nas funções de cálculo
+      // especializadas (dispatch por `seguro.mip.tipo === 'periodo-e-idade'` para o Itaú e
+      // por `!seguro.incluirNaUltimaParcela` para a Caixa, em `simularComCriterios`) — estes
+      // dois flags servem só para documentar a regra real do banco.
+      incluirNaUltimaParcela: !ehItau && !ehCaixa,
       prePagamentoNoMesZero: ehItau,
     },
+    // Itaú usa a tabela GENÉRICA de mercado (não a própria) só para a estimativa de
+    // capacidade máxima de financiamento — comportamento hoje já existente, preservado
+    // aqui explicitamente (ver comentário do campo em criteria.ts). O override de
+    // `mipRate`, quando presente, SUBSTITUI essa estimativa por uma taxa flat — isso já
+    // acontecia no código original (o override afetava só a estimativa, nunca a parcela
+    // real do Itaú).
     mipParaCapacidadeMaxima: ehItau
       ? (overrides?.mipRate != null ? { tipo: 'flat', taxa: overrides.mipRate } : { tipo: 'faixa-etaria', faixas: MIP_RATES })
       : undefined,
-    tarifaAdministracaoMensal: 0,
+    // Tarifa de administração mensal fixa — hoje exclusiva da Caixa (R$25/mês, cobrada em
+    // toda parcela, inclusive nos programas Pró-Cotista/MCMV). `overrides?.taxaAdmin` nunca
+    // foi lido por `calcularSACCaixa`/`calcularPRICECaixa` originais — campo do tipo
+    // `BancoSimOverrides` já existia mas estava morto; preservado morto aqui também.
+    tarifaAdministracaoMensal: ehCaixa ? CAIXA_TA_MENSAL : 0,
     itbi: ehItau ? { permiteIncorporar: true, percentualPadrao: 0.05 } : undefined,
     metodoConversaoTaxa: ehItau ? 'composta-truncada-15-casas' : 'composta-padrao',
     modalidadesSuportadas: ['aquisicao'],

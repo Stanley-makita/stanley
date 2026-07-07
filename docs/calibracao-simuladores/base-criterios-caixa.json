@@ -1,0 +1,441 @@
+{
+  "banco": "caixa",
+  "versao_base": 2,
+  "gerado_em": "2026-07-06",
+  "proposito": "Base de conhecimento estruturada (não é o formato definitivo do Fonti nem um SimulationCriteria). Reconstrução completa a partir dos documentos atualizados no projeto — a versão anterior (baseada em MO43000269, que não existe mais no projeto) foi desconsiderada. Ver delta-base-caixa.md para o comparativo.",
+  "documentos_analisados": [
+    { "id": "MO43000271", "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/271.pdf", "versao": null, "vigencia": "2026-06-26", "status": "vigente", "paginas": 69, "observacao": "sucede o MO43000269 (inferido; não declarado textualmente no documento, campo 'normativos revogados' = 'Não se aplica')" },
+    { "id": "MO30769", "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/taxas caixa.pdf", "versao": "v031 micro", "vigencia": "baseado em atas até 2026-01-20 (Informe DEHAB DECCI 454/2026)", "status": "vigente, inalterado", "paginas": 5 },
+    { "id": "MO30824", "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/MO30824040.pdf", "versao": "v040", "vigencia": null, "status": "vigente", "paginas": 21 },
+    { "id": "MO30824_superado", "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/30824.pdf", "versao": "v036", "vigencia": null, "status": "superado_pela_v040", "paginas": 20, "usado_apenas_para": "comparação de mudanças (seção delta)" },
+    { "id": "MO43062", "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/analise de credito e risco de renda.pdf", "versao": "v042", "vigencia": "2025-01-27", "status": "vigente, atualização incremental (normativos revogados: 'Não se aplica')", "paginas": 36 },
+    { "id": "anexo_iv_uso_fgts", "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/uso do fgts.pdf", "versao": null, "vigencia": null, "status": "vigente, 'Sem alterações' declarado no cabeçalho", "paginas": 14 },
+    { "id": "30844", "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/MO30341047.pdf", "versao": "v003 micro", "vigencia": null, "status": "vigente, inalterado", "paginas": 2, "tipo": "operacional" },
+    { "id": "33377", "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/2-GUIA DE PESQUISA VENDEDORES - .pdf", "versao": "v020 micro", "vigencia": null, "status": "vigente", "paginas": 4, "tipo": "operacional" },
+    { "id": "anexo_ii_saldo_devedor", "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/Autorização Saldo Devedor- IQ.pdf", "versao": null, "vigencia": null, "status": "vigente", "paginas": 1, "tipo": "operacional" },
+    { "id": "damp_html", "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/DAMP certa (2).html", "versao": null, "vigencia": null, "status": "vigente, inalterado, não relido nesta rodada", "tipo": "operacional" }
+  ],
+  "nenhuma_planilha_simulador_encontrada": true,
+  "correspondencia_documentos_citados_pelo_usuario": {
+    "MO43000271": { "arquivo": "271.pdf", "confirmado": true },
+    "MO43062": { "arquivo": "analise de credito e risco de renda.pdf", "confirmado": true, "confirmacao": "rodapé literal 'MO43062 v042'" },
+    "MO30824": { "arquivo_vigente": "MO30824040.pdf (v040)", "arquivo_superado": "30824.pdf (v036)", "confirmado": true },
+    "uso_do_fgts": { "arquivo": "uso do fgts.pdf", "confirmado": true, "identificacao": "Anexo IV do MO43000" },
+    "taxas_caixa": { "arquivo": "taxas caixa.pdf", "confirmado": true, "identificacao": "MO30769 v031, inalterado desde a base anterior" },
+    "simuladores_planilhas": { "encontrados": false }
+  },
+  "produtos": [
+    { "id": "pmcmv", "nome": "PMCMV", "documento": "MO43000271", "secao": "3.1.2", "pagina": "8-9", "vigencia": "2026-06-26", "confianca": "alta", "tipo": "regra_permanente" },
+    { "id": "pro_cotista", "nome": "Pró-Cotista", "documento": "MO43000271", "secao": "3.1.2 / 3.4.1.5", "pagina": "8-9 / 13", "vigencia": "2026-06-26", "confianca": "alta", "tipo": "regra_permanente" },
+    { "id": "sbpe", "nome": "Carta de Crédito SBPE", "documento": "MO43000271", "secao": "3.1.2", "pagina": "8-9", "vigencia": "2026-06-26", "confianca": "alta", "tipo": "regra_permanente" },
+    { "id": "recursos_livres", "nome": "Recursos Livres", "documento": "MO43000271", "secao": "3.1.2", "pagina": "8-9", "vigencia": "2026-06-26", "confianca": "alta", "tipo": "regra_permanente" },
+    { "id": "classe_media", "nome": "Programa Classe Média", "documento": "MO30824", "secao": "6", "pagina": "8-9", "vigencia": "v040", "confianca": "alta", "tipo": "parametro_configuravel" },
+    { "id": "imoveis_caixa_amv", "nome": "Imóveis CAIXA/AMV", "documento": "MO30769 + MO30824", "secao": "4 / 4.4", "pagina": "4 / 6-7", "vigencia": "2026-01-20", "confianca": "alta", "tipo": "regra_permanente" },
+    { "id": "cdi", "nome": "Crédito Imobiliário CDI", "documento": "MO30769", "secao": "1", "pagina": "1", "vigencia": "2026-01-20", "confianca": "alta", "tipo": "regra_permanente" },
+    { "id": "mcmv_reconstrucao_rs", "nome": "PMCMV Reconstrução RS", "documento": "MO43000271", "secao": "3.9", "pagina": "9", "vigencia": "2026-06-26", "confianca": "baixa", "tipo": "operacional_comercial", "observacao": "cartilha própria não localizada no projeto" }
+  ],
+  "elegibilidade": {
+    "idade": {
+      "regra_encontrada": false,
+      "documentos_verificados": ["MO43000271", "MO30769", "MO30824_v040", "MO30824_v036", "MO43062", "anexo_iv_uso_fgts"],
+      "confianca_da_ausencia": "alta",
+      "valor_ja_usado_no_fonti": { "limite_idade_prazo_meses": 966, "idade_maxima_absoluta": 80 },
+      "confianca_do_valor_fonti": "baixa",
+      "observacao": "busca ampliada para 5 documentos normativos nesta rodada (incluindo o manual dedicado de risco de crédito MO43062), mesmo resultado: não encontrada"
+    },
+    "idade_mais_prazo": { "regra_encontrada": false, "mesma_observacao_idade": true },
+    "fgts": {
+      "tempo_minimo_trabalho_fgts_meses": { "valor": 36, "documento": "anexo_iv_uso_fgts", "secao": "3.2.1.1-a", "pagina": "1-2", "confianca": "alta", "tipo": "regra_permanente" },
+      "impedimento_financiamento_sfh_ativo": { "documento": "anexo_iv_uso_fgts", "secao": "3.2.1.1-b", "pagina": "1-2", "confianca": "alta", "tipo": "regra_permanente" },
+      "impedimento_outro_imovel_municipio": { "documento": "anexo_iv_uso_fgts", "secao": "3.2.1.1-c", "pagina": "1-2", "confianca": "alta", "tipo": "regra_permanente" },
+      "interstício_imovel_anos": { "valor": 3, "excecoes": ["terreno_construcao", "construcao_terreno_proprio", "espolio"], "documento": "anexo_iv_uso_fgts", "secao": "3.2.14.1 / 3.2.14.6", "pagina": "6", "confianca": "alta", "tipo": "regra_permanente" },
+      "pro_cotista_requisito": {
+        "tempo_minimo_cv_anos": 3,
+        "condicao": "vinculo ativo OU saldo em CV >= 10% do valor de avaliacao",
+        "documento": "MO43000271",
+        "secao": "3.1.2 / 3.4.1.5",
+        "pagina": "8-9 / 13",
+        "confianca": "media",
+        "observacao": "não corroborado explicitamente no MO30824 v040 nem no Anexo IV nesta rodada",
+        "tipo": "regra_permanente"
+      },
+      "redutor_taxa_cotista_pp": { "valor": -0.5, "documentos": ["MO43000271 (4.6.9, p.53 aprox.)", "MO30824 v040 (§3, p.5-7)"], "confianca": "alta_corroborado_2_documentos", "tipo": "regra_permanente" },
+      "fgts_futuro_cessao_direitos": {
+        "renda_familiar_max": 2640.00,
+        "comprometimento_renda_min": 0.20,
+        "comprometimento_renda_max": 0.30,
+        "vf_minimo": 2000.00,
+        "prazo_amortizacao_cessao_meses": 120,
+        "prazo_financiamento_max_meses": 420,
+        "exige_depositos_cv_ultimos_12_meses_min": 6,
+        "documentos": ["MO43000271 (§3.7.17, p.31-32)", "anexo_iv_uso_fgts (§5.3.c/5.5, p.9)"],
+        "confianca": "alta_corroborado_2_documentos",
+        "tipo": "regra_permanente"
+      },
+      "limite_uso_aquisicao": { "regra": "menor valor entre compra-e-venda e avaliação Caixa", "documento": "anexo_iv_uso_fgts", "secao": "11.2", "pagina": "10", "confianca": "alta", "tipo": "regra_permanente" },
+      "limite_uso_construcao": { "regra": "menor valor entre avaliação como pronto, custo de obra, ou obra + menor valor do terreno", "documento": "anexo_iv_uso_fgts", "secao": "11.3", "pagina": "10-11", "confianca": "alta", "tipo": "regra_permanente" },
+      "teto_valor_imovel_sfh": { "fonte_externa": "Conselho Monetário Nacional", "fixado_no_documento": false, "documento": "anexo_iv_uso_fgts", "secao": "11.1", "pagina": "10", "tipo": "parametro_configuravel" }
+    },
+    "renda": {
+      "renda_minima_comercial": { "valor": 780.00, "documento": "MO43062", "secao": "3.6.1.4", "pagina": "8", "vigencia": "2025-01-27", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "validade_documentos_meses": { "contracheque_fgts_beneficio_inss_declaracao_empregador": 2, "documento": "MO43062", "secao": "3.6.4", "pagina": "9-13", "confianca": "alta", "tipo": "regra_permanente" },
+      "validade_aplicacao_financeira_outras_instituicoes_dias": { "valor": 30, "documento": "MO43062", "secao": "3.6.4", "pagina": "11-12", "confianca": "alta", "tipo": "regra_permanente" },
+      "formula_renda_fgts": { "formula": "deposito_mensal * 12.5", "documento": "MO43062", "secao": "3.6.4", "pagina": "10", "confianca": "alta", "tipo": "regra_permanente" },
+      "formula_renda_notas_fiscais_rural": { "formula": "0.30 * media_vendas_12_meses", "documento": "MO43062", "secao": "3.6.4", "pagina": "14", "confianca": "alta", "tipo": "regra_permanente" },
+      "formula_renda_conta_salario": { "formula": "media dos 4 meses do meio, descartando maior e menor de 6 meses", "documento": "MO43062", "secao": "3.6.4", "pagina": "13", "confianca": "alta", "tipo": "regra_permanente" },
+      "formula_renda_dirpf": { "formula": "rendimento_anual / 12", "documento": "MO43062", "secao": "3.6.4.9", "pagina": "15-22", "confianca": "alta", "tipo": "regra_permanente" },
+      "validacao_cruzada_clt_fgts": { "regra": "usa o maior valor entre (deposito_fgts * 12.5) e valor do contracheque", "documento": "MO43000271", "secao": "3.7.13.2.5 / 4.6.5.1", "pagina": "29 / 53", "vigencia": "2026-06-26", "confianca": "alta", "novidade": true, "tipo": "regra_permanente" },
+      "pro_labore_exige_darf_acima_de_salarios_minimos": { "valor": 8.5, "documento": "MO43062", "pagina": "2 (changelog)", "vigencia": "2025-01-27", "confianca": "alta", "novidade": true, "tipo": "parametro_configuravel" },
+      "dispensa_declaracao_renda_descontinuada": { "soma_anual_max": 600.00, "renda_familiar_mensal_max": 11950.00, "documento": "MO43000271", "secao": "3.7.13.2.6.1", "pagina": "28", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "renda_informal": { "regra": "cadastrada sem documento, só após esgotar enquadramento formal", "documento": "MO43062", "secao": "3.6.5", "pagina": "22", "confianca": "alta", "tipo": "regra_permanente" },
+      "renda_conjuge_dirpf_conjunta": { "regra": "contada separadamente, não soma à renda do titular", "documento": "MO43062", "secao": "3.6.4.9.4", "pagina": "21-22", "confianca": "alta", "tipo": "regra_permanente" },
+      "renda_menor_de_idade": { "regra": "vedado usar para lastrear crédito, exceto autorização judicial", "documento": "MO43062", "secao": "3.6.1.6", "pagina": "8", "confianca": "alta", "tipo": "regra_permanente" }
+    },
+    "avaliacao_risco_credito": {
+      "resultados_possiveis": ["aprovado", "condicionado", "reprovado"],
+      "validade_avaliacao_dias": { "comercial": 30, "habitacional": 180 },
+      "limite_solicitacoes": { "comercial_em_30_dias": 10, "habitacional_dentro_da_validade": 41 },
+      "defasagem_scr_meses": 2,
+      "documento": "MO43062",
+      "secao": "3.5 / 3.7 / 3.8",
+      "pagina": "7-8, 22-23",
+      "vigencia": "2025-01-27",
+      "confianca": "alta",
+      "tipo": "regra_permanente_parametros_configuraveis",
+      "restricoes_cadastrais": {
+        "serasa_scpc": { "impede_contratacao": true, "excecoes": ["cheque_especial_conta_salario", "credito_consignado"] },
+        "cadin_caixa_bancos_federais": { "impede": ["comercial", "habitacional"] },
+        "cadin_fiscais_parafiscais": { "impede_apenas": "habitacional_com_recursos_publicos" },
+        "scr_divida_vencida_prejuizo": { "impede": ["habitacional", "comercial"], "excecao": "credito_consignado" },
+        "consignado_pab": { "impede_novas_contratacoes_comerciais": true, "excecao": "cartao_de_credito" }
+      },
+      "restricao_cca_familia_3o_grau": {
+        "regra": "Correspondente CAIXA Aqui e família até 3º grau impedidos de contratar no próprio estabelecimento",
+        "documento": "MO43000271",
+        "secao": "3.3.1.2",
+        "pagina": "9",
+        "vigencia": "2026-06-26",
+        "novidade": true,
+        "tipo": "operacional_compliance"
+      }
+    },
+    "imovel": {
+      "alienacao_superveniente_lei_14711_2023": { "novidade": true, "documento": "MO43000271", "secao": "3.3.3.7", "pagina": "12-13", "vigencia": "2026-06-26", "confianca": "alta", "tipo": "regra_permanente" },
+      "regime_ocupacao_restrito_a": ["PE/Recife", "RJ/Sul Fluminense"],
+      "enfiteuse_aceita_se_registrada_ate": "2003-01-10",
+      "lista_impeditivos_reconfirmada_sem_mudanca_substancial": true
+    },
+    "pesquisas_cadastrais": {
+      "consultas": ["SIRIC", "CADIN", "SICOW/CRF", "CONRES", "SIJUR"],
+      "codigos_conres_impeditivos": ["217750376", "431166", "472365", "472988", "473001", "141949987", "193997931"],
+      "sijur_obrigatorio_se": { "avaliacao_minima": 2000000.00, "condicao": "apontamento ativo" },
+      "validade_pesquisas_proponentes": "remetida ao MO43062",
+      "validade_pesquisas_demais_participantes_dias": 30,
+      "documento": "MO43000271",
+      "secao": "3.7.14.1",
+      "pagina": "29-30",
+      "confianca": "alta",
+      "tipo": "regra_permanente"
+    }
+  },
+  "regras_financeiras": {
+    "taxas_juros_sbpe_recursos_livres": {
+      "documento": "MO30769",
+      "versao": "v031",
+      "status": "inalterado_desde_base_anterior",
+      "niveis": [
+        { "nivel": "balcao", "residencial_sfh": 0.1149, "residencial_sfi": 0.12, "comercial_lote_sfi": 0.135, "construcao_individual_sfh": 0.12, "construcao_sustentavel_sfi": 0.134, "tipo": "comercial" },
+        { "nivel": "bonificacao_1", "residencial_sfh": 0.1129, "residencial_sfi": 0.119, "comercial_lote_sfi": 0.13, "construcao_individual_sfh": 0.119, "construcao_sustentavel_sfi": 0.131, "tipo": "comercial" },
+        { "nivel": "bonificacao_2", "residencial_sfh": 0.1119, "residencial_sfi": 0.118, "comercial_lote_sfi": 0.1215, "construcao_individual_sfh": 0.118, "construcao_sustentavel_sfi": 0.128, "tipo": "comercial" },
+        { "nivel": "taxa_customizada", "residencial_sfh": 0.1099, "simulavel_pelo_fonti": false, "tipo": "comercial" }
+      ],
+      "confianca": "alta"
+    },
+    "ltv_quota_maxima_sbpe": { "documento": "MO30769", "secao": "3.1", "pagina": "3", "status": "inalterado", "confianca": "alta", "tipo": "parametro_configuravel",
+      "tabela": [
+        { "modalidade": "aquisicao_tr_residencial", "sac": 0.80, "price": 0.70 },
+        { "modalidade": "aquisicao_tr_comercial", "sac": 0.70, "price": 0.50 },
+        { "modalidade": "aquisicao_cdi_residencial", "sac": 0.70 },
+        { "modalidade": "construcao_tr_residencial", "sac": 0.80, "price": 0.70 },
+        { "modalidade": "alocacao_recursos_com_financiamento_pj", "sac": 0.90 },
+        { "modalidade": "alocacao_recursos_sem_financiamento_pj", "sac": 0.80 },
+        { "modalidade": "alocacao_recursos_price", "price": 0.80 },
+        { "modalidade": "lote_urbanizado_tr_residencial", "sac": 0.80, "price": 0.70 },
+        { "modalidade": "lote_urbanizado_tr_comercial", "sac": 0.70, "price": 0.50 },
+        { "modalidade": "lote_urbanizado_alocacao_recursos", "sac": 0.80, "price": 0.70 },
+        { "modalidade": "reforma_pre_fixado", "sac": 0.50, "price": 0.50 }
+      ]
+    },
+    "regra_calculo_valor_base_quota": {
+      "documentos": ["MO30769", "MO43000271 (§3.7.3, p.23)"],
+      "confianca": "alta_corroborado_2_documentos",
+      "tipo": "regra_permanente",
+      "aquisicao_novo_usado": "menor valor entre compra-e-venda e avaliação",
+      "construcao_terreno_proprio_reforma": "menor valor entre avaliação como pronto e (terreno + orçamento aprovado)",
+      "aquisicao_terreno_construcao": "orçamento aprovado + menor valor do terreno; financiamento do terreno limitado a 80% do menor valor entre compra e avaliação"
+    },
+    "prazos": {
+      "aquisicao_tr_residencial": { "sac_meses": [120, 420], "price_meses": [120, 360], "documento": "MO30769", "pagina": "3", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "construcao_tr_residencial": { "sac_meses": [120, 420], "price_meses": [156, 360], "documento": "MO30769", "pagina": "3", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "reforma_pre_fixado_meses": [60, 180],
+      "fase_construcao_meses": [2, 24],
+      "fase_construcao_prorrogavel_meses": { "fgts": 36, "sbpe": 30 },
+      "reenquadramento_construcao_para_conclusao_pct_obra_executada": 0.70,
+      "antecipacao_recursos_obra_max_pct": 0.20,
+      "antecipacao_parcela_intermediaria_permitida": { "valor": false, "vigente_para_contratos_a_partir_de": "2023-01-02", "documento": "MO43000271", "secao": "3.6.8.3", "pagina": "20", "confianca": "alta", "novidade_ou_alteracao": true, "tipo": "regra_permanente" },
+      "ultima_parcela_cronograma_obra_min_pct": { "valor": 0.05, "documento": "MO43000271", "secao": "3.6.10.3", "pagina": "20", "novidade": true, "confianca": "alta", "tipo": "regra_permanente" },
+      "carencia_max_meses": 6,
+      "carencia_penalidade_ltv_pp": -3,
+      "carencia_antecipacao_amortizacao_permitida": { "valor": false, "aplica_a": "construção individual / PF vinculada a empreendimento em fase de obra", "documento": "MO43000271", "secao": "3.7.7.2.8", "pagina": "25", "alteracao": true, "confianca": "alta", "tipo": "regra_permanente" },
+      "cessao_fgts_futuro_amortizacao_meses": 120,
+      "cessao_fgts_futuro_financiamento_max_meses": 420,
+      "validade_laudo_avaliacao_dias": { "caixa_amv_far_par": 720, "demais_imoveis": 180, "documento": "MO43000271", "secao": "4.6.8.3", "novidade": true, "confianca": "alta", "tipo": "operacional" }
+    },
+    "comprometimento_renda": {
+      "produto_sbpe": { "sac": 0.30, "price": 0.25, "documento": "MO30769", "secao": "3.2", "pagina": "4", "vigencia": "2026-01-20", "confianca": "alta" },
+      "risco_credito_geral": { "teto": 0.30, "observacao": "sem distinção SAC/PRICE, pode ser reduzido conforme perfil de risco do cliente (SIRIC)", "documento": "MO43062", "secao": "3.7.1.4", "pagina": "22", "vigencia": "2025-01-27", "confianca": "alta" },
+      "cessao_fgts_futuro": { "min": 0.20, "max": 0.30, "documento": "MO43000271 + anexo_iv_uso_fgts" },
+      "resolucao_conflito": "não é conflito de substituição — teto de produto (30%/25%) é o parâmetro de simulação; teto de risco (30% redutível) é camada adicional que só pode restringir mais, nunca liberar acima do teto do produto",
+      "tipo": "parametro_configuravel_com_regra_permanente_de_precedencia"
+    },
+    "sac_price_formulas": {
+      "sac": { "formula": "AM = SD / N", "documento": "MO43000271", "secao": "3.18.3", "pagina": "39", "confianca": "alta", "tipo": "regra_permanente" },
+      "price": { "descricao": "recalculada com SD atualizado pelo prazo remanescente", "documento": "MO43000271", "secao": "3.18.3", "pagina": "39", "confianca": "media", "observacao": "equação algébrica exata não pôde ser reconfirmada nesta rodada (documento descreve textualmente, sem repetir a fórmula que a versão anterior trazia); MO43000269 não está mais disponível para comparação", "tipo": "regra_permanente" }
+    },
+    "tarifas": {
+      "avaliacao_bens_garantia": { "etapa_1_valor": 750.00, "etapa_2": "remanescente na assinatura", "documento": "MO43000271", "secao": "3.12.3", "pagina": "33-34", "vigencia": "2026-06-26", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "administracao_ta": { "valor_ja_usado_fonti": 25.00, "confirmado_numericamente": false, "fonte_oficial": "Tabela de Tarifas externa", "documento": "MO43000271", "secao": "3.18.3.5", "pagina": "40", "confianca": "baixa_numerico_alta_existencia", "tipo": "parametro_configuravel" },
+      "desconto_ta_fgts_pmcmv": { "valor_max": 25.00, "condicao_renda_max": 2850.00, "documento": "MO30824", "versao": "v040", "secao": "12", "pagina": "16-19", "confianca": "alta", "observacao": "corrobora indiretamente o valor de R$25/mês já usado no Fonti para o público subsidiado", "tipo": "parametro_configuravel" },
+      "acompanhamento_operacao_tao": { "documento": "MO43000271", "secao": "3.13.1", "pagina": "34-35", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "reavaliacao_sbpe": { "documento": "MO43000271", "secao": "3.13.2", "pagina": "35", "confianca": "alta", "tipo": "operacional" },
+      "despesas_cartorarias_acessorias_max_pct_vf": { "valor": 0.05, "documento": "MO43000271", "secao": "3.7.8", "pagina": "26", "confianca": "alta", "tipo": "parametro_configuravel" },
+      "comissao_leiloeiro_max_pct_vf": { "valor": 0.05, "documentos": ["MO43000271 (§4.6.2.4.12, p.49)", "MO30824 v040 (§10, p.11)"], "confianca": "alta_corroborado_2_documentos", "novidade": true, "tipo": "parametro_configuravel" }
+    },
+    "iof": { "aplicavel_a": "imóvel comercial (inclusive unidade comercial vinculada a empreendimento)", "documento": "MO43000271", "secao": "3.12.5", "pagina": "34", "confianca": "alta", "tipo": "regra_permanente" },
+    "itbi": { "regra_calculo_encontrada": false, "observacao": "continua sem regra de cálculo/incorporação em nenhum documento analisado", "confianca_da_ausencia": "alta" },
+    "mip_dfi_dfc": {
+      "base_calculo_mip": { "regra": "sobre saldo devedor atualizado", "documento": "MO43000271", "secao": "3.18.3.6", "pagina": "40", "confianca": "alta", "tipo": "regra_permanente" },
+      "base_calculo_dfi_dfc": { "regra": "sobre valor da garantia", "documento": "MO43000271", "secao": "3.18.3.6", "pagina": "40", "confianca": "alta", "tipo": "regra_permanente" },
+      "unidade_vinculada_empreendimento": { "regra": "só MIP na fase de obra; DFI só a partir da amortização", "documento": "MO43000271", "secao": "3.18.3.6", "pagina": "40", "confianca": "alta", "tipo": "regra_permanente" },
+      "aliquotas_fgts_pmcmv": {
+        "disponivel": true,
+        "novidade": "gap_parcialmente_fechado_nesta_rodada",
+        "documento": "MO30824",
+        "versao": "v040",
+        "secao": "13",
+        "pagina": "18-20",
+        "faixas_etarias": "18-25 até 76-80a6m",
+        "variacao_aliquota_pct": [0.008, 0.55],
+        "apolices": ["CAIXA Residencial Habitacional PMCMV/Mais", "Habitacional FGTS/Especial/Especial Ampliado"],
+        "confianca": "alta",
+        "observacao_importante": "válido só para operações com recurso FGTS/PMCMV — não substitui diretamente CAIXA_MIP_RATES/CAIXA_DFI_RATE do Fonti, que foram calibrados para o produto SBPE",
+        "tipo": "parametro_configuravel"
+      },
+      "aliquotas_sbpe_recursos_livres": { "disponivel": false, "fonte_oficial": "Anexo III (ausente do projeto)", "confianca": "baixa", "tipo": "parametro_configuravel" },
+      "dfi_nao_aplicavel_lote_urbanizado": { "confirmado": true, "documento": "30844", "pagina": "2", "status": "inalterado", "confianca": "alta", "tipo": "regra_permanente" },
+      "seguradoras": ["CAIXA Residencial", "TokioMarine", "TooSeguros"]
+    }
+  },
+  "fgts_consolidado": {
+    "anexo_iv_status": "sem_alteracoes_declarado",
+    "redutor_e_cessao_futuro_corroborados_por_2_documentos": true,
+    "pro_cotista_saldo_10pct_corroboracao": "unica_fonte_MO43000271"
+  },
+  "mcmv_classe_media": {
+    "faixas_renda_teto_imovel_por_porte_municipio": {
+      "documento": "MO30824",
+      "versao": "v040",
+      "secao": "1",
+      "pagina": "1-2",
+      "confianca": "alta",
+      "tipo": "parametro_configuravel",
+      "ate_5000_grande_metropole_nacional_750mil_mais_hab": 275000.00,
+      "acima_5000_teto_unico_todos_municipios": 400000.00,
+      "observacao": "tabela completa por porte de município tem 4 faixas de habitantes x 4 tipos de arranjo urbano — ver documento fonte para granularidade total"
+    },
+    "enquadramento_faixas_nominadas_v040": [
+      { "renda_ate": 3200.00, "imovel": "dentro do limite do municipio", "faixa": "Faixa 1" },
+      { "renda_ate": 3200.00, "imovel": "acima do limite ate 400 mil", "faixa": "Faixa 3" },
+      { "renda_ate": 3200.00, "imovel": "400 mil a 600 mil", "faixa": "Classe Media" },
+      { "renda_de": 3200.01, "renda_ate": 5000.00, "imovel": "dentro do limite", "faixa": "Faixa 2" },
+      { "renda_de": 3200.01, "renda_ate": 5000.00, "imovel": "acima ate 400 mil", "faixa": "Faixa 3" },
+      { "renda_de": 3200.01, "renda_ate": 5000.00, "imovel": "400 mil a 600 mil", "faixa": "Classe Media" },
+      { "renda_de": 5000.01, "renda_ate": 9600.00, "imovel": "ate 600 mil", "faixa": "Classe Media" },
+      { "renda_de": 9600.01, "renda_ate": 13000.00, "imovel": "ate 600 mil", "faixa": "Classe Media" }
+    ],
+    "pro_cotista": { "taxa_nominal": 0.0866, "taxa_efetiva": 0.090121, "quota_max": 0.60, "prazo_meses": [60, 420], "financiamento_min": 80000.00, "financiamento_max": 300000.00, "teto_imovel": 500000.00, "documento": "MO30824", "versao": "v040_e_v036_identico", "secao": "5", "pagina": "7-8", "confianca": "alta", "tipo": "parametro_configuravel" },
+    "programa_classe_media": {
+      "taxa_nominal": 0.10, "taxa_efetiva": 0.1047,
+      "quota_max": { "sfa_tp": 0.80, "sac": 0.60 },
+      "prazo_meses": { "sfa_tp_min": 120, "sac_min": 240, "max": 420 },
+      "financiamento_min": 100000.00,
+      "financiamento_max_v036_superado": 400000.00,
+      "financiamento_max_v040_vigente": 480000.00,
+      "publico_alvo_renda_max": 13000.00,
+      "documento": "MO30824", "secao": "6.5", "pagina": "9",
+      "confianca": "alta",
+      "alteracao_entre_versoes": true,
+      "tipo": "parametro_configuravel"
+    },
+    "descontos_pmcmv": {
+      "formula": "D = Frenda * (1 + (FD_R + Fdfin + FUH)/100) * Fpop",
+      "limites": { "min": 1500.00, "max_norte": 65000.00, "max_demais_regioes": 55000.00, "max_carta_credito_individual_imovel_pronto": 49500.00 },
+      "reducoes": [
+        { "condicao": "construcao_terreno_proprio_beneficiario", "reducao_pct": 0.20 },
+        { "condicao": "familia_unipessoal_fator_social", "reducao_pct": 0.70 },
+        { "condicao": "imovel_usado", "reducao_pct": 0.50 },
+        { "condicao": "imovel_caixa_amv", "reducao_pct": 0.30 }
+      ],
+      "documento": "MO30824", "versao": "v040", "secao": "12", "pagina": "13-19",
+      "confianca": "alta",
+      "tipo": "parametro_configuravel_sobre_regra_permanente",
+      "novidades_v040": [
+        "regras de devolução só valem a partir da fase de amortização (§12.5)",
+        "transferência de titularidade entre mutuários originários (inclusive separação/divórcio) não gera devolução, desde que sem cessão a terceiro (§12.5.1)"
+      ]
+    },
+    "hierarquizacao_propostas": {
+      "v036": { "prioridade_geral_renda_max": 5000.00 },
+      "v040": { "prioridade_geral_renda_max": 5000.00, "prioridade_pro_cotista_renda_max": 9600.00, "prioridade_calamidade_publica": true },
+      "documento": "MO30824", "secao": "11", "pagina": "10-12",
+      "tipo": "operacional_comercial",
+      "observacao": "regra de fila de originação por orçamento CCFGTS, não afeta o valor calculado da parcela"
+    }
+  },
+  "programas_especiais": [
+    { "id": "mcmv", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": true, "elegibilidade_propria": true, "fonte": "MO30824_v040" },
+    { "id": "classe_media", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": true, "elegibilidade_propria": true, "fonte": "MO30824_v040" },
+    { "id": "pro_cotista", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": true, "elegibilidade_propria": true, "fonte": "MO30824_v040_e_MO43000271" },
+    { "id": "taxa_customizada", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": true, "elegibilidade_propria": true, "simulavel_pelo_fonti": false, "fonte": "MO30769" },
+    { "id": "imoveis_caixa_amv", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": true, "elegibilidade_propria": false, "fonte": "MO30769_e_MO30824" },
+    { "id": "selo_casa_azul", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": false, "elegibilidade_propria": true, "fonte": "MO30769" },
+    { "id": "fgts_futuro_cessao_direitos", "regras_proprias": true, "taxas_proprias": false, "cotas_proprias": false, "elegibilidade_propria": true, "fonte": "MO43000271_e_anexo_iv" },
+    { "id": "mcmv_reconstrucao_rs", "regras_proprias": true, "taxas_proprias": null, "cotas_proprias": null, "elegibilidade_propria": true, "fonte": "MO43000271_citacao" },
+    { "id": "credito_imobiliario_cdi", "regras_proprias": true, "taxas_proprias": true, "cotas_proprias": false, "elegibilidade_propria": true, "fonte": "MO30769" }
+  ],
+  "restricoes_novas_ou_alteradas": [
+    { "id": "cca_familia_3o_grau", "documento": "MO43000271", "secao": "3.3.1.2", "novidade": true },
+    { "id": "alienacao_superveniente_lei_14711_2023", "documento": "MO43000271", "secao": "3.3.3.7", "novidade": true },
+    { "id": "antecipacao_parcela_intermediaria_vedada_desde_2023_01_02", "documento": "MO43000271", "secao": "3.6.8.3", "novidade_ou_alteracao": true },
+    { "id": "carencia_sem_antecipacao_amortizacao_construcao_individual", "documento": "MO43000271", "secao": "3.7.7.2.8", "novidade": true },
+    { "id": "interveniente_quitante_home_equity_outra_if_agora_permitido", "documento": "MO43000271", "secao": "3.7.10.4 / 3.7.10.6", "alteracao_de_vedado_para_permitido": true },
+    { "id": "renda_acima_5000_sem_desconto_pmcmv_exceto_pro_cotista", "documento": "MO30824", "reconfirmado": true },
+    { "id": "consignado_pab_impede_comercial_exceto_cartao", "documento": "MO43062", "novo_nesta_base": true }
+  ],
+  "restricoes_reconfirmadas_sem_mudanca": [
+    "teto_sfh_2250000",
+    "suspensao_ipca_pre_fixada_poupanca_aquisicao_construcao",
+    "lista_imoveis_impeditivos",
+    "vedacao_fgts_reforma_e_antecipacao_obra_sbpe",
+    "vedacao_imovel_misto_certas_modalidades"
+  ],
+  "delta_mo30824_v036_para_v040": [
+    { "id": "nomenclatura_faixas", "v036": "sem rótulos", "v040": "Faixa 1/2/3/Classe Média nominadas", "impacto_simulacao": false },
+    { "id": "teto_financiamento_classe_media", "v036": 400000.00, "v040": 480000.00, "impacto_simulacao": true },
+    { "id": "hierarquizacao_propostas", "v036": "só R$5.000 geral", "v040": "R$5.000 geral + R$9.600 Pró-Cotista + prioridade calamidade", "impacto_simulacao": false },
+    { "id": "devolucao_desconto_excecoes", "v036": "sem exceção para transferência entre mutuários", "v040": "isenta transferência entre mutuários originários, regra só a partir da amortização", "impacto_simulacao": false },
+    { "id": "demais_taxas_quotas_prazos_formulas_mip_dfi", "v036": "idênticas", "v040": "idênticas", "impacto_simulacao": false }
+  ],
+  "conflitos_identificados": [
+    {
+      "id": "mo30824_v036_vs_v040",
+      "descricao": "mesmo manual, duas versões coexistentes no projeto",
+      "resolucao": "v040 prevalece por ser a versão de maior número; v036 desconsiderado exceto para documentar as 2 mudanças reais",
+      "status": "resolvido"
+    },
+    {
+      "id": "comprometimento_renda_produto_vs_risco",
+      "descricao": "MO30769 define 30%/25% por sistema de amortização; MO43062 define teto único de 30% redutível por perfil de risco",
+      "resolucao": "não é conflito de substituição — complementaridade: teto de produto é o parâmetro de simulação, teto de risco é camada adicional que só restringe mais",
+      "status": "resolvido_por_interpretacao"
+    },
+    {
+      "id": "interveniente_quitante_home_equity",
+      "descricao": "versão anterior (MO43000269, descontinuado) vedava liquidação de Home Equity de outra IF via Interveniente Quitante; versão vigente (MO43000271) permite",
+      "resolucao": "MO43000271 prevalece — documento mais recente, mudança explícita no próprio changelog",
+      "status": "resolvido_regra_alterada"
+    },
+    {
+      "id": "formula_price_exata",
+      "descricao": "versão anterior descontinuada trazia equação algébrica explícita do PRICE; versão vigente descreve textualmente sem repetir a equação",
+      "resolucao": "não foi possível confirmar com certeza a igualdade exata da fórmula, pois o documento antigo não está mais disponível para comparação",
+      "status": "nao_resolvido_depende_de_simulador_real"
+    },
+    {
+      "id": "pro_cotista_saldo_10pct_corroboracao",
+      "descricao": "regra citada só no MO43000271, ausente no Anexo IV e no MO30824 v040",
+      "resolucao": "não é contradição factual, é lacuna de corroboração — mantido o valor por ser o único que o declara",
+      "status": "parcialmente_resolvido"
+    }
+  ],
+  "dependencias_simuladores_reais": [
+    "aliquotas_mip_dfi_para_sbpe_recursos_livres_produto_atual_do_fonti",
+    "valor_exato_ta_para_publico_fora_do_fgts_subsidiado",
+    "regra_idade_idade_mais_prazo_nao_encontrada_em_5_documentos",
+    "equacao_exata_formula_price_versao_vigente",
+    "corroboracao_regra_saldo_10pct_pro_cotista_em_segunda_fonte"
+  ],
+  "dependencias_parametrizacao_futura": [
+    "matriz_2d_faixa_renda_x_porte_municipio_x_teto_imovel_mcmv",
+    "4_componentes_formula_desconto_pmcmv_frenda_fd_r_fdfin_fuh_fpop",
+    "programa_classe_media_como_variante_ou_produto_proprio_atencao_teto_imovel_vs_teto_financiado",
+    "hierarquizacao_propostas_fila_orcamento_fgts_provavelmente_fora_do_motor",
+    "camada_dupla_comprometimento_renda_produto_e_risco"
+  ],
+  "fora_do_motor_por_ser_operacional": [
+    "formulario_30844_debito_conta_declaracao_scr_lgpd_seguro",
+    "formulario_33377_guia_pesquisa_vendedores",
+    "anexo_ii_autorizacao_saldo_devedor_interveniente_quitante",
+    "damp_declaracao_enquadramento",
+    "secao_4_mo43000271_procedimentos_atendimento_cca_siopi_pld",
+    "hierarquizacao_propostas_mo30824_fila_orcamento",
+    "processo_de_pesquisas_cadastrais_siric_cadin_conres_sijur_o_resultado_e_elegibilidade_o_processo_e_operacional"
+  ],
+  "referencia_cruzada_codigo_atual": {
+    "confirmados_sem_mudanca": [
+      "taxaAnualBase = 0.1149",
+      "taxaAnualCorrentista = 0.1119",
+      "maxLtv = 0.80 / maxLtvPrice = 0.70",
+      "comprometimentoMaxPrice = 0.25 / sac 0.30 (com nuance nova do MO43062)",
+      "maxValorImovel = 2250000",
+      "prazoMaximoMeses = 420"
+    ],
+    "ainda_nao_confirmados": [
+      "CAIXA_TA_MENSAL = 25.00 (indício indireto via desconto FGTS)",
+      "CAIXA_MIP_RATES / CAIXA_DFI_RATE para SBPE (agora existe tabela real, mas só para FGTS/PMCMV)",
+      "penalidade_-10pp_ltv_imovel_usado (ainda não encontrada em 5 documentos)",
+      "LIMITE_IDADE_PRAZO_MESES = 966 / idadeMaximaAbsoluta = 80 (ainda não encontrada)"
+    ],
+    "confirmados_com_esta_rodada": [
+      "CAIXA_PRO_COTISTA.taxaAnual = 0.0866 -- CONFIRMADO EXATAMENTE pelo MO30824 v040"
+    ],
+    "discrepancias_novas_encontradas": [
+      { "item": "CAIXA_PRO_COTISTA.maxValorImovel", "valor_fonti": 350000.00, "valor_normativo": 500000.00, "documento": "MO30824 v040", "observacao": "discrepância a investigar, não corrigida nesta etapa", "gravidade": "media" },
+      { "item": "MCMV_FAIXAS", "observacao": "granularidade real (renda x porte de município) é maior que a implementação atual; tetos de imóvel por faixa simples não batem exatamente com a matriz completa do MO30824", "gravidade": "media" }
+    ]
+  },
+  "fontes": [
+    { "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/271.pdf", "identificacao": "MO43000271", "paginas": 69, "cobertura": "lido integralmente" },
+    { "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/taxas caixa.pdf", "identificacao": "MO30769 v031", "paginas": 5, "cobertura": "lido integralmente, conteúdo idêntico à rodada anterior" },
+    { "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/MO30824040.pdf", "identificacao": "MO30824 v040 (vigente)", "paginas": 21, "cobertura": "lido integralmente" },
+    { "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/30824.pdf", "identificacao": "MO30824 v036 (superado)", "paginas": 20, "cobertura": "lido integralmente, só para comparação" },
+    { "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/analise de credito e risco de renda.pdf", "identificacao": "MO43062 v042", "paginas": 36, "cobertura": "lido integralmente" },
+    { "arquivo": "_projeto/simuladores bancos/Juros caixa imobiliario/uso do fgts.pdf", "identificacao": "Anexo IV (MO43000)", "paginas": 14, "cobertura": "lido integralmente" },
+    { "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/MO30341047.pdf", "identificacao": "30.844 v003", "paginas": 2, "cobertura": "lido integralmente, operacional" },
+    { "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/2-GUIA DE PESQUISA VENDEDORES - .pdf", "identificacao": "33.377 v020", "paginas": 4, "cobertura": "lido integralmente, operacional" },
+    { "arquivo": "_projeto/formulariosbancos/FORMULARIOS/CAIXA/Autorização Saldo Devedor- IQ.pdf", "identificacao": "Anexo II", "paginas": 1, "cobertura": "lido integralmente, operacional" },
+    { "arquivo": "src/lib/simuladorFinanciamento/constantes.ts", "uso": "referência cruzada, não alterado" },
+    { "arquivo": "src/lib/simuladorFinanciamento/engine.ts", "uso": "referência cruzada, não alterado" },
+    { "arquivo": "docs/calibracao-simuladores/base-criterios-caixa.md (versão anterior)", "uso": "usada apenas para gerar delta-base-caixa.md" }
+  ],
+  "documentos_ainda_ausentes_do_projeto": [
+    "Anexo III (Roteiro de Seguros — alíquotas MIP/DFI do produto SBPE)",
+    "Anexo VI (Códigos de Convênio)",
+    "Anexo VII (Resumo de Modalidades)",
+    "Anexo VIII (Definições)",
+    "Tabela de Tarifas (site institucional)",
+    "Tabela de Municípios (site institucional, referenciada extensivamente pelo MO30824)",
+    "manual específico do Pró-Cotista (se existir separado do MO30824)",
+    "planilhas/simuladores oficiais da Caixa"
+  ]
+}
