@@ -44,6 +44,12 @@ export interface InputFinanciamento {
   incorporarItbi?: boolean        // incorporar ITBI no valor financiado
   percentualItbi?: number         // % ITBI sobre valor de compra (padrão 5%)
   dataContratacao?: string        // YYYY-MM-DD — base para cálculo de idade (padrão: hoje)
+  // Prazo customizado pedido pelo operador no formulário manual do simulador — não lido
+  // pelo motor diretamente; o chamador (SimuladorFinanciamento.tsx) o transforma num
+  // BancoSimOverrides.prazoMaximoMeses por banco antes de chamar simularTodosBancos,
+  // mesmo padrão já usado pelo fluxo de WhatsApp (motor-simulacao.ts, dados.prazo_meses).
+  // undefined = calcula o prazo máximo permitido por banco (comportamento padrão).
+  prazoMeses?: number
 }
 
 export interface ResultadoBanco {

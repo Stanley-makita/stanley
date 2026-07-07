@@ -4,9 +4,20 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { BANCOS_CONFIG, TODOS_BANCOS } from '@/lib/simuladorFinanciamento/constantes'
 import type { BancoId, InputFinanciamento, TipoAmortizacao, TipoImovel, FinalidadeImovel, TipoOperacao } from '@/lib/simuladorFinanciamento/tipos'
+
+// abrevBanco(bancoId, nome).split(' ')[0] colide para bb ("Banco do Brasil") e inter
+// ("Banco Inter") — os dois viram "Banco". Rótulo curto explícito por banco em vez de
+// derivar da primeira palavra do nome.
+const NOME_CURTO_BANCO: Record<BancoId, string> = {
+  caixa: 'Caixa', itau: 'Itaú', bradesco: 'Bradesco',
+  santander: 'Santander', bb: 'BB', inter: 'Inter', daycoval: 'Daycoval',
+}
+
+const OPCOES_PRAZO = ['360', '420'] as const
 
 export interface InitialValuesFinanciamento {
   valorImovel?: string
@@ -38,9 +49,17 @@ function fmtMoedaInput(v: string): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// Formata um número (reais) no mesmo padrão exibido nos campos de moeda (ex.: 500000 →
+// "500.000,00") — usado para sincronizar Entrada ↔ Financiado sem passar pelo parsing de
+// dígitos digitados (fmtMoedaInput espera uma string de centavos, não um valor já em reais).
+function formatarValor(n: number): string {
+  return n > 0 ? n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
+}
+
 export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente, initialValues }: Props) {
   const [valorImovel, setValorImovel] = useState(initialValues?.valorImovel ?? '')
   const [valorEntrada, setValorEntrada] = useState(initialValues?.valorEntrada ?? '')
+  const [valorFinanciado, setValorFinanciado] = useState('')
   const [dataNascimento, setDataNascimento] = useState(initialValues?.dataNascimento ?? '')
   const [rendaMensal, setRendaMensal] = useState(initialValues?.rendaMensal ?? '')
 
@@ -56,6 +75,12 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
       setDataNascimento(initialValues.dataNascimento)
     if (initialValues?.rendaMensal && !touchedRef.current.rendaMensal)
       setRendaMensal(initialValues.rendaMensal)
+    if (initialValues?.valorImovel || initialValues?.valorEntrada) {
+      const im = parseMoeda(initialValues?.valorImovel ?? valorImovel)
+      const en = parseMoeda(initialValues?.valorEntrada ?? valorEntrada)
+      setValorFinanciado(formatarValor(Math.max(0, im - en)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValues?.valorImovel, initialValues?.valorEntrada, initialValues?.dataNascimento, initialValues?.rendaMensal])
   const [tipoOperacao, setTipoOperacao] = useState<TipoOperacao>('aquisicao')
   const [valorTerreno, setValorTerreno] = useState('')
@@ -67,6 +92,8 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
   const [jaRecebeuSubsidio, setJaRecebeuSubsidio] = useState(false)
   const [correntista, setCorrentista] = useState(false)
   const [bancosIds, setBancosIds] = useState<BancoId[]>([...TODOS_BANCOS])
+  const [prazoOpcao, setPrazoOpcao] = useState<string>('auto')
+  const [prazoCustomizado, setPrazoCustomizado] = useState('')
 
   const ehObra = tipoOperacao === 'construcao_terreno_proprio' || tipoOperacao === 'terreno_mais_construcao'
   const ehLote = tipoOperacao === 'lote_urbanizado'
@@ -78,10 +105,49 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
   const vFinanciado = Math.max(0, vImovel - vEntrada)
   const pctEntrada = vImovel > 0 ? ((vEntrada / vImovel) * 100).toFixed(1) : '0.0'
 
+  const prazoMeses = prazoOpcao === 'auto'
+    ? undefined
+    : prazoOpcao === 'outro'
+      ? (parseInt(prazoCustomizado, 10) || undefined)
+      : parseInt(prazoOpcao, 10)
+
   function toggleBanco(id: BancoId) {
     setBancosIds((prev) =>
       prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
     )
+  }
+
+  // Entrada e Financiado são duas formas de editar a mesma coisa (Imóvel = Entrada +
+  // Financiado) — cada input, ao ser digitado, recalcula o outro. `lastEditadoRef` guarda
+  // qual dos dois foi editado por último, para que alterar o Valor do Imóvel depois
+  // recalcule o campo correto (preserva o que o usuário já digitou manualmente).
+  const lastEditadoRef = useRef<'entrada' | 'financiado'>('entrada')
+
+  function handleEntradaChange(e: React.ChangeEvent<HTMLInputElement>) {
+    touchedRef.current.valorEntrada = true
+    lastEditadoRef.current = 'entrada'
+    const formatted = fmtMoedaInput(e.target.value.replace(/\D/g, ''))
+    setValorEntrada(formatted)
+    setValorFinanciado(formatarValor(Math.max(0, vImovel - parseMoeda(formatted))))
+  }
+
+  function handleFinanciadoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    lastEditadoRef.current = 'financiado'
+    const formatted = fmtMoedaInput(e.target.value.replace(/\D/g, ''))
+    setValorFinanciado(formatted)
+    setValorEntrada(formatarValor(Math.max(0, vImovel - parseMoeda(formatted))))
+  }
+
+  function handleImovelChange(e: React.ChangeEvent<HTMLInputElement>) {
+    touchedRef.current.valorImovel = true
+    const formatted = fmtMoedaInput(e.target.value.replace(/\D/g, ''))
+    setValorImovel(formatted)
+    const novoImovel = parseMoeda(formatted)
+    if (lastEditadoRef.current === 'financiado') {
+      setValorEntrada(formatarValor(Math.max(0, novoImovel - parseMoeda(valorFinanciado))))
+    } else {
+      setValorFinanciado(formatarValor(Math.max(0, novoImovel - parseMoeda(valorEntrada))))
+    }
   }
 
   function handleMoedaInput(
@@ -127,6 +193,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
       bancosIds,
       nomeCliente,
       cpfCliente,
+      prazoMeses,
     })
   }
 
@@ -219,8 +286,9 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
           </div>
         </div>
       ) : (
-        /* Aquisição / Lote / Comercial: campo único */
-        <div className="grid grid-cols-2 gap-4">
+        /* Aquisição / Lote / Comercial: Imóvel, Entrada e Financiado — Entrada e
+           Financiado se recalculam um ao outro (Imóvel = Entrada + Financiado) */
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs text-gray-500">
               {ehLote ? 'Valor do Terreno / Lote' : 'Valor do Imóvel'}
@@ -231,7 +299,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
                 className="pl-8 text-sm"
                 placeholder="0,00"
                 value={valorImovel}
-                onChange={(e) => handleMoedaInput(e, setValorImovel, 'valorImovel')}
+                onChange={handleImovelChange}
               />
             </div>
           </div>
@@ -249,7 +317,20 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
                 className="pl-8 text-sm"
                 placeholder="0,00"
                 value={valorEntrada}
-                onChange={(e) => handleMoedaInput(e, setValorEntrada, 'valorEntrada')}
+                onChange={handleEntradaChange}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-gray-500">Valor Financiado</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">R$</span>
+              <Input
+                className="pl-8 text-sm"
+                placeholder="0,00"
+                value={valorFinanciado}
+                onChange={handleFinanciadoChange}
               />
             </div>
           </div>
@@ -266,20 +347,18 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
                 key={pct}
                 type="button"
                 title={`Usar ${pct}% como entrada`}
-                onClick={() => setValorEntrada(fmtMoedaInput(String(Math.round(val * 100))))}
+                onClick={() => {
+                  lastEditadoRef.current = 'entrada'
+                  const entradaFormatted = fmtMoedaInput(String(Math.round(val * 100)))
+                  setValorEntrada(entradaFormatted)
+                  setValorFinanciado(formatarValor(Math.max(0, vImovel - val)))
+                }}
                 className="whitespace-nowrap hover:underline"
               >
                 {pct}% = {val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
               </button>
             )
           })}
-        </div>
-      )}
-
-      {/* Preview financiado — só para aquisição (obra já mostra o total embutido) */}
-      {!ehObra && vFinanciado > 0 && (
-        <div className="rounded-lg bg-fonti-primary/5 border border-fonti-primary/20 px-3 py-2 text-sm text-fonti-primary font-medium">
-          Valor financiado: {vFinanciado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
         </div>
       )}
 
@@ -309,31 +388,64 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
         </div>
       </div>
 
-      {/* Amortização */}
-      <div className="space-y-1.5">
-        <Label className="text-xs text-gray-500">Tipo de Amortização</Label>
-        <div className="flex gap-2">
-          {(['SAC', 'PRICE'] as TipoAmortizacao[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTipoAmortizacao(t)}
-              className={cn(
-                'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
-                tipoAmortizacao === t
-                  ? 'bg-fonti-primary text-white border-fonti-primary'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-              )}
-            >
-              {t}
-            </button>
-          ))}
+      {/* Amortização + Prazo */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-gray-500">Tipo de Amortização</Label>
+          <div className="flex gap-2">
+            {(['SAC', 'PRICE'] as TipoAmortizacao[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTipoAmortizacao(t)}
+                className={cn(
+                  'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
+                  tipoAmortizacao === t
+                    ? 'bg-fonti-primary text-white border-fonti-primary'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400">
+            {tipoAmortizacao === 'SAC'
+              ? 'SAC: parcelas decrescentes — juros menores no total'
+              : 'PRICE: parcelas fixas — mais fácil de planejar'}
+          </p>
         </div>
-        <p className="text-xs text-gray-400">
-          {tipoAmortizacao === 'SAC'
-            ? 'SAC: parcelas decrescentes — juros menores no total'
-            : 'PRICE: parcelas fixas — mais fácil de planejar'}
-        </p>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-gray-500">Prazo</Label>
+          <Select value={prazoOpcao} onValueChange={setPrazoOpcao}>
+            <SelectTrigger className="h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">Prazo máximo permitido</SelectItem>
+              {OPCOES_PRAZO.map((p) => (
+                <SelectItem key={p} value={p}>{p} meses</SelectItem>
+              ))}
+              <SelectItem value="outro">Outro (personalizado)</SelectItem>
+            </SelectContent>
+          </Select>
+          {prazoOpcao === 'outro' && (
+            <Input
+              type="number"
+              min={12}
+              className="text-sm"
+              placeholder="Prazo em meses"
+              value={prazoCustomizado}
+              onChange={(e) => setPrazoCustomizado(e.target.value.replace(/\D/g, ''))}
+            />
+          )}
+          <p className="text-xs text-gray-400">
+            {prazoOpcao === 'auto'
+              ? 'Sem prazo definido, cada banco calcula seu próprio prazo máximo (conforme idade).'
+              : 'O prazo pedido ainda respeita o teto de cada banco e a regra de idade + prazo.'}
+          </p>
+        </div>
       </div>
 
       {/* Tipo de imóvel + Finalidade — só para aquisição */}
@@ -382,56 +494,58 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
         </div>
       )}
 
-      {/* FGTS — só para aquisição e construção (lote e comercial não têm MCMV/Pró-Cotista) */}
-      {fgtsAplicavel && (
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={usaFgts}
-              onChange={(e) => { setUsaFgts(e.target.checked); if (!e.target.checked) setJaRecebeuSubsidio(false) }}
-              className="w-4 h-4 accent-fonti-primary"
-            />
-            <span className="text-sm text-gray-700">
-              Possui 3+ anos de trabalho no regime FGTS
-              <span className="ml-1 text-xs text-gray-400">(habilita Pró-Cotista)</span>
-            </span>
-          </label>
-          {usaFgts && (
-            <label className="flex items-center gap-3 cursor-pointer select-none ml-7">
+      {/* FGTS + Correntista — lado a lado quando FGTS se aplica */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+        {fgtsAplicavel && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 cursor-pointer select-none">
               <input
                 type="checkbox"
-                checked={jaRecebeuSubsidio}
-                onChange={(e) => setJaRecebeuSubsidio(e.target.checked)}
+                checked={usaFgts}
+                onChange={(e) => { setUsaFgts(e.target.checked); if (!e.target.checked) setJaRecebeuSubsidio(false) }}
                 className="w-4 h-4 accent-fonti-primary"
               />
               <span className="text-sm text-gray-700">
-                Já foi beneficiado com subsídio FGTS/União
-                <span className="ml-1 text-xs text-gray-400">(bloqueia MCMV)</span>
+                Possui 3+ anos de trabalho no regime FGTS
+                <span className="ml-1 text-xs text-gray-400">(habilita Pró-Cotista)</span>
               </span>
             </label>
-          )}
-        </div>
-      )}
+            {usaFgts && (
+              <label className="flex items-center gap-3 cursor-pointer select-none ml-7">
+                <input
+                  type="checkbox"
+                  checked={jaRecebeuSubsidio}
+                  onChange={(e) => setJaRecebeuSubsidio(e.target.checked)}
+                  className="w-4 h-4 accent-fonti-primary"
+                />
+                <span className="text-sm text-gray-700">
+                  Já foi beneficiado com subsídio FGTS/União
+                  <span className="ml-1 text-xs text-gray-400">(bloqueia MCMV)</span>
+                </span>
+              </label>
+            )}
+          </div>
+        )}
 
-      {/* Correntista */}
-      <label className="flex items-center gap-3 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={correntista}
-          onChange={(e) => setCorrentista(e.target.checked)}
-          className="w-4 h-4 accent-fonti-primary"
-        />
-        <span className="text-sm text-gray-700">
-          Correntista / relacionamento bancário
-          <span className="ml-1 text-xs text-gray-400">(taxa preferencial em alguns bancos)</span>
-        </span>
-      </label>
+        {/* Correntista */}
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={correntista}
+            onChange={(e) => setCorrentista(e.target.checked)}
+            className="w-4 h-4 accent-fonti-primary"
+          />
+          <span className="text-sm text-gray-700">
+            Correntista / relacionamento bancário
+            <span className="ml-1 text-xs text-gray-400">(taxa preferencial em alguns bancos)</span>
+          </span>
+        </label>
+      </div>
 
       {/* Bancos */}
       <div className="space-y-2">
         <Label className="text-xs text-gray-500">Bancos para simular</Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {TODOS_BANCOS.map((id) => {
             const cfg = BANCOS_CONFIG[id]
             const sel = bancosIds.includes(id)
@@ -452,7 +566,7 @@ export function FormFinanciamento({ onSimular, loading, nomeCliente, cpfCliente,
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: sel ? cfg.corTexto : cfg.cor, opacity: sel ? 0.7 : 1 }}
                 />
-                <span className="truncate text-xs font-medium">{cfg.nome.split(' ')[0]}</span>
+                <span className="truncate text-xs font-medium">{NOME_CURTO_BANCO[id]}</span>
               </button>
             )
           })}

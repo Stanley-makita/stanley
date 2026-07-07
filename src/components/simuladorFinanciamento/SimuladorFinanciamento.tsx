@@ -111,7 +111,17 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   function handleSimular(input: InputFinanciamento) {
     setLoading(true)
     try {
-      const bancos = simularTodosBancos(input, overridesMap)
+      // Prazo customizado pedido no formulário: vira um BancoSimOverrides.prazoMaximoMeses
+      // por banco selecionado, mesclado sobre os overrides já vindos do banco de dados —
+      // mesmo padrão do fluxo de WhatsApp (motor-simulacao.ts). Sem prazo informado, cada
+      // banco calcula seu próprio prazo máximo normalmente (comportamento padrão).
+      const overrides = input.prazoMeses
+        ? input.bancosIds.reduce((acc, id) => {
+            acc[id] = { ...overridesMap[id], prazoMaximoMeses: input.prazoMeses }
+            return acc
+          }, { ...overridesMap } as Partial<Record<string, BancoSimOverrides>>)
+        : overridesMap
+      const bancos = simularTodosBancos(input, overrides)
       const analise = calcularAnalise(input, bancos)
       setResultado({
         input,
@@ -200,7 +210,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto">
+    <div className="w-full max-w-4xl mx-auto">
       <FormFinanciamento
         onSimular={handleSimular}
         loading={loading}
