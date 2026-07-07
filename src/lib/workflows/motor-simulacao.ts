@@ -414,7 +414,13 @@ function montarRespostaNormal(
   const listaBancos = elegiveis.length > 0
     ? elegiveis.map((b) => {
         const prog = b.programa !== b.bancoNome ? ` (${b.programa})` : ''
-        let linha = `• ${b.bancoNome}${prog} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
+        // Comparação de Cenários: hoje só a Caixa produz >1 resultado no mesmo grupo
+        // banco+programa (SAC/PRICE), então o rótulo do cenário só aparece para ela —
+        // sem isso, duas linhas de "Caixa (SBPE)" ficariam idênticas. Se outro banco
+        // ganhar cenários no futuro, trocar este gate por "grupo banco+programa tem >1
+        // resultado em `elegiveis`" em vez de checar bancoId.
+        const cenario = b.bancoId === 'caixa' ? ` - ${b.tipoAmortizacao}` : ''
+        let linha = `• ${b.bancoNome}${prog}${cenario} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
 
         if (semRenda) {
           const rendaNecessaria = calcularRendaNecessaria(b.primeiraParcela)
@@ -473,6 +479,18 @@ function montarRespostaNormal(
     } else {
       linhas.push('', `Não encontrei simulação válida para os dados informados. Verifique produto, valor do imóvel, valor financiado, renda, idade e modalidade.`)
     }
+  }
+
+  // Comparação de Cenários: avisa quando algum grupo banco+programa produziu mais de um
+  // cenário elegível (hoje só a Caixa, via SAC/PRICE) — genérico por construção, não checa
+  // bancoId nem tipoAmortizacao diretamente, só "existe mais de um resultado no mesmo grupo".
+  const gruposComparativos = new Map<string, number>()
+  for (const b of elegiveis) {
+    const chave = `${b.bancoId}::${b.programa}`
+    gruposComparativos.set(chave, (gruposComparativos.get(chave) ?? 0) + 1)
+  }
+  if (Array.from(gruposComparativos.values()).some((n) => n >= 2)) {
+    linhas.push('', `📊 Identifiquei que a Caixa permite comparar SAC e PRICE para esta operação. Gerei os dois cenários no mesmo PDF.`)
   }
 
   if (semRenda) {

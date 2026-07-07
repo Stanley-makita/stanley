@@ -196,7 +196,10 @@ export function resolverCriterios(
     // Prazo máximo PRICE da Caixa é 360 meses (SAC: 420) — MO30769 v032 seção 3.3,
     // regra normativa confirmada, não calibração. Único banco migrado com essa distinção
     // até agora; os demais mantêm o mesmo teto para os dois sistemas de amortização.
-    prazoMaximoMesesPrice: ehCaixa ? 360 : undefined,
+    // Respeita overrides?.prazoMaximoMeses quando menor que 360 (ex.: prazo customizado
+    // pedido pelo operador via motor-simulacao.ts) — sem isso, um pedido de prazo menor
+    // reduzia o teto do SAC mas deixava o PRICE preso em 360.
+    prazoMaximoMesesPrice: ehCaixa ? Math.min(overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses, 360) : undefined,
     limiteIdadePrazoMeses: LIMITE_IDADE_PRAZO_MESES,
     idadeMaximaAbsoluta: 80,
     comprometimentoRenda: {

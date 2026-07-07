@@ -155,6 +155,9 @@ export function ResultadosFinanciamento({ resultados, valorImovel, rendaMensal, 
             {/* Header colorido */}
             <div className="px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: r.corBanco }}>
               {r.bancoNome} — {r.programa}
+              {elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1 && (
+                <span className="ml-1.5 font-normal opacity-90">({r.tipoAmortizacao})</span>
+              )}
             </div>
 
             {/* Métricas */}

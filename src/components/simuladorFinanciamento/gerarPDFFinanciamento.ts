@@ -415,7 +415,12 @@ export async function gerarPDFFinanciamento(
       cx = mL
       doc.setFontSize(7.5); doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal')
       setTxt(doc, idx === 0 ? COR_VERDE : '#333333')
-      const nomeBanco = abrevBanco(r.bancoId, r.bancoNome)
+      // Comparação de Cenários: quando o grupo banco+programa tem mais de 1 resultado
+      // elegível (hoje só a Caixa, via SAC/PRICE), o rótulo fica ambíguo sem o cenário.
+      const grupoTemMultiplosCenariosTabela = elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1
+      const nomeBanco = grupoTemMultiplosCenariosTabela
+        ? `${abrevBanco(r.bancoId, r.bancoNome)} ${r.tipoAmortizacao}`
+        : abrevBanco(r.bancoId, r.bancoNome)
       doc.text(nomeBanco, cx + 2, midY)
       if (idx === 0) {
         doc.setFontSize(5.5); setTxt(doc, '#1E7B34')
@@ -468,7 +473,9 @@ export async function gerarPDFFinanciamento(
       doc.setFillColor(br, bg, bb)
       doc.rect(x, y, cardW, 8, 'F')
       doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-      doc.text(`${r.bancoNome} — ${r.programa}`, x + 3, y + 5.5)
+      const grupoTemMultiplosCenarios = elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1
+      const cenarioSufixo = grupoTemMultiplosCenarios ? ` (${r.tipoAmortizacao})` : ''
+      doc.text(`${r.bancoNome} — ${r.programa}${cenarioSufixo}`, x + 3, y + 5.5)
 
       // Card body
       setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
@@ -518,6 +525,87 @@ export async function gerarPDFFinanciamento(
       }
     })
     y += 3
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // SEÇÃO 3.5 — Comparação de Cenários
+  // ════════════════════════════════════════════════════════════════
+  // Agrupa `elegiveis` por banco+programa; para grupos com 2+ cenários (hoje só a Caixa,
+  // via SAC/PRICE), desenha um bloco dedicado com um card por cenário. Genérico de
+  // propósito: não sabe nada sobre "Caixa" nem "SAC/PRICE", só sobre "grupos banco+
+  // programa com múltiplos resultados elegíveis".
+  {
+    const grupos = new Map<string, typeof elegiveis>()
+    for (const r of elegiveis) {
+      const chave = `${r.bancoId}::${r.programa}`
+      grupos.set(chave, [...(grupos.get(chave) ?? []), r])
+    }
+    const gruposComparativos = Array.from(grupos.values()).filter((rs) => rs.length >= 2)
+
+    for (const cenarios of gruposComparativos) {
+      const cardH = 38
+      if (y + 12 + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
+      y = drawSectionTitle(doc, `${cenarios[0].bancoNome} — Comparação de Cenários (${cenarios[0].programa})`, y, mL, usableW)
+
+      const colW = usableW / cenarios.length
+      cenarios.forEach((r, idx) => {
+        const x     = mL + idx * colW
+        const cardW = colW - (idx < cenarios.length - 1 ? 1 : 0)
+
+        const [br, bg, bb] = hexToRgb(r.corBanco.startsWith('#') ? r.corBanco : COR_VERDE)
+        doc.setFillColor(br, bg, bb)
+        doc.rect(x, y, cardW, 8, 'F')
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+        doc.text(r.tipoAmortizacao, x + 3, y + 5.5)
+
+        setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
+        doc.setLineWidth(0.2)
+        doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
+
+        const rendaMinima = Math.ceil(r.primeiraParcela / 0.30)
+        const metricas: [string, string][] = [
+          ['Prazo',           `${r.parcelas} meses`],
+          ['Taxa a.a.',       `${(r.taxaAnual * 100).toFixed(2)}%`],
+          ['Valor do Imóvel', BRL.format(inp.valorImovel)],
+          ['Entrada',         BRL.format(inp.valorEntrada)],
+          ['Valor Financiado', BRL.format(r.valorFinanciado)],
+          ['1ª Parcela',      BRL.format(r.primeiraParcela)],
+          ['Renda mínima',    BRL.format(rendaMinima)],
+          ['CET',             'N/A'],
+        ]
+
+        const metC1 = metricas.slice(0, 4)
+        const metC2 = metricas.slice(4)
+        const metW  = cardW / 2 - 3
+
+        metC1.forEach(([label, val], mi) => {
+          const my = y + 10 + mi * 5.5
+          doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+          doc.text(label, x + 3, my)
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
+          doc.text(val, x + metW - 2, my, { align: 'right' })
+        })
+        metC2.forEach(([label, val], mi) => {
+          const my = y + 10 + mi * 5.5
+          const mx = x + cardW / 2 + 2
+          doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+          doc.text(label, mx, my)
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
+          doc.text(val, x + cardW - 3, my, { align: 'right' })
+        })
+
+        if (r.avisoRenda) {
+          doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#B8860B')
+          doc.text('⚠ comprometimento de renda acima de 30%', x + 3, y + cardH - 2)
+        }
+
+        if (idx < cenarios.length - 1) {
+          setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
+          doc.line(x + cardW, y + 8, x + cardW, y + cardH)
+        }
+      })
+      y += cardH + 4
+    }
   }
 
   // ════════════════════════════════════════════════════════════════

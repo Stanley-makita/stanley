@@ -51,7 +51,12 @@ describe('PRICE sem banco específico', () => {
     expect(elegiveis.length).toBeGreaterThan(0)
     for (const r of elegiveis) {
       expect(BANCOS_PRICE).toContain(r.bancoId)
-      expect(r.tipoAmortizacao).toBe('PRICE')
+      // Caixa (Comparação de Cenários) sempre tenta SAC e PRICE independente do pedido —
+      // um resultado SAC elegível dela pode aparecer mesmo pedindo PRICE. Bancos de
+      // cenário único (Itaú) continuam respeitando exatamente o tipoAmortizacao pedido.
+      if (r.bancoId !== 'caixa') {
+        expect(r.tipoAmortizacao).toBe('PRICE')
+      }
     }
   })
 })

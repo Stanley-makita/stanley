@@ -8,7 +8,7 @@
  * Nunca criar um segundo template. Este arquivo apenas adapta a saída.
  */
 
-import type { ResultadoCompleto } from './tipos'
+import type { ResultadoCompleto, ResultadoBanco } from './tipos'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -320,7 +320,11 @@ export async function gerarPDFFinanciamentoBuffer(
       setTxt(doc, idx === 0 ? COR_VERDE : '#333333')
       // Melhor banco: desloca o nome para cima e adiciona badge "melhor" abaixo
       const nameY = idx === 0 ? midY - 1.5 : midY
-      doc.text(pdf(abrevBanco(r.bancoId, r.bancoNome)), cx + 2, nameY)
+      const grupoTemMultiplosCenariosTabela = elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1
+      const nomeBancoLinha = grupoTemMultiplosCenariosTabela
+        ? `${abrevBanco(r.bancoId, r.bancoNome)} ${r.tipoAmortizacao}`
+        : abrevBanco(r.bancoId, r.bancoNome)
+      doc.text(pdf(nomeBancoLinha), cx + 2, nameY)
       if (idx === 0) {
         doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#1E7B34')
         doc.text('melhor', cx + 2, nameY + 3.5)
@@ -366,7 +370,12 @@ export async function gerarPDFFinanciamentoBuffer(
       doc.setFillColor(br, bg, bb)
       doc.rect(x, y, cardW, 8, 'F')
       doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-      doc.text(pdf(`${r.bancoNome} - ${r.programa}`), x + 3, y + 5.5)
+      // Comparação de Cenários: quando o grupo banco+programa tem mais de 1 resultado
+      // elegível (hoje só a Caixa, via SAC/PRICE), o título do card fica ambíguo sem o
+      // cenário — dois cards "Caixa Econômica Federal - SBPE" ficariam indistinguíveis.
+      const grupoTemMultiplosCenarios = elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1
+      const cenarioSufixo = grupoTemMultiplosCenarios ? ` (${r.tipoAmortizacao})` : ''
+      doc.text(pdf(`${r.bancoNome} - ${r.programa}${cenarioSufixo}`), x + 3, y + 5.5)
 
       setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
       doc.setLineWidth(0.2)
@@ -411,6 +420,86 @@ export async function gerarPDFFinanciamentoBuffer(
       if (!isLeft || idx === elegiveis.length - 1) y += cardH + 3
     })
     y += 3
+  }
+
+  // ── SEÇÃO 3.5 — Comparação de Cenários ────────────────────────────────────
+  // Agrupa `elegiveis` por banco+programa; para grupos com 2+ cenários (hoje só a Caixa,
+  // via SAC/PRICE), desenha um bloco dedicado com um card por cenário. Genérico de
+  // propósito: não sabe nada sobre "Caixa" nem "SAC/PRICE", só sobre "grupos banco+
+  // programa com múltiplos resultados elegíveis" — se outro banco ganhar um segundo
+  // cenário no futuro, esta seção passa a desenhá-lo também, sem alteração de código.
+  {
+    const grupos = new Map<string, ResultadoBanco[]>()
+    for (const r of elegiveis) {
+      const chave = `${r.bancoId}::${r.programa}`
+      grupos.set(chave, [...(grupos.get(chave) ?? []), r])
+    }
+    const gruposComparativos = Array.from(grupos.values()).filter((rs) => rs.length >= 2)
+
+    for (const cenarios of gruposComparativos) {
+      const cardH = 44
+      if (y + 12 + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
+      y = drawSectionTitle(doc, `${cenarios[0].bancoNome} — Comparação de Cenários (${cenarios[0].programa})`, y, mL, usableW)
+
+      const colW = usableW / cenarios.length
+      cenarios.forEach((r, idx) => {
+        const x     = mL + idx * colW
+        const cardW = colW - (idx < cenarios.length - 1 ? 1 : 0)
+
+        const [br, bg, bb] = hexToRgb(r.corBanco?.startsWith('#') ? r.corBanco : COR_VERDE)
+        doc.setFillColor(br, bg, bb)
+        doc.rect(x, y, cardW, 8, 'F')
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+        doc.text(pdf(r.tipoAmortizacao), x + 3, y + 5.5)
+
+        setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
+        doc.setLineWidth(0.2)
+        doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
+
+        const rendaMinima = Math.ceil(r.primeiraParcela / 0.30)
+        const metricas: [string, string][] = [
+          ['Prazo',           `${r.parcelas} meses`],
+          ['Taxa a.a.',       `${(r.taxaAnual * 100).toFixed(2)}%`],
+          ['Valor do Imóvel', BRL.format(resultado.input.valorImovel)],
+          ['Entrada',         BRL.format(resultado.input.valorEntrada)],
+          ['Valor Financiado', BRL.format(r.valorFinanciado)],
+          ['1ª Parcela',      BRL.format(r.primeiraParcela)],
+          ['Renda mínima',    BRL.format(rendaMinima)],
+          ['CET',             'N/A'],
+        ]
+
+        const metC1 = metricas.slice(0, 4)
+        const metC2 = metricas.slice(4)
+        const metW  = cardW / 2 - 3
+
+        metC1.forEach(([label, val], mi) => {
+          const my = y + 13 + mi * 5.5
+          doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+          doc.text(pdf(label), x + 3, my)
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
+          doc.text(pdf(val), x + metW - 2, my, { align: 'right' })
+        })
+        metC2.forEach(([label, val], mi) => {
+          const my = y + 13 + mi * 5.5
+          const mx = x + cardW / 2 + 2
+          doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+          doc.text(pdf(label), mx, my)
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
+          doc.text(pdf(val), x + cardW - 3, my, { align: 'right' })
+        })
+
+        if (r.avisoRenda) {
+          doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#B8860B')
+          doc.text(pdf('⚠ comprometimento de renda acima de 30%'), x + 3, y + cardH - 2)
+        }
+
+        if (idx < cenarios.length - 1) {
+          setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
+          doc.line(x + cardW, y + 8, x + cardW, y + cardH)
+        }
+      })
+      y += cardH + 4
+    }
   }
 
   // ── SEÇÃO 4 — Análise preditiva ───────────────────────────────────────────

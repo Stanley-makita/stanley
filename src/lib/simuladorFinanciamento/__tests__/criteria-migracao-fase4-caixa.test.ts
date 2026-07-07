@@ -20,7 +20,7 @@
  * congelamento intencional do estado "pré-Fase 4".
  */
 import { describe, it, expect } from 'vitest'
-import { simularBanco as simularBancoNovo, simularTodosBancos as simularTodosBancosNovo } from '../engine'
+import { simularBanco as simularBancoNovo, simularTodosBancos as simularTodosBancosNovo, calcularPrazoMaximo } from '../engine'
 import { simularBanco as simularBancoAntigo, simularTodosBancos as simularTodosBancosAntigo } from './_baseline-fase4-caixa/engine'
 import type { InputFinanciamento } from '../tipos'
 import type { BancoSimOverrides } from '../criteria'
@@ -113,16 +113,24 @@ describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalênci
     { nome: 'override de taxaAnual aplicado ao SBPE dentro do duplo', input: { ...BASE_INPUT }, overrides: { caixa: { taxaAnual: 0.0999 } } },
   ]
 
+  // Desde a Comparação de Cenários (SAC/PRICE), o motor novo produz 2 ids por programa
+  // (`-sac`/`-price`) em vez de 1, e OMITE totalmente um programa cujos dois cenários
+  // sejam inelegíveis (o baseline sempre empurrava 1 resultado por programa, elegível ou
+  // não). Por isso a equivalência exata de contagem/ids deixou de fazer sentido — em vez
+  // disso, para cada resultado ELEGÍVEL do baseline, confirma que existe um `-sac`
+  // equivalente no motor novo (prova a equivalência do cenário SAC, que não mudou).
+  // Resultados inelegíveis do baseline não têm contrapartida obrigatória: no motor novo,
+  // um programa cujo único cenário testado (SAC) já é inelegível é omitido por completo.
   for (const { nome, input, overrides } of cenarios) {
     it(nome, () => {
       const novos = simularTodosBancosNovo(input, overrides)
       const antigos = simularTodosBancosAntigo(input, overrides)
-      expect(novos.length).toBe(antigos.length)
-      const novosPorId = new Map(novos.map((r) => [r.resultadoId, r]))
       const antigosPorId = new Map(antigos.map((r) => [r.resultadoId, r]))
-      expect(Array.from(novosPorId.keys()).sort()).toEqual(Array.from(antigosPorId.keys()).sort())
-      Array.from(antigosPorId.entries()).forEach(([id, antigo]) => {
-        expectResultadoEquivalente(novosPorId.get(id), antigo)
+      antigosPorId.forEach((antigo, idBase) => {
+        if (!antigo.elegivel) return
+        const novoSac = novos.find((r) => r.resultadoId === `${idBase}-sac`)
+        expect(novoSac, `esperava ${idBase}-sac`).toBeTruthy()
+        expectResultadoEquivalente(novoSac, antigo)
       })
     })
   }
@@ -172,8 +180,69 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
       { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorImovel: 300_000, valorEntrada: 100_000, rendaMensal: 8_000 },
     )
     const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
-    expect(porId.get('caixa-procotista')?.parcelas).toBe(360)
-    expect(porId.get('caixa-sbpe')?.parcelas).toBe(360)
+    expect(porId.get('caixa-procotista-price')?.parcelas).toBe(360)
+    expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(360)
+  })
+})
+
+// Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
+// gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
+// sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma
+// prova de equivalência contra o baseline, que nunca teve essa distinção).
+describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)', () => {
+  // valorEntrada: 150_000 sobre valorImovel: 500_000 → financiado 70% — dentro do LTV
+  // máximo do SAC (80%) E do PRICE (70%), então os dois sistemas ficam elegíveis. A
+  // entrada padrão de BASE_INPUT (100_000 → financiado 80%) já exclui o PRICE por LTV,
+  // então não serve para testar o caminho "os dois elegíveis".
+  const ENTRADA_AMBOS_ELEGIVEIS = 150_000
+
+  it('SBPE puro: SAC e PRICE elegíveis, mesmo programa, ambos aparecem', () => {
+    const resultados = simularTodosBancosNovo({ ...BASE_INPUT, valorEntrada: ENTRADA_AMBOS_ELEGIVEIS })
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+    const sac = porId.get('caixa-sbpe-sac')
+    const price = porId.get('caixa-sbpe-price')
+    expect(sac?.elegivel).toBe(true)
+    expect(price?.elegivel).toBe(true)
+    expect(sac?.programa).toBe(price?.programa)
+  })
+
+  it('prazo máximo calculado separadamente por sistema: SAC 420, PRICE 360', () => {
+    const resultados = simularTodosBancosNovo({ ...BASE_INPUT, valorEntrada: ENTRADA_AMBOS_ELEGIVEIS })
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+    expect(porId.get('caixa-sbpe-sac')?.parcelas).toBe(420)
+    expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(360)
+  })
+
+  it('idade limita SAC e PRICE de forma independente (nunca copia o teto de um para o outro)', () => {
+    const dataNascimento = '1957-01-01' // ~69 anos: teto de idade+prazo fica entre 12 e 360 meses
+    const resultados = simularTodosBancosNovo({ ...BASE_INPUT, valorEntrada: ENTRADA_AMBOS_ELEGIVEIS, dataNascimento })
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+    const tetoSac   = calcularPrazoMaximo(dataNascimento, 420)
+    const tetoPrice = calcularPrazoMaximo(dataNascimento, 360)
+    expect(tetoSac).toBeLessThan(420) // confirma que a idade realmente está limitando
+    expect(porId.get('caixa-sbpe-sac')?.parcelas).toBe(tetoSac)
+    expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(tetoPrice)
+  })
+
+  it('só um sistema elegível (PRICE excede LTV 70%, SAC dentro de 80%): PRICE fica totalmente ausente', () => {
+    const resultados = simularTodosBancosNovo({ ...BASE_INPUT, valorImovel: 500_000, valorEntrada: 120_000 })
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+    expect(porId.get('caixa-sbpe-sac')?.elegivel).toBe(true)
+    expect(porId.has('caixa-sbpe-price')).toBe(false) // omitido por completo, não aparece nem como inelegível
+  })
+
+  it('outros bancos continuam com exatamente 1 resultado, idêntico ao motor antigo', () => {
+    const bancosIds: InputFinanciamento['bancosIds'] = ['caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval']
+    const input = { ...BASE_INPUT, bancosIds }
+    const novos = simularTodosBancosNovo(input)
+    const antigos = simularTodosBancosAntigo(input)
+    const novosNaoCaixa = novos.filter((r) => r.bancoId !== 'caixa')
+    const antigosNaoCaixa = antigos.filter((r) => r.bancoId !== 'caixa')
+    expect(novosNaoCaixa.length).toBe(antigosNaoCaixa.length)
+    const antigosPorId = new Map(antigosNaoCaixa.map((r) => [r.resultadoId, r]))
+    novosNaoCaixa.forEach((novo) => {
+      expectResultadoEquivalente(novo, antigosPorId.get(novo.resultadoId))
+    })
   })
 })
 

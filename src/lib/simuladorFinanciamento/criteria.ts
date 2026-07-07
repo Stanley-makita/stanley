@@ -76,6 +76,22 @@ export interface ProgramaEspecial {
   mipOverride?: EstrategiaSeguroMip
 }
 
+/**
+ * Um cenário dentro de uma "comparação de cenários" — um grupo de resultados do motor
+ * que competem entre si para a mesma combinação banco+programa, diferindo por alguma
+ * dimensão do input. Hoje a única dimensão usada é o sistema de amortização (SAC/PRICE,
+ * exclusivo da Caixa nesta sprint), mas o tipo é deliberadamente genérico: uma dimensão
+ * futura (ex. taxa negociada, prazo customizado) usaria o mesmo mecanismo, só populando
+ * `patchInput` de forma diferente — nada no motor ou nos renderizadores (PDF/WhatsApp)
+ * precisa saber que a dimensão de hoje é "amortização".
+ */
+export interface CenarioComparativo {
+  /** sufixo do resultadoId, ex. 'sac' | 'price' — kebab-case, único dentro do grupo */
+  sufixoId: string
+  /** patch aplicado sobre o InputFinanciamento base antes de chamar o motor */
+  patchInput: Partial<InputFinanciamento>
+}
+
 export interface SimulationCriteria {
   bancoId: BancoId
   programa: string

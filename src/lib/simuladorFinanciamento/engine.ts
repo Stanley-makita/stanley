@@ -2,7 +2,7 @@ import type { BancoId, TipoOperacao, InputFinanciamento, ResultadoBanco, Analise
 import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
 import type { BancoConfig } from './constantes'
 import { resolverCriterios } from './criteria-resolver'
-import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip } from './criteria'
+import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip, CenarioComparativo } from './criteria'
 
 // Reexportado para preservar o import externo existente
 // (src/lib/workflows/motor-simulacao.ts e outros importam LIMITE_IDADE_PRAZO_MESES daqui).
@@ -600,10 +600,45 @@ export function simularBanco(
   return simularBancoComTaxa(cfg, input, taxaAnual, programa, bancoId, undefined, overrides)
 }
 
-// Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre).
-// Migrado para o caminho de critérios na Fase 4 — cada variante é o mesmo critério base
-// da Caixa (`resolverCriterios('caixa', overrides)`), só com taxaAnual/programa/estratégia
-// de MIP trocados pontualmente (ver criteria-resolver.ts, comentário de topo, Fase 4).
+// Comparação de Cenários: gera N resultados REAIS do motor (um simularComCriterios por
+// cenário da lista) para o mesmo critério base — nunca um cálculo paralelo. Só inclui no
+// array o que for elegível: se um cenário não qualificar, é omitido por completo (decisão
+// de produto — ver docs/calibracao-simuladores/migracao-motor-agnostico-fase-4-caixa.md).
+// Genérico de propósito: não sabe nada sobre "SAC"/"PRICE" nem sobre "Caixa" — só sabe
+// aplicar uma lista de patches de input e filtrar por elegibilidade. Hoje só a Caixa passa
+// uma lista com mais de 1 item (`CENARIOS_CAIXA`); qualquer outro banco continua com
+// exatamente 1 cenário implícito (o `tipoAmortizacao` que já vinha no input), então nada
+// muda para eles.
+function gerarCenariosComparativos(
+  results: ResultadoBanco[],
+  cfg: BancoConfig,
+  criteria: SimulationCriteria,
+  input: InputFinanciamento,
+  resultadoIdBase: string,
+  cenarios: CenarioComparativo[],
+): void {
+  for (const cenario of cenarios) {
+    const resultado = simularComCriterios(
+      cfg, criteria, { ...input, ...cenario.patchInput }, `${resultadoIdBase}-${cenario.sufixoId}`,
+    )
+    if (resultado.elegivel) results.push(resultado)
+  }
+}
+
+// Cenários comparativos ativados nesta sprint: só a Caixa, só a dimensão "sistema de
+// amortização". Uma dimensão futura (outro banco, ou outra variação dentro da Caixa) usaria
+// o mesmo mecanismo — só precisaria de uma lista de CenarioComparativo diferente.
+const CENARIOS_CAIXA: CenarioComparativo[] = [
+  { sufixoId: 'sac',   patchInput: { tipoAmortizacao: 'SAC' } },
+  { sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE' } },
+]
+
+// Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre),
+// cada um deles agora expandido em uma Comparação de Cenários (SAC/PRICE) via
+// `gerarCenariosComparativos`. Migrado para o caminho de critérios na Fase 4 — cada
+// variante é o mesmo critério base da Caixa (`resolverCriterios('caixa', overrides)`), só
+// com taxaAnual/programa/estratégia de MIP trocados pontualmente (ver criteria-resolver.ts,
+// comentário de topo, Fase 4).
 function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverrides, op?: TipoOperacao): ResultadoBanco[] {
   const cfg = BANCOS_CONFIG['caixa']
   const criteriaBase = resolverCriterios('caixa', overrides)
@@ -622,7 +657,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
       programa: CAIXA_PRO_COTISTA.programa,
       seguro: { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } },
     }
-    results.push(simularComCriterios(cfg, criteriaProCotista, input, 'caixa-procotista'))
+    gerarCenariosComparativos(results, cfg, criteriaProCotista, input, 'caixa-procotista', CENARIOS_CAIXA)
   }
 
   // MCMV (se renda e imóvel se enquadram)
@@ -641,12 +676,12 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
           ? { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } }
           : criteriaBase.seguro,
       }
-      results.push(simularComCriterios(cfg, criteriaMcmv, input, 'caixa-mcmv'))
+      gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', CENARIOS_CAIXA)
     }
   }
 
   // SBPE — sempre presente como alternativa (é o próprio critério base, sem variação pontual)
-  results.push(simularComCriterios(cfg, criteriaBase, input, 'caixa-sbpe'))
+  gerarCenariosComparativos(results, cfg, criteriaBase, input, 'caixa-sbpe', CENARIOS_CAIXA)
 
   return results
 }
