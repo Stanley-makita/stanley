@@ -86,6 +86,12 @@ export const PERGUNTA_TIPO_CONSTRUCAO = [
 export function classificarIntencaoOperacao(textoOriginal: string): ClassificacaoOperacao {
   const t = norm(textoOriginal)
 
+  // A composição da entrada costuma vir entre parênteses (ex.: "Entrada 350.000 (100 mil
+  // FGTS mais 250 mil terreno)") — um "terreno"/"lote" citado ali descreve o que compõe o
+  // pagamento da entrada, não o objeto do financiamento. Removê-lo antes de classificar
+  // evita que essa menção incidental derrube a operação inteira para "lote_urbanizado".
+  const tSemComposicaoEntrada = t.replace(/\([^)]*\)/g, ' ')
+
   // 1. Comercial — prioridade máxima, nunca pode cair como residencial
   const termosComercial = [
     'comercial', 'sala comercial', 'loja', 'ponto comercial',
@@ -107,7 +113,7 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
     'lote + obra', 'lote e obra', 'lote mais obra',
     'junto com a obra', 'junto com obra', 'terreno junto',
   ]
-  if (termosTerrCons.some((k) => t.includes(norm(k)))) {
+  if (termosTerrCons.some((k) => tSemComposicaoEntrada.includes(norm(k)))) {
     return { tipoOperacao: 'terreno_mais_construcao', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
   }
 
@@ -116,14 +122,14 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
     'tenho um terreno', 'tenho terreno', 'tenho lote', 'tenho uma data',
     'tenho data', 'tenho gleba', 'tenho greba', 'meu terreno', 'minha data',
     'meu lote', 'minha gleba',
-  ].some((k) => t.includes(norm(k)))
+  ].some((k) => tSemComposicaoEntrada.includes(norm(k)))
 
   const querConstruir = [
     'quero construir', 'construir no meu', 'construir na minha',
     'construcao em terreno proprio', 'construcao no terreno', 'vou construir',
-  ].some((k) => t.includes(norm(k)))
+  ].some((k) => tSemComposicaoEntrada.includes(norm(k)))
   // "obra" como palavra isolada também indica construção quando há terreno
-  const temObra = /\bobra\b/.test(t)
+  const temObra = /\bobra\b/.test(tSemComposicaoEntrada)
 
   if (temTerreno && (querConstruir || temObra)) {
     return { tipoOperacao: 'construcao_terreno_proprio', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
@@ -132,14 +138,23 @@ export function classificarIntencaoOperacao(textoOriginal: string): Classificaca
   // 4. Lote urbanizado (terreno/lote/data/gleba SEM intenção de construção)
   const termosLote = ['terreno', 'lote', 'gleba', 'greba', 'data de terra', 'lote urbano', 'lote urbanizado']
   // "data" como terreno: não confundir com data de nascimento
-  const temDataTerreno = /\bdata\b(?!\s*(?:de\s+nasci|nasc|\/|\d{2}[\/\-\.]))/.test(t)
-    && !t.includes('data de nascimento') && !t.includes('data nasc')
-  const temLote = termosLote.some((k) => t.includes(norm(k))) || temDataTerreno
+  const temDataTerreno = /\bdata\b(?!\s*(?:de\s+nasci|nasc|\/|\d{2}[\/\-\.]))/.test(tSemComposicaoEntrada)
+    && !tSemComposicaoEntrada.includes('data de nascimento') && !tSemComposicaoEntrada.includes('data nasc')
+  const temLote = termosLote.some((k) => tSemComposicaoEntrada.includes(norm(k))) || temDataTerreno
   // 'constru' captura 'construir', 'construção', 'construcao', 'construção' — necessário
   // porque 'quero construir' não contém o substring 'construc' (sem acento e sem ão).
-  const temConstrucao = t.includes('construc') || t.includes('constru') || temObra
+  const temConstrucao = tSemComposicaoEntrada.includes('construc') || tSemComposicaoEntrada.includes('constru') || temObra
 
-  if (temLote && !temConstrucao) {
+  // Sinal forte de aquisição residencial (casa/apartamento/etc.) fora da composição da
+  // entrada — se presente, uma menção solta a "terreno"/"lote" não deve sobrepor a
+  // intenção já explícita de comprar um imóvel residencial pronto.
+  const termosResidencialForte = [
+    'casa', 'apartamento', 'sobrado', 'cobertura', 'kitnet',
+    'imovel usado', 'imovel novo', 'imovel pronto',
+  ]
+  const temResidencialForte = termosResidencialForte.some((k) => tSemComposicaoEntrada.includes(norm(k)))
+
+  if (temLote && !temConstrucao && !temResidencialForte) {
     return { tipoOperacao: 'lote_urbanizado', finalidade: 'residencial', pedirEsclarecimento: false, pergunta: null }
   }
 
