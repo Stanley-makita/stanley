@@ -529,7 +529,9 @@ export function simularComCriterios(
   const comprometimentoMax = (input.tipoAmortizacao === 'PRICE' && criteria.comprometimentoRenda.price)
     ? criteria.comprometimentoRenda.price
     : criteria.comprometimentoRenda.sac
-  const avisoRenda = calc.primeiraParcela > input.rendaMensal * comprometimentoMax
+  // Sem renda informada, não há como avaliar comprometimento — não sinalizar aviso.
+  const avisoRenda = input.rendaInformada !== false
+    && calc.primeiraParcela > input.rendaMensal * comprometimentoMax
 
   return {
     ...baseResult(cfg, valorFinanciadoEfetivo, input, criteria.programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
@@ -864,11 +866,18 @@ export function calcularAnalise(
   const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
   const ltv = (input.valorImovel - input.valorEntrada) / input.valorImovel
 
-  const comprometimentoRenda = (melhorParaMetricas?.primeiraParcela ?? 0) > 0
-    ? (melhorParaMetricas!.primeiraParcela / input.rendaMensal) * 100
-    : 100
+  // Renda ausente (não informada) não é o mesmo que renda = 0 — sem renda real, não dá
+  // para calcular comprometimento/máximo financiável por renda (evita divisão por zero
+  // e o "Infinity%"/"R$ 0,00" enganosos que apareciam no PDF).
+  const rendaInformada = input.rendaInformada !== false
 
-  const maxFinanciavel = melhorParaMetricas?.maxFinanciavel30 ?? 0
+  const comprometimentoRenda = !rendaInformada
+    ? null
+    : (melhorParaMetricas?.primeiraParcela ?? 0) > 0
+      ? (melhorParaMetricas!.primeiraParcela / input.rendaMensal) * 100
+      : 100
+
+  const maxFinanciavel = rendaInformada ? (melhorParaMetricas?.maxFinanciavel30 ?? 0) : null
 
   const rendaMinimaNecessaria = (melhorParaMetricas?.primeiraParcela ?? 0) > 0
     ? melhorParaMetricas!.primeiraParcela / 0.30
@@ -878,14 +887,16 @@ export function calcularAnalise(
   let score = 50
 
   // Renda
-  if (comprometimentoRenda <= 20) {
+  if (!rendaInformada) {
+    fatores.push({ descricao: 'Renda não informada — comprometimento de renda não avaliado', impacto: 'negativo' })
+  } else if (comprometimentoRenda! <= 20) {
     score += 20
     fatores.push({ descricao: 'Comprometimento de renda baixo (≤ 20%)', impacto: 'positivo' })
-  } else if (comprometimentoRenda <= 28) {
+  } else if (comprometimentoRenda! <= 28) {
     score += 10
-    fatores.push({ descricao: `Comprometimento de renda adequado (${comprometimentoRenda.toFixed(0)}%)`, impacto: 'positivo' })
-  } else if (comprometimentoRenda <= 30) {
-    fatores.push({ descricao: `Comprometimento de renda no limite (${comprometimentoRenda.toFixed(0)}%)`, impacto: 'negativo' })
+    fatores.push({ descricao: `Comprometimento de renda adequado (${comprometimentoRenda!.toFixed(0)}%)`, impacto: 'positivo' })
+  } else if (comprometimentoRenda! <= 30) {
+    fatores.push({ descricao: `Comprometimento de renda no limite (${comprometimentoRenda!.toFixed(0)}%)`, impacto: 'negativo' })
   } else {
     score -= 30
     fatores.push({ descricao: 'Renda insuficiente para a parcela (> 30%)', impacto: 'critico' })

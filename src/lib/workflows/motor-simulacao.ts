@@ -232,6 +232,7 @@ export async function executarSimulacao(
     valorEntrada:    dados.valor_entrada!,
     dataNascimento:  dados.data_nascimento!,
     rendaMensal,
+    rendaInformada: !semRenda,
     tipoAmortizacao: dados.tipo_amortizacao,
     amortizacaoPorBanco: Object.keys(dados.amortizacao_por_banco).length > 0
       ? dados.amortizacao_por_banco

@@ -246,7 +246,7 @@ export async function gerarPDFFinanciamentoBuffer(
     ['Valor do Imóvel',  BRL.format(inp.valorImovel)],
     ['Entrada',          BRL.format(inp.valorEntrada)],
     ['Valor Financiado', BRL.format(valorFinanciado)],
-    ['Renda Mensal',     BRL.format(inp.rendaMensal)],
+    ['Renda Mensal',     inp.rendaInformada === false ? 'Não informada' : BRL.format(inp.rendaMensal)],
     ['Amortização',      inp.tipoAmortizacao],
     ['Idade',            idadeStr],
   ]
@@ -526,8 +526,8 @@ export async function gerarPDFFinanciamentoBuffer(
 
   const rightX = mL + boxW + 6
   const summaryItems: [string, string][] = [
-    ['Comprometimento de Renda',     `${a.comprometimentoRenda.toFixed(1)}%`],
-    ['Máx. Financiável (30% renda)', BRL.format(a.maxFinanciavel)],
+    ['Comprometimento de Renda',     a.comprometimentoRenda == null ? 'N/D (renda não informada)' : `${a.comprometimentoRenda.toFixed(1)}%`],
+    ['Máx. Financiável (30% renda)', a.maxFinanciavel == null ? 'N/D (renda não informada)' : BRL.format(a.maxFinanciavel)],
     ['Renda Mínima Necessária',      BRL.format(a.rendaMinimaNecessaria)],
   ]
   summaryItems.forEach(([label, val], i) => {

@@ -23,6 +23,10 @@ export interface InputFinanciamento {
   valorEntrada: number
   dataNascimento: string // YYYY-MM-DD
   rendaMensal: number
+  // false quando o cliente não informou renda (rendaMensal é 0 só por ausência de dado,
+  // não porque a renda real é zero). undefined é tratado como true (renda informada) —
+  // preserva o comportamento do formulário manual do simulador, que sempre informa renda.
+  rendaInformada?: boolean
   tipoAmortizacao: TipoAmortizacao
   // Amortização específica por banco — só preenchido quando o pedido tinha amortizações
   // diferentes por banco (ex.: "Itaú sac, Caixa sac e price"). Um banco ausente do mapa
@@ -86,8 +90,8 @@ export interface AnalisePredicativa {
     descricao: string
     impacto: 'positivo' | 'negativo' | 'critico'
   }>
-  comprometimentoRenda: number // %
-  maxFinanciavel: number
+  comprometimentoRenda: number | null // %; null quando a renda não foi informada
+  maxFinanciavel: number | null       // null quando a renda não foi informada
   rendaMinimaNecessaria: number
 }
 

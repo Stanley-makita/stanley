@@ -62,14 +62,16 @@ export function AnalisePredicativaCard({ analise }: Props) {
           <p className="text-xs text-gray-400">Comprometimento de renda</p>
           <p className={cn(
             'text-sm font-semibold mt-0.5',
-            analise.comprometimentoRenda > 30 ? 'text-red-600' : 'text-fonti-primary'
+            analise.comprometimentoRenda != null && analise.comprometimentoRenda > 30 ? 'text-red-600' : 'text-fonti-primary'
           )}>
-            {fmt(analise.comprometimentoRenda, 1)}%
+            {analise.comprometimentoRenda == null ? 'N/D' : `${fmt(analise.comprometimentoRenda, 1)}%`}
           </p>
         </div>
         <div className="rounded-lg bg-gray-50 px-3 py-2">
           <p className="text-xs text-gray-400">Máx. financiável (30% renda)</p>
-          <p className="text-sm font-semibold text-fonti-primary mt-0.5">{fmtMoeda(analise.maxFinanciavel)}</p>
+          <p className="text-sm font-semibold text-fonti-primary mt-0.5">
+            {analise.maxFinanciavel == null ? 'N/D' : fmtMoeda(analise.maxFinanciavel)}
+          </p>
         </div>
         <div className="rounded-lg bg-gray-50 px-3 py-2 col-span-2">
           <p className="text-xs text-gray-400">Renda mínima necessária</p>
