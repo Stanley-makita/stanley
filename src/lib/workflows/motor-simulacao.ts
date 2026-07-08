@@ -416,15 +416,23 @@ function montarRespostaNormal(
   const elegiveis   = bancosResult.filter((b) => b.elegivel)
   const inelegiveis = bancosResult.filter((b) => !b.elegivel)
 
+  // Comparação de Cenários: quantos resultados elegíveis existem por grupo banco+programa
+  // — genérico por construção, não checa bancoId nem tipoAmortizacao diretamente, só
+  // "existe mais de um resultado no mesmo grupo". Hoje só a Caixa produz >1 (SAC/PRICE via
+  // CENARIOS_CAIXA), mas qualquer banco com amortização por banco explícita poderia no
+  // futuro — por isso o rótulo do cenário na linha e o aviso abaixo usam esta contagem em
+  // vez de um gate fixo em `bancoId === 'caixa'`.
+  const contagemPorGrupo = new Map<string, number>()
+  for (const b of elegiveis) {
+    const chave = `${b.bancoId}::${b.programa}`
+    contagemPorGrupo.set(chave, (contagemPorGrupo.get(chave) ?? 0) + 1)
+  }
+
   const listaBancos = elegiveis.length > 0
     ? elegiveis.map((b) => {
         const prog = b.programa !== b.bancoNome ? ` (${b.programa})` : ''
-        // Comparação de Cenários: hoje só a Caixa produz >1 resultado no mesmo grupo
-        // banco+programa (SAC/PRICE), então o rótulo do cenário só aparece para ela —
-        // sem isso, duas linhas de "Caixa (SBPE)" ficariam idênticas. Se outro banco
-        // ganhar cenários no futuro, trocar este gate por "grupo banco+programa tem >1
-        // resultado em `elegiveis`" em vez de checar bancoId.
-        const cenario = b.bancoId === 'caixa' ? ` - ${b.tipoAmortizacao}` : ''
+        const grupoTemMultiplosCenarios = (contagemPorGrupo.get(`${b.bancoId}::${b.programa}`) ?? 0) >= 2
+        const cenario = grupoTemMultiplosCenarios ? ` - ${b.tipoAmortizacao}` : ''
         let linha = `• ${b.bancoNome}${prog}${cenario} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
 
         if (semRenda) {
@@ -444,10 +452,13 @@ function montarRespostaNormal(
     : null
 
   const rendaLabel = semRenda ? 'Renda: não informada' : `Renda: ${fmt.format(rendaMensal)}`
+  // Amortização do melhor cenário (resultado vencedor), não o valor global solicitado —
+  // pode divergir quando amortizacaoPorBanco está em uso (mesmo ajuste já feito no PDF).
+  const amortizacaoCabecalho = elegiveis[0]?.tipoAmortizacao ?? dados.tipo_amortizacao
 
   const linhas: string[] = [
     `📊 *Simulação — ${fmt.format(dados.valor_imovel!)} | Entrada ${fmt.format(dados.valor_entrada!)}*`,
-    `${rendaLabel} | ${dados.tipo_amortizacao} | ${prazoLabel}`,
+    `${rendaLabel} | ${amortizacaoCabecalho} | ${prazoLabel}`,
   ]
 
   if (listaBancos) {
@@ -486,16 +497,16 @@ function montarRespostaNormal(
     }
   }
 
-  // Comparação de Cenários: avisa quando algum grupo banco+programa produziu mais de um
-  // cenário elegível (hoje só a Caixa, via SAC/PRICE) — genérico por construção, não checa
-  // bancoId nem tipoAmortizacao diretamente, só "existe mais de um resultado no mesmo grupo".
-  const gruposComparativos = new Map<string, number>()
-  for (const b of elegiveis) {
-    const chave = `${b.bancoId}::${b.programa}`
-    gruposComparativos.set(chave, (gruposComparativos.get(chave) ?? 0) + 1)
-  }
-  if (Array.from(gruposComparativos.values()).some((n) => n >= 2)) {
-    linhas.push('', `📊 Identifiquei que a Caixa permite comparar SAC e PRICE para esta operação. Gerei os dois cenários no mesmo PDF.`)
+  // Aviso de Comparação de Cenários — nomeia o(s) banco(s) que de fato produziram mais de
+  // um cenário elegível, em vez de citar "a Caixa" fixo (reaproveita `contagemPorGrupo`).
+  const bancosComCenarios = Array.from(new Set(
+    elegiveis
+      .filter((b) => (contagemPorGrupo.get(`${b.bancoId}::${b.programa}`) ?? 0) >= 2)
+      .map((b) => b.bancoNome),
+  ))
+  if (bancosComCenarios.length > 0) {
+    const verbo = bancosComCenarios.length > 1 ? 'permitem' : 'permite'
+    linhas.push('', `📊 Identifiquei que ${bancosComCenarios.join(', ')} ${verbo} comparar SAC e PRICE para esta operação. Gerei os cenários no mesmo PDF.`)
   }
 
   if (semRenda) {
