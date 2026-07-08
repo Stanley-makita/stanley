@@ -259,6 +259,27 @@ describe('Fase 4 — Caixa: LTV de imóvel usado (sem penalidade — confirmado 
   })
 })
 
+// Caso-âncora real usado para calibrar a faixa jovem (≤30 anos) de CAIXA_MIP_RATES —
+// até esta sessão só a faixa ≤50 tinha sido verificada contra o simulador oficial.
+describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixa ≤30 anos, jul/2026)', () => {
+  // Simulador oficial da Caixa, 2026-07-08 — SBPE Balcão, imóvel usado, sem
+  // relacionamento, R$1.200.000, entrada R$350.000, financiado R$850.000, nascimento
+  // 10/10/2000 (25 anos), Marialva-PR. SAC: cota 80%, prazo 420, 1ª R$9.946,23, última
+  // R$2.067,24, taxa 11,49% a.a. efetiva. Última parcela batia exatamente mesmo antes da
+  // calibração (MIP/DFI zerados nela) — só a 1ª divergia, por causa da faixa de MIP.
+  it('SAC bate com o simulador oficial dentro de R$1 (faixa de MIP ≤30 anos calibrada)', () => {
+    const r = simularBancoNovo('caixa', {
+      valorImovel: 1_200_000, valorEntrada: 350_000, dataNascimento: '2000-10-10',
+      rendaMensal: 100_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
+    })
+    expect(r.elegivel).toBe(true)
+    expect(r.parcelas).toBe(420)
+    expect(r.primeiraParcela).toBeCloseTo(9946.23, 0) // tolerância R$1 (diff real: R$0,02)
+    expect(r.ultimaParcela).toBeCloseTo(2067.24, 0)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma

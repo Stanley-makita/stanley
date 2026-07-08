@@ -142,10 +142,20 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
   { idadeMin: 71, idadeMax: 80, taxa: 0.002800 }, // 0,2800% a.m.
 ]
 
-// Caixa — MIP tabela oficial (faixas de 5 anos, alíquota mensal sobre SD)
+// Caixa — MIP tabela oficial (alíquota mensal sobre SD)
 // Faixa ≤50 = 0.000386 verificado no simulador caixa.gov.br (DOB 19/02/1979, R$400k, junho/2026)
-// Demais faixas mantidas do módulo de referência; verificar se necessário para outras idades
+// Faixa ≤30 = 0.000168 verificado no simulador caixa.gov.br (DOB 04/08/1995, R$430k, imóvel
+// usado, correntista, junho/2026 — ver caso-âncora "LTV de imóvel usado" nos testes).
+// Faixa ≤25 = 0.000093 verificado no simulador caixa.gov.br (DOB 10/10/2000, imóvel R$1,2M,
+// financiado R$850k, SAC 420m, julho/2026) — taxa implícita reconstruída a partir da 1ª
+// parcela oficial (R$9.946,23) descontando amortização+juros+DFI+tarifa, que não dependem
+// de idade (confirmado pela última parcela batendo exatamente com o simulador oficial).
+// As faixas ≤25 e ≤30 têm taxas bem diferentes entre si (0.000093 vs 0.000168) apesar de
+// ambas estarem dentro do que se assumia ser uma única faixa "18-30" — ou seja, a Caixa
+// discrimina mais fino nas idades baixas do que as faixas de 5 anos usadas do meio pra
+// frente da tabela. Faixas 35 e 40 mantidas do módulo de referência — ainda sem dado real.
 export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
+  { maxAge: 25,  taxa: 0.000093 },
   { maxAge: 30,  taxa: 0.000168 },
   { maxAge: 35,  taxa: 0.000204 },
   { maxAge: 40,  taxa: 0.000264 },
@@ -265,6 +275,16 @@ export const CAIXA_PRO_COTISTA = {
 // os dois. engine.ts reexporta esta constante para preservar o import externo existente
 // (src/lib/workflows/motor-simulacao.ts importa LIMITE_IDADE_PRAZO_MESES de engine.ts).
 export const LIMITE_IDADE_PRAZO_MESES = 966 // 80 anos e 6 meses
+
+// Idade assumida quando "prazo máximo" é pedido sem data de nascimento. Fixa e jovem (em
+// vez de "a mais velha ainda compatível com o maior prazo entre os bancos") de propósito:
+// 25 anos + qualquer prazo hoje cadastrado (até 420 meses/35 anos) sempre fica bem dentro
+// do limite de 80a6m, então nenhum banco é truncado por essa escolha — e a parcela/MIP
+// resultante fica realista (comparável ao simulador oficial), em vez de superestimada.
+// O aviso "Idade estimada" (idadeEstimada) já existente no PDF/WhatsApp cobre o risco de o
+// cliente real ser mais velho. Calibrado em sessão de comparação com o simulador oficial
+// da Caixa (julho/2026) — ver docs/calibracao-simuladores/.
+export const IDADE_JOVEM_ASSUMIDA_ANOS = 25
 
 export const TODOS_BANCOS: BancoId[] = [
   'caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval',

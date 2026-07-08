@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { executarSimulacao } from '../motor-simulacao'
+import { calcularIdadeEmAnos } from '@/lib/simuladorFinanciamento/engine'
 import type { DadosCaptacaoNormalizados } from '../normalizador-captacao'
 
 function baseDados(overrides: Partial<DadosCaptacaoNormalizados>): DadosCaptacaoNormalizados {
@@ -57,11 +58,14 @@ describe('idadeEstimada (InputFinanciamento)', () => {
     expect(resultado.input?.idadeEstimada).toBeFalsy()
   })
 
-  it('"prazo máximo" sem data de nascimento: idadeEstimada é true (idade assumida)', async () => {
+  it('"prazo máximo" sem data de nascimento: idadeEstimada é true (idade assumida jovem, 25 anos)', async () => {
     const dados = baseDados({ data_nascimento: null, prazo_maximo: true })
     const resultado = await executarSimulacao(dados, {})
     expect(resultado.dados.idade_assumida_prazo_maximo).toBe(true)
     expect(resultado.input?.idadeEstimada).toBe(true)
+    // Idade jovem fixa (25 anos) — não mais "a mais velha compatível com o maior prazo".
+    // Evita truncar prazo de qualquer banco e produz MIP/parcela realistas.
+    expect(calcularIdadeEmAnos(resultado.input!.dataNascimento)).toBe(25)
   })
 
   it('nascimento informado como "X anos": idadeEstimada é true (idade aproximada)', async () => {

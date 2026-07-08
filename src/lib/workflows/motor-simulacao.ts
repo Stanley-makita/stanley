@@ -17,7 +17,7 @@ import {
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '@/lib/simuladorFinanciamento/tipos'
-import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE } from '@/lib/simuladorFinanciamento/constantes'
+import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS } from '@/lib/simuladorFinanciamento/constantes'
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -183,16 +183,16 @@ export async function executarSimulacao(
   const dados = { ...dadosEntrada }
   const bancosIds = resolverBancos(dados)
 
-  // "Prazo máximo" pedido sem data de nascimento: assume a idade mais velha ainda
-  // compatível com o MAIOR prazo máximo entre os bancos resolvidos — isso garante que
-  // cada banco individual receba seu próprio teto real (nenhum é truncado por engano),
-  // já que um banco com prazo menor sempre cabe dentro da folga calculada para o maior.
-  // Nunca deixa data_nascimento ausente chegar no motor (engine.ts trataria como NaN
-  // silenciosamente — ver calcularPrazoMaximo).
+  // "Prazo máximo" pedido sem data de nascimento: assume uma idade jovem fixa
+  // (IDADE_JOVEM_ASSUMIDA_ANOS) em vez da mais velha ainda compatível com o maior prazo
+  // entre os bancos. Uma idade jovem nunca trunca prazo de nenhum banco (25 anos + até 35
+  // anos de prazo fica bem dentro do limite de 80a6m) e produz parcela/MIP realistas —
+  // comparáveis ao simulador oficial — em vez de superestimados por uma idade "pior caso".
+  // O aviso "Idade estimada" (idadeEstimada) já comunica ao operador que o valor pode
+  // mudar após confirmação da data de nascimento real. Nunca deixa data_nascimento ausente
+  // chegar no motor (engine.ts trataria como NaN silenciosamente — ver calcularPrazoMaximo).
   if (!dados.data_nascimento && dados.prazo_maximo) {
-    const maiorPrazoBanco = Math.max(...bancosIds.map((id) => BANCOS_CONFIG[id].prazoMaximoMeses))
-    const idadeMesesAssumida = LIMITE_IDADE_PRAZO_MESES - maiorPrazoBanco
-    dados.data_nascimento = dataNascimentoParaIdadeEmMeses(idadeMesesAssumida)
+    dados.data_nascimento = dataNascimentoParaIdadeEmMeses(IDADE_JOVEM_ASSUMIDA_ANOS * 12)
     dados.idade_assumida_prazo_maximo = true
   }
 
