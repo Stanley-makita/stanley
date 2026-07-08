@@ -417,11 +417,11 @@ function montarRespostaNormal(
   const inelegiveis = bancosResult.filter((b) => !b.elegivel)
 
   // Comparação de Cenários: quantos resultados elegíveis existem por grupo banco+programa
-  // — genérico por construção, não checa bancoId nem tipoAmortizacao diretamente, só
-  // "existe mais de um resultado no mesmo grupo". Hoje só a Caixa produz >1 (SAC/PRICE via
-  // CENARIOS_CAIXA), mas qualquer banco com amortização por banco explícita poderia no
-  // futuro — por isso o rótulo do cenário na linha e o aviso abaixo usam esta contagem em
-  // vez de um gate fixo em `bancoId === 'caixa'`.
+  // — usado só para o aviso "📊 Identifiquei que X permite comparar SAC e PRICE..." abaixo.
+  // O rótulo de amortização por linha, por outro lado, é sempre exibido (ver `cenario`
+  // logo abaixo): com amortizacaoPorBanco em uso, bancos diferentes podem estar em
+  // amortizações diferentes SEM que nenhum deles tenha, sozinho, mais de um resultado —
+  // por isso mostrar o rótulo só quando "ambíguo dentro do próprio banco" não bastava.
   const contagemPorGrupo = new Map<string, number>()
   for (const b of elegiveis) {
     const chave = `${b.bancoId}::${b.programa}`
@@ -431,9 +431,7 @@ function montarRespostaNormal(
   const listaBancos = elegiveis.length > 0
     ? elegiveis.map((b) => {
         const prog = b.programa !== b.bancoNome ? ` (${b.programa})` : ''
-        const grupoTemMultiplosCenarios = (contagemPorGrupo.get(`${b.bancoId}::${b.programa}`) ?? 0) >= 2
-        const cenario = grupoTemMultiplosCenarios ? ` - ${b.tipoAmortizacao}` : ''
-        let linha = `• ${b.bancoNome}${prog}${cenario} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
+        let linha = `• ${b.bancoNome}${prog} - ${b.tipoAmortizacao} — 1ª ${fmt.format(b.primeiraParcela)} | Última ${fmt.format(b.ultimaParcela)}`
 
         if (semRenda) {
           const rendaNecessaria = calcularRendaNecessaria(b.primeiraParcela)

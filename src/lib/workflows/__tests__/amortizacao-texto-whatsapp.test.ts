@@ -4,8 +4,11 @@
  * 1. O cabeçalho usava `dados.tipo_amortizacao` (valor global solicitado) em vez da
  *    amortização do banco vencedor — podiam divergir com amortizacaoPorBanco em uso.
  * 2. O rótulo de amortização por linha ("- SAC"/"- PRICE") só aparecia para bancoId
- *    === 'caixa' (hardcoded), em vez de checar genericamente se o grupo banco+programa
- *    produziu mais de um cenário elegível.
+ *    === 'caixa' (hardcoded) e, mesmo generalizado para "grupo com >1 cenário", ainda
+ *    ficava ausente quando bancos DIFERENTES estavam em amortizações diferentes sem
+ *    ambiguidade dentro de cada um (ex.: Itaú só em SAC, Santander só em PRICE — nenhum
+ *    dos dois tem >1 resultado, mas divergem entre si). Corrigido para sempre exibir a
+ *    amortização de cada linha, independente de haver ou não múltiplos cenários.
  */
 import { describe, it, expect } from 'vitest'
 import { executarSimulacao, montarRespostaSimulacao } from '../motor-simulacao'
@@ -74,11 +77,11 @@ describe('texto do WhatsApp — amortização', () => {
     expect(texto).toMatch(/Caixa.*- (SAC|PRICE)/)
   })
 
-  it('rótulo de cenário não aparece quando o banco só tem um resultado elegível', async () => {
+  it('rótulo de amortização aparece mesmo quando o banco só tem um resultado elegível', async () => {
     const dados = baseDados({ amortizacao_por_banco: { itau: 'SAC' } })
     const resultado = await executarSimulacao(dados, {})
     const texto = montarRespostaSimulacao(resultado, { nomeDisplay: 'Cliente Teste' })
 
-    expect(texto).not.toMatch(/Itaú.*- SAC/)
+    expect(texto).toMatch(/Itaú.*- SAC/)
   })
 })
