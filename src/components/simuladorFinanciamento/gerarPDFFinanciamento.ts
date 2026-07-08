@@ -292,7 +292,9 @@ export async function gerarPDFFinanciamento(
     ['Entrada',           BRL.format(inp.valorEntrada)],
     ['Valor Financiado',  BRL.format(valorFinanciado)],
     ['Renda Mensal',      inp.rendaInformada === false ? 'Não informada' : BRL.format(inp.rendaMensal)],
-    ['Amortização',       inp.tipoAmortizacao],
+    // Reflete a amortização do Melhor Cenário (não o valor global solicitado): a Caixa
+    // pode gerar SAC e PRICE ao mesmo tempo, e o vencedor pode divergir do input global.
+    ['Amortização',       melhorBanco?.tipoAmortizacao ?? inp.tipoAmortizacao],
     [inp.idadeEstimada ? 'Idade estimada' : 'Idade', idadeStr],
   ]
 
