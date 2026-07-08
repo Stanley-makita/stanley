@@ -29,7 +29,12 @@ export interface DadosCaptacaoNormalizados {
   solicitar_simulacao:   boolean
   // Campos do Workflow de Consulta Comercial (*simula)
   prazo_meses:           number | null   // 120–420; null = usar máximo do banco
-  tipo_amortizacao:      'SAC' | 'PRICE' // padrão: 'SAC'
+  tipo_amortizacao:      'SAC' | 'PRICE' // padrão: 'SAC' — usado quando o banco não tem entrada em amortizacao_por_banco
+  // Amortização específica por banco, só preenchido quando o usuário pediu amortizações
+  // diferentes por banco na mesma mensagem (ex.: "Itaú sac, Caixa sac e price"). Bancos
+  // ausentes do mapa usam `tipo_amortizacao` (o padrão/global) como fallback. A Caixa já
+  // gera SAC+PRICE automaticamente (Comparação de Cenários) independente deste mapa.
+  amortizacao_por_banco: Partial<Record<BancoId, 'SAC' | 'PRICE'>>
   correntista:           boolean         // true se relacionamento bancário informado
   produto:               string | null   // "SBPE", "MCMV", etc. (informativo)
   fgts_valor:            number | null   // valor FGTS disponível (informativo)
@@ -392,6 +397,16 @@ export function normalizarDadosCaptacao(
     }
   }
 
+  // Amortização por banco: só preenchido quando o parser detectar bancos com amortizações
+  // diferentes na mesma mensagem. Um banco não mapeado usa o `tipo_amortizacao` global.
+  const amortizacaoPorBanco: Partial<Record<BancoId, 'SAC' | 'PRICE'>> = {}
+  for (const item of raw.amortizacao_por_banco_raw ?? []) {
+    const id = normalizarBanco(item.banco)
+    const am = item.amortizacao.toUpperCase()
+    if (id && am.includes('PRICE')) amortizacaoPorBanco[id] = 'PRICE'
+    else if (id && am.includes('SAC')) amortizacaoPorBanco[id] = 'SAC'
+  }
+
   const tipoImovelRaw = (raw.tipo_imovel ?? '').toLowerCase()
   const tipoImovel: 'novo' | 'usado' | null =
     tipoImovelRaw.includes('novo') || tipoImovelRaw.includes('lançamento') || tipoImovelRaw.includes('planta')
@@ -475,6 +490,7 @@ export function normalizarDadosCaptacao(
     solicitar_simulacao: raw.solicitar_simulacao === true,
     prazo_meses:         prazoMeses,
     tipo_amortizacao:    tipoAmortizacao,
+    amortizacao_por_banco: amortizacaoPorBanco,
     correntista,
     produto:             raw.produto?.trim() ?? null,
     fgts_valor:          fgtsValor,

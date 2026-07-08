@@ -24,6 +24,10 @@ export interface InputFinanciamento {
   dataNascimento: string // YYYY-MM-DD
   rendaMensal: number
   tipoAmortizacao: TipoAmortizacao
+  // Amortização específica por banco — só preenchido quando o pedido tinha amortizações
+  // diferentes por banco (ex.: "Itaú sac, Caixa sac e price"). Um banco ausente do mapa
+  // usa `tipoAmortizacao` (o padrão/global) como fallback. Lido só em simularTodosBancos.
+  amortizacaoPorBanco?: Partial<Record<BancoId, TipoAmortizacao>>
   correntista: boolean
   bancosIds: BancoId[]
   nomeCliente?: string

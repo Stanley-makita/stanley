@@ -130,6 +130,11 @@ export function mergeCapturados(
     result.bancos_ids = novo.bancos_ids
   }
 
+  // amortizacao_por_banco: substituir apenas se o novo parser encontrou algum mapeamento
+  if (novo.amortizacao_por_banco && Object.keys(novo.amortizacao_por_banco).length > 0) {
+    result.amortizacao_por_banco = novo.amortizacao_por_banco
+  }
+
   // tipo_operacao: 'aquisicao' é o default — não sobrescreve um valor já resolvido
   if (novo.tipo_operacao && novo.tipo_operacao !== 'aquisicao') {
     result.tipo_operacao = novo.tipo_operacao

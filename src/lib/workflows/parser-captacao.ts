@@ -34,6 +34,10 @@ export interface DadosCaptacaoRaw {
   fgts_valor?: number | null            // "FGTS 50 mil" → 50000
   relacionamento_bancario?: string | null  // "Uniclass", "Personnalité", "Van Gogh", "Select"
   tipo_amortizacao_raw?: string | null  // "SAC", "PRICE" — normalizado depois
+  // Preenchido só quando o usuário pede amortizações DIFERENTES por banco na mesma
+  // mensagem (ex.: "Itaú sac, Santander sac, Caixa sac e price"). Cada banco pode
+  // aparecer mais de uma vez (ex.: Caixa em "sac" e Caixa em "price").
+  amortizacao_por_banco_raw?: { banco: string; amortizacao: string }[] | null
   todos_bancos?: boolean                // true se usuário disse "todos os bancos" ou "todos"
   modo_calculo?: 'VALOR_MAXIMO_PELA_RENDA' | null // "valor máximo", "quanto aprova", etc.
   prazo_maximo?: boolean                // true se "prazo máximo" foi solicitado
@@ -72,6 +76,7 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
   "fgts_valor": numero_inteiro_ou_null,
   "relacionamento_bancario": "Uniclass|Personnalité|...|null",
   "tipo_amortizacao_raw": "SAC|PRICE|null",
+  "amortizacao_por_banco_raw": [{"banco": "nome_do_banco", "amortizacao": "SAC|PRICE"}] ou null,
   "todos_bancos": true_ou_false,
   "modo_calculo": "VALOR_MAXIMO_PELA_RENDA|null",
   "prazo_maximo": true_ou_false,
@@ -203,6 +208,20 @@ Detectar SAC (qualquer variação): "sac", "SAC", "tabela sac", "tabela SAC", "s
   "amortização sac", "amortizacao sac", "modalidade sac".
 null se não mencionado.
 
+AMORTIZACAO_POR_BANCO_RAW: Preencher SOMENTE quando o usuário pedir amortizações
+DIFERENTES para bancos diferentes na mesma mensagem.
+Exemplos:
+  "Itaú-sac, Santander-sac, Bradesco-sac, Caixa sac e price" →
+    [{"banco":"Itaú","amortizacao":"SAC"},{"banco":"Santander","amortizacao":"SAC"},
+     {"banco":"Bradesco","amortizacao":"SAC"},{"banco":"Caixa","amortizacao":"SAC"},
+     {"banco":"Caixa","amortizacao":"PRICE"}]
+  "Itaú- sac, Santander- sac, Bradesco -sac" (sem Caixa) →
+    [{"banco":"Itaú","amortizacao":"SAC"},{"banco":"Santander","amortizacao":"SAC"},
+     {"banco":"Bradesco","amortizacao":"SAC"}]
+Se o texto mencionar apenas UMA amortização para toda a simulação (sem associar a bancos
+específicos, ex.: "financiar no PRICE" ou apenas "SAC"), NÃO preencher este campo — usar
+somente tipo_amortizacao_raw nesse caso. null se não houver amortização por banco.
+
 TODOS_BANCOS: true se o usuário disser explicitamente "todos os bancos", "todos", "qualquer banco".
 false se mencionar bancos específicos ou não mencionar bancos. false por padrão.
 
@@ -263,6 +282,12 @@ export async function parsearTextoCaptacao(texto: string): Promise<DadosCaptacao
       fgts_valor:             typeof parsed.fgts_valor === 'number' ? parsed.fgts_valor : null,
       relacionamento_bancario: parsed.relacionamento_bancario ?? null,
       tipo_amortizacao_raw:   parsed.tipo_amortizacao_raw ?? null,
+      amortizacao_por_banco_raw: Array.isArray(parsed.amortizacao_por_banco_raw) && parsed.amortizacao_por_banco_raw.length > 0
+                                ? parsed.amortizacao_por_banco_raw.filter(
+                                    (p): p is { banco: string; amortizacao: string } =>
+                                      !!p && typeof p.banco === 'string' && typeof p.amortizacao === 'string',
+                                  )
+                                : null,
       todos_bancos:           parsed.todos_bancos === true,
       modo_calculo:           parsed.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA' ? 'VALOR_MAXIMO_PELA_RENDA' : null,
       prazo_maximo:           parsed.prazo_maximo === true,

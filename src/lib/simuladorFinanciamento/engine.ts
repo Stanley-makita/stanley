@@ -802,10 +802,17 @@ export function simularTodosBancos(
       continue
     }
 
+    // Amortização específica deste banco (ex.: "Itaú sac, Caixa sac e price") — a Caixa
+    // ignora isso porque `simularCaixaDuplo` já sempre gera SAC+PRICE independentemente.
+    const amortizacaoDoBanco = inputNorm.amortizacaoPorBanco?.[id] ?? inputNorm.tipoAmortizacao
+    const inputBanco = amortizacaoDoBanco === inputNorm.tipoAmortizacao
+      ? inputNorm
+      : { ...inputNorm, tipoAmortizacao: amortizacaoDoBanco }
+
     if (id === 'caixa') {
       todos.push(...simularCaixaDuplo(inputNorm, ov, op).map(r => ({ ...r, observacao })))
     } else {
-      todos.push({ ...simularBanco(id, inputNorm, ov), observacao })
+      todos.push({ ...simularBanco(id, inputBanco, ov), observacao })
     }
   }
 
