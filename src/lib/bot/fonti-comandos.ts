@@ -1203,6 +1203,7 @@ export async function processarComandoFonti(
         supabase,
         telefone_cliente:  ctx.telefone_cliente,
         telefone_remetente: ctx.telefone_remetente,
+        telefone_operador: ctx.telefone_remetente,
         instancia_token:   ctx.instancia_token,
         telefone_destino:  ctx.telefone_destino,
         arquivos:          ctx.arquivos,
