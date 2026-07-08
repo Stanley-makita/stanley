@@ -585,7 +585,9 @@ export function simularBanco(
         programa: CAIXA_PRO_COTISTA.programa,
       }
     }
-    const faixaMcmv = MCMV_FAIXAS.filter(
+    // Sem renda informada, `rendaMensal` fica em 0 só por ausência de dado — isso nunca
+    // pode "qualificar" o cliente para a faixa MCMV mais subsidiada (0 <= qualquer teto).
+    const faixaMcmv = input.rendaInformada === false ? [] : MCMV_FAIXAS.filter(
       (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
     )
     if (faixaMcmv.length > 0) {
@@ -664,7 +666,9 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
 
   // MCMV (se renda e imóvel se enquadram)
   if (podeMcmvProcotista) {
-    const faixaMcmv = MCMV_FAIXAS.filter(
+    // Sem renda informada, `rendaMensal` fica em 0 só por ausência de dado — isso nunca
+    // pode "qualificar" o cliente para a faixa MCMV mais subsidiada (0 <= qualquer teto).
+    const faixaMcmv = input.rendaInformada === false ? [] : MCMV_FAIXAS.filter(
       (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
     )
     if (faixaMcmv.length > 0) {
