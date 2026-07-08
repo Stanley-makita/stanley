@@ -510,6 +510,13 @@ function montarRespostaNormal(
     linhas.push('', `ℹ️ _Esta simulação foi feita considerando que o cliente tem idade compatível para financiar no prazo máximo. Essa idade assumida também afeta o valor do seguro e da parcela. Caso queira uma simulação em prazo diferente, informe o prazo desejado ou a data de nascimento do cliente._`)
   }
 
+  // Nota de modalidade (lote/construção/comercial) — sem isso, o texto do WhatsApp nunca
+  // explicava por que só a Caixa aparece elegível nessas modalidades (o PDF já mostra).
+  const observacaoModalidade = bancosResult.find((b) => b.observacao)?.observacao
+  if (observacaoModalidade) {
+    linhas.push('', `ℹ️ _${observacaoModalidade}_`)
+  }
+
   return linhas.join('\n')
 }
 

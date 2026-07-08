@@ -298,6 +298,24 @@ export async function gerarPDFFinanciamentoBuffer(
     y += notaH + 4
   }
 
+  // Nota de modalidade — exibida quando a operação não é aquisição simples (lote,
+  // construção, comercial). Sem isso, o PDF anexado no WhatsApp nunca explicava por que
+  // só a Caixa aparece elegível nessas modalidades.
+  const observacaoModalidade = resultado.bancos.find((b) => b.observacao)?.observacao ?? ''
+  if (observacaoModalidade) {
+    if (y + 16 > pageH - mBot - 10) { doc.addPage(); y = mTop }
+    const obsLines = doc.splitTextToSize(pdf(observacaoModalidade), usableW - 8)
+    const obsH = Math.max(12, obsLines.length * 4 + 7)
+    setFill(doc, '#EEF4FF'); setDraw(doc, '#AACCEE')
+    doc.setLineWidth(0.3)
+    doc.rect(mL, y, usableW, obsH, 'FD')
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#1A44AA')
+    doc.text('Nota:', mL + 3, y + 5)
+    doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, '#2255AA')
+    doc.text(obsLines, mL + 3, y + 9)
+    y += obsH + 4
+  }
+
   // ── SEÇÃO 2 — Comparativo ─────────────────────────────────────────────────
   const elegiveis    = resultado.bancos.filter((r) => r.elegivel)
   const inaplicaveis = resultado.bancos.filter((r) => !r.elegivel)
