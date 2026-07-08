@@ -293,7 +293,7 @@ export async function gerarPDFFinanciamento(
     ['Valor Financiado',  BRL.format(valorFinanciado)],
     ['Renda Mensal',      inp.rendaInformada === false ? 'Não informada' : BRL.format(inp.rendaMensal)],
     ['Amortização',       inp.tipoAmortizacao],
-    ['Idade',             idadeStr],
+    [inp.idadeEstimada ? 'Idade estimada' : 'Idade', idadeStr],
   ]
 
   const col3W = usableW / 3
@@ -319,6 +319,25 @@ export async function gerarPDFFinanciamento(
   })
 
   y += ROWS * dadoH + 5
+
+  // Nota de idade estimada — a idade usada no cálculo não veio de uma data de nascimento
+  // completa e confirmada. Prazo/parcela/elegibilidade dependem dela.
+  if (inp.idadeEstimada) {
+    if (y + 16 > pageH - mBot - 10) { doc.addPage(); y = mTop }
+    const notaIdadeTexto = 'Idade estimada — não confirmada por data de nascimento completa. ' +
+      'Prazo, parcela e elegibilidade calculados a partir dela são estimativas e podem mudar ' +
+      'após confirmação da data de nascimento real do cliente.'
+    const notaLinhas = doc.splitTextToSize(notaIdadeTexto, usableW - 8)
+    const notaH = Math.max(12, notaLinhas.length * 4 + 7)
+    setFill(doc, '#FFF8E6'); setDraw(doc, '#D9B84A')
+    doc.setLineWidth(0.3)
+    doc.rect(mL, y, usableW, notaH, 'FD')
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#8A6D1F')
+    doc.text('Atenção:', mL + 3, y + 5)
+    doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, '#8A6D1F')
+    doc.text(notaLinhas, mL + 3, y + 9)
+    y += notaH + 4
+  }
 
   // Nota de modalidade — exibida quando a operação não é aquisição simples
   const observacaoModalidade = resultado.bancos.find((b) => b.observacao)?.observacao ?? ''

@@ -27,6 +27,11 @@ export interface InputFinanciamento {
   // não porque a renda real é zero). undefined é tratado como true (renda informada) —
   // preserva o comportamento do formulário manual do simulador, que sempre informa renda.
   rendaInformada?: boolean
+  // true quando a idade usada no cálculo não veio de uma data de nascimento completa e
+  // confirmada (ex.: cliente informou só "32 anos", ou "prazo máximo" foi pedido sem
+  // nascimento e o Motor assumiu uma idade compatível). Prazo, parcela e elegibilidade
+  // calculados a partir dela são estimativas, não dado documental confirmado.
+  idadeEstimada?: boolean
   tipoAmortizacao: TipoAmortizacao
   // Amortização específica por banco — só preenchido quando o pedido tinha amortizações
   // diferentes por banco (ex.: "Itaú sac, Caixa sac e price"). Um banco ausente do mapa
