@@ -111,10 +111,9 @@ export function mergeCapturados(
     'nome', 'cpf', 'telefone', 'data_nascimento', 'cidade_imovel',
     'tipo_imovel', 'valor_imovel', 'valor_entrada', 'valor_financiado',
     'renda_formal', 'renda_informal', 'prazo_meses',
-    'tipo_amortizacao', 'correntista', 'usa_fgts', 'fgts_valor',
-    'todos_bancos', 'finalidade_efetiva', 'valor_terreno', 'valor_obra',
-    'solicitar_simulacao', 'modo_calculo', 'prazo_maximo',
-    'produto', 'produto_normalizado',
+    'tipo_amortizacao', 'fgts_valor',
+    'finalidade_efetiva', 'valor_terreno', 'valor_obra',
+    'modo_calculo', 'produto', 'produto_normalizado',
   ]
 
   for (const campo of camposEscalares) {
@@ -123,6 +122,20 @@ export function mergeCapturados(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(result as any)[campo] = val
     }
+  }
+
+  // Campos booleanos: tratados à parte porque um novo parse de texto que não menciona o
+  // assunto sempre retorna `false` por padrão (não `null`/`undefined`) — a regra "novo
+  // vence quando não-null" apagaria silenciosamente uma flag já capturada. Exemplo real:
+  // reprocessar texto vazio (resposta "sim" a uma confirmação) resetava prazo_maximo=true
+  // para false, fazendo a validação voltar a exigir data de nascimento indevidamente.
+  // Uma vez capturada como true, a flag permanece até a pendência ser resolvida.
+  const camposBooleanos: (keyof DadosCaptacaoNormalizados)[] = [
+    'correntista', 'usa_fgts', 'todos_bancos', 'solicitar_simulacao', 'prazo_maximo',
+  ]
+  for (const campo of camposBooleanos) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(result as any)[campo] = Boolean((result as any)[campo]) || Boolean(novo[campo])
   }
 
   // bancos_ids: substituir apenas se o novo parser encontrou bancos explícitos
