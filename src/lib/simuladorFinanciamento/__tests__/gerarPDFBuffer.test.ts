@@ -76,17 +76,20 @@ describe('gerarPDFFinanciamentoBuffer — Comparação de Cenários', () => {
     expect(registrados.textos).toContain('PRICE')
   })
 
-  it('não desenha a seção quando só um cenário da Caixa é elegível', async () => {
-    // valorEntrada 120_000 sobre 500_000 → financiado 76%: dentro dos 80% do SAC, fora
-    // dos 70% do PRICE — só o SAC fica elegível para o programa SBPE.
+  it('entrada informada abaixo do teto do PRICE: ainda desenha os dois cenários (entrada ajustada)', async () => {
+    // valorEntrada 120_000 sobre 500_000 → financiado 76%: dentro dos 80% do SAC, mas
+    // acima dos 70% do PRICE. Calibração jul/2026: em vez de ficar inelegível, o cenário
+    // PRICE da Caixa ajusta a entrada para 150_000 (30%) — replica o simulador oficial,
+    // que nunca rejeita PRICE por LTV insuficiente.
     const input: InputFinanciamento = { ...INPUT_CAIXA_SAC_PRICE_ELEGIVEIS, valorEntrada: 120_000 }
     const resultado = montarResultadoCompleto(input)
     const porId = new Map(resultado.bancos.map((r) => [r.resultadoId, r]))
     expect(porId.get('caixa-sbpe-sac')?.elegivel).toBe(true)
-    expect(porId.has('caixa-sbpe-price')).toBe(false)
+    expect(porId.get('caixa-sbpe-price')?.elegivel).toBe(true)
 
     await gerarPDFFinanciamentoBuffer(resultado)
 
-    expect(registrados.textos.some((t) => t.includes('Comparação de Cenários'))).toBe(false)
+    expect(registrados.textos.some((t) => t.includes('Comparação de Cenários'))).toBe(true)
+    expect(registrados.textos.some((t) => t.includes('Entrada ajustada'))).toBe(true)
   })
 })

@@ -610,9 +610,9 @@ export function simularBanco(
 // de produto — ver docs/calibracao-simuladores/migracao-motor-agnostico-fase-4-caixa.md).
 // Genérico de propósito: não sabe nada sobre "SAC"/"PRICE" nem sobre "Caixa" — só sabe
 // aplicar uma lista de patches de input e filtrar por elegibilidade. Hoje só a Caixa passa
-// uma lista com mais de 1 item (`CENARIOS_CAIXA`); qualquer outro banco continua com
-// exatamente 1 cenário implícito (o `tipoAmortizacao` que já vinha no input), então nada
-// muda para eles.
+// uma lista com mais de 1 item (`construirCenariosCaixa`); qualquer outro banco continua
+// com exatamente 1 cenário implícito (o `tipoAmortizacao` que já vinha no input), então
+// nada muda para eles.
 function gerarCenariosComparativos(
   results: ResultadoBanco[],
   cfg: BancoConfig,
@@ -625,17 +625,49 @@ function gerarCenariosComparativos(
     const resultado = simularComCriterios(
       cfg, criteria, { ...input, ...cenario.patchInput }, `${resultadoIdBase}-${cenario.sufixoId}`,
     )
-    if (resultado.elegivel) results.push(resultado)
+    if (resultado.elegivel) {
+      if (cenario.observacaoExtra) resultado.observacao = cenario.observacaoExtra
+      results.push(resultado)
+    }
   }
 }
 
-// Cenários comparativos ativados nesta sprint: só a Caixa, só a dimensão "sistema de
-// amortização". Uma dimensão futura (outro banco, ou outra variação dentro da Caixa) usaria
-// o mesmo mecanismo — só precisaria de uma lista de CenarioComparativo diferente.
-const CENARIOS_CAIXA: CenarioComparativo[] = [
-  { sufixoId: 'sac',   patchInput: { tipoAmortizacao: 'SAC' } },
-  { sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE' } },
-]
+// Cenários comparativos da Caixa: SAC sempre com a entrada informada; PRICE com a entrada
+// ajustada para cima quando a informada não atinge o mínimo do teto de LTV da modalidade
+// (ex.: 70% → entrada mínima 30%) — reproduz o comportamento do simulador oficial da Caixa,
+// que NUNCA rejeita o PRICE por LTV insuficiente: ele recalcula a entrada/financiado para
+// caber exatamente no teto, em vez de declarar inelegível. Sem isso, PRICE ficaria
+// "impossível na prática" sempre que o comercial informasse uma entrada pensada para SAC
+// (teto 80%), que quase nunca atinge os 30% mínimos do PRICE.
+function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationCriteria): CenarioComparativo[] {
+  const cenarios: CenarioComparativo[] = [{ sufixoId: 'sac', patchInput: { tipoAmortizacao: 'SAC' } }]
+
+  const maxLtvPrice = criteria.ltv.price
+  if (maxLtvPrice == null) {
+    cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE' } })
+    return cenarios
+  }
+
+  // Arredonda ao centavo antes de comparar — "1 - maxLtvPrice" (ex. 1 - 0.7) pode gerar
+  // erro de ponto flutuante (0.30000000000000004), fazendo uma entrada já exatamente no
+  // teto parecer "abaixo" por uma fração de centavo e disparar um ajuste espúrio.
+  const entradaMinimaPrice = Math.round(input.valorImovel * (1 - maxLtvPrice) * 100) / 100
+  const entradaAjustada = Math.max(input.valorEntrada, entradaMinimaPrice)
+  const foiAjustada = entradaAjustada > input.valorEntrada
+
+  cenarios.push({
+    sufixoId: 'price',
+    patchInput: foiAjustada
+      ? { tipoAmortizacao: 'PRICE', valorEntrada: entradaAjustada }
+      : { tipoAmortizacao: 'PRICE' },
+    observacaoExtra: foiAjustada
+      ? `Entrada ajustada de ${fmtMoeda(input.valorEntrada)} para ${fmtMoeda(entradaAjustada)} ` +
+        `(${Math.round((1 - maxLtvPrice) * 100)}% do imóvel) para viabilizar a modalidade PRICE — ` +
+        `teto de financiamento de ${Math.round(maxLtvPrice * 100)}%.`
+      : undefined,
+  })
+  return cenarios
+}
 
 // Caixa retorna múltiplos resultados: Pró-Cotista + MCMV (se elegível) + SBPE (sempre),
 // cada um deles agora expandido em uma Comparação de Cenários (SAC/PRICE) via
@@ -647,6 +679,10 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   const cfg = BANCOS_CONFIG['caixa']
   const criteriaBase = resolverCriterios('caixa', overrides)
   const results: ResultadoBanco[] = []
+
+  // Entrada ajustada para PRICE (se necessário) é a mesma em todos os programas — LTV não
+  // é sobrescrito por Pró-Cotista/MCMV, só taxaAnual/programa/seguro.
+  const cenariosCaixa = construirCenariosCaixa(input, criteriaBase)
 
   // Lote urbanizado: apenas SBPE (MO43000271 §3.1.2 — MCMV/Pró-Cotista não contemplam lote isolado)
   // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
@@ -661,7 +697,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
       programa: CAIXA_PRO_COTISTA.programa,
       seguro: { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } },
     }
-    gerarCenariosComparativos(results, cfg, criteriaProCotista, input, 'caixa-procotista', CENARIOS_CAIXA)
+    gerarCenariosComparativos(results, cfg, criteriaProCotista, input, 'caixa-procotista', cenariosCaixa)
   }
 
   // MCMV (se renda e imóvel se enquadram)
@@ -682,12 +718,12 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
           ? { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } }
           : criteriaBase.seguro,
       }
-      gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', CENARIOS_CAIXA)
+      gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', cenariosCaixa)
     }
   }
 
   // SBPE — sempre presente como alternativa (é o próprio critério base, sem variação pontual)
-  gerarCenariosComparativos(results, cfg, criteriaBase, input, 'caixa-sbpe', CENARIOS_CAIXA)
+  gerarCenariosComparativos(results, cfg, criteriaBase, input, 'caixa-sbpe', cenariosCaixa)
 
   return results
 }
@@ -816,7 +852,13 @@ export function simularTodosBancos(
       : { ...inputNorm, tipoAmortizacao: amortizacaoDoBanco }
 
     if (id === 'caixa') {
-      todos.push(...simularCaixaDuplo(inputNorm, ov, op).map(r => ({ ...r, observacao })))
+      // Não sobrescrever: cada cenário da Caixa pode já ter sua própria observação (ex.:
+      // aviso de entrada ajustada para PRICE, ver construirCenariosCaixa) — combina com a
+      // observação de modalidade em vez de substituí-la.
+      todos.push(...simularCaixaDuplo(inputNorm, ov, op).map(r => ({
+        ...r,
+        observacao: [r.observacao, observacao].filter(Boolean).join(' ') || undefined,
+      })))
     } else {
       todos.push({ ...simularBanco(id, inputBanco, ov), observacao })
     }

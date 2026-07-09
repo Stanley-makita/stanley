@@ -161,8 +161,12 @@ describe('PRICE com bancos sem suporte', () => {
 // ─── 5. SAC explícito ────────────────────────────────────────────────────────
 
 describe('SAC explícito', () => {
-  it('todos os bancos simulam SAC corretamente', () => {
-    const idsSac = TODOS_BANCOS.filter((id) => id !== 'daycoval') // Daycoval = CGI, prazo diferente
+  it('todos os bancos (exceto Caixa) simulam SAC corretamente', () => {
+    // Caixa é excluída deste check de propósito: ela sempre tenta SAC e PRICE
+    // simultaneamente, ignorando o tipoAmortizacao pedido (ver construirCenariosCaixa) —
+    // e PRICE nunca fica inelegível por LTV para ela (a entrada é ajustada para cima em
+    // vez de rejeitar), então sempre aparece um resultado PRICE ao lado do SAC.
+    const idsSac = TODOS_BANCOS.filter((id) => id !== 'daycoval' && id !== 'caixa')
     const input: InputFinanciamento = {
       ...BASE_INPUT,
       tipoAmortizacao: 'SAC',

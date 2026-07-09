@@ -319,11 +319,28 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
     expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(tetoPrice)
   })
 
-  it('só um sistema elegível (PRICE excede LTV 70%, SAC dentro de 80%): PRICE fica totalmente ausente', () => {
+  it('entrada informada não atinge o teto do PRICE (70%): entrada é ajustada para cima, PRICE não fica ausente', () => {
+    // Calibração jul/2026: o simulador oficial da Caixa NUNCA rejeita PRICE por LTV — ele
+    // recalcula a entrada/financiado para caber exatamente no teto de 70%, em vez de
+    // declarar inelegível (comportamento anterior deste teste, já descontinuado).
     const resultados = simularTodosBancosNovo({ ...BASE_INPUT, valorImovel: 500_000, valorEntrada: 120_000 })
     const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
-    expect(porId.get('caixa-sbpe-sac')?.elegivel).toBe(true)
-    expect(porId.has('caixa-sbpe-price')).toBe(false) // omitido por completo, não aparece nem como inelegível
+    const sac = porId.get('caixa-sbpe-sac')
+    const price = porId.get('caixa-sbpe-price')
+    expect(sac?.elegivel).toBe(true)
+    expect(sac?.valorFinanciado).toBeCloseTo(500_000 - 120_000, 6) // SAC usa a entrada informada, sem ajuste
+    expect(price?.elegivel).toBe(true)
+    expect(price?.valorFinanciado).toBeCloseTo(500_000 * 0.70, 6) // PRICE: entrada ajustada para 150_000 (30%)
+    expect(price?.observacao).toContain('Entrada ajustada')
+  })
+
+  it('entrada informada já atinge o teto do PRICE (70%): não ajusta nem anota observação', () => {
+    const resultados = simularTodosBancosNovo({ ...BASE_INPUT, valorImovel: 500_000, valorEntrada: 150_000 })
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+    const price = porId.get('caixa-sbpe-price')
+    expect(price?.elegivel).toBe(true)
+    expect(price?.valorFinanciado).toBeCloseTo(350_000, 6)
+    expect(price?.observacao ?? '').not.toContain('Entrada ajustada')
   })
 
   it('outros bancos continuam com exatamente 1 resultado, idêntico ao motor antigo', () => {

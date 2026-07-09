@@ -90,6 +90,9 @@ export interface CenarioComparativo {
   sufixoId: string
   /** patch aplicado sobre o InputFinanciamento base antes de chamar o motor */
   patchInput: Partial<InputFinanciamento>
+  /** nota exibida no PDF/WhatsApp quando este cenário específico for elegível (ex.: aviso
+   * de que a entrada foi ajustada para caber no teto de LTV da modalidade) */
+  observacaoExtra?: string
 }
 
 export interface SimulationCriteria {
