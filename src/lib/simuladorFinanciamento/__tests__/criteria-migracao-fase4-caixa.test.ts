@@ -228,35 +228,81 @@ describe('Fase 4 — Caixa: LTV de imóvel usado (sem penalidade — confirmado 
   })
 
   // Caso-âncora real: simulador oficial da Caixa, 2026-07-07 — SBPE, imóvel usado,
-  // com relacionamento, R$430.000, renda R$15.971,82, nascimento 04/08/1995, Maringá-PR.
-  // SAC: cota 80%, prazo 420, entrada R$86.000, financiado R$344.000, 1ª R$3.985,59,
-  // última R$851,38. PRICE: cota 70%, prazo 360, entrada R$129.000, financiado
-  // R$301.000, 1ª R$2.890,86, última R$2.833,58. Tolerância de R$5 (dentro de 95-98%
-  // de precisão pedido) — o motor não precisa bater ao centavo, os campos de seguro/
-  // tarifa já são calibração empírica, não fórmula oficial publicada.
-  it('caso-âncora real: SAC bate com o simulador oficial dentro de R$5', () => {
+  // COM relacionamento (correntista), R$430.000, renda R$15.971,82, nascimento
+  // 04/08/1995, Maringá-PR. SAC: cota 80%, prazo 420, entrada R$86.000, financiado
+  // R$344.000, 1ª R$3.985,59, última R$851,38. PRICE: cota 70%, prazo 360, entrada
+  // R$129.000, financiado R$301.000, 1ª R$2.890,86, última R$2.833,58.
+  //
+  // A investigação de jul/2026 (12 simulações novas, R$450k, idades 25/30/45 × SAC/PRICE
+  // × com/sem relacionamento) provou que o seguro NÃO varia por relacionamento — a
+  // hipótese anterior (que motivou uma tolerância alargada aqui) vinha de um bug real e
+  // separado: `taxaAnualCorrentista` da Caixa estava em 0.1119 (Bonificação 2, exige
+  // crédito salário/débito automático) em vez de 0.1129 (Bonificação 1, só
+  // "relacionamento: Sim" — o cenário real testado aqui). Corrigidos os dois problemas
+  // (MIP ≤30 e a taxa correntista), este caso bate a poucos centavos — tolerância voltou
+  // a ser apertada.
+  // `usaFgts: false` em todos os casos-âncora desta seção: as simulações oficiais
+  // responderam "Não" para "possui 3 anos de trabalho sob regime do FGTS" — sem isso,
+  // `simularBanco` aplicava Pró-Cotista (8,66%) para qualquer imóvel ≤ CAIXA_PRO_COTISTA.
+  // maxValorImovel (500k desde a correção de jul/2026), ignorando elegibilidade real de
+  // FGTS — bug agora corrigido em `engine.ts` (`simularBanco`, branch Pró-Cotista, alinhado
+  // com a checagem que `simularCaixaDuplo`/produção já fazia).
+  it('caso-âncora real: SAC bate com o simulador oficial dentro de R$1', () => {
     const r = simularBancoNovo('caixa', {
       valorImovel: 430_000, valorEntrada: 86_000, dataNascimento: '1995-08-04',
-      rendaMensal: 15_971.82, tipoAmortizacao: 'SAC', correntista: true,
+      rendaMensal: 15_971.82, tipoAmortizacao: 'SAC', correntista: true, usaFgts: false,
       bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
     })
     expect(r.elegivel).toBe(true)
     expect(r.parcelas).toBe(420)
-    expect(r.primeiraParcela).toBeCloseTo(3985.59, -1) // tolerância R$5 (diff real: R$1,21)
-    expect(r.ultimaParcela).toBeCloseTo(851.38, -1)    // tolerância R$5 (diff real: R$0,06)
+    expect(r.primeiraParcela).toBeCloseTo(3985.59, 0) // diff real: R$0,02
+    expect(r.ultimaParcela).toBeCloseTo(851.38, 0)    // diff real: R$0,00
   })
 
-  it('caso-âncora real: PRICE bate com o simulador oficial dentro de R$50', () => {
+  it('caso-âncora real: PRICE bate com o simulador oficial dentro de R$1', () => {
     const r = simularBancoNovo('caixa', {
       valorImovel: 430_000, valorEntrada: 129_000, dataNascimento: '1995-08-04',
-      rendaMensal: 15_971.82, tipoAmortizacao: 'PRICE', correntista: true,
+      rendaMensal: 15_971.82, tipoAmortizacao: 'PRICE', correntista: true, usaFgts: false,
       bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
     })
     expect(r.elegivel).toBe(true)
     expect(r.parcelas).toBe(360)
-    expect(r.primeiraParcela).toBeCloseTo(2890.86, -1) // tolerância R$5 (diff real: R$1,18)
-    expect(r.ultimaParcela).toBeCloseTo(2833.58, -2)   // tolerância R$50 (diff real: R$20,49)
+    expect(r.primeiraParcela).toBeCloseTo(2890.86, 0) // diff real: R$0,01
+    expect(r.ultimaParcela).toBeCloseTo(2833.58, 0)   // diff real: R$0,01
   })
+
+  // Dataset de calibração jul/2026: 12 simulações reais no caixa.gov.br, mesmo imóvel
+  // (R$450.000, usado, Maringá-PR, renda R$15.981,82), cruzando idade (25/30/45) ×
+  // sistema (SAC/PRICE) × relacionamento (com/sem) — todas na coluna "Caixa Residencial
+  // Habitacional". Usado pra recalibrar CAIXA_MIP_RATES (faixas ≤25/≤30/≤45) e corrigir
+  // taxaAnualCorrentista (0.1119 → 0.1129). Batem a 1-2 centavos em todos os 12 casos.
+  const CASOS_450K = [
+    { nome: 'idade 25, SAC, sem relacionamento',  dataNascimento: '2001-08-04', tipoAmortizacao: 'SAC' as const,   correntista: false, oficial1a: 4223.09, oficialUlt: 889.94 },
+    { nome: 'idade 25, SAC, com relacionamento',  dataNascimento: '2001-08-04', tipoAmortizacao: 'SAC' as const,   correntista: true,  oficial1a: 4168.73, oficialUlt: 889.81 },
+    { nome: 'idade 25, PRICE, sem relacionamento', dataNascimento: '2001-08-04', tipoAmortizacao: 'PRICE' as const, correntista: false, oficial1a: 3066.18, oficialUlt: 3007.19 },
+    { nome: 'idade 25, PRICE, com relacionamento', dataNascimento: '2001-08-04', tipoAmortizacao: 'PRICE' as const, correntista: true,  oficial1a: 3023.20, oficialUlt: 2964.21 },
+    { nome: 'idade 30, SAC, sem relacionamento',  dataNascimento: '1996-08-04', tipoAmortizacao: 'SAC' as const,   correntista: false, oficial1a: 4224.17, oficialUlt: 889.94 },
+    { nome: 'idade 30, SAC, com relacionamento',  dataNascimento: '1996-08-04', tipoAmortizacao: 'SAC' as const,   correntista: true,  oficial1a: 4169.81, oficialUlt: 889.81 },
+    { nome: 'idade 30, PRICE, sem relacionamento', dataNascimento: '1996-08-04', tipoAmortizacao: 'PRICE' as const, correntista: false, oficial1a: 3067.13, oficialUlt: 3007.19 },
+    { nome: 'idade 30, PRICE, com relacionamento', dataNascimento: '1996-08-04', tipoAmortizacao: 'PRICE' as const, correntista: true,  oficial1a: 3024.15, oficialUlt: 2964.21 },
+    { nome: 'idade 45, SAC, sem relacionamento',  dataNascimento: '1981-08-04', tipoAmortizacao: 'SAC' as const,   correntista: false, oficial1a: 4280.33, oficialUlt: 889.94 },
+    { nome: 'idade 45, SAC, com relacionamento',  dataNascimento: '1981-08-04', tipoAmortizacao: 'SAC' as const,   correntista: true,  oficial1a: 4225.97, oficialUlt: 889.81 },
+    { nome: 'idade 45, PRICE, sem relacionamento', dataNascimento: '1981-08-04', tipoAmortizacao: 'PRICE' as const, correntista: false, oficial1a: 3116.27, oficialUlt: 3007.19 },
+    { nome: 'idade 45, PRICE, com relacionamento', dataNascimento: '1981-08-04', tipoAmortizacao: 'PRICE' as const, correntista: true,  oficial1a: 3073.29, oficialUlt: 2964.21 },
+  ]
+
+  for (const c of CASOS_450K) {
+    it(`caso-âncora real (R$450k): ${c.nome} bate dentro de R$1`, () => {
+      const r = simularBancoNovo('caixa', {
+        valorImovel: 450_000, valorEntrada: c.tipoAmortizacao === 'SAC' ? 90_000 : 135_000,
+        dataNascimento: c.dataNascimento, rendaMensal: 15_981.82, tipoAmortizacao: c.tipoAmortizacao,
+        correntista: c.correntista, usaFgts: false, bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
+      })
+      expect(r.elegivel).toBe(true)
+      expect(r.primeiraParcela).toBeCloseTo(c.oficial1a, 0)
+      expect(r.ultimaParcela).toBeCloseTo(c.oficialUlt, 0)
+    })
+  }
 })
 
 // Caso-âncora real usado para calibrar a faixa jovem (≤30 anos) de CAIXA_MIP_RATES —

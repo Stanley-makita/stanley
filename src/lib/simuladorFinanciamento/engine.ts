@@ -577,7 +577,7 @@ export function simularBanco(
   if (bancoId === 'caixa') {
     const criteriaBase = resolverCriterios('caixa', overrides)
     let criteria: SimulationCriteria = criteriaBase
-    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel) {
+    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
       criteria = {
         ...criteriaBase,
         taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,

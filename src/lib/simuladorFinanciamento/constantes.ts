@@ -28,7 +28,13 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     cor: '#003087',
     corTexto: '#ffffff',
     taxaAnualBase:        0.1149, // 11,49% a.a. + TR (balcão)
-    taxaAnualCorrentista: 0.1119, // 11,19% a.a. + TR (c/ débito auto + salário domiciliado)
+    // 11,29% a.a. + TR = Bonificação 1 (só "relacionamento: Sim", sem crédito salário/débito
+    // automático) — confirmado jul/2026 por 6 simulações reais no caixa.gov.br (idades
+    // 25/30/45 × SAC/PRICE, "Você tem ou gostaria de ter relacionamento? Sim" +
+    // "crédito salário ou Previdência? Não"). O valor antigo (0.1119) era na verdade
+    // Bonificação 2, que exige crédito salário/débito automático — requisito extra ainda
+    // não modelado como campo de input separado (hoje o flag `correntista` é único).
+    taxaAnualCorrentista: 0.1129,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -144,22 +150,35 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
 
 // Caixa — MIP tabela oficial (alíquota mensal sobre SD)
 // Faixa ≤50 = 0.000386 verificado no simulador caixa.gov.br (DOB 19/02/1979, R$400k, junho/2026)
-// Faixa ≤30 = 0.000168 verificado no simulador caixa.gov.br (DOB 04/08/1995, R$430k, imóvel
-// usado, correntista, junho/2026 — ver caso-âncora "LTV de imóvel usado" nos testes).
-// Faixa ≤25 = 0.000093 verificado no simulador caixa.gov.br (DOB 10/10/2000, imóvel R$1,2M,
-// financiado R$850k, SAC 420m, julho/2026) — taxa implícita reconstruída a partir da 1ª
-// parcela oficial (R$9.946,23) descontando amortização+juros+DFI+tarifa, que não dependem
-// de idade (confirmado pela última parcela batendo exatamente com o simulador oficial).
-// As faixas ≤25 e ≤30 têm taxas bem diferentes entre si (0.000093 vs 0.000168) apesar de
-// ambas estarem dentro do que se assumia ser uma única faixa "18-30" — ou seja, a Caixa
-// discrimina mais fino nas idades baixas do que as faixas de 5 anos usadas do meio pra
-// frente da tabela. Faixas 35 e 40 mantidas do módulo de referência — ainda sem dado real.
+// Faixas 35 e 40 mantidas do módulo de referência — ainda sem dado real (ver nota de
+// monotonicidade abaixo).
+//
+// Faixas ≤25/≤30/≤45 recalibradas em jul/2026 com um dataset limpo: 12 simulações reais
+// no caixa.gov.br, mesmo imóvel (R$450k, usado, Maringá-PR), cruzando idade (25/30/45) ×
+// sistema (SAC/PRICE) × relacionamento (com/sem), sempre coluna "Caixa Residencial
+// Habitacional". Isolando o MIP+DFI da 1ª parcela via PRICE (que não exige nenhuma taxa de
+// juros assumida — basta 1ªParcela − últimaParcela, já que a última não tem seguro), as
+// 4 combinações (SAC/PRICE × com/sem) deram resultados idênticos por idade (58,99 / 59,94 /
+// 109,08 respectivamente para 25/30/45, com e sem relacionamento) — ou seja,
+// **relacionamento NÃO afeta o seguro**. A hipótese anterior (que sugeria variar por
+// relacionamento) vinha de um bug real e separado, também corrigido nesta sessão:
+// `taxaAnualCorrentista` estava em 0.1119 (Bonificação 2) em vez de 0.1129 (Bonificação 1,
+// o cenário real de "relacionamento: Sim" sem crédito salário) — ver o campo em
+// `BANCOS_CONFIG.caixa` abaixo. Com DFI fixo em 0.000066 sobre valor do imóvel
+// (R$450k → R$29,70/mês), os MIPs implícitos batem em números redondos: ≤25 = 0.000093
+// (idêntico ao já confirmado por outro caso-âncora, R$1,2M/idade 25/jul-2026), ≤30 =
+// 0.000096, ≤45 = 0.000252. Com os dois bugs corrigidos, todos os 12 casos batem a
+// 1-2 centavos (ver `criteria-migracao-fase4-caixa.test.ts`).
+//
+// ⚠️ Monotonicidade: com ≤45 caindo pra 0.000252, ficou MENOR que ≤40 (0.000264, valor
+// antigo nunca confirmado por caso real) — não ajustado aqui por falta de dado, mas é
+// evidência de que 35/40 também estão superestimados e precisam de simulação real.
 export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
   { maxAge: 25,  taxa: 0.000093 },
-  { maxAge: 30,  taxa: 0.000168 },
+  { maxAge: 30,  taxa: 0.000096 },
   { maxAge: 35,  taxa: 0.000204 },
   { maxAge: 40,  taxa: 0.000264 },
-  { maxAge: 45,  taxa: 0.000348 },
+  { maxAge: 45,  taxa: 0.000252 },
   { maxAge: 50,  taxa: 0.000386 },
   { maxAge: 55,  taxa: 0.000636 },
   { maxAge: 60,  taxa: 0.000900 },
@@ -253,18 +272,45 @@ export const ITAU_MIP_P2: Record<number, number> = {
 // Fonte: Portaria MCID n° 333/2026, caixanoticias, infomoney, gov.br
 // mipSubsidizado: Faixas 1-3 usam MIP_RATE_MCMV; Faixa 4 usa MIP normal (produto SBPE com juros reduzidos)
 // mipSubsidizado: Faixas 1-3 e Classe Média usam MIP_RATE_MCMV (seguro subsidiado Caixa)
-// Classe Média calibrado do simulador oficial Caixa: P=400k/420mo/8%aa → 1ª parcela R$3.565
+//
+// Classe Média corrigido em jul/2026: era 0.0800 (calibração antiga, fonte não documentada
+// com precisão — "P=400k/420mo/8%aa"), confirmado ERRADO contra o normativo oficial
+// MO30824 v040 §6.5 ("parametros mcmv.pdf"), que traz 10,00% nominal / 10,47% efetiva —
+// mesma fonte que já havia sido documentada em base-criterios-caixa.md numa sessão
+// anterior, mas nunca propagada pro código. Usado o valor EFETIVO (0.1047), consistente
+// com a convenção do restante do arquivo (taxaAnualBase/Correntista também são efetivas,
+// convertidas via `taxaAnualParaMensal` = (1+taxaAnual)^(1/12)-1).
+//
+// ⚠️ Pendência (decisão do usuário, jul/2026): Faixas 1/2/3 NÃO foram atualizadas nesta
+// rodada. O normativo mostra que a taxa real varia por 4 dimensões — faixa de renda (7
+// sub-faixas, não as 4 usadas aqui), região (N/NE vs CO/S/SE), elegibilidade a desconto
+// FGTS, e redutor de 0,5% (≥3 anos FGTS) — nenhuma dessas é capturada pelo modelo atual
+// (`rendaMax`+`taxaAnual` fixo). Os valores hoje (4%/6,5%/7,66%) batem com combinações
+// "com desconto" específicas do normativo, não com a taxa geral. Reconstrução completa
+// (novos campos de input: região, elegibilidade a desconto, redutor) fica para uma sessão
+// futura — decisão explícita de não fazer isso agora, escopo grande demais pra este ciclo.
 export const MCMV_FAIXAS: Array<{ rendaMax: number; taxaAnual: number; programa: string; tetoImovel: number; mipSubsidizado: boolean }> = [
   { rendaMax: 3_200,  taxaAnual: 0.0400, programa: 'MCMV Faixa 1', tetoImovel: 270_000,  mipSubsidizado: true },
   { rendaMax: 5_000,  taxaAnual: 0.0650, programa: 'MCMV Faixa 2', tetoImovel: 350_000,  mipSubsidizado: true },
   { rendaMax: 9_600,  taxaAnual: 0.0766, programa: 'MCMV Faixa 3', tetoImovel: 400_000,  mipSubsidizado: true },
-  { rendaMax: 13_000, taxaAnual: 0.0800, programa: 'MCMV Classe Média', tetoImovel: 600_000, mipSubsidizado: true },
+  { rendaMax: 13_000, taxaAnual: 0.1047, programa: 'MCMV Classe Média', tetoImovel: 600_000, mipSubsidizado: true },
 ]
 
-// Caixa Pró-Cotista FGTS (imóveis até R$350k, mín. 36 meses FGTS)
+// Caixa Pró-Cotista FGTS (imóveis até R$500k, mín. 36 meses FGTS)
+// maxValorImovel corrigido em jul/2026: 350_000 → 500_000, confirmado pelo normativo
+// MO30824 v040 §5.2/5.4 ("parametros mcmv.pdf") — "enquadramento ... limitado a
+// R$500.000,00". O valor 350k era uma discrepância já registrada (sem resolução) em
+// base-criterios-caixa.md; o R$300.000 que aparece no documento como "financiamento
+// máximo" é 60% de 500k (a quota, não o teto de valor do imóvel) — conceito diferente,
+// não confundir os dois.
+// ⚠️ Pendência não corrigida nesta rodada: a quota máxima do Pró-Cotista é 60% (SAC e
+// SFA/TP, tabela §5.4) — hoje o código não sobrescreve o LTV pro Pró-Cotista, ele herda o
+// LTV do SBPE (80%/70%), então o teto de financiamento efetivo pode ficar maior que o
+// real. Precisa de um campo de LTV próprio no critério do Pró-Cotista (mudança de
+// arquitetura pequena, mas não feita agora — fora do escopo combinado desta sessão).
 export const CAIXA_PRO_COTISTA = {
   taxaAnual: 0.0866,   // 8,66% a.a. + TR
-  maxValorImovel: 350_000,
+  maxValorImovel: 500_000,
   programa: 'Pró-Cotista FGTS',
 }
 
