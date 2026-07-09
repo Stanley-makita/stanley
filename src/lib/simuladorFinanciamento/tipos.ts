@@ -27,6 +27,15 @@ export interface InputFinanciamento {
   // não porque a renda real é zero). undefined é tratado como true (renda informada) —
   // preserva o comportamento do formulário manual do simulador, que sempre informa renda.
   rendaInformada?: boolean
+  // true quando o pedido foi "financiando valor máximo" (motor-simulacao.ts,
+  // autoDerivarEntradaFinanciado) — sinaliza pro motor da Caixa que `valorEntrada` não é
+  // um valor fixo informado pelo cliente, e sim uma estimativa. Cada programa (SBPE/
+  // Pró-Cotista/MCMV) deve então recalcular sua PRÓPRIA entrada mínima (LTV+renda), em vez
+  // de compartilhar a entrada derivada pro programa mais barato — ver
+  // `construirCenariosCaixa`. Sem isso, um cliente que se enquadra no MCMV (LTV mais
+  // apertado) tinha a entrada derivada pro MCMV aplicada também ao SBPE (LTV mais frouxo),
+  // subestimando o financiamento real do SBPE.
+  financiandoValorMaximo?: boolean
   // true quando a idade usada no cálculo não veio de uma data de nascimento completa e
   // confirmada (ex.: cliente informou só "32 anos", ou "prazo máximo" foi pedido sem
   // nascimento e o Motor assumiu uma idade compatível). Prazo, parcela e elegibilidade

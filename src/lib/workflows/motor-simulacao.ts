@@ -210,13 +210,16 @@ export async function executarSimulacao(
 
   // Modo NORMAL — cobre: simulação direta, e "valor máximo financiamento" quando há
   // imóvel de referência (financiado auto-derivado para o teto de LTV/renda).
+  let financiandoValorMaximo = false
   if (dados.valor_entrada === null && dados.valor_financiado === null && dados.valor_imovel !== null) {
     autoDerivarEntradaFinanciado(dados, bancosIds)
+    financiandoValorMaximo = true
   } else if (dados.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA' && dados.valor_imovel !== null) {
     // Financiado/entrada já vieram informados, mas o pedido é pelo máximo — recalcula ignorando-os.
     dados.valor_entrada = null
     dados.valor_financiado = null
     autoDerivarEntradaFinanciado(dados, bancosIds, { ignorarRenda: true })
+    financiandoValorMaximo = true
   }
 
   // Prazo customizado via override (não aplica quando "prazo máximo" foi pedido — usa o teto do banco)
@@ -253,6 +256,7 @@ export async function executarSimulacao(
     // acabava oferecido o Pró-Cotista por engano. `dados.usa_fgts` já é sempre um boolean
     // definitivo (nunca null/undefined), então repassar direto basta.
     usaFgts:         dados.usa_fgts,
+    financiandoValorMaximo,
   }
 
   const bancosResult = simularTodosBancos(input, overrides)

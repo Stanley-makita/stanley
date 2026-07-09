@@ -80,3 +80,27 @@ describe('financiando valor máximo — entrada correta pro programa real (MCMV 
     expect(mcmvSac?.valorFinanciado).toBeCloseTo(270_000, 6)
   })
 })
+
+// Segundo bug real, achado comparando a MESMA resposta com o SBPE testado separado no
+// simulador oficial: o SBPE, na comparação, herdava a entrada derivada pro MCMV
+// (R$180.000, teto de 60%) em vez de maximizar sua PRÓPRIA cota (70% PRICE). Corrigido
+// com `input.financiandoValorMaximo` (tipos.ts) + `construirCenariosCaixa` (engine.ts):
+// cada programa agora recalcula sua entrada máxima independentemente.
+describe('financiando valor máximo — cada programa maximiza sua própria entrada (SBPE vs. MCMV)', () => {
+  it('caso-âncora real: SBPE PRICE usa seu próprio teto de 70% (R$315.000), não os 60% do MCMV', async () => {
+    const dados = baseDados({})
+    const resultado = await executarSimulacao(dados, {})
+    const porId = new Map((resultado.bancosResult ?? []).map((r) => [r.resultadoId, r]))
+
+    const sbpePrice = porId.get('caixa-sbpe-price')
+    expect(sbpePrice?.elegivel).toBe(true)
+    expect(sbpePrice?.programa).toBe('SBPE')
+    expect(sbpePrice?.valorFinanciado).toBeCloseTo(315_000, 6) // 70% de 450k
+    // Oficial: 1ª R$3.067,13, última R$3.007,19 — bate a poucos centavos.
+    expect(sbpePrice?.primeiraParcela).toBeCloseTo(3067.13, 0)
+    expect(sbpePrice?.ultimaParcela).toBeCloseTo(3007.19, 0)
+
+    const mcmvPrice = porId.get('caixa-mcmv-price')
+    expect(mcmvPrice?.valorFinanciado).toBeCloseTo(270_000, 6) // continua no seu próprio 60%
+  })
+})

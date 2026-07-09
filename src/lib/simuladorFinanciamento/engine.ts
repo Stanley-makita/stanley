@@ -727,7 +727,56 @@ function gerarCenariosComparativos(
 // caber exatamente no teto, em vez de declarar inelegível. Sem isso, PRICE ficaria
 // "impossível na prática" sempre que o comercial informasse uma entrada pensada para SAC
 // (teto 80%), que quase nunca atinge os 30% mínimos do PRICE.
+//
+// `input.financiandoValorMaximo` (jul/2026): quando o pedido é "financiando valor máximo",
+// cada PROGRAMA (SBPE/Pró-Cotista/MCMV) maximiza sua própria entrada — pros dois sistemas,
+// não só o PRICE. Sem isso, `autoDerivarEntradaFinanciado` (motor-simulacao.ts) deriva UMA
+// entrada baseada no programa mais barato (geralmente o de LTV mais apertado, ex.: MCMV
+// Classe Média usado, 60%) e essa mesma entrada era aplicada também ao SBPE (LTV mais
+// frouxo, 70%/80%) — subestimando o financiamento real do SBPE. Bug real encontrado
+// testando o cenário do usuário (SBPE mostrava financiado R$270k com a entrada do MCMV,
+// quando o teto real do SBPE pra aquele imóvel seria R$315k).
 function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationCriteria): CenarioComparativo[] {
+  const penalidadeUsado = (criteria.ltv.penalidadeImovelUsado && input.tipoImovel === 'usado')
+    ? criteria.ltv.penalidadeImovelUsado
+    : 0
+
+  if (input.financiandoValorMaximo) {
+    // Estima a entrada mínima que maximiza o financiado pra este critério — mesma lógica
+    // de `autoDerivarEntradaFinanciado` (LTV × renda, o mais restritivo vence), só que
+    // aplicada ao LTV do PROGRAMA sendo montado (não um valor genérico do banco). Usa SAC
+    // como proxy pro cálculo de capacidade por renda nos dois sistemas (mesma simplificação
+    // já usada em `autoDerivarEntradaFinanciado` — é só uma estimativa de teto, a parcela
+    // real de cada sistema é calculada depois por `simularComCriterios`).
+    const entradaMaxima = (ltv: number, prazo: number): number => {
+      const maxByLtv = Math.round(input.valorImovel * ltv * 100) / 100
+      let maxByRenda = input.valorImovel
+      if (input.rendaInformada !== false && input.rendaMensal > 0) {
+        const taxaMensal = taxaAnualParaMensalPorMetodo(criteria.taxaAnualBase, criteria.metodoConversaoTaxa)
+        const mip = getMipRate(calcularIdadeEmAnos(input.dataNascimento))
+        maxByRenda = calcularMaxFinanciavel(input.rendaMensal, input.valorImovel, taxaMensal, prazo, mip)
+      }
+      const financiadoMax = Math.max(0, Math.min(maxByLtv, maxByRenda, input.valorImovel))
+      return Math.round((input.valorImovel - financiadoMax) * 100) / 100
+    }
+
+    const prazoSac = criteria.prazoMaximoMeses
+    const entradaSac = entradaMaxima(criteria.ltv.sac - penalidadeUsado, prazoSac)
+    const cenarios: CenarioComparativo[] = [
+      { sufixoId: 'sac', patchInput: { tipoAmortizacao: 'SAC', valorEntrada: entradaSac } },
+    ]
+
+    if (criteria.ltv.price == null) {
+      cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE', valorEntrada: entradaSac } })
+      return cenarios
+    }
+
+    const prazoPrice = criteria.prazoMaximoMesesPrice ?? criteria.prazoMaximoMeses
+    const entradaPrice = entradaMaxima(criteria.ltv.price - penalidadeUsado, prazoPrice)
+    cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE', valorEntrada: entradaPrice } })
+    return cenarios
+  }
+
   const cenarios: CenarioComparativo[] = [{ sufixoId: 'sac', patchInput: { tipoAmortizacao: 'SAC' } }]
 
   if (criteria.ltv.price == null) {
@@ -741,9 +790,6 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
   // deixando o PRICE inelegível por LTV mesmo devendo ser sempre ajustável (ver comentário
   // da função). Bug real encontrado testando o cenário exato do usuário (Classe Média,
   // imóvel usado, região Sul — teto de 60%, não 80%).
-  const penalidadeUsado = (criteria.ltv.penalidadeImovelUsado && input.tipoImovel === 'usado')
-    ? criteria.ltv.penalidadeImovelUsado
-    : 0
   const maxLtvPrice = criteria.ltv.price - penalidadeUsado
 
   // Arredonda ao centavo antes de comparar — "1 - maxLtvPrice" (ex. 1 - 0.7) pode gerar
