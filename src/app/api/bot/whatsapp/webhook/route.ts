@@ -541,6 +541,72 @@ export async function POST(request: NextRequest) {
         if (resposta !== null) {
           await enviarMensagemUazapi(telefone, resposta)
         }
+      } else if (isMidia && fileUrl) {
+        // Mídia solta, sem pendência de simulação ativa: só persiste se houver uma sessão
+        // *fonti inicio* aberta pra este telefone (fonti_marcas) — é o sinal explícito de
+        // "documentos do cliente virão a seguir, feche depois com *cria cliente". Sem essa
+        // marca, ignora (evita salvar qualquer mídia solta enviada ao número do bot).
+        //
+        // Bug corrigido jul/2026: antes deste bloco, mídia enviada aqui (ex.: PDFs/fotos
+        // do cliente logo após *inicio) era baixada do Uazapi (`fileUrl` acima) e depois
+        // simplesmente descartada — nunca chegava a `documentos`, então o `*cria cliente`
+        // não tinha nada pra vincular (etapa 5 de workflow-captacao.ts já sabia procurar
+        // por `pessoa_id` + janela de `fonti_marcas.iniciado_at`, mas nunca havia doc
+        // salvo com esse pessoa_id pra encontrar).
+        const { data: marcaAtiva } = await supabase
+          .from('fonti_marcas')
+          .select('iniciado_at')
+          .eq('empresa_id', empresa_id)
+          .eq('telefone_conversa', telefone)
+          .maybeSingle()
+
+        if (marcaAtiva) {
+          try {
+            const pessoaIdDoc = await buscarOuCriarPessoa(empresa_id, telefone, nomeContato ?? 'Cliente')
+
+            const { data: convExistente } = await supabase
+              .from('conversas')
+              .select('id')
+              .eq('empresa_id', empresa_id)
+              .eq('canal', 'whatsapp')
+              .eq('contato_telefone', telefone)
+              .maybeSingle()
+
+            let conversaIdDoc = convExistente?.id as string | undefined
+            if (!conversaIdDoc) {
+              const { data: novaConv } = await supabase
+                .from('conversas')
+                .insert({
+                  empresa_id,
+                  canal: 'whatsapp',
+                  contato_telefone: telefone,
+                  contato_nome: nomeContato ?? null,
+                  pessoa_id: pessoaIdDoc,
+                  status: 'humano',
+                  bot_ativo: false,
+                  instancia_id: instancia_id ?? undefined,
+                })
+                .select('id')
+                .single()
+              conversaIdDoc = novaConv?.id
+            } else {
+              await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
+            }
+
+            if (conversaIdDoc) {
+              await salvarDocumentoCliente({
+                empresa_id,
+                pessoa_id: pessoaIdDoc,
+                conversa_id: conversaIdDoc,
+                fileUrl,
+                fileName: mediaContent?.fileName ?? null,
+                mimeType: mediaContent?.mimetype ?? null,
+              })
+            }
+          } catch (err) {
+            console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
+          }
+        }
       } else {
         // Sem pendência ativa — antes de descartar, verifica se a mensagem tem "cara"
         // de dados de simulação (nome + intenção clara), mesma regra do *cria cliente.
