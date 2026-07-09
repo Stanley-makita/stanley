@@ -211,17 +211,21 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
 // imóvel novo). Testado diretamente (não é mais equivalência contra o baseline, que ainda
 // tem a penalidade antiga).
 describe('Fase 4 — Caixa: LTV de imóvel usado (sem penalidade — confirmado por simulação real)', () => {
+  // `usaFgts: false` nos dois testes abaixo: isola a comparação de LTV do SBPE do efeito
+  // do Pró-Cotista (jul/2026, restrito a imóvel novo — sem isso, o cenário "novo" seria
+  // roteado pro Pró-Cotista, mais barato, e "usado" ficaria no SBPE, quebrando a
+  // equivalência de LTV que este teste quer provar, por um motivo totalmente diferente).
   it('SAC: imóvel usado tem o mesmo teto de 80% que imóvel novo', () => {
-    const usado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 100_000 })
-    const novo  = simularBancoNovo('caixa', { ...BASE_INPUT, tipoImovel: 'novo',  valorEntrada: 100_000 })
+    const usado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoImovel: 'usado', valorEntrada: 100_000, usaFgts: false })
+    const novo  = simularBancoNovo('caixa', { ...BASE_INPUT, tipoImovel: 'novo',  valorEntrada: 100_000, usaFgts: false })
     expect(usado.elegivel).toBe(true)
     expect(usado.valorFinanciado).toBeCloseTo(novo.valorFinanciado, 6)
     expect(usado.primeiraParcela).toBeCloseTo(novo.primeiraParcela, 6)
   })
 
   it('PRICE: imóvel usado tem o mesmo teto de 70% que imóvel novo', () => {
-    const usado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', tipoImovel: 'usado', valorEntrada: 150_000 })
-    const novo  = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', tipoImovel: 'novo',  valorEntrada: 150_000 })
+    const usado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', tipoImovel: 'usado', valorEntrada: 150_000, usaFgts: false })
+    const novo  = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', tipoImovel: 'novo',  valorEntrada: 150_000, usaFgts: false })
     expect(usado.elegivel).toBe(true)
     expect(usado.valorFinanciado).toBeCloseTo(novo.valorFinanciado, 6)
     expect(usado.primeiraParcela).toBeCloseTo(novo.primeiraParcela, 6)

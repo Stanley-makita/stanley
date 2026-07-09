@@ -577,7 +577,10 @@ export function simularBanco(
   if (bancoId === 'caixa') {
     const criteriaBase = resolverCriterios('caixa', overrides)
     let criteria: SimulationCriteria = criteriaBase
-    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
+    // Pró-Cotista Caixa: restrito a imóvel novo — estratégia comercial da Caixa (não é
+    // regra do programa Pró-Cotista em si, que só exige FGTS ativo/10% saldo; confirmado
+    // testando o simulador oficial, jul/2026 — ver mesma checagem em `simularCaixaDuplo`).
+    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false && input.tipoImovel === 'novo') {
       criteria = {
         ...criteriaBase,
         taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,
@@ -688,8 +691,10 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
   const podeMcmvProcotista = op !== 'lote_urbanizado' && input.finalidade !== 'comercial' && !input.jaRecebeuSubsidio
 
-  // Pró-Cotista (imóveis até CAIXA_PRO_COTISTA.maxValorImovel, FGTS 3+ anos)
-  if (podeMcmvProcotista && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
+  // Pró-Cotista (imóveis até CAIXA_PRO_COTISTA.maxValorImovel, FGTS 3+ anos, imóvel novo —
+  // ver nota em `simularBanco` acima: restrição a imóvel novo é estratégia da Caixa, não
+  // regra do programa Pró-Cotista propriamente dito)
+  if (podeMcmvProcotista && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false && input.tipoImovel === 'novo') {
     const criteriaProCotista: SimulationCriteria = {
       ...criteriaBase,
       taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,
