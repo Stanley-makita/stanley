@@ -297,6 +297,34 @@ describe('Fase 4 — Caixa: LTV do MCMV Classe Média em imóvel usado (60% — 
   })
 })
 
+// Seguro (MIP) do MCMV Classe Média: normal por idade (igual ao SBPE), NÃO o subsidiado
+// de baixa renda das Faixas 1-3. Corrigido jul/2026: `MCMV_FAIXAS` tinha
+// `mipSubsidizado: true` pra Classe Média, contradizendo um comentário mais antigo no
+// próprio arquivo ("Faixa 4 usa MIP normal") — e dando um seguro ~40% mais barato que o
+// real. Caso-âncora real: simulador oficial da Caixa, 09/07/2026, renda R$13.000, imóvel
+// R$450.000 usado (Maringá-PR), nascimento 20/02/2000 (idade 26) — última parcela batia
+// exato (juros/amortização corretos), mas a 1ª divergia ~R$21-22 tanto no SAC quanto no
+// PRICE — isolado como sendo 100% o componente de seguro (MIP subsidiado, 0,0000151,
+// dava ~R$34/mês; MIP normal por idade ≤30, 0,000096, mais DFI padrão 0,000066, dá
+// ~R$55/mês — bate com o oficial).
+describe('Fase 4 — Caixa: seguro do MCMV Classe Média é o normal por idade, não o subsidiado', () => {
+  it('caso-âncora real: 1ª parcela bate dentro de R$1 (antes divergia ~R$22)', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 450_000, valorEntrada: 180_000, dataNascimento: '2000-02-20',
+      rendaMensal: 13_000, tipoAmortizacao: 'PRICE', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
+    })
+    const price = resultados.find((r) => r.resultadoId === 'caixa-mcmv-price')
+    const sac = resultados.find((r) => r.resultadoId === 'caixa-mcmv-sac')
+    expect(price?.elegivel).toBe(true)
+    expect(price?.primeiraParcela).toBeCloseTo(2401.02, 0) // oficial: R$2.401,02
+    expect(price?.ultimaParcela).toBeCloseTo(2346.12, 0)   // oficial: R$2.346,12
+    expect(sac?.elegivel).toBe(true)
+    expect(sac?.primeiraParcela).toBeCloseTo(2972.75, 0)   // oficial: R$2.972,75
+    expect(sac?.ultimaParcela).toBeCloseTo(673.21, 0)      // oficial: R$673,21
+  })
+})
+
 // LTV de imóvel usado: a Caixa NÃO reduz a cota máxima para imóvel usado — SAC 80% e
 // PRICE 70%, idênticas às de imóvel novo. Havia uma penalidade de -10pp aqui (herdada do
 // código hardcoded original, sem lastro em normativo — base-criterios-caixa.md seção 13),
