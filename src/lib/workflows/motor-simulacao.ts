@@ -481,9 +481,17 @@ function montarRespostaNormal(
   // Amortização do melhor cenário (resultado vencedor), não o valor global solicitado —
   // pode divergir quando amortizacaoPorBanco está em uso (mesmo ajuste já feito no PDF).
   const amortizacaoCabecalho = elegiveis[0]?.tipoAmortizacao ?? dados.tipo_amortizacao
+  // Entrada do melhor cenário, não `dados.valor_entrada` bruto — corrigido jul/2026:
+  // desde que "financiando valor máximo" recalcula a entrada por programa e por sistema
+  // (cada um com sua própria cota/comprometimento — ver construirCenariosCaixa,
+  // engine.ts), o valor genérico deixou de bater com o resultado realmente exibido
+  // (mesmo ajuste feito no PDF, gerarPDFBuffer.ts). Sem cenário elegível, mantém o bruto.
+  const entradaCabecalho = elegiveis[0]
+    ? dados.valor_imovel! - elegiveis[0].valorFinanciado
+    : dados.valor_entrada!
 
   const linhas: string[] = [
-    `📊 *Simulação — ${fmt.format(dados.valor_imovel!)} | Entrada ${fmt.format(dados.valor_entrada!)}*`,
+    `📊 *Simulação — ${fmt.format(dados.valor_imovel!)} | Entrada ${fmt.format(entradaCabecalho)}*`,
     `${rendaLabel} | ${amortizacaoCabecalho} | ${prazoLabel}`,
   ]
 

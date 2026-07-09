@@ -231,7 +231,16 @@ export async function gerarPDFFinanciamentoBuffer(
   y = drawSectionTitle(doc, 'Dados da Simulação', y, mL, usableW)
 
   const inp = resultado.input
-  const valorFinanciado = inp.valorImovel - inp.valorEntrada
+  // Entrada/financiado exibidos aqui refletem o CENÁRIO VENCEDOR (`melhorBanco`), não o
+  // `inp.valorEntrada` bruto — corrigido jul/2026: desde que "financiando valor máximo"
+  // passou a recalcular a entrada por programa e por sistema (SAC/PRICE, cada um com sua
+  // própria cota/comprometimento — ver `construirCenariosCaixa`, engine.ts),
+  // `inp.valorEntrada` ficou sendo só a estimativa genérica inicial (usada pra rodar a
+  // simulação), que pode não bater com NENHUM resultado específico exibido — confuso pro
+  // usuário ver aqui um número diferente do card "Melhor Cenário" logo acima. Quando não
+  // há cenário elegível (`melhorBanco` undefined), mantém o valor bruto do input.
+  const valorFinanciado = melhorBanco ? melhorBanco.valorFinanciado : (inp.valorImovel - inp.valorEntrada)
+  const valorEntradaExibida = melhorBanco ? (inp.valorImovel - melhorBanco.valorFinanciado) : inp.valorEntrada
 
   let idadeStr = '—'
   if (inp.dataNascimento) {
@@ -244,7 +253,7 @@ export async function gerarPDFFinanciamentoBuffer(
 
   const dadosItems: [string, string][] = [
     ['Valor do Imóvel',  BRL.format(inp.valorImovel)],
-    ['Entrada',          BRL.format(inp.valorEntrada)],
+    ['Entrada',          BRL.format(valorEntradaExibida)],
     ['Valor Financiado', BRL.format(valorFinanciado)],
     ['Renda Mensal',     inp.rendaInformada === false ? 'Não informada' : BRL.format(inp.rendaMensal)],
     // Reflete a amortização do Melhor Cenário (não o valor global solicitado): a Caixa
@@ -499,11 +508,17 @@ export async function gerarPDFFinanciamentoBuffer(
         doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
 
         const rendaMinima = Math.ceil(r.primeiraParcela / 0.30)
+        // Entrada específica DESTE cenário (SAC/PRICE de UM programa), não a entrada
+        // genérica de `resultado.input` — mesmo motivo do fix em "Dados da Simulação"
+        // acima: desde que cada cenário passou a recalcular sua própria entrada
+        // (cota/comprometimento podem diferir entre SAC e PRICE, e entre programas),
+        // `resultado.input.valorEntrada` deixou de bater com o financiado exibido aqui.
+        const entradaCenario = resultado.input.valorImovel - r.valorFinanciado
         const metricas: [string, string][] = [
           ['Prazo',           `${r.parcelas} meses`],
           ['Taxa a.a.',       `${(r.taxaAnual * 100).toFixed(2)}%`],
           ['Valor do Imóvel', BRL.format(resultado.input.valorImovel)],
-          ['Entrada',         BRL.format(resultado.input.valorEntrada)],
+          ['Entrada',         BRL.format(entradaCenario)],
           ['Valor Financiado', BRL.format(r.valorFinanciado)],
           ['1ª Parcela',      BRL.format(r.primeiraParcela)],
           ['Renda mínima',    BRL.format(rendaMinima)],
