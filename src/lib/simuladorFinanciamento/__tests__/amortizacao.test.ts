@@ -64,12 +64,17 @@ describe('PRICE sem banco específico', () => {
 // ─── 2. PRICE com Caixa ──────────────────────────────────────────────────────
 
 describe('PRICE com Caixa', () => {
+  // `usaFgts: false` nos cenários abaixo: BASE_INPUT (imóvel R$500k, novo) cai bem no
+  // teto do Pró-Cotista (CAIXA_PRO_COTISTA.maxValorImovel = 500k) — sem isso, o motor
+  // rotearia pro Pró-Cotista (LTV próprio de 60%, jul/2026), quebrando estes testes de
+  // LTV do SBPE (70%/80%) por um motivo que não tem nada a ver com o que eles verificam.
   it('Caixa PRICE elegível quando LTV dentro do limite (70%)', () => {
     const input: InputFinanciamento = {
       ...BASE_INPUT,
       tipoAmortizacao: 'PRICE',
       bancosIds:        ['caixa'],
       valorEntrada:     150_000, // 70% financiado → 350k / 500k = 70%
+      usaFgts:          false,
     }
     const r = simularBanco('caixa', input)
     expect(r.elegivel).toBe(true)
@@ -95,6 +100,7 @@ describe('PRICE com Caixa', () => {
       tipoAmortizacao: 'SAC',
       bancosIds:        ['caixa'],
       valorEntrada:     100_000, // 80% financiado → dentro do limite SAC
+      usaFgts:          false,
     }
     const r = simularBanco('caixa', input)
     expect(r.elegivel).toBe(true)
@@ -183,6 +189,8 @@ describe('SAC explícito', () => {
       ...BASE_INPUT,
       tipoAmortizacao: 'SAC',
       bancosIds:        ['caixa'],
+      // usaFgts:false — ver nota em "PRICE com Caixa" (BASE_INPUT cai no teto do Pró-Cotista)
+      usaFgts:          false,
     }
     const r = simularBanco('caixa', input)
     expect(r.elegivel).toBe(true)

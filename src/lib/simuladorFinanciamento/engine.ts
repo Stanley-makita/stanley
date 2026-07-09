@@ -2,7 +2,7 @@ import type { BancoId, TipoOperacao, InputFinanciamento, ResultadoBanco, Analise
 import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
 import type { BancoConfig } from './constantes'
 import { resolverCriterios } from './criteria-resolver'
-import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip, CenarioComparativo } from './criteria'
+import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip, CenarioComparativo, CriteriosLtv } from './criteria'
 
 // Reexportado para preservar o import externo existente
 // (src/lib/workflows/motor-simulacao.ts e outros importam LIMITE_IDADE_PRAZO_MESES daqui).
@@ -560,6 +560,31 @@ function simularBancoComTaxa(
   return simularComCriterios(cfg, criteria, input, resultadoId)
 }
 
+// Cota de financiamento do MCMV/Classe Média — normativo MO30824 v040 ("parametros
+// mcmv.pdf"), corrigido jul/2026: antes, MCMV herdava o LTV do SBPE (80% SAC / 70%
+// PRICE-SFA/TP) sem nenhuma sobreposição — normativo mostra 80%/80% pros dois sistemas
+// (não 70% pro PRICE), tanto pro PMCMV Faixas 1-3 quanto pra Classe Média em imóvel novo.
+// Classe Média em imóvel USADO cai pra 60%/60% — mas só na Região Sul/Sudeste (tabela
+// §6.5); Região N/NE/CO fica em 80%/80%, igual ao imóvel novo. Como o motor ainda não
+// tem campo de região do cliente, assume-se Sul/Sudeste (é o que os testes reais feitos
+// nesta sessão confirmaram — Maringá-PR — e provavelmente a maioria da base de clientes);
+// fica registrado como pendência se o Fonti algum dia atender região N/NE/CO. PMCMV
+// Faixas 1-3 usa a mesma quota (80%/80%) pra novo E usado — normativo não diferencia ali.
+function ltvMcmv(programa: string): CriteriosLtv {
+  return {
+    sac: 0.80,
+    price: 0.80,
+    penalidadeImovelUsado: programa === 'MCMV Classe Média' ? 0.20 : undefined,
+  }
+}
+
+// Cota de financiamento do Pró-Cotista — normativo MO30824 v040 §5.4: 60% SAC / 60%
+// SFA-TP (PRICE), corrigido jul/2026 (antes herdava o LTV do SBPE, 80%/70%). A tabela só
+// lista modalidades de imóvel NOVO (sem "Imóvel Usado") — já coberto pela restrição de
+// `tipoImovel === 'novo'` aplicada antes de entrar neste critério, então não precisa de
+// `penalidadeImovelUsado` aqui.
+const LTV_PRO_COTISTA: CriteriosLtv = { sac: 0.60, price: 0.60 }
+
 export function simularBanco(
   bancoId: BancoId,
   input: InputFinanciamento,
@@ -570,7 +595,7 @@ export function simularBanco(
   // Caixa (Fase 4): programa único (Pró-Cotista ou MCMV, senão SBPE) — mesma precedência
   // de sempre (MCMV vence sobre Pró-Cotista se ambos se aplicarem: o `if` de baixo executa
   // por último e sobrescreve). A variação de programa é montada localmente sobre o mesmo
-  // critério base — só taxa/programa mudam, LTV/prazo/DFI/tarifa/estratégia de MIP
+  // critério base — só taxa/programa/LTV mudam, prazo/DFI/tarifa/estratégia de MIP
   // continuam os do critério padrão (mesmo comportamento do código hardcoded original,
   // que também não trocava o MIP para Pró-Cotista/MCMV neste caminho — só em
   // `simularCaixaDuplo`, ver abaixo).
@@ -586,6 +611,7 @@ export function simularBanco(
         taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,
         taxaAnualCorrentista: CAIXA_PRO_COTISTA.taxaAnual,
         programa: CAIXA_PRO_COTISTA.programa,
+        ltv: LTV_PRO_COTISTA,
       }
     }
     // Sem renda informada, `rendaMensal` fica em 0 só por ausência de dado — isso nunca
@@ -595,7 +621,7 @@ export function simularBanco(
     )
     if (faixaMcmv.length > 0) {
       const f = faixaMcmv[0]
-      criteria = { ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa }
+      criteria = { ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa, ltv: ltvMcmv(f.programa) }
     }
     return simularComCriterios(cfg, criteria, input, bancoId)
   }
@@ -645,11 +671,21 @@ function gerarCenariosComparativos(
 function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationCriteria): CenarioComparativo[] {
   const cenarios: CenarioComparativo[] = [{ sufixoId: 'sac', patchInput: { tipoAmortizacao: 'SAC' } }]
 
-  const maxLtvPrice = criteria.ltv.price
-  if (maxLtvPrice == null) {
+  if (criteria.ltv.price == null) {
     cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE' } })
     return cenarios
   }
+
+  // Aplica a mesma penalidade de imóvel usado que `simularComCriterios` aplica no cálculo
+  // real (ex.: MCMV Classe Média usado, jul/2026, -20pp) — sem isso, o ajuste de entrada
+  // é calculado contra o LTV "cheio" (imóvel novo) e fica insuficiente pra imóvel usado,
+  // deixando o PRICE inelegível por LTV mesmo devendo ser sempre ajustável (ver comentário
+  // da função). Bug real encontrado testando o cenário exato do usuário (Classe Média,
+  // imóvel usado, região Sul — teto de 60%, não 80%).
+  const penalidadeUsado = (criteria.ltv.penalidadeImovelUsado && input.tipoImovel === 'usado')
+    ? criteria.ltv.penalidadeImovelUsado
+    : 0
+  const maxLtvPrice = criteria.ltv.price - penalidadeUsado
 
   // Arredonda ao centavo antes de comparar — "1 - maxLtvPrice" (ex. 1 - 0.7) pode gerar
   // erro de ponto flutuante (0.30000000000000004), fazendo uma entrada já exatamente no
@@ -683,9 +719,14 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   const criteriaBase = resolverCriterios('caixa', overrides)
   const results: ResultadoBanco[] = []
 
-  // Entrada ajustada para PRICE (se necessário) é a mesma em todos os programas — LTV não
-  // é sobrescrito por Pró-Cotista/MCMV, só taxaAnual/programa/seguro.
-  const cenariosCaixa = construirCenariosCaixa(input, criteriaBase)
+  // Entrada ajustada para PRICE: corrigido jul/2026 para ser calculada POR PROGRAMA (era
+  // uma única lista computada a partir do LTV do SBPE e reaproveitada pros 3 programas —
+  // isso ficou errado desde que Pró-Cotista/MCMV passaram a ter seu próprio LTV, abaixo:
+  // um ajuste calibrado pro teto de 70% do SBPE não é suficiente pro teto de 60% do
+  // Pró-Cotista/Classe Média-usado, por exemplo). `construirCenariosCaixa` já é genérica o
+  // bastante (só olha pro `criteria.ltv.price` recebido) — só precisava ser chamada uma
+  // vez por critério, não uma vez só com o critério base.
+  const cenariosSbpe = construirCenariosCaixa(input, criteriaBase)
 
   // Lote urbanizado: apenas SBPE (MO43000271 §3.1.2 — MCMV/Pró-Cotista não contemplam lote isolado)
   // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
@@ -701,8 +742,9 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
       taxaAnualCorrentista: CAIXA_PRO_COTISTA.taxaAnual,
       programa: CAIXA_PRO_COTISTA.programa,
       seguro: { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } },
+      ltv: LTV_PRO_COTISTA,
     }
-    gerarCenariosComparativos(results, cfg, criteriaProCotista, input, 'caixa-procotista', cenariosCaixa)
+    gerarCenariosComparativos(results, cfg, criteriaProCotista, input, 'caixa-procotista', construirCenariosCaixa(input, criteriaProCotista))
   }
 
   // MCMV (se renda e imóvel se enquadram)
@@ -722,13 +764,14 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
         seguro: f.mipSubsidizado
           ? { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } }
           : criteriaBase.seguro,
+        ltv: ltvMcmv(f.programa),
       }
-      gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', cenariosCaixa)
+      gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', construirCenariosCaixa(input, criteriaMcmv))
     }
   }
 
   // SBPE — sempre presente como alternativa (é o próprio critério base, sem variação pontual)
-  gerarCenariosComparativos(results, cfg, criteriaBase, input, 'caixa-sbpe', cenariosCaixa)
+  gerarCenariosComparativos(results, cfg, criteriaBase, input, 'caixa-sbpe', cenariosSbpe)
 
   return results
 }

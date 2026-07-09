@@ -37,6 +37,21 @@ const BASE_INPUT: InputFinanciamento = {
   finalidade:      'residencial',
 }
 
+// Usado nos describes de equivalência antigo vs. novo (que comparam `simularBanco`/
+// `simularTodosBancos` da baseline congelada contra o motor atual). valorImovel = 700_000
+// (não 500_000) de propósito, desde jul/2026: CAIXA_PRO_COTISTA.maxValorImovel é
+// exatamente 500_000 (corrigido pelo normativo) e o Pró-Cotista passou a ter seu próprio
+// LTV (60%, também corrigido) — com valorImovel=500_000, `BASE_INPUT` cairia bem na
+// fronteira, o "novo" motor entraria no Pró-Cotista (LTV mais apertado) enquanto a
+// baseline (`_baseline-fase4-caixa/engine.ts`, que herda o LTV do SBPE pro Pró-Cotista,
+// nunca corrigido lá de propósito) continuaria elegível — divergência real, mas sem
+// nenhuma relação com o que esses testes querem provar (SAC/PRICE, prazo, idade, MIP,
+// overrides). 700_000 fica acima do teto do Pró-Cotista E do maior teto do MCMV (600_000
+// da Classe Média), então nenhum dos dois programas é acionado em nenhum dos dois lados.
+// Os testes que usam isso só comparam novo≈antigo entre si (nunca hardcodam um valor
+// absoluto), então a troca de 500_000 pra 700_000 não quebra nenhuma proporção verificada.
+const BASE_INPUT_EQUIV: InputFinanciamento = { ...BASE_INPUT, valorImovel: 700_000 }
+
 // Compara todos os campos numéricos/relevantes de um ResultadoBanco (ignora resultadoId,
 // que pode diferir de nome mas nunca de valor entre as duas implementações neste teste).
 function expectResultadoEquivalente(novo: any, antigo: any) {
@@ -62,33 +77,33 @@ function expectResultadoEquivalente(novo: any, antigo: any) {
 
 describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () => {
   const cenarios: Array<{ nome: string; input: InputFinanciamento; overrides?: BancoSimOverrides }> = [
-    { nome: 'SAC padrão, sem correntista', input: { ...BASE_INPUT } },
-    { nome: 'SAC padrão, correntista', input: { ...BASE_INPUT, correntista: true } },
+    { nome: 'SAC padrão, sem correntista', input: { ...BASE_INPUT_EQUIV } },
+    { nome: 'SAC padrão, correntista', input: { ...BASE_INPUT_EQUIV, correntista: true } },
     // Cenários PRICE de prazo/LTV foram movidos para o describe dedicado abaixo
     // ("teto de prazo PRICE") — desde a correção do teto de 360 meses, PRICE diverge
     // de propósito do baseline congelado (que nunca teve essa distinção), então não
     // faz mais sentido compará-los por equivalência byte-a-byte com o motor antigo.
-    { nome: 'SAC LTV 80% no limite', input: { ...BASE_INPUT, valorEntrada: 100_000 } },
+    { nome: 'SAC LTV 80% no limite', input: { ...BASE_INPUT_EQUIV, valorEntrada: 100_000 } },
     // Cenários de imóvel usado movidos para o describe dedicado abaixo ("LTV de imóvel
     // usado") — a penalidade de -10pp que o baseline aplicava foi removida (não tinha
     // lastro normativo e foi desmentida por simulação real no simulador oficial da
     // Caixa em 2026-07-07), então esses cenários agora divergem de propósito do baseline.
-    { nome: 'cliente jovem (idade mín. MIP)', input: { ...BASE_INPUT, dataNascimento: '2002-01-01' } },
-    { nome: 'cliente 45 anos (faixa MIP intermediária)', input: { ...BASE_INPUT, dataNascimento: '1980-01-01' } },
-    { nome: 'cliente 68 anos (faixa MIP alta, prazo reduzido)', input: { ...BASE_INPUT, dataNascimento: '1957-01-01' } },
-    { nome: 'cliente 80+ anos — inelegível', input: { ...BASE_INPUT, dataNascimento: '1940-01-01' } },
-    { nome: 'valor do imóvel acima do teto SFH (2.25M)', input: { ...BASE_INPUT, valorImovel: 3_000_000, valorEntrada: 1_000_000 } },
-    { nome: 'entrada maior que o imóvel — inelegível', input: { ...BASE_INPUT, valorEntrada: 600_000 } },
-    { nome: 'Pró-Cotista (imóvel ≤ R$350k)', input: { ...BASE_INPUT, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 8_000 } },
-    { nome: 'MCMV Faixa 1 (renda ≤ 3.200, imóvel ≤ 270k)', input: { ...BASE_INPUT, valorImovel: 250_000, valorEntrada: 30_000, rendaMensal: 3_000 } },
-    { nome: 'MCMV Faixa 3 (renda ≤ 9.600, imóvel ≤ 400k)', input: { ...BASE_INPUT, valorImovel: 380_000, valorEntrada: 80_000, rendaMensal: 9_000 } },
-    { nome: 'MCMV Classe Média (renda ≤ 13.000, imóvel ≤ 600k)', input: { ...BASE_INPUT, valorImovel: 550_000, valorEntrada: 100_000, rendaMensal: 12_000 } },
-    { nome: 'override: taxaAnual do banco de dados', input: { ...BASE_INPUT }, overrides: { taxaAnual: 0.0999 } },
-    { nome: 'override: maxLtv do banco de dados (SAC)', input: { ...BASE_INPUT, valorEntrada: 100_000 }, overrides: { maxLtv: 0.85 } },
-    { nome: 'override: mipRate do banco de dados', input: { ...BASE_INPUT }, overrides: { mipRate: 0.0005 } },
-    { nome: 'override: dfiRate do banco de dados (deve ser ignorado — quirk preservado)', input: { ...BASE_INPUT }, overrides: { dfiRate: 0.001 } },
-    { nome: 'override: prazoMaximoMeses do banco de dados', input: { ...BASE_INPUT }, overrides: { prazoMaximoMeses: 240 } },
-    { nome: 'prazo curto por idade avançada + prazo banco pequeno', input: { ...BASE_INPUT, dataNascimento: '1965-03-01' }, overrides: { prazoMaximoMeses: 180 } },
+    { nome: 'cliente jovem (idade mín. MIP)', input: { ...BASE_INPUT_EQUIV, dataNascimento: '2002-01-01' } },
+    { nome: 'cliente 45 anos (faixa MIP intermediária)', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1980-01-01' } },
+    { nome: 'cliente 68 anos (faixa MIP alta, prazo reduzido)', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1957-01-01' } },
+    { nome: 'cliente 80+ anos — inelegível', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1940-01-01' } },
+    { nome: 'valor do imóvel acima do teto SFH (2.25M)', input: { ...BASE_INPUT_EQUIV, valorImovel: 3_000_000, valorEntrada: 1_000_000 } },
+    { nome: 'entrada maior que o imóvel — inelegível', input: { ...BASE_INPUT_EQUIV, valorEntrada: 600_000 } },
+    { nome: 'Pró-Cotista (imóvel ≤ R$350k)', input: { ...BASE_INPUT_EQUIV, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 8_000 } },
+    { nome: 'MCMV Faixa 1 (renda ≤ 3.200, imóvel ≤ 270k)', input: { ...BASE_INPUT_EQUIV, valorImovel: 250_000, valorEntrada: 30_000, rendaMensal: 3_000 } },
+    { nome: 'MCMV Faixa 3 (renda ≤ 9.600, imóvel ≤ 400k)', input: { ...BASE_INPUT_EQUIV, valorImovel: 380_000, valorEntrada: 80_000, rendaMensal: 9_000 } },
+    { nome: 'MCMV Classe Média (renda ≤ 13.000, imóvel ≤ 600k)', input: { ...BASE_INPUT_EQUIV, valorImovel: 550_000, valorEntrada: 100_000, rendaMensal: 12_000 } },
+    { nome: 'override: taxaAnual do banco de dados', input: { ...BASE_INPUT_EQUIV }, overrides: { taxaAnual: 0.0999 } },
+    { nome: 'override: maxLtv do banco de dados (SAC)', input: { ...BASE_INPUT_EQUIV, valorEntrada: 100_000 }, overrides: { maxLtv: 0.85 } },
+    { nome: 'override: mipRate do banco de dados', input: { ...BASE_INPUT_EQUIV }, overrides: { mipRate: 0.0005 } },
+    { nome: 'override: dfiRate do banco de dados (deve ser ignorado — quirk preservado)', input: { ...BASE_INPUT_EQUIV }, overrides: { dfiRate: 0.001 } },
+    { nome: 'override: prazoMaximoMeses do banco de dados', input: { ...BASE_INPUT_EQUIV }, overrides: { prazoMaximoMeses: 240 } },
+    { nome: 'prazo curto por idade avançada + prazo banco pequeno', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1965-03-01' }, overrides: { prazoMaximoMeses: 180 } },
   ]
 
   for (const { nome, input, overrides } of cenarios) {
@@ -102,17 +117,19 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
 
 describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalência antigo vs. novo)', () => {
   const cenarios: Array<{ nome: string; input: InputFinanciamento; overrides?: Partial<Record<string, BancoSimOverrides>> }> = [
-    { nome: 'SBPE puro (valor/renda fora de MCMV e Pró-Cotista)', input: { ...BASE_INPUT } },
-    { nome: 'Pró-Cotista + SBPE (imóvel ≤ 350k)', input: { ...BASE_INPUT, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 8_000 } },
-    { nome: 'MCMV + SBPE (sem Pró-Cotista, imóvel > 350k)', input: { ...BASE_INPUT, valorImovel: 550_000, valorEntrada: 100_000, rendaMensal: 12_000 } },
-    { nome: 'Pró-Cotista + MCMV + SBPE (imóvel ≤ 350k e dentro de faixa MCMV)', input: { ...BASE_INPUT, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000 } },
-    { nome: 'lote_urbanizado — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'lote_urbanizado', tipoImovel: undefined } },
-    { nome: 'comercial — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'comercial', finalidade: 'comercial' } },
-    { nome: 'jaRecebeuSubsidio=true — bloqueia MCMV/Pró-Cotista', input: { ...BASE_INPUT, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, jaRecebeuSubsidio: true } },
-    { nome: 'usaFgts=false — bloqueia só Pró-Cotista', input: { ...BASE_INPUT, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, usaFgts: false } },
+    { nome: 'SBPE puro (valor/renda fora de MCMV e Pró-Cotista)', input: { ...BASE_INPUT_EQUIV } },
+    // 'Pró-Cotista + SBPE (imóvel ≤ 350k)' movido para o describe dedicado "LTV do
+    // Pró-Cotista" abaixo — desde a correção de jul/2026 (Pró-Cotista passou a ter seu
+    // próprio teto de 60%, a baseline continua herdando o do SBPE), diverge de propósito.
+    { nome: 'MCMV + SBPE (sem Pró-Cotista, imóvel > 350k)', input: { ...BASE_INPUT_EQUIV, valorImovel: 550_000, valorEntrada: 100_000, rendaMensal: 12_000 } },
+    { nome: 'Pró-Cotista + MCMV + SBPE (imóvel ≤ 350k e dentro de faixa MCMV)', input: { ...BASE_INPUT_EQUIV, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000 } },
+    { nome: 'lote_urbanizado — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT_EQUIV, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'lote_urbanizado', tipoImovel: undefined } },
+    { nome: 'comercial — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT_EQUIV, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'comercial', finalidade: 'comercial' } },
+    { nome: 'jaRecebeuSubsidio=true — bloqueia MCMV/Pró-Cotista', input: { ...BASE_INPUT_EQUIV, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, jaRecebeuSubsidio: true } },
+    { nome: 'usaFgts=false — bloqueia só Pró-Cotista', input: { ...BASE_INPUT_EQUIV, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, usaFgts: false } },
     // 'PRICE + Pró-Cotista + SBPE' movido para o describe "teto de prazo PRICE" abaixo
     // (mesmo motivo do describe anterior — PRICE agora diverge de propósito do baseline).
-    { nome: 'override de taxaAnual aplicado ao SBPE dentro do duplo', input: { ...BASE_INPUT }, overrides: { caixa: { taxaAnual: 0.0999 } } },
+    { nome: 'override de taxaAnual aplicado ao SBPE dentro do duplo', input: { ...BASE_INPUT_EQUIV }, overrides: { caixa: { taxaAnual: 0.0999 } } },
   ]
 
   // Desde a Comparação de Cenários (SAC/PRICE), o motor novo produz 2 ids por programa
@@ -142,9 +159,13 @@ describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalênci
 // confirmada, não calibração. Testado separadamente do baseline congelado (que nunca
 // teve essa distinção) porque a divergência aqui é intencional, não uma regressão.
 describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', () => {
+  // `usaFgts: false` nos 3 primeiros testes: isola a checagem do LTV/prazo do SBPE do
+  // Pró-Cotista (jul/2026, LTV próprio de 60% — sem isso, `BASE_INPUT` (imóvel ≤ 500k,
+  // novo) seria roteado pro Pró-Cotista, cujo teto mais apertado quebraria a asserção de
+  // `elegivel` por um motivo que não tem nada a ver com o que este teste quer provar).
   it('PRICE respeita 360 meses; SAC continua com 420', () => {
-    const price = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 })
-    const sac = simularBancoNovo('caixa', { ...BASE_INPUT, valorEntrada: 100_000 })
+    const price = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000, usaFgts: false })
+    const sac = simularBancoNovo('caixa', { ...BASE_INPUT, valorEntrada: 100_000, usaFgts: false })
     expect(price.elegivel).toBe(true)
     expect(price.parcelas).toBe(360)
     expect(sac.elegivel).toBe(true)
@@ -152,8 +173,8 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
   })
 
   it('LTV de PRICE (70%) continua sendo verificado independente do novo teto de prazo', () => {
-    const dentro = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 })
-    const excede = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000 })
+    const dentro = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000, usaFgts: false })
+    const excede = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000, usaFgts: false })
     expect(dentro.elegivel).toBe(true)
     expect(dentro.parcelas).toBe(360)
     expect(excede.elegivel).toBe(false)
@@ -164,7 +185,7 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
     // financiado 70% (dentro do teto fixo do PRICE) — o override de maxLtv aqui não tem
     // nenhum efeito sobre o PRICE (ver teste abaixo), só confirma que sua mera presença
     // não interfere no cálculo de prazo.
-    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000 }, { maxLtv: 0.92 })
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000, usaFgts: false }, { maxLtv: 0.92 })
     expect(resultado.elegivel).toBe(true)
     expect(resultado.parcelas).toBe(360)
   })
@@ -200,6 +221,68 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
     const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
     expect(porId.get('caixa-procotista-price')?.parcelas).toBe(360)
     expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(360)
+  })
+})
+
+// LTV do Pró-Cotista: normativo MO30824 v040 §5.4 ("parametros mcmv.pdf") — quota máxima
+// de 60% (SAC e SFA/TP), corrigido jul/2026 (antes herdava o LTV do SBPE, 80%/70%).
+// Testado diretamente (não é mais equivalência contra o baseline, que nunca teve esse
+// teto próprio — ver 'Pró-Cotista + SBPE (imóvel ≤ 350k)', removido do describe de
+// equivalência acima pelo mesmo motivo).
+describe('Fase 4 — Caixa: LTV do Pró-Cotista (60% — MO30824 v040 §5.4)', () => {
+  it('financiamento dentro de 60% do imóvel: elegível', () => {
+    const resultado = simularBancoNovo('caixa', {
+      valorImovel: 300_000, valorEntrada: 120_000, dataNascimento: '1990-06-15',
+      rendaMensal: 20_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial',
+    })
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.programa).toBe('Pró-Cotista FGTS')
+    expect(resultado.valorFinanciado).toBeCloseTo(180_000, 6)
+  })
+
+  it('financiamento acima de 60% do imóvel: inelegível (antes ficava elegível, herdando os 80% do SBPE)', () => {
+    const resultado = simularBancoNovo('caixa', {
+      valorImovel: 300_000, valorEntrada: 100_000, dataNascimento: '1990-06-15',
+      rendaMensal: 20_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial',
+    })
+    expect(resultado.elegivel).toBe(false)
+    expect(resultado.motivoInelegivel).toMatch(/excede 60% do imóvel/)
+  })
+})
+
+// LTV do MCMV Classe Média em imóvel usado (região Sul/Sudeste): 60%, não 80% — normativo
+// MO30824 v040 §6.5. Caso-âncora real: simulador oficial da Caixa, 09/07/2026, renda
+// R$13.000, imóvel R$430.000 usado (Maringá-PR), nascimento 04/08/1995, PRICE — entrada
+// ajustada de R$108.119 para R$172.000 (40%), financiado R$258.000 (60%). Corrigido
+// jul/2026 (dois bugs juntos): (1) `ltvMcmv()` não aplicava a penalidade de -20pp de
+// imóvel usado nesta faixa; (2) `construirCenariosCaixa` calculava a entrada mínima do
+// PRICE contra o LTV "cheio" (novo), sem descontar a penalidade — então mesmo com o LTV
+// certo no critério, o ajuste automático de entrada nunca alcançava o teto real de usado.
+describe('Fase 4 — Caixa: LTV do MCMV Classe Média em imóvel usado (60% — MO30824 v040 §6.5)', () => {
+  it('caso-âncora real: entrada ajustada para 40%, financiado R$258.000', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 430_000, valorEntrada: 108_119, dataNascimento: '1995-08-04',
+      rendaMensal: 13_000, tipoAmortizacao: 'PRICE', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial',
+    })
+    const mcmvPrice = resultados.find((r) => r.resultadoId === 'caixa-mcmv-price')
+    expect(mcmvPrice?.elegivel).toBe(true)
+    expect(mcmvPrice?.programa).toBe('MCMV Classe Média')
+    expect(mcmvPrice?.valorFinanciado).toBeCloseTo(258_000, 6)
+    expect(mcmvPrice?.observacao).toContain('172.000')
+  })
+
+  it('imóvel novo continua na cota cheia de 80% (sem penalidade)', () => {
+    const resultado = simularBancoNovo('caixa', {
+      valorImovel: 430_000, valorEntrada: 108_119, dataNascimento: '1995-08-04',
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial',
+    })
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.programa).toBe('MCMV Classe Média')
+    expect(resultado.valorFinanciado).toBeCloseTo(430_000 - 108_119, 6)
   })
 })
 
@@ -418,7 +501,7 @@ describe('Fase 4 — Caixa: varredura de idades (todas as faixas de MIP)', () =>
   for (const idade of idades) {
     it(`idade ${idade} anos`, () => {
       const dataNascimento = `${anoAtual - idade}-06-15`
-      const input: InputFinanciamento = { ...BASE_INPUT, dataNascimento }
+      const input: InputFinanciamento = { ...BASE_INPUT_EQUIV, dataNascimento }
       const novo = simularBancoNovo('caixa', input)
       const antigo = simularBancoAntigo('caixa', input)
       expectResultadoEquivalente(novo, antigo)
