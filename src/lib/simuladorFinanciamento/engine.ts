@@ -688,7 +688,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
   const podeMcmvProcotista = op !== 'lote_urbanizado' && input.finalidade !== 'comercial' && !input.jaRecebeuSubsidio
 
-  // Pró-Cotista (imóveis até R$350k, FGTS 3+ anos)
+  // Pró-Cotista (imóveis até CAIXA_PRO_COTISTA.maxValorImovel, FGTS 3+ anos)
   if (podeMcmvProcotista && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false) {
     const criteriaProCotista: SimulationCriteria = {
       ...criteriaBase,

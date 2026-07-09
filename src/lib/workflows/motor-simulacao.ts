@@ -247,7 +247,12 @@ export async function executarSimulacao(
     tipoOperacao:    dados.tipo_operacao,
     valorTerreno:    dados.valor_terreno ?? undefined,
     valorObra:       dados.valor_obra    ?? undefined,
-    usaFgts:         dados.usa_fgts || undefined,
+    // Bug real corrigido jul/2026: `dados.usa_fgts || undefined` transformava `false`
+    // (cliente sem FGTS, valor determinístico do parser) em `undefined` — e o motor trata
+    // `undefined` como "elegível" (`input.usaFgts !== false`), então todo cliente sem FGTS
+    // acabava oferecido o Pró-Cotista por engano. `dados.usa_fgts` já é sempre um boolean
+    // definitivo (nunca null/undefined), então repassar direto basta.
+    usaFgts:         dados.usa_fgts,
   }
 
   const bancosResult = simularTodosBancos(input, overrides)
