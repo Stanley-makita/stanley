@@ -744,17 +744,37 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
   if (input.financiandoValorMaximo) {
     // Estima a entrada mínima que maximiza o financiado pra este critério — mesma lógica
     // de `autoDerivarEntradaFinanciado` (LTV × renda, o mais restritivo vence), só que
-    // aplicada ao LTV do PROGRAMA sendo montado (não um valor genérico do banco). Usa SAC
-    // como proxy pro cálculo de capacidade por renda nos dois sistemas (mesma simplificação
-    // já usada em `autoDerivarEntradaFinanciado` — é só uma estimativa de teto, a parcela
-    // real de cada sistema é calculada depois por `simularComCriterios`).
+    // aplicada ao LTV do PROGRAMA sendo montado (não um valor genérico do banco).
+    //
+    // O teto por renda usa a MESMA fórmula real da Caixa (`calcularSACComTarifaMensalFixa`,
+    // com MIP/DFI/tarifa reais via `criteria`) — não a estimativa genérica de
+    // `calcularMaxFinanciavel`/`getMipRate` (usada em `autoDerivarEntradaFinanciado`, que
+    // ignora a tarifa de R$25/mês e usa uma tabela de MIP diferente da real da Caixa).
+    // Corrigido jul/2026: com renda bem na fronteira dos 30% de comprometimento (ex.:
+    // renda R$13.000, SBPE SAC), essa diferença de fórmula já é suficiente pra dar um
+    // financiado maior que o real — bug real encontrado testando o cenário do usuário
+    // (Fonti dava R$332.749, oficial R$325.841,44).
+    const idadeAnos = calcularIdadeEmAnos(input.dataNascimento)
+    const mipRenda = resolverTaxaMip(criteria.seguro.mip as EstrategiaSeguroMip, idadeAnos)
+    const dfiRenda = criteria.seguro.dfi.taxaMensal
+    const tarifaRenda = criteria.tarifaAdministracaoMensal
+
     const entradaMaxima = (ltv: number, prazo: number): number => {
       const maxByLtv = Math.round(input.valorImovel * ltv * 100) / 100
       let maxByRenda = input.valorImovel
       if (input.rendaInformada !== false && input.rendaMensal > 0) {
         const taxaMensal = taxaAnualParaMensalPorMetodo(criteria.taxaAnualBase, criteria.metodoConversaoTaxa)
-        const mip = getMipRate(calcularIdadeEmAnos(input.dataNascimento))
-        maxByRenda = calcularMaxFinanciavel(input.rendaMensal, input.valorImovel, taxaMensal, prazo, mip)
+        const parcelaMax = input.rendaMensal * 0.30
+        let lo = 0
+        let hi = input.valorImovel
+        for (let iter = 0; iter < 50; iter++) {
+          const mid = (lo + hi) / 2
+          const { primeiraParcela } = calcularSACComTarifaMensalFixa(
+            mid, input.valorImovel, taxaMensal, prazo, mipRenda, dfiRenda, tarifaRenda,
+          )
+          if (primeiraParcela < parcelaMax) lo = mid; else hi = mid
+        }
+        maxByRenda = Math.floor((lo + hi) / 2)
       }
       const financiadoMax = Math.max(0, Math.min(maxByLtv, maxByRenda, input.valorImovel))
       return Math.round((input.valorImovel - financiadoMax) * 100) / 100
