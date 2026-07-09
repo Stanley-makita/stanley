@@ -204,22 +204,27 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
   })
 
   it('override de prazoMaximoMeses do banco de dados não estende PRICE além de 360', () => {
-    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE' }, { prazoMaximoMeses: 420 })
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', usaFgts: false }, { prazoMaximoMeses: 420 })
     expect(resultado.parcelas).toBe(360)
   })
 
   it('idade+prazo continua podendo reduzir o teto de PRICE para menos de 360', () => {
     // Cliente com 68 anos: LIMITE_IDADE_PRAZO_MESES (966) - idade em meses já é < 360.
-    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000, dataNascimento: '1957-01-01' })
+    const resultado = simularBancoNovo('caixa', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 150_000, dataNascimento: '1957-01-01', usaFgts: false })
     expect(resultado.parcelas).toBeLessThan(360)
   })
 
-  it('Pró-Cotista + SBPE em PRICE: ambos respeitam o teto de 360 meses', () => {
+  // Pró-Cotista NÃO herda o teto de 360 do PRICE — corrigido jul/2026: essa regra é do
+  // SBPE (MO30769 §3.3), enquanto MO30824 v040 §5.4 mostra prazo máximo = 420 pros dois
+  // sistemas no Pró-Cotista (só o mínimo difere entre SAC/SFA-TP). Confirmado no
+  // simulador oficial (Classe Média, mesma família de programas MCMV/Pró-Cotista, imóvel
+  // usado, PRICE: prazo 420, não 360 — ver describe "LTV do MCMV Classe Média" abaixo).
+  it('Pró-Cotista em PRICE respeita 420 meses (não herda o teto de 360 do SBPE); SBPE continua em 360', () => {
     const resultados = simularTodosBancosNovo(
-      { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorImovel: 300_000, valorEntrada: 100_000, rendaMensal: 8_000 },
+      { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorImovel: 300_000, valorEntrada: 120_000, rendaMensal: 8_000 },
     )
     const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
-    expect(porId.get('caixa-procotista-price')?.parcelas).toBe(360)
+    expect(porId.get('caixa-procotista-price')?.parcelas).toBe(420)
     expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(360)
   })
 })
@@ -272,6 +277,12 @@ describe('Fase 4 — Caixa: LTV do MCMV Classe Média em imóvel usado (60% — 
     expect(mcmvPrice?.programa).toBe('MCMV Classe Média')
     expect(mcmvPrice?.valorFinanciado).toBeCloseTo(258_000, 6)
     expect(mcmvPrice?.observacao).toContain('172.000')
+    // Prazo PRICE do MCMV é 420, não 360 (teto de 360 é regra do SBPE, MO30769 §3.3, que
+    // o MCMV/Pró-Cotista não herdam — MO30824 v040 §6.5 mostra máximo 420 pros dois
+    // sistemas). Confirmado no simulador oficial: mesmo cenário, PRICE aparece com prazo
+    // 420, não 360 — bug real corrigido jul/2026 (`prazoMaximoMesesPrice` não era
+    // sobrescrito na construção do critério MCMV/Pró-Cotista).
+    expect(mcmvPrice?.parcelas).toBe(420)
   })
 
   it('imóvel novo continua na cota cheia de 80% (sem penalidade)', () => {

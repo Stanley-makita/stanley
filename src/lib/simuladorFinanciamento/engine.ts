@@ -585,6 +585,15 @@ function ltvMcmv(programa: string): CriteriosLtv {
 // `penalidadeImovelUsado` aqui.
 const LTV_PRO_COTISTA: CriteriosLtv = { sac: 0.60, price: 0.60 }
 
+// `prazoMaximoMesesPrice: undefined` nas duas construções de critério abaixo (MCMV e
+// Pró-Cotista) — corrigido jul/2026: `criteriaBase.prazoMaximoMesesPrice` trunca o PRICE
+// em 360 meses, mas essa é uma regra do SBPE (MO30769 §3.3), que os dois programas aqui
+// não herdam. As 3 tabelas do normativo MO30824 v040 (PMCMV §4.4, Pró-Cotista §5.4,
+// Classe Média §6.5) mostram PRAZO MÁXIMO = 420 pros dois sistemas de amortização (só o
+// MÍNIMO varia entre SAC/SFA-TP) — confirmado no simulador oficial (Classe Média, imóvel
+// usado, PRICE: prazo 420, não 360). Passando `undefined`, `calcularPrazoMaximo` cai no
+// teto geral do banco (`criteria.prazoMaximoMeses`, 420 pra Caixa).
+
 export function simularBanco(
   bancoId: BancoId,
   input: InputFinanciamento,
@@ -612,6 +621,7 @@ export function simularBanco(
         taxaAnualCorrentista: CAIXA_PRO_COTISTA.taxaAnual,
         programa: CAIXA_PRO_COTISTA.programa,
         ltv: LTV_PRO_COTISTA,
+        prazoMaximoMesesPrice: undefined,
       }
     }
     // Sem renda informada, `rendaMensal` fica em 0 só por ausência de dado — isso nunca
@@ -621,7 +631,7 @@ export function simularBanco(
     )
     if (faixaMcmv.length > 0) {
       const f = faixaMcmv[0]
-      criteria = { ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa, ltv: ltvMcmv(f.programa) }
+      criteria = { ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa, ltv: ltvMcmv(f.programa), prazoMaximoMesesPrice: undefined }
     }
     return simularComCriterios(cfg, criteria, input, bancoId)
   }
@@ -743,6 +753,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
       programa: CAIXA_PRO_COTISTA.programa,
       seguro: { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } },
       ltv: LTV_PRO_COTISTA,
+      prazoMaximoMesesPrice: undefined,
     }
     gerarCenariosComparativos(results, cfg, criteriaProCotista, input, 'caixa-procotista', construirCenariosCaixa(input, criteriaProCotista))
   }
@@ -765,6 +776,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
           ? { ...criteriaBase.seguro, mip: { tipo: 'flat', taxa: MIP_RATE_MCMV } }
           : criteriaBase.seguro,
         ltv: ltvMcmv(f.programa),
+        prazoMaximoMesesPrice: undefined,
       }
       gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', construirCenariosCaixa(input, criteriaMcmv))
     }
