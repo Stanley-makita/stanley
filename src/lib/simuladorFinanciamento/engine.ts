@@ -1,4 +1,4 @@
-import type { BancoId, TipoOperacao, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
+import type { BancoId, TipoOperacao, TipoImovel, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
 import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
 import type { BancoConfig } from './constantes'
 import { resolverCriterios } from './criteria-resolver'
@@ -593,6 +593,55 @@ const LTV_PRO_COTISTA: CriteriosLtv = { sac: 0.60, price: 0.60 }
 // MÍNIMO varia entre SAC/SFA-TP) — confirmado no simulador oficial (Classe Média, imóvel
 // usado, PRICE: prazo 420, não 360). Passando `undefined`, `calcularPrazoMaximo` cai no
 // teto geral do banco (`criteria.prazoMaximoMeses`, 420 pra Caixa).
+
+// Resolve o LTV efetivo (SAC e PRICE) que a Caixa aplicaria pro cliente, considerando a
+// mesma precedência de programa usada em `simularCaixaDuplo` (Pró-Cotista > MCMV > SBPE).
+// Exportado pra uso em `autoDerivarEntradaFinanciado` (motor-simulacao.ts) — corrigido
+// jul/2026: antes, a estimativa de entrada do "financiando valor máximo" usava sempre o
+// LTV genérico do SBPE (`cfg.maxLtv`), mesmo quando o cliente ia acabar caindo num
+// programa com teto diferente (ex.: MCMV Classe Média usado, 60% em vez de 80%/70%) —
+// causava entrada subestimada e o SAC ficando inelegível/omitido por engano (SAC nunca é
+// reajustado automaticamente pra cima, diferente do PRICE, que já tem esse mecanismo em
+// `construirCenariosCaixa`). Bug real encontrado testando o cenário exato do usuário.
+export function resolverLtvEfetivoCaixa(input: {
+  valorImovel: number
+  rendaMensal: number
+  rendaInformada?: boolean
+  tipoImovel?: TipoImovel
+  usaFgts?: boolean
+  tipoOperacao?: TipoOperacao
+  finalidade?: string
+  jaRecebeuSubsidio?: boolean
+}): { ltvSac: number; ltvPrice: number; programa: string } {
+  const criteriaBase = resolverCriterios('caixa')
+  const podeMcmvProcotista = input.tipoOperacao !== 'lote_urbanizado'
+    && input.finalidade !== 'comercial'
+    && !input.jaRecebeuSubsidio
+
+  if (podeMcmvProcotista && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel
+      && input.usaFgts !== false && input.tipoImovel === 'novo') {
+    return { ltvSac: LTV_PRO_COTISTA.sac, ltvPrice: LTV_PRO_COTISTA.price ?? LTV_PRO_COTISTA.sac, programa: CAIXA_PRO_COTISTA.programa }
+  }
+
+  const faixaMcmv = (podeMcmvProcotista && input.rendaInformada !== false)
+    ? MCMV_FAIXAS.filter((f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel)
+    : []
+  if (faixaMcmv.length > 0) {
+    const f = faixaMcmv[0]
+    const ltv = ltvMcmv(f.programa)
+    const penalidade = (ltv.penalidadeImovelUsado && input.tipoImovel === 'usado') ? ltv.penalidadeImovelUsado : 0
+    return { ltvSac: ltv.sac - penalidade, ltvPrice: (ltv.price ?? ltv.sac) - penalidade, programa: f.programa }
+  }
+
+  const penalidadeSbpe = (criteriaBase.ltv.penalidadeImovelUsado && input.tipoImovel === 'usado')
+    ? criteriaBase.ltv.penalidadeImovelUsado
+    : 0
+  return {
+    ltvSac: criteriaBase.ltv.sac - penalidadeSbpe,
+    ltvPrice: (criteriaBase.ltv.price ?? criteriaBase.ltv.sac) - penalidadeSbpe,
+    programa: criteriaBase.programa,
+  }
+}
 
 export function simularBanco(
   bancoId: BancoId,

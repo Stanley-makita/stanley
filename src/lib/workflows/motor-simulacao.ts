@@ -13,7 +13,7 @@ import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import {
   simularTodosBancos, calcularAnalise,
   calcularMaxFinanciavel, calcularIdadeEmAnos, calcularIdadeEmMeses, calcularPrazoMaximo, getMipRate, taxaAnualParaMensal,
-  LIMITE_IDADE_PRAZO_MESES,
+  LIMITE_IDADE_PRAZO_MESES, resolverLtvEfetivoCaixa,
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '@/lib/simuladorFinanciamento/tipos'
@@ -307,7 +307,26 @@ function autoDerivarEntradaFinanciado(
   const rendaTotal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
   const valorImovel = dados.valor_imovel!
 
+  // Caixa: usa o LTV do programa que o cliente realmente vai cair (Pró-Cotista/MCMV/SBPE),
+  // não o LTV genérico do SBPE (`cfg.maxLtv`) — corrigido jul/2026. Antes, um cliente que
+  // acabava caindo no MCMV Classe Média em imóvel usado (teto de 60%, não 80%) recebia uma
+  // entrada estimada baixa demais: o PRICE se auto-ajusta depois (`construirCenariosCaixa`,
+  // engine.ts), mas o SAC não — então o SAC ficava inelegível/omitido por causa de uma
+  // entrada que o próprio Fonti calculou errado, não que o cliente informou. Usa `ltvSac`
+  // (o mais restritivo, já que SAC nunca é reajustado) como teto pra este banco.
   const ltvMin = bancosIds.reduce((acc, id) => {
+    if (id === 'caixa') {
+      const { ltvSac } = resolverLtvEfetivoCaixa({
+        valorImovel,
+        rendaMensal: rendaTotal,
+        rendaInformada: rendaTotal > 0,
+        tipoImovel: dados.tipo_imovel ?? undefined,
+        usaFgts: dados.usa_fgts,
+        tipoOperacao: dados.tipo_operacao,
+        finalidade: dados.finalidade_efetiva,
+      })
+      return Math.min(acc, ltvSac)
+    }
     const cfg = BANCOS_CONFIG[id]
     return Math.min(acc, dados.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv)
   }, 0.80)
