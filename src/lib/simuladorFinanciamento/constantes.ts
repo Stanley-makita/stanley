@@ -292,17 +292,28 @@ export const ITAU_MIP_P2: Record<number, number> = {
 // com a convenção do restante do arquivo (taxaAnualBase/Correntista também são efetivas,
 // convertidas via `taxaAnualParaMensal` = (1+taxaAnual)^(1/12)-1).
 //
-// ⚠️ Pendência (decisão do usuário, jul/2026): Faixas 1/2/3 NÃO foram atualizadas nesta
+// ⚠️ Pendência (decisão do usuário, jul/2026): Faixas 1 e 3 NÃO foram atualizadas nesta
 // rodada. O normativo mostra que a taxa real varia por 4 dimensões — faixa de renda (7
 // sub-faixas, não as 4 usadas aqui), região (N/NE vs CO/S/SE), elegibilidade a desconto
 // FGTS, e redutor de 0,5% (≥3 anos FGTS) — nenhuma dessas é capturada pelo modelo atual
-// (`rendaMax`+`taxaAnual` fixo). Os valores hoje (4%/6,5%/7,66%) batem com combinações
-// "com desconto" específicas do normativo, não com a taxa geral. Reconstrução completa
-// (novos campos de input: região, elegibilidade a desconto, redutor) fica para uma sessão
+// (`rendaMax`+`taxaAnual` fixo). Os valores hoje (4%/7,66%) batem com combinações "com
+// desconto" específicas do normativo, não com a taxa geral. Reconstrução completa (novos
+// campos de input: região, elegibilidade a desconto, redutor) fica para uma sessão
 // futura — decisão explícita de não fazer isso agora, escopo grande demais pra este ciclo.
+//
+// Faixa 2 corrigida em jul/2026: 0.0650 → 0.0723 (efetiva), confirmado testando o
+// simulador oficial (renda R$5.000, sem FGTS/redutor, Maringá-PR/Sul) — bate exatamente
+// com o normativo MO30824 v040 §2.1, bracket "de R$4.000,01 a R$5.000,00, com desconto,
+// sem redutor 0,5%, região CO/S/SE" (nominal 7,00% / efetiva 7,2290%). Mesma ressalva das
+// outras faixas: dentro do próprio range da Faixa 2 (R$3.200,01–5.000) o normativo tem
+// OUTROS 2 sub-brackets com taxas menores (5,25%/5,38% até R$3.500; 6,00%/6,17% até
+// R$4.000) — 0.0723 é o valor certo só pra quem está na ponta de cima (R$4.000,01–5.000);
+// clientes com renda mais baixa dentro da Faixa 2 vão ficar com uma taxa um pouco mais
+// alta que a real deles até a reconstrução completa (mesma limitação estrutural de
+// sempre, um valor único por faixa em vez dos 7 sub-brackets do normativo).
 export const MCMV_FAIXAS: Array<{ rendaMax: number; taxaAnual: number; programa: string; tetoImovel: number; mipSubsidizado: boolean }> = [
   { rendaMax: 3_200,  taxaAnual: 0.0400, programa: 'MCMV Faixa 1', tetoImovel: 270_000,  mipSubsidizado: true },
-  { rendaMax: 5_000,  taxaAnual: 0.0650, programa: 'MCMV Faixa 2', tetoImovel: 350_000,  mipSubsidizado: true },
+  { rendaMax: 5_000,  taxaAnual: 0.0723, programa: 'MCMV Faixa 2', tetoImovel: 350_000,  mipSubsidizado: true },
   { rendaMax: 9_600,  taxaAnual: 0.0766, programa: 'MCMV Faixa 3', tetoImovel: 400_000,  mipSubsidizado: true },
   { rendaMax: 13_000, taxaAnual: 0.1047, programa: 'MCMV Classe Média', tetoImovel: 600_000, mipSubsidizado: false },
 ]

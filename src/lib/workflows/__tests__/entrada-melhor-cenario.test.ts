@@ -63,11 +63,13 @@ describe('cabeçalho do texto do WhatsApp mostra a entrada do melhor cenário, n
     const resultado = await executarSimulacao(dados, {})
     const melhor = resultado.bancosResult?.find((r) => r.elegivel)
     expect(melhor?.programa).toBe('MCMV Faixa 2')
-    expect(melhor?.valorFinanciado).toBeCloseTo(190_460, -1)
+    // Financiado recalculado após a correção da taxa da Faixa 2 (0.0650 → 0.0723 efetiva,
+    // jul/2026) — juros mais altos reduzem o teto de capacidade por renda.
+    const entradaEsperada = 250_000 - (melhor?.valorFinanciado ?? 0)
 
     const texto = montarRespostaSimulacao(resultado, { nomeDisplay: 'Cliente Teste' })
     const cabecalho = texto.split('\n')[0]
-    expect(cabecalho).toContain('59.540') // entrada do melhor cenário (250k - 190.460)
+    expect(cabecalho).toContain(Math.round(entradaEsperada).toLocaleString('pt-BR').replace(/\s/g, ''))
     // A entrada genérica antiga (derivada antes de saber o programa vencedor) NÃO deve
     // mais aparecer no cabeçalho.
     expect(cabecalho).not.toContain('126.666')
