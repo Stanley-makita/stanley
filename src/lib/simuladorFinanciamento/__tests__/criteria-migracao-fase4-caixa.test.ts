@@ -597,6 +597,34 @@ describe('Fase 4 — Caixa: MCMV Classe Média SAC tem corte de idade próprio (
   })
 })
 
+// Caso-âncora real que CONFIRMA (não corrige) o "financiando valor máximo" com prazo
+// longo (jul/2026): simulador oficial da Caixa, imóvel R$550k novo, renda R$13.000,
+// nascimento 15/03/2008 (18 anos, prazo cheio de 420 meses — sem redução por idade).
+// Diferente do caso-âncora de 70 anos (prazo 122, onde o PRICE divergia ~24% do oficial),
+// aqui SAC e PRICE maximizam sua própria entrada de forma independente e batem bem com o
+// oficial: MCMV PRICE R$440.000 (oficial R$437.941,30, +0,47%), MCMV SAC R$355.228
+// (oficial R$352.044,40, +0,9%), SBPE SAC R$331.526 (oficial R$323.984,39, +2,3% — mesmo
+// resíduo pequeno já conhecido do modelo de renda). Isola o problema: o gap grande do
+// PRICE é específico de prazo CURTO por idade avançada, não um bug geral na lógica
+// SAC×PRICE — ver pendência registrada no commit da fase 4 (prazo curto).
+describe('Fase 4 — Caixa: caso-âncora real (financiando valor máximo com prazo longo, jul/2026)', () => {
+  it('MCMV PRICE/SAC e SBPE SAC batem com o oficial dentro de ~2,5% (idade 18, prazo 420)', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 0, dataNascimento: '2008-03-15', // 18 anos
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
+
+    // Tolerâncias absolutas (não toBeCloseTo — a diferença real é de milhares de reais,
+    // pequena em termos percentuais, mas grande demais para as casas decimais de toBeCloseTo).
+    expect(Math.abs(porId.get('caixa-mcmv-price')!.valorFinanciado - 437_941.30)).toBeLessThan(3_000)
+    expect(Math.abs(porId.get('caixa-mcmv-sac')!.valorFinanciado - 352_044.40)).toBeLessThan(4_000)
+    expect(Math.abs(porId.get('caixa-sbpe-sac')!.valorFinanciado - 323_984.39)).toBeLessThan(8_000) // resíduo conhecido
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma
