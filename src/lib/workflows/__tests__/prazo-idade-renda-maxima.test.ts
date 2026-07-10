@@ -67,11 +67,14 @@ describe('financiando valor máximo — teto por renda usa o prazo já reduzido 
 
     const parcelaMax = 13_000 * 0.30
 
-    for (const id of ['caixa-sbpe-sac', 'caixa-sbpe-price', 'caixa-mcmv-sac', 'caixa-mcmv-price']) {
+    // MCMV Classe Média SAC tem corte de idade próprio de 60 anos (ver
+    // criteria-migracao-fase4-caixa.test.ts) — aos 70 anos fica de fora, corretamente.
+    for (const id of ['caixa-sbpe-sac', 'caixa-sbpe-price', 'caixa-mcmv-price']) {
       const r = porId.get(id)
       expect(r?.parcelas).toBe(122) // prazo já reduzido pelo teto de idade (80 anos e 6 meses)
       // Tolerância de R$1 pro arredondamento da busca binária.
       expect(r!.primeiraParcela).toBeLessThanOrEqual(parcelaMax + 1)
     }
+    expect(porId.get('caixa-mcmv-sac')).toBeUndefined()
   })
 })

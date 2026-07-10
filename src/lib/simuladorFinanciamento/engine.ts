@@ -468,6 +468,10 @@ export function simularComCriterios(
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
       `Idade máxima de ${criteria.idadeMaximaAbsoluta} anos atingida`)
   }
+  if (input.tipoAmortizacao === 'SAC' && criteria.idadeMaximaAbsolutaSac != null && idadeAnos > criteria.idadeMaximaAbsolutaSac) {
+    return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
+      `Idade do proponente supera o limite do programa para SAC (máx. ${criteria.idadeMaximaAbsolutaSac} anos)`)
+  }
   if (prazo < 12) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
       'Prazo insuficiente — mutuário muito próximo dos 80 anos')
@@ -578,6 +582,13 @@ function ltvMcmv(programa: string): CriteriosLtv {
   }
 }
 
+// MCMV Classe Média — SAC tem corte de idade próprio de 60 anos (ver comentário do campo
+// `idadeMaximaAbsolutaSac` em criteria.ts). Confirmado no simulador oficial: idade 60 passa,
+// 61+ é sempre bloqueado com "IDADE PROPONENTE SUPERA LIMITE DO PROGRAMA" — só no SAC.
+function idadeMaximaSacMcmv(programa: string): number | undefined {
+  return programa === 'MCMV Classe Média' ? 60 : undefined
+}
+
 // Cota de financiamento do Pró-Cotista — normativo MO30824 v040 §5.4: 60% SAC / 60%
 // SFA-TP (PRICE), corrigido jul/2026 (antes herdava o LTV do SBPE, 80%/70%). A tabela só
 // lista modalidades de imóvel NOVO (sem "Imóvel Usado") — já coberto pela restrição de
@@ -680,7 +691,10 @@ export function simularBanco(
     )
     if (faixaMcmv.length > 0) {
       const f = faixaMcmv[0]
-      criteria = { ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa, ltv: ltvMcmv(f.programa), prazoMaximoMesesPrice: undefined }
+      criteria = {
+        ...criteriaBase, taxaAnualBase: f.taxaAnual, taxaAnualCorrentista: f.taxaAnual, programa: f.programa,
+        ltv: ltvMcmv(f.programa), prazoMaximoMesesPrice: undefined, idadeMaximaAbsolutaSac: idadeMaximaSacMcmv(f.programa),
+      }
     }
     return simularComCriterios(cfg, criteria, input, bancoId)
   }
@@ -914,6 +928,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
           : criteriaBase.seguro,
         ltv: ltvMcmv(f.programa),
         prazoMaximoMesesPrice: undefined,
+        idadeMaximaAbsolutaSac: idadeMaximaSacMcmv(f.programa),
       }
       gerarCenariosComparativos(results, cfg, criteriaMcmv, input, 'caixa-mcmv', construirCenariosCaixa(input, criteriaMcmv))
     }

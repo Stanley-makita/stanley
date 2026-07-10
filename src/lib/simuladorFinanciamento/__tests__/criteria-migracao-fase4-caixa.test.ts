@@ -565,6 +565,38 @@ describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixas ≤50-999
   })
 })
 
+// Corte de idade próprio do SAC no MCMV Classe Média (jul/2026): 9 simulações no
+// simulador oficial, mesmo imóvel (R$550k novo), mesma renda (R$13.000), variando só a
+// idade — 61, 62, 63, 64, 65, 68 e 69 anos deram "ATENÇÃO! IDADE PROPONENTE SUPERA LIMITE
+// DO PROGRAMA" (bloqueado por completo) no SAC, enquanto 60 anos passou normalmente
+// (prazo 242, dentro da regra geral de idade+prazo). O PRICE, no mesmo nascimento de 70
+// anos, nunca bateu nesse bloqueio — é uma regra própria do programa+sistema, não a regra
+// geral de idade+prazo de 80 anos e 6 meses que já tínhamos.
+describe('Fase 4 — Caixa: MCMV Classe Média SAC tem corte de idade próprio (60 anos)', () => {
+  it('idade 61+ é inelegível no SAC mas o PRICE continua elegível', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 0, dataNascimento: '1956-03-15', // 70 anos
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    expect(resultados.find((r) => r.resultadoId === 'caixa-mcmv-sac')).toBeUndefined()
+    expect(resultados.find((r) => r.resultadoId === 'caixa-mcmv-price')?.elegivel).toBe(true)
+  })
+
+  it('idade 60 (limite) segue elegível no SAC', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 0, dataNascimento: '1966-03-15', // 60 anos
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    const sac = resultados.find((r) => r.resultadoId === 'caixa-mcmv-sac')
+    expect(sac?.elegivel).toBe(true)
+    expect(sac?.parcelas).toBe(242) // bate com o oficial (regra geral de idade+prazo)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma

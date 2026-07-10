@@ -114,6 +114,15 @@ export interface SimulationCriteria {
   limiteIdadePrazoMeses: number
   /** Corte duro de idade, independente da regra de idade+prazo. Omitir se não houver regra própria. */
   idadeMaximaAbsoluta?: number
+  /**
+   * Corte duro de idade exclusivo do sistema SAC (ignorado no PRICE). Hoje só o MCMV
+   * Classe Média tem essa regra: confirmado no simulador oficial (jul/2026) que idade 60
+   * passa normalmente no SAC (prazo 242, dentro do limite geral de idade+prazo), mas 61+
+   * (testado 61 a 69) sempre retorna "ATENÇÃO! IDADE PROPONENTE SUPERA LIMITE DO
+   * PROGRAMA" — mesmo nascimento passando de boa no PRICE. Corte é próprio do
+   * programa+sistema, não da regra geral de 80 anos e 6 meses da Caixa.
+   */
+  idadeMaximaAbsolutaSac?: number
   comprometimentoRenda: CriteriosComprometimentoRenda
   /** 0 = sem limite */
   maxValorImovel: number
