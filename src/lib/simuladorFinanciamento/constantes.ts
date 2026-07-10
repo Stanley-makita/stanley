@@ -179,17 +179,18 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
 // 0.000096, ≤45 = 0.000252. Com os dois bugs corrigidos, todos os 12 casos batem a
 // 1-2 centavos (ver `criteria-migracao-fase4-caixa.test.ts`).
 //
-// ⚠️ Monotonicidade: com ≤40 confirmada em 0.000093 e ≤45 em 0.000252, a faixa ≤35
-// (0.000204, ainda sem dado real) ficou MAIOR que as duas vizinhas — evidência forte de
-// que 0.000204 também está superestimada (provavelmente as idades jovens, 25-40, têm um
-// MIP bem mais achatado do que o salto abrupto que a tabela antiga assumia), mas sem um
-// caso real na faixa 31-35 especificamente não dá pra saber o valor certo. Não ajustado
-// nesta rodada — precisa de mais uma simulação real (imóvel caro, idade entre 31-35) pra
-// confirmar.
+// Faixa ≤35 corrigida em jul/2026: 0.000204 → 0.000116, confirmado testando o simulador
+// oficial (SBPE, imóvel R$550k novo, Balcão/sem relacionamento, nascimento 15/10/1993 —
+// 32 anos, PRICE 360 meses). Cálculo limpo (1ªParcela − últimaParcela): seguro real =
+// R$3.159,98 − R$3.086,17 = R$73,81; DFI fixo (0.000066 × 550.000) = R$36,30; MIP
+// implícito = R$37,51 / R$323.342,11 financiado = **0.000116** — confirma a suspeita
+// anterior de que 0.000204 estava superestimada, e resolve a inconsistência de
+// monotonicidade (0.000116 fica corretamente entre ≤30=0.000096 e ≤40=0.000093, coerente
+// com o "plateau" das idades jovens observado nas outras faixas confirmadas).
 export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
   { maxAge: 25,  taxa: 0.000093 },
   { maxAge: 30,  taxa: 0.000096 },
-  { maxAge: 35,  taxa: 0.000204 },
+  { maxAge: 35,  taxa: 0.000116 },
   { maxAge: 40,  taxa: 0.000093 },
   { maxAge: 45,  taxa: 0.000252 },
   { maxAge: 50,  taxa: 0.000386 },

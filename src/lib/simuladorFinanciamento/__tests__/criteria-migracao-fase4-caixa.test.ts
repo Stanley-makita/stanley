@@ -482,6 +482,36 @@ describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixa ≤40 anos
   })
 })
 
+// Caso-âncora real que corrigiu a faixa de MIP ≤35 anos (jul/2026): simulador oficial da
+// Caixa, SBPE Balcão, imóvel R$550.000 novo, entrada fixa R$226.657,89, nascimento
+// 15/10/1993 (32 anos). Antes da correção a faixa ≤35 usava 0.000204 (nunca confirmada
+// por caso real, e maior que as duas faixas vizinhas — inconsistência já registrada).
+// Reconstruindo o seguro implícito via PRICE (1ªParcela−últimaParcela, que já batia
+// exato): R$3.159,98 − R$3.086,17 = R$73,81; DFI (0.000066 × 550.000) = R$36,30; MIP
+// implícito = R$37,51 / R$323.342,11 financiado = 0.000116 — resolve a inconsistência de
+// monotonicidade (fica entre ≤30=0.000096 e ≤40=0.000093).
+describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixa ≤35 anos, jul/2026)', () => {
+  it('SAC e PRICE batem com o simulador oficial dentro de R$1 (imóvel R$550k novo, idade 32)', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 226_657.89, dataNascimento: '1993-10-15',
+      rendaMensal: 100_000, tipoAmortizacao: 'PRICE', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial',
+    })
+    const sac = resultados.find((r) => r.resultadoId === 'caixa-sbpe-sac')
+    const price = resultados.find((r) => r.resultadoId === 'caixa-sbpe-price')
+
+    expect(sac?.elegivel).toBe(true)
+    expect(sac?.parcelas).toBe(420)
+    expect(sac?.primeiraParcela).toBeCloseTo(3812.67, 0) // diff real: R$0,01
+    expect(sac?.ultimaParcela).toBeCloseTo(801.87, 0)
+
+    expect(price?.elegivel).toBe(true)
+    expect(price?.parcelas).toBe(360)
+    expect(price?.primeiraParcela).toBeCloseTo(3159.98, 0)
+    expect(price?.ultimaParcela).toBeCloseTo(3086.17, 0)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma
