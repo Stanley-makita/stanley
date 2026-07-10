@@ -512,6 +512,59 @@ describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixa ≤35 anos
   })
 })
 
+// Caso-âncora real que corrigiu as faixas de MIP ≤55/≤60/≤65/999 (jul/2026): 5 simulações
+// no simulador oficial (SBPE Balcão, imóvel R$550k novo), uma por faixa, idades 48/53/58/
+// 63/70 — todas com aniversário já passado em 2026, prazo reduzido automaticamente pelo
+// teto de idade da Caixa (confirma que a idade certa caiu em cada faixa). Ver
+// `constantes.ts` (CAIXA_MIP_RATES) para o cálculo do MIP implícito de cada caso.
+describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixas ≤50-999 anos, jul/2026)', () => {
+  const casos: Array<{
+    idade: number; dataNascimento: string
+    entradaSac: number; entradaPrice: number
+    prazoSac: number; prazoPrice: number
+    sac: { primeira: number; ultima: number }
+    price: { primeira: number; ultima: number }
+  }> = [
+    { idade: 48, dataNascimento: '1978-03-15', entradaSac: 239_497.00, entradaPrice: 235_244.92,
+      prazoSac: 386, prazoPrice: 360,
+      sac: { primeira: 3812.66, ultima: 836.73 }, price: { primeira: 3162.68, ultima: 3004.88 } },
+    { idade: 53, dataNascimento: '1973-03-15', entradaSac: 258_028.24, entradaPrice: 248_347.00,
+      prazoSac: 326, prazoPrice: 326,
+      sac: { primeira: 3812.66, ultima: 928.77 }, price: { primeira: 3162.68, ultima: 2922.46 } },
+    { idade: 58, dataNascimento: '1968-03-15', entradaSac: 289_439.53, entradaPrice: 281_143.97,
+      prazoSac: 266, prazoPrice: 266,
+      sac: { primeira: 3812.67, ultima: 1013.47 }, price: { primeira: 3162.68, ultima: 2714.22 } },
+    { idade: 63, dataNascimento: '1963-03-15', entradaSac: 325_236.25, entradaPrice: 320_277.91,
+      prazoSac: 206, prazoPrice: 206,
+      sac: { primeira: 3812.66, ultima: 1126.01 }, price: { primeira: 3162.67, ultima: 2499.00 } },
+    { idade: 70, dataNascimento: '1956-03-15', entradaSac: 367_545.97, entradaPrice: 366_136.89,
+      prazoSac: 122, prazoPrice: 122,
+      sac: { primeira: 3812.67, ultima: 1534.15 }, price: { primeira: 3162.67, ultima: 2527.16 } },
+  ]
+
+  it.each(casos)('idade $idade: SAC e PRICE batem com o simulador oficial dentro de R$1', (caso) => {
+    const sac = simularBancoNovo('caixa', {
+      valorImovel: 550_000, valorEntrada: caso.entradaSac, dataNascimento: caso.dataNascimento,
+      rendaMensal: 100_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial',
+    })
+    expect(sac.elegivel).toBe(true)
+    expect(sac.parcelas).toBe(caso.prazoSac)
+    expect(sac.primeiraParcela).toBeCloseTo(caso.sac.primeira, 0)
+    expect(sac.ultimaParcela).toBeCloseTo(caso.sac.ultima, 0)
+
+    const price = simularBancoNovo('caixa', {
+      valorImovel: 550_000, valorEntrada: caso.entradaPrice, dataNascimento: caso.dataNascimento,
+      rendaMensal: 100_000, tipoAmortizacao: 'PRICE', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial',
+    })
+    expect(price.elegivel).toBe(true)
+    expect(price.parcelas).toBe(caso.prazoPrice)
+    expect(price.primeiraParcela).toBeCloseTo(caso.price.primeira, 0)
+    expect(price.ultimaParcela).toBeCloseTo(caso.price.ultima, 0)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma

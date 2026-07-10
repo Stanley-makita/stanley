@@ -187,6 +187,21 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
 // anterior de que 0.000204 estava superestimada, e resolve a inconsistência de
 // monotonicidade (0.000116 fica corretamente entre ≤30=0.000096 e ≤40=0.000093, coerente
 // com o "plateau" das idades jovens observado nas outras faixas confirmadas).
+//
+// Faixas ≤55/≤60/≤65/999 corrigidas em jul/2026: dataset de 5 simulações reais (SBPE
+// Balcão, imóvel R$550k novo, PRICE), uma por faixa, idades 48/53/58/63/70 (todas com
+// aniversário já passado em 2026, prazo reduzido automaticamente pelo teto de idade da
+// Caixa — usado aqui como confirmação de que a idade certa caiu em cada faixa). Mesmo
+// cálculo limpo (1ªParcela − últimaParcela − DFI):
+//   idade 48 (≤50): R$121,50 / R$314.755,08 = 0.000386 — já estava certa, sem mudança.
+//   idade 53 (≤55): R$203,92 / R$301.653,00 = 0.000676 (era 0.000636).
+//   idade 58 (≤60): R$412,16 / R$268.856,03 = 0.001533 (era 0.000900 — bem subestimada).
+//   idade 63 (≤65): R$627,37 / R$229.722,09 = 0.002731 (era 0.001344 — quase metade).
+//   idade 70 (999):  R$599,21 / R$183.863,11 = 0.003259 (era 0.002040).
+// Sequência agora estritamente crescente com a idade em toda a tabela, coerente com o
+// perfil atuarial esperado. A faixa 999 (66+) continua sendo um único valor "catch-all"
+// calibrado só com um ponto (idade 70) — pode não representar bem idades bem mais altas
+// (75-80+); sem dado real acima de 70 não dá pra refinar mais.
 export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
   { maxAge: 25,  taxa: 0.000093 },
   { maxAge: 30,  taxa: 0.000096 },
@@ -194,10 +209,10 @@ export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
   { maxAge: 40,  taxa: 0.000093 },
   { maxAge: 45,  taxa: 0.000252 },
   { maxAge: 50,  taxa: 0.000386 },
-  { maxAge: 55,  taxa: 0.000636 },
-  { maxAge: 60,  taxa: 0.000900 },
-  { maxAge: 65,  taxa: 0.001344 },
-  { maxAge: 999, taxa: 0.002040 },
+  { maxAge: 55,  taxa: 0.000676 },
+  { maxAge: 60,  taxa: 0.001533 },
+  { maxAge: 65,  taxa: 0.002731 },
+  { maxAge: 999, taxa: 0.003259 },
 ]
 
 // DFI Caixa — verificado: R$33,00 em R$500k = 0,0066%/mês sobre valor do imóvel
