@@ -15,7 +15,6 @@ import type { Processo, ModalidadeProcesso } from '@/types/processos'
 
 const FILTROS_PRODUTO: { label: string; value: ProdutoFiltro }[] = [
   { label: 'Financiamento', value: 'financiamento' },
-  { label: 'Consórcio',     value: 'consorcio' },
   { label: 'CGI',           value: 'cgi' },
   { label: 'Contrato',      value: 'contrato' },
 ]
