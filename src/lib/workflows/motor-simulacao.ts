@@ -505,9 +505,17 @@ function montarRespostaNormal(
     // motor via validarParaSimulacao para casos extremos; aqui cobre idades "no limiar"
     // que passam o guard central mas ficam inelegíveis banco a banco) de renda/LTV
     // (diagnosticável — reaproveita o mesmo cálculo usado quando há avisoRenda acima).
+    //
+    // `\bidade\b` (limite de palavra), não `.includes('idade')` — corrigido jul/2026: o
+    // includes cru dava falso positivo em QUALQUER motivo que mencionasse "modalidade"
+    // (ex.: "Não oferece financiamento na modalidade PRICE", de um banco que só não
+    // suporta PRICE) — "modalidade" contém "idade" como substring. Isso fazia o Fonti
+    // responder "idade do cliente é incompatível" pra um cliente de 39 anos só porque o
+    // único banco pedido (ex.: Bradesco) não oferece PRICE, uma mensagem completamente
+    // errada e confusa. Achado testando exatamente esse cenário.
     const inelegiveisPorIdade = inelegiveis.filter((b) =>
-      (b.motivoInelegivel ?? '').toLowerCase().includes('idade') ||
-      (b.motivoInelegivel ?? '').toLowerCase().includes('prazo insuficiente'))
+      /\bidade\b/i.test(b.motivoInelegivel ?? '') ||
+      /\bprazo insuficiente\b/i.test(b.motivoInelegivel ?? ''))
     const todosPorIdade = inelegiveis.length > 0 && inelegiveisPorIdade.length === inelegiveis.length
 
     if (todosPorIdade) {
