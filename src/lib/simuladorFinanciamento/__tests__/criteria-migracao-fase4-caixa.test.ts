@@ -625,6 +625,34 @@ describe('Fase 4 — Caixa: caso-âncora real (financiando valor máximo com pra
   })
 })
 
+// Caso-âncora real que CONFIRMA a penalidade de imóvel usado no MCMV Classe Média
+// (jul/2026): simulador oficial, imóvel R$550k usado, renda R$13.000, nascimento
+// 15/03/1996 (30 anos, prazo cheio 420 meses — renda não é o fator restritivo aqui).
+// SAC e PRICE batem exatamente no teto de LTV de 60% (80% - 20pp de penalidade usado),
+// financiado R$330.000 idêntico pros dois sistemas (esperado — quando o LTV é o fator
+// restritivo, não a renda, SAC e PRICE convergem trivialmente). Parcelas batem a poucos
+// centavos com o oficial.
+describe('Fase 4 — Caixa: caso-âncora real (MCMV Classe Média usado, LTV 60%, jul/2026)', () => {
+  it('SAC e PRICE batem no teto de 60% e as parcelas batem com o oficial', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 0, dataNascimento: '1996-03-15', // 30 anos
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'usado', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    const sac = resultados.find((r) => r.resultadoId === 'caixa-mcmv-sac')
+    const price = resultados.find((r) => r.resultadoId === 'caixa-mcmv-price')
+
+    expect(sac?.valorFinanciado).toBeCloseTo(330_000, 6) // 60% de 550k
+    expect(Math.abs(sac!.primeiraParcela - 3627.81)).toBeLessThan(1) // tolerância R$1
+    expect(Math.abs(sac!.ultimaParcela - 817.26)).toBeLessThan(1)
+
+    expect(price?.valorFinanciado).toBeCloseTo(330_000, 6)
+    expect(Math.abs(price!.primeiraParcela - 2929.02)).toBeLessThan(1)
+    expect(Math.abs(price!.ultimaParcela - 2861.92)).toBeLessThan(1)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma
