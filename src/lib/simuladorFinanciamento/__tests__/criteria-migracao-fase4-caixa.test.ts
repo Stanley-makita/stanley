@@ -653,6 +653,39 @@ describe('Fase 4 — Caixa: caso-âncora real (MCMV Classe Média usado, LTV 60%
   })
 })
 
+// Trava de segurança temporária pro gap do PRICE em prazo curto (jul/2026): NÃO é a
+// fórmula real da Caixa (ainda não descoberta) — é uma salvaguarda pra não superestimar
+// tanto o financiado enquanto a fórmula certa não é encontrada. Sem a trava, o caso-âncora
+// de 70 anos/prazo 122 dava SBPE PRICE R$227.575 (oficial R$183.863 — 24% acima). Com a
+// trava (teto de 10% acima do financiado do SAC, só quando prazo ≤ 200 meses), cai pra
+// R$205.371 (~11,7% acima — ainda impreciso, mas bem mais conservador). O caso de prazo
+// longo (idade 18, MCMV, confirmado em outro teste) não é afetado pela trava.
+describe('Fase 4 — Caixa: trava de segurança do PRICE em prazo curto (jul/2026)', () => {
+  it('SBPE PRICE fica mais conservador quando o prazo é curto (idade 70)', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 0, dataNascimento: '1956-03-15', // 70 anos
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    const price = resultados.find((r) => r.resultadoId === 'caixa-sbpe-price')
+    // Antes da trava: R$227.575. Depois: ~R$205.371 (teto = SAC × 1.10).
+    expect(price?.valorFinanciado).toBeLessThan(210_000)
+    expect(price?.valorFinanciado).toBeGreaterThan(200_000)
+  })
+
+  it('não afeta o caso de prazo longo já confirmado (idade 18, MCMV)', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 550_000, valorEntrada: 0, dataNascimento: '2008-03-15', // 18 anos
+      rendaMensal: 13_000, tipoAmortizacao: 'SAC', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    expect(resultados.find((r) => r.resultadoId === 'caixa-mcmv-price')?.valorFinanciado).toBeCloseTo(440_000, 6)
+    expect(resultados.find((r) => r.resultadoId === 'caixa-sbpe-price')?.valorFinanciado).toBeCloseTo(385_000, 6)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma

@@ -783,7 +783,7 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
     // o teto de LTV cheio (que o PRICE, com parcela mais baixa, consegue honrar). Achado
     // testando o cenário do usuário (MCMV Faixa 2: oficial dava PRICE R$200.000 fic./SAC
     // R$173.660,84 fic. — diferentes; Fonti dava os dois em R$177.214, iguais).
-    const entradaMaxima = (ltv: number, prazo: number, tipoAmortizacao: 'SAC' | 'PRICE'): number => {
+    const entradaMaxima = (ltv: number, prazo: number, tipoAmortizacao: 'SAC' | 'PRICE', tetoSeguranca?: number): number => {
       const maxByLtv = Math.round(input.valorImovel * ltv * 100) / 100
       let maxByRenda = input.valorImovel
       if (input.rendaInformada !== false && input.rendaMensal > 0) {
@@ -800,7 +800,7 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
         }
         maxByRenda = Math.floor((lo + hi) / 2)
       }
-      const financiadoMax = Math.max(0, Math.min(maxByLtv, maxByRenda, input.valorImovel))
+      const financiadoMax = Math.max(0, Math.min(maxByLtv, maxByRenda, tetoSeguranca ?? Infinity, input.valorImovel))
       return Math.round((input.valorImovel - financiadoMax) * 100) / 100
     }
 
@@ -828,7 +828,25 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
       criteria.prazoMaximoMesesPrice ?? criteria.prazoMaximoMeses,
       criteria.limiteIdadePrazoMeses,
     )
-    const entradaPrice = entradaMaxima(criteria.ltv.price - penalidadeUsado, prazoPrice, 'PRICE')
+    // Trava de segurança temporária (jul/2026) — não é a fórmula real da Caixa, é uma
+    // salvaguarda enquanto ela não é descoberta. Achado real: quando o prazo fica curto
+    // (clientes mais velhos, cujo prazo é reduzido pelo teto de idade), o teto por renda
+    // do PRICE — calculado de forma independente do SAC — superestima MUITO o financiado
+    // real (ex.: nascimento 15/03/1956, 70 anos, prazo 122: fórmula dava R$277.581,
+    // oficial R$183.863 — 24% acima; SAC no mesmo caso errava só ~2%, R$218.925 vs
+    // R$213.945 oficial). Em prazo longo (ex.: 420/360 meses) o teto independente bate
+    // bem (MCMV Classe Média confirmado a <1% de erro) — por isso a trava só entra em
+    // prazos curtos, pra não estragar o caso já validado. PRAZO_CURTO_LIMIAR (200 meses)
+    // é uma linha divisória cautelosa entre o pior caso confirmado (122, errava 24%) e o
+    // melhor caso confirmado (360/420, sem erro) — a faixa 123–359 ainda não tem dado
+    // real (teste de prazo=240 pendente) para refinar esse limiar.
+    const PRAZO_CURTO_LIMIAR_PRICE = 200
+    const MARGEM_SEGURANCA_PRICE_SOBRE_SAC = 1.10 // 10% acima do financiado do SAC
+    const financiadoSacReal = input.valorImovel - entradaSac
+    const tetoSegurancaPrice = prazoPrice <= PRAZO_CURTO_LIMIAR_PRICE
+      ? financiadoSacReal * MARGEM_SEGURANCA_PRICE_SOBRE_SAC
+      : undefined
+    const entradaPrice = entradaMaxima(criteria.ltv.price - penalidadeUsado, prazoPrice, 'PRICE', tetoSegurancaPrice)
     cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE', valorEntrada: entradaPrice } })
     return cenarios
   }
