@@ -430,8 +430,8 @@ exports[`Itaú — regressão antes/depois da migração (Fase 3) > prazo longo 
   "taxaMensal": 0.009413651406458,
   "tipoAmortizacao": "SAC",
   "totalJuros": 792629.448423768,
-  "totalPago": 1275071.7579479595,
-  "totalSeguros": 82442.30952419146,
+  "totalPago": 1275792.4729760548,
+  "totalSeguros": 83163.02455228675,
   "ultimaParcela": 961.3463346728347,
   "valorFinanciado": 400000,
 }

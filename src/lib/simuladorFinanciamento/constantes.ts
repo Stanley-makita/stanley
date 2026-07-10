@@ -65,8 +65,12 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Bradesco',
     cor: '#CC092F',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1230, // 12,30% a.a. — todos os segmentos PF residencial (fonte: simulador oficial jun/2026)
-    taxaAnualCorrentista: 0.1230, // taxa independe do segmento (PRIME/EXCLUSIVE/CLASSIC/PRINCIPAL/PRIVATE = mesma taxa)
+    // Ajustado jul/2026: a taxa real do Bradesco varia por CPF/rating de crédito (igual
+    // Itaú/Santander), não por correntista/segmento — não temos como replicar esse scoring,
+    // então assumimos o piso praticado (11,90%) como premissa de calibração, sabendo que o
+    // resultado real pode vir mais alto para um CPF específico.
+    taxaAnualBase:        0.1190, // 11,90% a.a. — piso assumido (taxa real varia por CPF/rating)
+    taxaAnualCorrentista: 0.1190,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -79,8 +83,11 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Santander',
     cor: '#EC0000',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1249, // 12,49% a.a. + TR (taxa praticada nas simulações)
-    taxaAnualCorrentista: 0.1169, // 11,69% a.a. (mínimo para clientes de relacionamento)
+    // Ajustado jul/2026: colapsado no piso (11,69%) para as duas variantes — a taxa real
+    // varia por CPF/rating de crédito, não estritamente por relacionamento; sem como
+    // replicar o scoring, assumimos sempre o piso praticado como premissa de calibração.
+    taxaAnualBase:        0.1169, // 11,69% a.a. — piso assumido (taxa real varia por CPF/rating)
+    taxaAnualCorrentista: 0.1169,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
@@ -94,8 +101,11 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Banco do Brasil',
     cor: '#FDCA00',
     corTexto: '#000000',
-    taxaAnualBase:        0.1174, // 11,74% a.a. + TR
-    taxaAnualCorrentista: 0.1160, // 11,60% a.a. (correntista com conta ativa)
+    // Ajustado jul/2026: não temos como saber a taxa real do BB pra um CPF específico
+    // (varia por rating de crédito); assumido 12,00% como piso de calibração até termos
+    // dado melhor.
+    taxaAnualBase:        0.1200, // 12,00% a.a. — piso assumido (taxa real varia por CPF/rating)
+    taxaAnualCorrentista: 0.1200,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
