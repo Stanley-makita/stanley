@@ -150,8 +150,17 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
 
 // Caixa — MIP tabela oficial (alíquota mensal sobre SD)
 // Faixa ≤50 = 0.000386 verificado no simulador caixa.gov.br (DOB 19/02/1979, R$400k, junho/2026)
-// Faixas 35 e 40 mantidas do módulo de referência — ainda sem dado real (ver nota de
+// Faixa 35 mantida do módulo de referência — ainda sem dado real (ver nota de
 // monotonicidade abaixo).
+//
+// Faixa ≤40 corrigida em jul/2026: 0.000264 → 0.000093, confirmado testando o simulador
+// oficial (imóvel R$1,6M novo, idade 38, sem renda, "financiando valor máximo", PRICE).
+// Cálculo limpo (sem precisar assumir taxa de juros, só 1ªParcela − últimaParcela, que
+// bate exato entre Fonti e oficial): seguro real = R$209,76; DFI fixo (0.000066 × 1,6M) =
+// R$105,60; MIP implícito = R$104,16 / R$1.120.000 financiado = **0.000093 exato** —
+// idêntico à faixa ≤25 já confirmada, não aos 0.000264 que o código usava. Antes da
+// correção, a 1ª parcela do PRICE divergia R$191,53 (SAC: R$218,90) — proporcionalmente
+// grande porque o imóvel é caro; passaria despercebido em valores menores.
 //
 // Faixas ≤25/≤30/≤45 recalibradas em jul/2026 com um dataset limpo: 12 simulações reais
 // no caixa.gov.br, mesmo imóvel (R$450k, usado, Maringá-PR), cruzando idade (25/30/45) ×
@@ -170,14 +179,18 @@ export const MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number
 // 0.000096, ≤45 = 0.000252. Com os dois bugs corrigidos, todos os 12 casos batem a
 // 1-2 centavos (ver `criteria-migracao-fase4-caixa.test.ts`).
 //
-// ⚠️ Monotonicidade: com ≤45 caindo pra 0.000252, ficou MENOR que ≤40 (0.000264, valor
-// antigo nunca confirmado por caso real) — não ajustado aqui por falta de dado, mas é
-// evidência de que 35/40 também estão superestimados e precisam de simulação real.
+// ⚠️ Monotonicidade: com ≤40 confirmada em 0.000093 e ≤45 em 0.000252, a faixa ≤35
+// (0.000204, ainda sem dado real) ficou MAIOR que as duas vizinhas — evidência forte de
+// que 0.000204 também está superestimada (provavelmente as idades jovens, 25-40, têm um
+// MIP bem mais achatado do que o salto abrupto que a tabela antiga assumia), mas sem um
+// caso real na faixa 31-35 especificamente não dá pra saber o valor certo. Não ajustado
+// nesta rodada — precisa de mais uma simulação real (imóvel caro, idade entre 31-35) pra
+// confirmar.
 export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
   { maxAge: 25,  taxa: 0.000093 },
   { maxAge: 30,  taxa: 0.000096 },
   { maxAge: 35,  taxa: 0.000204 },
-  { maxAge: 40,  taxa: 0.000264 },
+  { maxAge: 40,  taxa: 0.000093 },
   { maxAge: 45,  taxa: 0.000252 },
   { maxAge: 50,  taxa: 0.000386 },
   { maxAge: 55,  taxa: 0.000636 },

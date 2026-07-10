@@ -452,6 +452,36 @@ describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixa ≤30 anos
   })
 })
 
+// Caso-âncora real que corrigiu a faixa de MIP ≤40 anos (jul/2026): simulador oficial da
+// Caixa, imóvel R$1.600.000 novo, sem renda informada, "financiando valor máximo",
+// nascimento 19/09/1987 (idade 38). Antes da correção, a faixa ≤40 usava 0.000264
+// (nunca confirmada por caso real) — a 1ª parcela do PRICE divergia R$191,53 (SAC:
+// R$218,90), grande o bastante pra aparecer com um imóvel caro. Reconstruindo o seguro
+// implícito via 1ªParcela−últimaParcela (que já batia exato): MIP real = 0.000093,
+// idêntico à faixa ≤25 — não os 0.000264 antigos.
+describe('Fase 4 — Caixa: caso-âncora real (calibração MIP faixa ≤40 anos, jul/2026)', () => {
+  it('PRICE e SAC batem com o simulador oficial dentro de R$1 (imóvel de alto valor, idade 38)', () => {
+    const resultados = simularTodosBancosNovo({
+      valorImovel: 1_600_000, valorEntrada: 320_000, dataNascimento: '1987-09-19',
+      rendaMensal: 0, rendaInformada: false, tipoAmortizacao: 'PRICE', correntista: false,
+      bancosIds: ['caixa'], tipoImovel: 'novo', finalidade: 'residencial', usaFgts: false,
+      financiandoValorMaximo: true,
+    })
+    const price = resultados.find((r) => r.resultadoId === 'caixa-sbpe-price')
+    const sac = resultados.find((r) => r.resultadoId === 'caixa-sbpe-sac')
+
+    expect(price?.elegivel).toBe(true)
+    expect(price?.valorFinanciado).toBeCloseTo(1_120_000, 6) // 70% de 1,6M
+    expect(price?.primeiraParcela).toBeCloseTo(10838.12, 0) // diff real: R$0,01
+    expect(price?.ultimaParcela).toBeCloseTo(10628.36, 0)
+
+    expect(sac?.elegivel).toBe(true)
+    expect(sac?.valorFinanciado).toBeCloseTo(1_280_000, 6) // 80% de 1,6M
+    expect(sac?.primeiraParcela).toBeCloseTo(14951.54, 0) // diff real: R$0,02
+    expect(sac?.ultimaParcela).toBeCloseTo(3100.36, 0)
+  })
+})
+
 // Comparação de Cenários: a Caixa passa a gerar SAC e PRICE automaticamente (via
 // gerarCenariosComparativos, engine.ts) para cada programa aplicável — desde que ambos
 // sejam elegíveis. Este describe testa o comportamento novo diretamente (não é mais uma
