@@ -21,6 +21,7 @@ import { AbaHistorico } from './LeadDetalhe/AbaHistorico'
 import { AbaOperacional } from './LeadDetalhe/AbaOperacional'
 import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
 import { AbaPessoa } from './LeadDetalhe/AbaPessoa'
+import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { AbaOportunidade } from './LeadDetalhe/AbaOportunidade'
 import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
 import { PipelineBarLead } from './PipelineBarLead'
@@ -187,6 +188,9 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
+                      <div className="mt-1">
+                        <ParticularidadeCliente pessoaId={lead.pessoa_id} />
+                      </div>
                       {lead.fase && (
                         <span
                           className="text-xs px-2 py-0.5 rounded-full font-medium text-white mt-1.5 inline-block"

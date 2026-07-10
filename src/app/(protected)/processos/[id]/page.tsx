@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { differenceInDays } from 'date-fns'
 import { useState, useMemo } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
+import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
 import { EditarProcessoDrawer } from '@/components/processos/EditarProcessoDrawer'
@@ -175,6 +176,11 @@ export default function ProcessoDetalhePage() {
               </Badge>
             )}
             <EmailConfirmacaoBadge processoId={id} />
+          </div>
+          <div className="mb-1.5 flex">
+            <ParticularidadeCliente
+              pessoaId={(processo.compradores?.find(c => c.principal) ?? processo.compradores?.[0])?.pessoa_id}
+            />
           </div>
           {/* Barra de fases (igual ao Lead) — avança sequencial, respeitando checklist/dados financeiros */}
           {fases.length > 0 && (

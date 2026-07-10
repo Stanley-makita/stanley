@@ -39,9 +39,16 @@ export interface Pessoa {
   conjuge_renda_formal: number | null
   conjuge_renda_informal: number | null
   regime_casamento: string | null
+  // Particularidade — observação livre sobre o cliente, exibida ao lado do nome
+  // em Captação e em Negócios. Só editável por quem criou ou por admin (ver
+  // ParticularidadeCliente.tsx).
+  particularidade: string | null
+  particularidade_criado_por: string | null
+  particularidade_atualizado_em: string | null
   // Joins opcionais
   telefones?: PessoaTelefone[]
   leads?: { id: string; nome: string; status: string; fase: { nome: string } | null }[]
+  particularidade_criado_por_usuario?: { nome: string } | null
 }
 
 export interface PessoaAlteracao {

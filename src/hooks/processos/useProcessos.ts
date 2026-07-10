@@ -95,7 +95,7 @@ export function useProcesso(processoId: string) {
           comercial:usuarios!comercial_id(id, nome, email),
           juridico:usuarios!juridico_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
-          compradores:processo_compradores(id, nome, cpf, principal),
+          compradores:processo_compradores(id, nome, cpf, principal, pessoa_id),
           vendedores:processo_vendedores(id, nome, cpf),
           parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria)
         `)
