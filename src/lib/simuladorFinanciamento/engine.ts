@@ -759,7 +759,17 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
     const dfiRenda = criteria.seguro.dfi.taxaMensal
     const tarifaRenda = criteria.tarifaAdministracaoMensal
 
-    const entradaMaxima = (ltv: number, prazo: number): number => {
+    // Bug real corrigido jul/2026: o teto por renda usava sempre a fórmula do SAC como
+    // proxy, mesmo pra estimar a entrada do PRICE — SAC tem 1ª parcela mais alta que PRICE
+    // pro mesmo principal (amortização constante desde o mês 1, contra parcela nivelada),
+    // então "tomar emprestada" a curva do SAC pro PRICE subestimava o quanto o PRICE
+    // realmente cabe na renda. Resultado: quando o LTV é igual pros dois sistemas (comum
+    // no MCMV, sem a distinção 80%/70% do SBPE) e a renda é o fator restritivo só pro SAC,
+    // o PRICE ficava artificialmente preso na MESMA entrada do SAC, em vez de aproveitar
+    // o teto de LTV cheio (que o PRICE, com parcela mais baixa, consegue honrar). Achado
+    // testando o cenário do usuário (MCMV Faixa 2: oficial dava PRICE R$200.000 fic./SAC
+    // R$173.660,84 fic. — diferentes; Fonti dava os dois em R$177.214, iguais).
+    const entradaMaxima = (ltv: number, prazo: number, tipoAmortizacao: 'SAC' | 'PRICE'): number => {
       const maxByLtv = Math.round(input.valorImovel * ltv * 100) / 100
       let maxByRenda = input.valorImovel
       if (input.rendaInformada !== false && input.rendaMensal > 0) {
@@ -769,9 +779,9 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
         let hi = input.valorImovel
         for (let iter = 0; iter < 50; iter++) {
           const mid = (lo + hi) / 2
-          const { primeiraParcela } = calcularSACComTarifaMensalFixa(
-            mid, input.valorImovel, taxaMensal, prazo, mipRenda, dfiRenda, tarifaRenda,
-          )
+          const { primeiraParcela } = tipoAmortizacao === 'SAC'
+            ? calcularSACComTarifaMensalFixa(mid, input.valorImovel, taxaMensal, prazo, mipRenda, dfiRenda, tarifaRenda)
+            : calcularPRICEComTarifaMensalFixa(mid, input.valorImovel, taxaMensal, prazo, mipRenda, dfiRenda, tarifaRenda)
           if (primeiraParcela < parcelaMax) lo = mid; else hi = mid
         }
         maxByRenda = Math.floor((lo + hi) / 2)
@@ -781,7 +791,7 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
     }
 
     const prazoSac = criteria.prazoMaximoMeses
-    const entradaSac = entradaMaxima(criteria.ltv.sac - penalidadeUsado, prazoSac)
+    const entradaSac = entradaMaxima(criteria.ltv.sac - penalidadeUsado, prazoSac, 'SAC')
     const cenarios: CenarioComparativo[] = [
       { sufixoId: 'sac', patchInput: { tipoAmortizacao: 'SAC', valorEntrada: entradaSac } },
     ]
@@ -792,7 +802,7 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
     }
 
     const prazoPrice = criteria.prazoMaximoMesesPrice ?? criteria.prazoMaximoMeses
-    const entradaPrice = entradaMaxima(criteria.ltv.price - penalidadeUsado, prazoPrice)
+    const entradaPrice = entradaMaxima(criteria.ltv.price - penalidadeUsado, prazoPrice, 'PRICE')
     cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE', valorEntrada: entradaPrice } })
     return cenarios
   }

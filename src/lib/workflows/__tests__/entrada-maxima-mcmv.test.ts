@@ -104,3 +104,30 @@ describe('financiando valor máximo — cada programa maximiza sua própria entr
     expect(mcmvPrice?.valorFinanciado).toBeCloseTo(270_000, 6) // continua no seu próprio 60%
   })
 })
+
+// Terceiro bug real, achado comparando MCMV Faixa 2 (renda R$5.000, imóvel R$250k novo)
+// com o mesmo produto testado separado no simulador oficial: mesmo com LTV/prazo IGUAIS
+// pros dois sistemas (comum no MCMV, sem a distinção 80%/70% do SBPE), o oficial dava
+// financiado DIFERENTE pra SAC (R$173.660,84, limitado pela renda) e PRICE (R$200.000,
+// limitado só pelo LTV) — o Fonti dava os dois iguais (R$177.214). Causa: o teto por
+// renda usava sempre a fórmula do SAC como proxy, mesmo pra estimar a entrada do PRICE —
+// SAC tem 1ª parcela mais alta que PRICE pro mesmo principal, então "emprestar" a curva do
+// SAC pro PRICE subestimava quanto o PRICE realmente cabe na renda. Corrigido usando a
+// fórmula certa (SAC ou PRICE) conforme o sistema sendo calculado.
+describe('financiando valor máximo — SAC e PRICE têm seu próprio teto por renda, mesmo com LTV igual', () => {
+  it('caso-âncora real: MCMV Faixa 2 PRICE atinge o LTV cheio (80%), SAC fica preso na renda', async () => {
+    const dados = baseDados({ valor_imovel: 250_000, tipo_imovel: 'novo', renda_formal: 5_000 })
+    const resultado = await executarSimulacao(dados, {})
+    const porId = new Map((resultado.bancosResult ?? []).map((r) => [r.resultadoId, r]))
+
+    const mcmvPrice = porId.get('caixa-mcmv-price')
+    expect(mcmvPrice?.programa).toBe('MCMV Faixa 2')
+    expect(mcmvPrice?.valorFinanciado).toBeCloseTo(200_000, 6) // 80% de 250k — teto cheio, bate com o oficial
+
+    const mcmvSac = porId.get('caixa-mcmv-sac')
+    expect(mcmvSac?.programa).toBe('MCMV Faixa 2')
+    // SAC fica ABAIXO do teto de 80% — preso pela renda, diferente do PRICE.
+    expect(mcmvSac?.valorFinanciado).toBeLessThan(200_000)
+    expect(mcmvSac?.avisoRenda).toBeFalsy()
+  })
+})
