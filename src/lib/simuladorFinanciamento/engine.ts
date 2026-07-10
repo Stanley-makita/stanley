@@ -790,7 +790,15 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
       return Math.round((input.valorImovel - financiadoMax) * 100) / 100
     }
 
-    const prazoSac = criteria.prazoMaximoMeses
+    // Bug real corrigido jul/2026: a busca por renda usava o prazo GENÉRICO do banco
+    // (ex.: 420/360 meses), não o prazo real do cliente já reduzido pelo teto de idade
+    // (`calcularPrazoMaximo` — Caixa não financia além de 80 anos e 6 meses). Prazo mais
+    // curto do que o assumido implica parcela bem maior pro mesmo principal, então a
+    // estimativa de renda ficava otimista demais pra clientes mais velhos — achado testando
+    // o cenário do usuário (nascimento 15/03/1956, 70 anos, prazo real 122 meses: Fonti
+    // buscava a renda usando 360/420 meses e dava financiado de R$301.635 (SBPE PRICE),
+    // quando o oficial, com o prazo de 122 meses realmente aplicável, dá só R$183.863,11).
+    const prazoSac = calcularPrazoMaximo(input.dataNascimento, criteria.prazoMaximoMeses, criteria.limiteIdadePrazoMeses)
     const entradaSac = entradaMaxima(criteria.ltv.sac - penalidadeUsado, prazoSac, 'SAC')
     const cenarios: CenarioComparativo[] = [
       { sufixoId: 'sac', patchInput: { tipoAmortizacao: 'SAC', valorEntrada: entradaSac } },
@@ -801,7 +809,11 @@ function construirCenariosCaixa(input: InputFinanciamento, criteria: SimulationC
       return cenarios
     }
 
-    const prazoPrice = criteria.prazoMaximoMesesPrice ?? criteria.prazoMaximoMeses
+    const prazoPrice = calcularPrazoMaximo(
+      input.dataNascimento,
+      criteria.prazoMaximoMesesPrice ?? criteria.prazoMaximoMeses,
+      criteria.limiteIdadePrazoMeses,
+    )
     const entradaPrice = entradaMaxima(criteria.ltv.price - penalidadeUsado, prazoPrice, 'PRICE')
     cenarios.push({ sufixoId: 'price', patchInput: { tipoAmortizacao: 'PRICE', valorEntrada: entradaPrice } })
     return cenarios
