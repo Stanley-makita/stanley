@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Search } from 'lucide-react'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
@@ -108,6 +110,7 @@ export function AbaOportunidade({ lead }: Props) {
   const editarLead = useEditarLead()
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
+  const [avisoCpfAberto, setAvisoCpfAberto] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
@@ -132,6 +135,11 @@ export function AbaOportunidade({ lead }: Props) {
       campanha:                   data.campanha || null,
       observacoes:                data.observacoes || null,
     })
+    // Lembrete pós-salvar — a consulta em si é feita marcando o item
+    // obrigatório "Consulta CPF" no checklist da fase (painel direito), que
+    // avança o lead automaticamente para Documentação quando concluído. Este
+    // aviso só lembra o atendente, não substitui o checklist.
+    setAvisoCpfAberto(true)
   }
 
   return (
@@ -336,6 +344,24 @@ export function AbaOportunidade({ lead }: Props) {
           </Button>
         </div>
       </form>
+
+      <Dialog open={avisoCpfAberto} onOpenChange={setAvisoCpfAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-fonti-primary">
+              <Search className="h-5 w-5 text-amber-500" />
+              Consulte o CPF do cliente
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700">
+            Não esqueça de consultar o CPF de <strong>{lead.nome}</strong>. Marque o
+            item &quot;Consulta CPF&quot; no checklist da fase quando concluir.
+          </p>
+          <DialogFooter>
+            <Button className="w-full" onClick={() => setAvisoCpfAberto(false)}>Entendi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   )
 }

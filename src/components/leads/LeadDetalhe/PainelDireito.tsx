@@ -5,6 +5,8 @@ import { useLeadHistorico, type LeadTimelineItem } from '@/hooks/leads/useLeadHi
 import { useRegistrarInteracao } from '@/hooks/leads/useRegistrarInteracao'
 import { useLeadTarefas, useCriarLeadTarefa } from '@/hooks/leads/useLeadTarefas'
 import { useLeadChecklist, useCompletarChecklistItem, type ChecklistItemComStatus } from '@/hooks/leads/useLeadChecklist'
+import { useFases } from '@/hooks/configuracoes/useFases'
+import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { TarefaFormModal, type TarefaFormData } from '@/components/tarefas/TarefaFormModal'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -29,7 +31,7 @@ export function PainelDireitoLead({ lead }: Props) {
     <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-200">
       <SecaoNotas leadId={lead.id} />
       <SecaoTarefas leadId={lead.id} />
-      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} />
+      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} faseNome={lead.fase?.nome} />
     </div>
   )
 }
@@ -211,9 +213,11 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
 
 // ── Checklist ────────────────────────────────────────────────────────────────
 
-function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) {
+function SecaoChecklist({ leadId, faseId, faseNome }: { leadId: string; faseId: string; faseNome?: string }) {
   const { data: itens = [] } = useLeadChecklist(leadId, faseId)
   const completar = useCompletarChecklistItem()
+  const { data: fases = [] } = useFases('leads')
+  const editarLead = useEditarLead()
   const [modalItem, setModalItem] = useState<ChecklistItemComStatus | null>(null)
   const [modalResultado, setModalResultado] = useState('')
   const [modalObs, setModalObs] = useState('')
@@ -230,6 +234,21 @@ function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) 
         observacao: obs ?? item.observacao,
       })
       toast.success(concluido ? 'Item concluído.' : 'Item desmarcado.')
+
+      // Avanço automático: item "Consulta CPF" concluído na fase "Atendimento
+      // Iniciado" leva direto para "Documentação" — pedido do usuário
+      // 2026-07-13. Casamento por texto (não há um tipo/slug dedicado para
+      // este item hoje), mesma convenção já usada em outros pontos do app
+      // (ex.: PipelineBarLead compara fase.nome === 'Concluído').
+      if (concluido && faseNome === 'Atendimento Iniciado' && item.descricao.toLowerCase().includes('cpf')) {
+        const faseDocumentacao = fases.find(f => f.nome === 'Documentação')
+        if (faseDocumentacao) {
+          editarLead.mutate(
+            { id: leadId, fase_id: faseDocumentacao.id },
+            { onSuccess: () => toast.success('Lead avançado para Documentação') }
+          )
+        }
+      }
     } catch {
       toast.error('Erro ao atualizar item.')
     }

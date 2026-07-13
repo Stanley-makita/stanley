@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -130,6 +130,31 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
   const completarItem = useCompletarChecklistItem()
+
+  // Ao abrir um lead na fase "Novo", avança automaticamente para "Atendimento
+  // Iniciado" e abre a aba Oportunidade para o atendente completar os dados —
+  // fluxo pedido pelo usuário 2026-07-13. `disparadoParaLeadRef` evita repetir
+  // o efeito em re-renders do mesmo lead (só dispara uma vez por leadId).
+  const disparadoParaLeadRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!lead || fases.length === 0) return
+    if (disparadoParaLeadRef.current === lead.id) return
+    if (lead.fase?.nome !== 'Novo') return
+
+    const faseAtendimento = fases.find(f => f.nome === 'Atendimento Iniciado')
+    if (!faseAtendimento) return
+
+    disparadoParaLeadRef.current = lead.id
+    editarLead.mutate(
+      { id: lead.id, fase_id: faseAtendimento.id },
+      {
+        onSuccess: () => {
+          toast.success('Atendimento iniciado')
+          setAbaAtiva('oportunidade')
+        },
+      }
+    )
+  }, [lead, fases])
 
   const restritivosNoChecklist = itensChecklist.filter(i => i.tipo === 'restritivos')
   const consultaRestritivosRespondido =
