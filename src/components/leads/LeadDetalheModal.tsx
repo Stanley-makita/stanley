@@ -189,7 +189,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
-                        <ParticularidadeCliente pessoaId={lead.pessoa_id} />
+                        {/* Em pageMode a particularidade já aparece no cabeçalho "Voltar + nome" (ver
+                            renderização condicional de pageMode abaixo) — evita duplicar aqui. No modal
+                            (não-pageMode) não existe esse cabeçalho, então continua aparecendo aqui. */}
+                        {!pageMode && <ParticularidadeCliente pessoaId={lead.pessoa_id} />}
                       </div>
                       {lead.fase && (
                         <span
@@ -686,7 +689,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               Voltar
             </button>
             {lead && (
-              <span className="text-sm font-semibold text-gray-800 truncate">{lead.nome}</span>
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span className="text-sm font-semibold text-gray-800 truncate">{lead.nome}</span>
+                <ParticularidadeCliente pessoaId={lead.pessoa_id} />
+              </div>
             )}
           </div>
           <div className="flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden">

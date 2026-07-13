@@ -250,7 +250,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/60">
+                  <tr className="border-b border-fonti-accent" style={{ backgroundColor: 'var(--fonti-accent)' }}>
                     <ColHeader label="Nome"             col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
                     <ColHeader label="Contato"          col="contato"     active={sortCol} dir={sortDir} onSort={handleSort} />
                     <ColHeader label="Fase"             col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
@@ -598,7 +598,7 @@ function LeadRow({
   return (
     <tr
       onClick={onClick}
-      className="border-b border-gray-100 last:border-0 odd:bg-white even:bg-gray-50/50 hover:bg-fonti-primary/[0.04] cursor-pointer transition-colors"
+      className="border-b border-gray-200 last:border-0 odd:bg-white even:bg-gray-50/50 hover:bg-fonti-primary/[0.04] cursor-pointer transition-colors"
     >
       {/* Nome */}
       <td className="px-3 py-1.5">
