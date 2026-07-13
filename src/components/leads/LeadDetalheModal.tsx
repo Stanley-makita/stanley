@@ -539,7 +539,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                 'w-72 shrink-0 overflow-y-auto border-l border-gray-100 bg-white',
                 pageMode ? 'hidden lg:block' : 'hidden xl:block'
               )}>
-                <PainelDireitoLead lead={lead} />
+                <PainelDireitoLead lead={lead} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
               </div>
 
             </div>
@@ -764,7 +764,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               'lg:hidden shrink-0 border-t border-gray-200 bg-white',
               lead.perdido_em && 'pointer-events-none select-none opacity-60',
             )}>
-              <PainelDireitoLead lead={lead} />
+              <PainelDireitoLead lead={lead} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
             </div>
           )}
         </div>
@@ -780,7 +780,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           {innerContent}
           {lead && (
             <div className="xl:hidden shrink-0 max-h-[40svh] overflow-y-auto border-t border-gray-200 bg-white">
-              <PainelDireitoLead lead={lead} />
+              <PainelDireitoLead lead={lead} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
             </div>
           )}
         </DialogContent>

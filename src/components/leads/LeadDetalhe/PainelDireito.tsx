@@ -24,14 +24,16 @@ import type { Lead } from '@/types/leads'
 
 interface Props {
   lead: Lead
+  /** Chamado quando o checklist avança o lead automaticamente para Documentação. */
+  onAbrirDocumentos?: () => void
 }
 
-export function PainelDireitoLead({ lead }: Props) {
+export function PainelDireitoLead({ lead, onAbrirDocumentos }: Props) {
   return (
     <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-200">
       <SecaoNotas leadId={lead.id} />
       <SecaoTarefas leadId={lead.id} />
-      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} />
+      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} onAbrirDocumentos={onAbrirDocumentos} />
     </div>
   )
 }
@@ -213,7 +215,7 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
 
 // ── Checklist ────────────────────────────────────────────────────────────────
 
-function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) {
+function SecaoChecklist({ leadId, faseId, onAbrirDocumentos }: { leadId: string; faseId: string; onAbrirDocumentos?: () => void }) {
   const { data: itens = [] } = useLeadChecklist(leadId, faseId)
   const completar = useCompletarChecklistItem()
   const { data: fases = [] } = useFases('leads')
@@ -248,7 +250,12 @@ function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) 
         if (faseDocumentacao) {
           editarLead.mutate(
             { id: leadId, fase_id: faseDocumentacao.id },
-            { onSuccess: () => toast.success('Lead avançado para Documentação') }
+            {
+              onSuccess: () => {
+                toast.success('Lead avançado para Documentação')
+                onAbrirDocumentos?.()
+              },
+            }
           )
         }
       }
