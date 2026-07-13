@@ -12,8 +12,6 @@ import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
-import { ResultadosFinanciamento } from '@/components/simuladorFinanciamento/ResultadosFinanciamento'
-import { AnalisePredicativaCard } from '@/components/simuladorFinanciamento/AnalisePredicativaCard'
 import { useSimulacoesCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 import { useSalvarCustasCentral } from '@/hooks/simulacoes/useSalvarCustasCentral'
@@ -96,22 +94,25 @@ function VerSimulacaoDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
           {simulacao.tipo === 'financiamento' && resultado ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <ResultadosFinanciamento resultados={resultado.bancos} />
-              </div>
-              <div>
-                <AnalisePredicativaCard analise={resultado.analise} />
-              </div>
-            </div>
+            // resultadoInicial: mostra os números exatos salvos na época, sem
+            // recalcular com taxas/calibração atuais — histórico fiel. Print/
+            // Compartilhar (já embutidos no SimuladorFinanciamento) operam
+            // sobre esse mesmo resultado.
+            <SimuladorFinanciamento
+              key={simulacao.id}
+              resultadoInicial={resultado}
+              nomeCliente={simulacao.nome_cliente ?? undefined}
+              cpfCliente={simulacao.cpf_cliente ?? undefined}
+              leadId={simulacao.lead_id ?? undefined}
+            />
           ) : simulacao.tipo === 'financiamento' && !resultado ? (
-            <div className="text-center py-12 text-gray-400 text-sm">
+            <div className="text-center py-12 text-gray-400 text-sm p-6">
               Dados do resultado não disponíveis para esta simulação.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 p-6">
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
                 <p className="font-medium text-gray-800 mb-2">Simulação de Custas Cartoriais</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">

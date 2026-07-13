@@ -5,13 +5,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calculator, Home, Clock, ChevronDown, ChevronUp, Download, Send, Trash2, Loader2, Eye } from 'lucide-react'
+import { Calculator, Home, Clock, ChevronDown, ChevronUp, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
+import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
+import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
-import type { ResultadoSimulador } from '@/types/simulador'
+import type { ResultadoSimulador, EntradaSimulador } from '@/types/simulador'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -146,9 +147,7 @@ interface Props { leadId: string }
 
 export function HistoricoSimulacoesLead({ leadId }: Props) {
   const [expandido, setExpandido] = useState<string | null>(null)
-  const [baixandoId, setBaixandoId] = useState<string | null>(null)
-  const [visualizandoId, setVisualizandoId] = useState<string | null>(null)
-  const [compartilharSim, setCompartilharSim] = useState<SimItem | null>(null)
+  const [verSim, setVerSim] = useState<SimItem | null>(null)
   const [excluirSim, setExcluirSim] = useState<SimItem | null>(null)
   const [excluindo, setExcluindo] = useState(false)
   const qc = useQueryClient()
@@ -201,54 +200,6 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
       )
     },
   })
-
-  async function baixarPDF(sim: SimItem) {
-    if (!sim.resultado_json) return
-    setBaixandoId(sim.id)
-    try {
-      if (sim.tipo === 'financiamento') {
-        const { gerarPDFFinanciamento } = await import('@/components/simuladorFinanciamento/gerarPDFFinanciamento')
-        await gerarPDFFinanciamento(sim.resultado_json as unknown as ResultadoCompleto, {})
-      } else {
-        const { gerarPDFSimulacao } = await import('@/components/simulador/gerarPDF')
-        const res = sim.resultado_json as unknown as ResultadoSimulador
-        await gerarPDFSimulacao(res, {
-          valorAssessoria: res.entrada?.servicoRegistro,
-          valorContratoServico: res.entrada?.contratoParticular,
-        })
-      }
-    } catch {
-      toast.error('Erro ao gerar PDF da simulação.')
-    } finally {
-      setBaixandoId(null)
-    }
-  }
-
-  // Reabre o mesmo PDF gerado a partir do resultado salvo (o mesmo conteúdo
-  // enviado ao WhatsApp) — não fica salvo em arquivo, então é regerado aqui,
-  // mas em modo "preview" (abre numa aba nova em vez de baixar).
-  async function visualizarPDF(sim: SimItem) {
-    if (!sim.resultado_json) return
-    setVisualizandoId(sim.id)
-    try {
-      if (sim.tipo === 'financiamento') {
-        const { gerarPDFFinanciamento } = await import('@/components/simuladorFinanciamento/gerarPDFFinanciamento')
-        await gerarPDFFinanciamento(sim.resultado_json as unknown as ResultadoCompleto, { mode: 'preview' })
-      } else {
-        const { gerarPDFSimulacao } = await import('@/components/simulador/gerarPDF')
-        const res = sim.resultado_json as unknown as ResultadoSimulador
-        await gerarPDFSimulacao(res, {
-          valorAssessoria: res.entrada?.servicoRegistro,
-          valorContratoServico: res.entrada?.contratoParticular,
-          mode: 'preview',
-        })
-      }
-    } catch {
-      toast.error('Erro ao abrir PDF da simulação.')
-    } finally {
-      setVisualizandoId(null)
-    }
-  }
 
   async function confirmarExcluir() {
     if (!excluirSim) return
@@ -340,29 +291,9 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
-                    onClick={() => visualizarPDF(sim)}
-                    disabled={visualizandoId === sim.id}
+                    onClick={() => setVerSim(sim)}
                   >
-                    {visualizandoId === sim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
-                    Visualizar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
-                    onClick={() => baixarPDF(sim)}
-                    disabled={baixandoId === sim.id}
-                  >
-                    {baixandoId === sim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                    Baixar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1 border-green-600 text-green-700 hover:bg-green-50"
-                    onClick={() => setCompartilharSim(sim)}
-                  >
-                    <Send className="w-3 h-3" /> Compartilhar
+                    <Eye className="w-3 h-3" /> Ver simulação
                   </Button>
                   <Button
                     size="sm"
@@ -379,18 +310,42 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
         )
       })}
 
-      {compartilharSim && (
-        <SimulacaoCompartilharModal
-          simulacao={{
-            id: compartilharSim.id,
-            tipo: compartilharSim.tipo,
-            nome: `Simulação de ${compartilharSim.tipo === 'custas' ? 'Custas' : 'Financiamento'}${compartilharSim.banco ? ` — ${compartilharSim.banco}` : ''}`,
-          }}
-          leadId={leadId}
-          onClose={() => setCompartilharSim(null)}
-          onEnviado={() => setCompartilharSim(null)}
-        />
-      )}
+      {/* "Ver simulação" — mesmo modelo da Central de Simulações: reabre o
+          simulador ao vivo com o resultado/entrada salvos, com Imprimir PDF e
+          Compartilhar nativos (não gera PDF à parte aqui). Financiamento usa
+          resultadoInicial (números exatos da época, sem recalcular). */}
+      <Dialog open={!!verSim} onOpenChange={(o) => { if (!o) setVerSim(null) }}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+        >
+          <DialogHeader className="px-4 py-2 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              {verSim?.tipo === 'custas'
+                ? <Calculator className="w-4 h-4 text-blue-500" />
+                : <Home className="w-4 h-4 text-fonti-primary" />}
+              Simulação de {verSim?.tipo === 'custas' ? 'Custas' : 'Financiamento'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {verSim?.tipo === 'financiamento' && verSim.resultado_json && (
+              <SimuladorFinanciamento
+                key={verSim.id}
+                resultadoInicial={verSim.resultado_json as unknown as ResultadoCompleto}
+                leadId={leadId}
+              />
+            )}
+            {verSim?.tipo === 'custas' && verSim.resultado_json && (
+              <SimuladorCustas
+                key={verSim.id}
+                modoAvulso
+                leadId={leadId}
+                entradaInicial={(verSim.resultado_json as unknown as ResultadoSimulador).entrada as EntradaSimulador}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!excluirSim} onOpenChange={(o) => { if (!o) setExcluirSim(null) }}>
         <DialogContent className="w-[calc(100vw-1rem)] max-w-sm">

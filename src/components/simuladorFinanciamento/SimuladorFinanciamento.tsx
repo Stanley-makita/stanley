@@ -22,10 +22,17 @@ interface Props {
   salvando?: boolean
   leadId?: string
   initialValues?: InitialValuesFinanciamento
+  /**
+   * Abre já no resultado de uma simulação salva (sem recalcular nada) — usado
+   * pra "ver" um item do histórico com os números exatos da época, em vez de
+   * resimular com taxas/calibração atuais. Print/Compartilhar operam sobre
+   * este resultado tal como foi salvo.
+   */
+  resultadoInicial?: ResultadoCompleto
 }
 
-export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salvando, leadId: _leadId, initialValues }: Props) {
-  const [resultado, setResultado] = useState<ResultadoCompleto | null>(null)
+export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salvando, leadId: _leadId, initialValues, resultadoInicial }: Props) {
+  const [resultado, setResultado] = useState<ResultadoCompleto | null>(resultadoInicial ?? null)
   const [loading, setLoading] = useState(false)
   const [gerandoPDF, setGerandoPDF] = useState(false)
   const [enviando, setEnviando] = useState(false)
