@@ -161,22 +161,41 @@ function calcularPRICEPeriodoIdade(
   return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
 }
 
+// Ano/mês/dia (calendário de São Paulo, fuso do negócio) de "hoje" — usar sempre esta função
+// em vez de `new Date()` + getFullYear/getMonth/getDate. `new Date(dataISO)` para uma string
+// "YYYY-MM-DD" é interpretado como meia-noite UTC; ler os campos de volta com getFullYear/
+// getMonth (hora LOCAL do servidor) pode voltar um dia se o servidor rodar num fuso negativo
+// (ex.: America/Sao_Paulo, UTC-3), empurrando a data de nascimento para o mês anterior e
+// inflando a idade em meses por 1. Fixar em America/Sao_Paulo torna o cálculo correto
+// independente de onde o processo Node roda (Vercel, local, etc.).
+function hojeEmSaoPaulo(): { ano: number; mes: number; dia: number } {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const obter = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value)
+  return { ano: obter('year'), mes: obter('month') - 1, dia: obter('day') }
+}
+
+// Ano/mês/dia de uma string "YYYY-MM-DD" lidos diretamente dos caracteres — sem passar por
+// `Date`, então sem risco de conversão de fuso horário.
+function parseDataISO(dataNasc: string): { ano: number; mes: number; dia: number } {
+  const [ano, mes, dia] = dataNasc.split('-').map(Number)
+  return { ano, mes: mes - 1, dia }
+}
+
 export function calcularIdadeEmAnos(dataNasc: string): number {
-  const nasc = new Date(dataNasc)
-  const hoje = new Date()
-  let anos = hoje.getFullYear() - nasc.getFullYear()
-  const m = hoje.getMonth() - nasc.getMonth()
-  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) anos--
+  const nasc = parseDataISO(dataNasc)
+  const hoje = hojeEmSaoPaulo()
+  let anos = hoje.ano - nasc.ano
+  const m = hoje.mes - nasc.mes
+  if (m < 0 || (m === 0 && hoje.dia < nasc.dia)) anos--
   return anos
 }
 
 export function calcularIdadeEmMeses(dataNasc: string): number {
-  const nasc = new Date(dataNasc)
-  const hoje = new Date()
-  return (
-    (hoje.getFullYear() - nasc.getFullYear()) * 12 +
-    (hoje.getMonth() - nasc.getMonth())
-  )
+  const nasc = parseDataISO(dataNasc)
+  const hoje = hojeEmSaoPaulo()
+  return (hoje.ano - nasc.ano) * 12 + (hoje.mes - nasc.mes)
 }
 
 // Prazo máximo: min(prazo do banco, limite de idade = limiteIdadePrazoMeses - idade atual em meses)

@@ -72,7 +72,7 @@ exports[`Daycoval — regressão antes/depois da migração (Fase 2) > LTV no li
 exports[`Daycoval — regressão antes/depois da migração (Fase 2) > MIP flat — não deve variar com a idade (verificação da estratégia) 1`] = `
 {
   "jovem": 14062.99999999991,
-  "maisVelho": 8875.999999999973,
+  "maisVelho": 8914.999999999969,
 }
 `;
 
@@ -175,18 +175,18 @@ exports[`Daycoval — regressão antes/depois da migração (Fase 2) > idade pr�
   "bancoNome": "Daycoval (CGI)",
   "corBanco": "#1B3F6E",
   "elegivel": true,
-  "maxFinanciavel30": 81867,
-  "parcelas": 23,
-  "primeiraParcela": 10944.552188417367,
+  "maxFinanciavel30": 84675,
+  "parcelas": 24,
+  "primeiraParcela": 10582.233347837657,
   "programa": "CGI",
   "resultadoId": "daycoval",
   "taxaAnual": 0.1394,
   "taxaMensal": 0.010934500072521613,
   "tipoAmortizacao": "SAC",
-  "totalJuros": 26242.80017405186,
-  "totalPago": 227162.80017405187,
-  "totalSeguros": 920,
-  "ultimaParcela": 8808.734783239319,
+  "totalJuros": 27336.250181304014,
+  "totalPago": 228295.250181304,
+  "totalSeguros": 958.9999999999999,
+  "ultimaParcela": 8442.370833937679,
   "valorFinanciado": 200000,
 }
 `;
@@ -417,16 +417,16 @@ exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etár
 exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etárias da tabela MIP própria (Sompo) — idades cobrindo vários tetos 3`] = `
 {
   "label": "~55",
-  "primeiraParcela": 4150.16419682585,
-  "totalSeguros": 45519.529999999744,
+  "primeiraParcela": 4145.929779481677,
+  "totalSeguros": 45677.732500000275,
 }
 `;
 
 exports[`Inter — regressão antes/depois da migração (Fase 2) > faixas etárias da tabela MIP própria (Sompo) — idades cobrindo vários tetos 4`] = `
 {
   "label": "~70",
-  "primeiraParcela": 6876.935039087076,
-  "totalSeguros": 53506.85000000019,
+  "primeiraParcela": 6846.647742444639,
+  "totalSeguros": 54002.680000000146,
 }
 `;
 
@@ -460,18 +460,18 @@ exports[`Inter — regressão antes/depois da migração (Fase 2) > idade próxi
   "bancoNome": "Banco Inter",
   "corBanco": "#FF6600",
   "elegivel": true,
-  "maxFinanciavel30": 80804,
-  "parcelas": 23,
-  "primeiraParcela": 19390.683306051727,
+  "maxFinanciavel30": 83542,
+  "parcelas": 24,
+  "primeiraParcela": 18756.625335037235,
   "programa": "SBPE",
   "resultadoId": "inter",
   "taxaAnual": 0.095,
   "taxaMensal": 0.007591534290582569,
   "tipoAmortizacao": "SAC",
-  "totalJuros": 31884.44402044677,
-  "totalPago": 400550.19402044674,
-  "totalSeguros": 18665.749999999996,
-  "ultimaParcela": 15439.76834790017,
+  "totalJuros": 33212.96252129875,
+  "totalPago": 402658.23502129875,
+  "totalSeguros": 19445.272500000003,
+  "ultimaParcela": 14798.22758340433,
   "valorFinanciado": 350000,
 }
 `;

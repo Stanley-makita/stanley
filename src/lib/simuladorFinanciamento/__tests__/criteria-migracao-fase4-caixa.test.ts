@@ -88,9 +88,17 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
     // usado") — a penalidade de -10pp que o baseline aplicava foi removida (não tinha
     // lastro normativo e foi desmentida por simulação real no simulador oficial da
     // Caixa em 2026-07-07), então esses cenários agora divergem de propósito do baseline.
+    // 'cliente 45 anos' e 'cliente 68 anos' movidos para o describe dedicado abaixo
+    // ("idade — nascidos no dia 1º do mês") — a correção de 2026-07-13 no fuso horário de
+    // `calcularIdadeEmMeses` (ver engine.ts) faz com que datas de nascimento no dia 1º de
+    // qualquer mês deixem de somar 1 mês indevido à idade; o baseline (congelado) ainda
+    // tem o bug antigo, então esses dois casos agora divergem de propósito. 'cliente
+    // jovem' (2002-01-01) e 'cliente 80+' (1940-01-01) também nascem no dia 1º, mas
+    // continuam batendo aqui porque a diferença de 1 mês não muda o resultado testado:
+    // no jovem, o prazo já satura no teto do banco de qualquer forma; no 80+, o corte
+    // duro de idade (`idadeMaximaAbsoluta`, baseado em anos, não meses) já dá inelegível
+    // nos dois lados.
     { nome: 'cliente jovem (idade mín. MIP)', input: { ...BASE_INPUT_EQUIV, dataNascimento: '2002-01-01' } },
-    { nome: 'cliente 45 anos (faixa MIP intermediária)', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1980-01-01' } },
-    { nome: 'cliente 68 anos (faixa MIP alta, prazo reduzido)', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1957-01-01' } },
     { nome: 'cliente 80+ anos — inelegível', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1940-01-01' } },
     { nome: 'valor do imóvel acima do teto SFH (2.25M)', input: { ...BASE_INPUT_EQUIV, valorImovel: 3_000_000, valorEntrada: 1_000_000 } },
     { nome: 'entrada maior que o imóvel — inelegível', input: { ...BASE_INPUT_EQUIV, valorEntrada: 600_000 } },
@@ -103,7 +111,8 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
     { nome: 'override: mipRate do banco de dados', input: { ...BASE_INPUT_EQUIV }, overrides: { mipRate: 0.0005 } },
     { nome: 'override: dfiRate do banco de dados (deve ser ignorado — quirk preservado)', input: { ...BASE_INPUT_EQUIV }, overrides: { dfiRate: 0.001 } },
     { nome: 'override: prazoMaximoMeses do banco de dados', input: { ...BASE_INPUT_EQUIV }, overrides: { prazoMaximoMeses: 240 } },
-    { nome: 'prazo curto por idade avançada + prazo banco pequeno', input: { ...BASE_INPUT_EQUIV, dataNascimento: '1965-03-01' }, overrides: { prazoMaximoMeses: 180 } },
+    // 'prazo curto por idade avançada' (dataNascimento '1965-03-01', dia 1º) também movido
+    // para o describe dedicado abaixo — mesmo motivo dos dois casos de idade acima.
   ]
 
   for (const { nome, input, overrides } of cenarios) {
@@ -113,6 +122,31 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
       expectResultadoEquivalente(novo, antigo)
     })
   }
+})
+
+// Correção de 2026-07-13: `calcularIdadeEmMeses`/`calcularIdadeEmAnos` (engine.ts) liam a
+// data de nascimento via `new Date(dataNasc).getFullYear()/getMonth()` — hora LOCAL do
+// processo. Para nascimentos no dia 1º de qualquer mês, a meia-noite UTC vira 21h do dia
+// anterior em fusos negativos (ex.: America/Sao_Paulo, UTC-3), empurrando a data para o mês
+// anterior e somando 1 mês indevido à idade. Corrigido fixando o cálculo em
+// America/Sao_Paulo (fuso do negócio), independente de onde o processo Node roda. Só testado
+// contra o motor novo (não contra `_baseline-fase4-caixa/`, que preserva o bug antigo de
+// propósito) — ver os 3 casos removidos da lista de equivalência acima.
+describe('Fase 4 — Caixa: idade — nascidos no dia 1º do mês (correção do bug de fuso em calcularIdadeEmMeses)', () => {
+  it('cliente 45 anos (faixa MIP intermediária) — 1980-01-01', () => {
+    const r = simularBancoNovo('caixa', { ...BASE_INPUT_EQUIV, dataNascimento: '1980-01-01' })
+    expect(r).toMatchSnapshot()
+  })
+
+  it('cliente 68 anos (faixa MIP alta, prazo reduzido) — 1957-01-01', () => {
+    const r = simularBancoNovo('caixa', { ...BASE_INPUT_EQUIV, dataNascimento: '1957-01-01' })
+    expect(r).toMatchSnapshot()
+  })
+
+  it('prazo curto por idade avançada + prazo banco pequeno — 1965-03-01', () => {
+    const r = simularBancoNovo('caixa', { ...BASE_INPUT_EQUIV, dataNascimento: '1965-03-01' }, { prazoMaximoMeses: 180 })
+    expect(r).toMatchSnapshot()
+  })
 })
 
 describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalência antigo vs. novo)', () => {

@@ -1,0 +1,70 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Fase 4 — Caixa: idade — nascidos no dia 1º do mês (correção do bug de fuso em calcularIdadeEmMeses) > cliente 45 anos (faixa MIP intermediária) — 1980-01-01 1`] = `
+{
+  "bancoId": "caixa",
+  "bancoNome": "Caixa Econômica Federal",
+  "corBanco": "#003087",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 600.000) excede 80% do imóvel",
+  "parcelas": 408,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "caixa",
+  "taxaAnual": 0.1149,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 600000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 600000,
+}
+`;
+
+exports[`Fase 4 — Caixa: idade — nascidos no dia 1º do mês (correção do bug de fuso em calcularIdadeEmMeses) > cliente 68 anos (faixa MIP alta, prazo reduzido) — 1957-01-01 1`] = `
+{
+  "bancoId": "caixa",
+  "bancoNome": "Caixa Econômica Federal",
+  "corBanco": "#003087",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 600.000) excede 80% do imóvel",
+  "parcelas": 132,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "caixa",
+  "taxaAnual": 0.1149,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 600000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 600000,
+}
+`;
+
+exports[`Fase 4 — Caixa: idade — nascidos no dia 1º do mês (correção do bug de fuso em calcularIdadeEmMeses) > prazo curto por idade avançada + prazo banco pequeno — 1965-03-01 1`] = `
+{
+  "bancoId": "caixa",
+  "bancoNome": "Caixa Econômica Federal",
+  "corBanco": "#003087",
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Financiamento (R$ 600.000) excede 80% do imóvel",
+  "parcelas": 180,
+  "primeiraParcela": 0,
+  "programa": "SBPE",
+  "resultadoId": "caixa",
+  "taxaAnual": 0.1149,
+  "taxaMensal": 0,
+  "tipoAmortizacao": "SAC",
+  "totalJuros": 0,
+  "totalPago": 600000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
+  "valorFinanciado": 600000,
+}
+`;
