@@ -28,6 +28,7 @@ import { PipelineBarLead } from './PipelineBarLead'
 import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLeadChecklist'
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { ModalConcluirLead } from './ModalConcluirLead'
+import { ModalMarcarPerdido } from './ModalMarcarPerdido'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
@@ -115,6 +116,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const [completarDadosAberto, setCompletarDadosAberto] = useState(false)
   const [excluirAberto, setExcluirAberto] = useState(false)
   const [concluirAberto, setConcluirAberto] = useState(false)
+  const [marcarPerdidoAberto, setMarcarPerdidoAberto] = useState(false)
   const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
   const [msgInicial, setMsgInicial] = useState('')
   const [consultaRestritivosAberto, setConsultaRestritivosAberto] = useState(false)
@@ -161,7 +163,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           <Loader2 className="h-6 w-6 animate-spin text-fonti-primary" />
         </div>
       ) : (
-        <div className={cn('flex flex-1 flex-col', pageMode ? 'lg:min-h-0 lg:overflow-hidden' : 'min-h-0 overflow-hidden')}>
+        <div className={cn(
+          'flex flex-1 flex-col',
+          pageMode ? 'lg:min-h-0 lg:overflow-hidden' : 'min-h-0 overflow-hidden',
+          lead.perdido_em && 'pointer-events-none select-none opacity-60',
+        )}>
           {/* ── Barra de Fases ── */}
           <PipelineBarLead
             lead={lead}
@@ -525,6 +531,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
         onAindaNao={() => setConcluirAberto(false)}
         onFechar={() => setConcluirAberto(false)}
       />
+      <ModalMarcarPerdido
+        aberto={marcarPerdidoAberto}
+        lead={{ id: lead.id, nome: lead.nome }}
+        onFechar={() => setMarcarPerdidoAberto(false)}
+      />
       <LeadEditarModal
         aberto={editarAberto}
         onFechar={() => setEditarAberto(false)}
@@ -689,18 +700,39 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               Voltar
             </button>
             {lead && (
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 <span className="text-sm font-semibold text-gray-800 truncate">{lead.nome}</span>
                 <ParticularidadeCliente pessoaId={lead.pessoa_id} />
               </div>
             )}
+            {lead && !lead.perdido_em && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => setMarcarPerdidoAberto(true)}
+              >
+                Marcar como perdido
+              </Button>
+            )}
           </div>
-          <div className="flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
+          {lead?.perdido_em && (
+            <div className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-1.5 text-xs font-medium text-red-700">
+              Lead perdido em {format(new Date(lead.perdido_em), 'dd/MM/yyyy', { locale: ptBR })} — somente visualização
+            </div>
+          )}
+          <div className={cn(
+            'flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden',
+            lead?.perdido_em && 'pointer-events-none select-none opacity-60',
+          )}>
             {innerContent}
           </div>
           {/* Mobile-only: Notas + Tarefas + Checklist (painel direito oculto em telas menores que lg) */}
           {lead && (
-            <div className="lg:hidden shrink-0 border-t border-gray-200 bg-white">
+            <div className={cn(
+              'lg:hidden shrink-0 border-t border-gray-200 bg-white',
+              lead.perdido_em && 'pointer-events-none select-none opacity-60',
+            )}>
               <PainelDireitoLead lead={lead} />
             </div>
           )}

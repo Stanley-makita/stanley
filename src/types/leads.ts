@@ -68,6 +68,7 @@ export interface Lead {
   updated_at: string
   deleted_at: string | null
   convertido_em: string | null
+  perdido_em: string | null
   // Crédito
   banco_pretendido: string | null
   valor_imovel: number | null
