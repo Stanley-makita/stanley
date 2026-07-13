@@ -107,6 +107,13 @@ interface Props {
   onResultadoChange?: (r: ResultadoSimulador | null) => void
   modoAvulso?: boolean  // Central de Simulações: oculta aba Histórico e botão Salvar interno
   onSalvo?: () => void  // callback após salvar com sucesso
+  /**
+   * ID de uma simulação já salva (ex.: "Ver simulação" no histórico) — quando
+   * presente, Imprimir/Compartilhar não salvam de novo no histórico, só
+   * reaproveitam este ID. Sem isso, cada clique em Imprimir/Compartilhar
+   * criava uma cópia duplicada no histórico (bug real, 2026-07-13).
+   */
+  simulacaoExistenteId?: string
 }
 
 // ── Currency input ────────────────────────────────────────────────────────────
@@ -271,6 +278,7 @@ export function SimuladorCustas({
   onResultadoChange,
   modoAvulso = false,
   onSalvo,
+  simulacaoExistenteId,
 }: Props) {
   const { data: itbiConfigs = [] } = useItbiConfig()
   const { data: custasConfigs = [] } = useCustasConfig()
@@ -380,8 +388,10 @@ export function SimuladorCustas({
 
   async function baixarPDF() {
     if (!resultado) return
-    // Auto-salva no histórico antes de gerar o PDF
-    if (processoId || leadId) {
+    // Auto-salva no histórico antes de gerar o PDF — só na primeira vez
+    // (simulação nova). Se já é uma simulação existente (ex.: "Ver simulação"
+    // no histórico), não salva de novo — evita duplicar a cada Imprimir.
+    if (!simulacaoExistenteId && (processoId || leadId)) {
       await salvar.mutateAsync({ processoId, leadId, resultado })
     }
     const { gerarPDFSimulacao } = await import('./gerarPDF')
@@ -396,6 +406,15 @@ export function SimuladorCustas({
 
   async function compartilharSimulacao() {
     if (!resultado) return
+    // Se já é uma simulação existente, reaproveita o ID em vez de salvar uma
+    // cópia nova a cada Compartilhar (mesmo motivo do baixarPDF acima).
+    if (simulacaoExistenteId) {
+      setModalCompartilhar({
+        id: simulacaoExistenteId,
+        nome: `Simulação de Custas${resultado.entrada.banco ? ` — ${resultado.entrada.banco}` : ''}`,
+      })
+      return
+    }
     setEnviando(true)
     try {
       const salvo = await salvar.mutateAsync({ processoId, leadId, resultado })

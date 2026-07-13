@@ -103,6 +103,7 @@ function VerSimulacaoDialog({
             <SimuladorFinanciamento
               key={simulacao.id}
               resultadoInicial={resultado}
+              simulacaoExistenteId={simulacao.id}
               nomeCliente={simulacao.nome_cliente ?? undefined}
               cpfCliente={simulacao.cpf_cliente ?? undefined}
               leadId={simulacao.lead_id ?? undefined}
@@ -461,6 +462,7 @@ export default function SimuladoresPage() {
             <SimuladorCustas
               key={custaVer?.id}
               modoAvulso
+              simulacaoExistenteId={custaVer?.id}
               clienteNome={custaVer?.nome_cliente ?? undefined}
               entradaInicial={(custaVer?.resultado_json as ResultadoSimulador | null)?.entrada as EntradaSimulador | undefined}
               onResultadoChange={setCustaVerResultado}

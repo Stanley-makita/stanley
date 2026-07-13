@@ -332,6 +332,7 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
               <SimuladorFinanciamento
                 key={verSim.id}
                 resultadoInicial={verSim.resultado_json as unknown as ResultadoCompleto}
+                simulacaoExistenteId={verSim.id}
                 leadId={leadId}
               />
             )}
@@ -339,6 +340,7 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
               <SimuladorCustas
                 key={verSim.id}
                 modoAvulso
+                simulacaoExistenteId={verSim.id}
                 leadId={leadId}
                 entradaInicial={(verSim.resultado_json as unknown as ResultadoSimulador).entrada as EntradaSimulador}
               />
