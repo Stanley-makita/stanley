@@ -35,7 +35,7 @@ import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosP
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
-import { cn } from '@/lib/utils'
+import { cn, normalizarTexto } from '@/lib/utils'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -143,10 +143,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
     // Não usar lead.fase?.nome (join) — segue o mesmo padrão já comprovado em
     // PipelineBarLead/handleConfirmar, que sempre cruza fases (lista, sempre
     // populada) com lead.fase_id (coluna crua), nunca o objeto do join.
+    // Comparação tolerante a acento/maiúscula (nome livre em Configurações).
     const faseAtualNome = fases.find(f => f.id === lead.fase_id)?.nome
-    if (faseAtualNome !== 'Novo') return
+    if (normalizarTexto(faseAtualNome) !== normalizarTexto('Novo')) return
 
-    const faseAtendimento = fases.find(f => f.nome === 'Atendimento Iniciado')
+    const faseAtendimento = fases.find(f => normalizarTexto(f.nome) === normalizarTexto('Atendimento Iniciado'))
     if (!faseAtendimento) return
 
     disparadoParaLeadRef.current = lead.id

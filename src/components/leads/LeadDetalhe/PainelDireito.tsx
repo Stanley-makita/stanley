@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
+import { cn, normalizarTexto } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Lead } from '@/types/leads'
 
@@ -243,8 +243,8 @@ function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) 
       // 2026-07-13. Casamento por texto (não há um tipo/slug dedicado para
       // este item hoje), mesma convenção já usada em outros pontos do app
       // (ex.: PipelineBarLead compara fase.nome === 'Concluído').
-      if (concluido && faseAtualNome === 'Atendimento Iniciado' && item.descricao.toLowerCase().includes('cpf')) {
-        const faseDocumentacao = fases.find(f => f.nome === 'Documentação')
+      if (concluido && normalizarTexto(faseAtualNome) === normalizarTexto('Atendimento Iniciado') && item.descricao.toLowerCase().includes('cpf')) {
+        const faseDocumentacao = fases.find(f => normalizarTexto(f.nome) === normalizarTexto('Documentação'))
         if (faseDocumentacao) {
           editarLead.mutate(
             { id: leadId, fase_id: faseDocumentacao.id },

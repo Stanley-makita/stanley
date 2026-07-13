@@ -5,6 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Normaliza texto pra comparação tolerante a acento/maiúscula (ex.: nomes de
+ * fase configurados livremente pelo usuário em Configurações — "Análise de
+ * Crédito" vs "Analise de Credito" devem casar).
+ */
+const DIACRITICOS_REGEX = /[̀-ͯ]/g
+
+export function normalizarTexto(s: string | null | undefined): string {
+  return (s ?? '').normalize('NFD').replace(DIACRITICOS_REGEX, '').toLowerCase().trim()
+}
+
 export function formatarMoeda(valor: number | null | undefined): string {
   if (valor == null) return '—'
   return new Intl.NumberFormat('pt-BR', {

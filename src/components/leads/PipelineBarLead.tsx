@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import type { Lead } from '@/types/leads'
 import type { Fase } from '@/types/configuracoes'
 import { getCamposContatoPendentes, temContatoObrigatorioParaCredito } from './leadContactValidation'
+import { normalizarTexto } from '@/lib/utils'
 
 const LABELS_CONTATO: Record<string, string> = {
   telefone: 'Telefone válido',
@@ -44,8 +45,9 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
 
     // Mesma exigência da aba Crédito (temContatoObrigatorioParaCredito) — só
     // permite pular para "Análise de Crédito" com telefone/e-mail/data de
-    // nascimento válidos.
-    if (fase.nome === 'Análise de Crédito' && !temContatoObrigatorioParaCredito(lead)) {
+    // nascimento válidos. Comparação tolerante a acento/maiúscula porque o
+    // nome da fase é livremente configurado pelo usuário em Configurações.
+    if (normalizarTexto(fase.nome) === normalizarTexto('Análise de Crédito') && !temContatoObrigatorioParaCredito(lead)) {
       const pendentes = getCamposContatoPendentes(lead).map(c => LABELS_CONTATO[c] ?? c).join(' · ')
       toast.warning('Campos obrigatórios pendentes', {
         description: pendentes,
@@ -58,7 +60,7 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
 
   function handleConfirmar() {
     if (!fasePendente) return
-    const isConcluido = fasePendente.nome === 'Concluído'
+    const isConcluido = normalizarTexto(fasePendente.nome) === normalizarTexto('Concluído')
     editarLead.mutate(
       { id: lead.id, fase_id: fasePendente.id },
       {
