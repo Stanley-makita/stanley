@@ -124,7 +124,12 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Banco Inter',
     cor: '#FF6600',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.0950, // 9,50% a.a. SFH — fonte: simulador oficial Inter (nov/2024). Verificar taxa atual antes de usar.
+    // Reconfirmado em 2026-07-13: `_projeto/simuladores bancos/SIMULAÇÃO INTER.xlsx`
+    // (metadados do arquivo: última modificação 2026-05-08, há só 2 meses) — taxa, MIP
+    // (INTER_MIP_SOMPO, tabela completa 18-80 anos), DFI (INTER_DFI_RATE) e prazo (420)
+    // batem exatos com o cenário real carregado na planilha (financiado R$1.340.000,
+    // imóvel R$1.690.000, idade 44). Nada precisou mudar — todos já estavam certos.
+    taxaAnualBase:        0.0950, // 9,50% a.a. SFH — confirmado real, sem necessidade de atualização
     taxaAnualCorrentista: 0.0950, // exige conta Inter para contratar
     programa: 'SBPE',
     maxLtv: 0.80,                 // 1.340.000 / 1.690.000 = 79,3% → confirmado simulador
