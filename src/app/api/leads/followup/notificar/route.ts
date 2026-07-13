@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       dias_sem_processo,
       proxima_notificacao,
       notificou_gestor,
-      lead:leads!lead_id(nome, deleted_at, convertido_em),
+      lead:leads!lead_id(nome, deleted_at, convertido_em, perdido_em, status_analise),
       responsavel:usuarios!responsavel_id(nome, telefone, telefone_whatsapp)
     `)
     .eq('status', 'ativo')
@@ -62,11 +62,17 @@ export async function POST(req: NextRequest) {
   const resultados: { leadId: string; ok: boolean; erro?: string }[] = []
 
   for (const fu of followups ?? []) {
-    const lead = fu.lead as unknown as { nome: string; deleted_at: string | null; convertido_em: string | null } | null
+    const lead = fu.lead as unknown as {
+      nome: string
+      deleted_at: string | null
+      convertido_em: string | null
+      perdido_em: string | null
+      status_analise: string | null
+    } | null
 
-    // Se o lead foi cancelado/arquivado/convertido, encerrar follow-up
-    if (!lead || lead.deleted_at || lead.convertido_em) {
-      const motivo = lead?.deleted_at ? 'lead_cancelado' : 'processo_criado'
+    // Se o lead foi cancelado/arquivado/convertido/marcado como perdido, encerrar follow-up
+    if (!lead || lead.deleted_at || lead.convertido_em || lead.perdido_em) {
+      const motivo = lead?.perdido_em ? 'perdido' : lead?.deleted_at ? 'lead_cancelado' : 'processo_criado'
       await supabase
         .from('lead_followups')
         .update({ status: 'encerrado', motivo_encerramento: motivo, encerrado_em: new Date().toISOString() })
@@ -80,15 +86,18 @@ export async function POST(req: NextRequest) {
       const novoDias = fu.dias_sem_processo + 3
       const responsavel = fu.responsavel as unknown as { nome: string; telefone: string | null; telefone_whatsapp?: string | null } | null
       const telComercial = responsavel?.telefone_whatsapp ?? responsavel?.telefone
+      const creditoAprovado = lead.status_analise === 'aprovado'
 
       // ── Notificação para o comercial ──
       if (telComercial) {
         const msgComercial = [
           `🔔 *Fonti — Acompanhamento de Lead*`,
           ``,
-          `O cliente *${lead.nome}* possui crédito aprovado, mas ainda não tem Processo criado.`,
+          creditoAprovado
+            ? `O cliente *${lead.nome}* possui crédito aprovado, mas ainda não tem Processo criado.`
+            : `O cliente *${lead.nome}* está concluído, mas ainda não tem Processo criado.`,
           ``,
-          `*${novoDias} dias* desde a aprovação.`,
+          `*${novoDias} dias* desde a conclusão.`,
           ``,
           `Você conseguiu contato?`,
           ``,
@@ -127,8 +136,11 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', fu.id)
 
-      // ── Escalonamento: após 10 dias, notifica o(s) gestor(es) ──
-      if (novoDias >= 10 && !fu.notificou_gestor) {
+      // ── Escalonamento: após 10 dias, notifica o(s) gestor(es) — só quando o
+      // crédito está de fato aprovado. Lead concluído sem aprovação (reprovado
+      // etc.) nunca escalona: só o comercial continua recebendo o lembrete a
+      // cada 3 dias, indefinidamente, até marcar o lead como perdido.
+      if (novoDias >= 10 && !fu.notificou_gestor && creditoAprovado) {
         await escalonarParaGestores(fu.empresa_id, fu.lead_id, lead.nome, novoDias, instanciaToken)
         await supabase
           .from('lead_followups')
