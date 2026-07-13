@@ -163,11 +163,16 @@ export default function ProcessoDetalhePage() {
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="min-w-0 flex-1 text-lg font-bold leading-tight text-fonti-primary sm:text-xl">
-              {processo.compradores?.find(c => c.principal)?.nome
-                ?? processo.compradores?.[0]?.nome
-                ?? processo.nome_imovel}
-            </h1>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              <h1 className="text-lg font-bold leading-tight text-fonti-primary sm:text-xl">
+                {processo.compradores?.find(c => c.principal)?.nome
+                  ?? processo.compradores?.[0]?.nome
+                  ?? processo.nome_imovel}
+              </h1>
+              <ParticularidadeCliente
+                pessoaId={(processo.compradores?.find(c => c.principal) ?? processo.compradores?.[0])?.pessoa_id}
+              />
+            </div>
             {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
@@ -176,11 +181,6 @@ export default function ProcessoDetalhePage() {
               </Badge>
             )}
             <EmailConfirmacaoBadge processoId={id} />
-          </div>
-          <div className="mb-1.5 flex">
-            <ParticularidadeCliente
-              pessoaId={(processo.compradores?.find(c => c.principal) ?? processo.compradores?.[0])?.pessoa_id}
-            />
           </div>
           {/* Barra de fases (igual ao Lead) — avança sequencial, respeitando checklist/dados financeiros */}
           {fases.length > 0 && (

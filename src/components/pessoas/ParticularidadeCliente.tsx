@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import { Pencil, Plus, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const LIMITE_CARACTERES = 250
+const LIMITE_CARACTERES = 100
 
 interface ParticularidadeData {
   particularidade: string | null
@@ -112,7 +112,7 @@ export function ParticularidadeCliente({ pessoaId }: { pessoaId: string | null |
     )
   }
 
-  const pillClassName = 'inline-flex max-w-[160px] items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700'
+  const pillClassName = 'inline-flex max-w-sm items-start gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700'
 
   return (
     <>
@@ -120,15 +120,14 @@ export function ParticularidadeCliente({ pessoaId }: { pessoaId: string | null |
         <button
           type="button"
           onClick={() => { setTexto(data.particularidade ?? ''); setEditando(true) }}
-          title={data.particularidade ?? undefined}
           className={cn(pillClassName, 'transition-colors hover:bg-amber-100')}
         >
-          <span className="italic truncate">{data.particularidade}</span>
+          <span className="italic">{data.particularidade}</span>
           <Pencil className="h-3 w-3 shrink-0 text-amber-500" />
         </button>
       ) : (
-        <span title={data.particularidade ?? undefined} className={pillClassName}>
-          <span className="italic truncate">{data.particularidade}</span>
+        <span className={pillClassName}>
+          <span className="italic">{data.particularidade}</span>
         </span>
       )}
       {popup}
