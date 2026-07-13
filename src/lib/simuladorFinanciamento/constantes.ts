@@ -101,16 +101,21 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Banco do Brasil',
     cor: '#FDCA00',
     corTexto: '#000000',
-    // Ajustado jul/2026: não temos como saber a taxa real do BB pra um CPF específico
-    // (varia por rating de crédito); assumido 12,00% como piso de calibração até termos
-    // dado melhor.
-    taxaAnualBase:        0.1200, // 12,00% a.a. — piso assumido (taxa real varia por CPF/rating)
+    // Confirmado no simulador oficial (bb.com.br, 2026-07-13, simulação real via CPF,
+    // imóvel R$900.000/entrada R$270.000, SFH): taxa de juros efetiva 12,00% a.a. — bate
+    // exatamente com o piso assumido. Taxa ainda pode variar por CPF/rating de crédito
+    // para outros clientes, mas deixa de ser só uma suposição — pelo menos um caso real
+    // confirma o valor.
+    taxaAnualBase:        0.1200, // 12,00% a.a. — confirmado no simulador oficial jul/2026
     taxaAnualCorrentista: 0.1200,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
     maxValorImovel: 5_000_000,
-    prazoMaximoMeses: 420,
+    // Corrigido 2026-07-13: prazo máximo do BB é 360 meses (30 anos), não 420 — confirmado
+    // no simulador oficial (mesma simulação acima, sem edição manual do prazo, sistema
+    // aceitou direto 360). Diferente de Caixa/Itaú/Bradesco/Santander/Inter, que usam 420.
+    prazoMaximoMeses: 360,
     aceitaMcmv: false,
     observacao: 'Pró-Cotista FGTS disponível a 9,00% a.a. para imóveis até R$2,25M',
   },
@@ -301,6 +306,20 @@ export const SANTANDER_DFI_RATE = 0.00005
 // insuficiente para montar uma tabela por idade própria; Bradesco continua na
 // `MIP_RATES` genérica até haver mais dados reais.
 export const BRADESCO_DFI_RATE = 0.00005
+
+// Banco do Brasil — DFI flat, calculado sobre valor do imóvel: confirmado no simulador
+// oficial bb.com.br em 2026-07-13 (imóvel R$900.000, DFI R$70,20/mês, constante em todas
+// as parcelas da tabela real) → 70,20/900.000 = 0,0078%/mês. MIP do BB NÃO foi
+// recalibrado: só 1 ponto real disponível (idade 47, nasc. 25/10/1978, MIP implícito
+// 0,03916%/mês) — mas esse ponto já bate muito perto da genérica `MIP_RATES` (faixa
+// 41-50 = 0,0395%/mês, <1% de diferença), então BB continua na tabela genérica.
+export const BB_DFI_RATE = 0.000078
+
+// Banco do Brasil — Tarifa de Administração mensal fixa, cobrada em toda parcela do mês 1
+// ao último inclusive (confirmado no simulador oficial, coluna "TARIFA DE ADM" da tabela
+// de prestações — mesmo padrão de Caixa/Itaú, mesmo valor R$25/mês). Bug real corrigido
+// em 2026-07-13: o Fonti não cobrava nenhuma tarifa de administração pro BB até então.
+export const BB_TA_MENSAL = 25.00
 
 // ─── Itaú Seguradora — Nova Alíquota ───────────────────────────────────────
 // Fonte: calibrado do simulador oficial Itaú (simulador itau.xlsm, CALCULOS!U32:U452)

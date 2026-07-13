@@ -74,7 +74,7 @@ import {
   INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE,
   ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE,
   CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, ITAU_TA_MENSAL,
-  SANTANDER_MIP_RATES, SANTANDER_DFI_RATE, BRADESCO_DFI_RATE,
+  SANTANDER_MIP_RATES, SANTANDER_DFI_RATE, BRADESCO_DFI_RATE, BB_DFI_RATE, BB_TA_MENSAL,
 } from './constantes'
 import type { BancoSimOverrides, SimulationCriteria, EstrategiaSeguroMip } from './criteria'
 
@@ -161,6 +161,7 @@ export function resolverCriterios(
   const cfg = BANCOS_CONFIG[bancoId]
   const ehItau = bancoId === 'itau'
   const ehCaixa = bancoId === 'caixa'
+  const ehBB = bancoId === 'bb'
 
   const mipPadrao: EstrategiaSeguroMip =
     bancoId === 'inter'     ? estrategiaMipInter() :
@@ -177,10 +178,11 @@ export function resolverCriterios(
     bancoId === 'inter'     ? INTER_DFI_RATE :
     bancoId === 'daycoval'  ? DAYCOVAL_DFI_RATE :
     bancoId === 'itau'      ? ITAU_DFI_RATE :
-    // Santander e Bradesco: DFI real extraído dos simuladores oficiais (2026-07-13),
-    // ambos 0,0050%/mês flat — mais baixo que a genérica DFI_RATE_MENSAL (0,0066%/mês).
+    // Santander, Bradesco e BB: DFI real extraído dos simuladores oficiais (2026-07-13),
+    // todos flat mais baixos que a genérica DFI_RATE_MENSAL (0,0066%/mês).
     bancoId === 'santander' ? SANTANDER_DFI_RATE :
     bancoId === 'bradesco'  ? BRADESCO_DFI_RATE :
+    bancoId === 'bb'        ? BB_DFI_RATE :
     DFI_RATE_MENSAL
 
   return {
@@ -256,7 +258,11 @@ export function resolverCriterios(
       // especializadas (dispatch por `seguro.mip.tipo === 'periodo-e-idade'` para o Itaú e
       // por `!seguro.incluirNaUltimaParcela` para a Caixa, em `simularComCriterios`) — estes
       // dois flags servem só para documentar a regra real do banco.
-      incluirNaUltimaParcela: !ehItau && !ehCaixa,
+      // BB entra no mesmo caminho da Caixa (`incluirNaUltimaParcela: false`) só pra herdar a
+      // tarifa de administração mensal fixa (real, confirmada em 2026-07-13) — o zeramento
+      // de MIP/DFI na última parcela NÃO foi confirmado pro BB (não vimos a parcela 360 na
+      // tabela real, só as 21 primeiras); assumido por analogia até confirmar.
+      incluirNaUltimaParcela: !ehItau && !ehCaixa && !ehBB,
       prePagamentoNoMesZero: ehItau,
     },
     // Itaú usa a tabela GENÉRICA de mercado (não a própria) só para a estimativa de
@@ -269,12 +275,14 @@ export function resolverCriterios(
       ? (overrides?.mipRate != null ? { tipo: 'flat', taxa: overrides.mipRate } : { tipo: 'faixa-etaria', faixas: MIP_RATES })
       : undefined,
     // Tarifa de administração mensal fixa — Caixa (R$25/mês, cobrada em toda parcela,
-    // inclusive nos programas Pró-Cotista/MCMV) e Itaú (TAC, também R$25/mês, cobrada do
+    // inclusive nos programas Pró-Cotista/MCMV), Itaú (TAC, também R$25/mês, cobrada do
     // mês 1 ao último inclusive — confirmado no simulador oficial, VALIDADE!AB7 do
-    // simulador itau.xlsm). `overrides?.taxaAdmin` nunca foi lido por
-    // `calcularSACCaixa`/`calcularPRICECaixa` originais — campo do tipo `BancoSimOverrides`
-    // já existia mas estava morto; preservado morto aqui também.
-    tarifaAdministracaoMensal: ehCaixa ? CAIXA_TA_MENSAL : (ehItau ? ITAU_TA_MENSAL : 0),
+    // simulador itau.xlsm) e BB (mesmo valor, R$25/mês, confirmado na tabela real de
+    // prestações do simulador oficial em 2026-07-13 — coluna "TARIFA DE ADM"). `overrides?.
+    // taxaAdmin` nunca foi lido por `calcularSACCaixa`/`calcularPRICECaixa` originais —
+    // campo do tipo `BancoSimOverrides` já existia mas estava morto; preservado morto
+    // aqui também.
+    tarifaAdministracaoMensal: ehCaixa ? CAIXA_TA_MENSAL : (ehItau ? ITAU_TA_MENSAL : (ehBB ? BB_TA_MENSAL : 0)),
     itbi: ehItau ? { permiteIncorporar: true, percentualPadrao: 0.05 } : undefined,
     metodoConversaoTaxa: ehItau ? 'composta-truncada-15-casas' : 'composta-padrao',
     modalidadesSuportadas: ['aquisicao'],
