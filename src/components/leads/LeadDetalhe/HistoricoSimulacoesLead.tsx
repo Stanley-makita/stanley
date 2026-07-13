@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calculator, Home, Clock, ChevronDown, ChevronUp, Download, Send, Trash2, Loader2 } from 'lucide-react'
+import { Calculator, Home, Clock, ChevronDown, ChevronUp, Download, Send, Trash2, Loader2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
@@ -147,6 +147,7 @@ interface Props { leadId: string }
 export function HistoricoSimulacoesLead({ leadId }: Props) {
   const [expandido, setExpandido] = useState<string | null>(null)
   const [baixandoId, setBaixandoId] = useState<string | null>(null)
+  const [visualizandoId, setVisualizandoId] = useState<string | null>(null)
   const [compartilharSim, setCompartilharSim] = useState<SimItem | null>(null)
   const [excluirSim, setExcluirSim] = useState<SimItem | null>(null)
   const [excluindo, setExcluindo] = useState(false)
@@ -220,6 +221,32 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
       toast.error('Erro ao gerar PDF da simulação.')
     } finally {
       setBaixandoId(null)
+    }
+  }
+
+  // Reabre o mesmo PDF gerado a partir do resultado salvo (o mesmo conteúdo
+  // enviado ao WhatsApp) — não fica salvo em arquivo, então é regerado aqui,
+  // mas em modo "preview" (abre numa aba nova em vez de baixar).
+  async function visualizarPDF(sim: SimItem) {
+    if (!sim.resultado_json) return
+    setVisualizandoId(sim.id)
+    try {
+      if (sim.tipo === 'financiamento') {
+        const { gerarPDFFinanciamento } = await import('@/components/simuladorFinanciamento/gerarPDFFinanciamento')
+        await gerarPDFFinanciamento(sim.resultado_json as unknown as ResultadoCompleto, { mode: 'preview' })
+      } else {
+        const { gerarPDFSimulacao } = await import('@/components/simulador/gerarPDF')
+        const res = sim.resultado_json as unknown as ResultadoSimulador
+        await gerarPDFSimulacao(res, {
+          valorAssessoria: res.entrada?.servicoRegistro,
+          valorContratoServico: res.entrada?.contratoParticular,
+          mode: 'preview',
+        })
+      }
+    } catch {
+      toast.error('Erro ao abrir PDF da simulação.')
+    } finally {
+      setVisualizandoId(null)
     }
   }
 
@@ -309,6 +336,16 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
                     : <DetalheFinanciamento json={sim.resultado_json} />}
                 </div>
                 <div className="flex gap-2 mt-2.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
+                    onClick={() => visualizarPDF(sim)}
+                    disabled={visualizandoId === sim.id}
+                  >
+                    {visualizandoId === sim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                    Visualizar
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
