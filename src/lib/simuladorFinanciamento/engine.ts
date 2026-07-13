@@ -58,6 +58,9 @@ interface ResultadoCalculo {
   ultimaParcela: number
   totalJuros: number
   totalSeguros: number
+  /** Tarifas mensais fixas (ex.: TAC do Itaú, R$25/mês) somadas ao longo do prazo — omitir
+   * (ou 0) para funções de cálculo que não modelam essa tarifa separadamente. */
+  totalTarifas?: number
 }
 
 // SAC com MIP variável por período+idade e pré-pagamento no mês 0 — generalização (Fase 3)
@@ -65,7 +68,13 @@ interface ResultadoCalculo {
 // hoje, via `criteria.seguro.mip.tipo === 'periodo-e-idade'`), mas as tabelas de MIP e a
 // alíquota de DFI agora chegam como parâmetro (do critério), em vez de vir de constantes
 // importadas — nenhum `cfg.id === 'itau'` sobrevive dentro da função.
-// A "1ª parcela" inclui pré-pagamento de seguros no mês 0 (comportamento do simulador oficial).
+//
+// Corrigido em 2026-07-13 (2 bugs reais, achados testando contra o simulador oficial do
+// Itaú com 6+ casos-âncora frescos): (1) a "1ª parcela" somava o pré-pagamento do mês 0
+// (MIP+DFI devidos na assinatura) POR CIMA da parcela do mês 1 — dobrando MIP+DFI. O
+// simulador oficial mostra o mês 0 como uma cobrança separada (não somada à "1ª parcela",
+// que é só o mês 1); (2) a TAC (R$25/mês, cobrada em toda parcela do mês 1 ao último,
+// inclusive) nunca era somada — não havia nem um parâmetro para ela.
 function calcularSACPeriodoIdade(
   valorFinanciadoTotal: number,
   valorAvaliacao: number,
@@ -74,12 +83,14 @@ function calcularSACPeriodoIdade(
   dataNasc: string,
   periodosMip: PeriodoMip[],
   dfiTaxaMensal: number,
+  tacMensal: number,
   dataBase?: Date,
 ): ResultadoCalculo {
   const amortizacao = valorFinanciadoTotal / prazo
   const dfiMensal = valorAvaliacao * dfiTaxaMensal
 
-  // Mês 0: pré-pagamento de seguros (sem amortização nem juros)
+  // Mês 0: pré-pagamento de seguros na assinatura (sem amortização, juros nem TAC) — cobrança
+  // separada, não somada à "1ª parcela" (mês 1).
   // Nota: MIP não usa TRUNC (valor raw); DFI usa TRUNC(val, 2) conforme simulador Itaú
   const dfiTrunc = Math.trunc(dfiMensal * 100) / 100
   const idadeM0 = idadeDecimalEmMeses(dataNasc, 0, dataBase)
@@ -90,6 +101,7 @@ function calcularSACPeriodoIdade(
   let saldoDevedor = valorFinanciadoTotal
   let totalJuros = 0
   let totalSeguros = prePayment
+  let totalTarifas = 0
   let primeiraParcela = 0
   let ultimaParcela = 0
 
@@ -98,24 +110,25 @@ function calcularSACPeriodoIdade(
     const idadeI = idadeDecimalEmMeses(dataNasc, i, dataBase)
     const mipRate = resolverTaxaMipPorPeriodo(periodosMip, Math.floor(idadeI), i)
     const juros = saldoDevedor * taxaMensal
-    // No simulador Itaú, última parcela não inclui MIP nem DFI
+    // No simulador Itaú, última parcela não inclui MIP nem DFI (mas inclui TAC)
     const mip = isLast ? 0 : saldoDevedor * mipRate
     const dfi = isLast ? 0 : dfiTrunc
-    const parcela = amortizacao + juros + mip + dfi
+    const parcela = amortizacao + juros + mip + dfi + tacMensal
 
-    if (i === 1) primeiraParcela = parcela + prePayment
+    if (i === 1) primeiraParcela = parcela
     if (isLast) ultimaParcela = parcela
 
     totalJuros += juros
     totalSeguros += mip + dfi
+    totalTarifas += tacMensal
     saldoDevedor -= amortizacao
   }
 
-  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros, totalTarifas }
 }
 
 // PRICE com MIP variável por período+idade — generalização (Fase 3) de `calcularPRICEItau`,
-// mesma lógica de `calcularSACPeriodoIdade` acima.
+// mesma lógica (e mesmas correções de 2026-07-13) de `calcularSACPeriodoIdade` acima.
 function calcularPRICEPeriodoIdade(
   valorFinanciadoTotal: number,
   valorAvaliacao: number,
@@ -124,6 +137,7 @@ function calcularPRICEPeriodoIdade(
   dataNasc: string,
   periodosMip: PeriodoMip[],
   dfiTaxaMensal: number,
+  tacMensal: number,
   dataBase?: Date,
 ): ResultadoCalculo {
   const fator = Math.pow(1 + taxaMensal, prazo)
@@ -137,6 +151,7 @@ function calcularPRICEPeriodoIdade(
   let saldoDevedor = valorFinanciadoTotal
   let totalJuros = 0
   let totalSeguros = prePayment
+  let totalTarifas = 0
   let primeiraParcela = 0
   let ultimaParcela = 0
 
@@ -148,17 +163,18 @@ function calcularPRICEPeriodoIdade(
     const amort = parcelaCJ - juros
     const mip = isLast ? 0 : saldoDevedor * mipRate
     const dfi = isLast ? 0 : dfiTrunc
-    const parcela = parcelaCJ + mip + dfi
+    const parcela = parcelaCJ + mip + dfi + tacMensal
 
-    if (i === 1) primeiraParcela = parcela + prePayment
+    if (i === 1) primeiraParcela = parcela
     if (isLast) ultimaParcela = parcela
 
     totalJuros += juros
     totalSeguros += mip + dfi
+    totalTarifas += tacMensal
     saldoDevedor = Math.max(0, saldoDevedor - amort)
   }
 
-  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros }
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros, totalTarifas }
 }
 
 // Ano/mês/dia (calendário de São Paulo, fuso do negócio) de "hoje" — usar sempre esta função
@@ -540,8 +556,8 @@ export function simularComCriterios(
     valorFinanciadoEfetivo = valorFinanciado + valorItbi
     const dataBase = input.dataContratacao ? new Date(input.dataContratacao) : undefined
     calc = input.tipoAmortizacao === 'SAC'
-      ? calcularSACPeriodoIdade(valorFinanciadoEfetivo, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, criteria.seguro.mip.periodos, dfiRate, dataBase)
-      : calcularPRICEPeriodoIdade(valorFinanciadoEfetivo, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, criteria.seguro.mip.periodos, dfiRate, dataBase)
+      ? calcularSACPeriodoIdade(valorFinanciadoEfetivo, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, criteria.seguro.mip.periodos, dfiRate, criteria.tarifaAdministracaoMensal, dataBase)
+      : calcularPRICEPeriodoIdade(valorFinanciadoEfetivo, valorAvaliacao, taxaMensal, prazo, input.dataNascimento, criteria.seguro.mip.periodos, dfiRate, criteria.tarifaAdministracaoMensal, dataBase)
   } else if (!criteria.seguro.incluirNaUltimaParcela) {
     // Caixa (Fase 4): MIP/DFI zerados na última parcela + tarifa de administração mensal
     // fixa somada em toda parcela (ver criteria-resolver.ts, comentário de topo, Fase 4).
@@ -1030,7 +1046,7 @@ function baseResult(
     taxaAnual,
     totalJuros: calc.totalJuros,
     totalSeguros: calc.totalSeguros,
-    totalPago: valorFinanciado + calc.totalJuros + calc.totalSeguros,
+    totalPago: valorFinanciado + calc.totalJuros + calc.totalSeguros + (calc.totalTarifas ?? 0),
     tipoAmortizacao: input.tipoAmortizacao,
     elegivel: true,
   }

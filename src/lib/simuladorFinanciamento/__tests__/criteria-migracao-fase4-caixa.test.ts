@@ -784,6 +784,12 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
   })
 
   it('outros bancos continuam com exatamente 1 resultado, idêntico ao motor antigo', () => {
+    // Itaú é excluído da comparação campo a campo (mas ainda entra na contagem de
+    // resultados): em 2026-07-13, na mesma sessão desta migração da Caixa, dois bugs reais
+    // do Itaú foram corrigidos (double-count de MIP/DFI na "1ª parcela" + TAC nunca
+    // aplicada) — divergência intencional do `_baseline-fase4-caixa/engine.ts` congelado,
+    // sem relação com a migração da Caixa que este teste verifica. Ver
+    // criteria-migracao-fase3-itau.test.ts para a cobertura de regressão do Itaú.
     const bancosIds: InputFinanciamento['bancosIds'] = ['caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval']
     const input = { ...BASE_INPUT, bancosIds }
     const novos = simularTodosBancosNovo(input)
@@ -793,6 +799,7 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
     expect(novosNaoCaixa.length).toBe(antigosNaoCaixa.length)
     const antigosPorId = new Map(antigosNaoCaixa.map((r) => [r.resultadoId, r]))
     novosNaoCaixa.forEach((novo) => {
+      if (novo.bancoId === 'itau') return
       expectResultadoEquivalente(novo, antigosPorId.get(novo.resultadoId))
     })
   })

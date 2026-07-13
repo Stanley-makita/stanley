@@ -73,7 +73,7 @@ import {
   BANCOS_CONFIG, MIP_RATES, DFI_RATE_MENSAL, LIMITE_IDADE_PRAZO_MESES,
   INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE,
   ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE,
-  CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL,
+  CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, ITAU_TA_MENSAL,
 } from './constantes'
 import type { BancoSimOverrides, SimulationCriteria, EstrategiaSeguroMip } from './criteria'
 
@@ -259,11 +259,13 @@ export function resolverCriterios(
     mipParaCapacidadeMaxima: ehItau
       ? (overrides?.mipRate != null ? { tipo: 'flat', taxa: overrides.mipRate } : { tipo: 'faixa-etaria', faixas: MIP_RATES })
       : undefined,
-    // Tarifa de administração mensal fixa — hoje exclusiva da Caixa (R$25/mês, cobrada em
-    // toda parcela, inclusive nos programas Pró-Cotista/MCMV). `overrides?.taxaAdmin` nunca
-    // foi lido por `calcularSACCaixa`/`calcularPRICECaixa` originais — campo do tipo
-    // `BancoSimOverrides` já existia mas estava morto; preservado morto aqui também.
-    tarifaAdministracaoMensal: ehCaixa ? CAIXA_TA_MENSAL : 0,
+    // Tarifa de administração mensal fixa — Caixa (R$25/mês, cobrada em toda parcela,
+    // inclusive nos programas Pró-Cotista/MCMV) e Itaú (TAC, também R$25/mês, cobrada do
+    // mês 1 ao último inclusive — confirmado no simulador oficial, VALIDADE!AB7 do
+    // simulador itau.xlsm). `overrides?.taxaAdmin` nunca foi lido por
+    // `calcularSACCaixa`/`calcularPRICECaixa` originais — campo do tipo `BancoSimOverrides`
+    // já existia mas estava morto; preservado morto aqui também.
+    tarifaAdministracaoMensal: ehCaixa ? CAIXA_TA_MENSAL : (ehItau ? ITAU_TA_MENSAL : 0),
     itbi: ehItau ? { permiteIncorporar: true, percentualPadrao: 0.05 } : undefined,
     metodoConversaoTaxa: ehItau ? 'composta-truncada-15-casas' : 'composta-padrao',
     modalidadesSuportadas: ['aquisicao'],

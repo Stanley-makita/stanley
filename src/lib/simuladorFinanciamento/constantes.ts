@@ -232,6 +232,12 @@ export const CAIXA_DFI_RATE  = 0.000066
 // Verificado no breakdown da parcela do simulador oficial: R$25,00/mês (fixo)
 export const CAIXA_TA_MENSAL = 25.00
 
+// TAC Itaú — Tarifa de Administração de Crédito, devida mensalmente do mês 1 até o
+// último inclusive (bug encontrado 2026-07-13: nunca era aplicada para o Itaú, mascarado
+// até então porque o único caso-âncora testado era carteira CH, isenta de TAC).
+// Verificado no PDF oficial do simulador: R$25,00/mês (fixo), igual à Caixa.
+export const ITAU_TA_MENSAL = 25.00
+
 // Taxas SBPE/SFI da Caixa — imóvel acima do teto SFH (CAIXA_CONFIG.maxValorImovel,
 // R$2.250.000). Corrigido 2026-07-13: até então, imóvel acima do teto tornava a Caixa
 // inelegível por completo ("imóvel acima do teto") — mas o simulador oficial (caixa.gov.br,
