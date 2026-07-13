@@ -9,6 +9,13 @@ import { FaseBreadcrumbBar } from '@/components/shared/FaseBreadcrumbBar'
 import { toast } from 'sonner'
 import type { Lead } from '@/types/leads'
 import type { Fase } from '@/types/configuracoes'
+import { getCamposContatoPendentes, temContatoObrigatorioParaCredito } from './leadContactValidation'
+
+const LABELS_CONTATO: Record<string, string> = {
+  telefone: 'Telefone válido',
+  email: 'E-mail com @',
+  data_nascimento: 'Data de nascimento',
+}
 
 interface Props {
   lead: Lead
@@ -31,6 +38,17 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
       const pendentes = bloqueadores.map(i => i.descricao ?? 'item').join(', ')
       toast.error('Checklist obrigatório pendente', {
         description: `Conclua antes de avançar: ${pendentes}`,
+      })
+      return
+    }
+
+    // Mesma exigência da aba Crédito (temContatoObrigatorioParaCredito) — só
+    // permite pular para "Análise de Crédito" com telefone/e-mail/data de
+    // nascimento válidos.
+    if (fase.nome === 'Análise de Crédito' && !temContatoObrigatorioParaCredito(lead)) {
+      const pendentes = getCamposContatoPendentes(lead).map(c => LABELS_CONTATO[c] ?? c).join(' · ')
+      toast.warning('Campos obrigatórios pendentes', {
+        description: pendentes,
       })
       return
     }
