@@ -47,6 +47,8 @@ interface ProcessoCriadoPayload {
   nomeComprador: string
   pessoaIdConjuge: string | null
   nomeConjuge: string | null
+  pessoaIdVendedor: string | null
+  nomeVendedor: string | null
 }
 
 interface VinculacaoState extends ProcessoCriadoPayload {
@@ -142,6 +144,23 @@ async function marcarLeadConvertido(leadId: string) {
   await supabase.rpc('marcar_lead_convertido', { p_lead_id: leadId })
 }
 
+// Espelha o vendedor do Lead (nome/CPF/telefone + pessoa_id, quando já vinculado a uma
+// Pessoa) para processo_vendedores na conversão Lead→Processo — mesmo bug de
+// "esquecer de copiar o dado" já corrigido para processo_compradores.pessoa_id nesta
+// sessão. Sem isso, o vendedor sempre se perdia ao virar Processo, mesmo quando o Lead
+// já tinha vendedor_pessoa_id vinculado.
+async function criarVendedorDoLead(processoId: string, empresaId: string, lead: Lead | null) {
+  if (!lead?.vendedor_nome?.trim() && !lead?.vendedor_pessoa_id) return
+  await supabase.from('processo_vendedores').insert({
+    processo_id: processoId,
+    empresa_id:  empresaId,
+    nome:        lead.vendedor_nome?.trim() || '(a definir)',
+    cpf:         lead.vendedor_cpf?.trim() || null,
+    telefone:    lead.vendedor_telefone?.trim() || null,
+    pessoa_id:   lead.vendedor_pessoa_id ?? null,
+  })
+}
+
 function parseMoeda(v: string): number {
   return Number(v.replace(/[^\d,]/g, '').replace(',', '.')) || 0
 }
@@ -192,7 +211,7 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
   }
 
   async function handleProcessoCriado(payload: ProcessoCriadoPayload) {
-    const pessoaIds = [payload.pessoaIdComprador, payload.pessoaIdConjuge].filter((id): id is string => !!id)
+    const pessoaIds = [payload.pessoaIdComprador, payload.pessoaIdConjuge, payload.pessoaIdVendedor].filter((id): id is string => !!id)
 
     if (pessoaIds.length > 0) {
       setBuscandoDocs(true)
@@ -553,6 +572,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
 
@@ -563,6 +583,8 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       nomeComprador:     nome.trim(),
       pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
       nomeConjuge:       lead?.conjuge_nome ?? null,
+      pessoaIdVendedor:  lead?.vendedor_pessoa_id ?? null,
+      nomeVendedor:      lead?.vendedor_nome ?? null,
     })
   }
 
@@ -859,6 +881,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
 
@@ -869,6 +892,8 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       nomeComprador:     clienteNome,
       pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
       nomeConjuge:       lead?.conjuge_nome ?? null,
+      pessoaIdVendedor:  lead?.vendedor_pessoa_id ?? null,
+      nomeVendedor:      lead?.vendedor_nome ?? null,
     })
   }
 
@@ -1036,6 +1061,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
 
@@ -1046,6 +1072,8 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       nomeComprador:     clienteNome,
       pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
       nomeConjuge:       lead?.conjuge_nome ?? null,
+      pessoaIdVendedor:  lead?.vendedor_pessoa_id ?? null,
+      nomeVendedor:      lead?.vendedor_nome ?? null,
     })
   }
 
@@ -1187,6 +1215,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     const linhas = [
       prazo && `Prazo de contemplação: ${prazo}`,
@@ -1212,6 +1241,8 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       nomeComprador:     clienteNome,
       pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
       nomeConjuge:       lead?.conjuge_nome ?? null,
+      pessoaIdVendedor:  lead?.vendedor_pessoa_id ?? null,
+      nomeVendedor:      lead?.vendedor_nome ?? null,
     })
   }
 
@@ -1336,7 +1367,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
   onConcluir: (processoId: string) => void
   onPular: (processoId: string) => void
 }) {
-  const { processoId, empresaId, docs, pessoaIdComprador, nomeComprador, pessoaIdConjuge, nomeConjuge } = vinculacao
+  const { processoId, empresaId, docs, pessoaIdComprador, nomeComprador, pessoaIdConjuge, nomeConjuge, pessoaIdVendedor, nomeVendedor } = vinculacao
 
   const [selecionados, setSelecionados] = useState<Set<string>>(() => {
     const pre = new Set<string>()
@@ -1401,6 +1432,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
 
   const docsComprador = docs.filter(d => d.pessoa_id === pessoaIdComprador)
   const docsConjuge   = docs.filter(d => d.pessoa_id === pessoaIdConjuge)
+  const docsVendedor  = docs.filter(d => d.pessoa_id === pessoaIdVendedor)
 
   return (
     <div className="flex max-h-[75svh] flex-col overflow-hidden">
@@ -1425,6 +1457,15 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
           <GrupoDocumentos
             titulo={`Cônjuge — ${nomeConjuge ?? 'Cônjuge'}`}
             docs={docsConjuge}
+            selecionados={selecionados}
+            onToggle={toggle}
+            onVisualizar={handleVisualizar}
+          />
+        )}
+        {pessoaIdVendedor && docsVendedor.length > 0 && (
+          <GrupoDocumentos
+            titulo={`Vendedor — ${nomeVendedor ?? 'Vendedor'}`}
+            docs={docsVendedor}
             selecionados={selecionados}
             onToggle={toggle}
             onVisualizar={handleVisualizar}
