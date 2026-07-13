@@ -225,32 +225,15 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
-                        {/* Em pageMode a particularidade já aparece no cabeçalho "Voltar + nome" (ver
-                            renderização condicional de pageMode abaixo) — evita duplicar aqui. No modal
-                            (não-pageMode) não existe esse cabeçalho, então continua aparecendo aqui. */}
+                        {/* Em pageMode o nome e a particularidade já aparecem no cabeçalho "Voltar +
+                            nome" (ver renderização condicional de pageMode abaixo) — evita duplicar
+                            aqui. No modal (não-pageMode) não existe esse cabeçalho, então os dois
+                            continuam aparecendo aqui. Badges de fase/status removidos daqui (2026-07-13,
+                            pedido do usuário) — já ficam visíveis na barra de fases logo acima, redundante
+                            repetir como badge. */}
+                        {!pageMode && <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>}
                         {!pageMode && <ParticularidadeCliente pessoaId={lead.pessoa_id} />}
                       </div>
-                      {lead.fase && (
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium text-white mt-1.5 inline-block"
-                          style={{ backgroundColor: lead.fase.cor ?? 'var(--fonti-primary)' }}
-                        >
-                          {lead.fase.nome}
-                        </span>
-                      )}
-                      {lead.status && (
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block border"
-                          style={{
-                            backgroundColor: lead.status.cor + '22',
-                            borderColor: lead.status.cor + '66',
-                            color: lead.status.cor,
-                          }}
-                        >
-                          {lead.status.nome}
-                        </span>
-                      )}
                     </div>
                   </div>
 
