@@ -41,7 +41,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     maxLtvPrice: 0.70,            // PRICE: cota máxima 70% (doc seção 3.1)
     comprometimentoMaxPrice: 0.25, // PRICE: comprometimento máximo 25% (doc seção 3.2)
     suportaPrice: true,
-    maxValorImovel: 2_250_000,    // teto SFH 2026
+    maxValorImovel: 2_250_000,    // teto SFH — acima disso, SBPE não é rejeitado, só passa a usar CAIXA_SFI_TAXAS (ver simularCaixaDuplo)
     prazoMaximoMeses: 420,
     aceitaMcmv: true,
   },
@@ -231,6 +231,23 @@ export const CAIXA_DFI_RATE  = 0.000066
 // TA Caixa — Tarifa de Administração SFH, devida mensalmente (MO43000269 seção 3.18.3.5)
 // Verificado no breakdown da parcela do simulador oficial: R$25,00/mês (fixo)
 export const CAIXA_TA_MENSAL = 25.00
+
+// Taxas SBPE/SFI da Caixa — imóvel acima do teto SFH (CAIXA_CONFIG.maxValorImovel,
+// R$2.250.000). Corrigido 2026-07-13: até então, imóvel acima do teto tornava a Caixa
+// inelegível por completo ("imóvel acima do teto") — mas o simulador oficial (caixa.gov.br,
+// testado com imóvel R$5.800.000,00) mostra que o SBPE continua respondendo normalmente
+// acima do teto, só trocando a taxa SFH pela SFI (mais alta) — confirmado: Juros Efetivos
+// 12,00% a.a. exibido pelo simulador oficial bate exato com a taxa "Residencial SFI Balcão"
+// da tabela normativa (docs/calibracao-simuladores/base-criterios-caixa.md §3.1, MO30769
+// §1). Bonificação 2 não modelada aqui pelo mesmo motivo do SFH (ver comentário em
+// `taxaAnualCorrentista` acima — exige crédito salário/débito automático, sem campo de
+// input próprio ainda). O Crédito Imobiliário CDI (produto à parte, indexado por CDI em vez
+// de TR, exclusivo para >R$2,25M) não foi implementado — normativo confirma a taxa mas não
+// LTV/prazo/indexação suficientes para simular com confiança (ver base-criterios-caixa.json).
+export const CAIXA_SFI_TAXAS = {
+  taxaAnualBase:        0.1200, // 12,00% a.a. + TR (Balcão)
+  taxaAnualCorrentista: 0.1190, // 11,90% a.a. + TR (Bonificação 1)
+}
 
 // MIP subsidiado para programas MCMV Faixas 1-3 — seguro habitacional governamental subsidiado
 // Calibrado do simulador oficial Caixa (Faixas 1-3): valor ~10x menor que SBPE

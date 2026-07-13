@@ -1,5 +1,5 @@
 import type { BancoId, TipoOperacao, TipoImovel, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, CAIXA_SFI_TAXAS, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
 import type { BancoConfig } from './constantes'
 import { resolverCriterios } from './criteria-resolver'
 import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip, CenarioComparativo, CriteriosLtv } from './criteria'
@@ -971,8 +971,27 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
     }
   }
 
-  // SBPE — sempre presente como alternativa (é o próprio critério base, sem variação pontual)
-  gerarCenariosComparativos(results, cfg, criteriaBase, input, 'caixa-sbpe', cenariosSbpe)
+  // SBPE — sempre presente como alternativa (é o próprio critério base, sem variação
+  // pontual). Corrigido 2026-07-13: imóvel acima do teto SFH (`cfg.maxValorImovel`,
+  // R$2.250.000) NÃO torna o SBPE inelegível — o simulador oficial (caixa.gov.br, testado
+  // com imóvel R$5.800.000,00) mostra que ele continua respondendo normalmente, só trocando
+  // a taxa SFH pela SFI (mais alta, `CAIXA_SFI_TAXAS`) e removendo o teto de valor (que só
+  // existia para gatilhar essa troca, não para bloquear). LTV/prazo continuam os mesmos do
+  // SFH (confirmado: cota máxima 80% no simulador oficial, mesmo acima do teto).
+  const criteriaSbpe: SimulationCriteria = input.valorImovel > cfg.maxValorImovel
+    ? { ...criteriaBase, taxaAnualBase: CAIXA_SFI_TAXAS.taxaAnualBase, taxaAnualCorrentista: CAIXA_SFI_TAXAS.taxaAnualCorrentista, maxValorImovel: 0 }
+    : criteriaBase
+  gerarCenariosComparativos(results, cfg, criteriaSbpe, input, 'caixa-sbpe', cenariosSbpe)
+
+  // `gerarCenariosComparativos` só inclui cenários elegíveis (decisão de produto
+  // documentada acima) — se TODOS os programas da Caixa (Pró-Cotista/MCMV/SBPE) ficarem
+  // inelegíveis por outro motivo (ex.: LTV, renda), a Caixa desapareceria de
+  // `bancosResult` sem nenhum motivo — diferente de todo outro banco, que sempre retorna 1
+  // resultado inelegível com `motivoInelegivel`. Fallback: expõe o motivo real do SBPE (o
+  // critério sempre presente) como resultado inelegível, mesmo padrão dos outros bancos.
+  if (results.length === 0) {
+    results.push(simularComCriterios(cfg, criteriaSbpe, input, 'caixa-sbpe'))
+  }
 
   return results
 }

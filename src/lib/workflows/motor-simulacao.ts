@@ -518,8 +518,21 @@ function montarRespostaNormal(
       /\bprazo insuficiente\b/i.test(b.motivoInelegivel ?? ''))
     const todosPorIdade = inelegiveis.length > 0 && inelegiveisPorIdade.length === inelegiveis.length
 
+    // Distingue "imóvel acima do teto" (SFH ou equivalente por banco — ver `maxValorImovel`
+    // em constantes.ts) de renda/LTV — corrigido jul/2026: antes, qualquer motivo que não
+    // fosse idade caía no diagnóstico de capacidade por renda, o que produzia uma mensagem
+    // sem relação com o motivo real (ex.: imóvel de R$5,8M rejeitado por todos os bancos por
+    // teto de valor, mas o Fonti dizia "renda insuficiente" com uma capacidade estimada de
+    // R$6M+ — contradição visível). Achado testando exatamente esse cenário (Caixa, imóvel
+    // acima do teto SFH de R$2,25M, sem produto SFI/alto valor parametrizado no motor).
+    const inelegiveisPorTeto = inelegiveis.filter((b) => /acima do teto/i.test(b.motivoInelegivel ?? ''))
+    const todosPorTeto = inelegiveis.length > 0 && inelegiveisPorTeto.length === inelegiveis.length
+
     if (todosPorIdade) {
       linhas.push('', `Não foi possível simular: idade do cliente é incompatível com o prazo mínimo de financiamento em todos os bancos parametrizados.`)
+    } else if (todosPorTeto) {
+      const tetos = Array.from(new Set(inelegiveisPorTeto.map((b) => b.motivoInelegivel)))
+      linhas.push('', `Não foi possível simular: valor do imóvel acima do teto suportado pelos bancos parametrizados.`, ...tetos.map((t) => `• ${t}`))
     } else if (dados.valor_imovel && rendaMensal > 0) {
       const bancosIds = resolverBancos(dados)
       const bancoRefId = bancosIds[0]
