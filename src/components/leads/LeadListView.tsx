@@ -66,7 +66,7 @@ function getColValue(lead: Lead, col: ColKey): string {
     case 'nome':         return lead.nome.toLowerCase()
     case 'contato':      return lead.telefone ?? ''
     case 'fase':         return lead.fase?.nome ?? ''
-    case 'status':       return lead.status?.nome ?? ''
+    case 'status':       return lead.perdido_em ? 'Perdido' : (lead.status?.nome ?? '')
     case 'origem':       return lead.origem ?? ''
     case 'produto':      return produtoLabel(lead.produto_interesse)
     case 'comercial':    return lead.responsavel?.nome ?? ''
@@ -366,7 +366,11 @@ function LeadMobileCard({
                 {lead.fase.nome}
               </span>
             )}
-            {lead.status && (
+            {lead.perdido_em ? (
+              <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                Perdido
+              </span>
+            ) : lead.status && (
               <span
                 className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium"
                 style={{
@@ -633,7 +637,11 @@ function LeadRow({
 
       {/* Status */}
       <td className="px-3 py-1.5">
-        {lead.status ? (
+        {lead.perdido_em ? (
+          <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600">
+            Perdido
+          </span>
+        ) : lead.status ? (
           <span
             className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border"
             style={{
