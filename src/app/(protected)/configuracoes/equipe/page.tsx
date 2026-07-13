@@ -60,11 +60,37 @@ function useAlternarAtivo() {
   })
 }
 
+// "Versão enxuta" do sistema de autorizações: um único toggle por usuário
+// (não um checklist completo de permissões por perfil ainda) — controla quem
+// recebe o escalonamento de "lead aprovado sem Processo há 10+ dias" (ver
+// escalonarParaGestores em src/app/api/leads/followup/notificar/route.ts).
+function useAlternarNotificarLeadsAprovados() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, valor }: { id: string; valor: boolean }) => {
+      const { error } = await supabase
+        .from('usuarios')
+        .update({ notificar_leads_aprovados_pendentes: valor })
+        .eq('id', id)
+
+      if (error) throw error
+    },
+    onSuccess: (_, { valor }) => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios', 'equipe'] })
+      toast.success(valor ? 'Notificação ativada.' : 'Notificação desativada.', {
+        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
+      })
+    },
+  })
+}
+
 export default function EquipePage() {
   const { pode } = usePermissao()
   const { data: usuarios, isLoading: loadingUsuarios } = useUsuariosEquipe()
   const { data: convites, isLoading: loadingConvites } = useConvites()
   const alternarAtivo = useAlternarAtivo()
+  const alternarNotificarLeadsAprovados = useAlternarNotificarLeadsAprovados()
   const cancelarConvite = useCancelarConvite()
   const [tabAtiva, setTabAtiva] = useState('membros')
 
@@ -105,18 +131,19 @@ export default function EquipePage() {
                   <TableHead>Perfil</TableHead>
                   <TableHead>Último acesso</TableHead>
                   {pode('usuarios.desativar') && <TableHead>Ativo</TableHead>}
+                  {pode('usuarios.desativar') && <TableHead>Notificar leads pendentes</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingUsuarios ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : usuarios?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
                       Nenhum membro encontrado.
                     </TableCell>
                   </TableRow>
@@ -141,6 +168,14 @@ export default function EquipePage() {
                           <Switch
                             checked={u.ativo}
                             onCheckedChange={(v) => alternarAtivo.mutate({ id: u.id, ativo: v })}
+                          />
+                        </TableCell>
+                      )}
+                      {pode('usuarios.desativar') && (
+                        <TableCell>
+                          <Switch
+                            checked={u.notificar_leads_aprovados_pendentes}
+                            onCheckedChange={(v) => alternarNotificarLeadsAprovados.mutate({ id: u.id, valor: v })}
                           />
                         </TableCell>
                       )}

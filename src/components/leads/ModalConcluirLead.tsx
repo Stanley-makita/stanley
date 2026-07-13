@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, Clock, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/auth/useAuth'
 import { toast } from 'sonner'
 
 interface Props {
@@ -17,7 +16,6 @@ interface Props {
 }
 
 export function ModalConcluirLead({ aberto, lead, onCriarProcesso, onAindaNao, onFechar }: Props) {
-  const { usuario } = useAuth()
   const [carregando, setCarregando] = useState(false)
 
   async function handleAindaNao() {
@@ -37,13 +35,12 @@ export function ModalConcluirLead({ aberto, lead, onCriarProcesso, onAindaNao, o
       )
       if (error) throw error
 
-      // Registra no histórico do lead
-      await supabase.from('lead_historico').insert({
-        lead_id:     lead.id,
-        empresa_id:  lead.empresa_id,
-        usuario_id:  usuario?.id,
-        tipo:        'followup_iniciado',
-        descricao:   'Acompanhamento automático iniciado — cliente ainda não decidiu sobre criação do Processo.',
+      // Registra no histórico do lead (via RPC — INSERT direto em lead_historico
+      // é revogado para o papel authenticated, ver registrar_interacao_lead)
+      await supabase.rpc('registrar_interacao_lead', {
+        p_lead_id: lead.id,
+        p_descricao: 'Acompanhamento automático iniciado — cliente ainda não decidiu sobre criação do Processo.',
+        p_tipo: 'followup_iniciado',
       })
 
       toast.success('Acompanhamento iniciado', {

@@ -10,6 +10,7 @@ export interface Usuario {
   email: string
   perfil: UsuarioPerfil
   ativo: boolean
+  notificar_leads_aprovados_pendentes: boolean
   ultimo_acesso: string | null
   created_at: string
   updated_at: string

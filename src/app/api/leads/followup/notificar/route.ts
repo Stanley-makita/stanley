@@ -173,13 +173,17 @@ async function escalonarParaGestores(
     .gte('dias_sem_processo', 10)
     .order('dias_sem_processo', { ascending: false })
 
+  // Destinatários do escalonamento: qualquer usuário com o toggle "Notificar
+  // leads aprovados e não avançados" ligado (Configurações > Equipe) — não
+  // mais restrito a perfil admin/gestor, para permitir apontar qualquer
+  // pessoa (ex.: um líder do comercial específico) como destinatária.
   const gestores = await supabase
     .from('usuarios')
     .select('nome, telefone, telefone_whatsapp')
     .eq('empresa_id', empresaId)
     .eq('ativo', true)
     .is('deleted_at', null)
-    .in('perfil', ['admin', 'gestor'])
+    .eq('notificar_leads_aprovados_pendentes', true)
 
   if (!gestores.data?.length) return
 
