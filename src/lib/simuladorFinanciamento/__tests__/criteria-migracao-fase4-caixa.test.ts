@@ -784,12 +784,16 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
   })
 
   it('outros bancos continuam com exatamente 1 resultado, idêntico ao motor antigo', () => {
-    // Itaú é excluído da comparação campo a campo (mas ainda entra na contagem de
-    // resultados): em 2026-07-13, na mesma sessão desta migração da Caixa, dois bugs reais
-    // do Itaú foram corrigidos (double-count de MIP/DFI na "1ª parcela" + TAC nunca
-    // aplicada) — divergência intencional do `_baseline-fase4-caixa/engine.ts` congelado,
+    // Itaú, Santander e Bradesco são excluídos da comparação campo a campo (mas ainda
+    // entram na contagem de resultados): em 2026-07-13, na mesma sessão desta migração da
+    // Caixa, dois bugs reais do Itaú foram corrigidos (double-count de MIP/DFI na "1ª
+    // parcela" + TAC nunca aplicada) e Santander/Bradesco passaram a usar MIP/DFI
+    // calibrados com dado real dos simuladores oficiais (SANTANDER_MIP_RATES,
+    // SANTANDER_DFI_RATE, BRADESCO_DFI_RATE em constantes.ts) em vez da tabela genérica de
+    // mercado — divergências intencionais do `_baseline-fase4-caixa/engine.ts` congelado,
     // sem relação com a migração da Caixa que este teste verifica. Ver
-    // criteria-migracao-fase3-itau.test.ts para a cobertura de regressão do Itaú.
+    // criteria-migracao-fase3-itau.test.ts e criteria-migracao.test.ts para a cobertura de
+    // regressão desses bancos.
     const bancosIds: InputFinanciamento['bancosIds'] = ['caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval']
     const input = { ...BASE_INPUT, bancosIds }
     const novos = simularTodosBancosNovo(input)
@@ -798,8 +802,9 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
     const antigosNaoCaixa = antigos.filter((r) => r.bancoId !== 'caixa')
     expect(novosNaoCaixa.length).toBe(antigosNaoCaixa.length)
     const antigosPorId = new Map(antigosNaoCaixa.map((r) => [r.resultadoId, r]))
+    const bancosRecalibrados = ['itau', 'santander', 'bradesco']
     novosNaoCaixa.forEach((novo) => {
-      if (novo.bancoId === 'itau') return
+      if (bancosRecalibrados.includes(novo.bancoId)) return
       expectResultadoEquivalente(novo, antigosPorId.get(novo.resultadoId))
     })
   })

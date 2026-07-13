@@ -74,6 +74,7 @@ import {
   INTER_MIP_SOMPO, INTER_DFI_RATE, DAYCOVAL_MIP_RATE, DAYCOVAL_DFI_RATE,
   ITAU_MIP_P1, ITAU_MIP_P2, ITAU_DFI_RATE,
   CAIXA_MIP_RATES, CAIXA_DFI_RATE, CAIXA_TA_MENSAL, ITAU_TA_MENSAL,
+  SANTANDER_MIP_RATES, SANTANDER_DFI_RATE, BRADESCO_DFI_RATE,
 } from './constantes'
 import type { BancoSimOverrides, SimulationCriteria, EstrategiaSeguroMip } from './criteria'
 
@@ -162,16 +163,24 @@ export function resolverCriterios(
   const ehCaixa = bancoId === 'caixa'
 
   const mipPadrao: EstrategiaSeguroMip =
-    bancoId === 'inter'    ? estrategiaMipInter() :
-    bancoId === 'daycoval' ? { tipo: 'flat', taxa: DAYCOVAL_MIP_RATE } :
-    bancoId === 'itau'     ? estrategiaMipItau() :
-    bancoId === 'caixa'    ? estrategiaMipCaixaSbpe() :
+    bancoId === 'inter'     ? estrategiaMipInter() :
+    bancoId === 'daycoval'  ? { tipo: 'flat', taxa: DAYCOVAL_MIP_RATE } :
+    bancoId === 'itau'      ? estrategiaMipItau() :
+    bancoId === 'caixa'     ? estrategiaMipCaixaSbpe() :
+    // Santander: tabela própria extraída do simulador oficial (seguradora Zurich
+    // Santander) — ver SANTANDER_MIP_RATES em constantes.ts. Bradesco/BB continuam na
+    // genérica de mercado por falta de dado real suficiente para uma tabela própria.
+    bancoId === 'santander' ? { tipo: 'faixa-etaria', faixas: SANTANDER_MIP_RATES } :
     { tipo: 'faixa-etaria', faixas: MIP_RATES }
 
   const dfiPadrao =
-    bancoId === 'inter'    ? INTER_DFI_RATE :
-    bancoId === 'daycoval' ? DAYCOVAL_DFI_RATE :
-    bancoId === 'itau'     ? ITAU_DFI_RATE :
+    bancoId === 'inter'     ? INTER_DFI_RATE :
+    bancoId === 'daycoval'  ? DAYCOVAL_DFI_RATE :
+    bancoId === 'itau'      ? ITAU_DFI_RATE :
+    // Santander e Bradesco: DFI real extraído dos simuladores oficiais (2026-07-13),
+    // ambos 0,0050%/mês flat — mais baixo que a genérica DFI_RATE_MENSAL (0,0066%/mês).
+    bancoId === 'santander' ? SANTANDER_DFI_RATE :
+    bancoId === 'bradesco'  ? BRADESCO_DFI_RATE :
     DFI_RATE_MENSAL
 
   return {

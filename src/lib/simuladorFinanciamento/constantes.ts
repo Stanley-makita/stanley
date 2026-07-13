@@ -266,6 +266,42 @@ export const MIP_RATE_MCMV = 0.0000151
 // Fonte: mercado SFH (ponto médio entre Caixa ~0,006% e Itaú ~0,01337%)
 export const DFI_RATE_MENSAL = 0.0000663 // 0,00663% ao mês sobre VALOR DO IMÓVEL
 
+// Santander — MIP por faixa de idade (aba "Condições", tabela "ALÍQUOTAS DE SEGUROS",
+// coluna "MIP Santander"/seguradora Zurich Santander — a primeira opção do dropdown de
+// seguradoras, tratada aqui como padrão). Extraído em 2026-07-13 diretamente do
+// `simulador santander.xlsm`. A observação da própria planilha ("só passa para a próxima
+// faixa etária quando atinge a idade EXATA de início desta nova faixa") indica que os
+// rótulos "31.1/36.1/..." são só a representação decimal do início de cada faixa —
+// tratados aqui como fronteiras inteiras (31, 36, 41...). Note que essa tabela diverge
+// bastante da genérica `MIP_RATES` a partir dos 51 anos (chega a ~2,2x mais alta aos
+// 61-65 anos) — ver itau_mip_dfi_double_count_e_tac.md / memória de calibração para o
+// contexto de por que Santander/Bradesco passaram a ter tabela própria em vez de usar
+// a genérica de mercado.
+export const SANTANDER_MIP_RATES: Array<{ idadeMin: number; idadeMax: number; taxa: number }> = [
+  { idadeMin: 18, idadeMax: 30, taxa: 0.00017 },
+  { idadeMin: 31, idadeMax: 35, taxa: 0.00021 },
+  { idadeMin: 36, idadeMax: 40, taxa: 0.00026 },
+  { idadeMin: 41, idadeMax: 45, taxa: 0.00040 },
+  { idadeMin: 46, idadeMax: 50, taxa: 0.00055 },
+  { idadeMin: 51, idadeMax: 55, taxa: 0.00170 },
+  { idadeMin: 56, idadeMax: 60, taxa: 0.00213 },
+  { idadeMin: 61, idadeMax: 65, taxa: 0.00384 },
+  { idadeMin: 66, idadeMax: 70, taxa: 0.00484 },
+  { idadeMin: 71, idadeMax: 80, taxa: 0.00710 },
+]
+
+// Santander — DFI flat (mesma aba, coluna "DFI Santander"). Extraído em 2026-07-13.
+export const SANTANDER_DFI_RATE = 0.00005
+
+// Bradesco — DFI flat, calculado sobre valor do imóvel: confirmado no cenário-âncora
+// carregado no `simulador bradesco.xlsm` (imóvel R$1.500.000, DFI R$75,00/mês →
+// 75/1.500.000 = 0,0050%/mês, coincide com o DFI real do Santander acima). Extraído
+// em 2026-07-13. MIP do Bradesco NÃO foi recalibrado — só há 1 ponto real disponível
+// na planilha (idade 36, MIP implícito 0,0181%/mês; genérica atual dá 0,0225%/mês),
+// insuficiente para montar uma tabela por idade própria; Bradesco continua na
+// `MIP_RATES` genérica até haver mais dados reais.
+export const BRADESCO_DFI_RATE = 0.00005
+
 // ─── Itaú Seguradora — Nova Alíquota ───────────────────────────────────────
 // Fonte: calibrado do simulador oficial Itaú (simulador itau.xlsm, CALCULOS!U32:U452)
 // Extração: jun/2026 — cliente DOB 29/12/1980, prazo 396 meses, saldo R$1.054.500
