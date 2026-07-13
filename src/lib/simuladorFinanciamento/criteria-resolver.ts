@@ -209,6 +209,9 @@ export function resolverCriterios(
     // reduzia o teto do SAC mas deixava o PRICE preso em 360.
     prazoMaximoMesesPrice: ehCaixa ? Math.min(overrides?.prazoMaximoMeses ?? cfg.prazoMaximoMeses, 360) : undefined,
     limiteIdadePrazoMeses: LIMITE_IDADE_PRAZO_MESES,
+    // Só o Itaú foi verificado com a convenção "idade no próximo aniversário" — ver
+    // comentário do campo em criteria.ts e calcularPrazoMaximo em engine.ts.
+    regraIdadePrazo: ehItau ? 'proximo-aniversario' : undefined,
     idadeMaximaAbsoluta: 80,
     comprometimentoRenda: {
       sac: 0.30,

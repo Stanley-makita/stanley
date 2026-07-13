@@ -202,13 +202,20 @@ export function calcularIdadeEmMeses(dataNasc: string): number {
 // `limiteIdadePrazoMeses` é opcional e mantém o default global de hoje (LIMITE_IDADE_PRAZO_MESES,
 // importado de constantes.ts) para não alterar nenhum chamador existente — o caminho de critérios
 // (ver criteria-resolver.ts) passa esse valor explicitamente por banco a partir da Fase 1.
+// `regraIdadePrazo: 'proximo-aniversario'` — convenção atuarial confirmada célula a célula
+// contra o simulador oficial do Itaú (5 casos exatos, 2026-07-13; ver comentário do campo em
+// criteria.ts): usa a idade que o cliente completará no próximo aniversário (idade atual + 1
+// ano completo), não a idade atual, e soma 1 mês ao resultado. Os demais bancos continuam na
+// convenção antiga (idade atual), não verificada com essa precisão.
 export function calcularPrazoMaximo(
   dataNasc: string,
   prazoMaxBanco: number,
   limiteIdadePrazoMeses: number = LIMITE_IDADE_PRAZO_MESES,
+  regraIdadePrazo: 'atual' | 'proximo-aniversario' = 'atual',
 ): number {
-  const idadeMeses = calcularIdadeEmMeses(dataNasc)
-  const limiteIdade = limiteIdadePrazoMeses - idadeMeses
+  const limiteIdade = regraIdadePrazo === 'proximo-aniversario'
+    ? limiteIdadePrazoMeses - (calcularIdadeEmAnos(dataNasc) + 1) * 12 + 1
+    : limiteIdadePrazoMeses - calcularIdadeEmMeses(dataNasc)
   return Math.max(12, Math.min(limiteIdade, prazoMaxBanco))
 }
 
@@ -456,7 +463,7 @@ export function simularComCriterios(
   const prazoMaxBanco = (input.tipoAmortizacao === 'PRICE' && criteria.prazoMaximoMesesPrice != null)
     ? criteria.prazoMaximoMesesPrice
     : criteria.prazoMaximoMeses
-  const prazo = calcularPrazoMaximo(input.dataNascimento, prazoMaxBanco, criteria.limiteIdadePrazoMeses)
+  const prazo = calcularPrazoMaximo(input.dataNascimento, prazoMaxBanco, criteria.limiteIdadePrazoMeses, criteria.regraIdadePrazo)
 
   // Estratégia usada só para elegibilidade/estimativa de capacidade máxima — para o Itaú
   // é deliberadamente diferente da estratégia real usada na parcela (ver comentário do

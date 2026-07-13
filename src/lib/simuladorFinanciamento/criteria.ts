@@ -112,6 +112,16 @@ export interface SimulationCriteria {
   prazoMaximoMesesPrice?: number
   /** Regra "idade + prazo" — hoje 966 (80a6m) para todos os bancos; ver plano-calibracao.md seção 4. */
   limiteIdadePrazoMeses: number
+  /**
+   * Convenção de idade usada na regra idade+prazo. Default (omitir): idade atual (completa,
+   * sem dias). 'proximo-aniversario': idade que o cliente completará no próximo aniversário
+   * (convenção atuarial) — confirmado célula a célula contra o simulador oficial do Itaú
+   * (5 casos exatos, 2026-07-13): prazo = (limiteIdadePrazoMeses/12 − idadeProximoAniversario)
+   * × 12 + 1, capado no teto do produto. Só o Itaú foi verificado com essa convenção até
+   * agora — os outros bancos continuam na convenção antiga (idade atual), não verificada
+   * com essa precisão de dias/aniversário.
+   */
+  regraIdadePrazo?: 'atual' | 'proximo-aniversario'
   /** Corte duro de idade, independente da regra de idade+prazo. Omitir se não houver regra própria. */
   idadeMaximaAbsoluta?: number
   /**
