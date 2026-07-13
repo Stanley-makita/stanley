@@ -719,6 +719,27 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                 <ParticularidadeCliente pessoaId={lead.pessoa_id} />
               </div>
             )}
+            {/* Status final do lead (ex.: Aprovado/Recusado/Pendente, ou Perdido) —
+                sempre visível no cabeçalho, independente da aba/fase atual, pra
+                gestão e comercial verem de cara o desfecho. Acompanha o lead até
+                virar Processo (ou ser marcado como perdido). */}
+            {lead?.perdido_em && (
+              <span className="shrink-0 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                Perdido
+              </span>
+            )}
+            {lead && !lead.perdido_em && lead.status && (
+              <span
+                className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium"
+                style={{
+                  backgroundColor: lead.status.cor ? `${lead.status.cor}18` : '#f3f4f6',
+                  borderColor: lead.status.cor ? `${lead.status.cor}66` : '#e5e7eb',
+                  color: lead.status.cor ?? '#374151',
+                }}
+              >
+                {lead.status.nome}
+              </span>
+            )}
             {lead && !lead.perdido_em && (
               <Button
                 size="sm"

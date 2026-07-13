@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
+import { useFases } from '@/hooks/configuracoes/useFases'
 import type { Lead, LeadAnaliseCredito, StatusAnaliseCredito } from '@/types/leads'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -21,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import { cn, normalizarTexto } from '@/lib/utils'
 import {
   Save, User, Building2, Handshake, Loader2, X, Plus, Check,
   ClipboardList, ExternalLink, Pencil, Search, Home, TrendingUp, Banknote,
@@ -319,6 +320,15 @@ function KpiMetrica({ icone, label, valor, sub, cor }: {
 function StatusFase({ lead }: { lead: Lead }) {
   const editar = useEditarLead()
   const { data: statuses = [], isLoading } = useFaseStatuses(lead.fase_id)
+  const { data: fases = [] } = useFases('leads')
+  // Não usar lead.fase?.nome (join) — cruza a lista de fases (sempre
+  // populada) com o fase_id cru, mesmo padrão já usado em outros pontos.
+  const faseAtualNome = fases.find(f => f.id === lead.fase_id)?.nome
+  // Em "Concluído" o status válido é o último definido (normalmente em
+  // Análise de Crédito) — não faz sentido reabrir o seletor aqui, já que essa
+  // fase não tem (nem deveria ter) sua própria lista de status configurada.
+  // O último status já aparece em destaque no cabeçalho (ver LeadDetalheModal).
+  if (normalizarTexto(faseAtualNome) === normalizarTexto('Concluído')) return null
   if (isLoading) return null
   if (statuses.length === 0) {
     return (
