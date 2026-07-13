@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
+import { useLeadHistorico, type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
 import { useRegistrarInteracao } from '@/hooks/leads/useRegistrarInteracao'
 import { useLeadTarefas, useCriarLeadTarefa } from '@/hooks/leads/useLeadTarefas'
 import { useLeadChecklist, useCompletarChecklistItem, type ChecklistItemComStatus } from '@/hooks/leads/useLeadChecklist'
@@ -36,10 +36,35 @@ export function PainelDireitoLead({ lead }: Props) {
 
 // ── Notas ────────────────────────────────────────────────────────────────────
 
+function ListaNotas({ notas }: { notas: LeadTimelineItem[] }) {
+  return (
+    <div className="space-y-2">
+      {notas.map((item) => (
+        <div key={item.id} className="flex gap-2">
+          <div className="w-5 h-5 rounded-full bg-fonti-primary flex items-center justify-center shrink-0 mt-0.5">
+            <MessageSquare className="h-2.5 w-2.5 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="bg-white border border-fonti-accent-hover rounded-lg px-2.5 py-1.5">
+              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-0.5 ml-0.5">
+              <span className="font-medium text-gray-500">{item.usuario?.nome}</span>
+              {' · '}
+              {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ptBR })}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SecaoNotas({ leadId }: { leadId: string }) {
   const { data: notas = [] } = useLeadHistorico(leadId, ['comentario'])
   const registrar = useRegistrarInteracao(leadId)
   const [texto, setTexto] = useState('')
+  const [dialogAberto, setDialogAberto] = useState(false)
 
   async function handleEnviar() {
     const nota = texto.trim()
@@ -84,26 +109,34 @@ function SecaoNotas({ leadId }: { leadId: string }) {
       {notas.length === 0 ? (
         <p className="text-[10px] text-gray-400 text-center py-1">Nenhuma nota ainda</p>
       ) : (
-        <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
-          {notas.slice(0, 10).map((item) => (
-            <div key={item.id} className="flex gap-2">
-              <div className="w-5 h-5 rounded-full bg-fonti-primary flex items-center justify-center shrink-0 mt-0.5">
-                <MessageSquare className="h-2.5 w-2.5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="bg-white border border-fonti-accent-hover rounded-lg px-2.5 py-1.5">
-                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-0.5 ml-0.5">
-                  <span className="font-medium text-gray-500">{item.usuario?.nome}</span>
-                  {' · '}
-                  {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ptBR })}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
+            <ListaNotas notas={notas.slice(0, 10)} />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setDialogAberto(true)}
+            className="flex items-center gap-1.5 text-xs text-fonti-primary hover:underline"
+          >
+            <MessageSquare className="h-3 w-3" />
+            Ver {notas.length === 1 ? 'a nota' : `todas as ${notas.length} notas`}
+          </button>
+        </>
       )}
+
+      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-fonti-primary">
+              Todas as notas ({notas.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            <ListaNotas notas={notas} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -145,15 +145,15 @@ export function PainelComentarios({ processoId }: Props) {
         <ListaComentarios comentarios={comentarios} />
       </div>
 
-      {/* Botão ver todos */}
-      {comentarios.length > 3 && (
+      {/* Botão ver todos — aparece a partir de 1 comentário, não só quando a lista já não cabe */}
+      {comentarios.length > 0 && (
         <button
           type="button"
           onClick={() => setDialogAberto(true)}
           className="mt-3 flex items-center gap-1.5 text-xs text-fonti-primary hover:underline self-start"
         >
           <MessageSquare className="h-3 w-3" />
-          Ver todos os {comentarios.length} comentários
+          Ver {comentarios.length === 1 ? 'o comentário' : `todos os ${comentarios.length} comentários`}
         </button>
       )}
 

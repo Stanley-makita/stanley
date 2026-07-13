@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { Pencil, Plus, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const LIMITE_CARACTERES = 250
 
@@ -111,21 +112,25 @@ export function ParticularidadeCliente({ pessoaId }: { pessoaId: string | null |
     )
   }
 
+  const pillClassName = 'inline-flex max-w-[160px] items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700'
+
   return (
     <>
-      <div className="inline-flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 max-w-md">
-        <span className="italic">{data.particularidade}</span>
-        {podeEditar && (
-          <button
-            type="button"
-            onClick={() => { setTexto(data.particularidade ?? ''); setEditando(true) }}
-            className="shrink-0 text-amber-500 hover:text-amber-800 transition-colors"
-            title="Editar particularidade"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
-        )}
-      </div>
+      {podeEditar ? (
+        <button
+          type="button"
+          onClick={() => { setTexto(data.particularidade ?? ''); setEditando(true) }}
+          title={data.particularidade ?? undefined}
+          className={cn(pillClassName, 'transition-colors hover:bg-amber-100')}
+        >
+          <span className="italic truncate">{data.particularidade}</span>
+          <Pencil className="h-3 w-3 shrink-0 text-amber-500" />
+        </button>
+      ) : (
+        <span title={data.particularidade ?? undefined} className={pillClassName}>
+          <span className="italic truncate">{data.particularidade}</span>
+        </span>
+      )}
       {popup}
     </>
   )

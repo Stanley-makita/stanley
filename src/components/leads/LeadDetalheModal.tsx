@@ -187,8 +187,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       <span className="text-sm font-bold text-white">{iniciais(lead.nome)}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
-                      <div className="mt-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
                         <ParticularidadeCliente pessoaId={lead.pessoa_id} />
                       </div>
                       {lead.fase && (
