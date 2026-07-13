@@ -12,6 +12,7 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
+import { TableShell } from '@/components/ui/table-shell'
 import { type Lead, type ProdutoInteresse } from '@/types/leads'
 
 interface Props {
@@ -247,7 +248,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
               ))}
             </div>
 
-            <div className="hidden overflow-x-auto md:block">
+            <TableShell className="hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-fonti-accent" style={{ backgroundColor: 'var(--fonti-accent)' }}>
@@ -300,7 +301,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableShell>
           </>
         )}
       </div>
@@ -508,7 +509,7 @@ function ColHeader({
           onClick={handleOpen}
           className={cn(
             'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
-            isFiltered ? 'text-fonti-primary' : 'text-gray-500 hover:text-gray-700',
+            isFiltered ? 'text-white' : 'text-white/80 hover:text-white',
           )}
         >
           {isFiltered && <Filter className="h-3 w-3 shrink-0" />}
@@ -565,7 +566,7 @@ function ColHeader({
         onClick={() => onSort(col)}
         className={cn(
           'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
-          isActive ? 'text-fonti-primary' : 'text-gray-500 hover:text-gray-700',
+          isActive ? 'text-white' : 'text-white/80 hover:text-white',
         )}
       >
         {label}
