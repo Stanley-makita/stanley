@@ -31,7 +31,7 @@ export function PainelDireitoLead({ lead }: Props) {
     <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-200">
       <SecaoNotas leadId={lead.id} />
       <SecaoTarefas leadId={lead.id} />
-      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} faseNome={lead.fase?.nome} />
+      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} />
     </div>
   )
 }
@@ -213,11 +213,14 @@ function SecaoTarefas({ leadId }: { leadId: string }) {
 
 // ── Checklist ────────────────────────────────────────────────────────────────
 
-function SecaoChecklist({ leadId, faseId, faseNome }: { leadId: string; faseId: string; faseNome?: string }) {
+function SecaoChecklist({ leadId, faseId }: { leadId: string; faseId: string }) {
   const { data: itens = [] } = useLeadChecklist(leadId, faseId)
   const completar = useCompletarChecklistItem()
   const { data: fases = [] } = useFases('leads')
   const editarLead = useEditarLead()
+  // Não usar lead.fase?.nome (join) — cruza a lista de fases (sempre
+  // populada) com o faseId cru, mesmo padrão de PipelineBarLead.
+  const faseAtualNome = fases.find(f => f.id === faseId)?.nome
   const [modalItem, setModalItem] = useState<ChecklistItemComStatus | null>(null)
   const [modalResultado, setModalResultado] = useState('')
   const [modalObs, setModalObs] = useState('')
@@ -240,7 +243,7 @@ function SecaoChecklist({ leadId, faseId, faseNome }: { leadId: string; faseId: 
       // 2026-07-13. Casamento por texto (não há um tipo/slug dedicado para
       // este item hoje), mesma convenção já usada em outros pontos do app
       // (ex.: PipelineBarLead compara fase.nome === 'Concluído').
-      if (concluido && faseNome === 'Atendimento Iniciado' && item.descricao.toLowerCase().includes('cpf')) {
+      if (concluido && faseAtualNome === 'Atendimento Iniciado' && item.descricao.toLowerCase().includes('cpf')) {
         const faseDocumentacao = fases.find(f => f.nome === 'Documentação')
         if (faseDocumentacao) {
           editarLead.mutate(

@@ -139,7 +139,12 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   useEffect(() => {
     if (!lead || fases.length === 0) return
     if (disparadoParaLeadRef.current === lead.id) return
-    if (lead.fase?.nome !== 'Novo') return
+
+    // Não usar lead.fase?.nome (join) — segue o mesmo padrão já comprovado em
+    // PipelineBarLead/handleConfirmar, que sempre cruza fases (lista, sempre
+    // populada) com lead.fase_id (coluna crua), nunca o objeto do join.
+    const faseAtualNome = fases.find(f => f.id === lead.fase_id)?.nome
+    if (faseAtualNome !== 'Novo') return
 
     const faseAtendimento = fases.find(f => f.nome === 'Atendimento Iniciado')
     if (!faseAtendimento) return
