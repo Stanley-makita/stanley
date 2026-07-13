@@ -550,6 +550,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
         email:       email.trim() || null,
         telefone:    telefone.trim() || null,
         principal:   true,
+        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
 
@@ -855,6 +856,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         email:       lead?.email ?? pessoa?.email ?? null,
         telefone:    lead?.telefone ?? pessoa?.telefone ?? null,
         principal:   true,
+        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
 
@@ -1031,6 +1033,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         email:       clienteEmail,
         telefone:    clienteTelefone,
         principal:   true,
+        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
 
@@ -1181,6 +1184,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         email:       clienteEmail,
         telefone:    clienteTelefone,
         principal:   true,
+        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
 

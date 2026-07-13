@@ -6,8 +6,11 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { Pencil, Plus, Loader2 } from 'lucide-react'
+
+const LIMITE_CARACTERES = 250
 
 interface ParticularidadeData {
   particularidade: string | null
@@ -67,52 +70,63 @@ export function ParticularidadeCliente({ pessoaId }: { pessoaId: string | null |
     || data.particularidade_criado_por === usuario?.id
     || usuario?.perfil === 'admin'
 
-  if (editando) {
-    return (
-      <div className="flex items-start gap-2 w-full max-w-md">
+  const popup = (
+    <Dialog open={editando} onOpenChange={setEditando}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-fonti-primary">Particularidade do cliente</DialogTitle>
+        </DialogHeader>
         <Textarea
           autoFocus
           value={texto}
-          onChange={(e) => setTexto(e.target.value)}
+          onChange={(e) => setTexto(e.target.value.slice(0, LIMITE_CARACTERES))}
           placeholder="Observação sobre o cliente (ex.: prefere contato só por WhatsApp, exigente com prazos...)"
-          className="min-h-[60px] text-xs"
+          className="min-h-[100px] text-sm"
+          maxLength={LIMITE_CARACTERES}
         />
-        <div className="flex flex-col gap-1">
-          <Button size="sm" disabled={salvar.isPending} onClick={() => salvar.mutate(texto)}>
+        <p className="text-right text-xs text-gray-400">{texto.length}/{LIMITE_CARACTERES}</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditando(false)}>Cancelar</Button>
+          <Button disabled={salvar.isPending} onClick={() => salvar.mutate(texto)}>
             {salvar.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Salvar'}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setEditando(false)}>Cancelar</Button>
-        </div>
-      </div>
-    )
-  }
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 
   if (!data?.particularidade) {
     if (!podeEditar) return null
     return (
-      <button
-        type="button"
-        onClick={() => { setTexto(''); setEditando(true) }}
-        className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-fonti-primary transition-colors"
-      >
-        <Plus className="h-3 w-3" /> Adicionar particularidade
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => { setTexto(''); setEditando(true) }}
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-fonti-primary transition-colors"
+        >
+          <Plus className="h-3 w-3" /> Adicionar particularidade
+        </button>
+        {popup}
+      </>
     )
   }
 
   return (
-    <div className="inline-flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 max-w-md">
-      <span className="italic">{data.particularidade}</span>
-      {podeEditar && (
-        <button
-          type="button"
-          onClick={() => { setTexto(data.particularidade ?? ''); setEditando(true) }}
-          className="shrink-0 text-amber-500 hover:text-amber-800 transition-colors"
-          title="Editar particularidade"
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
-      )}
-    </div>
+    <>
+      <div className="inline-flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 max-w-md">
+        <span className="italic">{data.particularidade}</span>
+        {podeEditar && (
+          <button
+            type="button"
+            onClick={() => { setTexto(data.particularidade ?? ''); setEditando(true) }}
+            className="shrink-0 text-amber-500 hover:text-amber-800 transition-colors"
+            title="Editar particularidade"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      {popup}
+    </>
   )
 }
