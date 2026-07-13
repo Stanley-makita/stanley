@@ -287,24 +287,44 @@ export const ITAU_MIP_P1: Record<number, number> = {
   54: 0.0010189828,
 }
 
-// MIP Itaú — Período 2 (meses 121+, após renovação decenal)
-// Os valores resetam no 10º ano e voltam a crescer com a idade
+// MIP Itaú — Período 2 (meses 121+)
+// CORRIGIDO em 2026-07-13: os valores antigos assumiam um "reset decenal" (alíquota caindo
+// de volta no 10º ano de contrato) sem nenhum caso-âncora que comprovasse esse mecanismo —
+// era uma suposição herdada de antes da Fase 3. Extraindo diretamente de VALIDADE!AH:AI no
+// simulador itau.xlsm (a mesma tabela viva "NOVA" que já valida ITAU_MIP_P1), a alíquota é
+// contínua por idade, sem reset: idade 54 aqui bate com ITAU_MIP_P1[54] (0,0010154 vs.
+// 0,0010189828 — pequena diferença de arredondamento entre a tabela VALIDADE de 7 casas e a
+// fonte de maior precisão CALCULOS!U usada no P1). Idade 54 mantida aqui (mesmo já existindo
+// no P1) para não quebrar o fallback de `resolverTaxaMipPorPeriodo` caso o mês do contrato já
+// esteja no Período 2 com o cliente ainda com 54 anos.
 export const ITAU_MIP_P2: Record<number, number> = {
-  54: 0.0006585900,
-  55: 0.0007160355,
-  56: 0.0007773832,
-  57: 0.0008443117,
-  58: 0.0009174841,
-  59: 0.0009991547,
-  60: 0.0010918590,
-  61: 0.0011983857,
-  62: 0.0013214359,
-  63: 0.0014637220,
-  64: 0.0016274190,
-  65: 0.0018145477,
-  66: 0.002027, 67: 0.002269, 68: 0.002541, 69: 0.002847,
-  70: 0.003190, 71: 0.003576, 72: 0.004008, 73: 0.004495,
-  74: 0.005048, 75: 0.005691,
+  54: 0.0010154,
+  55: 0.0010952,
+  56: 0.0013242,
+  57: 0.0014275,
+  58: 0.0015394,
+  59: 0.0016637,
+  60: 0.0018044,
+  61: 0.0023764,
+  62: 0.0026023,
+  63: 0.0028631,
+  64: 0.0031625,
+  65: 0.0035033,
+  66: 0.0034993,
+  67: 0.0035030,
+  68: 0.0036632,
+  69: 0.0040767,
+  70: 0.0045366,
+  71: 0.0045220,
+  72: 0.0050283,
+  73: 0.0055867,
+  74: 0.0062048,
+  75: 0.0068926,
+  76: 0.0080867,
+  77: 0.0089841,
+  78: 0.0106165,
+  79: 0.0115886,
+  80: 0.0128682,
 }
 
 // MCMV — Minha Casa Minha Vida (Caixa, novas condições vigentes desde 22/04/2026)
