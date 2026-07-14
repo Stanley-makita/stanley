@@ -36,13 +36,25 @@ interface Instancia {
 
 const EMPTY_FORM = { nome: '', token: '', numero_telefone: '', atendente_id: '' }
 
+// A URL precisa incluir o token de autenticação do webhook (?token=...) —
+// sem ele, o endpoint responde 401 e a instância nunca recebe mensagem
+// nenhuma. Busca do servidor em vez de montar no client porque o token não
+// deve ir num env NEXT_PUBLIC_* (ficaria no bundle público).
 function useWebhookUrl() {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (appUrl && appUrl.startsWith('http') && !appUrl.includes('localhost')) {
-    return `${appUrl}/api/bot/whatsapp/webhook`
-  }
-  if (typeof window === 'undefined') return ''
-  return `${window.location.origin}/api/bot/whatsapp/webhook`
+  const { data } = useQuery({
+    queryKey: ['instancias', 'webhook-url'],
+    queryFn: async (): Promise<string> => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/instancias/webhook-url', {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      })
+      if (!res.ok) throw new Error('Erro ao buscar URL do webhook')
+      const json = await res.json()
+      return json.webhookUrl as string
+    },
+    staleTime: 1000 * 60 * 60,
+  })
+  return data ?? ''
 }
 
 function useInstancias() {

@@ -34,13 +34,19 @@ export async function POST(
 
   if (!instancia) return NextResponse.json({ error: 'Instância não encontrada' }, { status: 404 })
 
-  // Monta URL do webhook usando o host da requisição para funcionar em qualquer ambiente
+  // Monta URL do webhook usando o host da requisição para funcionar em qualquer ambiente.
+  // Precisa incluir ?token=UAZAPI_WEBHOOK_TOKEN — sem ele, o endpoint de
+  // webhook responde 401 pra Uazapi e a instância nunca recebe mensagem.
   const proto = request.headers.get('x-forwarded-proto') ?? 'https'
   const host  = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? ''
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.startsWith('http')
     ? process.env.NEXT_PUBLIC_APP_URL
     : `${proto}://${host}`
-  const webhookUrl = `${appUrl}/api/bot/whatsapp/webhook`
+  const webhookToken = process.env.UAZAPI_WEBHOOK_TOKEN?.trim()
+  if (!webhookToken) {
+    return NextResponse.json({ error: 'UAZAPI_WEBHOOK_TOKEN não configurado' }, { status: 500 })
+  }
+  const webhookUrl = `${appUrl}/api/bot/whatsapp/webhook?token=${webhookToken}`
 
   try {
     const res = await fetch(`${process.env.UAZAPI_API_URL}/webhook`, {
