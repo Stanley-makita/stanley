@@ -32,10 +32,11 @@ export async function buscarPessoaPorTelefone(
 ): Promise<string | null> {
   const { data } = await supabase
     .from('pessoa_telefones')
-    .select('pessoa_id')
+    .select('pessoa_id, pessoas!inner(deleted_at)')
     .eq('empresa_id', empresa_id)
     .eq('telefone', telefone)
     .eq('ativo', true)
+    .is('pessoas.deleted_at', null)
     .maybeSingle()
 
   return data?.pessoa_id ?? null
@@ -57,6 +58,7 @@ export async function buscarPessoaPorCpf(
     .select('id')
     .eq('empresa_id', empresa_id)
     .eq('cpf', cpfNorm)
+    .is('deleted_at', null)
     .maybeSingle()
 
   return data?.id ?? null
