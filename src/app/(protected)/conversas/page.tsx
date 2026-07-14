@@ -199,6 +199,10 @@ export default function ConversasPage() {
   const [novaConversaNome, setNovaConversaNome] = useState('')
   const [novaConversaMsg, setNovaConversaMsg] = useState('')
   const iniciarConversa = useIniciarConversa()
+  const [grupoAberto, setGrupoAberto] = useState(false)
+  const [grupoNome, setGrupoNome] = useState('')
+  const [grupoParticipantes, setGrupoParticipantes] = useState<string[]>(['', ''])
+  const [criandoGrupo, setCriandoGrupo] = useState(false)
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro],
@@ -643,20 +647,35 @@ export default function ConversasPage() {
             <MessageSquare className="w-4 h-4" />
             Conversas
           </h1>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs gap-1 border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
-            onClick={() => {
-              setNovaConversaTelefone('')
-              setNovaConversaNome('')
-              setNovaConversaMsg('')
-              setNovaConversaAberta(true)
-            }}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Nova
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1 border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
+              onClick={() => {
+                setNovaConversaTelefone('')
+                setNovaConversaNome('')
+                setNovaConversaMsg('')
+                setNovaConversaAberta(true)
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nova
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50"
+              onClick={() => {
+                setGrupoNome('')
+                setGrupoParticipantes(['', ''])
+                setGrupoAberto(true)
+              }}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Grupo
+            </Button>
+          </div>
         </div>
 
         {/* Campo de pesquisa */}
@@ -1487,6 +1506,107 @@ export default function ConversasPage() {
             >
               <MessageCircle className="h-3.5 w-3.5" />
               {iniciarConversa.isPending ? 'Criando...' : 'Iniciar Conversa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={grupoAberto} onOpenChange={(o) => { if (!o) setGrupoAberto(false) }}>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">Criar grupo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Nome do grupo</label>
+              <Input
+                placeholder="ex: Compra Rua das Flores 123"
+                value={grupoNome}
+                onChange={(e) => setGrupoNome(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Participantes (telefone com DDD)</label>
+              {grupoParticipantes.map((tel, i) => (
+                <div key={i} className="flex gap-1.5">
+                  <Input
+                    placeholder="(44) 99999-0000"
+                    value={tel}
+                    onChange={(e) => setGrupoParticipantes((prev) => prev.map((p, idx) => idx === i ? e.target.value : p))}
+                  />
+                  {grupoParticipantes.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 text-gray-400 hover:text-red-600"
+                      onClick={() => setGrupoParticipantes((prev) => prev.filter((_, idx) => idx !== i))}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setGrupoParticipantes((prev) => [...prev, ''])}
+              >
+                <Plus className="w-3 h-3" />
+                Adicionar participante
+              </Button>
+            </div>
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setGrupoAberto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={!grupoNome.trim() || grupoParticipantes.filter((p) => p.replace(/\D/g, '')).length === 0 || criandoGrupo}
+              className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
+              onClick={async () => {
+                setCriandoGrupo(true)
+                try {
+                  const { data: { session } } = await supabase.auth.getSession()
+                  const res = await fetch('/api/conversas/grupo', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${session?.access_token ?? ''}`,
+                    },
+                    body: JSON.stringify({
+                      nome: grupoNome.trim(),
+                      participantes: grupoParticipantes.filter((p) => p.replace(/\D/g, '')),
+                    }),
+                  })
+                  const json = await res.json()
+                  if (!res.ok) throw new Error(json.error ?? 'Falha ao criar grupo')
+                  setGrupoAberto(false)
+                  qc.invalidateQueries({ queryKey: ['conversas'] })
+                  toast.success('Grupo criado com sucesso.')
+                  const { data: nova } = await supabase
+                    .from('conversas')
+                    .select('*, lead:leads!lead_id(fase:fases!fase_id(nome, cor))')
+                    .eq('id', json.conversa_id)
+                    .single()
+                  if (nova) setConversaSelecionada(nova as Conversa)
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Erro ao criar grupo. Tente novamente.')
+                } finally {
+                  setCriandoGrupo(false)
+                }
+              }}
+            >
+              <Users className="h-3.5 w-3.5" />
+              {criandoGrupo ? 'Criando...' : 'Criar Grupo'}
             </Button>
           </DialogFooter>
         </DialogContent>
