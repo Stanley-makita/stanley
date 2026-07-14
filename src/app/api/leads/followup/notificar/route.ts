@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       dias_sem_processo,
       proxima_notificacao,
       notificou_gestor,
+      tipo,
+      intervalo_dias,
       lead:leads!lead_id(nome, deleted_at, convertido_em, perdido_em, status_analise),
       responsavel:usuarios!responsavel_id(nome, telefone, telefone_whatsapp)
     `)
@@ -83,28 +85,36 @@ export async function POST(req: NextRequest) {
 
     try {
       const instanciaToken = await buscarInstanciaToken(fu.empresa_id)
-      const novoDias = fu.dias_sem_processo + 3
+      const intervalo = fu.intervalo_dias ?? 3
+      const novoDias = fu.dias_sem_processo + intervalo
       const responsavel = fu.responsavel as unknown as { nome: string; telefone: string | null; telefone_whatsapp?: string | null } | null
       const telComercial = responsavel?.telefone_whatsapp ?? responsavel?.telefone
       const creditoAprovado = lead.status_analise === 'aprovado'
+      const ehRecusadoRetry = fu.tipo === 'recusado_retry'
 
       // ── Notificação para o comercial ──
       if (telComercial) {
         const msgComercial = [
           `🔔 *Fonti — Acompanhamento de Lead*`,
           ``,
-          creditoAprovado
+          ehRecusadoRetry
+            ? `O crédito de *${lead.nome}* foi recusado e ainda está sem decisão.`
+            : creditoAprovado
             ? `O cliente *${lead.nome}* possui crédito aprovado, mas ainda não tem Processo criado.`
             : `O cliente *${lead.nome}* está concluído, mas ainda não tem Processo criado.`,
           ``,
-          `*${novoDias} dias* desde a conclusão.`,
+          ehRecusadoRetry
+            ? `*${novoDias} dias* desde a recusa.`
+            : `*${novoDias} dias* desde a conclusão.`,
           ``,
-          `Você conseguiu contato?`,
+          ehRecusadoRetry
+            ? `Vai tentar outro banco ou marcar o lead como perdido?`
+            : `Você conseguiu contato?`,
           ``,
           `Responda:`,
-          `*1* — Sim (consegui contato)`,
+          ehRecusadoRetry ? `*1* — Vou tentar outro banco` : `*1* — Sim (consegui contato)`,
           `*2* — Ainda não`,
-          `*3* — Cliente desistiu`,
+          ehRecusadoRetry ? `*3* — Vou marcar como perdido` : `*3* — Cliente desistiu`,
         ].join('\n')
 
         await enviarWhatsApp(telComercial, msgComercial, instanciaToken)
@@ -123,11 +133,11 @@ export async function POST(req: NextRequest) {
         lead_id:    fu.lead_id,
         empresa_id: fu.empresa_id,
         tipo:       'followup_notificacao',
-        descricao:  `Follow-up automático enviado ao comercial ${responsavel?.nome ?? ''} — ${novoDias} dias sem Processo.`,
+        descricao:  `Follow-up automático enviado ao comercial ${responsavel?.nome ?? ''} — ${novoDias} dias${ehRecusadoRetry ? ' com crédito recusado' : ' sem Processo'}.`,
       })
 
-      // Agenda próxima notificação em 3 dias
-      const proxima = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      // Agenda próxima notificação daqui a `intervalo` dias
+      const proxima = new Date(Date.now() + intervalo * 24 * 60 * 60 * 1000)
       await supabase
         .from('lead_followups')
         .update({
@@ -137,10 +147,10 @@ export async function POST(req: NextRequest) {
         .eq('id', fu.id)
 
       // ── Escalonamento: após 10 dias, notifica o(s) gestor(es) — só quando o
-      // crédito está de fato aprovado. Lead concluído sem aprovação (reprovado
-      // etc.) nunca escalona: só o comercial continua recebendo o lembrete a
-      // cada 3 dias, indefinidamente, até marcar o lead como perdido.
-      if (novoDias >= 10 && !fu.notificou_gestor && creditoAprovado) {
+      // crédito está de fato aprovado (tipo 'aprovado_pendente'). Recusado
+      // (recusado_retry) nunca escala: só o comercial recebe lembrete, a cada
+      // intervalo, indefinidamente, até tentar outro banco ou marcar perdido.
+      if (novoDias >= 10 && !fu.notificou_gestor && creditoAprovado && !ehRecusadoRetry) {
         await escalonarParaGestores(fu.empresa_id, fu.lead_id, lead.nome, novoDias, instanciaToken)
         await supabase
           .from('lead_followups')

@@ -543,7 +543,6 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
         lead={{ id: lead.id, nome: lead.nome, empresa_id: lead.empresa_id, responsavel_id: lead.responsavel_id }}
         onCriarProcesso={() => { setConcluirAberto(false); setNovoProcessoAberto(true) }}
         onAindaNao={() => setConcluirAberto(false)}
-        onFechar={() => setConcluirAberto(false)}
       />
       <ModalMarcarPerdido
         aberto={marcarPerdidoAberto}

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { supabase } from '@/lib/supabase'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
@@ -238,7 +239,7 @@ export function AbaCredito({ lead }: Props) {
       />
 
       {/* 4. Análises de Crédito */}
-      <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} />
+      <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} responsavelId={lead.responsavel_id ?? null} />
 
       {/* 5. Aprovação de Crédito */}
       <BlocoAprovacaoCredito
@@ -707,15 +708,55 @@ const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; classe: stri
 
 // ── BlocoAnalises ─────────────────────────────────────────────
 
-function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: string }) {
+function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; empresaId: string; responsavelId: string | null }) {
   const { analises, isLoading, criar, editar, deletar, definirBanco } = useAnalisesCredito(leadId)
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const qc = useQueryClient()
 
+  // Crédito recusado pode reverter (tentar outro banco) — dispara um
+  // acompanhamento mais espaçado (10 dias, sem escalonar pra gestores),
+  // separado do acompanhamento de "aprovado sem processo" (3 dias, que
+  // começa em ModalConcluirLead.tsx). Se a análise decisiva deixar de estar
+  // recusada, encerra esse acompanhamento (situação revertida).
+  async function gerenciarFollowupRecusado(status: StatusAnaliseCredito) {
+    if (status === 'recusado') {
+      await supabase.from('lead_followups').upsert(
+        {
+          empresa_id:          empresaId,
+          lead_id:             leadId,
+          responsavel_id:      responsavelId,
+          status:              'ativo',
+          tipo:                'recusado_retry',
+          intervalo_dias:      10,
+          proxima_notificacao: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+          dias_sem_processo:   0,
+        },
+        { onConflict: 'lead_id', ignoreDuplicates: false }
+      )
+      await supabase.rpc('registrar_interacao_lead', {
+        p_lead_id: leadId,
+        p_descricao: 'Acompanhamento automático iniciado — crédito recusado, aguardando nova tentativa ou decisão.',
+        p_tipo: 'followup_iniciado',
+      })
+      toast.info('Acompanhamento iniciado', {
+        description: 'O Fonti enviará lembretes ao comercial a cada 10 dias enquanto o crédito estiver recusado.',
+      })
+    } else {
+      await supabase
+        .from('lead_followups')
+        .update({ status: 'encerrado', motivo_encerramento: 'situacao_revertida', encerrado_em: new Date().toISOString() })
+        .eq('lead_id', leadId)
+        .eq('tipo', 'recusado_retry')
+        .eq('status', 'ativo')
+    }
+  }
+
   // Análise "banco definido" é a decisiva — seu status espelha automaticamente
   // o status do lead (card Status da Fase / badge do cabeçalho / Kanban).
   async function sincronizarStatusLead(status: StatusAnaliseCredito) {
+    gerenciarFollowupRecusado(status)
+
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
     if (!token) return

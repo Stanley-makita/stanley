@@ -12,10 +12,9 @@ interface Props {
   lead: { id: string; nome: string; empresa_id: string; responsavel_id: string | null }
   onCriarProcesso: () => void
   onAindaNao: () => void
-  onFechar: () => void
 }
 
-export function ModalConcluirLead({ aberto, lead, onCriarProcesso, onAindaNao, onFechar }: Props) {
+export function ModalConcluirLead({ aberto, lead, onCriarProcesso, onAindaNao }: Props) {
   const [carregando, setCarregando] = useState(false)
 
   async function handleAindaNao() {
@@ -57,8 +56,16 @@ export function ModalConcluirLead({ aberto, lead, onCriarProcesso, onAindaNao, o
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={(o) => { if (!o) onFechar() }}>
-      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
+    // Não-dismissável: precisa escolher "Criar Processo" ou "Ainda não" — fechar
+    // sem decidir (X/ESC/clique fora) pulava o início do acompanhamento
+    // automático (só é criado dentro de handleAindaNao). Mesmo padrão de
+    // AlertaVencimentoModal.tsx.
+    <Dialog open={aberto} onOpenChange={() => {}}>
+      <DialogContent
+        className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full [&>button]:hidden"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-fonti-primary">
             <CheckCircle2 className="h-5 w-5 text-green-600" />

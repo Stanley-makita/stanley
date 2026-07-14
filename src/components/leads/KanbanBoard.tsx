@@ -232,7 +232,6 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
             setPendenteConclusao(null)
           }}
           onAindaNao={() => setPendenteConclusao(null)}
-          onFechar={() => setPendenteConclusao(null)}
         />
       )}
 
