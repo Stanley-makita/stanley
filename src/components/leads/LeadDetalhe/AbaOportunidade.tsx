@@ -89,7 +89,7 @@ function leadParaForm(lead: Lead): FormData {
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
         {titulo}
       </h3>
@@ -151,7 +151,7 @@ export function AbaOportunidade({ lead }: Props) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="-mx-3 -my-4 space-y-6 bg-gray-50 px-3 py-4 pb-8 sm:-mx-5 sm:px-5">
 
         {/* ── Classificação ─────────────────────────────────────────────── */}
         <Secao titulo="Classificação">
@@ -319,20 +319,22 @@ export function AbaOportunidade({ lead }: Props) {
         )}
 
         {/* ── Observações ───────────────────────────────────────────────── */}
-        <FormField control={form.control} name="observacoes" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Observações <Opc /></FormLabel>
-            <FormControl>
-              <Textarea
-                rows={3}
-                placeholder="Notas sobre a oportunidade..."
-                {...field}
-                value={field.value ?? ''}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <FormField control={form.control} name="observacoes" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Observações <Opc /></FormLabel>
+              <FormControl>
+                <Textarea
+                  rows={3}
+                  placeholder="Notas sobre a oportunidade..."
+                  {...field}
+                  value={field.value ?? ''}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
 
         <div className="flex justify-end border-t pt-4">
           <Button
