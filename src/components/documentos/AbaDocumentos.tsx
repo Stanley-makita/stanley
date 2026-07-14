@@ -540,12 +540,18 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   }
 
   async function handleDownload(doc: DocumentoCliente) {
+    // nome_exibicao (renomeado pelo usuario) pode nao ter extensao — sem ela o Windows
+    // nao reconhece o tipo do arquivo baixado. Garante a extensao do nome_original.
+    const extensao = doc.nome_original.match(/\.[a-zA-Z0-9]+$/)?.[0] ?? ''
+    const nomeBase = doc.nome_exibicao || doc.nome_original
+    const nomeArquivo = /\.[a-zA-Z0-9]+$/.test(nomeBase) ? nomeBase : `${nomeBase}${extensao}`
+
     // { download } força Content-Disposition: attachment no Supabase — evita abrir no viewer do browser
-    const { data } = await supabase.storage.from(BUCKET).createSignedUrl(doc.storage_path, 3600, { download: doc.nome_exibicao || doc.nome_original })
+    const { data } = await supabase.storage.from(BUCKET).createSignedUrl(doc.storage_path, 3600, { download: nomeArquivo })
     if (!data?.signedUrl) { toast.error('Não foi possível baixar o documento.'); return }
     const link = document.createElement('a')
     link.href = data.signedUrl
-    link.download = doc.nome_exibicao || doc.nome_original
+    link.download = nomeArquivo
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

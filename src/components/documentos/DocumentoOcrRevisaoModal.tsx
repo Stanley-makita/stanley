@@ -35,8 +35,8 @@ const TIPOS_VALIDOS = new Set(TIPOS_OPCOES.map(t => t.value))
 
 const CAMPOS_POR_TIPO: Record<string, string[]> = {
   cnh: [
-    'nome', 'cpf', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento', 'data_emissao', 'orgao_emissor',
-    'filiacao_mae', 'filiacao_pai', 'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
+    'nome', 'cpf', 'rg', 'rg_orgao_emissor', 'rg_uf_emissor', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento',
+    'data_emissao', 'orgao_emissor', 'filiacao_mae', 'filiacao_pai', 'registro_cnh', 'validade_cnh', 'primeira_habilitacao_cnh',
   ],
   rg: [
     'nome', 'cpf', 'rg', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento', 'data_emissao',
@@ -52,6 +52,8 @@ const CAMPOS_LABELS: Record<string, string> = {
   nome:                     'Nome completo',
   cpf:                      'CPF',
   rg:                       'RG',
+  rg_orgao_emissor:         'Órgão emissor do RG',
+  rg_uf_emissor:            'UF emissora do RG',
   data_nascimento:          'Data de nascimento',
   cidade_nascimento:        'Cidade de nascimento',
   estado_nascimento:        'UF de nascimento',
