@@ -104,9 +104,13 @@ interface Props {
   aberto: boolean
   onFechar: () => void
   imovel?: Imovel
+  /** Chamado após cadastrar/atualizar com sucesso, com o imóvel resultante —
+   * permite ao chamador selecionar/vincular automaticamente sem precisar
+   * buscar de novo. */
+  onSucesso?: (imovel: Imovel) => void
 }
 
-export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
+export function ImovelFormDrawer({ aberto, onFechar, imovel, onSucesso }: Props) {
   const { data: registros = [] } = useRegistrosImoveis()
   const criar = useCriarImovel()
   const atualizar = useAtualizarImovel()
@@ -154,11 +158,13 @@ export function ImovelFormDrawer({ aberto, onFechar, imovel }: Props) {
 
     try {
       if (imovel) {
-        await atualizar.mutateAsync({ id: imovel.id, ...dados })
+        const atualizado = await atualizar.mutateAsync({ id: imovel.id, ...dados })
         toast.success('Imóvel atualizado com sucesso.')
+        onSucesso?.(atualizado)
       } else {
-        await criar.mutateAsync(dados as any)
+        const criado = await criar.mutateAsync(dados as any)
         toast.success('Imóvel cadastrado com sucesso.')
+        onSucesso?.(criado)
       }
       onFechar()
     } catch {

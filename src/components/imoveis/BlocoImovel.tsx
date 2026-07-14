@@ -329,6 +329,7 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
       <ImovelFormDrawer
         aberto={cadastrarAberto}
         onFechar={() => setCadastrarAberto(false)}
+        onSucesso={handleSelecionar}
       />
     </div>
   )
