@@ -29,6 +29,26 @@ const FASES_FINANCIAMENTO_FILTROS = [
   'Emissão Contrato', 'Liberação de Recursos',
 ]
 
+// Usado em Negócios/Todos os Negócios (mostrarFiltroProduto) — CGI conta
+// separado de Financiamento aqui, diferente do filtro 'produto' server-side
+// de useProcessos (onde 'financiamento' engloba CGI).
+const FINANCIAMENTO_SEM_CGI = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista'])
+const PRODUTO_QUICK_FILTROS: { label: string; value: string }[] = [
+  { label: 'Financiamento', value: 'financiamento' },
+  { label: 'CGI',           value: 'cgi' },
+  { label: 'Consórcio',     value: 'consorcio' },
+  { label: 'Registro',      value: 'registro' },
+  { label: 'Contratos',     value: 'contrato' },
+]
+function produtoQuickDoProcesso(modalidade: string): string {
+  if (FINANCIAMENTO_SEM_CGI.has(modalidade)) return 'financiamento'
+  if (modalidade === 'CGI')       return 'cgi'
+  if (modalidade === 'Consorcio') return 'consorcio'
+  if (modalidade === 'Registro')  return 'registro'
+  if (modalidade === 'Contrato')  return 'contrato'
+  return 'outro'
+}
+
 function formatarMoeda(v: number | null) {
   if (v == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
@@ -185,9 +205,14 @@ function StaticHead({ children }: { children: React.ReactNode }) {
 interface Props {
   produtoFixo?: ProdutoFiltro
   responsavelId?: string
+  /** Só usado em Negócios/Todos os Negócios — troca os filtros rápidos de
+   * status_processo (Em Análise/Aprovados/...) por filtros de produto
+   * (Financiamento/CGI/Consórcio/Registro/Contratos), já que "Todos" mistura
+   * modalidades que não compartilham o mesmo fluxo de status. */
+  mostrarFiltroProduto?: boolean
 }
 
-export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
+export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }: Props) {
   const router = useRouter()
   const { usuario } = useAuth()
 
@@ -198,6 +223,7 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [faseFiltro, setFaseFiltro] = useState<string>('todos')
+  const [produtoQuickFiltro, setProdutoQuickFiltro] = useState<string>('todos')
   const [busca, setBusca] = useState('')
   const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [openFilter, setOpenFilter] = useState<string | null>(null)
@@ -246,16 +272,19 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
       if (fasesFiltroAtivo && faseFiltro !== 'todos' && normalizarTexto(p.fase_atual?.nome) !== normalizarTexto(faseFiltro)) {
         return false
       }
+      if (mostrarFiltroProduto && produtoQuickFiltro !== 'todos' && produtoQuickDoProcesso(p.modalidade) !== produtoQuickFiltro) {
+        return false
+      }
       return Object.entries(colFilters).every(([col, val]) => {
         if (!val) return true
         const ext = EXTRACTORS[col]
         return ext ? ext(p) === val : true
       })
     })
-  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro])
+  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro])
 
   // Reset página ao mudar filtros
-  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, colFilters])
+  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters])
 
   const totalValorFinanciado = useMemo(
     () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
@@ -292,6 +321,20 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
               return (
                 <FilterChip key={nome} active={faseFiltro === nome} count={count} onClick={() => setFaseFiltro(nome)}>
                   {nome}
+                </FilterChip>
+              )
+            })}
+          </>
+        ) : mostrarFiltroProduto ? (
+          <>
+            <FilterChip active={produtoQuickFiltro === 'todos'} count={processos.length} onClick={() => setProdutoQuickFiltro('todos')}>
+              Todos
+            </FilterChip>
+            {PRODUTO_QUICK_FILTROS.map((f) => {
+              const count = processos.filter(p => produtoQuickDoProcesso(p.modalidade) === f.value).length
+              return (
+                <FilterChip key={f.value} active={produtoQuickFiltro === f.value} count={count} onClick={() => setProdutoQuickFiltro(f.value)}>
+                  {f.label}
                 </FilterChip>
               )
             })}

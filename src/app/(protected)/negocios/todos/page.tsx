@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { VisaoTabela } from '@/components/processos/visoes/VisaoTabela'
+import { VisaoCards, FILTROS_PRODUTO_TODOS } from '@/components/processos/visoes/VisaoCards'
 import { LayoutGrid, Table2 } from 'lucide-react'
 
 type Visao = 'tabela' | 'cards'
@@ -36,7 +37,8 @@ export default function TodosNegociosPage() {
         </div>
       </div>
 
-      {visao === 'tabela' && <VisaoTabela />}
+      {visao === 'tabela' && <VisaoTabela mostrarFiltroProduto />}
+      {visao === 'cards'  && <VisaoCards modulo="processos" produtosDisponiveis={FILTROS_PRODUTO_TODOS} />}
     </div>
   )
 }

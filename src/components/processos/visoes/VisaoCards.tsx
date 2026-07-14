@@ -14,12 +14,31 @@ import type { Processo, ModalidadeProcesso } from '@/types/processos'
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 
 // Só usado na tela de Negócios/Financiamento (única página que chama VisaoCards
-// sem produtoFixo) — "Contrato" tem tela própria (/negocios/contrato) e não
-// deve aparecer como filtro rápido aqui.
+// sem produtoFixo nem produtosDisponiveis) — "Contrato" tem tela própria
+// (/negocios/contrato) e não deve aparecer como filtro rápido aqui.
 const FILTROS_PRODUTO: { label: string; value: ProdutoFiltro }[] = [
   { label: 'Financiamento', value: 'financiamento' },
   { label: 'CGI',           value: 'cgi' },
 ]
+
+// Usado em Negócios/Todos os Negócios — cada produto tem seu próprio conjunto
+// de fases (módulo diferente), então escolher um destes troca o quadro inteiro
+// de colunas exibido (ver PRODUTO_MODULO).
+export const FILTROS_PRODUTO_TODOS: { label: string; value: ProdutoFiltro }[] = [
+  { label: 'Financiamento', value: 'financiamento' },
+  { label: 'CGI',           value: 'cgi' },
+  { label: 'Consórcio',     value: 'consorcio' },
+  { label: 'Registro',      value: 'registro' },
+  { label: 'Contratos',     value: 'contrato' },
+]
+
+const PRODUTO_MODULO: Partial<Record<ProdutoFiltro, string>> = {
+  financiamento: 'processos',
+  cgi:           'processos',
+  consorcio:     'consorcio',
+  registro:      'registro',
+  contrato:      'contrato',
+}
 
 const FILTROS_CHANCE = [
   { label: 'Certeza',   value: 'certeza'   as const },
@@ -166,16 +185,26 @@ function KanbanColuna({
 
 // ─── Visão principal ──────────────────────────────────────────────────────────
 
-export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId }: {
+export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId, produtosDisponiveis }: {
   modulo?: string
   produtoFixo?: ProdutoFiltro
   responsavelId?: string
+  /** Só usado em Negócios/Todos os Negócios — cada produto tem seu próprio
+   * módulo de fases, então escolher um aqui troca o quadro inteiro exibido
+   * (ver PRODUTO_MODULO). Quando ausente, mantém o comportamento antigo
+   * (módulo fixo pela prop `modulo`, toggle Financiamento/CGI). */
+  produtosDisponiveis?: { label: string; value: ProdutoFiltro }[]
 }) {
-  const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>('todos')
+  const filtrosProduto = produtosDisponiveis ?? FILTROS_PRODUTO
+  const [produtoFiltro, setProdutoFiltro] = useState<ProdutoFiltro>(
+    produtosDisponiveis ? (produtosDisponiveis[0]?.value ?? 'financiamento') : 'todos'
+  )
   const [chanceFiltro, setChanceFiltro] = useState<'certeza' | 'incerteza' | 'todos'>('todos')
   const [busca, setBusca] = useState('')
 
-  const { data: fases = [], isLoading: fasesLoading } = useFases(modulo)
+  const moduloAtivo = produtoFixo ? modulo : produtosDisponiveis ? (PRODUTO_MODULO[produtoFiltro] ?? modulo) : modulo
+
+  const { data: fases = [], isLoading: fasesLoading } = useFases(moduloAtivo)
   const { data: processos = [], isLoading: processosLoading } = useProcessos({
     produto: produtoFixo ?? produtoFiltro,
     chance: chanceFiltro,
@@ -192,6 +221,7 @@ export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId }:
     else if (mod === 'Consorcio') acc.consorcio = (acc.consorcio ?? 0) + 1
     else if (mod === 'CGI')       acc.cgi        = (acc.cgi        ?? 0) + 1
     else if (mod === 'Contrato')  acc.contrato   = (acc.contrato   ?? 0) + 1
+    else if (mod === 'Registro')  acc.registro   = (acc.registro   ?? 0) + 1
     return acc
   }, {} as Record<string, number>)
 
@@ -212,13 +242,13 @@ export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId }:
       {/* ── Filtros ── */}
       <div className="mb-3 flex shrink-0 flex-wrap items-center gap-1.5">
 
-        {!produtoFixo && FILTROS_PRODUTO.map((f) => {
+        {!produtoFixo && filtrosProduto.map((f) => {
           const count = contagemProduto[f.value] ?? 0
           const ativo = produtoFiltro === f.value
           return (
             <button
               key={f.value}
-              onClick={() => setProdutoFiltro(ativo ? 'todos' : f.value)}
+              onClick={() => setProdutoFiltro(produtosDisponiveis ? f.value : (ativo ? 'todos' : f.value))}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 ativo
                   ? 'bg-fonti-accent text-fonti-primary'
