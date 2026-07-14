@@ -205,6 +205,21 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
     lead !== null &&
     analises.length > 0
 
+  // Se já existe uma análise marcada como "Banco Definido", ela é a decisiva —
+  // usa direto, sem perguntar de novo qual análise usar (SeletorAnalise só
+  // aparece quando há ambiguidade, ou seja, nenhuma análise com banco definido).
+  function handleSelecionarTipo(t: TipoProcesso) {
+    if (t === 'financiamento') {
+      const bancoDefinido = analises.find(a => a.banco_definido)
+      if (bancoDefinido) {
+        setAnaliseId(bancoDefinido.id)
+        setTipo(t)
+        return
+      }
+    }
+    setTipo(t)
+  }
+
   function fechar() {
     setTipo(null)
     setAnaliseId(undefined)
@@ -276,7 +291,7 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
             onPular={(processoId) => { router.push(`/processos/${processoId}`); fechar() }}
           />
         ) : !tipo ? (
-          <SeletorTipo lead={lead} pessoa={pessoa} onSelecionar={setTipo} onFechar={fechar} />
+          <SeletorTipo lead={lead} pessoa={pessoa} onSelecionar={handleSelecionarTipo} onFechar={fechar} />
         ) : showSeletorAnalise ? (
           <SeletorAnalise
             analises={analises}
