@@ -69,11 +69,12 @@ async function salvarDocumentoCliente(params: {
   pessoa_id: string
   lead_id?: string | null
   conversa_id: string
+  mensagem_id?: string | null
   fileUrl: string
   fileName: string | null
   mimeType: string | null
 }): Promise<void> {
-  const { empresa_id, pessoa_id, lead_id, conversa_id, fileUrl, fileName, mimeType } = params
+  const { empresa_id, pessoa_id, lead_id, conversa_id, mensagem_id, fileUrl, fileName, mimeType } = params
 
   const ext = fileName?.split('.').pop()
     ?? (mimeType?.split('/')[1] ?? 'bin').replace('jpeg', 'jpg')
@@ -121,6 +122,7 @@ async function salvarDocumentoCliente(params: {
     storage_path: storagePath,
     origem: 'whatsapp',
     status_ocr: ocrStatus,
+    mensagem_id: mensagem_id ?? null,
   }).select('id').single()
   if (insertError) throw new Error(`DB insert falhou: ${insertError.message}`)
 
@@ -785,7 +787,7 @@ export async function POST(request: NextRequest) {
 
   // Salva mensagem do cliente
   const conteudoCliente = texto.trim()
-  await supabase.from('mensagens').insert({
+  const { data: mensagemInserida } = await supabase.from('mensagens').insert({
     conversa_id,
     origem: 'cliente',
     conteudo: conteudoCliente,
@@ -796,7 +798,7 @@ export async function POST(request: NextRequest) {
       sender_pn: senderPn,
       senderName: nomeContato,
     },
-  })
+  }).select('id').single()
 
   // Auto-save de arquivos no Supabase Storage (fora do bot — salva sempre)
   // await garante que o registro existe no banco antes de retornar (vincular do *fonti depende disso)
@@ -808,6 +810,7 @@ export async function POST(request: NextRequest) {
       pessoa_id: pessoaId,
       lead_id: leadIdVinculo,
       conversa_id,
+      mensagem_id: mensagemInserida?.id ?? null,
       fileUrl,
       fileName: mediaContent?.fileName ?? null,
       mimeType: mediaContent?.mimetype ?? null,

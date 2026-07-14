@@ -9,7 +9,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { type Lead } from '@/types/leads'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft } from 'lucide-react'
+import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -244,6 +244,31 @@ export default function ConversasPage() {
       return data as Mensagem[]
     },
   })
+
+  // Correlaciona mensagens de mídia com o documento já salvo no acervo
+  // (auto-save no webhook — ver salvarDocumentoCliente), pra mostrar o
+  // indicador "Salvo no acervo" na bolha em vez de depender da URL efêmera
+  // da Uazapi.
+  const mensagensIds = mensagens.map(m => m.id)
+  const { data: documentosSalvos = [] } = useQuery({
+    queryKey: ['documentos-por-mensagem', conversaSelecionada?.id, mensagensIds],
+    enabled: !!conversaSelecionada && mensagensIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documentos')
+        .select('id, mensagem_id, storage_path, nome_exibicao, nome_original')
+        .in('mensagem_id', mensagensIds)
+      if (error) throw error
+      return data as { id: string; mensagem_id: string; storage_path: string; nome_exibicao: string | null; nome_original: string }[]
+    },
+  })
+  const documentoPorMensagem = new Map(documentosSalvos.map(d => [d.mensagem_id, d]))
+
+  async function abrirDocumentoSalvo(storagePath: string) {
+    const { data } = await supabase.storage.from('documentos-clientes').createSignedUrl(storagePath, 3600)
+    if (!data?.signedUrl) { toast.error('Não foi possível abrir o documento.'); return }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
 
   const { data: notas = [] } = useQuery({
     queryKey: ['notas', conversaSelecionada?.id],
@@ -813,6 +838,7 @@ export default function ConversasPage() {
             {mensagens.map((m) => {
               const tipoMidia = m.metadata?.tipo_midia
               const fileUrl = m.metadata?.file_url
+              const docSalvo = documentoPorMensagem.get(m.id)
 
               return (
                 <div key={m.id} className={`flex ${m.origem === 'cliente' ? 'justify-start' : 'justify-end'}`}>
@@ -891,6 +917,17 @@ export default function ConversasPage() {
                           : <span className="text-xs opacity-70">{m.metadata?.nome_arquivo ?? 'Documento'}</span>
                         }
                       </div>
+                    )}
+
+                    {/* Indicador de auto-save no acervo documental (webhook já salva
+                        toda mídia recebida do cliente — ver salvarDocumentoCliente) */}
+                    {tipoMidia && tipoMidia !== 'text' && docSalvo && (
+                      <button
+                        onClick={() => abrirDocumentoSalvo(docSalvo.storage_path)}
+                        className="flex items-center gap-1 px-3 pb-2 text-[10px] text-green-600 hover:underline"
+                      >
+                        <Check className="w-3 h-3" /> Salvo no acervo — Ver documento
+                      </button>
                     )}
 
                     {/* Texto (inclui captions de mídia; oculta placeholders [xxx]) */}
