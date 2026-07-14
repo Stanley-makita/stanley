@@ -21,9 +21,13 @@ import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, C
 import { fmtData, normalizarTexto } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
-// Registro segue um fluxo por fase (não por status_processo genérico) — filtros
-// rápidos ficam nos nomes literais das fases do módulo 'registro'.
+// Registro e Financiamento seguem um fluxo por fase (não por status_processo
+// genérico) — filtros rápidos ficam nos nomes literais das fases de cada módulo.
 const FASES_REGISTRO_FILTROS = ['Preparação', 'Protocolado', 'Diligência', 'Pronto']
+const FASES_FINANCIAMENTO_FILTROS = [
+  'Preparação', 'Coleta de Documentos', 'Engenharia', 'Análise Jurídica',
+  'Emissão Contrato', 'Liberação de Recursos',
+]
 
 function formatarMoeda(v: number | null) {
   if (v == null) return '—'
@@ -189,6 +193,8 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
 
   const ROWS_PER_PAGE = 15
   const isRegistro = produtoFixo === 'registro'
+  const isFinanciamento = produtoFixo === 'financiamento'
+  const fasesFiltroAtivo = isRegistro ? FASES_REGISTRO_FILTROS : isFinanciamento ? FASES_FINANCIAMENTO_FILTROS : null
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [faseFiltro, setFaseFiltro] = useState<string>('todos')
@@ -207,7 +213,7 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
   }, [openFilter])
 
   const { data: processos = [], isLoading } = useProcessos({
-    status: isRegistro ? 'todos' : statusFiltro,
+    status: fasesFiltroAtivo ? 'todos' : statusFiltro,
     produto: produtoFixo ?? 'todos',
     chance: 'todos',
     busca,
@@ -237,7 +243,7 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
 
   const filteredProcessos = useMemo(() => {
     return processos.filter(p => {
-      if (isRegistro && faseFiltro !== 'todos' && normalizarTexto(p.fase_atual?.nome) !== normalizarTexto(faseFiltro)) {
+      if (fasesFiltroAtivo && faseFiltro !== 'todos' && normalizarTexto(p.fase_atual?.nome) !== normalizarTexto(faseFiltro)) {
         return false
       }
       return Object.entries(colFilters).every(([col, val]) => {
@@ -246,7 +252,7 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
         return ext ? ext(p) === val : true
       })
     })
-  }, [processos, colFilters, EXTRACTORS, isRegistro, faseFiltro])
+  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro])
 
   // Reset página ao mudar filtros
   useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, colFilters])
@@ -276,12 +282,12 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
     <div className="space-y-3">
       {/* Barra de filtros */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {isRegistro ? (
+        {fasesFiltroAtivo ? (
           <>
             <FilterChip active={faseFiltro === 'todos'} count={processos.length} onClick={() => setFaseFiltro('todos')}>
               Todos
             </FilterChip>
-            {FASES_REGISTRO_FILTROS.map((nome) => {
+            {fasesFiltroAtivo.map((nome) => {
               const count = processos.filter(p => normalizarTexto(p.fase_atual?.nome) === normalizarTexto(nome)).length
               return (
                 <FilterChip key={nome} active={faseFiltro === nome} count={count} onClick={() => setFaseFiltro(nome)}>

@@ -13,10 +13,12 @@ import type { Processo, ModalidadeProcesso } from '@/types/processos'
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 
+// Só usado na tela de Negócios/Financiamento (única página que chama VisaoCards
+// sem produtoFixo) — "Contrato" tem tela própria (/negocios/contrato) e não
+// deve aparecer como filtro rápido aqui.
 const FILTROS_PRODUTO: { label: string; value: ProdutoFiltro }[] = [
   { label: 'Financiamento', value: 'financiamento' },
   { label: 'CGI',           value: 'cgi' },
-  { label: 'Contrato',      value: 'contrato' },
 ]
 
 const FILTROS_CHANCE = [
