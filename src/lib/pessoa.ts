@@ -23,6 +23,18 @@ export function normalizarCpf(cpf: string): string {
 }
 
 /**
+ * Normaliza telefone para o formato canônico usado em toda a base: só
+ * dígitos, com DDI 55 sempre presente (mesmo formato que o webhook do
+ * WhatsApp já entrega). Sem isso, o mesmo número digitado de formas
+ * diferentes (com/sem DDI, com máscara) vira duas Pessoas distintas.
+ */
+export function normalizarTelefone(telefone: string): string {
+  const digits = telefone.replace(/\D/g, '')
+  const temDDI = digits.startsWith('55') && digits.length >= 12
+  return temDDI ? digits : `55${digits}`
+}
+
+/**
  * Busca pessoa pelo telefone normalizado.
  * Retorna null se ainda não existe no banco.
  */
@@ -34,7 +46,7 @@ export async function buscarPessoaPorTelefone(
     .from('pessoa_telefones')
     .select('pessoa_id, pessoas!inner(deleted_at)')
     .eq('empresa_id', empresa_id)
-    .eq('telefone', telefone)
+    .eq('telefone', normalizarTelefone(telefone))
     .eq('ativo', true)
     .is('pessoas.deleted_at', null)
     .maybeSingle()
@@ -78,10 +90,11 @@ export async function buscarPessoaPorCpf(
  */
 export async function buscarOuCriarPessoa(
   empresa_id: string,
-  telefone: string,
+  telefoneBruto: string,
   nome: string,
   cpf?: string
 ): Promise<string> {
+  const telefone = normalizarTelefone(telefoneBruto)
   const cpfNorm = cpf ? normalizarCpf(cpf) : null
   const cpfValido = cpfNorm?.length === 11 ? cpfNorm : null
 
