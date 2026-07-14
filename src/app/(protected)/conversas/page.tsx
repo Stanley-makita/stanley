@@ -9,7 +9,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { type Lead } from '@/types/leads'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus } from 'lucide-react'
+import { MessageCircle, MessageSquare, Globe, Phone, PhoneCall, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -583,6 +583,24 @@ export default function ConversasPage() {
     },
   })
 
+  const ligar = useMutation({
+    mutationFn: async ({ conversaId, telefone }: { conversaId: string; telefone: string }) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/bot/whatsapp/call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ conversa_id: conversaId, telefone }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Falha ao iniciar chamada')
+    },
+    onSuccess: () => toast.success('Chamada iniciada — atenda pelo telefone da instância.'),
+    onError: (err: Error) => toast.error(err.message),
+  })
+
   const reabrir = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -861,6 +879,17 @@ export default function ConversasPage() {
                 <MessageSquareDashed className="w-3.5 h-3.5" />
                 Notas
               </Button>
+
+              {/* Botão ligar */}
+              {conversaSelecionada.contato_telefone && (
+                <Button size="sm" variant="outline"
+                  className="h-7 text-xs gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
+                  onClick={() => ligar.mutate({ conversaId: conversaSelecionada.id, telefone: conversaSelecionada.contato_telefone! })}
+                  disabled={ligar.isPending}>
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  {ligar.isPending ? 'Ligando...' : 'Ligar'}
+                </Button>
+              )}
 
               {/* Botão transferir */}
               {pode('conversas.transferir') && conversaSelecionada.status !== 'encerrado' && (
