@@ -25,6 +25,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import {
+  useConversaParticipantes, useAdicionarParticipante, useRemoverParticipante,
+} from '@/hooks/conversas/useConversaParticipantes'
 
 type Canal = 'todos' | 'whatsapp' | 'site' | 'instagram' | 'outros'
 type Status = 'todos' | 'ativo' | 'qualificado' | 'encerrado' | 'humano' | 'arquivadas'
@@ -56,6 +60,7 @@ interface NotaInterna {
 interface Atendente {
   id: string
   nome: string
+  avatar_url?: string | null
 }
 
 interface InstanciaSimples {
@@ -68,6 +73,7 @@ interface Mensagem {
   origem: 'cliente' | 'bot' | 'humano'
   conteudo: string
   created_at: string
+  usuario_id?: string | null
   metadata?: {
     tipo_midia?: string
     file_url?: string
@@ -85,6 +91,11 @@ interface UltimaMsgInfo {
 }
 
 type NivelUrgencia = 'amarelo' | 'laranja' | 'vermelho'
+
+function iniciais(nome: string): string {
+  const partes = nome.trim().split(/\s+/)
+  return ((partes[0]?.[0] ?? '') + (partes[1]?.[0] ?? '')).toUpperCase()
+}
 
 function formatarTempoEspera(mins: number): string {
   if (mins < 60) return `${mins}min`
@@ -292,7 +303,7 @@ export default function ConversasPage() {
     queryFn: async (): Promise<Atendente[]> => {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nome')
+        .select('id, nome, avatar_url')
         .is('deleted_at', null)
         .eq('ativo', true)
         .not('perfil', 'eq', 'cliente')
@@ -301,6 +312,11 @@ export default function ConversasPage() {
       return data
     },
   })
+
+  const { data: participantes = [] } = useConversaParticipantes(conversaSelecionada?.id)
+  const adicionarParticipante = useAdicionarParticipante(conversaSelecionada?.id ?? '')
+  const removerParticipante = useRemoverParticipante(conversaSelecionada?.id ?? '')
+  const [seletorParticipanteAberto, setSeletorParticipanteAberto] = useState(false)
 
   const { data: instancias = [] } = useQuery({
     queryKey: ['instancias-conversa', usuario?.empresa_id],
@@ -855,11 +871,22 @@ export default function ConversasPage() {
                         {m.metadata.sender_nome}
                       </p>
                     )}
-                    {m.origem === 'humano' && (
-                      <p className="text-[10px] opacity-70 px-3 pt-2">
-                        {m.metadata?.atendente ?? 'Atendente'}
-                      </p>
-                    )}
+                    {m.origem === 'humano' && (() => {
+                      const remetente = atendentes.find((a) => a.id === m.usuario_id)
+                      return (
+                        <div className="flex items-center gap-1.5 px-3 pt-2">
+                          {remetente && (
+                            <Avatar className="h-4 w-4">
+                              <AvatarImage src={remetente.avatar_url ?? undefined} />
+                              <AvatarFallback className="text-[8px] bg-white/20 text-inherit">{iniciais(remetente.nome)}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <p className="text-[10px] opacity-70">
+                            {remetente?.nome ?? m.metadata?.atendente ?? 'Atendente'}
+                          </p>
+                        </div>
+                      )
+                    })()}
 
                     {/* Imagem */}
                     {tipoMidia === 'image' && fileUrl && (
@@ -968,6 +995,97 @@ export default function ConversasPage() {
         {/* Painel de notas internas (colapsável) */}
         {painelNotasAberto && (
           <div className="w-72 shrink-0 border-l border-gray-200 bg-white flex flex-col">
+            {/* Participantes da conversa */}
+            <div className="px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-fonti-primary" />
+                  <span className="text-sm font-semibold text-fonti-primary">
+                    Participantes ({participantes.length + (conversaSelecionada.atendente_id ? 1 : 0)})
+                  </span>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setSeletorParticipanteAberto((v) => !v)}
+                    className="text-gray-400 hover:text-fonti-primary transition-colors"
+                    title="Adicionar participante"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                  {seletorParticipanteAberto && (() => {
+                    const disponiveis = atendentes.filter(
+                      (a) => a.id !== conversaSelecionada.atendente_id && !participantes.some((p) => p.usuario_id === a.id)
+                    )
+                    return (
+                      <div className="absolute right-0 top-6 z-10 w-56 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                        {disponiveis.length === 0 ? (
+                          <p className="text-xs text-gray-400 px-3 py-2">Todos já participam.</p>
+                        ) : (
+                          disponiveis.map((a) => (
+                            <button
+                              key={a.id}
+                              onClick={() => {
+                                adicionarParticipante.mutate(a.id)
+                                setSeletorParticipanteAberto(false)
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={a.avatar_url ?? undefined} />
+                                <AvatarFallback className="text-[9px]">{iniciais(a.nome)}</AvatarFallback>
+                              </Avatar>
+                              {a.nome}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                {conversaSelecionada.atendente_id && (() => {
+                  const responsavel = atendentes.find((a) => a.id === conversaSelecionada.atendente_id)
+                  if (!responsavel) return null
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={responsavel.avatar_url ?? undefined} />
+                        <AvatarFallback className="text-[10px]">{iniciais(responsavel.nome)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700 truncate">{responsavel.nome}</p>
+                        <p className="text-[10px] text-gray-400">Responsável</p>
+                      </div>
+                    </div>
+                  )
+                })()}
+                {participantes.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 group">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={p.usuario?.avatar_url ?? undefined} />
+                      <AvatarFallback className="text-[10px]">{iniciais(p.usuario?.nome ?? '?')}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-700 truncate">{p.usuario?.nome ?? 'Usuário'}</p>
+                      <p className="text-[10px] text-gray-400">Membro</p>
+                    </div>
+                    <button
+                      onClick={() => removerParticipante.mutate(p.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                      title="Remover participante"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {participantes.length === 0 && !conversaSelecionada.atendente_id && (
+                  <p className="text-xs text-gray-400">Nenhum participante ainda.</p>
+                )}
+              </div>
+            </div>
+
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MessageSquareDashed className="w-4 h-4 text-fonti-primary" />

@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
   const { data: usuario } = await supabaseService
     .from('usuarios')
-    .select('empresa_id, nome')
+    .select('id, empresa_id, nome')
     .eq('id', user.id)
     .single()
   if (!usuario) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
@@ -157,6 +157,7 @@ export async function POST(request: NextRequest) {
     conversa_id,
     origem: 'humano',
     conteudo,
+    usuario_id: usuario.id,
     metadata: {
       tipo_midia: tipo !== 'text' ? tipo : undefined,
       file_url: fileUrl,
