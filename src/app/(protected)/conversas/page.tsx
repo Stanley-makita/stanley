@@ -95,6 +95,29 @@ interface UltimaMsgInfo {
 
 type NivelUrgencia = 'amarelo' | 'laranja' | 'vermelho'
 
+interface VerificacaoNumero {
+  query: string
+  isInWhatsapp: boolean
+  verifiedName?: string
+}
+
+// Verifica se números estão registrados no WhatsApp antes de criar
+// conversa/grupo, evitando desperdiçar cadastro num telefone digitado errado.
+async function verificarNumerosWhatsapp(numeros: string[]): Promise<VerificacaoNumero[]> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/bot/whatsapp/verificar-numero', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token ?? ''}`,
+    },
+    body: JSON.stringify({ numbers: numeros }),
+  })
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error ?? 'Falha ao verificar número')
+  return json.resultados as VerificacaoNumero[]
+}
+
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/)
   return ((partes[0]?.[0] ?? '') + (partes[1]?.[0] ?? '')).toUpperCase()
@@ -1554,6 +1577,11 @@ export default function ConversasPage() {
               className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               onClick={async () => {
                 try {
+                  const [verificacao] = await verificarNumerosWhatsapp([novaConversaTelefone])
+                  if (verificacao && !verificacao.isInWhatsapp) {
+                    toast.error('Esse número não está registrado no WhatsApp. Confira o telefone.')
+                    return
+                  }
                   const id = await iniciarConversa.mutateAsync({
                     telefone:        novaConversaTelefone,
                     nome:            novaConversaNome,
@@ -1566,8 +1594,8 @@ export default function ConversasPage() {
                     .eq('id', id)
                     .single()
                   if (nova) setConversaSelecionada(nova as Conversa)
-                } catch {
-                  toast.error('Erro ao criar conversa. Tente novamente.')
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Erro ao criar conversa. Tente novamente.')
                 }
               }}
             >
@@ -1642,6 +1670,13 @@ export default function ConversasPage() {
               onClick={async () => {
                 setCriandoGrupo(true)
                 try {
+                  const telefones = grupoParticipantes.filter((p) => p.replace(/\D/g, ''))
+                  const verificacoes = await verificarNumerosWhatsapp(telefones)
+                  const invalidos = verificacoes.filter((v) => !v.isInWhatsapp)
+                  if (invalidos.length > 0) {
+                    toast.error(`Número(s) fora do WhatsApp: ${invalidos.map((v) => v.query).join(', ')}`)
+                    return
+                  }
                   const { data: { session } } = await supabase.auth.getSession()
                   const res = await fetch('/api/conversas/grupo', {
                     method: 'POST',
@@ -1651,7 +1686,7 @@ export default function ConversasPage() {
                     },
                     body: JSON.stringify({
                       nome: grupoNome.trim(),
-                      participantes: grupoParticipantes.filter((p) => p.replace(/\D/g, '')),
+                      participantes: telefones,
                     }),
                   })
                   const json = await res.json()
