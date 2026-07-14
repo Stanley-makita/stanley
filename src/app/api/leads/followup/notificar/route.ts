@@ -120,6 +120,25 @@ export async function POST(req: NextRequest) {
         await enviarWhatsApp(telComercial, msgComercial, instanciaToken)
       }
 
+      // Notificação in-app (sino) pro comercial — mesmo lembrete do WhatsApp,
+      // pra quem não estiver de olho no celular ver na Central de Notificações.
+      if (fu.responsavel_id) {
+        await supabase.from('notificacoes').insert({
+          empresa_id:  fu.empresa_id,
+          usuario_id:  fu.responsavel_id,
+          tipo:        'lead_followup_lembrete',
+          titulo:      ehRecusadoRetry ? 'Crédito recusado sem decisão' : 'Crédito aprovado sem Processo',
+          mensagem:    ehRecusadoRetry
+            ? `${lead.nome} — ${novoDias} dias desde a recusa. Tente outro banco ou marque como perdido.`
+            : `${lead.nome} — ${novoDias} dias sem Processo criado.`,
+          entidade:    'lead',
+          entidade_id: fu.lead_id,
+          severidade:  'warning',
+          prioridade:  ehRecusadoRetry ? 'normal' : 'high',
+          origem:      'followup_cron',
+        })
+      }
+
       // Registra evento no follow-up
       await supabase.from('lead_followup_eventos').insert({
         followup_id: fu.id,
