@@ -9,7 +9,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { type Lead } from '@/types/leads'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check } from 'lucide-react'
+import { MessageCircle, MessageSquare, Globe, Phone, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -29,6 +29,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
   useConversaParticipantes, useAdicionarParticipante, useRemoverParticipante,
 } from '@/hooks/conversas/useConversaParticipantes'
+import { useIniciarConversa } from '@/hooks/conversas/useIniciarConversa'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 type Canal = 'todos' | 'whatsapp' | 'site' | 'instagram' | 'outros'
 type Status = 'todos' | 'ativo' | 'qualificado' | 'encerrado' | 'humano' | 'arquivadas'
@@ -191,6 +194,11 @@ export default function ConversasPage() {
   const redirectAposVincularRef = useRef<string | null>(null)
   const [agora, setAgora] = useState(() => Date.now())
   const urlParamsHandledRef = useRef(false)
+  const [novaConversaAberta, setNovaConversaAberta] = useState(false)
+  const [novaConversaTelefone, setNovaConversaTelefone] = useState('')
+  const [novaConversaNome, setNovaConversaNome] = useState('')
+  const [novaConversaMsg, setNovaConversaMsg] = useState('')
+  const iniciarConversa = useIniciarConversa()
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro],
@@ -571,6 +579,23 @@ export default function ConversasPage() {
     },
   })
 
+  const reabrir = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('conversas')
+        .update({ status: 'humano', bot_ativo: false })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversas'] })
+      if (conversaSelecionada) {
+        setConversaSelecionada({ ...conversaSelecionada, status: 'humano', bot_ativo: false })
+      }
+      toast.success('Conversa reaberta.')
+    },
+  })
+
   const arquivar = useMutation({
     mutationFn: async ({ id, arquivada }: { id: string; arquivada: boolean }) => {
       const { error } = await supabase.from('conversas').update({ arquivada }).eq('id', id)
@@ -613,11 +638,25 @@ export default function ConversasPage() {
         'border-r border-gray-200 flex flex-col bg-white shrink-0 w-full lg:w-80',
         conversaSelecionada ? 'hidden lg:flex' : 'flex'
       )}>
-        <div className="px-4 py-3 border-b border-gray-100">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <h1 className="text-base font-semibold text-fonti-primary flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
             Conversas
           </h1>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1 border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
+            onClick={() => {
+              setNovaConversaTelefone('')
+              setNovaConversaNome('')
+              setNovaConversaMsg('')
+              setNovaConversaAberta(true)
+            }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nova
+          </Button>
         </div>
 
         {/* Campo de pesquisa */}
@@ -832,13 +871,21 @@ export default function ConversasPage() {
                   Reativar bot
                 </Button>
               )}
-              {conversaSelecionada.status !== 'encerrado' && (
+              {conversaSelecionada.status !== 'encerrado' ? (
                 <Button size="sm" variant="outline"
                   className="h-7 text-xs gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
                   onClick={() => encerrar.mutate(conversaSelecionada.id)}
                   disabled={encerrar.isPending}>
                   <X className="w-3.5 h-3.5" />
                   Encerrar
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline"
+                  className="h-7 text-xs gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
+                  onClick={() => reabrir.mutate(conversaSelecionada.id)}
+                  disabled={reabrir.isPending}>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Reabrir
                 </Button>
               )}
               <Button size="sm" variant="outline"
@@ -1372,6 +1419,78 @@ export default function ConversasPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={novaConversaAberta} onOpenChange={(o) => { if (!o) setNovaConversaAberta(false) }}>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">Nova conversa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Telefone</label>
+              <Input
+                placeholder="(44) 99999-0000"
+                value={novaConversaTelefone}
+                onChange={(e) => setNovaConversaTelefone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Nome</label>
+              <Input
+                placeholder="Nome do contato"
+                value={novaConversaNome}
+                onChange={(e) => setNovaConversaNome(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Mensagem inicial (opcional)</label>
+              <Textarea
+                placeholder="Olá! Tudo bem?"
+                rows={3}
+                className="text-sm resize-none"
+                value={novaConversaMsg}
+                onChange={(e) => setNovaConversaMsg(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setNovaConversaAberta(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={!novaConversaTelefone.trim() || !novaConversaNome.trim() || iniciarConversa.isPending}
+              className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
+              onClick={async () => {
+                try {
+                  const id = await iniciarConversa.mutateAsync({
+                    telefone:        novaConversaTelefone,
+                    nome:            novaConversaNome,
+                    mensagemInicial: novaConversaMsg,
+                  })
+                  setNovaConversaAberta(false)
+                  const { data: nova } = await supabase
+                    .from('conversas')
+                    .select('*, lead:leads!lead_id(fase:fases!fase_id(nome, cor))')
+                    .eq('id', id)
+                    .single()
+                  if (nova) setConversaSelecionada(nova as Conversa)
+                } catch {
+                  toast.error('Erro ao criar conversa. Tente novamente.')
+                }
+              }}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              {iniciarConversa.isPending ? 'Criando...' : 'Iniciar Conversa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

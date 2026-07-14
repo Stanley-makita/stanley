@@ -457,7 +457,7 @@ export async function POST(request: NextRequest) {
     // Busca ou cria conversa de grupo (deduplicada por chatid na empresa)
     const { data: conversaGrupoExistente } = await supabase
       .from('conversas')
-      .select('id')
+      .select('id, contato_nome')
       .eq('empresa_id', empresa_id)
       .eq('contato_grupo_id', grupoId)
       .maybeSingle()
@@ -465,6 +465,12 @@ export async function POST(request: NextRequest) {
     let grupoConversaId: string
     if (conversaGrupoExistente) {
       grupoConversaId = conversaGrupoExistente.id
+      // Nome só fica salvo corretamente se a Uazapi mandou wa_contactName nesta
+      // mensagem. Se a conversa foi criada antes sem esse campo (caiu no fallback
+      // do JID cru), atualiza assim que uma mensagem trouxer o nome real.
+      if (grupoNome !== grupoId && grupoNome !== conversaGrupoExistente.contato_nome) {
+        await supabase.from('conversas').update({ contato_nome: grupoNome }).eq('id', grupoConversaId)
+      }
     } else {
       const { data: novaGrupo, error: erroGrupo } = await supabase
         .from('conversas')
