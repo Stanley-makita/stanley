@@ -210,9 +210,12 @@ export function AbaCredito({ lead }: Props) {
         />
       </div>
 
-      {/* 2. Status da fase + Validade + Produto (linha compacta) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatusFase lead={lead} analiseDefinida={analiseDefinida} />
+      {/* 2. Status da fase + Validade + Produto (linha compacta).
+          Sem análise decisiva (Status da Fase ainda é o controle manual):
+          3 colunas. Com análise decisiva (status já sincronizado, card some
+          por completo — sem espaço vazio): 2 colunas. */}
+      <div className={cn('grid grid-cols-1 gap-3', analiseDefinida ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
+        {!analiseDefinida && <StatusFase lead={lead} />}
         <ValidadeCard
           label="Validade do Crédito"
           data={lead.validade_credito}
@@ -328,7 +331,7 @@ function KpiMetrica({ icone, label, valor, sub, cor }: {
 
 // ── StatusFase ────────────────────────────────────────────────
 
-function StatusFase({ lead, analiseDefinida }: { lead: Lead; analiseDefinida: LeadAnaliseCredito | null }) {
+function StatusFase({ lead }: { lead: Lead }) {
   const editar = useEditarLead()
   const { data: statuses = [], isLoading } = useFaseStatuses(lead.fase_id)
   const { data: fases = [] } = useFases('leads')
@@ -340,18 +343,6 @@ function StatusFase({ lead, analiseDefinida }: { lead: Lead; analiseDefinida: Le
   // fase não tem (nem deveria ter) sua própria lista de status configurada.
   // O último status já aparece em destaque no cabeçalho (ver LeadDetalheModal).
   if (normalizarTexto(faseAtualNome) === normalizarTexto('Concluído')) return null
-  // Com banco definido, o status do lead passa a ser sincronizado
-  // automaticamente a partir do status da análise decisiva (ver
-  // BlocoAnalises/handleStatusChange) — evita ter o mesmo dado editável em
-  // dois lugares.
-  if (analiseDefinida) {
-    return (
-      <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
-        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-2">Status da Fase</p>
-        <p className="text-xs text-gray-400 italic">Sincronizado com a Análise de Crédito (banco definido).</p>
-      </div>
-    )
-  }
   if (isLoading) return null
   if (statuses.length === 0) {
     return (
