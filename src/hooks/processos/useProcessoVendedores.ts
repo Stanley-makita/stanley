@@ -62,6 +62,7 @@ export function useAdicionarVendedor(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'vendedores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
       toast.success('Vendedor adicionado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao adicionar vendedor.'),
@@ -121,6 +122,7 @@ export function useEditarVendedor(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'vendedores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
       toast.success('Vendedor atualizado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao atualizar vendedor.'),
@@ -140,6 +142,7 @@ export function useRemoverVendedor(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'vendedores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
     },
     onError: () => toast.error('Erro ao remover vendedor.'),
   })

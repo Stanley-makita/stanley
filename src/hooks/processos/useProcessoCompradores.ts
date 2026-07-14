@@ -62,6 +62,7 @@ export function useAdicionarComprador(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
       toast.success('Comprador adicionado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao adicionar comprador.'),
@@ -147,6 +148,7 @@ export function useRemoverComprador(processoId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
     },
     onError: () => toast.error('Erro ao remover comprador.'),
   })
