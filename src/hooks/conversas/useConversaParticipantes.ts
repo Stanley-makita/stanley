@@ -20,7 +20,10 @@ export function useConversaParticipantes(conversaId: string | undefined) {
     queryFn: async (): Promise<ConversaParticipante[]> => {
       const { data, error } = await supabase
         .from('conversa_participantes')
-        .select('id, conversa_id, usuario_id, adicionado_em, usuario:usuarios(nome, avatar_url)')
+        // conversa_participantes tem 2 FKs pra usuarios (usuario_id e
+        // adicionado_por) — precisa nomear qual usar, senão o PostgREST
+        // recusa o embed por ambiguidade (PGRST201) e a query falha inteira.
+        .select('id, conversa_id, usuario_id, adicionado_em, usuario:usuarios!usuario_id(nome, avatar_url)')
         .eq('conversa_id', conversaId!)
         .order('adicionado_em', { ascending: true })
       if (error) throw error
