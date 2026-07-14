@@ -714,7 +714,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               Voltar
             </button>
             {lead && (
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
+                  <span className="text-[10px] font-bold text-white">{iniciais(lead.nome)}</span>
+                </div>
                 <span className="text-sm font-semibold text-gray-800 truncate">{lead.nome}</span>
                 <ParticularidadeCliente pessoaId={lead.pessoa_id} />
               </div>

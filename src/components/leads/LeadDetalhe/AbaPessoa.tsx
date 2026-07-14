@@ -91,7 +91,7 @@ function L({ children }: { children: React.ReactNode }) {
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="border-t pt-4 mt-4">
+    <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold text-fonti-primary mb-3">{titulo}</p>
       {children}
     </div>
@@ -360,9 +360,10 @@ export function AbaPessoa({ lead }: Props) {
   })()
 
   return (
-    <div className="pb-8">
+    <div className="-mx-3 -my-4 bg-gray-50 px-3 py-4 pb-8 sm:-mx-5 sm:px-5">
 
       {/* ── Dados básicos ─────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="sm:col-span-2">
           <L>Nome completo</L>
@@ -424,6 +425,7 @@ export function AbaPessoa({ lead }: Props) {
           <L>Nome do pai</L>
           <Input value={form.filiacao_pai} onChange={e => f({ filiacao_pai: e.target.value })} />
         </div>
+      </div>
       </div>
 
       {/* ── Documentos ───────────────────────────────────────────────────── */}
