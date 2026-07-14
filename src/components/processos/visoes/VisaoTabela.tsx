@@ -18,8 +18,12 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { TableShell } from '@/components/ui/table-shell'
 import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
-import { fmtData } from '@/lib/utils'
+import { fmtData, normalizarTexto } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
+
+// Registro segue um fluxo por fase (não por status_processo genérico) — filtros
+// rápidos ficam nos nomes literais das fases do módulo 'registro'.
+const FASES_REGISTRO_FILTROS = ['Preparação', 'Protocolado', 'Diligência', 'Pronto']
 
 function formatarMoeda(v: number | null) {
   if (v == null) return '—'
@@ -184,8 +188,10 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
   const { usuario } = useAuth()
 
   const ROWS_PER_PAGE = 15
+  const isRegistro = produtoFixo === 'registro'
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
+  const [faseFiltro, setFaseFiltro] = useState<string>('todos')
   const [busca, setBusca] = useState('')
   const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [openFilter, setOpenFilter] = useState<string | null>(null)
@@ -201,7 +207,7 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
   }, [openFilter])
 
   const { data: processos = [], isLoading } = useProcessos({
-    status: statusFiltro,
+    status: isRegistro ? 'todos' : statusFiltro,
     produto: produtoFixo ?? 'todos',
     chance: 'todos',
     busca,
@@ -230,17 +236,20 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
   }), [modalidadeProdutoMap])
 
   const filteredProcessos = useMemo(() => {
-    return processos.filter(p =>
-      Object.entries(colFilters).every(([col, val]) => {
+    return processos.filter(p => {
+      if (isRegistro && faseFiltro !== 'todos' && normalizarTexto(p.fase_atual?.nome) !== normalizarTexto(faseFiltro)) {
+        return false
+      }
+      return Object.entries(colFilters).every(([col, val]) => {
         if (!val) return true
         const ext = EXTRACTORS[col]
         return ext ? ext(p) === val : true
       })
-    )
-  }, [processos, colFilters, EXTRACTORS])
+    })
+  }, [processos, colFilters, EXTRACTORS, isRegistro, faseFiltro])
 
   // Reset página ao mudar filtros
-  useEffect(() => { setPagina(1) }, [busca, statusFiltro, colFilters])
+  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, colFilters])
 
   const totalValorFinanciado = useMemo(
     () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
@@ -267,7 +276,21 @@ export function VisaoTabela({ produtoFixo, responsavelId }: Props) {
     <div className="space-y-3">
       {/* Barra de filtros */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {([
+        {isRegistro ? (
+          <>
+            <FilterChip active={faseFiltro === 'todos'} count={processos.length} onClick={() => setFaseFiltro('todos')}>
+              Todos
+            </FilterChip>
+            {FASES_REGISTRO_FILTROS.map((nome) => {
+              const count = processos.filter(p => normalizarTexto(p.fase_atual?.nome) === normalizarTexto(nome)).length
+              return (
+                <FilterChip key={nome} active={faseFiltro === nome} count={count} onClick={() => setFaseFiltro(nome)}>
+                  {nome}
+                </FilterChip>
+              )
+            })}
+          </>
+        ) : ([
           { label: 'Todos',      value: 'todos'      as const },
           { label: 'Em Análise', value: 'em_analise' as const },
           { label: 'Aprovados',  value: 'aprovado'   as const },
