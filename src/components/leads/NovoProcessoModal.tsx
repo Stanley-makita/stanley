@@ -20,10 +20,12 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import {
-  inferirValidade, preSelecionar,
+  inferirValidade, preSelecionar, inferirPastaSugerida,
   calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE,
   type StatusValidade,
 } from '@/lib/documentos'
+import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
+import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDocumento'
 
 type TipoProcesso = 'financiamento' | 'consorcio' | 'cgi' | 'contrato' | 'credito_pj'
 
@@ -1369,6 +1371,9 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
 }) {
   const { processoId, empresaId, docs, pessoaIdComprador, nomeComprador, pessoaIdConjuge, nomeConjuge, pessoaIdVendedor, nomeVendedor } = vinculacao
 
+  const { data: catalogoPastas = [] } = useCatalogoPastasProcesso()
+  const { data: catalogoTipos } = useCatalogoTiposDocumento()
+
   const [selecionados, setSelecionados] = useState<Set<string>>(() => {
     const pre = new Set<string>()
     docs.forEach(d => { if (preSelecionar(d)) pre.add(d.id) })
@@ -1411,13 +1416,29 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
     setVinculando(true)
     // Fase 1.1 (modelo definitivo): grava direto em documento_vinculos — não
     // depende mais de trigger nenhum pra o Processo enxergar o documento reaproveitado.
-    const rows = Array.from(ids).map(docId => ({
-      empresa_id:    empresaId,
-      documento_id:  docId,
-      entidade_tipo: 'processo',
-      entidade_id:   processoId,
-      vinculado_por: usuario?.id ?? null,
-    }))
+    // pasta_id já sai sugerido (prioridade: papel da pessoa neste processo > tipo
+    // documental) — nunca obrigatório, sempre sobrescrevível depois na aba Documentos.
+    const compradorasIds = [pessoaIdComprador, pessoaIdConjuge].filter((id): id is string => !!id)
+    const vendedorasIds  = [pessoaIdVendedor].filter((id): id is string => !!id)
+    const rows = Array.from(ids).map(docId => {
+      const doc = docs.find(d => d.id === docId)
+      const codigoDoTipo = catalogoTipos?.find(t => t.codigo === doc?.classificacao)?.pasta_sugerida_codigo ?? null
+      const codigoPasta = doc ? inferirPastaSugerida({
+        documentoPessoaId: doc.pessoa_id,
+        pastaSugeridaCodigoDoTipo: codigoDoTipo,
+        pessoasCompradorasIds: compradorasIds,
+        pessoasVendedorasIds: vendedorasIds,
+      }) : null
+      const pastaId = codigoPasta ? catalogoPastas.find(p => p.codigo === codigoPasta)?.id ?? null : null
+      return {
+        empresa_id:    empresaId,
+        documento_id:  docId,
+        entidade_tipo: 'processo',
+        entidade_id:   processoId,
+        vinculado_por: usuario?.id ?? null,
+        pasta_id:      pastaId,
+      }
+    })
     const { error } = await supabase
       .from('documento_vinculos')
       .upsert(rows, { onConflict: 'documento_id,entidade_tipo,entidade_id' })

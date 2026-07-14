@@ -105,3 +105,31 @@ export function preSelecionar(doc: {
   if (status === 'expirado')   return false
   return true // ok, expirando
 }
+
+/**
+ * Sugestão de pasta pra um documento dentro de um Processo específico —
+ * nunca obrigatória, sempre sobrescrevível pelo operador. Prioridade de 3
+ * níveis (nessa ordem):
+ *   1. Papel da pessoa dona do documento *neste* processo (comprador/cônjuge
+ *      → "01 Comprador", vendedor → "03 Vendedor") — vale pra qualquer tipo
+ *      de documento pessoal, a pessoa manda mais que o tipo.
+ *   2. Tipo documental (catalogo_tipos_documento.pasta_sugerida_codigo) — só
+ *      quando a regra 1 não se aplica (documento não é de uma pessoa com
+ *      papel definido no processo, ex.: documento do imóvel em si).
+ *   3. Nenhuma sugestão (retorna null) — o operador escolhe manualmente.
+ */
+export function inferirPastaSugerida(input: {
+  documentoPessoaId: string | null
+  pastaSugeridaCodigoDoTipo: string | null
+  pessoasCompradorasIds: string[]
+  pessoasVendedorasIds: string[]
+}): string | null {
+  const { documentoPessoaId, pastaSugeridaCodigoDoTipo, pessoasCompradorasIds, pessoasVendedorasIds } = input
+
+  if (documentoPessoaId) {
+    if (pessoasCompradorasIds.includes(documentoPessoaId)) return 'comprador'
+    if (pessoasVendedorasIds.includes(documentoPessoaId))  return 'vendedor'
+  }
+
+  return pastaSugeridaCodigoDoTipo ?? null
+}

@@ -419,7 +419,24 @@ export default function ProcessoDetalhePage() {
               <AbaVendedores processoId={id} />
             </TabsContent>
             <TabsContent value="documentos" className="m-0">
-              <AbaDocumentos contexto="processo" processoId={id} />
+              <AbaDocumentos
+                contexto="processo"
+                processoId={id}
+                onNavegarParaAba={(aba) => {
+                  // "04 Formulários"/"13 Simulações" do grid de pastas são atalhos pra
+                  // conteúdo que já existe nesta tela — não duplicam UI (ver plano de
+                  // organização de documentos por pasta).
+                  if (aba === 'formularios') {
+                    setConfirmFormulariosAberto(true)
+                  } else if (aba === 'simulador') {
+                    if (MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])) {
+                      setAbaAtiva('custas')
+                    } else {
+                      toast.info('Este processo não possui aba de simulação de custas.')
+                    }
+                  }
+                }}
+              />
             </TabsContent>
             <TabsContent value="financeiro" className="m-0">
               <AbaFinanceiro processoId={id} />

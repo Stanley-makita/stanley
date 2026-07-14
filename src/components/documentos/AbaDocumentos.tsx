@@ -11,11 +11,13 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2 } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2, ChevronLeft, FileSpreadsheet, Calculator } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { inferirValidade, calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE } from '@/lib/documentos'
+import { inferirValidade, calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE, inferirPastaSugerida } from '@/lib/documentos'
+import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
+import { useMoverDocumentoParaPasta } from '@/hooks/documentos/useMoverDocumentoParaPasta'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
@@ -68,7 +70,17 @@ interface DocumentoCliente {
   validade_data?: string | null
   validade_dias?: number | null
   vinculado?: boolean
+  dominio?: 'acervo_documental' | 'processo_trabalho'
+  pessoa_id?: string | null
+  pasta_id?: string | null
 }
+
+/** "04 Formulários" e "13 Simulações" continuam abas próprias — entram no grid
+ * de navegação só como atalho (sem contador, sem drill-down). */
+const PASTAS_ATALHO = [
+  { codigo: 'formularios', nome: '04 Formulários', aba: 'formularios' as const },
+  { codigo: 'simulacoes',  nome: '13 Simulações',  aba: 'simulador' as const },
+]
 
 const LABELS_CLASSIFICACAO: Record<string, string> = {
   rg:                   'RG / Doc. de Identidade',
@@ -96,11 +108,14 @@ interface Props {
    * Pessoa: id da própria entidade.
    */
   pessoaId?: string | null
+  /** Só usado quando contexto === 'processo' — atalho 04/13 do grid de pastas
+   * navega pra aba já existente do Processo em vez de abrir conteúdo aqui. */
+  onNavegarParaAba?: (aba: 'formularios' | 'simulador') => void
 }
 
 function chaveArquivo(f: File) { return `${f.name}-${f.size}` }
 
-export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props) {
+export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavegarParaAba }: Props) {
   const { usuario } = useAuth()
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -110,9 +125,11 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
   const [modalAberto, setModalAberto] = useState(false)
   const [arquivosSelecionados, setArquivosSelecionados] = useState<File[]>([])
   const [tiposPorArquivo, setTiposPorArquivo] = useState<Record<string, string>>({})
+  const [pastasPorArquivo, setPastasPorArquivo] = useState<Record<string, string>>({})
   const [fazendoUpload, setFazendoUpload] = useState(false)
   const [progressoAtual, setProgressoAtual] = useState(0)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<string | null>(null)
+  const [pastaAtiva, setPastaAtiva] = useState<string | null>(null) // codigo da pasta ou null (grid) — 'todos' = flat list
   const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
   const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
@@ -144,6 +161,26 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     return [{ value: 'auto', label: 'Detectar automaticamente' }, ...base]
   }, [catalogoTipos, tiposDocumentoFallback])
 
+  // Pasta é conceito de Processo — catálogo e papéis (comprador/vendedor) só fazem
+  // sentido, e só são buscados, quando contexto === 'processo'.
+  const { data: catalogoPastas = [] } = useCatalogoPastasProcesso()
+  const moverParaPasta = useMoverDocumentoParaPasta()
+
+  const { data: papeisProcesso } = useQuery({
+    queryKey: ['processo-papeis-pessoas', processoId],
+    enabled: contexto === 'processo' && !!processoId && !!usuario,
+    queryFn: async () => {
+      const [{ data: compradores }, { data: vendedores }] = await Promise.all([
+        supabase.from('processo_compradores').select('pessoa_id').eq('processo_id', processoId!).eq('empresa_id', usuario!.empresa_id),
+        supabase.from('processo_vendedores').select('pessoa_id').eq('processo_id', processoId!).eq('empresa_id', usuario!.empresa_id),
+      ])
+      return {
+        compradoras: (compradores ?? []).map(c => c.pessoa_id).filter((id): id is string => !!id),
+        vendedoras:  (vendedores ?? []).map(v => v.pessoa_id).filter((id): id is string => !!id),
+      }
+    },
+  })
+
   const queryKey = ['documentos-unificado', contexto, entidadeId, pessoaId]
 
   // Modelo definitivo: lê exclusivamente de `documentos`/`extracoes_ocr`/`documento_vinculos`.
@@ -153,6 +190,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     queryFn: async (): Promise<DocumentoCliente[]> => {
       let todosIds: string[] = []
       const idsVinculados = new Set<string>() // docs com vínculo a MAIS de uma entidade → "reaproveitado"
+      // pasta_id do vínculo com ESTE processo (só relevante quando contexto === 'processo';
+      // documento_vinculos.pasta_id é por vínculo, não fixo no documento — ver useMoverDocumentoParaPasta).
+      const pastaPorVinculo = new Map<string, string | null>()
 
       if (contexto === 'pessoa') {
         const { data: docsPessoa } = await supabase
@@ -167,11 +207,12 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
         const entidadeTipo = contexto // 'lead' | 'processo'
         const { data: vinculosDiretos } = await supabase
           .from('documento_vinculos')
-          .select('documento_id')
+          .select('documento_id, pasta_id')
           .eq('entidade_tipo', entidadeTipo)
           .eq('entidade_id', entidadeId!)
           .eq('empresa_id', usuario!.empresa_id)
         const idsDireto = new Set((vinculosDiretos ?? []).map(v => v.documento_id))
+        for (const v of vinculosDiretos ?? []) pastaPorVinculo.set(v.documento_id, v.pasta_id)
 
         let idsSemVinculo: string[] = []
         if (contexto === 'lead' && pessoaId) {
@@ -216,7 +257,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
       const [{ data: docs, error }, { data: extracoes }] = await Promise.all([
         supabase
           .from('documentos')
-          .select('id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao:classificacao_legado, ocr_status:status_ocr, created_at:recebido_em, permanente, validade_data, validade_dias')
+          .select('id, nome_original, nome_exibicao, mime_type, tamanho_bytes, storage_path, classificacao:classificacao_legado, ocr_status:status_ocr, created_at:recebido_em, permanente, validade_data, validade_dias, dominio, pessoa_id, pasta_id')
           .in('id', todosIds)
           .is('deleted_at', null),
         supabase
@@ -230,7 +271,16 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
 
       const ocrPorDocumento = new Map((extracoes ?? []).map(e => [e.documento_id, e.dados_validados ?? e.dados ?? null]))
       return ((docs ?? []) as unknown as DocumentoCliente[])
-        .map(d => ({ ...d, ocr_dados: ocrPorDocumento.get(d.id) ?? null, vinculado: idsVinculados.has(d.id) }))
+        .map(d => ({
+          ...d,
+          ocr_dados: ocrPorDocumento.get(d.id) ?? null,
+          vinculado: idsVinculados.has(d.id),
+          // pasta é conceito de Processo: acervo_documental mora no vínculo com
+          // ESTE processo; processo_trabalho mora direto no documento.
+          pasta_id: contexto === 'processo'
+            ? (d.dominio === 'processo_trabalho' ? d.pasta_id : (pastaPorVinculo.get(d.id) ?? null))
+            : null,
+        }))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     },
     refetchInterval: (query) => {
@@ -255,6 +305,20 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     onError: () => toast.error('Não foi possível excluir o documento.'),
   })
 
+  // Sugestão de pasta pra um arquivo no momento do upload — só prioridade 2 (tipo
+  // documental) é possível aqui, já que ainda não sabemos qual Pessoa é dona do
+  // arquivo (resolverPessoaIdUpload roda só no envio); sempre sobrescrevível.
+  function pastaSugeridaPorTipo(tipoCodigo: string): string | null {
+    if (contexto !== 'processo') return null
+    const codigoDoTipo = catalogoTipos?.find(t => t.codigo === tipoCodigo)?.pasta_sugerida_codigo ?? null
+    return inferirPastaSugerida({
+      documentoPessoaId: null,
+      pastaSugeridaCodigoDoTipo: codigoDoTipo,
+      pessoasCompradorasIds: [],
+      pessoasVendedorasIds: [],
+    })
+  }
+
   function handleArquivoSelecionado(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivos = Array.from(e.target.files ?? [])
     if (arquivos.length === 0) return
@@ -264,9 +328,14 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
       return
     }
     const tipos: Record<string, string> = {}
-    arquivos.forEach(f => { tipos[chaveArquivo(f)] = 'auto' })
+    const pastas: Record<string, string> = {}
+    arquivos.forEach(f => {
+      tipos[chaveArquivo(f)] = 'auto'
+      pastas[chaveArquivo(f)] = pastaSugeridaPorTipo('auto') ?? ''
+    })
     setArquivosSelecionados(arquivos)
     setTiposPorArquivo(tipos)
+    setPastasPorArquivo(pastas)
     setProgressoAtual(0)
     setModalAberto(true)
     e.target.value = ''
@@ -277,6 +346,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     setModalAberto(false)
     setArquivosSelecionados([])
     setTiposPorArquivo({})
+    setPastasPorArquivo({})
     setProgressoAtual(0)
   }
 
@@ -309,7 +379,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     return null
   }
 
-  async function uploadArquivo(arquivo: File, tipoArquivo: string, pessoaIdUpload: string, token: string | undefined): Promise<void> {
+  async function uploadArquivo(arquivo: File, tipoArquivo: string, pastaCodigoArquivo: string, pessoaIdUpload: string, token: string | undefined): Promise<void> {
     const ext = arquivo.name.split('.').pop() ?? 'bin'
     const storagePath = `${usuario!.empresa_id}/${entidadeId}/${crypto.randomUUID()}.${ext}`
 
@@ -355,11 +425,15 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     }
 
     if (contexto !== 'pessoa' && docInserido?.id) {
+      const pastaId = contexto === 'processo' && pastaCodigoArquivo
+        ? catalogoPastas.find(p => p.codigo === pastaCodigoArquivo)?.id ?? null
+        : null
       await supabase.from('documento_vinculos').insert({
         empresa_id: usuario!.empresa_id,
         documento_id: docInserido.id,
         entidade_tipo: contexto,
         entidade_id: entidadeId!,
+        pasta_id: pastaId,
       })
     }
 
@@ -393,10 +467,12 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
 
     for (let i = 0; i < total; i++) {
       const arquivo = arquivosSelecionados[i]
-      const tipoArquivo = tiposPorArquivo[chaveArquivo(arquivo)] ?? 'auto'
+      const chave = chaveArquivo(arquivo)
+      const tipoArquivo = tiposPorArquivo[chave] ?? 'auto'
+      const pastaCodigoArquivo = pastasPorArquivo[chave] ?? ''
       setProgressoAtual(i + 1)
       try {
-        await uploadArquivo(arquivo, tipoArquivo, pessoaIdUpload, token)
+        await uploadArquivo(arquivo, tipoArquivo, pastaCodigoArquivo, pessoaIdUpload, token)
         enviados++
       } catch (err) {
         console.error('[AbaDocumentos] erro no upload:', arquivo.name, err)
@@ -409,6 +485,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     setModalAberto(false)
     setArquivosSelecionados([])
     setTiposPorArquivo({})
+    setPastasPorArquivo({})
     setProgressoAtual(0)
 
     if (erros === 0) toast.success(`${enviados} documento(s) enviado(s).`)
@@ -583,6 +660,50 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
     )
   }
 
+  // Grid de navegação estilo Explorer — 13 posições sempre visíveis (mesma numeração
+  // usada há anos na rede), mesmo que 04/13 só sejam atalhos pra outras abas do sistema.
+  const pastasGrid = useMemo(() => {
+    if (contexto !== 'processo') return []
+    const atalhos = [
+      { codigo: 'formularios', nome: '04 Formulários', ordem_exibicao: 40, aba: 'formularios' as const },
+      { codigo: 'simulacoes',  nome: '13 Simulações',  ordem_exibicao: 130, aba: 'simulador' as const },
+    ]
+    return [
+      ...catalogoPastas.map(p => ({ codigo: p.codigo, nome: p.nome, ordem_exibicao: p.ordem_exibicao, aba: undefined })),
+      ...atalhos,
+    ].sort((a, b) => a.ordem_exibicao - b.ordem_exibicao)
+  }, [contexto, catalogoPastas])
+
+  const pastaAtivaInfo = pastaAtiva && pastaAtiva !== 'todos' ? catalogoPastas.find(p => p.codigo === pastaAtiva) ?? null : null
+
+  const documentosExibidos = useMemo(() => {
+    if (contexto !== 'processo' || !pastaAtiva) return documentos
+    if (pastaAtiva === 'todos') return documentos
+    return documentos.filter(d => d.pasta_id === (pastaAtivaInfo?.id ?? '__nunca__'))
+  }, [contexto, pastaAtiva, pastaAtivaInfo, documentos])
+
+  function contarDocsNaPasta(codigo: string): number {
+    const pastaId = catalogoPastas.find(p => p.codigo === codigo)?.id
+    if (!pastaId) return 0
+    return documentos.filter(d => d.pasta_id === pastaId).length
+  }
+
+  // Sugestão de pasta pra um documento JÁ enviado (prioridade completa de 3 níveis —
+  // aqui já sabemos a Pessoa dona do documento e o papel dela neste Processo).
+  function sugestaoPastaDoc(doc: DocumentoCliente): { codigo: string; nome: string } | null {
+    if (contexto !== 'processo') return null
+    const codigoDoTipo = catalogoTipos?.find(t => t.codigo === doc.classificacao)?.pasta_sugerida_codigo ?? null
+    const codigo = inferirPastaSugerida({
+      documentoPessoaId: doc.pessoa_id ?? null,
+      pastaSugeridaCodigoDoTipo: codigoDoTipo,
+      pessoasCompradorasIds: papeisProcesso?.compradoras ?? [],
+      pessoasVendedorasIds: papeisProcesso?.vendedoras ?? [],
+    })
+    if (!codigo) return null
+    const pasta = catalogoPastas.find(p => p.codigo === codigo)
+    return pasta ? { codigo: pasta.codigo, nome: pasta.nome } : null
+  }
+
   const total = arquivosSelecionados.length
   const labelVazio = contexto === 'processo'
     ? { titulo: 'Nenhum documento neste processo', subtitulo: 'Adicione PDFs ou imagens relacionados a este processo.' }
@@ -613,6 +734,48 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
           onChange={handleArquivoSelecionado}
         />
       </div>
+
+      {contexto === 'processo' && !pastaAtiva && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <button
+            onClick={() => setPastaAtiva('todos')}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-3 py-3 text-center transition-colors hover:bg-gray-50"
+          >
+            <FolderOpen className="h-6 w-6 text-gray-400" />
+            <span className="text-xs font-medium text-gray-700">Todos</span>
+            <span className="text-[10px] text-gray-400">{documentos.length} arquivo{documentos.length !== 1 ? 's' : ''}</span>
+          </button>
+          {pastasGrid.map(p => (
+            <button
+              key={p.codigo}
+              onClick={() => p.aba ? onNavegarParaAba?.(p.aba) : setPastaAtiva(p.codigo)}
+              className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-3 py-3 text-center transition-colors hover:bg-gray-50"
+            >
+              {p.aba === 'formularios'
+                ? <FileSpreadsheet className="h-6 w-6 text-fonti-primary/60" />
+                : p.aba === 'simulador'
+                  ? <Calculator className="h-6 w-6 text-fonti-primary/60" />
+                  : <Folder className="h-6 w-6 text-gray-400" />}
+              <span className="text-xs font-medium text-gray-700">{p.nome}</span>
+              {!p.aba && (
+                <span className="text-[10px] text-gray-400">
+                  {contarDocsNaPasta(p.codigo)} arquivo{contarDocsNaPasta(p.codigo) !== 1 ? 's' : ''}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {contexto === 'processo' && pastaAtiva && (
+        <button
+          onClick={() => setPastaAtiva(null)}
+          className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-fonti-primary transition-colors"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Documentos / {pastaAtiva === 'todos' ? 'Todos' : pastaAtivaInfo?.nome ?? pastaAtiva}
+        </button>
+      )}
 
       {contexto === 'lead' && <OcrEnriquecimentoCard sugestoes={ocrSugestoes} onAbrir={() => setOcrModalAberto(true)} />}
 
@@ -647,13 +810,13 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
         </div>
       )}
 
-      {isLoading ? (
+      {(contexto !== 'processo' || !!pastaAtiva) && (isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="animate-pulse h-14 bg-gray-100 rounded-xl" />
           ))}
         </div>
-      ) : documentos.length === 0 ? (
+      ) : documentosExibidos.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 text-center">
           <FolderOpen className="h-10 w-10 text-gray-200 mb-3" />
           <p className="text-sm font-medium text-gray-400">{labelVazio.titulo}</p>
@@ -661,7 +824,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
         </div>
       ) : (
         <div className="space-y-2">
-          {documentos.map((doc) => (
+          {documentosExibidos.map((doc) => (
             <div
               key={doc.id}
               className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white px-3 py-3 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:px-4"
@@ -762,8 +925,52 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
                     Compartilhado
                   </span>
                 )}
+                {contexto === 'processo' && pastaAtiva === 'todos' && !doc.pasta_id && (() => {
+                  const sugestao = sugestaoPastaDoc(doc)
+                  return sugestao ? (
+                    <button
+                      onClick={() => moverParaPasta.mutate({
+                        documentoId: doc.id,
+                        dominio: doc.dominio ?? 'acervo_documental',
+                        processoId: processoId,
+                        novaPastaId: catalogoPastas.find(p => p.codigo === sugestao.codigo)?.id ?? null,
+                      })}
+                      title="Mover para a pasta sugerida"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200 hover:bg-fonti-primary/5 hover:text-fonti-primary hover:border-fonti-primary/30 transition-colors"
+                    >
+                      Sem pasta · sugestão: {sugestao.nome}
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200">
+                      Sem pasta
+                    </span>
+                  )
+                })()}
                 <BadgeValidade doc={doc} />
                 <BadgeOcr doc={doc} />
+                {contexto === 'processo' && (
+                  <Select
+                    value={doc.pasta_id ? (catalogoPastas.find(p => p.id === doc.pasta_id)?.codigo ?? '__nenhuma__') : '__nenhuma__'}
+                    onValueChange={(v) => moverParaPasta.mutate({
+                      documentoId: doc.id,
+                      dominio: doc.dominio ?? 'acervo_documental',
+                      processoId: processoId,
+                      novaPastaId: v === '__nenhuma__' ? null : (catalogoPastas.find(p => p.codigo === v)?.id ?? null),
+                    })}
+                  >
+                    <SelectTrigger className="h-7 w-32 shrink-0 text-xs" title="Mover para pasta">
+                      <SelectValue placeholder="Pasta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhuma__" className="text-xs">Sem pasta</SelectItem>
+                      {catalogoPastas.map(p => (
+                        <SelectItem key={p.codigo} value={p.codigo} className="text-xs">
+                          {p.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <button
                   onClick={() => handleVisualizar(doc)}
                   title="Abrir no navegador"
@@ -802,7 +1009,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {contexto === 'lead' && (
         <OcrEnriquecimentoModal
@@ -881,7 +1088,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
                   </p>
                   <Select
                     value={tiposPorArquivo[chave] ?? 'auto'}
-                    onValueChange={(v) => setTiposPorArquivo(prev => ({ ...prev, [chave]: v }))}
+                    onValueChange={(v) => {
+                      setTiposPorArquivo(prev => ({ ...prev, [chave]: v }))
+                      setPastasPorArquivo(prev => ({ ...prev, [chave]: pastaSugeridaPorTipo(v) ?? '' }))
+                    }}
                     disabled={fazendoUpload}
                   >
                     <SelectTrigger className="h-8 w-full shrink-0 text-xs sm:w-48">
@@ -895,6 +1105,25 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId }: Props)
                       ))}
                     </SelectContent>
                   </Select>
+                  {contexto === 'processo' && (
+                    <Select
+                      value={pastasPorArquivo[chave] || '__nenhuma__'}
+                      onValueChange={(v) => setPastasPorArquivo(prev => ({ ...prev, [chave]: v === '__nenhuma__' ? '' : v }))}
+                      disabled={fazendoUpload}
+                    >
+                      <SelectTrigger className="h-8 w-full shrink-0 text-xs sm:w-48">
+                        <SelectValue placeholder="Pasta (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__nenhuma__" className="text-xs">Sem pasta</SelectItem>
+                        {catalogoPastas.map(p => (
+                          <SelectItem key={p.codigo} value={p.codigo} className="text-xs">
+                            {p.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               )
             })}

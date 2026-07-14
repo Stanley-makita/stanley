@@ -32,6 +32,23 @@ export interface CatalogoTipoDocumento {
   ordem_exibicao: number
   ativo: boolean
   icone: string | null
+  /** Pasta sugerida quando o documento não pertence a uma pessoa com papel
+   * definido no processo (prioridade 2 da inferência — ver CatalogoPastaProcesso). */
+  pasta_sugerida_codigo: string | null
+}
+
+/**
+ * Pasta do Processo (estrutura 01-13 já usada na rede da empresa) —
+ * dimensão ortogonal a CatalogoTipoDocumento (tipo é pra OCR/UX de upload,
+ * pasta é organização visual dentro do Processo). "04 Formulários" e
+ * "13 Simulações" não têm linha aqui — continuam abas próprias do sistema.
+ */
+export interface CatalogoPastaProcesso {
+  id: string
+  codigo: string
+  nome: string
+  ordem_exibicao: number
+  ativo: boolean
 }
 
 export interface UploadProgresso {
