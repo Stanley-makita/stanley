@@ -9,7 +9,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { type Lead } from '@/types/leads'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageCircle, MessageSquare, Globe, Phone, PhoneCall, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus } from 'lucide-react'
+import { MessageCircle, MessageSquare, Globe, Phone, PhoneCall, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus, Mail, MailOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -203,6 +203,7 @@ export default function ConversasPage() {
   const [grupoNome, setGrupoNome] = useState('')
   const [grupoParticipantes, setGrupoParticipantes] = useState<string[]>(['', ''])
   const [criandoGrupo, setCriandoGrupo] = useState(false)
+  const [conversaMarcadaNaoLida, setConversaMarcadaNaoLida] = useState(false)
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro],
@@ -458,6 +459,11 @@ export default function ConversasPage() {
     }
   }
 
+  // Reseta o toggle local de leitura ao trocar de conversa (status não é persistido no Fonti)
+  useEffect(() => {
+    setConversaMarcadaNaoLida(false)
+  }, [conversaSelecionada?.id])
+
   // Auto-scroll notas
   useEffect(() => {
     notasEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -598,6 +604,28 @@ export default function ConversasPage() {
       if (!res.ok) throw new Error(json.error ?? 'Falha ao iniciar chamada')
     },
     onSuccess: () => toast.success('Chamada iniciada — atenda pelo telefone da instância.'),
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const marcarLeitura = useMutation({
+    mutationFn: async ({ conversaId, read }: { conversaId: string; read: boolean }) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/bot/whatsapp/chat-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ conversa_id: conversaId, read }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Falha ao atualizar status de leitura')
+      return read
+    },
+    onSuccess: (read) => {
+      setConversaMarcadaNaoLida(read ? false : true)
+      toast.success(read ? 'Marcada como lida.' : 'Marcada como não lida.')
+    },
     onError: (err: Error) => toast.error(err.message),
   })
 
@@ -890,6 +918,16 @@ export default function ConversasPage() {
                   {ligar.isPending ? 'Ligando...' : 'Ligar'}
                 </Button>
               )}
+
+              {/* Botão marcar lido/não lido */}
+              <Button size="sm" variant="outline"
+                className="h-7 text-xs gap-1.5 border-gray-200 text-gray-600 hover:bg-gray-50"
+                onClick={() => marcarLeitura.mutate({ conversaId: conversaSelecionada.id, read: conversaMarcadaNaoLida })}
+                disabled={marcarLeitura.isPending}
+                title={conversaMarcadaNaoLida ? 'Marcar como lida' : 'Marcar como não lida'}>
+                {conversaMarcadaNaoLida ? <MailOpen className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                {conversaMarcadaNaoLida ? 'Marcar lida' : 'Marcar não lida'}
+              </Button>
 
               {/* Botão transferir */}
               {pode('conversas.transferir') && conversaSelecionada.status !== 'encerrado' && (
