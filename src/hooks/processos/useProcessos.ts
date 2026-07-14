@@ -138,7 +138,7 @@ export function useAtualizarChanceEmissao() {
 export interface DadosProcessoUpdate {
   processoId: string
   banco_id: string | null
-  modalidade: string
+  modalidade?: string
   taxa_juros?: number | null
   tem_assessoria: boolean
   valor_assessoria: number | null

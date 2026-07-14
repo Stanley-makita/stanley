@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoFaseHistorico } from '@/types/processos'
+import { dadosFinanceirosIncompletos } from '@/lib/processos/validacaoFinanceira'
 import { toast } from 'sonner'
 
 export function useProcessoFasesHistorico(processoId: string) {
@@ -28,6 +29,19 @@ export function useAvancarFase(processoId: string) {
 
   return useMutation({
     mutationFn: async ({ faseId, observacao }: { faseId: string; observacao?: string }) => {
+      // Trava obrigatória (não só client-side): não avança fase com dados
+      // financeiros incompletos/inconsistentes, seja qual for o caminho de
+      // chamada (pipeline bar, aba de fases, etc).
+      const { data: proc, error: procFetchError } = await supabase
+        .from('processos')
+        .select('banco_id, taxa_juros, sistema_amortizacao, valor_imovel, valor_financiado, valor_fgts')
+        .eq('id', processoId)
+        .single()
+      if (procFetchError) throw procFetchError
+      if (dadosFinanceirosIncompletos(proc)) {
+        throw new Error('DADOS_FINANCEIROS_PENDENTES')
+      }
+
       // 1. Registrar no histórico
       const { error: histError } = await supabase
         .from('processo_fases_historico')
@@ -52,6 +66,14 @@ export function useAvancarFase(processoId: string) {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'fases-historico'] })
       toast.success('Fase avançada com sucesso.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
-    onError: () => toast.error('Erro ao avançar fase.'),
+    onError: (err: Error) => {
+      if (err.message === 'DADOS_FINANCEIROS_PENDENTES') {
+        toast.error('Existem informações financeiras obrigatórias pendentes.', {
+          description: 'Complete os Dados do Negócio para continuar.',
+        })
+        return
+      }
+      toast.error('Erro ao avançar fase.')
+    },
   })
 }

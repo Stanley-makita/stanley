@@ -29,6 +29,7 @@ import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
 import { EditarProcessoDrawer } from '@/components/processos/EditarProcessoDrawer'
 import { useAtualizarChanceEmissao, useAtualizarImovelProcesso } from '@/hooks/processos/useProcessos'
 import { useProcessoFasesHistorico } from '@/hooks/processos/useProcessoFasesHistorico'
+import { dadosFinanceirosIncompletos } from '@/lib/processos/validacaoFinanceira'
 import { BlocoImovel } from '@/components/imoveis/BlocoImovel'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
@@ -104,19 +105,10 @@ export default function ProcessoDetalhePage() {
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
 
   // Dados financeiros obrigatórios: bloqueia avanço de fase se incompletos ou inconsistentes
+  // (mesma regra também é aplicada, de forma obrigatória, dentro de useAvancarFase)
   const dadosFinanceirosPendentes = useMemo(() => {
     if (!processo) return false
-    const p = processo as any
-    if (!p.banco_id)                                    return true
-    if (!p.taxa_juros  || p.taxa_juros  <= 0)           return true
-    if (!p.sistema_amortizacao)                         return true
-    if (!p.valor_imovel    || p.valor_imovel    <= 0)   return true
-    if (!p.valor_financiado || p.valor_financiado <= 0) return true
-    if (p.valor_fgts === null || p.valor_fgts === undefined) return true
-    // Consistência: imóvel deve cobrir financiado + FGTS
-    const rp = p.valor_imovel - p.valor_financiado - (p.valor_fgts ?? 0)
-    if (rp < 0) return true
-    return false
+    return dadosFinanceirosIncompletos(processo as any)
   }, [processo])
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()

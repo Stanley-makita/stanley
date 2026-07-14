@@ -106,6 +106,11 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   const { data: comissoesPadrao = [] } = useComissoesPadrao()
   const { mutateAsync, isPending } = useAtualizarDadosProcesso()
   const p = processo as any
+  // Modalidade tambem controla o fluxo do processo (Financiamento <-> Registro).
+  // Enquanto em Registro, "Modalidade" nao e um produto de financiamento valido
+  // (nao esta em MODALIDADES) — nao deixa editar nem reenviar aqui, senao o
+  // save de dados financeiros derruba o processo de volta pro fluxo errado.
+  const emFluxoRegistro = processo.modalidade === 'Registro'
 
   const [comissaoComercial, setComissaoComercial] = useState<number | null>(p.comissao_comercial ?? null)
   const [comissaoEmpresa,   setComissaoEmpresa]   = useState<number | null>(p.comissao_empresa ?? null)
@@ -169,7 +174,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       await mutateAsync({
         processoId:                     processo.id,
         banco_id:                       dados.banco_id,
-        modalidade:                     dados.modalidade,
+        ...(emFluxoRegistro ? {} : { modalidade: dados.modalidade }),
         taxa_juros:                     dados.taxa_juros,
         tem_assessoria:                 dados.tem_assessoria,
         valor_assessoria:               dados.tem_assessoria ? normNum(dados.valor_assessoria) : null,
@@ -230,19 +235,26 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
           {/* ── Modalidade ────────────────────────────────────────────────── */}
           <div className="space-y-1.5">
             <Label>Modalidade <span className="text-red-500">*</span></Label>
-            <Select
-              value={form.watch('modalidade')}
-              onValueChange={(v) => form.setValue('modalidade', v)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MODALIDADES.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {emFluxoRegistro ? (
+              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                Em fluxo de Registro
+                {processo.modalidade_origem && <span className="text-gray-400"> (produto original: {processo.modalidade_origem})</span>}
+              </div>
+            ) : (
+              <Select
+                value={form.watch('modalidade')}
+                onValueChange={(v) => form.setValue('modalidade', v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODALIDADES.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* ── Taxa de juros ──────────────────────────────────────────────── */}
