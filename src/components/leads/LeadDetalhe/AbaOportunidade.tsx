@@ -19,6 +19,7 @@ import { Search } from 'lucide-react'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
+import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
 import { type Lead } from '@/types/leads'
 import { Loader2 } from 'lucide-react'
 
@@ -111,6 +112,7 @@ export function AbaOportunidade({ lead }: Props) {
   const editarLead = useEditarLead()
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
+  const { data: checklistItens = [] } = useLeadChecklist(lead.id, lead.fase_id)
   const [avisoCpfAberto, setAvisoCpfAberto] = useState(false)
 
   const form = useForm<FormData>({
@@ -139,8 +141,12 @@ export function AbaOportunidade({ lead }: Props) {
     // Lembrete pós-salvar — a consulta em si é feita marcando o item
     // obrigatório "Consulta CPF" no checklist da fase (painel direito), que
     // avança o lead automaticamente para Documentação quando concluído. Este
-    // aviso só lembra o atendente, não substitui o checklist.
-    setAvisoCpfAberto(true)
+    // aviso só lembra o atendente, não substitui o checklist — e não faz
+    // sentido repetir se o item já foi marcado como concluído.
+    const itemCpfPendente = checklistItens.some(
+      i => i.descricao.toLowerCase().includes('cpf') && !i.concluido
+    )
+    if (itemCpfPendente) setAvisoCpfAberto(true)
   }
 
   return (
