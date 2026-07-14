@@ -2,8 +2,6 @@
 
 import { useState } from 'react'
 import { useAvancarFase } from '@/hooks/processos/useProcessoFasesHistorico'
-import { useEnviarParaRegistro } from '@/hooks/processos/useEnviarParaRegistro'
-import { FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { FaseBreadcrumbBar } from '@/components/shared/FaseBreadcrumbBar'
@@ -21,7 +19,6 @@ interface Props {
 export function PipelineBarProcesso({ processo, fases, itensObrigatoriosPendentes, dadosFinanceirosPendentes }: Props) {
   const [fasePendente, setFasePendente] = useState<Fase | null>(null)
   const avancarFase = useAvancarFase(processo.id)
-  const enviarParaRegistro = useEnviarParaRegistro()
 
   const idxAtual = fases.findIndex((f) => f.id === processo.fase_atual_id)
 
@@ -48,12 +45,6 @@ export function PipelineBarProcesso({ processo, fases, itensObrigatoriosPendente
     if (!fasePendente) return
     try {
       await avancarFase.mutateAsync({ faseId: fasePendente.id })
-      if (
-        fasePendente.nome.trim().toLowerCase() === 'emitido' &&
-        FINANCIAMENTO_MODALIDADES.has(processo.modalidade)
-      ) {
-        enviarParaRegistro.mutate(processo)
-      }
       setFasePendente(null)
     } catch {
       // Erro já exibido via onError de useAvancarFase — mantém o dialog aberto

@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useProcessoFasesHistorico, useAvancarFase } from '@/hooks/processos/useProcessoFasesHistorico'
-import { useEnviarParaRegistro } from '@/hooks/processos/useEnviarParaRegistro'
-import { type Processo, type ModalidadeProcesso } from '@/types/processos'
+import { type Processo } from '@/types/processos'
 import { type Fase } from '@/types/configuracoes'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,23 +15,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { fmtData } from '@/lib/utils'
 import { usePermissao } from '@/hooks/auth/usePermissao'
-
-// ─── Modalidades de financiamento que disparam criação de Registro ────────────
-
-const FINANCIAMENTO_MODALIDADES = new Set<ModalidadeProcesso>(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'])
-
-// ─── Mapeamento modalidade → módulo de fases ──────────────────────────────────
-
-const MODULO_POR_MODALIDADE: Record<ModalidadeProcesso, string> = {
-  SFI:         'processos',
-  SBPE:        'processos',
-  PMCMV:       'processos',
-  Pro_Cotista: 'processos',
-  CGI:         'processos',
-  Consorcio:   'consorcio',
-  Contrato:    'contrato',
-  Registro:    'registro',
-}
+import { MODULO_POR_MODALIDADE } from '@/lib/processos/fasesConfig'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -141,7 +124,6 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
   const { pode } = usePermissao()
   const { data: historico = [], isLoading } = useProcessoFasesHistorico(processoId)
   const avancarFase = useAvancarFase(processoId)
-  const enviarParaRegistro = useEnviarParaRegistro()
 
   const modulo = MODULO_POR_MODALIDADE[processo.modalidade] ?? 'processos'
   const { data: fases = [], isLoading: fasesLoading } = useFases(modulo)
@@ -168,13 +150,6 @@ export function AbaFases({ processoId, processo, itensObrigatoriosPendentes = fa
   async function handleAvancar() {
     if (!proximaFase) return
     await avancarFase.mutateAsync({ faseId: proximaFase.id })
-
-    if (
-      proximaFase.nome.trim().toLowerCase() === 'emitido' &&
-      FINANCIAMENTO_MODALIDADES.has(processo.modalidade)
-    ) {
-      enviarParaRegistro.mutate(processo)
-    }
   }
 
   async function handleConfirmarRetorno() {

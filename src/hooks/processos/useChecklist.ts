@@ -116,6 +116,17 @@ export function useMarcarChecklistItem(processoId: string) {
           .eq('id', processoId)
         if (errP) throw errP
       }
+
+      // "assinado" é dedicado (não reaproveita status_emissao, que é enum de 2
+      // valores cabeado em triggers financeiros/notificação de emissão) — só
+      // libera o botão "Enviar para Fluxo Registro" no cabeçalho do processo.
+      if (marcado && item.acao_ao_completar === 'assinado') {
+        const { error: errP } = await supabase
+          .from('processos')
+          .update({ assinado_em: new Date().toISOString() })
+          .eq('id', processoId)
+        if (errP) throw errP
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checklist-execucoes', processoId] })

@@ -36,7 +36,10 @@ import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { PipelineBarProcesso } from '@/components/processos/PipelineBarProcesso'
 import { useFases } from '@/hooks/configuracoes/useFases'
-import { MODULO_POR_MODALIDADE } from '@/lib/processos/fasesConfig'
+import { MODULO_POR_MODALIDADE, FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
+import { normalizarTexto } from '@/lib/utils'
+import { useEnviarParaFluxoRegistro } from '@/hooks/processos/useEnviarParaFluxoRegistro'
+import { useEnviarParaLiberacaoRecursos } from '@/hooks/processos/useEnviarParaLiberacaoRecursos'
 import { AbaContrato } from '@/components/processos/abas/AbaContrato'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
@@ -117,6 +120,8 @@ export default function ProcessoDetalhePage() {
   }, [processo])
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
   const { mutate: atualizarImovel, isPending: atualizandoImovel } = useAtualizarImovelProcesso()
+  const enviarParaFluxoRegistro = useEnviarParaFluxoRegistro()
+  const enviarParaLiberacaoRecursos = useEnviarParaLiberacaoRecursos()
   const { alertasBloqueantes, alertasVencidos, confirmar: confirmarAlertas } = useAlertasVencimento(id, {
     validade_credito:    (processo as any)?.validade_credito,
     validade_engenharia: (processo as any)?.validade_engenharia,
@@ -172,6 +177,28 @@ export default function ProcessoDetalhePage() {
               <ParticularidadeCliente
                 pessoaId={(processo.compradores?.find(c => c.principal) ?? processo.compradores?.[0])?.pessoa_id}
               />
+              {FINANCIAMENTO_MODALIDADES.has(processo.modalidade) && processo.assinado_em && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => enviarParaFluxoRegistro.mutateAsync(processo)}
+                  disabled={enviarParaFluxoRegistro.isPending}
+                >
+                  Enviar para Fluxo Registro
+                </Button>
+              )}
+              {processo.modalidade === 'Registro' && normalizarTexto(processo.fase_atual?.nome) === normalizarTexto('Pronto') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => enviarParaLiberacaoRecursos.mutateAsync(processo)}
+                  disabled={enviarParaLiberacaoRecursos.isPending}
+                >
+                  Enviar para Liberação de Recursos
+                </Button>
+              )}
             </div>
             {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>

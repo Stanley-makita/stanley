@@ -151,6 +151,9 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                                 confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
                                 toast.success('🎉 Emissão confirmada! Processo marcado como Emitido.')
                               }
+                              if (novoMarcado && item.acao_ao_completar === 'assinado') {
+                                toast.success('✍️ Contrato assinado! Botão "Enviar para Fluxo Registro" liberado.')
+                              }
                             },
                           }
                         )
@@ -165,6 +168,9 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                       )}
                       {item.acao_ao_completar === 'emitido' && (
                         <span className="ml-1.5 text-[10px] text-green-600 font-medium">🎉 marca como Emitido</span>
+                      )}
+                      {item.acao_ao_completar === 'assinado' && (
+                        <span className="ml-1.5 text-[10px] text-green-600 font-medium">✍️ libera envio para Registro</span>
                       )}
                       {tipoVal && (
                         <span className="ml-1.5 text-[10px] text-blue-600 font-medium">📅 salva validade da {LABEL_VALIDADE[tipoVal]}</span>
