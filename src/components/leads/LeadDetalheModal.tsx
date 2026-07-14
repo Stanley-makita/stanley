@@ -219,23 +219,23 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
 
                 {/* Identidade + ações rápidas */}
                 <div className="space-y-2 border-b border-gray-200 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
-                      <span className="text-sm font-bold text-white">{iniciais(lead.nome)}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {/* Em pageMode o nome e a particularidade já aparecem no cabeçalho "Voltar +
-                            nome" (ver renderização condicional de pageMode abaixo) — evita duplicar
-                            aqui. No modal (não-pageMode) não existe esse cabeçalho, então os dois
-                            continuam aparecendo aqui. Badges de fase/status removidos daqui (2026-07-13,
-                            pedido do usuário) — já ficam visíveis na barra de fases logo acima, redundante
-                            repetir como badge. */}
-                        {!pageMode && <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>}
-                        {!pageMode && <ParticularidadeCliente pessoaId={lead.pessoa_id} />}
+                  {/* Em pageMode o avatar, nome e particularidade já aparecem no cabeçalho
+                      "Voltar > avatar > nome" (ver renderização condicional de pageMode abaixo) —
+                      evita duplicar aqui. No modal (não-pageMode) não existe esse cabeçalho, então
+                      os três continuam aparecendo aqui. */}
+                  {!pageMode && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-fonti-primary flex items-center justify-center shrink-0">
+                        <span className="text-sm font-bold text-white">{iniciais(lead.nome)}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h2 className="text-sm font-bold text-fonti-primary leading-snug break-words">{lead.nome}</h2>
+                          <ParticularidadeCliente pessoaId={lead.pessoa_id} />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <Button
                     variant="outline"
