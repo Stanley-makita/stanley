@@ -711,6 +711,7 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
   const { analises, isLoading, criar, editar, deletar, definirBanco } = useAnalisesCredito(leadId)
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
+  const qc = useQueryClient()
 
   // Análise "banco definido" é a decisiva — seu status espelha automaticamente
   // o status do lead (card Status da Fase / badge do cabeçalho / Kanban).
@@ -724,6 +725,10 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
       })
+      // A sincronização acontece via API (não passa por useEditarLead), então
+      // precisa invalidar manualmente pra badge do cabeçalho/Kanban/Tabela
+      // atualizarem sem precisar recarregar a página.
+      qc.invalidateQueries({ queryKey: ['leads'] })
     } catch {
       // Sincronização é um efeito colateral — falha aqui não deve travar a
       // edição do status da análise em si.
