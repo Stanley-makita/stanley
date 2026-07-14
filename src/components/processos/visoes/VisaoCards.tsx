@@ -263,9 +263,9 @@ export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId, p
 
         {!produtoFixo && <span className="hidden h-4 w-px shrink-0 bg-gray-300 sm:block" />}
 
-        {/* Registro segue um fluxo por fase (Preparação/Protocolado/Diligência/Pronto,
-            já visível nas colunas do Kanban) — Certeza/Incerteza não se aplica aqui. */}
-        {produtoFixo !== 'registro' && FILTROS_CHANCE.map((f) => {
+        {/* Registro e Contrato seguem um fluxo por fase (já visível nas colunas
+            do Kanban) — Certeza/Incerteza não se aplica a eles. */}
+        {produtoFixo !== 'registro' && produtoFixo !== 'contrato' && FILTROS_CHANCE.map((f) => {
           const count = contagemChance[f.value] ?? 0
           const ativo = chanceFiltro === f.value
           const ativoClass = f.value === 'certeza'

@@ -28,6 +28,9 @@ const FASES_FINANCIAMENTO_FILTROS = [
   'Preparação', 'Coleta de Documentos', 'Engenharia', 'Análise Jurídica',
   'Emissão Contrato', 'Liberação de Recursos',
 ]
+const FASES_CONTRATO_FILTROS = [
+  'Aguardando contato', 'Entrevista', 'Minuta', 'Conferência', 'Assinatura', 'Concluído',
+]
 
 // Usado em Negócios/Todos os Negócios (mostrarFiltroProduto) — CGI conta
 // separado de Financiamento aqui, diferente do filtro 'produto' server-side
@@ -219,7 +222,14 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const ROWS_PER_PAGE = 15
   const isRegistro = produtoFixo === 'registro'
   const isFinanciamento = produtoFixo === 'financiamento'
-  const fasesFiltroAtivo = isRegistro ? FASES_REGISTRO_FILTROS : isFinanciamento ? FASES_FINANCIAMENTO_FILTROS : null
+  const isContrato = produtoFixo === 'contrato'
+  const fasesFiltroAtivo = isRegistro
+    ? FASES_REGISTRO_FILTROS
+    : isFinanciamento
+      ? FASES_FINANCIAMENTO_FILTROS
+      : isContrato
+        ? FASES_CONTRATO_FILTROS
+        : null
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [faseFiltro, setFaseFiltro] = useState<string>('todos')
