@@ -437,6 +437,8 @@ export default function ProcessoDetalhePage() {
                 processo={processo}
                 onUpdateImovel={(campos) => atualizarImovel({ processoId: id, ...campos } as any)}
                 isPendingImovel={atualizandoImovel}
+                onNavegarParaAba={(aba) => setAbaAtiva(aba)}
+                onAbrirDadosOperacao={() => setEditarProcessoAberto(true)}
               />
             </TabsContent>
             <TabsContent value="compradores" className="m-0">
@@ -587,10 +589,14 @@ function AbaResumo({
   processo,
   onUpdateImovel,
   isPendingImovel,
+  onNavegarParaAba,
+  onAbrirDadosOperacao,
 }: {
   processo: ReturnType<typeof useProcesso>['data'] & {}
   onUpdateImovel: (campos: Record<string, unknown>) => void
   isPendingImovel: boolean
+  onNavegarParaAba: (aba: 'compradores' | 'vendedores') => void
+  onAbrirDadosOperacao: () => void
 }) {
   if (!processo) return null
 
@@ -603,7 +609,18 @@ function AbaResumo({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Operação */}
         <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
-          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Operação</h4>
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Operação</h4>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs text-fonti-primary"
+              onClick={onAbrirDadosOperacao}
+            >
+              <DollarSign className="h-3 w-3" />
+              Dados da operação
+            </Button>
+          </div>
           <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
             <Campo label="Modalidade"       valor={processo.modalidade} />
             <Campo label="Banco"            valor={processo.banco?.nome ?? '—'} />
@@ -618,7 +635,18 @@ function AbaResumo({
 
         {/* Compradores */}
         <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
-          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Compradores</h4>
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Compradores</h4>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs text-fonti-primary"
+              onClick={() => onNavegarParaAba('compradores')}
+            >
+              <Plus className="h-3 w-3" />
+              Adicionar
+            </Button>
+          </div>
           {(processo.compradores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.compradores!.map((c) => (
@@ -661,7 +689,18 @@ function AbaResumo({
 
         {/* Vendedores */}
         <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
-          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Vendedores</h4>
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Vendedores</h4>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs text-fonti-primary"
+              onClick={() => onNavegarParaAba('vendedores')}
+            >
+              <Plus className="h-3 w-3" />
+              Adicionar
+            </Button>
+          </div>
           {(processo.vendedores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.vendedores!.map((v) => (
@@ -685,7 +724,15 @@ function AbaResumo({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Assessoria & Contrato */}
         <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
-          <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">Assessoria & Contrato</h4>
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Assessoria & Contrato</h4>
+            <button
+              onClick={onAbrirDadosOperacao}
+              className="text-xs font-medium text-fonti-primary hover:underline"
+            >
+              alterar
+            </button>
+          </div>
           <div className={`flex items-center justify-between p-3 rounded-lg ${processo.tem_assessoria ? 'bg-fonti-accent-hover' : 'bg-gray-50'}`}>
             <span className="text-sm text-fonti-primary">{processo.tem_assessoria ? 'Com Assessoria' : 'Sem Assessoria'}</span>
             {processo.tem_assessoria && processo.valor_assessoria != null && (
