@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Check, Loader2 } from 'lucide-react'
@@ -443,11 +444,11 @@ export function AbaPessoa({ lead }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <L>Renda Formal (R$)</L>
-            <Input type="number" value={form.renda_formal} onChange={e => f({ renda_formal: e.target.value })} placeholder="0" />
+            <InputMoeda value={form.renda_formal} onChange={v => f({ renda_formal: v })} />
           </div>
           <div>
             <L>Renda Informal (R$)</L>
-            <Input type="number" value={form.renda_informal} onChange={e => f({ renda_informal: e.target.value })} placeholder="0" />
+            <InputMoeda value={form.renda_informal} onChange={v => f({ renda_informal: v })} />
           </div>
         </div>
       </Secao>
@@ -508,11 +509,11 @@ export function AbaPessoa({ lead }: Props) {
               </div>
               <div>
                 <L>Renda Formal (R$)</L>
-                <Input type="number" value={form.conjuge_renda_formal} onChange={e => f({ conjuge_renda_formal: e.target.value })} placeholder="0" />
+                <InputMoeda value={form.conjuge_renda_formal} onChange={v => f({ conjuge_renda_formal: v })} />
               </div>
               <div>
                 <L>Renda Informal (R$)</L>
-                <Input type="number" value={form.conjuge_renda_informal} onChange={e => f({ conjuge_renda_informal: e.target.value })} placeholder="0" />
+                <InputMoeda value={form.conjuge_renda_informal} onChange={v => f({ conjuge_renda_informal: v })} />
               </div>
               <div>
                 <L>Data do Casamento/União</L>

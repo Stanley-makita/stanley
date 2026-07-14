@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -305,12 +306,9 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                   <FormItem>
                     <FormLabel>Renda Formal <Opcional /></FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                      <InputMoeda
+                        value={field.value != null ? String(field.value) : ''}
+                        onChange={v => field.onChange(v ? Number(v) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -321,12 +319,9 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                   <FormItem>
                     <FormLabel>Renda Informal <Opcional /></FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                      <InputMoeda
+                        value={field.value != null ? String(field.value) : ''}
+                        onChange={v => field.onChange(v ? Number(v) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -337,12 +332,9 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                   <FormItem>
                     <FormLabel>Valor Pretendido <Opcional /></FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                      <InputMoeda
+                        value={field.value != null ? String(field.value) : ''}
+                        onChange={v => field.onChange(v ? Number(v) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />

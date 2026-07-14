@@ -8,6 +8,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -260,12 +261,9 @@ export function AbaOportunidade({ lead }: Props) {
               <FormItem>
                 <FormLabel>Valor Pretendido <Opc /></FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                  <InputMoeda
+                    value={field.value != null ? String(field.value) : ''}
+                    onChange={v => field.onChange(v ? Number(v) : undefined)}
                   />
                 </FormControl>
                 <FormMessage />

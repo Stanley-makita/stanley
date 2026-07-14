@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
@@ -407,11 +408,11 @@ export function CompletarDadosPessoaDrawer({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Formal (R$)</label>
-                  <Input type="number" value={form.renda_formal} onChange={(e) => f({ renda_formal: e.target.value })} placeholder="0" />
+                  <InputMoeda value={form.renda_formal} onChange={(v) => f({ renda_formal: v })} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Informal (R$)</label>
-                  <Input type="number" value={form.renda_informal} onChange={(e) => f({ renda_informal: e.target.value })} placeholder="0" />
+                  <InputMoeda value={form.renda_informal} onChange={(v) => f({ renda_informal: v })} />
                 </div>
               </div>
             </div>
@@ -480,11 +481,11 @@ export function CompletarDadosPessoaDrawer({
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Formal (R$)</label>
-                      <Input type="number" value={form.conjuge_renda_formal} onChange={(e) => f({ conjuge_renda_formal: e.target.value })} placeholder="0" />
+                      <InputMoeda value={form.conjuge_renda_formal} onChange={(v) => f({ conjuge_renda_formal: v })} />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Informal (R$)</label>
-                      <Input type="number" value={form.conjuge_renda_informal} onChange={(e) => f({ conjuge_renda_informal: e.target.value })} placeholder="0" />
+                      <InputMoeda value={form.conjuge_renda_informal} onChange={(v) => f({ conjuge_renda_informal: v })} />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Data do Casamento/União</label>

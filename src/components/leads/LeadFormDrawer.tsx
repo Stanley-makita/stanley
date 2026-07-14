@@ -11,6 +11,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -273,11 +274,9 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                 <FormItem>
                   <FormLabel>Valor pretendido <span className="text-gray-400 font-normal">(R$, opcional)</span></FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="350000"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                    <InputMoeda
+                      value={field.value != null ? String(field.value) : ''}
+                      onChange={(v) => field.onChange(v ? Number(v) : undefined)}
                     />
                   </FormControl>
                   <FormMessage />
