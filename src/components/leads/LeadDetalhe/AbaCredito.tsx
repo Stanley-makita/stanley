@@ -746,6 +746,17 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
     })
   }
 
+  // Ao marcar uma análise como decisiva, sincroniza imediatamente com o
+  // status que ela já tiver — sem isso, só a próxima troca de status (se
+  // houver) dispararia a sincronização, deixando o cabeçalho/Kanban
+  // desatualizados logo após "Definir banco".
+  function handleDefinirBanco(id: string) {
+    const analise = analises.find(a => a.id === id)
+    definirBanco.mutate(id, {
+      onSuccess: () => { if (analise) sincronizarStatusLead(analise.status) },
+    })
+  }
+
   function handleDataRespostaChange(id: string, data_resposta: string | null) {
     editar.mutate({ id, data_resposta })
   }
@@ -787,7 +798,7 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
             numero={i + 1}
             onEditar={() => { setEditandoId(analise.id); setCriando(false) }}
             onDeletar={() => deletar.mutate(analise.id)}
-            onDefinirBanco={() => definirBanco.mutate(analise.id)}
+            onDefinirBanco={() => handleDefinirBanco(analise.id)}
             onStatusChange={(s) => handleStatusChange(analise.id, s)}
             onDataRespostaChange={(d) => handleDataRespostaChange(analise.id, d)}
             deletando={deletar.isPending}
