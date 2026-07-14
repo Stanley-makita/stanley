@@ -765,10 +765,12 @@ export default function ConversasPage() {
                     </span>
                   )}
                   {conversaSelecionada.lead_id ? (
-                    <a href={`/leads?open=${conversaSelecionada.lead_id}`}
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/leads/${conversaSelecionada.lead_id}`)}
                       className="text-xs text-blue-600 hover:underline">
                       Ver lead
-                    </a>
+                    </button>
                   ) : (
                     <button
                       onClick={() => { setModoVincular('opcoes'); setBuscaLead(''); setLeadSelecionado(null) }}
