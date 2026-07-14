@@ -169,6 +169,9 @@ export function FaseChecklistsManager({ faseId }: Props) {
                 {item.acao_ao_completar === 'emitido' && (
                   <span className="text-[10px] text-green-600 font-medium">🎉 Marca como Emitido</span>
                 )}
+                {item.acao_ao_completar === 'assinado' && (
+                  <span className="text-[10px] text-green-600 font-medium">✍️ Marca como Assinado</span>
+                )}
               </div>
             </div>
             <Button
@@ -295,6 +298,7 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
           <SelectContent>
             <SelectItem value="none">Nenhuma ação</SelectItem>
             <SelectItem value="emitido">🎉 Marcar processo como Emitido</SelectItem>
+            <SelectItem value="assinado">✍️ Marcar Contrato como Assinado (libera envio p/ Registro)</SelectItem>
             <SelectItem value="salvar_vencimento_credito">📅 Salvar validade do Crédito</SelectItem>
             <SelectItem value="salvar_vencimento_matricula">📅 Salvar validade da Matrícula</SelectItem>
             <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>

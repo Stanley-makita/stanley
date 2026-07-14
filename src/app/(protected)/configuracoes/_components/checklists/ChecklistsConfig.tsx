@@ -82,6 +82,9 @@ function ChecklistItemRow({
       {item.acao_ao_completar === 'emitido' && (
         <span className="text-[10px] font-medium text-green-600 shrink-0">🎉 Emitido</span>
       )}
+      {item.acao_ao_completar === 'assinado' && (
+        <span className="text-[10px] font-medium text-green-600 shrink-0">✍️ Assinado</span>
+      )}
       <span className={cn(
         'text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0',
         item.obrigatorio ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'
@@ -150,6 +153,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
           <SelectContent>
             <SelectItem value="none">Nenhuma ação</SelectItem>
             <SelectItem value="emitido">🎉 Marcar como Emitido</SelectItem>
+            <SelectItem value="assinado">✍️ Marcar Contrato como Assinado (libera envio p/ Registro)</SelectItem>
             <SelectItem value="salvar_vencimento_credito">📅 Salvar validade do Crédito</SelectItem>
             <SelectItem value="salvar_vencimento_matricula">📅 Salvar validade da Matrícula</SelectItem>
             <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>
