@@ -136,11 +136,11 @@ async function salvarDocumentoCliente(params: {
   }
 }
 
-async function baixarMidiaUazapi(messageid: string, tipoMidia: string): Promise<string | null> {
+async function baixarMidiaUazapi(messageid: string, tipoMidia: string, instanciaToken: string): Promise<string | null> {
   try {
     const res = await fetch(`${process.env.UAZAPI_API_URL}/message/download`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'token': process.env.UAZAPI_INSTANCE_TOKEN ?? '' },
+      headers: { 'Content-Type': 'application/json', 'token': instanciaToken },
       body: JSON.stringify({
         id: messageid,
         return_link: true,
@@ -284,7 +284,7 @@ export async function POST(request: NextRequest) {
       const fmTipoRaw = msg?.type ?? 'text'
       const fmIsMidia = fmTipoRaw === 'media' || ['image','video','audio','document','ptt','sticker'].includes(fmTipoRaw)
       if (fmIsMidia && msg?.messageid) {
-        fmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? fmTipoRaw)
+        fmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? fmTipoRaw, fmToken)
       }
       const fmMediaContent = typeof msg?.content === 'object' && msg.content !== null
         ? msg.content as UazapiMediaContent : null
@@ -355,7 +355,7 @@ export async function POST(request: NextRequest) {
       nmEmpresaId = nmEmpresaId ?? process.env.UAZAPI_EMPRESA_ID
 
       if (nmEmpresaId) {
-        const nmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? nmTipoRaw)
+        const nmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? nmTipoRaw, nmToken)
         const nmMediaContent = typeof msg?.content === 'object' && msg.content !== null
           ? msg.content as UazapiMediaContent : null
 
@@ -407,11 +407,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // Para mídias: baixa via Uazapi para obter URL pública hospedada (content.URL é encriptada)
+  // Para mídias: baixa via Uazapi para obter URL pública hospedada (content.URL é encriptada).
+  // Usa o token da própria instância que recebeu a mensagem (payload.token) — não o fallback
+  // fixo de env, senão o download falha (401) pra qualquer instância que não seja a "padrão".
   const mediaContent = typeof contentRaw === 'object' && contentRaw !== null ? contentRaw as UazapiMediaContent : null
   let fileUrl: string | null = null
   if (isMidia && msg?.messageid) {
-    fileUrl = await baixarMidiaUazapi(msg.messageid, tipoMidia)
+    fileUrl = await baixarMidiaUazapi(msg.messageid, tipoMidia, payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '')
   }
 
   // Extrai telefone: "554484558946@s.whatsapp.net" → "554484558946"

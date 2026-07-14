@@ -890,15 +890,19 @@ export default function ConversasPage() {
                       )
                     })()}
 
-                    {/* Imagem */}
-                    {tipoMidia === 'image' && fileUrl && (
+                    {/* Imagem / Figurinha */}
+                    {(tipoMidia === 'image' || tipoMidia === 'sticker') && fileUrl && (
                       <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-                        <img src={fileUrl} alt={m.metadata?.nome_arquivo ?? 'Imagem'} className="max-w-full max-h-60 object-cover" />
+                        <img
+                          src={fileUrl}
+                          alt={m.metadata?.nome_arquivo ?? (tipoMidia === 'sticker' ? 'Figurinha' : 'Imagem')}
+                          className={tipoMidia === 'sticker' ? 'max-w-[120px] max-h-[120px] object-contain p-2' : 'max-w-full max-h-60 object-cover'}
+                        />
                       </a>
                     )}
-                    {tipoMidia === 'image' && !fileUrl && (
+                    {(tipoMidia === 'image' || tipoMidia === 'sticker') && !fileUrl && (
                       <div className="px-3 py-2 flex items-center gap-2 opacity-70">
-                        <ImageIcon className="w-4 h-4" /> <span className="text-xs">{m.metadata?.nome_arquivo ?? 'Imagem'}</span>
+                        <ImageIcon className="w-4 h-4" /> <span className="text-xs">{m.metadata?.nome_arquivo ?? (tipoMidia === 'sticker' ? 'Figurinha' : 'Imagem')}</span>
                       </div>
                     )}
 
