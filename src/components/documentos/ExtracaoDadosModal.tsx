@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 interface DocumentoCliente {
   id: string
   nome_original: string
+  nome_exibicao: string | null
   mime_type: string | null
   ocr_status: string | null
   classificacao: string | null
@@ -111,9 +112,9 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
           classificacao = json.classificacao ?? null
         }
 
-        items.push({ id, nome: doc?.nome_original ?? id, status, classificacao, ocr_erro: json.ocr_erro })
+        items.push({ id, nome: doc?.nome_exibicao ?? doc?.nome_original ?? id, status, classificacao, ocr_erro: json.ocr_erro })
       } catch (e) {
-        items.push({ id, nome: doc?.nome_original ?? id, status: 'erro', classificacao: null, ocr_erro: String(e) })
+        items.push({ id, nome: doc?.nome_exibicao ?? doc?.nome_original ?? id, status: 'erro', classificacao: null, ocr_erro: String(e) })
       }
 
       onAtualizado()
@@ -161,9 +162,14 @@ export function ExtracaoDadosModal({ open, onClose, documentos, onAtualizado }: 
                       onChange={() => toggleDoc(doc.id)}
                       className="rounded shrink-0"
                     />
-                    <span className="flex-1 text-xs font-medium text-gray-700 truncate min-w-0" title={doc.nome_original}>
-                      {doc.nome_original.length > 40 ? doc.nome_original.slice(0, 37) + '...' : doc.nome_original}
-                    </span>
+                    {(() => {
+                      const nomeExibido = doc.nome_exibicao ?? doc.nome_original
+                      return (
+                        <span className="flex-1 text-xs font-medium text-gray-700 truncate min-w-0" title={nomeExibido}>
+                          {nomeExibido.length > 40 ? nomeExibido.slice(0, 37) + '...' : nomeExibido}
+                        </span>
+                      )
+                    })()}
                     <span className="shrink-0">{badgeStatusDoc(doc)}</span>
                   </label>
                 ))

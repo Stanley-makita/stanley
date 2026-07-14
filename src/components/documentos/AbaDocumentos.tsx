@@ -498,12 +498,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   }
 
   async function handleVisualizar(doc: DocumentoCliente) {
-    // Abre janela antes do await — evita bloqueio de popup do browser
-    const win = window.open('', '_blank', 'noopener,noreferrer')
     const url = await gerarSignedUrl(doc.storage_path)
-    if (!url) { toast.error('Não foi possível abrir o documento.'); win?.close(); return }
-    if (win) win.location.href = url
-    else window.open(url, '_blank', 'noopener,noreferrer')
+    if (!url) { toast.error('Não foi possível abrir o documento.'); return }
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   async function handleRenomear(docId: string) {
