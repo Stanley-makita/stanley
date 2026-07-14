@@ -212,7 +212,7 @@ export function AbaCredito({ lead }: Props) {
 
       {/* 2. Status da fase + Validade + Produto (linha compacta) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatusFase lead={lead} />
+        <StatusFase lead={lead} analiseDefinida={analiseDefinida} />
         <ValidadeCard
           label="Validade do Crédito"
           data={lead.validade_credito}
@@ -328,7 +328,7 @@ function KpiMetrica({ icone, label, valor, sub, cor }: {
 
 // ── StatusFase ────────────────────────────────────────────────
 
-function StatusFase({ lead }: { lead: Lead }) {
+function StatusFase({ lead, analiseDefinida }: { lead: Lead; analiseDefinida: LeadAnaliseCredito | null }) {
   const editar = useEditarLead()
   const { data: statuses = [], isLoading } = useFaseStatuses(lead.fase_id)
   const { data: fases = [] } = useFases('leads')
@@ -340,6 +340,18 @@ function StatusFase({ lead }: { lead: Lead }) {
   // fase não tem (nem deveria ter) sua própria lista de status configurada.
   // O último status já aparece em destaque no cabeçalho (ver LeadDetalheModal).
   if (normalizarTexto(faseAtualNome) === normalizarTexto('Concluído')) return null
+  // Com banco definido, o status do lead passa a ser sincronizado
+  // automaticamente a partir do status da análise decisiva (ver
+  // BlocoAnalises/handleStatusChange) — evita ter o mesmo dado editável em
+  // dois lugares.
+  if (analiseDefinida) {
+    return (
+      <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-2">Status da Fase</p>
+        <p className="text-xs text-gray-400 italic">Sincronizado com a Análise de Crédito (banco definido).</p>
+      </div>
+    )
+  }
   if (isLoading) return null
   if (statuses.length === 0) {
     return (
@@ -709,8 +721,29 @@ function BlocoAnalises({ leadId, empresaId }: { leadId: string; empresaId: strin
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
 
+  // Análise "banco definido" é a decisiva — seu status espelha automaticamente
+  // o status do lead (card Status da Fase / badge do cabeçalho / Kanban).
+  async function sincronizarStatusLead(status: StatusAnaliseCredito) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return
+    try {
+      await fetch(`/api/leads/${leadId}/sincronizar-status-credito`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      })
+    } catch {
+      // Sincronização é um efeito colateral — falha aqui não deve travar a
+      // edição do status da análise em si.
+    }
+  }
+
   function handleStatusChange(id: string, status: StatusAnaliseCredito) {
-    editar.mutate({ id, status })
+    const analise = analises.find(a => a.id === id)
+    editar.mutate({ id, status }, {
+      onSuccess: () => { if (analise?.banco_definido) sincronizarStatusLead(status) },
+    })
   }
 
   function handleDataRespostaChange(id: string, data_resposta: string | null) {
