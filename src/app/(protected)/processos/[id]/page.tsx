@@ -11,6 +11,8 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail } from 'lucide-react'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
@@ -334,7 +336,7 @@ export default function ProcessoDetalhePage() {
                   <Building2 className="h-4 w-4 text-fonti-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Valor do Imóvel</p>
+                  <p className="text-xs text-gray-500">{processo.modalidade === 'Consorcio' ? 'Valor do Crédito' : 'Valor do Imóvel'}</p>
                   <p className="text-sm font-bold text-fonti-primary">{formatarMoeda(processo.valor_imovel)}</p>
                 </div>
               </div>
@@ -614,11 +616,21 @@ function AbaResumo({
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-            <Campo label="Modalidade"       valor={processo.modalidade} />
-            <Campo label="Banco"            valor={processo.banco?.nome ?? '—'} />
-            <Campo label="Valor Financiado" valor={fmtMoeda(processo.valor_financiado)} />
-            <Campo label="Entrada"          valor={fmtMoeda(processo.valor_entrada)} />
-            <Campo label="Data Início"      valor={processo.data_inicio} />
+            <Campo label="Modalidade" valor={processo.modalidade} />
+            {processo.modalidade === 'Consorcio' ? (
+              <>
+                <Campo label="Operadora"       valor={processo.banco?.nome ?? '—'} />
+                <Campo label="Valor do Crédito" valor={fmtMoeda(processo.valor_financiado)} />
+                <Campo label="Lance Estimado"  valor={fmtMoeda(processo.valor_entrada)} />
+              </>
+            ) : (
+              <>
+                <Campo label="Banco"            valor={processo.banco?.nome ?? '—'} />
+                <Campo label="Valor Financiado" valor={fmtMoeda(processo.valor_financiado)} />
+                <Campo label="Entrada"          valor={fmtMoeda(processo.valor_entrada)} />
+              </>
+            )}
+            <Campo label="Data Início" valor={processo.data_inicio} />
             {processo.numero_proposta && (
               <Campo label="Nº Proposta" valor={processo.numero_proposta} />
             )}
@@ -657,6 +669,11 @@ function AbaResumo({
           )}
         </div>
       </div>
+
+      {/* Row 1b: Plano de Consórcio + Condições — só pra modalidade Consorcio.
+          Campos ainda nao tem coluna no banco (so a tela por enquanto, ver
+          card do Kanban de Consorcio pra evolucao futura). */}
+      {processo.modalidade === 'Consorcio' && <PlanoConsorcioCard />}
 
       {/* Row 2: Imóvel + Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -773,6 +790,53 @@ function Campo({ label, valor }: { label: string; valor: string }) {
     <div>
       <p className="text-xs text-gray-400">{label}</p>
       <p className="text-sm font-medium text-fonti-primary">{valor}</p>
+    </div>
+  )
+}
+
+const PLANO_CONSORCIO_COLUNAS = ['Quantidade', 'Cotas', 'Grupos', 'Prazo', 'Valor', 'SubTotal'] as const
+
+/** Layout do plano de consórcio + condições — ainda sem persistência
+ * (campos não existem na tabela `processos`), só a tela por enquanto. */
+function PlanoConsorcioCard() {
+  const [linha, setLinha] = useState<Record<typeof PLANO_CONSORCIO_COLUNAS[number], string>>({
+    Quantidade: '', Cotas: '', Grupos: '', Prazo: '', Valor: '', SubTotal: '',
+  })
+  const [condicoes, setCondicoes] = useState('')
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Incluir plano consórcio */}
+      <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+        <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest text-center border-b border-gray-100 pb-2">
+          Incluir plano consórcio
+        </h4>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {PLANO_CONSORCIO_COLUNAS.map((coluna) => (
+            <div key={coluna}>
+              <p className="text-[10px] text-gray-400 mb-1">{coluna}</p>
+              <Input
+                className="h-8 text-xs"
+                value={linha[coluna]}
+                onChange={(e) => setLinha((s) => ({ ...s, [coluna]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Condições */}
+      <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
+        <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest text-center border-b border-gray-100 pb-2">
+          Condições
+        </h4>
+        <Textarea
+          className="min-h-[88px] text-center text-sm"
+          placeholder="Ex: Grupo com 50% de parcela com lance fixo e com indexador fixo, estimativa de contemplação 36 meses para imóvel"
+          value={condicoes}
+          onChange={(e) => setCondicoes(e.target.value)}
+        />
+      </div>
     </div>
   )
 }
