@@ -43,6 +43,7 @@ export function useEnviarParaFluxoRegistro() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos'] })
+      queryClient.invalidateQueries({ queryKey: ['negocios', 'dashboard', 'contagens'] })
       toast.success('Processo enviado ao fluxo de Registro.', {
         className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })

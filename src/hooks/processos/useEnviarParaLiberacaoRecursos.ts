@@ -55,6 +55,7 @@ export function useEnviarParaLiberacaoRecursos() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos'] })
+      queryClient.invalidateQueries({ queryKey: ['negocios', 'dashboard', 'contagens'] })
       toast.success('Processo retornado ao fluxo de Financiamento — Liberação de Recursos.', {
         className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
       })
