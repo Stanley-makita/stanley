@@ -141,6 +141,11 @@ export function AbaCredito({ lead }: Props) {
   const qc = useQueryClient()
   const { analises } = useAnalisesCredito(lead.id)
   const analiseDefinida = analises.find(a => a.banco_definido) ?? null
+  // Trava de obrigatoriedade (Data da Aprovação + Validade do Crédito) só entra
+  // em vigor quando alguma análise está com banco definido E status aprovado —
+  // condição mais estrita que a de exibição do card acima (só banco_definido).
+  const exigeAprovacao = analises.some(a => a.banco_definido && a.status === 'aprovado')
+  const [gatilhoValidade, setGatilhoValidade] = useState(0)
   const [completarPessoaAberto, setCompletarPessoaAberto] = useState(false)
   const [conjugePessoaDrawer, setConjugePessoaDrawer] = useState<string | null>(null)
   const [vendedorPessoaDrawer, setVendedorPessoaDrawer] = useState<string | null>(null)
@@ -214,6 +219,7 @@ export function AbaCredito({ lead }: Props) {
           onSalvar={async (data) => { await editar.mutateAsync({ id: lead.id, validade_credito: data }) }}
           isPending={editar.isPending}
           atalho={{ texto: '+90 dias (padrão crédito)', dias: 90 }}
+          abrirGatilho={gatilhoValidade}
         />
         <BlocoProduto lead={lead} />
       </div>
@@ -232,7 +238,12 @@ export function AbaCredito({ lead }: Props) {
       <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} />
 
       {/* 5. Aprovação de Crédito */}
-      <BlocoAprovacaoCredito lead={lead} analiseDefinida={analiseDefinida} />
+      <BlocoAprovacaoCredito
+        lead={lead}
+        analiseDefinida={analiseDefinida}
+        exigeAprovacao={exigeAprovacao}
+        onSalvo={() => { if (!lead.validade_credito) setGatilhoValidade((g) => g + 1) }}
+      />
 
       {/* 5+6. Imóvel e Vendedor lado a lado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1085,14 +1096,22 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
 
 // ── BlocoAprovacaoCredito ─────────────────────────────────────
 
-function BlocoAprovacaoCredito({ lead, analiseDefinida }: { lead: Lead; analiseDefinida: LeadAnaliseCredito | null }) {
+function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo }: {
+  lead: Lead
+  analiseDefinida: LeadAnaliseCredito | null
+  exigeAprovacao: boolean
+  onSalvo: () => void
+}) {
   const editar = useEditarLead()
   const [dataCredito, setDataCredito] = useState(lead.data_credito ?? '')
+  const faltaData = exigeAprovacao && !dataCredito
 
   function salvarDataCredito() {
     const valor = dataCredito || null
     if (valor !== lead.data_credito) {
-      editar.mutate({ id: lead.id, data_credito: valor })
+      editar.mutate({ id: lead.id, data_credito: valor }, {
+        onSuccess: () => { if (valor) onSalvo() },
+      })
     }
   }
 
@@ -1125,10 +1144,15 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida }: { lead: Lead; analiseD
 
         {/* Data da Aprovação */}
         <div className="shrink-0 space-y-1">
-          <p className="text-xs text-gray-500">Data da Aprovação</p>
+          <p className={cn('text-xs', faltaData ? 'text-red-500 font-medium' : 'text-gray-500')}>
+            Data da Aprovação{faltaData && ' *'}
+          </p>
           <input
             type="date"
-            className="h-8 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              'h-8 rounded-md border bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              faltaData ? 'border-red-400' : 'border-input'
+            )}
             value={dataCredito}
             onChange={e => setDataCredito(e.target.value)}
             onBlur={salvarDataCredito}

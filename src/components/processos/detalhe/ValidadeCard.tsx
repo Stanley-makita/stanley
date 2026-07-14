@@ -21,6 +21,10 @@ interface Props {
   isPending?: boolean
   /** Botão de atalho "+X dias" exibido no dialog de edição */
   atalho?: { texto: string; dias: number }
+  /** Quando incrementado pelo pai, abre o editor automaticamente (ex: logo
+   * após outro campo relacionado ser preenchido). Não afeta o uso normal
+   * (clique manual no card) quando omitido. */
+  abrirGatilho?: number
 }
 
 function badgeDias(dias: number) {
@@ -31,7 +35,7 @@ function badgeDias(dias: number) {
   return { texto: `${dias}d restantes`, cor: 'bg-green-100 text-green-700' }
 }
 
-export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPending: isPendingExt, atalho }: Props) {
+export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPending: isPendingExt, atalho, abrirGatilho }: Props) {
   const [aberto, setAberto] = useState(false)
   const [novaData, setNovaData] = useState('')
   // Estado local garante atualização imediata sem depender do re-render do pai
@@ -42,6 +46,12 @@ export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPendin
   useEffect(() => {
     setLocalData(data ?? null)
   }, [data])
+
+  // Abertura automática disparada pelo pai (ex: após salvar um campo relacionado)
+  useEffect(() => {
+    if (abrirGatilho) abrirEditor()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirGatilho])
 
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)

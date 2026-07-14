@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
+import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { FaseBreadcrumbBar } from '@/components/shared/FaseBreadcrumbBar'
@@ -28,6 +29,7 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
   const [fasePendente, setFasePendente] = useState<Fase | null>(null)
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(lead.id, lead.fase_id)
+  const { analises } = useAnalisesCredito(lead.id)
 
   const idxAtual = fases.findIndex(f => f.id === lead.fase_id)
 
@@ -39,6 +41,16 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
       const pendentes = bloqueadores.map(i => i.descricao ?? 'item').join(', ')
       toast.error('Checklist obrigatório pendente', {
         description: `Conclua antes de avançar: ${pendentes}`,
+      })
+      return
+    }
+
+    // Crédito aprovado (banco definido + status aprovado) exige Data da
+    // Aprovação e Validade do Crédito preenchidas antes de qualquer avanço.
+    const exigeAprovacao = analises.some(a => a.banco_definido && a.status === 'aprovado')
+    if (exigeAprovacao && (!lead.data_credito || !lead.validade_credito)) {
+      toast.error('Aprovação de crédito incompleta', {
+        description: 'Preencha a Data da Aprovação e a Validade do Crédito na aba Crédito antes de avançar.',
       })
       return
     }

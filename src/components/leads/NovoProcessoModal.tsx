@@ -307,6 +307,10 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
   const clienteNome = lead?.nome ?? pessoa?.nome ?? '—'
   const clienteCpf  = lead?.cpf  ?? pessoa?.cpf  ?? null
 
+  // Financiamento e CGI herdam a validade do crédito aprovado no Lead — sem
+  // Data da Aprovação + Validade do Crédito preenchidas, ficam bloqueados.
+  const faltaCredito = !!lead && (!lead.data_credito || !lead.validade_credito)
+
   return (
     <div className="space-y-4 px-4 pb-5 pt-4 sm:px-5">
       <div className="bg-gray-50 rounded-xl p-4 space-y-1">
@@ -342,26 +346,32 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
       <div className="space-y-1.5">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo de Processo</p>
         <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
-          {PRODUTOS.map((p) => (
-            <button
-              key={p.id}
-              disabled={p.emBreve}
-              onClick={() => onSelecionar(p.id)}
-              className={cn('w-full flex items-center gap-3 px-4 py-3 text-left transition-colors', p.emBreve ? 'bg-gray-50 cursor-not-allowed' : 'bg-white hover:bg-fonti-accent-hover/30 cursor-pointer')}
-            >
-              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', p.emBreve ? 'bg-gray-100 text-gray-300' : 'bg-fonti-accent-hover text-fonti-primary')}>
-                {p.icone}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={cn('text-sm font-medium', p.emBreve ? 'text-gray-400' : 'text-fonti-primary')}>{p.nome}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{p.descricao}</p>
-              </div>
-              {p.emBreve
-                ? <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full shrink-0">Em breve</span>
-                : <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
-              }
-            </button>
-          ))}
+          {PRODUTOS.map((p) => {
+            const bloqueadoPorCredito = !p.emBreve && faltaCredito && (p.id === 'financiamento' || p.id === 'cgi')
+            const bloqueado = p.emBreve || bloqueadoPorCredito
+            return (
+              <button
+                key={p.id}
+                disabled={bloqueado}
+                onClick={() => onSelecionar(p.id)}
+                className={cn('w-full flex items-center gap-3 px-4 py-3 text-left transition-colors', bloqueado ? 'bg-gray-50 cursor-not-allowed' : 'bg-white hover:bg-fonti-accent-hover/30 cursor-pointer')}
+              >
+                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', bloqueado ? 'bg-gray-100 text-gray-300' : 'bg-fonti-accent-hover text-fonti-primary')}>
+                  {p.icone}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm font-medium', bloqueado ? 'text-gray-400' : 'text-fonti-primary')}>{p.nome}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{p.descricao}</p>
+                </div>
+                {p.emBreve
+                  ? <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full shrink-0">Em breve</span>
+                  : bloqueadoPorCredito
+                  ? <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full shrink-0 text-right">Requer aprovação de crédito</span>
+                  : <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+                }
+              </button>
+            )
+          })}
         </div>
       </div>
 
