@@ -9,6 +9,7 @@ import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
+import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -256,79 +257,95 @@ export async function POST(request: NextRequest) {
 
       console.log('[fonti-fromMe] token:', fmToken, '| instancia:', fmInst?.id ?? 'NAO ENCONTRADA', '| atendente_id:', fmInst?.atendente_id ?? 'null', '| owner:', ownerPhone)
 
-      if (!fmEmpresaId) {
-        console.warn('[fonti-fromMe] empresa_id nao resolvido, ignorando')
+      // Instância precisa estar inequivocamente resolvida pra reivindicar o evento (a chave
+      // de idempotência exige instancia_id) — sem isso, não processa e não grava nada.
+      if (!fmInst || !fmEmpresaId) {
+        console.warn('[fonti-fromMe] instancia nao resolvida com certeza, ignorando sem processar')
         return NextResponse.json({ ok: true })
       }
 
-      // DEDUP: Uazapi dispara o mesmo webhook fromMe 2x. Garante processamento único via messageid.
+      // Reivindicação atômica do evento antes de qualquer efeito colateral — impede
+      // reprocessamento quando a Uazapi dispara o mesmo webhook fromMe 2x, ou quando duas
+      // instâncias recebem o mesmo evento (cenário do incidente).
       const fmMessageId = msg?.messageid
+      let fmEventoId: string | undefined
       if (fmMessageId) {
-        const { error: dedupErr } = await supabase
-          .from('fonti_events')
-          .insert({ messageid: fmMessageId, empresa_id: fmEmpresaId })
-        if (dedupErr) {
-          // Violação de PK = já está sendo/foi processado por outro webhook paralelo
-          console.log('[fonti-fromMe] messageid duplicado, ignorando:', fmMessageId)
+        const fmClaim = await reivindicarEvento({
+          supabase,
+          messageid: fmMessageId,
+          instanciaId: fmInst.id,
+          tipoEvento: payload.EventType ?? 'messages',
+          empresaId: fmEmpresaId,
+        })
+        if (!fmClaim.reivindicado) {
+          console.log('[fonti-fromMe] evento duplicado, ignorando:', fmMessageId)
           return NextResponse.json({ ok: true })
         }
+        fmEventoId = fmClaim.eventoId
       }
 
-      // Para *fonti salva: aguarda 2.5s para que os webhooks de documentos (não-fromMe) completem
-      // antes de buscar os docs no banco — evita "Nenhum documento encontrado" por race condition
-      if (/^\*(?:fonti\s+salvar?|salvar?)\b/i.test(textoNormFM)) {
-        await new Promise((r) => setTimeout(r, 2500))
-      }
-
-      let fmFileUrl: string | null = null
-      const fmTipoRaw = msg?.type ?? 'text'
-      const fmIsMidia = fmTipoRaw === 'media' || ['image','video','audio','document','ptt','sticker'].includes(fmTipoRaw)
-      if (fmIsMidia && msg?.messageid) {
-        fmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? fmTipoRaw, fmToken)
-      }
-      const fmMediaContent = typeof msg?.content === 'object' && msg.content !== null
-        ? msg.content as UazapiMediaContent : null
-
-      // Destino da resposta calculado antes de chamar processarComandoFonti
-      // para que o Workflow de Captação possa enviar PDF diretamente via Uazapi
-      const destinoResposta = clientPhone || ownerPhone
-
-      const { processarComandoFonti: fmFonti } = await import('@/lib/bot/fonti-comandos')
-      const respostaFM = await fmFonti(textoNormFM.trim(), {
-        empresa_id: fmEmpresaId,
-        telefone_remetente: ownerPhone,
-        telefone_cliente: clientPhone || undefined,
-        atendente_id_override: fmInst?.atendente_id ?? undefined,
-        supabase,
-        arquivos: fmFileUrl
-          ? [{ fileUrl: fmFileUrl, fileName: fmMediaContent?.fileName ?? null, mimeType: fmMediaContent?.mimetype ?? null }]
-          : [],
-        // Contexto para o Workflow de Captação enviar PDF via WhatsApp
-        instancia_token:  fmToken,
-        telefone_destino: destinoResposta,
-      })
-      if (respostaFM !== null) {
-        await enviarMensagemUazapi(destinoResposta, respostaFM, fmToken)
-        // Salva resposta do *fonti em mensagens para que o eco do Uazapi seja detectado
-        // e ignorado antes de chegar ao state machine do bot do cliente
-        if (clientPhone) {
-          const { data: convFM } = await supabase
-            .from('conversas').select('id')
-            .eq('empresa_id', fmEmpresaId).eq('canal', 'whatsapp')
-            .eq('contato_telefone', clientPhone).maybeSingle()
-          if (convFM) {
-            await supabase.from('mensagens').insert({ conversa_id: convFM.id, origem: 'sistema', conteudo: respostaFM })
-          }
+      let fmSucesso = true
+      try {
+        // Para *fonti salva: aguarda 2.5s para que os webhooks de documentos (não-fromMe) completem
+        // antes de buscar os docs no banco — evita "Nenhum documento encontrado" por race condition
+        if (/^\*(?:fonti\s+salvar?|salvar?)\b/i.test(textoNormFM)) {
+          await new Promise((r) => setTimeout(r, 2500))
         }
-      } else if (fmInst) {
-        // Instância encontrada mas autenticação falhou — informa o operador
-        const errMsg = fmInst.atendente_id
-          ? '❌ *fonti*: atendente da instância não encontrado no sistema. Verifique o cadastro em Configurações → Usuários.'
-          : '❌ *fonti*: instância sem atendente configurado. Acesse Configurações → Instâncias e vincule um atendente.'
-        await enviarMensagemUazapi(destinoResposta, errMsg, fmToken)
+
+        let fmFileUrl: string | null = null
+        const fmTipoRaw = msg?.type ?? 'text'
+        const fmIsMidia = fmTipoRaw === 'media' || ['image','video','audio','document','ptt','sticker'].includes(fmTipoRaw)
+        if (fmIsMidia && msg?.messageid) {
+          fmFileUrl = await baixarMidiaUazapi(msg.messageid, msg?.mediaType ?? fmTipoRaw, fmToken)
+        }
+        const fmMediaContent = typeof msg?.content === 'object' && msg.content !== null
+          ? msg.content as UazapiMediaContent : null
+
+        // Destino da resposta calculado antes de chamar processarComandoFonti
+        // para que o Workflow de Captação possa enviar PDF diretamente via Uazapi
+        const destinoResposta = clientPhone || ownerPhone
+
+        const { processarComandoFonti: fmFonti } = await import('@/lib/bot/fonti-comandos')
+        const respostaFM = await fmFonti(textoNormFM.trim(), {
+          empresa_id: fmEmpresaId,
+          telefone_remetente: ownerPhone,
+          telefone_cliente: clientPhone || undefined,
+          atendente_id_override: fmInst?.atendente_id ?? undefined,
+          supabase,
+          arquivos: fmFileUrl
+            ? [{ fileUrl: fmFileUrl, fileName: fmMediaContent?.fileName ?? null, mimeType: fmMediaContent?.mimetype ?? null }]
+            : [],
+          // Contexto para o Workflow de Captação enviar PDF via WhatsApp
+          instancia_token:  fmToken,
+          telefone_destino: destinoResposta,
+        })
+        if (respostaFM !== null) {
+          await enviarMensagemUazapi(destinoResposta, respostaFM, fmToken)
+          // Salva resposta do *fonti em mensagens para que o eco do Uazapi seja detectado
+          // e ignorado antes de chegar ao state machine do bot do cliente
+          if (clientPhone) {
+            const { data: convFM } = await supabase
+              .from('conversas').select('id')
+              .eq('empresa_id', fmEmpresaId).eq('canal', 'whatsapp')
+              .eq('contato_telefone', clientPhone).maybeSingle()
+            if (convFM) {
+              await supabase.from('mensagens').insert({ conversa_id: convFM.id, origem: 'sistema', conteudo: respostaFM })
+            }
+          }
+        } else if (fmInst) {
+          // Instância encontrada mas autenticação falhou — informa o operador
+          const errMsg = fmInst.atendente_id
+            ? '❌ *fonti*: atendente da instância não encontrado no sistema. Verifique o cadastro em Configurações → Usuários.'
+            : '❌ *fonti*: instância sem atendente configurado. Acesse Configurações → Instâncias e vincule um atendente.'
+          await enviarMensagemUazapi(destinoResposta, errMsg, fmToken)
+        }
+        return NextResponse.json({ ok: true })
+      } catch (err) {
+        fmSucesso = false
+        throw err
+      } finally {
+        if (fmEventoId) await marcarEventoConcluido(supabase, fmEventoId, fmSucesso)
       }
-      // fmInst null → instância não registrada/desativada, ignora silenciosamente (webhook duplicado)
-      return NextResponse.json({ ok: true })
     }
 
     // Não é *fonti — salva mídia enviada pelo operador na conversa do cliente (ex: PDFs encaminhados)
@@ -407,14 +424,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // Para mídias: baixa via Uazapi para obter URL pública hospedada (content.URL é encriptada).
-  // Usa o token da própria instância que recebeu a mensagem (payload.token) — não o fallback
-  // fixo de env, senão o download falha (401) pra qualquer instância que não seja a "padrão".
+  // content.URL vem encriptada — o download real (baixarMidiaUazapi) só acontece depois da
+  // reivindicação do evento, mais abaixo, pra nenhuma chamada externa à Uazapi ocorrer antes
+  // da reivindicação atômica.
   const mediaContent = typeof contentRaw === 'object' && contentRaw !== null ? contentRaw as UazapiMediaContent : null
   let fileUrl: string | null = null
-  if (isMidia && msg?.messageid) {
-    fileUrl = await baixarMidiaUazapi(msg.messageid, tipoMidia, payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '')
-  }
 
   // Extrai telefone: "554484558946@s.whatsapp.net" → "554484558946"
   const senderPn = msg?.sender_pn ?? ''
@@ -443,6 +457,44 @@ export async function POST(request: NextRequest) {
   if (!empresa_id) {
     console.error('[whatsapp] Instância não encontrada e UAZAPI_EMPRESA_ID não configurado. Token:', instanciaToken)
     return NextResponse.json({ error: 'Configuração incompleta' }, { status: 500 })
+  }
+
+  // Instância precisa estar inequivocamente resolvida pra reivindicar o evento (a chave de
+  // idempotência exige instancia_id) — sem isso, não processa e não grava nada, mesmo que
+  // empresa_id tenha vindo do fallback de variável de ambiente acima.
+  if (!instancia_id) {
+    console.warn('[whatsapp-webhook] instancia nao resolvida com certeza, ignorando sem processar. token:', instanciaToken)
+    return NextResponse.json({ ok: true })
+  }
+
+  // Reivindicação atômica do evento antes de qualquer efeito colateral (Pessoa, Conversa,
+  // Mensagem, comandos *fonti) — impede reprocessamento por retry da Uazapi ou por duas
+  // instâncias recebendo o mesmo evento (cenário do incidente).
+  let eventoId: string | undefined
+  if (msg?.messageid) {
+    const claim = await reivindicarEvento({
+      supabase,
+      messageid: msg.messageid,
+      instanciaId: instancia_id,
+      tipoEvento: payload.EventType ?? 'messages',
+      empresaId: empresa_id,
+    })
+    if (!claim.reivindicado) {
+      console.log('[whatsapp-webhook] evento duplicado, ignorando:', msg.messageid)
+      return NextResponse.json({ ok: true })
+    }
+    eventoId = claim.eventoId
+  }
+
+  let sucessoProcessamento = true
+  try {
+
+  // Download da mídia (se houver) — só agora, depois da reivindicação atômica acima.
+  // Usa o token da própria instância que recebeu a mensagem (payload.token) — não o
+  // fallback fixo de env, senão o download falha (401) pra qualquer instância que não
+  // seja a "padrão".
+  if (isMidia && msg?.messageid) {
+    fileUrl = await baixarMidiaUazapi(msg.messageid, tipoMidia, payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '')
   }
 
   // ECO: Uazapi às vezes ecoa mensagens enviadas pelo próprio operador (via esta mesma
@@ -971,4 +1023,11 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true })
+
+  } catch (err) {
+    sucessoProcessamento = false
+    throw err
+  } finally {
+    if (eventoId) await marcarEventoConcluido(supabase, eventoId, sucessoProcessamento)
+  }
 }
