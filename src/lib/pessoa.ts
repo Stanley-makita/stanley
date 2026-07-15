@@ -166,18 +166,49 @@ export async function buscarOuCriarPessoa(
     ativo: true,
   })
 
-  // Condição de corrida: várias mensagens (ex: vários documentos seguidos após
-  // *inicio) podem chegar em paralelo e todas passarem pelo "não existe ainda"
-  // antes de qualquer uma commitar. Só a primeira grava o telefone (constraint
-  // única); as demais ficam com Pessoa órfã sem telefone. Se o insert falhar por
-  // violação de unicidade, descarta a pessoa recém-criada (ainda vazia, sem
-  // vínculos) e reaproveita a pessoa vencedora da corrida.
   if (telError) {
     if (telError.code === '23505') {
+      // A constraint única (empresa_id, telefone) WHERE ativo=true foi violada.
+      // Duas causas possíveis, bem diferentes:
+      //
+      // 1. Reivindicação órfã: o telefone está preso a uma Pessoa SOFT-DELETADA
+      //    (deleted_at preenchido). buscarPessoaPorTelefone nunca vai "achar" essa
+      //    pessoa (ela é excluída de propósito), então o retry de recuperação
+      //    abaixo travaria pra sempre — o número fica permanentemente bloqueado.
+      //    Desativa esse registro de telefone órfão e deixa a Pessoa nova (real)
+      //    assumir o número.
+      //
+      // 2. Corrida de verdade: outra chamada concorrente (ex: vários documentos
+      //    chegando quase juntos após *fonti inicio) criou uma Pessoa ativa pro
+      //    mesmo telefone microssegundos antes. Descarta a nossa (ainda vazia,
+      //    sem vínculos) e reaproveita a vencedora — com retry curto porque a
+      //    transação concorrente pode não ter commitado ainda no instante exato.
+      const { data: telOrfao } = await supabase
+        .from('pessoa_telefones')
+        .select('id, pessoa_id, pessoas!inner(deleted_at)')
+        .eq('empresa_id', empresa_id)
+        .eq('telefone', telefone)
+        .eq('ativo', true)
+        .not('pessoas.deleted_at', 'is', null)
+        .maybeSingle()
+
+      if (telOrfao) {
+        await supabase.from('pessoa_telefones').update({ ativo: false }).eq('id', telOrfao.id)
+        const { error: telRetryError } = await supabase.from('pessoa_telefones').insert({
+          pessoa_id: pessoa.id,
+          empresa_id,
+          telefone,
+          principal: true,
+          whatsapp: true,
+          ativo: true,
+        })
+        if (telRetryError) {
+          console.error('[pessoa] Erro ao gravar telefone após liberar reivindicação órfã:', telRetryError.message)
+        }
+        return pessoa.id
+      }
+
       await supabase.from('pessoas').delete().eq('id', pessoa.id)
-      // A pessoa vencedora pode ainda não estar visível pra esta query no exato
-      // instante da corrida (a transação concorrente pode não ter commitado
-      // ainda) — tenta algumas vezes com um pequeno intervalo antes de desistir.
       // NUNCA cair de volta pro pessoa.id: ele já foi apagado acima, devolvê-lo
       // quebra qualquer insert dependente (FK inválida) silenciosamente.
       for (let tentativa = 0; tentativa < 3; tentativa++) {
