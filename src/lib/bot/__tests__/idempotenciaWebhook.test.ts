@@ -148,6 +148,36 @@ describe('reivindicarEvento', () => {
     expect(resultados.filter((r) => !r.reivindicado)).toHaveLength(9)
   })
 
+  it('apos reivindicar e marcar como falhou, uma segunda tentativa com a mesma chave nao reprocessa (sem retry automatico)', async () => {
+    const primeira = await reivindicarEvento({
+      supabase: fake.client as any,
+      messageid: 'msg-falha-depois-retry',
+      instanciaId: 'inst-a',
+      tipoEvento: 'messages',
+      empresaId: 'empresa-1',
+    })
+    expect(primeira.reivindicado).toBe(true)
+    expect(primeira.eventoId).toBeDefined()
+
+    await marcarEventoConcluido(fake.client as any, primeira.eventoId as string, false)
+    expect(fake.updates).toContainEqual({ id: primeira.eventoId, status: 'falhou' })
+
+    const segunda = await reivindicarEvento({
+      supabase: fake.client as any,
+      messageid: 'msg-falha-depois-retry',
+      instanciaId: 'inst-a',
+      tipoEvento: 'messages',
+      empresaId: 'empresa-1',
+    })
+    expect(segunda.reivindicado).toBe(false)
+    expect(segunda.eventoId).toBeUndefined()
+
+    // Nem reivindicarEvento nem marcarEventoConcluido tem qualquer lógica de retry —
+    // confirma que só existe UMA linha pra essa chave, mesmo após a falha: nada tentou
+    // reprocessar ou recriar o evento automaticamente.
+    expect(fake.linhas.size).toBe(1)
+  })
+
   it('propaga erros que não são violação de constraint (não mascara falha real de banco)', async () => {
     const fakeComErro = {
       from() {

@@ -424,14 +424,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // Para mídias: baixa via Uazapi para obter URL pública hospedada (content.URL é encriptada).
-  // Usa o token da própria instância que recebeu a mensagem (payload.token) — não o fallback
-  // fixo de env, senão o download falha (401) pra qualquer instância que não seja a "padrão".
+  // content.URL vem encriptada — o download real (baixarMidiaUazapi) só acontece depois da
+  // reivindicação do evento, mais abaixo, pra nenhuma chamada externa à Uazapi ocorrer antes
+  // da reivindicação atômica.
   const mediaContent = typeof contentRaw === 'object' && contentRaw !== null ? contentRaw as UazapiMediaContent : null
   let fileUrl: string | null = null
-  if (isMidia && msg?.messageid) {
-    fileUrl = await baixarMidiaUazapi(msg.messageid, tipoMidia, payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '')
-  }
 
   // Extrai telefone: "554484558946@s.whatsapp.net" → "554484558946"
   const senderPn = msg?.sender_pn ?? ''
@@ -491,6 +488,14 @@ export async function POST(request: NextRequest) {
 
   let sucessoProcessamento = true
   try {
+
+  // Download da mídia (se houver) — só agora, depois da reivindicação atômica acima.
+  // Usa o token da própria instância que recebeu a mensagem (payload.token) — não o
+  // fallback fixo de env, senão o download falha (401) pra qualquer instância que não
+  // seja a "padrão".
+  if (isMidia && msg?.messageid) {
+    fileUrl = await baixarMidiaUazapi(msg.messageid, tipoMidia, payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '')
+  }
 
   // ECO: Uazapi às vezes ecoa mensagens enviadas pelo próprio operador (via esta mesma
   // instância) como se fossem não-fromMe. Compara só contra o número DESTA instância que
