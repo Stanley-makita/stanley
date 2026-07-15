@@ -445,6 +445,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Configuração incompleta' }, { status: 500 })
   }
 
+  // ECO: Uazapi às vezes ecoa mensagens enviadas pelo operador como se fossem não-fromMe.
+  // Se o telefone do remetente for uma instância CRM registrada, ignora para não acionar o bot.
+  // Precisa rodar ANTES do bloco *fonti (comandos *inicio/*cria cliente/etc.) — antes dessa
+  // correção, o eco processava o comando de novo (sem telefone_cliente, então caindo no
+  // fallback de telefone genérico), duplicando Pessoa/Lead a cada comando do operador.
+  if (!msg?.fromMe && !msg?.isGroup) {
+    const telefoneSufixo = telefone.slice(-10)
+    const { data: ehInstanciaEco } = await supabase
+      .from('instancias')
+      .select('id')
+      .eq('empresa_id', empresa_id)
+      .like('numero_telefone', `%${telefoneSufixo}`)
+      .eq('ativo', true)
+      .maybeSingle()
+    if (ehInstanciaEco) {
+      console.log('[whatsapp] eco de instância CRM ignorado, telefone:', telefone)
+      return NextResponse.json({ ok: true })
+    }
+  }
+
   // Carrega configuração dinâmica do agente Fonti (fallback para defaults se não existir)
   const botConfig = await carregarBotConfig(supabase, empresa_id)
 
@@ -673,21 +693,6 @@ export async function POST(request: NextRequest) {
       // NUNCA cai no fluxo do bot para não confundir o atendimento ao cliente.
       console.warn('[fonti] Prefixo *fonti detectado mas remetente NAO é usuario interno. telefone:', telefone)
     }
-    return NextResponse.json({ ok: true })
-  }
-
-  // ECO: Uazapi às vezes ecoa mensagens enviadas pelo operador como se fossem não-fromMe.
-  // Se o telefone do remetente for uma instância CRM registrada, ignora para não acionar o bot.
-  const telefoneSufixo = telefone.slice(-10)
-  const { data: ehInstanciaEco } = await supabase
-    .from('instancias')
-    .select('id')
-    .eq('empresa_id', empresa_id)
-    .like('numero_telefone', `%${telefoneSufixo}`)
-    .eq('ativo', true)
-    .maybeSingle()
-  if (ehInstanciaEco) {
-    console.log('[whatsapp] eco de instância CRM ignorado, telefone:', telefone)
     return NextResponse.json({ ok: true })
   }
 
