@@ -96,17 +96,19 @@ export function deveDispararSimulacao(
   if (dados.solicitar_simulacao) return { deveSimular: true, motivo: 'palavra_chave' }
   if (dados.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA') return { deveSimular: true, motivo: 'palavra_chave' }
 
+  // "prazo máximo" só conta como intenção quando já vem junto de dados financeiros
+  // suficientes — nunca sozinho (regra de negócio explícita).
   const temImovel = dados.valor_imovel != null
   const temFinanciamentoOuRenda = dados.valor_financiado != null
     || (dados.renda_formal ?? 0) > 0 || (dados.renda_informal ?? 0) > 0
-
-  // "prazo máximo" só conta como intenção quando já vem junto de dados financeiros
-  // suficientes — nunca sozinho (regra de negócio explícita).
   if (dados.prazo_maximo && temImovel && temFinanciamentoOuRenda) {
     return { deveSimular: true, motivo: 'palavra_chave' }
   }
-  if (temImovel && temFinanciamentoOuRenda) return { deveSimular: true, motivo: 'dados_completos' }
 
+  // Removido o gatilho implícito "imóvel + renda/financiamento = simular sem pedir"
+  // (motivo 'dados_completos') — pedido do usuário: *cria cliente deve continuar sendo
+  // só cadastro a menos que a intenção de simular seja explícita (palavra-chave ou
+  // *simula), mesmo que os dados numéricos já estejam completos.
   return { deveSimular: false, motivo: 'nenhum' }
 }
 
