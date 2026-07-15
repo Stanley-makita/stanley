@@ -157,7 +157,7 @@ export async function buscarOuCriarPessoa(
     throw new Error(`Erro ao criar pessoa: ${error?.message}`)
   }
 
-  await supabase.from('pessoa_telefones').insert({
+  const { error: telError } = await supabase.from('pessoa_telefones').insert({
     pessoa_id: pessoa.id,
     empresa_id,
     telefone,
@@ -165,6 +165,22 @@ export async function buscarOuCriarPessoa(
     whatsapp: true,
     ativo: true,
   })
+
+  // Condição de corrida: várias mensagens (ex: vários documentos seguidos após
+  // *inicio) podem chegar em paralelo e todas passarem pelo "não existe ainda"
+  // antes de qualquer uma commitar. Só a primeira grava o telefone (constraint
+  // única); as demais ficam com Pessoa órfã sem telefone. Se o insert falhar por
+  // violação de unicidade, descarta a pessoa recém-criada (ainda vazia, sem
+  // vínculos) e reaproveita a pessoa vencedora da corrida.
+  if (telError) {
+    if (telError.code === '23505') {
+      await supabase.from('pessoas').delete().eq('id', pessoa.id)
+      const pessoaIdVencedora = await buscarPessoaPorTelefone(empresa_id, telefone)
+      if (pessoaIdVencedora) return pessoaIdVencedora
+    } else {
+      console.error('[pessoa] Erro ao gravar telefone da pessoa:', telError.message)
+    }
+  }
 
   return pessoa.id
 }
