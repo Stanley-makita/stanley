@@ -14,6 +14,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -1073,21 +1074,67 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
   const defaultNome = inicial?.nome ?? `Análise ${numero ?? ''}`
   const [nome, setNome]               = useState(inicial?.nome ?? defaultNome)
   const [banco, setBanco]             = useState(inicial?.banco_pretendido ?? '')
-  const [valorImovel, setValorImovel] = useState(fmtMoedaInput(inicial?.valor_imovel))
-  const [valorFin, setValorFin]       = useState(fmtMoedaInput(inicial?.valor_pretendido))
-  const [entrada, setEntrada]         = useState(fmtMoedaInput(inicial?.entrada))
+  // Valor decimal simples ("500000.00"), formato que InputMoeda recebe/emite — nada de
+  // string formatada pt-BR guardada em estado, só na exibição do próprio InputMoeda.
+  const [valorImovel, setValorImovel] = useState(inicial?.valor_imovel != null ? String(inicial.valor_imovel) : '')
+  const [valorFin, setValorFin]       = useState(inicial?.valor_pretendido != null ? String(inicial.valor_pretendido) : '')
+  const [entrada, setEntrada]         = useState(inicial?.entrada != null ? String(inicial.entrada) : '')
   const [prazo, setPrazo]             = useState(inicial?.prazo_meses != null ? String(inicial.prazo_meses) : '')
   const [finalidade, setFinalidade]   = useState(inicial?.finalidade ?? '')
   const [status, setStatus]           = useState<StatusAnaliseCredito>(inicial?.status ?? 'em_analise')
   const [dataResposta, setDataResposta] = useState(inicial?.data_resposta ?? '')
 
+  // Qual dos dois campos (Entrada ou Valor a Financiar) o usuário editou por último —
+  // decide qual dos dois é recalculado quando o Valor do Imóvel muda, e evita que os
+  // dois fiquem se recalculando um ao outro em ciclo (cada handler só escreve no OUTRO
+  // campo via setState direto, nunca chama o handler do campo que acabou de mudar).
+  const [ultimoEditado, setUltimoEditado] = useState<'entrada' | 'financiar' | null>(null)
+
+  function paraNumero(v: string): number | null {
+    return v ? Number(v) : null
+  }
+  // Nunca deixa o campo derivado assumir valor negativo — em vez disso, limpa (o usuário
+  // então corrige manualmente qualquer um dos três campos).
+  function paraStringNaoNegativa(n: number): string {
+    return n >= 0 ? n.toFixed(2) : ''
+  }
+
+  function handleValorImovelChange(v: string) {
+    setValorImovel(v)
+    const imovel = paraNumero(v)
+    if (imovel == null) return
+    if (ultimoEditado === 'financiar') {
+      const fin = paraNumero(valorFin)
+      if (fin != null) setEntrada(paraStringNaoNegativa(imovel - fin))
+    } else {
+      const ent = paraNumero(entrada)
+      if (ent != null) setValorFin(paraStringNaoNegativa(imovel - ent))
+    }
+  }
+
+  function handleEntradaChange(v: string) {
+    setEntrada(v)
+    setUltimoEditado('entrada')
+    const ent = paraNumero(v)
+    const imovel = paraNumero(valorImovel)
+    if (imovel != null && ent != null) setValorFin(paraStringNaoNegativa(imovel - ent))
+  }
+
+  function handleValorFinChange(v: string) {
+    setValorFin(v)
+    setUltimoEditado('financiar')
+    const fin = paraNumero(v)
+    const imovel = paraNumero(valorImovel)
+    if (imovel != null && fin != null) setEntrada(paraStringNaoNegativa(imovel - fin))
+  }
+
   async function handleSalvar() {
     await onSalvar({
       nome:             nome.trim() || defaultNome,
       banco_pretendido: banco || null,
-      valor_imovel:     parseMoeda(valorImovel),
-      valor_pretendido: parseMoeda(valorFin),
-      entrada:          parseMoeda(entrada),
+      valor_imovel:     paraNumero(valorImovel),
+      valor_pretendido: paraNumero(valorFin),
+      entrada:          paraNumero(entrada),
       prazo_meses:      prazo ? parseInt(prazo) : null,
       finalidade:       finalidade || null,
       status,
@@ -1118,15 +1165,15 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
         </div>
         <div>
           <Label className="text-xs text-gray-500">Valor do Imóvel</Label>
-          <Input className="h-7 text-sm mt-1" placeholder="0,00" value={valorImovel} onChange={e => setValorImovel(e.target.value)} />
+          <InputMoeda className="h-7 text-sm mt-1" value={valorImovel} onChange={handleValorImovelChange} />
         </div>
         <div>
           <Label className="text-xs text-gray-500">Entrada</Label>
-          <Input className="h-7 text-sm mt-1" placeholder="0,00" value={entrada} onChange={e => setEntrada(e.target.value)} />
+          <InputMoeda className="h-7 text-sm mt-1" value={entrada} onChange={handleEntradaChange} />
         </div>
         <div>
           <Label className="text-xs text-gray-500">Valor a Financiar</Label>
-          <Input className="h-7 text-sm mt-1" placeholder="0,00" value={valorFin} onChange={e => setValorFin(e.target.value)} />
+          <InputMoeda className="h-7 text-sm mt-1" value={valorFin} onChange={handleValorFinChange} />
         </div>
         <div>
           <Label className="text-xs text-gray-500">Prazo (meses)</Label>
