@@ -538,6 +538,7 @@ export async function POST(request: NextRequest) {
   if (!textoParaFonti.startsWith('*')) {
     const { verificarUsuarioInterno, processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
     const usuarioInterno = await verificarUsuarioInterno(supabase, empresa_id, telefone)
+    console.log('[doc-diag] textoParaFonti sem *, telefone:', telefone, '| isMidia:', isMidia, '| usuarioInterno:', usuarioInterno?.nome ?? null)
 
     if (usuarioInterno) {
       // Verifica resposta de follow-up (1/2/3) antes do simula pendente
@@ -586,9 +587,12 @@ export async function POST(request: NextRequest) {
           .eq('telefone_conversa', telefone)
           .maybeSingle()
 
+        console.log('[doc-diag] telefone:', telefone, '| marcaAtiva:', !!marcaAtiva, '| usuarioInterno:', usuarioInterno.nome, '| fileUrl:', !!fileUrl)
+
         if (marcaAtiva) {
           try {
             const pessoaIdDoc = await buscarOuCriarPessoa(empresa_id, telefone, nomeContato ?? 'Cliente')
+            console.log('[doc-diag] pessoaIdDoc:', pessoaIdDoc)
 
             const { data: convExistente } = await supabase
               .from('conversas')
@@ -619,6 +623,8 @@ export async function POST(request: NextRequest) {
               await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
             }
 
+            console.log('[doc-diag] conversaIdDoc:', conversaIdDoc)
+
             if (conversaIdDoc) {
               await salvarDocumentoCliente({
                 empresa_id,
@@ -628,10 +634,13 @@ export async function POST(request: NextRequest) {
                 fileName: mediaContent?.fileName ?? null,
                 mimeType: mediaContent?.mimetype ?? null,
               })
+              console.log('[doc-diag] documento salvo com sucesso')
             }
           } catch (err) {
             console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
           }
+        } else {
+          console.log('[doc-diag] sem marca ativa pra este telefone, ignorando midia')
         }
       } else {
         // Sem pendência ativa — antes de descartar, verifica se a mensagem tem "cara"
