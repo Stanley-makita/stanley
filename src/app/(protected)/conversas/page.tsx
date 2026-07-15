@@ -105,13 +105,14 @@ interface VerificacaoNumero {
 // Verifica se números estão registrados no WhatsApp antes de criar
 // conversa/grupo, evitando desperdiçar cadastro num telefone digitado errado.
 // Chamada de voz real (áudio de verdade, ao contrário da API de chamada da
-// Uazapi, que só faz o telefone tocar). Abre o softphone SIP já configurado
-// na máquina (ex: MicroSIP, registrado como handler do protocolo sip:).
+// Uazapi, que só faz o telefone tocar). Abre o softphone já configurado na
+// máquina (ex: MicroSIP). Usa tel: (não sip:usuario@dominio) — colar um
+// domínio explícito no link muda a rota de discagem e a ligação não fecha;
+// tel: só passa o número puro, igual discar manualmente no app.
 function ligarViaSip(telefone: string) {
-  const dominio = process.env.NEXT_PUBLIC_SIP_DOMAIN ?? 'sip2.syma.com.br:9068'
   const telRaw = telefone.replace(/\D/g, '')
   const numero = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
-  window.location.href = `sip:${numero}@${dominio}`
+  window.location.href = `tel:${numero}`
 }
 
 async function verificarNumerosWhatsapp(numeros: string[]): Promise<VerificacaoNumero[]> {
