@@ -103,6 +103,16 @@ interface VerificacaoNumero {
 
 // Verifica se números estão registrados no WhatsApp antes de criar
 // conversa/grupo, evitando desperdiçar cadastro num telefone digitado errado.
+// Chamada de voz real (áudio de verdade, ao contrário da API de chamada da
+// Uazapi, que só faz o telefone tocar). Abre o softphone SIP já configurado
+// na máquina (ex: MicroSIP, registrado como handler do protocolo sip:).
+function ligarViaSip(telefone: string) {
+  const dominio = process.env.NEXT_PUBLIC_SIP_DOMAIN ?? 'sip2.syma.com.br:9068'
+  const telRaw = telefone.replace(/\D/g, '')
+  const numero = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
+  window.location.href = `sip:${numero}@${dominio}`
+}
+
 async function verificarNumerosWhatsapp(numeros: string[]): Promise<VerificacaoNumero[]> {
   const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch('/api/bot/whatsapp/verificar-numero', {
@@ -612,24 +622,6 @@ export default function ConversasPage() {
     },
   })
 
-  const ligar = useMutation({
-    mutationFn: async ({ conversaId, telefone }: { conversaId: string; telefone: string }) => {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/bot/whatsapp/call', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ conversa_id: conversaId, telefone }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Falha ao iniciar chamada')
-    },
-    onSuccess: () => toast.success('Chamada iniciada — atenda pelo telefone da instância.'),
-    onError: (err: Error) => toast.error(err.message),
-  })
-
   const marcarLeitura = useMutation({
     mutationFn: async ({ conversaId, read }: { conversaId: string; read: boolean }) => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -931,14 +923,13 @@ export default function ConversasPage() {
                 Notas
               </Button>
 
-              {/* Botão ligar */}
+              {/* Botão ligar (SIP — abre o softphone com áudio real, ex: MicroSIP) */}
               {conversaSelecionada.contato_telefone && (
                 <Button size="sm" variant="outline"
                   className="h-7 text-xs gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
-                  onClick={() => ligar.mutate({ conversaId: conversaSelecionada.id, telefone: conversaSelecionada.contato_telefone! })}
-                  disabled={ligar.isPending}>
+                  onClick={() => ligarViaSip(conversaSelecionada.contato_telefone!)}>
                   <PhoneCall className="w-3.5 h-3.5" />
-                  {ligar.isPending ? 'Ligando...' : 'Ligar'}
+                  Ligar
                 </Button>
               )}
 
