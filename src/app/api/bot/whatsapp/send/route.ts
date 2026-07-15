@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     } catch { /* não bloqueia o envio */ }
   }
 
-  await supabaseService.from('mensagens').insert({
+  const { data: mensagemInserida } = await supabaseService.from('mensagens').insert({
     conversa_id,
     origem: 'humano',
     conteudo,
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       nome_arquivo: nome_arquivo ?? null,
       atendente: usuario.nome,
     },
-  })
+  }).select('id').single()
 
   // Atualiza updated_at e cura contato_telefone se estava sem prefixo 55
   const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() }
@@ -175,5 +175,8 @@ export async function POST(request: NextRequest) {
     .update(updatePayload)
     .eq('id', conversa_id)
 
-  return NextResponse.json({ ok: true, message_id: uazapiResult?.messageid })
+  // mensagem_id (linha inserida em `mensagens`) permite ao chamador vincular este envio a
+  // outras entidades (ex.: Central de Comunicação do Negócio) sem precisar de um segundo
+  // round-trip para descobrir o id gerado.
+  return NextResponse.json({ ok: true, message_id: uazapiResult?.messageid, mensagem_id: mensagemInserida?.id ?? null })
 }
