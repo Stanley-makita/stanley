@@ -68,6 +68,7 @@ interface Atendente {
 
 interface InstanciaSimples {
   id: string
+  nome: string
   atendente_id: string | null
 }
 
@@ -237,9 +238,10 @@ export default function ConversasPage() {
   const [grupoParticipantes, setGrupoParticipantes] = useState<string[]>(['', ''])
   const [criandoGrupo, setCriandoGrupo] = useState(false)
   const [conversaMarcadaNaoLida, setConversaMarcadaNaoLida] = useState(false)
+  const [instanciaFiltro, setInstanciaFiltro] = useState<string>('todos')
 
   const { data: conversas = [], isLoading } = useQuery({
-    queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro],
+    queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro, instanciaFiltro],
     enabled: !!usuario?.empresa_id,
     queryFn: async () => {
       let q = supabase
@@ -256,6 +258,7 @@ export default function ConversasPage() {
       }
 
       if (canal !== 'todos') q = q.eq('canal', canal)
+      if (instanciaFiltro !== 'todos') q = q.eq('instancia_id', instanciaFiltro)
 
       const { data, error } = await q
       if (error) throw error
@@ -371,12 +374,13 @@ export default function ConversasPage() {
     queryFn: async (): Promise<InstanciaSimples[]> => {
       const { data, error } = await supabase
         .from('instancias')
-        .select('id, atendente_id')
+        .select('id, nome, atendente_id')
         .eq('ativo', true)
       if (error) throw error
       return data
     },
   })
+  const instanciaNomeMap = new Map(instancias.map((i) => [i.id, i.nome]))
 
   const { data: leadsEncontrados = [] } = useQuery({
     queryKey: ['busca-leads-vincular', buscaLead, usuario?.empresa_id],
@@ -787,6 +791,23 @@ export default function ConversasPage() {
           ))}
         </div>
 
+        {/* Filtro por instância (só quem enxerga todas as conversas) */}
+        {pode('conversas.ver_todas') && instancias.length > 1 && (
+          <div className="px-3 py-2 border-b border-gray-100">
+            <Select value={instanciaFiltro} onValueChange={setInstanciaFiltro}>
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue placeholder="Todas as instâncias" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as instâncias</SelectItem>
+                {instancias.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Lista */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
@@ -842,8 +863,8 @@ export default function ConversasPage() {
                   )}
                   <div className="flex items-center gap-1">
                     {pode('conversas.ver_todas') && c.instancia_id && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                        <Smartphone className="w-2.5 h-2.5" /> inst
+                      <span className="flex items-center gap-0.5 text-[10px] text-gray-400 truncate max-w-[90px]">
+                        <Smartphone className="w-2.5 h-2.5 shrink-0" /> {instanciaNomeMap.get(c.instancia_id) ?? 'inst'}
                       </span>
                     )}
                   </div>
