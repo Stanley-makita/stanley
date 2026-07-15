@@ -430,7 +430,7 @@ export async function POST(request: NextRequest) {
   const instanciaToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
   const { data: instancia } = await supabase
     .from('instancias')
-    .select('id, empresa_id, atendente_id')
+    .select('id, empresa_id, atendente_id, numero_telefone')
     .eq('token', instanciaToken)
     .eq('ativo', true)
     .single()
@@ -445,22 +445,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Configuração incompleta' }, { status: 500 })
   }
 
-  // ECO: Uazapi às vezes ecoa mensagens enviadas pelo operador como se fossem não-fromMe.
-  // Se o telefone do remetente for uma instância CRM registrada, ignora para não acionar o bot.
+  // ECO: Uazapi às vezes ecoa mensagens enviadas pelo próprio operador (via esta mesma
+  // instância) como se fossem não-fromMe. Compara só contra o número DESTA instância que
+  // recebeu o webhook — nunca contra outras instâncias da empresa, senão qualquer conversa
+  // legítima entre dois números próprios (ex: testando com outro número da empresa como
+  // "cliente") é bloqueada por engano.
   // Precisa rodar ANTES do bloco *fonti (comandos *inicio/*cria cliente/etc.) — antes dessa
   // correção, o eco processava o comando de novo (sem telefone_cliente, então caindo no
   // fallback de telefone genérico), duplicando Pessoa/Lead a cada comando do operador.
-  if (!msg?.fromMe && !msg?.isGroup) {
-    const telefoneSufixo = telefone.slice(-10)
-    const { data: ehInstanciaEco } = await supabase
-      .from('instancias')
-      .select('id')
-      .eq('empresa_id', empresa_id)
-      .like('numero_telefone', `%${telefoneSufixo}`)
-      .eq('ativo', true)
-      .maybeSingle()
-    if (ehInstanciaEco) {
-      console.log('[whatsapp] eco de instância CRM ignorado, telefone:', telefone)
+  if (!msg?.fromMe && !msg?.isGroup && instancia?.numero_telefone) {
+    const ehEcoDestaInstancia = telefone.slice(-10) === instancia.numero_telefone.slice(-10)
+    if (ehEcoDestaInstancia) {
+      console.log('[whatsapp] eco da própria instância ignorado, telefone:', telefone)
       return NextResponse.json({ ok: true })
     }
   }
