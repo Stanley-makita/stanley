@@ -233,9 +233,11 @@ export default function ConversasPage() {
   const [novaConversaTelefone, setNovaConversaTelefone] = useState('')
   const [novaConversaNome, setNovaConversaNome] = useState('')
   const [novaConversaMsg, setNovaConversaMsg] = useState('')
+  const [novaConversaInstanciaId, setNovaConversaInstanciaId] = useState('')
   const iniciarConversa = useIniciarConversa()
   const [grupoAberto, setGrupoAberto] = useState(false)
   const [grupoNome, setGrupoNome] = useState('')
+  const [grupoInstanciaId, setGrupoInstanciaId] = useState('')
   const [grupoParticipantes, setGrupoParticipantes] = useState<string[]>(['', ''])
   const [criandoGrupo, setCriandoGrupo] = useState(false)
   const [conversaMarcadaNaoLida, setConversaMarcadaNaoLida] = useState(false)
@@ -722,6 +724,7 @@ export default function ConversasPage() {
                 setNovaConversaTelefone('')
                 setNovaConversaNome('')
                 setNovaConversaMsg('')
+                setNovaConversaInstanciaId('')
                 setNovaConversaAberta(true)
               }}
             >
@@ -734,6 +737,7 @@ export default function ConversasPage() {
               className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50"
               onClick={() => {
                 setGrupoNome('')
+                setGrupoInstanciaId('')
                 setGrupoParticipantes(['', ''])
                 setGrupoAberto(true)
               }}
@@ -1564,6 +1568,21 @@ export default function ConversasPage() {
                 onChange={(e) => setNovaConversaNome(e.target.value)}
               />
             </div>
+            {instancias.length > 1 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">Enviar pela instância</label>
+                <Select value={novaConversaInstanciaId} onValueChange={setNovaConversaInstanciaId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Padrão do sistema" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instancias.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-700">Mensagem inicial (opcional)</label>
               <Textarea
@@ -1599,6 +1618,7 @@ export default function ConversasPage() {
                     telefone:        novaConversaTelefone,
                     nome:            novaConversaNome,
                     mensagemInicial: novaConversaMsg,
+                    instancia_id:    novaConversaInstanciaId || undefined,
                   })
                   setNovaConversaAberta(false)
                   const { data: nova } = await supabase
@@ -1633,6 +1653,21 @@ export default function ConversasPage() {
                 onChange={(e) => setGrupoNome(e.target.value)}
               />
             </div>
+            {instancias.length > 1 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">Criar pela instância</label>
+                <Select value={grupoInstanciaId} onValueChange={setGrupoInstanciaId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Padrão do sistema" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instancias.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-700">Participantes (telefone com DDD)</label>
               {grupoParticipantes.map((tel, i) => (
@@ -1700,6 +1735,7 @@ export default function ConversasPage() {
                     body: JSON.stringify({
                       nome: grupoNome.trim(),
                       participantes: telefones,
+                      instancia_id: grupoInstanciaId || undefined,
                     }),
                   })
                   const json = await res.json()
