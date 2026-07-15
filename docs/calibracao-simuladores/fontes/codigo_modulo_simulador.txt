@@ -1,0 +1,1046 @@
+================================================================================
+  MÓDULO SIMULADOR — CÓDIGO COMPLETO DO PROJETO CRM LOVABLE
+  Para análise do programador/analista
+================================================================================
+
+Este documento contém TODO o código-fonte do módulo de simulação de
+financiamento imobiliário. São 2 sistemas de simulação paralelos:
+
+  1. SIMULADOR STANDALONE (/simulador) — Motor novo com análise preditiva
+  2. SIMULADOR EMBUTIDO (em leads/processos) — Motor antigo com SAC/PRICE
+
+================================================================================
+
+================================================================================
+ARQUIVO: src/pages/Simulador.tsx
+Página principal do simulador standalone (/simulador)
+Tecnologia: React + Tailwind + shadcn/ui
+================================================================================
+
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  Calculator, CalendarIcon, AlertTriangle, CheckCircle, XCircle, TrendingUp,
+  Shield, Trophy, Download, Save, Info, Printer, RefreshCw, User, Search, Loader2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  simularTodosBancos, calcularAnalisePredicativa, calcularPrazoMaximo,
+  calcularIdadeEmAnos, formatarMoeda, formatarTaxaMensal, formatarTaxaAnual,
+} from '@/lib/simuladorEngine';
+import {
+  BANCOS_CONFIG, type SimuladorInput, type SimuladorResultadoBanco,
+  type AnalisePredicativa, type TipoAmortizacao,
+} from '@/types/simulador';
+
+/* ---- Máscaras de entrada ---- */
+function formatDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+function parseDateInput(masked: string): Date | undefined { /* ...validação... */ }
+function parseCurrencyInput(raw: string): number { /* R$ → number */ return 0; }
+function formatCurrencyInput(value: number): string { return ''; }
+
+/* ---- Componente CurrencyInput ---- */
+function CurrencyInput({ value, onChange, id, placeholder, disabled }: any) {
+  const [display, setDisplay] = useState('');
+  useEffect(() => { setDisplay(value > 0 ? formatCurrencyInput(value) : ''); }, [value]);
+  const handleChange = (e: any) => {
+    const parsed = parseCurrencyInput(e.target.value);
+    setDisplay(formatCurrencyInput(parsed));
+    onChange(parsed);
+  };
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+      <Input id={id} value={display} onChange={handleChange} placeholder={placeholder} disabled={disabled} className="pl-10" />
+    </div>
+  );
+}
+
+/* ---- Componente CPFInput ---- */
+function formatCPF(v: string): string { return v; }
+function CPFInput({ value, onChange }: any) { return <Input value={value} onChange={(e) => onChange(formatCPF(e.target.value))} placeholder="000.000.000-00" />; }
+
+/* ============= PÁGINA SIMULADOR ============= */
+export default function Simulador() {
+  const navigate = useNavigate();
+
+  /* -- Estados do formulário -- */
+  const [valorImovel, setValorImovel] = useState(0);
+  const [valorEntrada, setValorEntrada] = useState(0);
+  const [dataNascimento, setDataNascimento] = useState<Date | undefined>(undefined);
+  const [dataNascimentoDisplay, setDataNascimentoDisplay] = useState('');
+  const [rendaMensal, setRendaMensal] = useState(0);
+  const [tipoAmortizacao, setTipoAmortizacao] = useState<TipoAmortizacao>('SAC');
+  const [bancosSelecionados, setBancosSelecionados] = useState<string[]>(['caixa', 'itau']);
+  const [cpf, setCpf] = useState('');
+  const [temRelacionamento, setTemRelacionamento] = useState(false);
+  const [nomeCliente, setNomeCliente] = useState('');
+  const [consultandoCpf, setConsultandoCpf] = useState(false);
+  const [cpfConsultado, setCpfConsultado] = useState(false);
+
+  /* -- Estados dos resultados -- */
+  const [resultados, setResultados] = useState<SimuladorResultadoBanco[]>([]);
+  const [analise, setAnalise] = useState<AnalisePredicativa | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSimulated, setHasSimulated] = useState(false);
+  const [showNovaSimDialog, setShowNovaSimDialog] = useState(false);
+
+  /* -- Valores derivados -- */
+  const valorFinanciado = valorImovel - valorEntrada;
+  const percentualEntrada = valorImovel > 0 ? (valorEntrada / valorImovel) * 100 : 0;
+  const prazoMaximo = dataNascimento ? calcularPrazoMaximo(dataNascimento) : 0;
+  const idade = dataNascimento ? calcularIdadeEmAnos(dataNascimento) : 0;
+  const entradaMinima = valorImovel * 0.20;
+
+  /* -- Validações / alertas -- */
+  const alertas = useMemo(() => {
+    const a: { tipo: 'warning' | 'error'; msg: string }[] = [];
+    if (valorEntrada < entradaMinima && valorImovel > 0) {
+      a.push({ tipo: 'warning', msg: `A entrada mínima recomendada é de 20% (${formatarMoeda(entradaMinima)})` });
+    }
+    if (valorImovel > 2250000) a.push({ tipo: 'warning', msg: 'Valor acima do teto SFH. Consulte condições especiais.' });
+    if (dataNascimento && prazoMaximo === 0) a.push({ tipo: 'error', msg: 'Não é possível financiar — idade máxima atingida' });
+    if (bancosSelecionados.length === 0) a.push({ tipo: 'error', msg: 'Selecione ao menos um banco' });
+    return a;
+  }, [valorImovel, valorEntrada, entradaMinima, dataNascimento, prazoMaximo, bancosSelecionados]);
+
+  const canSimulate = valorImovel >= 50000 && valorEntrada > 0 && dataNascimento && rendaMensal >= 1500
+    && bancosSelecionados.length > 0 && prazoMaximo > 0 && idade >= 18;
+
+  const toggleBanco = useCallback((id: string) => {
+    setBancosSelecionados(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
+  }, []);
+
+  /* -- Simulação de consulta CPF (fake delay 1.2s) -- */
+  const handleCpfChange = (v: string) => {
+    setCpf(v);
+    setCpfConsultado(false);
+    const digits = v.replace(/\D/g, '');
+    if (digits.length === 11) {
+      setConsultandoCpf(true);
+      setTimeout(() => { setConsultandoCpf(false); setCpfConsultado(true); }, 1200);
+    }
+  };
+
+  /* -- Executar simulação -- */
+  const handleSimular = () => {
+    if (!canSimulate || !dataNascimento) return;
+    setIsLoading(true);
+    setTimeout(() => {
+      const input: SimuladorInput = {
+        valorImovel, valorEntrada, dataNascimento, rendaMensal,
+        tipoAmortizacao, bancosSelecionados, cpf: cpf || undefined, temRelacionamento,
+      };
+      const res = simularTodosBancos(input);
+      const an = calcularAnalisePredicativa(input, res);
+      setResultados(res);
+      setAnalise(an);
+      setHasSimulated(true);
+      setIsLoading(false);
+    }, 1500);
+  };
+
+  /* -- Limpar / Nova simulação -- */
+  const limparSimulacao = () => {
+    setValorImovel(0); setValorEntrada(0); setDataNascimento(undefined);
+    setDataNascimentoDisplay(''); setRendaMensal(0); setTipoAmortizacao('SAC');
+    setBancosSelecionados([]); setCpf(''); setTemRelacionamento(false);
+    setNomeCliente(''); setCpfConsultado(false);
+    setResultados([]); setAnalise(null); setHasSimulated(false);
+  };
+  const handleNovaSimulacao = () => setShowNovaSimDialog(true);
+  const handleSalvarComoLead = () => {
+    setShowNovaSimDialog(false);
+    const params = new URLSearchParams();
+    params.set('novoLead', 'true');
+    if (nomeCliente) params.set('nome', nomeCliente);
+    if (cpf) params.set('cpf', cpf);
+    if (rendaMensal) params.set('renda', String(rendaMensal));
+    if (valorImovel) params.set('valorPretendido', String(valorImovel));
+    params.set('origem', 'Simulador');
+    limparSimulacao();
+    navigate(`/leads?${params.toString()}`);
+  };
+
+  /* -- Print -- */
+  const handlePrint = () => window.print();
+  const handlePrintCard = (bancoNome: string) => {
+    document.body.setAttribute('data-print-banco', bancoNome);
+    window.print();
+    document.body.removeAttribute('data-print-banco');
+  };
+
+  const melhorBanco = resultados[0];
+
+  /* ============= JSX ============= */
+  return (
+    <MainLayout>
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="no-print flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <Calculator className="h-8 w-8 text-primary" />
+              Simulador de Financiamento
+            </h1>
+            <p className="text-muted-foreground mt-1">Fontinhas Assessoria — Compare taxas e encontre a melhor opção</p>
+          </div>
+          {hasSimulated && !isLoading && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="h-4 w-4 mr-1" /> Imprimir / PDF</Button>
+              <Button size="sm" onClick={handleNovaSimulacao} className="bg-emerald-600 hover:bg-emerald-700 text-white"><RefreshCw className="h-4 w-4 mr-1" /> Nova Simulação</Button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT COLUMN: Form + Analysis */}
+          <div className="lg:col-span-1 space-y-4 no-print">
+            {/* Card 1: Dados do Financiamento */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-lg">Dados do Financiamento</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {/* Valor Imóvel + Entrada */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">Valor do Imóvel *</Label><CurrencyInput value={valorImovel} onChange={setValorImovel} placeholder="0,00" /></div>
+                  <div><Label className="text-xs">Valor da Entrada *</Label><CurrencyInput value={valorEntrada} onChange={setValorEntrada} placeholder="0,00" /></div>
+                </div>
+                {/* Nascimento + Renda */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">Data de Nascimento *</Label><Input value={dataNascimentoDisplay} onChange={(e) => { setDataNascimentoDisplay(formatDateInput(e.target.value)); setDataNascimento(parseDateInput(formatDateInput(e.target.value))); }} placeholder="DD/MM/AAAA" /></div>
+                  <div><Label className="text-xs">Renda Mensal Bruta *</Label><CurrencyInput value={rendaMensal} onChange={setRendaMensal} placeholder="0,00" /></div>
+                </div>
+                {/* Tipo Amortização */}
+                <Select value={tipoAmortizacao} onValueChange={(v) => setTipoAmortizacao(v as TipoAmortizacao)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SAC">SAC (parcelas decrescentes)</SelectItem>
+                    <SelectItem value="PRICE">PRICE (parcelas fixas)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {/* Info calculada */}
+                <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs">
+                  <div className="flex justify-between"><span>Financiamento:</span><span>{formatarMoeda(valorFinanciado)}</span></div>
+                  {dataNascimento && <div className="flex justify-between"><span>Prazo máximo:</span><span>{prazoMaximo} meses</span></div>}
+                  {rendaMensal >= 1500 && <div className="flex justify-between"><span>Parcela máx. (30%):</span><span>{formatarMoeda(rendaMensal * 0.3)}</span></div>}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Informações do Cliente */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-lg">Informações do Cliente</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div><Label className="text-xs">CPF</Label><CPFInput value={cpf} onChange={handleCpfChange} /></div>
+                {cpfConsultado && (
+                  <div><Label className="text-xs">Nome do Cliente</Label><Input value={nomeCliente} onChange={(e) => setNomeCliente(e.target.value)} placeholder="Digite o nome" /></div>
+                )}
+                <label className="flex items-center gap-2"><Checkbox checked={temRelacionamento} onCheckedChange={(v) => setTemRelacionamento(v as boolean)} /><span className="text-xs">É correntista / tem relacionamento?</span></label>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Selecionar Bancos */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-lg">Selecionar Bancos</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {BANCOS_CONFIG.map(banco => {
+                    const selected = bancosSelecionados.includes(banco.id);
+                    return (
+                      <button key={banco.id} type="button" onClick={() => toggleBanco(banco.id)}
+                        className={cn('flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-sm font-medium transition-all',
+                          selected ? 'text-white shadow-md' : 'border-border bg-background hover:bg-muted/50'
+                        )}
+                        style={selected ? { backgroundColor: banco.cor, borderColor: banco.cor } : { borderLeftColor: banco.cor, borderLeftWidth: '4px' }}
+                      >
+                        <span className={cn('h-2 w-2 rounded-full flex-shrink-0', selected && 'bg-white/60')} style={!selected ? { backgroundColor: banco.cor } : undefined} />
+                        <span>{banco.nome}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button onClick={handleSimular} disabled={!canSimulate || isLoading} className="w-full bg-[#1e3a5f] hover:bg-[#1e3a5f]/90 text-white" size="lg">
+                  {isLoading ? <>Simulando...</> : <>Simular Financiamento</>}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Análise Preditiva */}
+            {analise && hasSimulated && !isLoading && (
+              <Card>
+                <CardHeader><CardTitle>Análise Preditiva de Crédito</CardTitle></CardHeader>
+                <CardContent>
+                  <Progress value={analise.score} />
+                  <p>Score: {analise.score}/100 — {analise.classificacao}</p>
+                  <div className="space-y-2 mt-3">
+                    {analise.fatores.map((f, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <span>{f.descricao}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN: Results */}
+          <div className="lg:col-span-2 space-y-6 print-area">
+            {!hasSimulated && !isLoading && (
+              <Card className="border-dashed"><CardContent className="py-16 text-center text-muted-foreground">Preencha os dados e clique em "Simular"</CardContent></Card>
+            )}
+            {hasSimulated && !isLoading && resultados.length > 0 && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Melhor opção */}
+                {melhorBanco && (
+                  <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-4 flex items-center gap-3">
+                    <Trophy className="h-5 w-5 text-emerald-600" />
+                    <span className="font-semibold text-emerald-700">Melhor opção: {melhorBanco.bancoNome}</span>
+                    <span className="text-sm text-emerald-600">
+                      — 1ª parcela {formatarMoeda(melhorBanco.primeiraParcela)} | Taxa: {formatarTaxaAnual(melhorBanco.taxaAnual)} a.a.
+                    </span>
+                  </div>
+                )}
+                {/* Tabela comparativa */}
+                <Card>
+                  <CardHeader><CardTitle>Comparativo de Simulações</CardTitle></CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Campo</TableHead>{resultados.map(r => <TableHead key={r.bancoId}>{r.bancoNome}</TableHead>)}</TableRow></TableHeader>
+                      <TableBody>
+                        <TableRow><TableCell>Programa</TableCell>{resultados.map(r => <TableCell key={r.bancoId}>{r.programa}</TableCell>)}</TableRow>
+                        <TableRow><TableCell>1ª Parcela</TableCell>{resultados.map(r => <TableCell key={r.bancoId}>{formatarMoeda(r.primeiraParcela)}</TableCell>)}</TableRow>
+                        <TableRow><TableCell>Taxa a.a.</TableCell>{resultados.map(r => <TableCell key={r.bancoId}>{formatarTaxaAnual(r.taxaAnual)}</TableCell>)}</TableRow>
+                        {/* ...mais linhas... */}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+                {/* Cards individuais */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {resultados.map(r => <BancoDetailCard key={r.bancoId} resultado={r} isBest={r.bancoId === melhorBanco?.bancoId} onPrint={handlePrintCard} />)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Dialog Nova Simulação */}
+        <AlertDialog open={showNovaSimDialog} onOpenChange={setShowNovaSimDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Nova Simulação</AlertDialogTitle>
+              <AlertDialogDescription>Deseja salvar como lead antes de limpar?</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setShowNovaSimDialog(false); limparSimulacao(); }}>Não</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSalvarComoLead} className="bg-emerald-600">Sim, salvar como Lead</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </MainLayout>
+  );
+}
+
+/* ---- Sub-componentes ---- */
+function CompRow({ label, values, best, results, bold }: any) { /* linha da tabela comparativa */ return null; }
+function BancoDetailCard({ resultado, isBest, onPrint }: any) { /* card detalhado do banco */ return null; }
+function DetailItem({ label, value }: any) { return <div><p>{label}</p><p>{value}</p></div>; }
+
+
+================================================================================
+ARQUIVO: src/types/simulador.ts
+Tipos e constantes do motor de simulação standalone
+================================================================================
+
+export type TipoAmortizacao = 'SAC' | 'PRICE';
+
+export interface BancoConfig {
+  id: string;
+  nome: string;
+  logo: string;
+  cor: string; // hex da marca
+  taxaPadraoAnual: number;
+  taxaRelacionamentoAnual?: number;
+  indexador: string;
+  temRelacionamento: boolean;
+  programas?: ProgramaCaixa[];
+}
+
+export interface ProgramaCaixa {
+  nome: string;
+  rendaMaxima: number;
+  valorMaximoImovel: number;
+  taxaAnual: number;
+}
+
+export interface SimuladorInput {
+  valorImovel: number;
+  valorEntrada: number;
+  dataNascimento: Date;
+  rendaMensal: number;
+  tipoAmortizacao: TipoAmortizacao;
+  bancosSelecionados: string[];
+  cpf?: string;
+  temRelacionamento: boolean;
+}
+
+export interface SimuladorResultadoBanco {
+  bancoId: string; bancoNome: string; bancoLogo: string; programa: string;
+  valorImovel: number; valorFinanciado: number; valorFinanciadoMax30: number;
+  parcelas: number; primeiraParcela: number; ultimaParcela: number;
+  taxaMensal: number; taxaAnual: number;
+  totalJuros: number; totalSeguros: number; totalPago: number;
+  tipoAmortizacao: TipoAmortizacao;
+  comprometimentoRenda: number;
+  rendaMinimaEstimada: number;
+}
+
+export interface ScoreFator { descricao: string; impacto: number; tipo: 'positivo' | 'moderado' | 'negativo' | 'critico'; }
+export interface AnalisePredicativa { score: number; classificacao: string; cor: string; fatores: ScoreFator[]; valorMaxFinanciavel: number; rendaMinimaEstimada: number; }
+
+/* ---- Constantes ---- */
+export const MIP_RATES: { maxAge: number; rate: number }[] = [
+  { maxAge: 30, rate: 0.000168 }, { maxAge: 35, rate: 0.000204 }, { maxAge: 40, rate: 0.000264 },
+  { maxAge: 45, rate: 0.000348 }, { maxAge: 50, rate: 0.000468 }, { maxAge: 55, rate: 0.000636 },
+  { maxAge: 60, rate: 0.000900 }, { maxAge: 65, rate: 0.001344 }, { maxAge: 999, rate: 0.002040 },
+];
+export const DFI_MENSAL = 144.00;
+
+/* ---- SBPE Caixa (MO30769 v018) ---- */
+export interface CaixaSBPETier {
+  nome: string;
+  taxaTR_SFH: number; taxaTR_SFI: number; taxaPoup_SFH: number; taxaPoup_SFI: number;
+}
+export const CAIXA_SBPE_TIERS: CaixaSBPETier[] = [
+  { nome: 'Balcão (Sem Relacionamento)', taxaTR_SFH: 11.49, taxaTR_SFI: 12.00, taxaPoup_SFH: 4.59, taxaPoup_SFI: 5.06 },
+  { nome: 'Bonificação 1',              taxaTR_SFH: 11.29, taxaTR_SFI: 11.90, taxaPoup_SFH: 4.32, taxaPoup_SFI: 4.96 },
+  { nome: 'Bonificação 2',              taxaTR_SFH: 11.19, taxaTR_SFI: 11.80, taxaPoup_SFH: 4.22, taxaPoup_SFI: 4.87 },
+  { nome: 'Customizada',                taxaTR_SFH: 10.99, taxaTR_SFI: 0,     taxaPoup_SFH: 4.12, taxaPoup_SFI: 4.57 },
+];
+
+export const CAIXA_PRAZO_MAX = { SAC: 420, PRICE: 360 };
+export const CAIXA_COMPROMETIMENTO = { SAC: 30, PRICE: 25 };
+
+export const BANCOS_CONFIG: BancoConfig[] = [
+  {
+    id: 'caixa', nome: 'Caixa Econômica', logo: '🏦', cor: '#005CA9',
+    taxaPadraoAnual: 11.49, indexador: '+ TR', temRelacionamento: false,
+    programas: [
+      { nome: 'MCMV Faixa 1', rendaMaxima: 2640, valorMaximoImovel: 190000, taxaAnual: 4.25 },
+      { nome: 'MCMV Faixa 2', rendaMaxima: 4700, valorMaximoImovel: 264000, taxaAnual: 5.50 },
+      { nome: 'MCMV Faixa 3', rendaMaxima: 8000, valorMaximoImovel: 350000, taxaAnual: 7.66 },
+      { nome: 'MCMV Faixa 4', rendaMaxima: 12000, valorMaximoImovel: 500000, taxaAnual: 8.16 },
+    ],
+  },
+  { id: 'itau',     nome: 'Itaú',     logo: '🏧', cor: '#FF6600', taxaPadraoAnual: 11.60, taxaRelacionamentoAnual: 10.99, indexador: '+ TR', temRelacionamento: true },
+  { id: 'santander',nome: 'Santander',logo: '🔴', cor: '#EC0000', taxaPadraoAnual: 11.79, taxaRelacionamentoAnual: 11.69, indexador: '+ TR', temRelacionamento: true },
+  { id: 'bradesco', nome: 'Bradesco', logo: '🟥', cor: '#CC092F', taxaPadraoAnual: 11.70, taxaRelacionamentoAnual: 11.50, indexador: '+ TR', temRelacionamento: true },
+  { id: 'bb',       nome: 'Banco do Brasil', logo: '🟡', cor: '#FFCC00', taxaPadraoAnual: 12.00, taxaRelacionamentoAnual: 11.50, indexador: '+ TR', temRelacionamento: true },
+  { id: 'inter',    nome: 'Banco Inter',     logo: '🟠', cor: '#FF7A00', taxaPadraoAnual: 13.76, indexador: '+ TR', temRelacionamento: false },
+  { id: 'daycoval', nome: 'Daycoval',        logo: '🔵', cor: '#003399', taxaPadraoAnual: 12.50, indexador: '+ TR', temRelacionamento: false },
+];
+
+
+================================================================================
+ARQUIVO: src/lib/simuladorEngine.ts
+Motor de cálculo SAC/PRICE + análise preditiva de crédito
+================================================================================
+
+import {
+  type BancoConfig, type SimuladorInput, type SimuladorResultadoBanco,
+  type AnalisePredicativa, type ScoreFator, type TipoAmortizacao,
+  MIP_RATES, DFI_MENSAL, BANCOS_CONFIG, CAIXA_SBPE_TIERS,
+  CAIXA_PRAZO_MAX, CAIXA_COMPROMETIMENTO,
+} from '@/types/simulador';
+
+/* ---- Helpers ---- */
+export function calcularIdadeEmMeses(dataNascimento: Date): number {
+  const hoje = new Date();
+  const anos = hoje.getFullYear() - dataNascimento.getFullYear();
+  const meses = hoje.getMonth() - dataNascimento.getMonth();
+  const dias = hoje.getDate() - dataNascimento.getDate();
+  let totalMeses = anos * 12 + meses;
+  if (dias < 0) totalMeses--;
+  return totalMeses;
+}
+
+export function calcularIdadeEmAnos(dataNascimento: Date): number {
+  const hoje = new Date();
+  let age = hoje.getFullYear() - dataNascimento.getFullYear();
+  const m = hoje.getMonth() - dataNascimento.getMonth();
+  if (m < 0 || (m === 0 && hoje.getDate() < dataNascimento.getDate())) age--;
+  return age;
+}
+
+export function calcularPrazoMaximo(dataNascimento: Date): number {
+  const idadeMeses = calcularIdadeEmMeses(dataNascimento);
+  const prazo = 963 - idadeMeses; // Regra Caixa: 963 meses - idade em meses
+  return Math.max(0, Math.min(420, prazo));
+}
+
+export function taxaAnualParaMensal(taxaAnual: number): number {
+  return Math.pow(1 + taxaAnual / 100, 1 / 12) - 1;
+}
+
+export function getMipRate(idade: number): number {
+  for (const bracket of MIP_RATES) if (idade <= bracket.maxAge) return bracket.rate;
+  return MIP_RATES[MIP_RATES.length - 1].rate;
+}
+
+export function formatarMoeda(valor: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+}
+export function formatarTaxaMensal(taxa: number): string { return (taxa * 100).toFixed(4) + '%'; }
+export function formatarTaxaAnual(taxa: number): string  { return taxa.toFixed(2) + '%'; }
+
+/* ---- Determina programa Caixa ---- */
+function determineProgramaCaixa(banco: BancoConfig, renda: number, valorImovel: number, temRelacionamento: boolean): { nome: string; taxa: number } {
+  // 1. Verifica MCMV primeiro
+  if (banco.programas) {
+    for (const prog of banco.programas) {
+      if (renda <= prog.rendaMaxima && valorImovel <= prog.valorMaximoImovel) {
+        return { nome: prog.nome, taxa: prog.taxaAnual };
+      }
+    }
+  }
+  // 2. SBPE tiers (MO30769 v018)
+  const isSFI = valorImovel > 1_500_000;
+  const tier = temRelacionamento ? CAIXA_SBPE_TIERS[2] : CAIXA_SBPE_TIERS[0]; // Bonif.2 vs Balcão
+  const taxa = isSFI ? tier.taxaTR_SFI : tier.taxaTR_SFH;
+  return { nome: `SBPE ${tier.nome} (${isSFI ? 'SFI' : 'SFH'})`, taxa };
+}
+
+/* ---- SAC ---- */
+function calcularSAC(valorFinanciado: number, taxaMensal: number, prazo: number, mipRate: number) {
+  const amortizacao = valorFinanciado / prazo;
+  let saldo = valorFinanciado, totalJuros = 0, totalSeguros = 0;
+  let primeiraParcela = 0, ultimaParcela = 0;
+  for (let i = 0; i < prazo; i++) {
+    const juros = saldo * taxaMensal;
+    const mip = saldo * mipRate;
+    const parcela = amortizacao + juros + mip + DFI_MENSAL;
+    totalJuros += juros; totalSeguros += mip + DFI_MENSAL;
+    if (i === 0) primeiraParcela = parcela;
+    if (i === prazo - 1) ultimaParcela = parcela;
+    saldo -= amortizacao;
+  }
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros, totalPago: valorFinanciado + totalJuros + totalSeguros };
+}
+
+/* ---- PRICE ---- */
+function calcularPRICE(valorFinanciado: number, taxaMensal: number, prazo: number, mipRate: number) {
+  const factor = Math.pow(1 + taxaMensal, prazo);
+  const pmt = valorFinanciado * (taxaMensal * factor) / (factor - 1);
+  let saldo = valorFinanciado, totalJuros = 0, totalSeguros = 0;
+  let primeiraParcela = 0, ultimaParcela = 0;
+  for (let i = 0; i < prazo; i++) {
+    const juros = saldo * taxaMensal;
+    const amortizacao = pmt - juros;
+    const mip = saldo * mipRate;
+    const parcela = pmt + mip + DFI_MENSAL;
+    totalJuros += juros; totalSeguros += mip + DFI_MENSAL;
+    if (i === 0) primeiraParcela = parcela;
+    if (i === prazo - 1) ultimaParcela = parcela;
+    saldo -= amortizacao;
+  }
+  return { primeiraParcela, ultimaParcela, totalJuros, totalSeguros, totalPago: valorFinanciado + totalJuros + totalSeguros };
+}
+
+/* ---- Máximo financiável (busca binária) ---- */
+function calcularMaxFinanciavel30(renda: number, taxaMensal: number, prazo: number, mipRate: number, tipo: TipoAmortizacao): number {
+  const parcelaMaxima = renda * 0.30;
+  let low = 0, high = 10_000_000;
+  for (let i = 0; i < 50; i++) {
+    const mid = (low + high) / 2;
+    const calc = tipo === 'SAC'
+      ? calcularSAC(mid, taxaMensal, prazo, mipRate)
+      : calcularPRICE(mid, taxaMensal, prazo, mipRate);
+    if (calc.primeiraParcela <= parcelaMaxima) low = mid; else high = mid;
+  }
+  return Math.floor(low);
+}
+
+/* ---- Simula um banco ---- */
+export function simularBanco(bancoId: string, input: SimuladorInput, prazoMeses: number): SimuladorResultadoBanco | null {
+  const banco = BANCOS_CONFIG.find(b => b.id === bancoId);
+  if (!banco || prazoMeses <= 0) return null;
+
+  const valorFinanciado = input.valorImovel - input.valorEntrada;
+  if (valorFinanciado <= 0) return null;
+
+  const idade = calcularIdadeEmAnos(input.dataNascimento);
+  const mipRate = getMipRate(idade);
+
+  let taxaAnual: number, programa: string;
+  let comprometimentoMaxPct = 30;
+
+  if (banco.id === 'caixa') {
+    const prog = determineProgramaCaixa(banco, input.rendaMensal, input.valorImovel, input.temRelacionamento);
+    taxaAnual = prog.taxa; programa = prog.nome;
+    if (prazoMeses > CAIXA_PRAZO_MAX[input.tipoAmortizacao]) return null;
+    comprometimentoMaxPct = CAIXA_COMPROMETIMENTO[input.tipoAmortizacao];
+  } else {
+    taxaAnual = (input.temRelacionamento && banco.taxaRelacionamentoAnual) ? banco.taxaRelacionamentoAnual : banco.taxaPadraoAnual;
+    programa = input.temRelacionamento && banco.temRelacionamento ? `Relacionamento ${banco.indexador}` : `Padrão ${banco.indexador}`;
+  }
+
+  const taxaMensal = taxaAnualParaMensal(taxaAnual);
+  const calc = input.tipoAmortizacao === 'SAC'
+    ? calcularSAC(valorFinanciado, taxaMensal, prazoMeses, mipRate)
+    : calcularPRICE(valorFinanciado, taxaMensal, prazoMeses, mipRate);
+
+  const comprometimento = (calc.primeiraParcela / input.rendaMensal) * 100;
+  const rendaMinima = calc.primeiraParcela / (comprometimentoMaxPct / 100);
+  const maxFinanciavel = calcularMaxFinanciavel30(input.rendaMensal, taxaMensal, prazoMeses, mipRate, input.tipoAmortizacao);
+
+  return {
+    bancoId: banco.id, bancoNome: banco.nome, bancoLogo: banco.logo, programa,
+    valorImovel: input.valorImovel, valorFinanciado, valorFinanciadoMax30: maxFinanciavel,
+    parcelas: prazoMeses, primeiraParcela: calc.primeiraParcela, ultimaParcela: calc.ultimaParcela,
+    taxaMensal, taxaAnual, totalJuros: calc.totalJuros, totalSeguros: calc.totalSeguros,
+    totalPago: calc.totalPago, tipoAmortizacao: input.tipoAmortizacao,
+    comprometimentoRenda: comprometimento, rendaMinimaEstimada: rendaMinima,
+  };
+}
+
+/* ---- Simula todos os bancos selecionados ---- */
+export function simularTodosBancos(input: SimuladorInput): SimuladorResultadoBanco[] {
+  const prazo = calcularPrazoMaximo(input.dataNascimento);
+  if (prazo <= 0) return [];
+  return input.bancosSelecionados
+    .map(id => simularBanco(id, input, prazo))
+    .filter((r): r is SimuladorResultadoBanco => r !== null)
+    .sort((a, b) => a.primeiraParcela - b.primeiraParcela);
+}
+
+/* ---- Análise Preditiva de Crédito (Score 0-100) ---- */
+export function calcularAnalisePredicativa(input: SimuladorInput, resultados: SimuladorResultadoBanco[]): AnalisePredicativa {
+  const idade = calcularIdadeEmAnos(input.dataNascimento);
+  const prazoMax = calcularPrazoMaximo(input.dataNascimento);
+  const fatores: ScoreFator[] = []; let score = 100;
+
+  const melhor = resultados[0];
+  if (melhor) {
+    const comp = melhor.comprometimentoRenda;
+    if (comp > 30) { score -= 40; fatores.push({ descricao: `Comprometimento alto: ${comp.toFixed(1)}%`, impacto: -40, tipo: 'critico' }); }
+    else if (comp > 25) { score -= 15; fatores.push({ descricao: `Comprometimento moderado: ${comp.toFixed(1)}%`, impacto: -15, tipo: 'moderado' }); }
+    else { fatores.push({ descricao: `Comprometimento adequado: ${comp.toFixed(1)}%`, impacto: 0, tipo: 'positivo' }); }
+  }
+
+  if (idade < 18) { score -= 100; fatores.push({ descricao: 'Idade mínima não atingida', impacto: -100, tipo: 'critico' }); }
+  else if (idade > 75) { score -= 30; fatores.push({ descricao: 'Prazo limitado pela idade', impacto: -30, tipo: 'negativo' }); }
+  else if (idade >= 65) { score -= 10; fatores.push({ descricao: 'Prazo reduzido', impacto: -10, tipo: 'moderado' }); }
+  else { fatores.push({ descricao: 'Faixa etária adequada', impacto: 0, tipo: 'positivo' }); }
+
+  if (input.rendaMensal < 1500) { score -= 30; fatores.push({ descricao: 'Renda abaixo do mínimo', impacto: -30, tipo: 'negativo' }); }
+  else { fatores.push({ descricao: `Renda: ${formatarMoeda(input.rendaMensal)}`, impacto: 0, tipo: 'positivo' }); }
+
+  if (prazoMax < 120) { score -= 20; fatores.push({ descricao: `Prazo curto: ${prazoMax} meses`, impacto: -20, tipo: 'negativo' }); }
+  else { fatores.push({ descricao: `Prazo: ${prazoMax} meses`, impacto: 0, tipo: 'positivo' }); }
+
+  score = Math.max(0, Math.min(100, score));
+  let classificacao: string, cor: string;
+  if (score >= 75)      { classificacao = 'Alta probabilidade'; cor = 'emerald'; }
+  else if (score >= 50) { classificacao = 'Probabilidade moderada'; cor = 'amber'; }
+  else if (score >= 25) { classificacao = 'Baixa probabilidade'; cor = 'orange'; }
+  else                  { classificacao = 'Improvável'; cor = 'red'; }
+
+  return { score, classificacao, cor, fatores, valorMaxFinanciavel: melhor?.valorFinanciadoMax30 ?? 0, rendaMinimaEstimada: melhor?.rendaMinimaEstimada ?? 0 };
+}
+
+
+================================================================================
+ARQUIVO: src/components/simulation/BankSimulator.tsx
+Wrapper do simulador EMBUTIDO (usado dentro do modal de leads)
+================================================================================
+
+import { useState } from "react";
+import { SimulationForm } from "./SimulationForm";
+import { SimulationResults } from "./SimulationResults";
+import { simulateAllBanks, findBestByParcela, findBestByCost } from "@/lib/simulationCalculations";
+import { mockBanks } from "@/data/mockBanksData";
+import type { SimulationInput, BankSimulationResult } from "@/types/simulation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+export function BankSimulator({ defaultValues, compact = false }: { defaultValues?: Partial<SimulationInput>; compact?: boolean }) {
+  const [results, setResults] = useState<BankSimulationResult[]>([]);
+  const [bestByParcela, setBestByParcela] = useState<BankSimulationResult | null>(null);
+  const [bestByCost, setBestByCost] = useState<BankSimulationResult | null>(null);
+  const [hasSimulated, setHasSimulated] = useState(false);
+
+  const handleSimulate = (input: SimulationInput) => {
+    const simulationResults = simulateAllBanks(mockBanks, input);
+    setResults(simulationResults);
+    setBestByParcela(findBestByParcela(simulationResults));
+    setBestByCost(findBestByCost(simulationResults));
+    setHasSimulated(true);
+  };
+
+  if (compact) {
+    return (
+      <div className="space-y-6">
+        <SimulationForm onSimulate={handleSimulate} defaultValues={defaultValues} />
+        {hasSimulated && <SimulationResults results={results} bestByParcela={bestByParcela} bestByCost={bestByCost} />}
+      </div>
+    );
+  }
+
+  return (
+    <Tabs defaultValue="form">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="form">Dados da Simulação</TabsTrigger>
+        <TabsTrigger value="results" disabled={!hasSimulated}>Resultados</TabsTrigger>
+      </TabsList>
+      <TabsContent value="form"><SimulationForm onSimulate={handleSimulate} defaultValues={defaultValues} /></TabsContent>
+      <TabsContent value="results"><SimulationResults results={results} bestByParcela={bestByParcela} bestByCost={bestByCost} /></TabsContent>
+    </Tabs>
+  );
+}
+
+
+================================================================================
+ARQUIVO: src/components/simulation/SimulationForm.tsx
+Formulário do simulador EMBUTIDO (modal de leads)
+================================================================================
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@/lib/simulationCalculations";
+
+export function SimulationForm({ onSimulate, defaultValues, isLoading }: any) {
+  const [valorImovel, setValorImovel] = useState(defaultValues?.valorImovel || 500000);
+  const [valorEntrada, setValorEntrada] = useState(defaultValues?.valorEntrada || 100000);
+  const [prazoAnos, setPrazoAnos] = useState(defaultValues?.prazoMeses ? defaultValues.prazoMeses / 12 : 30);
+  const [rendaBruta, setRendaBruta] = useState(defaultValues?.rendaBruta || 15000);
+  const [dataNascimento, setDataNascimento] = useState(defaultValues?.dataNascimentoMaisVelho || "1985-01-01");
+
+  const valorFinanciado = valorImovel - valorEntrada;
+  const ltv = valorImovel > 0 ? (valorFinanciado / valorImovel) * 100 : 0;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSimulate({ valorImovel, valorEntrada, prazoMeses: prazoAnos * 12, rendaBruta, dataNascimentoMaisVelho: dataNascimento });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><Label>Valor do Imóvel</Label><Input type="number" value={valorImovel} onChange={e => setValorImovel(Number(e.target.value))} /></div>
+        <div><Label>Valor de Entrada</Label><Input type="number" value={valorEntrada} onChange={e => setValorEntrada(Number(e.target.value))} /></div>
+        <div><Label>Prazo (anos)</Label><Input type="number" value={prazoAnos} onChange={e => setPrazoAnos(Number(e.target.value))} min={1} max={35} /></div>
+        <div><Label>Renda Bruta Familiar</Label><Input type="number" value={rendaBruta} onChange={e => setRendaBruta(Number(e.target.value))} /></div>
+        <div className="md:col-span-2"><Label>Data de Nascimento (mais velho)</Label><Input type="date" value={dataNascimento} onChange={e => setDataNascimento(e.target.value)} /></div>
+      </div>
+      <Button type="submit" className="w-full" disabled={isLoading || valorFinanciado <= 0}>Simular em Todos os Bancos</Button>
+    </form>
+  );
+}
+
+
+================================================================================
+ARQUIVO: src/lib/simulationCalculations.ts
+Motor do simulador EMBUTIDO (SAC/PRICE tradicional)
+================================================================================
+
+import type { Bank } from "@/types/bank";
+import type { SimulationInput, BankSimulationResult, SACResult, PRICEResult } from "@/types/simulation";
+
+export function calculateAge(birthDate: string): number { /* idade em anos */ return 0; }
+export function calculateAgeAtPayoff(birthDate: string, prazoMeses: number): number { return 0; }
+
+export function validateBankEligibility(bank: Bank, input: SimulationInput): { eligible: boolean; reason?: any } { return { eligible: true }; }
+
+export function calculateSAC(principal: number, annualRate: number, months: number, valorImovel: number, mipRate: number, dfiRate: number, adminFee: number): SACResult {
+  const monthlyRate = annualRate / 100 / 12;
+  const amortization = principal / months;
+  const parcelas: number[] = []; let saldoDevedor = principal, totalPaid = 0;
+  for (let i = 0; i < months; i++) {
+    const juros = saldoDevedor * monthlyRate;
+    const seguroMIP = saldoDevedor * (mipRate / 100);
+    const seguroDFI = valorImovel * (dfiRate / 100);
+    const parcela = amortization + juros + seguroMIP + seguroDFI + adminFee;
+    parcelas.push(parcela); totalPaid += parcela; saldoDevedor -= amortization;
+  }
+  return { primeiraParcela: parcelas[0], ultimaParcela: parcelas[parcelas.length - 1], valorTotal: totalPaid, jurosTotal: totalPaid - principal, parcelas };
+}
+
+export function calculatePRICE(principal: number, annualRate: number, months: number, valorImovel: number, mipRate: number, dfiRate: number, adminFee: number): PRICEResult {
+  const monthlyRate = annualRate / 100 / 12;
+  const factor = Math.pow(1 + monthlyRate, months);
+  const baseParcela = principal * (monthlyRate * factor) / (factor - 1);
+  const saldoMedio = principal / 2;
+  const seguroMIPMedio = saldoMedio * (mipRate / 100);
+  const seguroDFI = valorImovel * (dfiRate / 100);
+  const parcelaTotal = baseParcela + seguroMIPMedio + seguroDFI + adminFee;
+  const valorTotal = parcelaTotal * months;
+  return { parcelaFixa: parcelaTotal, valorTotal, jurosTotal: valorTotal - principal };
+}
+
+export function simulateBank(bank: Bank, input: SimulationInput): BankSimulationResult {
+  const valorFinanciado = input.valorImovel - input.valorEntrada;
+  const eligibility = validateBankEligibility(bank, input);
+  const sac = calculateSAC(valorFinanciado, bank.taxaJurosAnual, input.prazoMeses, input.valorImovel, bank.seguroMIP, bank.seguroDFI, bank.taxaAdministracao);
+  const price = calculatePRICE(valorFinanciado, bank.taxaJurosAnual, input.prazoMeses, input.valorImovel, bank.seguroMIP, bank.seguroDFI, bank.taxaAdministracao);
+  const comprometimentoRenda = (sac.primeiraParcela / input.rendaBruta) * 100;
+  let aprovado = eligibility.eligible, motivoReprovacao = eligibility.reason;
+  if (aprovado && comprometimentoRenda > bank.rendaComprometimentoMax) { aprovado = false; motivoReprovacao = "renda_insuficiente"; }
+  return { banco: bank, aprovado, motivoReprovacao, valorFinanciado, sac, price, comprometimentoRenda };
+}
+
+export function simulateAllBanks(banks: Bank[], input: SimulationInput): BankSimulationResult[] {
+  return banks.filter(b => b.ativo).map(b => simulateBank(b, input))
+    .sort((a, b) => { if (a.aprovado && !b.aprovado) return -1; return a.sac.primeiraParcela - b.sac.primeiraParcela; });
+}
+
+export function findBestByParcela(results: BankSimulationResult[]): BankSimulationResult | null { /* menor 1ª parcela SAC */ return null; }
+export function findBestByCost(results: BankSimulationResult[]): BankSimulationResult | null { /* menor custo total SAC */ return null; }
+
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+export function formatPercent(value: number): string { return (value / 100).toFixed(2) + '%'; }
+
+
+================================================================================
+ARQUIVO: src/types/simulation.ts
+Tipos do simulador EMBUTIDO
+================================================================================
+
+import type { Bank } from "./bank";
+
+export interface SimulationInput {
+  valorImovel: number; valorEntrada: number; prazoMeses: number;
+  rendaBruta: number; dataNascimentoMaisVelho: string;
+}
+
+export type MotivoReprovacao = 'renda_insuficiente' | 'prazo_excedido' | 'ltv_excedido' | 'idade_excedida';
+
+export interface SACResult {
+  primeiraParcela: number; ultimaParcela: number; valorTotal: number;
+  jurosTotal: number; parcelas: number[];
+}
+
+export interface PRICEResult {
+  parcelaFixa: number; valorTotal: number; jurosTotal: number;
+}
+
+export interface BankSimulationResult {
+  banco: Bank; aprovado: boolean; motivoReprovacao?: MotivoReprovacao;
+  valorFinanciado: number; sac: SACResult; price: PRICEResult; comprometimentoRenda: number;
+}
+
+
+================================================================================
+ARQUIVO: src/types/bank.ts
+Tipo Bank (usado pelo simulador EMBUTIDO e outras partes do sistema)
+================================================================================
+
+export interface Bank {
+  id: string; nome: string; logo?: string; ativo: boolean;
+  taxaJurosAnual: number;           // Ex: 10.49 (%)
+  taxaAdministracao: number;        // Ex: 25 (reais/mês)
+  prazoMaximoMeses: number;        // Ex: 420 (35 anos)
+  ltvMaximo: number;               // Ex: 80 (%)
+  idadeMaximaQuitacao: number;      // Ex: 80 anos
+  rendaComprometimentoMax: number;  // Ex: 30 (%)
+  seguroMIP: number;               // Ex: 0.03 (% do saldo)
+  seguroDFI: number;               // Ex: 0.01 (% do imóvel)
+  planilhaUrl?: string;
+  ultimaAtualizacao: Date;
+}
+
+
+================================================================================
+ARQUIVO: src/data/mockBanksData.ts
+Dados mock dos bancos (usado pelo simulador EMBUTIDO)
+================================================================================
+
+export const mockBanks: Bank[] = [
+  { id: "caixa", nome: "Caixa Econômica", logo: "https://...", ativo: true, taxaJurosAnual: 9.37, taxaAdministracao: 25, prazoMaximoMeses: 420, ltvMaximo: 80, idadeMaximaQuitacao: 80, rendaComprometimentoMax: 30, seguroMIP: 0.03, seguroDFI: 0.01, ultimaAtualizacao: new Date("2024-01-15") },
+  { id: "bb",       nome: "Banco do Brasil", logo: "https://...", ativo: true, taxaJurosAnual: 10.29, taxaAdministracao: 25, prazoMaximoMeses: 420, ltvMaximo: 80, idadeMaximaQuitacao: 80, rendaComprometimentoMax: 30, seguroMIP: 0.025, seguroDFI: 0.008, ultimaAtualizacao: new Date("2024-01-15") },
+  { id: "itau",     nome: "Itaú",          logo: "https://...", ativo: true, taxaJurosAnual: 10.49, taxaAdministracao: 25, prazoMaximoMeses: 360, ltvMaximo: 80, idadeMaximaQuitacao: 80, rendaComprometimentoMax: 30, seguroMIP: 0.028, seguroDFI: 0.009, ultimaAtualizacao: new Date("2024-01-15") },
+  { id: "bradesco", nome: "Bradesco",      logo: "https://...", ativo: true, taxaJurosAnual: 10.49, taxaAdministracao: 25, prazoMaximoMeses: 360, ltvMaximo: 80, idadeMaximaQuitacao: 80, rendaComprometimentoMax: 30, seguroMIP: 0.027, seguroDFI: 0.009, ultimaAtualizacao: new Date("2024-01-15") },
+  { id: "santander",nome: "Santander",     logo: "https://...", ativo: true, taxaJurosAnual: 10.99, taxaAdministracao: 25, prazoMaximoMeses: 420, ltvMaximo: 80, idadeMaximaQuitacao: 80, rendaComprometimentoMax: 30, seguroMIP: 0.03,  seguroDFI: 0.01,  ultimaAtualizacao: new Date("2024-01-15") },
+  { id: "inter",    nome: "Banco Inter",   logo: "https://...", ativo: true, taxaJurosAnual: 10.90, taxaAdministracao: 0,  prazoMaximoMeses: 360, ltvMaximo: 70, idadeMaximaQuitacao: 75, rendaComprometimentoMax: 25, seguroMIP: 0.025, seguroDFI: 0.008, ultimaAtualizacao: new Date("2024-01-15") },
+];
+
+
+================================================================================
+ARQUIVO: src/components/simulation/SimulationResults.tsx
+Exibição dos resultados do simulador EMBUTIDO
+================================================================================
+
+import { BankCard } from "./BankCard";
+import { formatCurrency } from "@/lib/simulationCalculations";
+import type { BankSimulationResult } from "@/types/simulation";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+
+export function SimulationResults({ results, bestByParcela, bestByCost }: any) {
+  const approved = results.filter((r: any) => r.aprovado);
+  const rejected = results.filter((r: any) => !r.aprovado);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-lg bg-success/10 p-4"><CheckCircle2 />{approved.length} Aprovados</div>
+        <div className="rounded-lg bg-muted p-4"><AlertTriangle />{rejected.length} Rejeitados</div>
+      </div>
+      {bestByParcela && <div>Melhor: {bestByParcela.banco.nome}</div>}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {approved.map((r: any) => <BankCard key={r.banco.id} result={r} isBestParcela={bestByParcela?.banco.id === r.banco.id} />)}
+      </div>
+    </div>
+  );
+}
+
+
+================================================================================
+ARQUIVO: src/components/simulation/BankCard.tsx
+Card individual de banco (simulador EMBUTIDO)
+================================================================================
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/simulationCalculations";
+
+export function BankCard({ result, isBestParcela, isBestCost }: any) {
+  const { banco, aprovado, sac, price, comprometimentoRenda } = result;
+  return (
+    <Card>
+      <CardHeader><CardTitle>{banco.nome}</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <div>SAC — 1ª Parcela: {formatCurrency(sac.primeiraParcela)}</div>
+        <div>PRICE — Parcela: {formatCurrency(price.parcelaFixa)}</div>
+        <div>Comprometimento: {comprometimentoRenda.toFixed(1)}%</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+================================================================================
+ARQUIVO: src/components/simulation/SimulatorModal.tsx
+Modal que embrulha o simulador embutido
+================================================================================
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BankSimulator } from "./BankSimulator";
+
+export function SimulatorModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Simulador de Financiamento Imobiliário</DialogTitle></DialogHeader>
+        <BankSimulator />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+================================================================================
+ARQUIVO: src/components/leads/LeadSimulatorTab.tsx
+Aba "Simulador" dentro da ficha do lead (usa o simulador EMBUTIDO)
+================================================================================
+
+import { BankSimulator } from "@/components/simulation/BankSimulator";
+import type { LeadExtended } from "@/types/lead";
+
+export function LeadSimulatorTab({ lead }: { lead: LeadExtended }) {
+  const rendaTotal = (lead.rendaFormal || 0) + (lead.rendaInformal || 0);
+  const defaultValues = {
+    valorImovel: lead.valorPretendido,
+    valorEntrada: Math.round(lead.valorPretendido * 0.2),
+    prazoMeses: 360,
+    rendaBruta: rendaTotal,
+    dataNascimentoMaisVelho: lead.dataNascimento || "1985-01-01",
+  };
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-muted/50 p-4"><p>Dados pré-preenchidos automaticamente.</p></div>
+      <BankSimulator defaultValues={defaultValues} compact />
+    </div>
+  );
+}
+
+
+================================================================================
+RESUMO DA ARQUITETURA PARA O ANALISTA
+================================================================================
+
+1. EXISTEM DOIS MOTORES DE SIMULAÇÃO PARALELOS:
+
+   a) MOTOR NOVO (standalone) — src/lib/simuladorEngine.ts
+      • Usado pela página /simulador (Simulador.tsx)
+      • Suporta: Caixa MCMV, SBPE tiers, relacionamento, análise preditiva
+      • Taxas parametrizadas no arquivo src/types/simulador.ts (CAIXA_SBPE_TIERS)
+      • Cálculo de prazo máximo: 963 − idade em meses
+      • Seguros: MIP variável por idade + DFI fixo R$ 144/mês
+      • Busca binária para calcular máximo financiável dentro de 30% renda
+
+   b) MOTOR ANTIGO (embutido) — src/lib/simulationCalculations.ts
+      • Usado pelo modal dentro da ficha do lead (LeadSimulatorTab)
+      • Usa dados mock de bancos em src/data/mockBanksData.ts
+      • NÃO tem análise preditiva nem SBPE tiers
+      • Seguros MIP/DFI são percentuais fixos do mockBanksData
+
+2. FLUXO DE DADOS CAIXA (motor novo):
+   → Usuário escolhe banco Caixa
+   → determineProgramaCaixa() verifica MCMV (renda + valor do imóvel)
+   → Se não enquadrar em MCMV, vai para SBPE:
+       • temRelacionamento = true  → Bonificação 2 (11,19%)
+       • temRelacionamento = false → Balcão (11,49%)
+       • valorImovel > 1.500.000   → taxa SFI (maior)
+       • valorImovel ≤ 1.500.000   → taxa SFH (menor)
+   → Limites por amortização:
+       • SAC:  max 420 meses, comprometimento 30%
+       • PRICE: max 360 meses, comprometimento 25%
+
+3. COMPONENTES DO SIMULADOR STANDALONE:
+   • CurrencyInput  — máscara R$ com parse/format
+   • CPFInput       — máscara 000.000.000-00
+   • CompRow        — linha da tabela comparativa
+   • BancoDetailCard — card individual com detalhes + botão PDF
+
+4. COMPONENTES DO SIMULADOR EMBUTIDO:
+   • BankSimulator    — wrapper com Tabs (form / results)
+   • SimulationForm   — formulário simples com Inputs numéricos
+   • SimulationResults — grid de cards aprovados/rejeitados
+   • BankCard         — card de banco individual
+   • SimulatorModal   — Dialog que abre o BankSimulator
+
+5. PONTOS DE INTEGRAÇÃO:
+   • Simulador.tsx → após simular, pode salvar como Lead (navigate /leads)
+   • LeadSimulatorTab.tsx → recebe dados do lead e pré-preenche o form
+
+6. TECNOLOGIAS:
+   React 18, TypeScript, Tailwind CSS v3, shadcn/ui, Lucide icons, Vite 5
+
+================================================================================

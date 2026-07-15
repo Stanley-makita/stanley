@@ -5,3 +5,4 @@ node_modules
 .DS_Store
 scripts/set-admin-password.mjs
 output/credifon-codigo.txt
+tsconfig.tsbuildinfo

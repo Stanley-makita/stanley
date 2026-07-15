@@ -1,0 +1,795 @@
+                   Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+                                                                                                                                   Grau de sigilo
+                                                                                                                         #EXTERNO.CONFIDENCIAL
+
+1  PMCMV ­ RECORTE POPULACIONAL/TERRITORIAL, VALORES DE VENDA OU INVESTIMENTO
+
+                   VALOR DE VENDA OU INVESTIMENTO MÁXIMO (R$)
+
+                                                                   POPULAÇÃO DO MUNICÍPIO (NÚMERO DE HABITANTES)
+                                                                                       FAIXA DE RENDA ATÉ R$ 5.000,00
+
+                   RECORTE POPULACIONAL/ TERRITORIAL                                 Menor que 750 mil Menor que 300 mil
+
+                                                                   Maior ou igual a  e maior ou igual a e maior ou igual a  Menor que 100
+                                                                         750 mil                                                    mil
+                                                                                                 300 mil        100 mil
+
+   Grande Metrópole Nacional e Metrópoles Nacionais e seus         275.000                       270.000        245.000     230.000
+   respectivos Arranjos Populacionais
+
+   Metrópoles e seus respectivos Arranjos Populacionais            270.000                       255.000        240.000     225.000
+
+   Capitais Regionais e seus respectivos Arranjos Populacionais    260.000                       255.000        235.000     220.000
+                                                                        -                                                   210.000
+   Centros Sub-regionais, Centros de Zona e Centros Locais e seus                                235.000        225.000
+   respectivos Arranjos Populacionais
+                                                                                     FAIXA DE RENDA ACIMA DE R$ 5.000,00
+                  RECORTE POPULACIONAL/ TERRITORIAL                                                         400.000,00
+   Todos os Municípios da unidade federativa
+
+1.1 As pessoas físicas poderão ser enquadradas nas faixas superiores, desde que observem os requisitos abaixo:
+
+   a) o valor de venda ou compra deve estar dentro dos limites contemplados no quadro abaixo; e
+
+   b) as pessoas físicas que serão enquadradas nas faixas de renda acima de R$ 5.000,00, ficam impedidas de receber os descontos de que tratam os itens
+   12.5, 12.7, 12.8 e 12.10 deste modelo, devendo ser contratadas as taxas de juros referentes ao Programa que o imóvel se enquadra, contempladas nos itens
+   2 e 6 deste modelo.
+
+30.824 v036 micro                                                                                                                          1
+                                 Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+RENDA FAMILIAR MENSAL BRUTA      VALOR DE VENDA OU COMPRA                                                                              ENQUADRAMENTO
+                                                                                                                                           (CONDIÇÕES)
+                                 Dentro do limite máximo do município
+                                                                                                                                     Renda até R$ 5.000,00
+                                 Acima do limite máximo do município, desde que até R$ 400 mil, se imóvel novo, usado,               Renda de R$ 5.0001,00
+                                 construção individual e imóvel CAIXA/AMV                                                            até R$ 9.600,00
+
+De R$ 0 até R$ 5.000,00                                                                                                              Renda de R$ 9.600,01
+                                                                                                                                     até R$ 13.000,00
+                                 Acima de R$ 400 mil até R$ 600 mil, se imóvel novo, usado e imóvel CAIXA/AMV
+
+                                 Até R$ 400 mil, se imóvel novo, usado, construção individual e imóvel CAIXA/AMV                     Renda de R$ 5.0001,00
+                                                                                                                                     até R$ 9.600,00
+De R$ 5.0001,00 até R$ 9.600,00
+                                                                                                                                     Renda de R$ 9.600,01
+                                 Acima de R$ 400 mil até 600 mil, se imóvel novo, usado e imóvel CAIXA/AMV                           até R$ 13.000,00
+
+De R$ 9.600,01 até R$ 13.000,00  Até 600 mil R$ 500 mil, se imóvel novo ou usado                                                     Renda de R$ 9.600,01
+                                                                                                                                     até R$ 13.000,00
+1.1.1 Para os proponentes que serão enquadrados nas faixas superiores, é utilizado (automaticamente) o seguinte código de exc eção:
+                                                                                                                                                                      2
+CÓDIGO             DESCRIÇÃO
+    320            NÃO COTISTA
+
+30.824 v036 micro
+                   Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+1.2 PMCMV ­ ENQUADRAMENTO RECORTE POPULACIONAL/TERRITORIAL
+
+1.2.1  O enquadramento dos municípios nos limites de valor de venda ou investimento se dará em observância a:
+
+       a)          Verificação da população com base no mais recente censo ou estimativa de população realizada pelo IBGE;
+
+       b)          Dados de hierarquia urbana publicada pelo IBGE por meio da pesquisa Região de Influência das Cidades; e
+
+       c)          Dados de arranjos populacionais publicados pelo IBGE pelo estudo Arranjos Populacionais e Concentração Urbanas do Brasil.
+
+1.2.2  A verificação do número de habitantes, bem como a classificação em região metropolitana, região integrada do entorno e capita l regional, dos municípios,
+       será com base na mais recente estimativa de população disponível no sítio eletrônico do IBGE, cuja relação dos municípios com o seu respectivo
+       enquadramento está disponível em http://www.caixa.gov.br/, menu superior à esquerda "Institucional", "Downloads", Categoria "FGTS ­ Tabela de
+       Municípios", acessando a última tabela publicada.
+
+1.2.3  A consulta aos municípios limítrofes é realizada no Sistema IBGE de Recuperação Automática ­ Sidra, endereço: https://sidra.ibge.gov.br, conforme
+       orientações abaixo:
+
+           na opção "TERRITÓRIO", em "Estrutura Político Administrativas", selecione "MUNICÍPIO";
+
+           informe o município que deseja fazer a pesquisa (se aparecer mais de um município, selecione o de interesse);
+
+           na opção "Localização no Mapa", selecione "Unidade de Federação e aguarde a geração do mapa.
+
+1.2.4 O enquadramento, se imóvel novo ou usado, é realizado pelo valor de venda e compra.
+
+1.2.5  O enquadramento para as modalidades de construção é realizado na forma abaixo:
+
+1.2.6      Aquisição de Terreno e Construção: valor do orçamento de obra aprovado pela CAIXA + Valor de Compra e Venda do Terreno;
+1.2.7
+           Construção em Terreno Próprio: valor do orçamento de obra aprovado pela CAIXA + Valor de Avaliação do Terreno pela CAIXA;
+
+           Operações vinculadas a empreendimento com doação de terreno:
+
+                    O valor adotado para a operação deverá ser o valor de investimento e estará limitado ao valor de avaliação do imóvel como se pronto
+                         estivesse e ao limite do município;
+
+                    O valor do terreno deverá ser contabilizado para o cálculo da contrapartida mínima do(s) proponente(s).
+
+       Para as modalidades reforma ou melhoria, o valor limite de venda ou investimento engloba o valor do imóvel no seu estado atua l, acrescido do valor das
+       benfeitorias a serem financiadas.
+
+       O valor total da operação, considerando o Valor de Financiamento + Financiamento de despesas acessórias + valor do FGTS + Rec ursos Próprios +
+       Subsídios + Cessão de Direitos Creditórios do FGTS Futuro, este último se houver, está limitado ao valor limite estabelecido para o município.
+
+30.824 v036 micro                                                                                                                             3
+                                 Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+1.3 PMCMV ­ REGRAS DE TRANSIÇÃO
+
+1.3.1  Exclusivamente nos municípios onde o valor de enquadramento foi reduzido conforme Tabela de Municípios, coluna: "Regra de Tra nsição Aplicável até o
+       Encerramento do Respectivo Contrato Conforme disposto na RCCFGTS nº 836/2017" e coluna: "Limite Valor do Imóvel da antiga CIR CEF nº 693/2015" é
+       permitida, se opção do proponente, a contratação de financiamento com valor do imóvel do limite anterior, enquanto houver uni dades a serem
+       comercializadas no empreendimento, conforme HH178, nas condições estabelecidas a seguir:
+
+                                                                                                               MUNICÍPIOS
+
+       Para operações de crédito com PJ, contratadas até 30 ABR 2016, as unidades produzidas poderão ser comercializadas com as PF, exclusivamente nos
+       casos de municípios, onde o valor de enquadramento dos imóveis foi reduzido.
+
+       Para operações de crédito com PJ, contratadas a partir de 31 MAI 2017 a 31 DEZ 2017, as unidades produzidas poderão ser comer cializadas com as PF,
+       exclusivamente nos casos de municípios, onde o valor de enquadramento dos imóveis foi reduzido.
+
+       Para operações de crédito com PJ, contratadas a partir de 02 JAN 2018 a 31 DEZ 2018, as unidades produzidas poderão ser comer cializadas com as PF,
+       exclusivamente nos casos de municípios onde o valor de enquadramento de imóveis foi reduzido.
+
+1.3.2  Para contratação com valor do imóvel no limite anterior, utilizar um dos códigos de Legislação abaixo:
+1.3.3
+         528 caso o cliente não tenha sido beneficiado com subsídio;
+
+         529 caso o cliente já tenha sido beneficiado com subsídio.
+
+       Conforme enquadramento, os municípios observarão como limite de valor de venda ou investimento o maior valor entre o valor vi gente até 30 JUN 2023 e o
+       valor da Tabela Populacional/Territorial vigente.
+
+2      TAXAS DE JUROS
+
+2.1 PMCMV ­ IMÓVEL NOVO E USADO
+
+                TAXA DE JUROS      OPERAÇÕES                                                                   *OPERAÇÕES SEM DESCONTO
+                BALCÃO % (a.a.)  COM DESCONTO                                                                                                                          4
+         RENDA FAMILIAR BRUTA
+                                      REGIÕES
+30.824 v036 micro
+                                  Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+       MENSAL (R$) SEM            N e NE                     CO, S e SE     N e NE     CO, S e SE        SEM REDUTOR                  COM REDUTOR
+            DEDUÇÕES                                                                                             0,5%                         0,5%
+
+                                  SEM REDUTOR 0,5%                             COM REDUTOR 0,5%
+
+                               Nominal Efetiva Nominal Efetiva Nominal Efetiva Nominal Efetiva Nominal Efetiva                        Nominal  Efetiva
+                                                                                                                                         5,63  5,7776
+       Limitada até 2.160,00   4,50 4,5940 4,75                 4,8548   4,00  4,0742  4,25      4,3338  6,13  6,3052                    5,56  5,7039
+                                                                                                                                         5,58  5,7249
+       De 2.160,01 a 2.850,00  4,75 4,8548 5,00                 5,1162   4,25  4,3338  4,50      4,5940  6,06  6,2312                    5,58  5,7249
+                                                                                                                                         5,58  5,7249
+       De 2.850,01 a 3.200,00  5,00 5,1162 5,25                 5,3782   4,50  4,5940  4,75      4,8548  6,08  6,2523                    6,50  6,6972
+                                                                                                                                         7,66  7,9347
+       De 3.200,01 a 3.500,00  5,25 5,3782 5,50                 5,6408   4,75  4,8548  5,00      5,1162  6,08  6,2523
+
+       De 3.500,01 a 4.000,00  6,00 6,1678 6,00                 6,1678   5,50  5,6408  5,50      5,6408  6,08  6,2523
+
+       De 4.000,01 a 5.000,00  7,00 7,2290 7,00                 7,2290   6,50  6,6972  6,50      6,6972  7,00  7,2290
+
+       De 5.000,01 a 9.600,00  *          *                  *  *        *          *  *         *       8,16  8,4722
+
+       * Já beneficiados com desconto a partir de 02/05/05.
+
+2.1.1  Para contratação à proponente já beneficiado com desconto a partir de 02/05/05, utilizar um dos seguintes códigos de exceção:
+
+       CÓDIGO      DESCRIÇÃO
+           206     MUTUÁRIO JÁ BENEFICIADO COM DESCONTO FGTS
+           612     JÁ TEVE SUBSÍDIO E CONCEDE DESCONTO COTISTA FGTS
+
+3      PMCMV ­ REDUTOR DE 0,5% NA TAXA DE JUROS PARA COTISTA DE CV FGTS
+3.1
+3.1.1  É concedido um redutor de 0,5% na taxa de juros para propostas nas quais pelo menos um dos proponentes que comprovem a titula ridade de CV do FGTS
+3.1.2  com, no mínimo, 03 anos de trabalho sob o regime do FGTS, somado os períodos trabalhados, consecutivos ou não.
+
+       Para trabalhador licenciado pelo INSS e, desde que não haja quebra de vínculo empregatício, o tempo é contado da data de sua contratação pela empresa
+       da qual se licenciou, podendo ser somado a períodos relativos a outros vínculos empregatícios.
+
+       Para contratações nessas condições devem ser utilizados os seguintes códigos de exceção:
+
+       CÓDIGO      DESCRIÇÃO
+             284   REDUTOR 0,5% COTISTA FGTS ­ IMÓVEL NOVO
+
+30.824 v036 micro                                                                                                                                       5
+                                  Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+   374             REDUTOR 0,5% COTISTA FGTS ­ IMOVEL USADO
+
+   375             JA TEVE SUBSÍDIO E CONCEDE DESCONTO COTISTA FGTS ­ IMÓVEL USADO
+
+   612             JA TEVE SUBSÍDIO E CONCEDE DESCONTO COTISTA FGTS ­ IMÓVEL NOVO
+
+3.1.2.1 Os códigos de exceção listados abaixo são incluídos automaticamente pelo sistema:
+
+   CÓDIGO          DESCRIÇÃO
+         412       NÃO COTISTA ­ IMÓVEL NOVO E IMÓVEL USADO
+         413       REDUTOR 0,5% COTISTA FGTS ­ IMÓVEL NOVO E IMÓVEL USADO
+
+4  PMCMV ­ PRAZO DE AMORTIZAÇÃO, QUOTA E VALORES MÍNIMOS DE FINANCIAMENTO
+
+4.1 Para aquisição de imóvel novo ou usado, o prazo de amortização é contado a partir da assinatura do contrato.
+
+4.2 Nas operações de Construção em Terreno Próprio, Aquisição de Terreno e Construção, Conclusão, Ampliação, Reforma e/ou Melhori a, o prazo de
+           amortização é contado, a partir do término do prazo de construção ou da conclusão da obra, o que ocorrer primeiro.
+
+4.3 A quota é definida em função do sistema de amortização e modalidades de financiamento, sendo aplicada sobre o valor do imóvel /operação, respeitando a
+           quota estabelecida na Avaliação de Risco do Tomador (SIRIC).
+
+4.4 Seguem abaixo, informações sobre quota, valor de financiamento, prazos, modalidades e renda familiar mensal bruta:
+
+   PMCMV           FGTS  MODALIDADES                QUOTA MÁXIMA                           RENDA FAMILIAR VALOR MÍNIMO DE            PRAZO (MESES)
+
+   (IMÓVEL RESIDENCIAL URBANO)                 SAC           SFA/TP                        MENSAL BRUTA(R$) FINANCIAMENTO            MÍNIMO  MÁXIMO
+
+   Imóvel Novo
+
+                                                                                           Todas as rendas
+
+   Construção em Terreno Próprio                                                           previstas no
+
+                                               80%                80%                      programa               R$ 50.000,00       120     420
+
+   Aquisição de Terreno e Construção                                                       Até 9.600,00
+   Imóvel Usado
+   Reforma ou Melhoria PCD*                    80%                60%                                                                240     360
+                                               50%                40%
+                                                                                           Até 3.000,00                 R$ 20.00,00
+
+   Conclusão, Ampliação, Reforma ou Melhoria*                                                                                        120     420
+
+30.824 v036 micro                                                                                                                                   6
+                                Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+   Imóveis         CAIXA/AMV                       100% do valor de compra e venda          Todas as rendas     R$ 5.000,00
+                                                                                                  previstas no
+   Arrematado em Leilão CAIXA)  (Adjudicado,                                                       programa
+                                                   90% do Valor de 80% do Valor de
+                                                   Avaliação do Imóvel Avaliação do Imóvel
+
+   * Para essas modalidades os valores máximos de financiamento são de até R$ 50.000,00.
+
+4.5 Em virtude do estado de calamidade pública decretado para o Estado do Rio Grande do Sul é permitida, a partir de 20/05/2024, a concessão de carência de
+           até 06 (seis) meses para as contratações de imóveis localizados neste Estado e que tenham optado pelo débito em conta, respei tando o prazo máximo da
+           modalidade, para todas as operações, exceto Conclusão, Ampliação, Reforma ou Melhoria e Reforma ou Melhoria PCD.
+
+4.5.1 Demais orientações sobre o comportamento do financiamento habitacional durante o prazo de carência estão dispostas no HH200.
+
+4.6 Os proponentes podem optar pelas quotas do HH200 versão 119, se atendida a regra de transição descrita no.
+
+4.7 Os proponentes podem optar pelas quotas para imóvel usado constantes no HH200 versão 122, se atendida a regra de transição descrita no item 1.3 sobre
+           PMCMV ­ REGRAS DE TRANSIÇÃO deste modelo.
+
+5  PRÓ-COTISTA ­ TAXA DE JUROS, ENQUADRAMENTO, PRAZO DE AMORTIZAÇÃO, QUOTA E VALORES MÍNIMOS DE FINANCIAMENTO
+
+5.1 Os valores máximos de financiamento consideram o menor valor entre a avaliação CAIXA e o valor de compra e venda.
+
+5.2 O enquadramento se dará pelo valor do imóvel avaliado pela engenharia, tanto na modalidade Aquisição de Imóvel Novo, Construç ão em Terreno Próprio e
+           Aquisição de Tereno e Construção (imóvel como pronto estivesse), limitado a R$ 500.000,00.
+
+5.3 A quota é definida em função do sistema de amortização e modalidades de financiamento, sendo aplicada sobre o valor do imóvel /operação, respeitando a
+           quota estabelecida na Avaliação de Risco do Tomador (SIRIC).
+
+5.4 Abaixo, informações sobre modalidades, quota, taxa de juros, prazos e valores de financiamento:
+
+     PRÓ-COTISTA MODALIDADES          QUOTA MÁXIMA  TAXA DE JUROS BALCÃO %                             PRAZO (meses)           VALOR DE
+   (IMÓVEL RESIDENCIAL URBANO)                                        (a.a.)                         MÍNIMO MÁXIMO     FINACIAMENTO (R$)
+
+                                      SAC  SFA/TP   NOMINAL                                 EFETIVA                    MÍNIMO MÁXIMO**
+
+   Aquisição Imóvel Novo*
+
+   Construção em Terreno Próprio      60%  60%      8,66                                    9,0121   60         420    80.000       300.000
+
+   Aquisição de Terreno e Construção
+
+   * Incluídas as unidades individuais, unidades vinculadas a empreendimento Caixa, ainda que unidade complementar, e Alocação de Recursos.
+   ** Financiamento limitado a R$ 300.000 (60% de R$ 500.000).
+
+30.824 v036 micro                                                                                                                            7
+                   Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+5  CLASSE MÉDIA ­ TAXA DE JUROS, ENQUADRAMENTO, PRAZO DE AMORTIZAÇÃO, QUOTA E VALORES MÍNIMOS DE FINANCIAMENTO
+
+6.1 O público-alvo do programa é constituído por famílias com renda mensal bruta limitada a R$ 13.000,00 (treze mil reais), que atendam as mesmas condições
+           estabelecidas para as operações com recursos FGTS.
+
+6.2 O enquadramento, se imóvel novo ou usado, é realizado pelo valor de venda e compra.
+
+6.3 O enquadramento para as modalidades de construção é realizado na forma abaixo:
+
+     Aquisição de Terreno e Construção: valor do orçamento de obra aprovado pela CAIXA + Valor de Compra e Venda               do Terreno;
+
+     Construção em Terreno Próprio: valor do orçamento de obra aprovado pela CAIXA + Valor de Avaliação do Terreno pela CAIXA;
+
+     Operações vinculadas a empreendimento com doação de terreno:
+
+                    O valor adotado para a operação deverá ser o valor de investimento e estará limitado ao valor de avaliação do imóvel como se pronto
+                   estivesse e ao limite do município;
+
+                    O valor do terreno deverá ser contabilizado para o cálculo da contrapartida mínima do(s) proponente(s).
+
+6.4 A quota é definida em função do sistema de amortização e modalidades de financiamento, sendo aplicada sobre o valor do imóvel /operação, respeitando a
+           quota estabelecida na Avaliação de Risco do Tomador (SIRIC).
+
+6.5 Abaixo, informações sobre modalidades, quota, taxa de juros, prazos e valores de financiamento:
+
+       PROGRAMA CLASSE MÉDIA             QUOTA MÁXIMA  TAXA DE JUROS BALCÃO %                          PRAZO (meses)                  VALOR DE
+                 MODALIDADES                                             (a.a.)                      MÍNIMO MÁXIMO             FINACIAMENTO (R$)
+
+   (IMÓVEL RESIDENCIAL URBANO)           SAC  SFA/TP   NOMINAL                           EFETIVA                               MÍNIMO       MÁXIMO**
+
+            Aquisição Imóvel Novo        80%  80%                                                    SFA/TP:
+      Construção em Terreno Próprio                                                                     120
+   Aquisição de Terreno e Construção                               10,00                 10,47                            420  100.000      400.000
+     Imóvel Usado (Região N, NE e CO)                                                                  SAC:
+    Imóvel Usado (Região Sul e Sudeste)  60%  60%                                                       240
+
+30.824 v036 micro                                                                                                                                     8
+                               Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+7  PMCMV, PRÓ-COTISTA E CLASSE MÉDIA ­ OPERAÇÕES ENVOLVENDO IMÓVEIS CAIXA/AMV (ADJUDICADOS/ARREMATADOS EM LEILÃO CAIXA)
+
+7.1 É exigido do(s) proponente(s) o pagamento de 5% do valor mínimo de venda do imóvel, em recursos próprios, a título de sinal, conforme descrito no
+           MO19603, sendo esta exigência dispensada para empregado Caixa respeitadas as demais regras e condições da carta de crédito.
+
+7.2 Nas operações de Aquisição de Imóveis CAIXA/AMV (Adjudicados, Arrematados em Leilão CAIXA), o valor total da operação, consid erando Valor de
+           Financiamento + Financiamento de despesas acessórias+ Financiamento de comissão do leiloeiro + valor do FGTS + Recursos Própr ios + Subsídios, está
+           limitado ao valor limite estabelecido para município.
+
+8  PMCMV E CLASSE MÉDIA ­ REGRAS PARA APLICAÇÃO CÁLCULO DA QUOTA
+
+                   MODALIDADE                                           REGRA PARA CÁLCULO DA QUOTA NO SIRIC
+
+                                            Menor Valor entre:
+
+   Aquisição de Imóvel Novo ou Usado        valor de venda e compra e;
+
+                                            avaliação total do imóvel efetuado pela CAIXA.
+
+                                            Menor Valor entre:
+
+                                            avaliação do imóvel como se pronto estivesse efetuada pela CAIXA e;
+
+   Construção em Terreno Próprio e Reforma
+
+   e/ou Ampliação, Reforma ou Melhoria      somatório dos valores do terreno e do orçamento aceito pela CAIXA, constante do laudo de análise
+
+                                            individual.
+
+                                            O valor máximo de financiamento está limitado ao valor do orçamento aprovado pela CAIXA.
+
+                                            Valor do orçamento aprovado pela CAIXA acrescido do menor dos valores atribuídos ao terreno, entre o valor
+                                            de venda e compra e o valor de avaliação, constante no laudo individual.
+
+   Aquisição de Terreno e Construção        O valor calculado acima está limitado ao valor de avaliação do imóvel pela CAIXA, considerado pronto.
+
+                                            O valor destinado ao financiamento do terreno é limitado a 80% do menor dos valores: entre o valor de venda e
+                                            compra e o valor de avaliação.
+
+   Imóvel CAIXA/AMV (Adjudicado/ Leilão
+   CAIXA ou Lote Urbanizado Patrimonial O cálculo da quota deve observar a regra estabelecida na tabela de quotas.
+   residencial)
+
+8.1 As despesas acessórias são financiadas limitadas até 5% do valor de financiamento.
+
+8.2 Para imóveis CAIXA/AMV a quota máxima é de até 100% do Valor de Compra e Venda, observada a exigência de pagamento de sinal, se for o caso,
+           conforme AD084, bem como as quotas de financiamento máximas dispostas no MO30769.
+
+30.824 v036 micro                                                                                                                                          9
+                        Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+9     PMCMV, PRÓ-COTISTA E CLASSE MÉDIA ­ FINANCIAMENTO DE DESPESAS ACESSÓRIAS OU CARTORÁRIAS
+
+9.1 Possibilidade de financiar o valor destinado para pagamento das despesas acessórias/cartorárias exigidas para registro do con trato.
+
+9.2 O valor é deduzido do total de financiamento contratado.
+
+9.3 O financiamento das despesas acessórias é de até 5% do valor de financiamento.
+
+10    PMCMV, PRÓ-COTISTA E CLASSE MÉDIA ­ FINANCIAMENTO DE DESPESAS COM A COMISSÃO DE LEILOEIRO
+10.1
+      As despesas com comissão de leiloeiro, de que trata a Lei nº 9.514/1997, Art. 27, §3º, inciso II, destinadas à realização de leilão público, exclusivamente
+a)    para fins de destinação dos imóveis retomados pelos agentes financeiros credores de operações de financiamento FGTS, podem se r financiadas desde que
+b)    atendam aos seguintes critérios:
+10.2
+      imóveis originalmente contratados no programa Apoio à Produção de Habitações, Carta de Crédito Associativo, Aquisição de Imóv el Novo, Construção em
+      Terreno Próprio ou Aquisição de Terreno e Construção e;
+
+      imóveis desembaraçados judicialmente.
+
+      O valor do financiamento está limitado a soma Valor de Financiamento + Financiamento de despesas acessórias+ Financiamento de comissão do leiloeiro +
+      valor do FGTS + Recursos Próprios + Subsídios.
+
+11    PMCMV, PRÓ-COTISTA E CLASSE MÉDIA ­ HIERARQUIZAÇÃO E SELEÇÃO DE PROPOSTAS
+11.1
+      Ocorre de forma automatizada nas situações em que o volume de recursos para enquadramento das propostas for superior aos recu rsos orçamentários
+11.2  alocados para o programa CCFGTS.
+
+      São prioritárias as propostas de pessoas físicas com renda familiar mensal bruta limitada a R$ 5.000,00 e que preencham o mai or número dentre os
+      seguintes critérios:
+
+   PMCMV/ Programa                                         CRITÉRIOS DE HIERARQUIZAÇÃO E SELEÇÃO DE PROPOSTAS
+        Classe Média
+                         sejam destinadas à construção ou aquisição de unidades habitacionais novas;
+   Programa Carta de     apresentem maior participação de recursos próprios do proponente ao crédito, em relação ao valor de venda ou investimento da
+    Crédito Individual
+                            unidade habitacional; e
+            PMCMV        sejam pleiteadas por titular de conta vinculada do FGTS.
+
+30.824 v036 micro        tenham sido apresentadas por estados, municípios, Distrito Federal ou órgãos e entidades das respectivas administrações diret a ou
+                            indireta e contem com contrapartida do ente público, no sentido de reduzir o valor do financiamento;
+
+                         tenham sido priorizadas por Conselhos Estaduais ou Municipais de Habitação e Desenvolvimento Urbano ou órgãos equivalentes;
+                         sejam destinadas a grupos que contem com maior número percentual de componentes detentores de conta vinculada do FGTS;
+
+                                                                                                                                                                                                                                   10
+                     Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+Programa Carta de     apresentem maior volume de contrapartida do grupo associativo ou de terceiros em relação ao valor de investimento das unidade s;
+Crédito Associativo   apresentem menor número de unidades; e
+                      outros critérios de priorização de propostas locais desde que técnicos, objetivos e previamente divulgados.
+         PMCMV        apresentem maior participação de recursos do proponente em relação ao valor de venda ou investimento das unidades; e
+                      apresentem menor número de unidades.
+ Programa Apoio à
+       Produção       sejam destinadas a famílias com renda familiar mensal limitada a R$ 13.000,00;
+       Programa       contemplem cidadãos idosos ou deficientes ou mulheres chefes-de-família; e
+                      apresentem maior valor de contrapartida.
+    PRÓ-COTISTA
+
+11.3 Os critérios são equivalentes entre si e, para efeito de desempate, serão considerados na ordem em que se encontram dispostos , seguidos ainda da ordem
+           cronológica de recebimento das propostas pela CAIXA.
+
+12    PMCMV ­ CONDIÇÕES GERAIS ­ DESCONTOS CONCEDIDOS
+12.1
+      Os descontos concedidos nos financiamentos às Pessoas Físicas (recursos FGTS), conjunta ou alternativamente, destinam -se à redução no valor das
+12.2  prestações (desconto equilíbrio), ou para complementar a parcela de recursos próprios para pagamento de parte da aquisição ou construção do imóvel
+12.3  (desconto complemento).
+12.4
+      São concedidos, uma única vez a cada beneficiário, a partir de 02 MAI 2005.
+
+      Podem ser beneficiárias de descontos as pessoas físicas com renda familiar mensal bruta limitada a R$ 5.000,00, proponentes d e financiamentos para
+      aquisição ou construção de imóvel.
+
+      A Relação de Municípios e das Regiões Metropolitanas para enquadramento do desconto em função das Regiões do Território Nacio nal está disponível no
+      endereço https://www.caixa.gov.br/, menu superior à esquerda "Institucional"," Download", Categoria "FGTS ­ Tabela de Municípios", acessando a última
+      Tabela publicada.
+
+12.5 DESCONTO PARA FINS DE PAGAMENTO DE PARTE DA AQUISIÇÃO OU CONSTRUÇÃO DO IMÓVEL
+
+12.5.1 O desconto somente será concedido na hipótese em que o resultado do cálculo disposto no item 12.5.2 seja igual ou superior a R$ 1.500,00 e para famílias
+            com renda familiar mensal bruta limitada a R$ 4.000,00 e, nos casos em que o cálculo de subsídio apresentar valores abaixo de ssa referência, serão
+            utilizados os seguintes códigos de exceção (automaticamente) para prosseguimento da operação:
+
+      CÓDIGO       DESCRIÇÃO
+           412     UTILIZADO QUANDO O RESULTADO DO SUBSÍDIO É INFERIOR A R$ 1.500,00.
+
+30.824 v036 micro                                                                                                                                       11
+                   Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+12.5.2 Os descontos são concedidos a partir de R$ 1.500,00 e estão limitados, individualmente, a R$ 65.000,00 para a região Norte e a R$ 55.000,00 para as
+            demais regiões, sendo calculados de acordo com a fórmula especificada a seguir:
+                                                                                        D = Frenda X (1 + (FD/R + Fdfin + FUH) /100) X Fpop)
+                       Onde:
+                       D: valor do desconto para fins de pagamento de parte da aquisição ou construção do imóvel;
+
+                       Frenda: Fator renda familiar mensal bruta do beneficiário;
+                       FD/R: Fator comprometimento despesa/renda médio da unidade federada;
+                       Fdfin: Fator demanda de recursos pela família frente ao valor de venda ou investimento do imóvel objeto do financiamento;
+                       FUH: Fator características da unidade habitacional;
+                       Fpop: Fator recorte populacional.
+
+12.5.3 O Fator renda familiar mensal bruta do beneficiário será calculado de acordo com a fórmula especificada a seguir:
+                                                                                           Frenda = a*(R ­ Rdmáx)² + b*(R ­ Rdmáx) + Dmáx
+                                                                                                                           Sendo:
+                                                                                                           a = -b / (2*(Rdmín ­ Rdmáx))
+                                                                                           b = (2*Dmáx*(Dmín/Dmáx ­ 1)) / (Rdmín ­ Rdmáx)
+
+                       Onde:
+                       R: Renda familiar mensal bruta do beneficiário;
+                       Dmáx: Valor limite máximo de desconto atribuído ao parâmetro, equivalente a R$ 50.000,00;
+                       Dmín: Valor limite mínimo de desconto atribuído ao parâmetro, equivalente a R$ 1.900,00;
+                       Rdmáx: Valor limite máximo da renda familiar mensal bruta do beneficiário correspondente ao Dmáx, equivalente a R$ 1.750,00;
+                       Rdmín: Valor limite mínimo da renda familiar mensal bruta do beneficiário correspondente ao Dmín equivalente a R$ 3.700,00.
+
+12.5.4 O Fator comprometimento despesa/renda médio da unidade federada será definido pelos valores indicados a seguir:
+
+30.824 v036 micro                                                                                     12
+                                    Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+Região        Centro-Oeste          Nordeste        Norte  Sudeste                          Sul
+
+Unidade   DF  GO   MS       MT  AL  BA CE MA PB PE  PI RN SE AC AM AP PA RO RR TO ES MG RJ  SP PR RS SC
+Federada
+
+FD/R 7,17 -0,68 -3,49 -0,13 -8,14 -5,03 -7,87 0,69 -6,78 -5,31 -8,13 0,58 -6,18 3,44 0,56 10 5,45 -10 -4,83 -3,17 -5,10 -5,68 -1,78 -5,68 -5,13 -1,09 4,58
+
+12.5.5 O Fator demanda de recursos pela família frente ao valor de venda ou investimento do imóvel objeto do financiamento será calc ulado de acordo com a
+            fórmula especificada a seguir:
+
+                                                                                                      Fdfin = 10 ­ 40 * ((Dfin/VVI) ­ 0,5)
+                                                                                       Sendo: Dfin = 0,25 * R * (((1+j) ^420- 1)/((1+j)^ 420 *j))
+                       Onde:
+                       R: Renda familiar mensal bruta do beneficiário;
+                       j: juros mensais do sistema FGTS;
+                       VVI: Valor de venda ou investimento do imóvel objeto do financiamento, limitado a 67,5% dos limites de valor de venda ou investime nto do imóvel
+                       definidos para o município.
+                       Observação: O termo (+) ^ corresponde ao fator de capitalização fixado em 420 meses (35 anos), considerando taxa de juros mensal do
+                       mutuário.
+12.5.6 O Fator características da unidade habitacional será calculado de acordo com as fórmulas especificadas a seguir, conforme ti po do imóvel objeto do
+            financiamento:
+              a) apartamento: FUH = 10 * (A ­ 39)/(59 ­ 39)
+              b) casa: FUH = 10 * (A ­ 46)/(66 ­ 46)
+                       Onde:
+                       A: área real privativa coberta-padrão do imóvel, nos termos da NBR 12.721/2006, para unidades habitacionais em regime de propriedade
+                       condominial, e área construída, descontadas as áreas de padrão diferente, projeções de beirais e garagens, para unidades habi tacionais isoladas.
+                       Observação: A pontuação do FUH observará o limite máximo de 10 pontos e não assumirá valores negativos.
+
+30.824 v036 micro                                                                                                      13
+                                  Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+12.5.7 O Fator recorte populacional/territorial será definido pelos valores indicados na Tabela a seguir:
+
+                                                         POPULAÇÃO DO MUNICÍPIO (NÚMERO DE HABITANTES) FAIXA DE RENDA ATÉ R$ 5.000,00
+
+                                                      MUNICÍPIOS LOCALIZADOS NA REGIÃO NORTE*                              DEMAIS MUNICÍPIOS DO PAÍS
+
+        RECORTE POPULACIONAL TERRITORIAL              > ou = a  < que 750 mil  < que 300 mil  < que 100 mil      > ou = a  < que 750 mil  < que 300 mil  < que 100
+                                                      750 mil     e > ou = a     e > ou = a                      750 mil     e > ou = a     e > ou = a       mil
+    Grande Metrópole Nacional e Metrópoles                          300 mil        100 mil                                     300 mil        100 mil
+    Nacionais e seu respectivos Arranjos
+    Populacionais                                     -         -              -                           -     1,2       1,15                1,1       1,05
+    Metrópoles e seus respectivos Arranjos
+    Populacionais                                     1,63      1,63           1,50                        1,50  1,2       1,1                 1,05      1
+
+    Capitais Regionais e seus respectivos Arranjos    -         1,63           1,50                        1,50  1,1       1,1                 1,05      0,9
+    Populacionais
+
+    Centros Sub-regionais, Centros de Zona e Centros  -         1,50           1,44                        1,25  -         1,05                1         0,85
+    Locais e seus respectivos Arranjos Populacionais
+
+12.5.8 O fator comprometimento despesa/renda, fator de demanda de recursos pela família frente ao valor de venda ou investimento e o fator de características da
+                unidade habitacional terão peso limitado a 10 pontos, cada um, sendo que a pontuação referente ao fator características da unidade habitacional sofrerá
+                apenas variação positiva.
+
+12.5.9 No caso de operações de financiamento de imóveis prontos comercializados no âmbito do Programa Carta de Crédito Individual, o desconto será limitado a
+                R$ 49.500,00.
+
+12.5.10 O desconto para fins de pagamento de parte da aquisição ou construção do imóvel será reduzido nos percentuais e situações seg uintes:
+
+12.5.11 A partir de 04 DEZ 2023:
+
+a)  20%, para operações de financiamento enquadradas na modalidade de construção em terreno próprio do beneficiário, exceto quand o doado pelo poder
+
+    público local;
+
+b)  70%, para operações de financiamento com pessoas físicas que componham família unipessoal ­ Fator Social;
+
+c)  50%, para operações de aquisição de imóveis usados;
+
+d)  30%, para operações de aquisição de imóveis CAIXA/AMV (Adjudicado, Arrematado em Leilão CAIXA).
+
+30.824 v036 micro                                                                                                                                              14
+                   Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+12.5.12  Os redutores de que tratam as alíneas "b" poderão ser aplicados de forma cumulativa aos demais.
+12.5.13  Caracteriza-se como família unipessoal aquela composta por um único indivíduo que não possua dependentes.
+
+12.5.14 Não se aplica o redutor da alínea "b" quando ocorrer a descaracterização de família unipessoal com a participação de pelo men os dois proponentes ou de
+                dependente no financiamento.
+
+12.5.15 No SIOPI, são necessários a inclusão da SE 238 na tela "Complementar Dados" e o cadastro dos cônjuges, coobrigado ou dependen te (inclusive menor)
+                na tela "Participantes", para a concessão do desconto sem o redutor da alínea "b".
+
+12.5.16 Os dados do(s) proponente(s) beneficiário(s) do desconto são cadastrados automaticamente no SICDM, informando a condição de B ENEFICIÁRIO DO
+                DESCONTO DO FGTS.
+
+12.6 DEVOLUÇÃO DO DESCONTO PARA FINS DE PAGAMENTO DE PARTE DA AQUISIÇÃO OU CONSTRUÇÃO DO IMÓVEL
+
+12.6.1   No caso de transferência ou liquidação antecipada, dos contratos de financiamento habitacional assinados a partir de 04 JAN 2 016, até o 5º ano de
+         vigência do contrato, o desconto, deverá ser restituído proporcionalmente, pelo mutuário, o desconto recebido para complement ar o pagamento de parte
+         da aquisição ou construção do imóvel, com a aplicação da fórmula a seguir:
+
+                   R = [(D/60) x P] x F
+
+12.6.2          Onde:
+                R = valor do desconto a ser restituído
+12.6.3          D = valor do desconto originalmente concedido
+12.6.4          P = número de prestações antecipadas limitada a sexagésima prestação
+                F = TR (taxa referencial) acumulada entre a data de assinatura do contrato de financiamento e a data do evento.
+
+         Os contratos assinados a partir de 04 JAN 2016, com utilização do código de legislação 489, enquadramento no HH200 079 não é devida a devolução do
+         desconto conforme item anterior.
+         Os contratos assinados a partir de 02 JAN 2018, com utilização do código de legislação 528, é devida a devolução do desconto.
+         Nos casos de amortização extraordinária ou redução do prazo de amortização, será restituído, pelo mutuário, proporcionalmente , o valor do desconto
+         recebido para complementar o pagamento de parte da aquisição ou construção do imóvel (desconto complemento), calculado de aco rdo com a aplicação
+         da fórmula a seguir:
+
+30.824 v036 micro                                                                                                   15
+                           Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+                                                    Dv = [(AE/VF)*D] *F
+
+        Onde:
+
+        Dv = valor do desconto a ser devolvido;
+
+        AE = valor da amortização extraordinária;
+
+        VF = valor do financiamento concedido;
+
+        D = valor do desconto concedido.
+
+        F = fator acumulado da TR (taxa referencial) entre a data de assinatura do contrato de financiamento e a data do evento.
+
+12.7 DESCONTO PARA REDUÇÃO NO VALOR DAS PRESTAÇÕES
+
+12.7.1 O desconto para fins de redução no valor das prestações é representado pela cobertura da remuneração dos agentes financeiros, equivalente ao somatório
+                dos valores referentes ao diferencial de juros e a tarifa de administração ­ TA.
+
+12.7.2  O somatório dos valores pagos pelo FGTS, a título de desconto referente ao diferencial de juros e TA, será limitado a 75% do valor do saldo devedor
+        inicial da operação de financiamento.
+
+12.7.3  O diferencial de juros e a TA de que tratam, respectivamente, o item 12.8 e 12.10 deste modelo serão pagos à vista, suportados pelo FGTS, descontados
+        à Taxa Referencial do Sistema Especial de Liquidação e Custódia (Selic), acumulada nos 3 meses anteriores, anualizada, e fixa da a cada início de
+        trimestre, considerando a data no primeiro dia útil dos meses de Janeiro, Abril, Julho e Outubro e duas casas decimais sem ar redondamento.
+
+12.7.4  A taxa Selic a ser utilizada está disponível no endereço https://www.caixa.gov.br/, menu superior à esquerda "Institucional", "Download", Categoria
+        "FGTS ­ Taxa SELIC".
+
+12.7.5  O desconto para redução do valor da prestação é devolvido ao FGTS, pela CAIXA, na ocorrência de liquidação antecipada da dívi da, amortização
+        extraordinária, transferência da dívida ou redução de prazo de amortização, acrescido da atualização pelo mesmo índice aplica do às contas vinculadas do
+        FGTS.
+
+12.8 DIFERENCIAL DE JUROS
+
+12.8.1  Desconto destinado a reduzir o valor da prestação por meio da redução da taxa de juros do financiamento, podendo ser concedid o pelo FGTS aos
+12.8.2  proponentes PF com renda familiar bruta mensal até R$ 5.000,00.
+12.8.3
+        A taxa de juros com desconto para redução da prestação corresponde à diferença entre a taxa de juros sem desconto e o descont o concedido pelo FGTS
+        para redução da prestação.
+
+        Os percentuais adotados constam na tabela abaixo:
+
+30.824 v036 micro                                                                                                                 16
+                                   Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+                                          Aquisição de Imóvel Novo e Usado
+
+                                                               N e NE                                       CO, S e SE
+
+        Renda Bruta Familiar - R$   Taxa   DIF                 Taxa      DIF    Taxa           Taxa   DIF   Taxa          DIF  Taxa
+           Limitada até 2.160,00   FGTS¹  MUT²                 MUT³    FGTS      AF           FGTS¹  MUT²   MUT³        FGTS    AF
+
+                                   3,97%  0,53% 4,50% 1,63% 6,13% 3,97%                              0,78% 4,75% 1,38%         6,13%
+
+        de 2.160,01 a 2.850,00     3,90%  0,85%                4,75%   1,31%    6,06%         3,90%  1,10%  5,00%       1,06%  6,06%
+        de 2.850,01 a 3.200,00     3,92%  1,08%                5,00%   1,08%    6,08%         3,92%  1,33%  5,25%       0,83%  6,08%
+        de 3.200,01 a 3.500,00                                 5,25%   0,83%    6,08%         3,92%  1,58%  5,50%       0,58%  6,08%
+        de 3.500,01 a 4.000,00     3,92% 1,33%
+        de 4.000,01 a 5.000,00
+                                   3,92% 2,08%                 6,00%   0,08%    6,08%         3,92%  2,08%  6,00%       0,08%  6,08%
+                                   4,84% 2,16%                 7,00%   0,00%    7,00%         4,84%  2,16%  7,00%       0,00%  7,00%
+
+        de 5.000,01 a 9.600,00     6,00% 2,16% 8,16% 0,00% 8,16% 6,00% 2,16% 8,16% 0,00% 8,16%
+
+        Legenda:
+
+        Taxa FGTS ¹: Taxa de juros paga pela CAIXA ao FGTS.
+
+        DIF MUT ²: Diferencial de juros pago pelo mutuário à CAIXA, a título de remuneração.
+
+        Taxa MUT ³: Soma da taxa de juros com diferencial de juros pagos pelo mutuário.
+
+        DIF FGTS : Diferencial de juros pago pelo FGTS à CAIXA a título de desconto concedido ao mutuário.
+
+        Taxa AF : Taxa final recebida pelo agente financeiro.
+
+12.8.4  Os mutuários titulares de conta vinculada, com no mínimo 3 (três) anos de trabalho sob o regime do FGTS, terão as taxas nomin ais de juros reduzidas em
+        0,5% (cinco décimos por cento) ao ano.
+
+12.9 FERRAMENTA DE APOIO AO USUÁRIO PARA CÁLCULO DO DESCONTO
+
+12.9.1 Simulador disponibilizado na intranet ­ https://siopi.caixa/siopi-web/.
+
+30.824 v036 micro                                                                                                                     17
+                                 Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+12.10 TARIFA DE ADMINISTRAÇÃO ­ TA
+
+12.10.1 O desconto relativo à tarifa de administração ­ TA, de até R$ 25,00, até a liquidação do contrato, será concedido a pessoas físicas com renda familiar
+                mensal bruta limitada a R$ 2.850,00.
+
+13    PRÊMIOS DE SEGURO
+13.1      As alíquotas do MIP são aplicadas sobre o valor do saldo devedor e as alíquotas do DFI e DFC, este último se optado pelo clie nte, é aplicada sobre o
+
+      valor da garantia.
+
+13.2 PMCMV E PRÓ-COTISTA/PMCMV ­ RENDA FAMILIAR MENSAL BRUTA ATÉ R$ 13.000,00:
+
+      a) CAIXA Residencial (Habitacional PMCMV e Habitacional Mais) ­ MIP:
+
+                   MIP ­ CAIXA RESIDENCIAL (HABITACIONAL PMCMV E HABITACIONAL MAIS) - %
+
+                   FAIXA ETÁRIA ALÍQUOTA FAIXA ETÁRIA ALÍQUOTA              FAIXA ETÁRIA             ALÍQUOTA
+
+                   18 a 25 anos     0,0082         41 a 45 anos  0,0244     61 a 65 anos             0,1296
+
+                   26 a 30 anos     0,0085         46 a 50 anos  0,0359     66 a 70 anos             0,2005
+
+                   31 a 35 anos     0,0108         51 a 55 anos  0,0645     71 a 75 anos             0,3729
+
+                   36 a 40 anos     0,0144         56 a 60 anos  0,0764     76 a 80 anos e 06 meses  0,4566
+
+      b) Tokio Marine ­ MIP ­ Imóvel Residencial:
+
+                                                   MIP ­ TOKIO MARINE ­ %
+
+                   Faixa Etária Alíquota Faixa Etária Alíquota              Faixa Etária             Alíquota
+
+                   18 a 25 anos     0,01037        41 a 45 anos  0,02589    61 a 65 anos             0,13721
+                   26 a 30 anos     0,01039        46 a 50 anos  0,03651    66 a 70 anos             0,21778
+                   31 a 35 anos     0,01206        51 a 55 anos  0,06624    71 a 75 anos             0,39351
+                   36 a 40 anos     0,01695        56 a 60 anos  0,07745    76 a 80 anos e 06 meses  0,55776
+
+30.824 v036 micro                                                                                                   18
+                                 Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+      c) DFI:
+
+                                                                 DFI        %
+                                 CAIXA RESIDENCIAL HABITACIONAL PMCMV   0,0071
+                                                                        0,0135
+                                   CAIXA RESIDENCIAL HABITACIONAL MAIS  0,00889
+                                                        TOKIO MARINE
+
+13.3  PRÓ-COTISTA­ RENDA FAMILIAR MENSAL BRUTA ACIMA DE R$ 13.000,00
+        a) CAIXA Residencial (Habitacional FGTS, Habitacional Especial FGTS e Habitacional Especial Ampliado FGTS) ­ MIP:
+
+                   MIP ­ CAIXA RESIDENCIAL (HABITACIONAL FGTS, HABITACIONAL ESPECIAL FGTS E HABITACIONAL
+                                                                          ESPECIAL AMPLIADO FGTS) %
+
+                   FAIXA ETÁRIA ALÍQUOTA FAIXA ETÁRIA ALÍQUOTA          FAIXA ETÁRIA             ALÍQUOTA
+
+                   18 a 25 anos  0,0093    41 a 45 anos  0,0252         61 a 65 anos             0,2731
+
+                   26 a 30 anos  0,0096    46 a 50 anos  0,0386         66 a 70 anos             0,3259
+
+                   31 a 35 anos  0,0116    51 a 55 anos  0,0676         71 a 75 anos             0,4894
+
+                   36 a 40 anos  0,0154    56 a 60 anos  0,1533         76 a 80 anos e 06 meses  0,5312
+
+      b) Tokio Marine ­ MIP:
+
+                                           MIP ­ TOKIO MARINE ­ IMÓVEL RESIDENCIAL %
+
+                   Faixa Etária  Alíquota  Faixa Etária  Alíquota       Faixa Etária             Alíquota
+                   18 a 25 anos                                                                  0,27750
+                   26 a 30 anos  0,00884   41 a 45 anos  0,02399        61 a 65 anos             0,33203
+                   31 a 35 anos                                                                  0,49650
+                                 0,00927   46 a 50 anos  0,03687        66 a 70 anos
+
+                                 0,01172   51 a 55 anos  0,06930        71 a 75 anos
+
+30.824 v036 micro                                                                                                          19
+                                 Limites, parâmetros e condições para o PMCMV, Programa Classe Média e Pró-Cotista
+
+                   36 a 40 anos  0,01590  56 a 60 anos  0,15390  76 a 80 anos e 06 meses  0,54147
+
+c) DFI:
+
+                                                                           DFI    IMÓVEL RESIDENCIAL %
+                                                                  TOKIO MARINE                 0,00622
+                                            CAIXA RESIDENCIAL HABITACIONAL FGTS                 0,0066
+                   CAIXA RESIDENCIAL HABITACIONAL ESPECIAL FGTS                                 0,0130
+                           CAIXA RESIDENCIAL HABITACIONAL ESPECIAL AMPLIADO FGTS                0,0225
+
+13.4 Para as operações contratadas com as apólices CAIXA Residencial Habitacional Mais, CAIXA Residencial Habitacional Especial FG TS ou Habitacional
+           Especial Ampliado FGTS, o DFI contempla a cobertura DFC ­ Danos Físicos ao Conteúdo ­ que inclui as coberturas acessórias de natureza material.
+
+30.824 v036 micro                                                                                                   20
+
