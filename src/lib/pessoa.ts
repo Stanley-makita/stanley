@@ -175,11 +175,19 @@ export async function buscarOuCriarPessoa(
   if (telError) {
     if (telError.code === '23505') {
       await supabase.from('pessoas').delete().eq('id', pessoa.id)
-      const pessoaIdVencedora = await buscarPessoaPorTelefone(empresa_id, telefone)
-      if (pessoaIdVencedora) return pessoaIdVencedora
-    } else {
-      console.error('[pessoa] Erro ao gravar telefone da pessoa:', telError.message)
+      // A pessoa vencedora pode ainda não estar visível pra esta query no exato
+      // instante da corrida (a transação concorrente pode não ter commitado
+      // ainda) — tenta algumas vezes com um pequeno intervalo antes de desistir.
+      // NUNCA cair de volta pro pessoa.id: ele já foi apagado acima, devolvê-lo
+      // quebra qualquer insert dependente (FK inválida) silenciosamente.
+      for (let tentativa = 0; tentativa < 3; tentativa++) {
+        const pessoaIdVencedora = await buscarPessoaPorTelefone(empresa_id, telefone)
+        if (pessoaIdVencedora) return pessoaIdVencedora
+        await new Promise((r) => setTimeout(r, 150))
+      }
+      throw new Error(`Corrida ao criar pessoa para telefone ${telefone}: pessoa vencedora não encontrada após retry`)
     }
+    console.error('[pessoa] Erro ao gravar telefone da pessoa:', telError.message)
   }
 
   return pessoa.id

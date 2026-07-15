@@ -604,7 +604,7 @@ export async function POST(request: NextRequest) {
 
             let conversaIdDoc = convExistente?.id as string | undefined
             if (!conversaIdDoc) {
-              const { data: novaConv } = await supabase
+              const { data: novaConv, error: erroNovaConv } = await supabase
                 .from('conversas')
                 .insert({
                   empresa_id,
@@ -618,6 +618,7 @@ export async function POST(request: NextRequest) {
                 })
                 .select('id')
                 .single()
+              if (erroNovaConv) console.error('[whatsapp-webhook] Erro ao criar conversa pra documento:', erroNovaConv.message)
               conversaIdDoc = novaConv?.id
             } else {
               await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
