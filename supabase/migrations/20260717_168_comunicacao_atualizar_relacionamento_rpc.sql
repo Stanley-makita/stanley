@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_comrel_hist_relacionamento ON comunicacao_relacio
 
 ALTER TABLE comunicacao_relacionamentos_historico ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "comrel_hist_select_empresa" ON comunicacao_relacionamentos_historico;
 CREATE POLICY "comrel_hist_select_empresa" ON comunicacao_relacionamentos_historico
   FOR SELECT USING (
     relacionamento_id IN (
@@ -36,6 +37,7 @@ CREATE POLICY "comrel_hist_select_empresa" ON comunicacao_relacionamentos_histor
   );
 
 -- Sem policy de INSERT para authenticated: só a função SECURITY DEFINER grava aqui.
+DROP POLICY IF EXISTS "comrel_hist_service_all" ON comunicacao_relacionamentos_historico;
 CREATE POLICY "comrel_hist_service_all" ON comunicacao_relacionamentos_historico
   FOR ALL USING (auth.role() = 'service_role');
 

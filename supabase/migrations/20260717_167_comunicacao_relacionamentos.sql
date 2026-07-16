@@ -61,12 +61,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_comrel_corretor_processo
 CREATE INDEX IF NOT EXISTS idx_comrel_empresa ON comunicacao_relacionamentos(empresa_id);
 CREATE INDEX IF NOT EXISTS idx_comrel_representado_por ON comunicacao_relacionamentos(representado_por_id) WHERE representado_por_id IS NOT NULL;
 
+DROP TRIGGER IF EXISTS trg_comrel_atualizado_em ON comunicacao_relacionamentos;
 CREATE TRIGGER trg_comrel_atualizado_em
   BEFORE UPDATE ON comunicacao_relacionamentos
   FOR EACH ROW EXECUTE FUNCTION set_atualizado_em();
 
 ALTER TABLE comunicacao_relacionamentos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "comrel_select_empresa" ON comunicacao_relacionamentos;
 CREATE POLICY "comrel_select_empresa" ON comunicacao_relacionamentos
   FOR SELECT USING (
     empresa_id = (SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid() LIMIT 1)
@@ -75,6 +77,7 @@ CREATE POLICY "comrel_select_empresa" ON comunicacao_relacionamentos
 -- Sem policy de INSERT/UPDATE direta para o role authenticated: a criação é sempre via
 -- trigger de materialização (abaixo) e a alteração é sempre via RPC SECURITY DEFINER
 -- (migration seguinte) — nunca escrita direta do client.
+DROP POLICY IF EXISTS "comrel_service_all" ON comunicacao_relacionamentos;
 CREATE POLICY "comrel_service_all" ON comunicacao_relacionamentos
   FOR ALL USING (auth.role() = 'service_role');
 
@@ -117,6 +120,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_comrel_validar_vinculo ON comunicacao_relacionamentos;
 CREATE TRIGGER trg_comrel_validar_vinculo
   BEFORE INSERT OR UPDATE ON comunicacao_relacionamentos
   FOR EACH ROW EXECUTE FUNCTION fn_validar_comunicacao_relacionamento();
@@ -133,6 +137,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_comrel_criar_cliente_lead ON leads;
 CREATE TRIGGER trg_comrel_criar_cliente_lead
   AFTER INSERT ON leads
   FOR EACH ROW EXECUTE FUNCTION fn_criar_comrel_cliente_lead();
@@ -145,6 +150,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_comrel_criar_cliente_processo ON processo_compradores;
 CREATE TRIGGER trg_comrel_criar_cliente_processo
   AFTER INSERT ON processo_compradores
   FOR EACH ROW EXECUTE FUNCTION fn_criar_comrel_cliente_processo();
@@ -160,6 +166,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_comrel_criar_corretor_lead ON lead_corretores;
 CREATE TRIGGER trg_comrel_criar_corretor_lead
   AFTER INSERT ON lead_corretores
   FOR EACH ROW EXECUTE FUNCTION fn_criar_comrel_corretor_lead();
@@ -175,6 +182,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_comrel_criar_corretor_processo ON processo_corretores;
 CREATE TRIGGER trg_comrel_criar_corretor_processo
   AFTER INSERT ON processo_corretores
   FOR EACH ROW EXECUTE FUNCTION fn_criar_comrel_corretor_processo();

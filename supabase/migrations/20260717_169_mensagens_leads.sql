@@ -22,21 +22,25 @@ CREATE INDEX IF NOT EXISTS idx_msg_lead_empresa ON mensagens_leads(empresa_id);
 
 ALTER TABLE mensagens_leads ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "mensagens_leads_select" ON mensagens_leads;
 CREATE POLICY "mensagens_leads_select" ON mensagens_leads
   FOR SELECT USING (
     empresa_id = (SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid() LIMIT 1)
   );
 
+DROP POLICY IF EXISTS "mensagens_leads_insert" ON mensagens_leads;
 CREATE POLICY "mensagens_leads_insert" ON mensagens_leads
   FOR INSERT WITH CHECK (
     empresa_id = (SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid() LIMIT 1)
   );
 
+DROP POLICY IF EXISTS "mensagens_leads_update" ON mensagens_leads;
 CREATE POLICY "mensagens_leads_update" ON mensagens_leads
   FOR UPDATE USING (
     empresa_id = (SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid() LIMIT 1)
   );
 
 -- Service role bypass — o endpoint de envio roda com a chave de serviço, igual ao webhook.
+DROP POLICY IF EXISTS "service_mensagens_leads_all" ON mensagens_leads;
 CREATE POLICY "service_mensagens_leads_all" ON mensagens_leads
   FOR ALL USING (auth.role() = 'service_role');
