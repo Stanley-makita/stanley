@@ -17,9 +17,10 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 const TIPOS_COMENTARIO: Record<ProcessoComentario['tipo'], { label: string; className: string }> = {
-  observacao:  { label: 'Observação',  className: 'bg-gray-100 text-gray-600' },
-  alteracao:   { label: 'Alteração',   className: 'bg-amber-100 text-amber-700' },
-  solicitacao: { label: 'Solicitação', className: 'bg-blue-100 text-blue-700' },
+  observacao:          { label: 'Observação',        className: 'bg-gray-100 text-gray-600' },
+  alteracao:           { label: 'Alteração',         className: 'bg-amber-100 text-amber-700' },
+  solicitacao:         { label: 'Solicitação',        className: 'bg-blue-100 text-blue-700' },
+  comunicacao_cliente: { label: 'Mensagem ao cliente', className: 'bg-green-100 text-green-700' },
 }
 
 interface Props { processoId: string }

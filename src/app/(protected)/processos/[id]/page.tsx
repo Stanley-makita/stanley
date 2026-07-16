@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle } from 'lucide-react'
+import { AtualizarClienteModal } from '@/components/processos/AtualizarClienteModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
 import { AlertaVencimentoModal } from '@/components/processos/detalhe/AlertaVencimentoModal'
@@ -71,6 +72,7 @@ export default function ProcessoDetalhePage() {
   const [confirmFormulariosAberto, setConfirmFormulariosAberto] = useState(false)
   const [gerandoFormularios, setGerandoFormularios] = useState(false)
   const [confirmacaoValoresAberto, setConfirmacaoValoresAberto] = useState(false)
+  const [atualizarClienteAberto, setAtualizarClienteAberto] = useState(false)
 
   function bancoTemFormularios(nome?: string | null): boolean {
     if (!nome) return false
@@ -302,6 +304,19 @@ export default function ProcessoDetalhePage() {
                 <ClipboardList className="h-3.5 w-3.5" />
                 + Solicitação
               </Button>
+
+              {/* Atualizar Cliente — Central de Comunicação (Fase 1: manual) */}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!(processo.compradores?.length)}
+                title={!(processo.compradores?.length) ? 'Cadastre ao menos um comprador antes de enviar uma atualização' : undefined}
+                className="h-8 shrink-0 gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-40"
+                onClick={() => setAtualizarClienteAberto(true)}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Atualizar Cliente
+              </Button>
             </div>
 
           {!processo.imovel_id && processo.nome_imovel && (
@@ -525,6 +540,12 @@ export default function ProcessoDetalhePage() {
         processoId={id}
         aberto={confirmacaoValoresAberto}
         onFechar={() => setConfirmacaoValoresAberto(false)}
+      />
+
+      <AtualizarClienteModal
+        processo={processo}
+        open={atualizarClienteAberto}
+        onOpenChange={setAtualizarClienteAberto}
       />
 
       {/* Confirmação de geração de formulários */}

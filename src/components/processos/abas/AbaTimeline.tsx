@@ -16,9 +16,10 @@ const TIPO_CONFIG = {
 
 function ItemComentario({ payload }: { payload: ProcessoComentario }) {
   const TIPOS: Record<string, { label: string; className: string }> = {
-    observacao:  { label: 'Observação',  className: 'bg-gray-100 text-gray-600' },
-    alteracao:   { label: 'Alteração',   className: 'bg-amber-100 text-amber-700' },
-    solicitacao: { label: 'Solicitação', className: 'bg-blue-100 text-blue-700' },
+    observacao:          { label: 'Observação',        className: 'bg-gray-100 text-gray-600' },
+    alteracao:           { label: 'Alteração',         className: 'bg-amber-100 text-amber-700' },
+    solicitacao:         { label: 'Solicitação',        className: 'bg-blue-100 text-blue-700' },
+    comunicacao_cliente: { label: 'Mensagem ao cliente', className: 'bg-green-100 text-green-700' },
   }
   const config = TIPOS[payload.tipo] ?? TIPOS.observacao
   return (

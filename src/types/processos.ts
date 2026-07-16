@@ -89,7 +89,7 @@ export interface Processo {
   comercial?: { id: string; nome: string; email: string } | null
   juridico?: { id: string; nome: string; email: string } | null
   fase_atual?: { id: string; nome: string; cor: string | null } | null
-  compradores?: { id: string; nome: string; cpf: string | null; principal: boolean; pessoa_id: string | null }[]
+  compradores?: { id: string; nome: string; cpf: string | null; telefone: string | null; principal: boolean; pessoa_id: string | null }[]
   vendedores?:  { id: string; nome: string; cpf: string | null }[]
   parceiro?: { id: string; nome: string; tipo_parceiro: string | null; imobiliaria: string | null } | null
 }
@@ -99,7 +99,7 @@ export interface ProcessoComentario {
   processo_id: string
   empresa_id: string
   usuario_id: string | null
-  tipo: 'observacao' | 'alteracao' | 'solicitacao'
+  tipo: 'observacao' | 'alteracao' | 'solicitacao' | 'comunicacao_cliente'
   texto: string
   notificar_cliente: boolean
   created_at: string
