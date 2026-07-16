@@ -1,0 +1,11 @@
+-- Central de Comunicação — Relacionamento de Comunicação (Entrega 1).
+-- lead_historico é o equivalente de processo_comentarios para a jornada de
+-- Captação (timeline do Lead). Precisa de um novo valor de tipo pra registrar
+-- envio manual de comunicação, espelhando 'comunicacao_cliente' em
+-- tipo_comentario (Fase 1, migration 165).
+--
+-- ALTER TYPE ... ADD VALUE precisa ficar isolado em sua própria migration: não
+-- pode ser combinado, na mesma transação, com nenhum comando que já use o valor
+-- novo. Nota de rollback: Postgres não suporta DROP VALUE em enum — esta
+-- migration é efetivamente forward-only.
+ALTER TYPE lead_historico_tipo ADD VALUE IF NOT EXISTS 'comunicacao';
