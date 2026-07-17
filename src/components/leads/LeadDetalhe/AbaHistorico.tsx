@@ -4,7 +4,7 @@ import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { buildTimelineSummary, getTimelineBadge } from './timelineUtils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList, Bell, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList, Bell, CheckCircle2, XCircle, Send } from 'lucide-react'
 
 const ICONES = {
   historico: Edit,
@@ -18,6 +18,7 @@ const ICONES = {
   followup_notificacao: Bell,
   followup_resposta: CheckCircle2,
   followup_encerrado: XCircle,
+  comunicacao: Send,
 }
 
 interface Props { leadId: string }
@@ -70,7 +71,9 @@ export function AbaHistorico({ leadId }: Props) {
                           ? 'Resposta do comercial'
                           : item.kind === 'historico' && item.tipo === 'followup_encerrado'
                             ? 'Acompanhamento encerrado'
-                            : item.kind === 'simulacao'
+                            : item.kind === 'historico' && item.tipo === 'comunicacao'
+                              ? 'Mensagem enviada ao cliente'
+                              : item.kind === 'simulacao'
                               ? 'Simulação salva'
                               : item.kind === 'documento'
                                 ? 'Documento anexado'
