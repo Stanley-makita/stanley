@@ -23,6 +23,7 @@ import { AbaFormularios } from './LeadDetalhe/AbaFormularios'
 import { AbaPessoa } from './LeadDetalhe/AbaPessoa'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { AbaOportunidade } from './LeadDetalhe/AbaOportunidade'
+import { AtualizarClienteLeadModal } from './AtualizarClienteLeadModal'
 import { PainelDireitoLead } from './LeadDetalhe/PainelDireito'
 import { PipelineBarLead } from './PipelineBarLead'
 import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLeadChecklist'
@@ -41,7 +42,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Plus, MessageCircle, Loader2, Trash2,
-  Phone, Mail, CreditCard, DollarSign, Calendar, ClipboardList, ArrowLeft,
+  Phone, Mail, CreditCard, DollarSign, Calendar, ClipboardList, ArrowLeft, Send,
 } from 'lucide-react'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
@@ -118,6 +119,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const [concluirAberto, setConcluirAberto] = useState(false)
   const [marcarPerdidoAberto, setMarcarPerdidoAberto] = useState(false)
   const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
+  const [atualizarClienteAberto, setAtualizarClienteAberto] = useState(false)
   const [msgInicial, setMsgInicial] = useState('')
   const [consultaRestritivosAberto, setConsultaRestritivosAberto] = useState(false)
   const [temRestricao, setTemRestricao] = useState<boolean | null>(null)
@@ -252,6 +254,16 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                   >
                     <MessageCircle className="h-3 w-3" />
                     {conversaDoLead?.id ? 'Abrir Conversa' : 'Iniciar Conversa'}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-8 text-xs gap-1.5 text-fonti-primary border-fonti-accent/50 hover:bg-fonti-accent-hover/40"
+                    onClick={() => setAtualizarClienteAberto(true)}
+                  >
+                    <Send className="h-3 w-3" />
+                    Atualizar Cliente
                   </Button>
 
                   <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -537,6 +549,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
         aberto={novoProcessoAberto}
         onFechar={() => setNovoProcessoAberto(false)}
         lead={lead}
+      />
+      <AtualizarClienteLeadModal
+        lead={lead}
+        open={atualizarClienteAberto}
+        onOpenChange={setAtualizarClienteAberto}
       />
       <ModalConcluirLead
         aberto={concluirAberto}
