@@ -137,7 +137,7 @@ export interface LeadHistorico {
   lead_id: string
   empresa_id: string
   usuario_id: string
-  tipo: 'fase_mudanca' | 'criacao' | 'edicao' | 'comentario' | 'acao_operacional'
+  tipo: 'fase_mudanca' | 'criacao' | 'edicao' | 'comentario' | 'acao_operacional' | 'comunicacao'
   fase_anterior_id: string | null
   fase_nova_id: string | null
   descricao: string | null
