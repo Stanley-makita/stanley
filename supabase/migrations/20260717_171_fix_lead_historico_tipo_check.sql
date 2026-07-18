@@ -1,0 +1,35 @@
+-- Fix: lead_historico.tipo tem um CHECK constraint redundante e desatualizado
+-- (lead_historico_tipo_check), que bloqueia silenciosamente todo valor do enum
+-- lead_historico_tipo adicionado depois da migration 20260415_012_leads_correcoes.
+--
+-- Contexto: a migration 20260415_012 converteu tipo de TEXT+CHECK para o enum
+-- lead_historico_tipo de propósito, e removeu o CHECK antigo (DROP CONSTRAINT
+-- IF EXISTS lead_historico_tipo_check) -- justamente para não precisar manter
+-- um CHECK redundante em paralelo ao enum. Em algum momento posterior, esse
+-- mesmo CHECK foi recriado diretamente no banco (fora de qualquer migration
+-- deste repositório, provavelmente via SQL Editor) travado na lista original
+-- de 4 valores ('criacao','fase_mudanca','edicao','comentario') e nunca foi
+-- atualizado.
+--
+-- Efeito em produção (confirmado por contagem de linhas antes deste fix):
+-- toda tentativa de INSERT com um tipo adicionado ao enum depois de 012 falha
+-- com erro 23514 (violação de check constraint), embora o valor seja válido
+-- para o enum em si. Isso inclui:
+--   - 'acao_operacional'      (enum estendido pela migration 20260612_091) -- 0 linhas gravadas
+--   - 'followup_iniciado'     (migration 20260713_153)                    -- 0 linhas gravadas
+--   - 'followup_notificacao'  (migration 20260713_153)                    -- 0 linhas gravadas
+--   - 'followup_resposta'     (migration 20260713_153)                    -- 0 linhas gravadas
+--   - 'followup_encerrado'    (migration 20260713_153)                    -- 0 linhas gravadas
+--   - 'comunicacao'           (migration 20260717_170, branch da Central de
+--                               Comunicação para Leads, ainda não mergeada)
+--
+-- Nenhum desses fluxos de código verifica o erro do insert (src/lib/leads/followup.ts,
+-- src/components/leads/ModalConcluirLead.tsx, src/components/leads/LeadDetalhe/AbaCredito.tsx,
+-- src/app/api/leads/followup/notificar/route.ts) -- a falha é silenciosa hoje.
+--
+-- Fix: remover o CHECK redundante. O tipo enum lead_historico_tipo já garante,
+-- por definição, que só valores válidos sejam aceitos -- não há necessidade de
+-- recriar o CHECK com uma lista atualizada, isso só reintroduziria o mesmo
+-- risco de desatualização no futuro.
+ALTER TABLE lead_historico
+  DROP CONSTRAINT IF EXISTS lead_historico_tipo_check;
