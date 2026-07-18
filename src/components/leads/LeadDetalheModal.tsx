@@ -263,7 +263,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     onClick={() => setAtualizarClienteAberto(true)}
                   >
                     <Send className="h-3 w-3" />
-                    Atualizar Cliente
+                    Comunicar
                   </Button>
 
                   <div className="grid grid-cols-[1fr_auto] gap-2">
