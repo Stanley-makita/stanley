@@ -8,10 +8,21 @@ const supabaseService = createServiceClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Central de Comunicação com o Cliente — Entrega 1 para Leads (jornada de Captação).
-// Espelha src/app/api/processos/[id]/atualizar-cliente/route.ts; diferença estrutural real:
-// Lead já tem telefone próprio (sem "comprador" intermediário). Reaproveita
-// resolverOuCriarConversa e enviarMensagemHumano sem nenhuma alteração.
+export type TipoInteressado = 'comprador' | 'corretor'
+
+interface Destinatario {
+  nome: string
+  telefone: string
+  /** Papel gravado em comunicacao_relacionamentos.papel ('cliente' para comprador, por herança da Fase 1). */
+  papelRelacionamento: 'cliente' | 'corretor'
+  /** Id do vínculo lead_corretores, só para tipo_interessado='corretor'. */
+  leadCorretorId?: string
+}
+
+// Central de Comunicação com o Cliente — Leads (jornada de Captação).
+// Espelha src/app/api/processos/[id]/atualizar-cliente/route.ts. O client nunca manda
+// telefone/nome — só `tipo_interessado` + `interessado_id`; a resolução de nome/telefone e a
+// validação de que o interessado pertence a este Lead acontecem inteiramente aqui.
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const authHeader = request.headers.get('authorization') ?? ''
   const token = authHeader.replace('Bearer ', '').trim()
@@ -32,13 +43,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const leadId = params.id
 
-  let body: { texto: string; envio_id: string }
+  let body: { tipo_interessado: TipoInteressado; interessado_id: string; texto: string; envio_id: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
-  const { texto, envio_id } = body
-  if (!texto?.trim() || !envio_id) {
-    return NextResponse.json({ error: 'texto e envio_id são obrigatórios' }, { status: 422 })
+  const { tipo_interessado, interessado_id, texto, envio_id } = body
+  if (!tipo_interessado || !interessado_id || !texto?.trim() || !envio_id) {
+    return NextResponse.json({ error: 'tipo_interessado, interessado_id, texto e envio_id são obrigatórios' }, { status: 422 })
+  }
+  if (tipo_interessado !== 'comprador' && tipo_interessado !== 'corretor') {
+    return NextResponse.json({ error: 'tipo_interessado inválido' }, { status: 422 })
   }
 
   const { data: lead } = await supabaseService
@@ -49,31 +63,64 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .is('deleted_at', null)
     .single()
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
-  if (!lead.telefone?.trim()) {
-    return NextResponse.json({ error: 'Este lead não tem telefone cadastrado.' }, { status: 422 })
+
+  // Resolução do destinatário — feita inteiramente aqui, nunca a partir de dados do client.
+  let destinatario: Destinatario
+  if (tipo_interessado === 'comprador') {
+    if (interessado_id !== leadId) {
+      return NextResponse.json({ error: 'interessado_id inválido para tipo_interessado=comprador' }, { status: 422 })
+    }
+    if (!lead.telefone?.trim()) {
+      return NextResponse.json({ error: 'Este lead não tem telefone cadastrado.' }, { status: 422 })
+    }
+    destinatario = { nome: lead.nome, telefone: lead.telefone, papelRelacionamento: 'cliente' }
+  } else {
+    const { data: vinculo } = await supabaseService
+      .from('lead_corretores')
+      .select('id, corretor:corretores(id, nome, telefone, ativo)')
+      .eq('lead_id', leadId)
+      .eq('corretor_id', interessado_id)
+      .maybeSingle()
+    const corretor = Array.isArray(vinculo?.corretor) ? vinculo?.corretor[0] : vinculo?.corretor
+    if (!vinculo || !corretor) {
+      return NextResponse.json({ error: 'Corretor não encontrado para este Lead.' }, { status: 404 })
+    }
+    if (!corretor.ativo) {
+      return NextResponse.json({ error: 'Este corretor está inativo.' }, { status: 422 })
+    }
+    if (!corretor.telefone?.trim()) {
+      return NextResponse.json({ error: 'Este corretor não tem telefone cadastrado.' }, { status: 422 })
+    }
+    destinatario = {
+      nome: corretor.nome,
+      telefone: corretor.telefone,
+      papelRelacionamento: 'corretor',
+      leadCorretorId: vinculo.id,
+    }
   }
 
-  // Relacionamento de comunicação — a migration 167 já cria (via trigger + backfill) um
-  // comunicacao_relacionamentos papel='cliente' para todo Lead, então este passo normalmente só
-  // lê. O insert de fallback é defensivo (linha faltante por algum motivo excepcional) e nunca
-  // bloqueia o envio: se não achar/criar, só loga e segue — a mensagem ao cliente não pode
-  // depender dessa leitura, que nesta entrega é só prova de arquitetura.
+  // Relacionamento de comunicação — para 'cliente' (comprador), a migration 167 já cria (via
+  // trigger + backfill) a linha para todo Lead; para 'corretor' não há trigger equivalente, então
+  // este passo é a via de criação primária. Em ambos os casos nunca bloqueia o envio: se
+  // não achar/criar, só loga e segue.
   let relacionamentoId: string | null = null
   try {
-    const { data: relacionamento } = await supabaseService
-      .from('comunicacao_relacionamentos')
-      .select('id')
-      .eq('lead_id', leadId)
-      .eq('papel', 'cliente')
-      .limit(1)
-      .maybeSingle()
+    const selecionarRelacionamento = () => destinatario.papelRelacionamento === 'cliente'
+      ? supabaseService.from('comunicacao_relacionamentos').select('id').eq('papel', 'cliente').eq('lead_id', leadId).limit(1).maybeSingle()
+      : supabaseService.from('comunicacao_relacionamentos').select('id').eq('papel', 'corretor').eq('lead_corretor_id', destinatario.leadCorretorId).limit(1).maybeSingle()
+
+    const { data: relacionamento } = await selecionarRelacionamento()
 
     if (relacionamento) {
       relacionamentoId = relacionamento.id
     } else {
+      const insertPayload = destinatario.papelRelacionamento === 'cliente'
+        ? { empresa_id: usuario.empresa_id, papel: 'cliente', lead_id: leadId }
+        : { empresa_id: usuario.empresa_id, papel: 'corretor', lead_id: leadId, lead_corretor_id: destinatario.leadCorretorId }
+
       const { data: criado, error: criarError } = await supabaseService
         .from('comunicacao_relacionamentos')
-        .insert({ empresa_id: usuario.empresa_id, papel: 'cliente', lead_id: leadId })
+        .insert(insertPayload)
         .select('id')
         .single()
 
@@ -81,13 +128,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         relacionamentoId = criado.id
       } else if (criarError?.code === '23505') {
         // Corrida: outra requisição criou primeiro — re-seleciona.
-        const { data: reselecionado } = await supabaseService
-          .from('comunicacao_relacionamentos')
-          .select('id')
-          .eq('lead_id', leadId)
-          .eq('papel', 'cliente')
-          .limit(1)
-          .maybeSingle()
+        const { data: reselecionado } = await selecionarRelacionamento()
         relacionamentoId = reselecionado?.id ?? null
       }
     }
@@ -97,7 +138,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   // Reivindicação atômica: INSERT com `envio_id UNIQUE` antes de qualquer efeito colateral —
   // protege contra duplo clique / retry de rede. Mesmo mecanismo de mensagens_processos.
-  const { data: vinculo, error: vinculoError } = await supabaseService
+  const { data: vinculoEnvio, error: vinculoError } = await supabaseService
     .from('mensagens_leads')
     .insert({
       empresa_id: usuario.empresa_id,
@@ -122,21 +163,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     conversaId = await resolverOuCriarConversa({
       supabase:   supabaseService,
       empresaId:  usuario.empresa_id,
-      telefone:   lead.telefone,
-      nome:       lead.nome,
-      pessoaId:   lead.pessoa_id,
+      telefone:   destinatario.telefone,
+      nome:       destinatario.nome,
+      pessoaId:   tipo_interessado === 'comprador' ? lead.pessoa_id : null,
       leadId:     lead.id,
     })
   } catch (err) {
-    await supabaseService.from('mensagens_leads').update({ status: 'falhou' }).eq('id', vinculo.id)
+    await supabaseService.from('mensagens_leads').update({ status: 'falhou' }).eq('id', vinculoEnvio.id)
     console.error('[leads/atualizar-cliente] Erro ao resolver conversa:', err)
-    return NextResponse.json({ error: 'Falha ao localizar/criar a conversa do cliente.' }, { status: 500 })
+    return NextResponse.json({ error: 'Falha ao localizar/criar a conversa do destinatário.' }, { status: 500 })
   }
 
   const resultado = await enviarMensagemHumano({
     supabase:    supabaseService,
     conversaId,
-    telefone:    lead.telefone,
+    telefone:    destinatario.telefone,
     tipo:        'text',
     texto:       texto.trim(),
     usuarioId:   usuario.id,
@@ -144,22 +185,37 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   })
 
   if (!resultado.ok) {
-    await supabaseService.from('mensagens_leads').update({ status: 'falhou' }).eq('id', vinculo.id)
+    await supabaseService.from('mensagens_leads').update({ status: 'falhou' }).eq('id', vinculoEnvio.id)
     return NextResponse.json({ error: resultado.error }, { status: resultado.status })
   }
 
   await supabaseService
     .from('mensagens_leads')
     .update({ mensagem_id: resultado.mensagemId, status: 'enviado' })
-    .eq('id', vinculo.id)
+    .eq('id', vinculoEnvio.id)
 
+  // Histórico com destinatário resolvido pelo servidor. lead_historico não tem coluna estruturada
+  // própria para isso (nenhuma migration nesta etapa) — a resolução (tipo do interessado,
+  // identificador do vínculo/entidade e nome usado) é codificada na primeira linha de `descricao`,
+  // num formato fixo e parseável, seguida da mensagem enviada. AbaHistorico interpreta essa
+  // primeira linha para montar o título "Mensagem enviada ao <papel> — <nome>"; linhas antigas sem
+  // esse prefixo (formato anterior) continuam caindo no título genérico.
+  const identificadorVinculo = tipo_interessado === 'comprador' ? leadId : interessado_id
+  const cabecalhoHistorico = `[COMUNICACAO tipo=${tipo_interessado} id=${identificadorVinculo} nome="${destinatario.nome}"]`
   await supabaseService.from('lead_historico').insert({
     lead_id:    leadId,
     empresa_id: usuario.empresa_id,
     usuario_id: usuario.id,
     tipo:       'comunicacao',
-    descricao:  texto.trim(),
+    descricao:  `${cabecalhoHistorico}\n${texto.trim()}`,
   })
 
-  return NextResponse.json({ ok: true, mensagem_id: resultado.mensagemId, relacionamento_id: relacionamentoId })
+  return NextResponse.json({
+    ok: true,
+    mensagem_id: resultado.mensagemId,
+    relacionamento_id: relacionamentoId,
+    tipo_interessado,
+    interessado_id,
+    destinatario_nome: destinatario.nome,
+  })
 }
