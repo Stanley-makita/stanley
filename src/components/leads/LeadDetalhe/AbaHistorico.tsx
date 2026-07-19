@@ -7,21 +7,24 @@ import { ptBR } from 'date-fns/locale'
 import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList, Bell, CheckCircle2, XCircle, Send } from 'lucide-react'
 
 const LABEL_TIPO_INTERESSADO: Record<string, string> = {
-  comprador: 'comprador',
-  corretor:  'corretor',
+  comprador:   'comprador',
+  corretor:    'corretor',
+  parceiro:    'parceiro',
+  imobiliaria: 'imobiliária',
+  construtora: 'construtora',
 }
 
 // lead_historico não tem coluna estruturada própria para o destinatário resolvido (ver
 // src/app/api/leads/[id]/atualizar-cliente/route.ts) — o backend grava um cabeçalho fixo e
 // parseável na primeira linha de `descricao`. Linhas antigas (formato anterior, sem cabeçalho)
 // caem no retorno `null` e o chamador usa o título genérico.
-const REGEX_CABECALHO_COMUNICACAO = /^\[COMUNICACAO tipo=(comprador|corretor) id=[^\s]+ nome="([^"]*)"\]\n?/
+const REGEX_CABECALHO_COMUNICACAO = /^\[COMUNICACAO tipo=(comprador|corretor|parceiro|imobiliaria|construtora) id=[^\s]+ nome="([^"]*)"\]\n?/
 
 function parseComunicacaoHistorico(descricao: string | null | undefined) {
   if (!descricao) return null
   const match = descricao.match(REGEX_CABECALHO_COMUNICACAO)
   if (!match) return null
-  const [cabecalho, tipo, nome] = match as unknown as [string, 'comprador' | 'corretor', string]
+  const [cabecalho, tipo, nome] = match as unknown as [string, 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora', string]
   return { tipo, nome, mensagem: descricao.slice(cabecalho.length) }
 }
 
