@@ -7,17 +7,26 @@ const supabaseService = createServiceClient(
 )
 
 export interface Interessado {
-  tipo_interessado: 'comprador' | 'corretor'
+  tipo_interessado: 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora'
   interessado_id: string
   nome: string
   apto: boolean
   motivo_indisponibilidade: string | null
 }
 
+function motivoIndisponibilidade(entidade: { ativo: boolean; telefone: string | null }, labelInativo: string): string | null {
+  if (!entidade.ativo) return labelInativo
+  if (!entidade.telefone?.trim()) return 'Telefone não cadastrado'
+  return null
+}
+
 // Lista os destinatários possíveis de comunicação manual para um Lead — comprador (o próprio
-// Lead) e corretores vinculados via lead_corretores. Alimenta o seletor de destinatário do
-// modal "Comunicar partes". Lista TODOS os vínculos reais, inclusive os sem telefone/inativos
-// (apto=false + motivo) -- não esconde o vínculo, só marca como indisponível para envio.
+// Lead), corretores, parceiros e imobiliárias/construtoras vinculados. Alimenta o seletor de
+// destinatário do modal "Comunicar partes". Lista TODOS os vínculos reais, inclusive os sem
+// telefone/inativos (apto=false + motivo) -- não esconde o vínculo, só marca como indisponível
+// para envio.
+//
+// Vendedor não aparece aqui de propósito — sem identidade estável, ver migration 20260719_172.
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const authHeader = request.headers.get('authorization') ?? ''
   const token = authHeader.replace('Bearer ', '').trim()
@@ -54,25 +63,56 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     motivo_indisponibilidade: lead.telefone?.trim() ? null : 'Telefone não cadastrado',
   }]
 
-  const { data: vinculos } = await supabaseService
+  const { data: corretorVinculos } = await supabaseService
     .from('lead_corretores')
     .select('corretor:corretores(id, nome, telefone, ativo)')
     .eq('lead_id', leadId)
 
-  for (const vinculo of vinculos ?? []) {
+  for (const vinculo of corretorVinculos ?? []) {
     const corretor = Array.isArray(vinculo.corretor) ? vinculo.corretor[0] : vinculo.corretor
     if (!corretor) continue
-
-    let motivo: string | null = null
-    if (!corretor.ativo) motivo = 'Corretor inativo'
-    else if (!corretor.telefone?.trim()) motivo = 'Telefone não cadastrado'
-
     interessados.push({
       tipo_interessado: 'corretor',
       interessado_id: corretor.id,
       nome: corretor.nome,
-      apto: motivo === null,
-      motivo_indisponibilidade: motivo,
+      apto: motivoIndisponibilidade(corretor, 'Corretor inativo') === null,
+      motivo_indisponibilidade: motivoIndisponibilidade(corretor, 'Corretor inativo'),
+    })
+  }
+
+  const { data: parceiroVinculos } = await supabaseService
+    .from('lead_parceiros')
+    .select('parceiro:parceiros(id, nome, telefone, ativo)')
+    .eq('lead_id', leadId)
+
+  for (const vinculo of parceiroVinculos ?? []) {
+    const parceiro = Array.isArray(vinculo.parceiro) ? vinculo.parceiro[0] : vinculo.parceiro
+    if (!parceiro) continue
+    interessados.push({
+      tipo_interessado: 'parceiro',
+      interessado_id: parceiro.id,
+      nome: parceiro.nome,
+      apto: motivoIndisponibilidade(parceiro, 'Parceiro inativo') === null,
+      motivo_indisponibilidade: motivoIndisponibilidade(parceiro, 'Parceiro inativo'),
+    })
+  }
+
+  const { data: imobiliariaVinculos } = await supabaseService
+    .from('lead_imobiliarias')
+    .select('papel, imobiliaria:imobiliarias(id, nome, telefone, ativo)')
+    .eq('lead_id', leadId)
+
+  for (const vinculo of imobiliariaVinculos ?? []) {
+    const imobiliaria = Array.isArray(vinculo.imobiliaria) ? vinculo.imobiliaria[0] : vinculo.imobiliaria
+    if (!imobiliaria) continue
+    const tipo = vinculo.papel as 'imobiliaria' | 'construtora'
+    const labelInativo = tipo === 'imobiliaria' ? 'Imobiliária inativa' : 'Construtora inativa'
+    interessados.push({
+      tipo_interessado: tipo,
+      interessado_id: imobiliaria.id,
+      nome: imobiliaria.nome,
+      apto: motivoIndisponibilidade(imobiliaria, labelInativo) === null,
+      motivo_indisponibilidade: motivoIndisponibilidade(imobiliaria, labelInativo),
     })
   }
 

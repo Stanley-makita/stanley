@@ -25,9 +25,12 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-const LABEL_TIPO_INTERESSADO: Record<'comprador' | 'corretor', string> = {
-  comprador: 'Comprador',
-  corretor:  'Corretor',
+const LABEL_TIPO_INTERESSADO: Record<'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora', string> = {
+  comprador:   'Comprador',
+  corretor:    'Corretor',
+  parceiro:    'Parceiro',
+  imobiliaria: 'Imobiliária',
+  construtora: 'Construtora',
 }
 
 export function AtualizarClienteLeadModal({ lead, open, onOpenChange }: Props) {

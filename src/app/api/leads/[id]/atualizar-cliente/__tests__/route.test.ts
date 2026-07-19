@@ -11,11 +11,18 @@ const fakeState = {
   corretorVinculoExiste: true,
   corretorAtivo: true,
   corretorTelefone: '5511988887777' as string | null,
+  parceiroVinculoExiste: true,
+  parceiroAtivo: true,
+  parceiroTelefone: '5511977776666' as string | null,
+  imobiliariaVinculoExiste: true,
+  imobiliariaAtivo: true,
+  imobiliariaTelefone: '5511966665555' as string | null,
 }
 
 // Fake de supabase cobrindo as tabelas usadas pelo endpoint: usuarios, leads, lead_corretores
-// (join corretores), comunicacao_relacionamentos, mensagens_leads (com UNIQUE(envio_id)
-// simulado), conversas, instancias, mensagens, lead_historico.
+// (join corretores), lead_parceiros (join parceiros), lead_imobiliarias (join imobiliarias),
+// comunicacao_relacionamentos, mensagens_leads (com UNIQUE(envio_id) simulado), conversas,
+// instancias, mensagens, lead_historico.
 function criarFakeSupabase() {
   const envioIds = new Set<string>()
   const escritas: Array<{ tabela: string; metodo: string; valores?: unknown }> = []
@@ -72,6 +79,26 @@ function criarFakeSupabase() {
               data: {
                 id: 'lead-corretor-1',
                 corretor: { id: 'corretor-1', nome: 'Corretor Teste', telefone: fakeState.corretorTelefone, ativo: fakeState.corretorAtivo },
+              },
+              error: null,
+            }
+          }
+          if (tabela === 'lead_parceiros') {
+            if (!fakeState.parceiroVinculoExiste) return { data: null, error: null }
+            return {
+              data: {
+                id: 'lead-parceiro-1',
+                parceiro: { id: 'parceiro-1', nome: 'Parceiro Teste', telefone: fakeState.parceiroTelefone, ativo: fakeState.parceiroAtivo },
+              },
+              error: null,
+            }
+          }
+          if (tabela === 'lead_imobiliarias') {
+            if (!fakeState.imobiliariaVinculoExiste) return { data: null, error: null }
+            return {
+              data: {
+                id: 'lead-imobiliaria-1',
+                imobiliaria: { id: 'imobiliaria-1', nome: 'Imobiliária Teste', telefone: fakeState.imobiliariaTelefone, ativo: fakeState.imobiliariaAtivo },
               },
               error: null,
             }
@@ -139,6 +166,12 @@ describe('POST /api/leads/[id]/atualizar-cliente', () => {
     fakeState.corretorVinculoExiste = true
     fakeState.corretorAtivo = true
     fakeState.corretorTelefone = '5511988887777'
+    fakeState.parceiroVinculoExiste = true
+    fakeState.parceiroAtivo = true
+    fakeState.parceiroTelefone = '5511977776666'
+    fakeState.imobiliariaVinculoExiste = true
+    fakeState.imobiliariaAtivo = true
+    fakeState.imobiliariaTelefone = '5511966665555'
     fetchMock.mockReset()
     fetchMock.mockResolvedValue({
       ok: true,
@@ -313,6 +346,142 @@ describe('POST /api/leads/[id]/atualizar-cliente', () => {
         interessado_id: 'corretor-1',
         texto: 'oi',
         envio_id: 'envio-corretor-sem-telefone-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      expect(response.status).toBe(422)
+    })
+  })
+
+  describe('tipo_interessado=parceiro', () => {
+    it('parceiro vinculado ao Lead: resolve nome/telefone no servidor e envia', async () => {
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'parceiro',
+        interessado_id: 'parceiro-1',
+        texto: 'Olá, parceiro!',
+        envio_id: 'envio-parceiro-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      const body = await response.json()
+      expect(response.status).toBe(200)
+      expect(body.ok).toBe(true)
+      expect(body.destinatario_nome).toBe('Parceiro Teste')
+    })
+
+    it('parceiro não vinculado a este Lead retorna 404', async () => {
+      fakeState.parceiroVinculoExiste = false
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'parceiro',
+        interessado_id: 'parceiro-de-outro-lead',
+        texto: 'oi',
+        envio_id: 'envio-parceiro-invalido-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      expect(response.status).toBe(404)
+    })
+
+    it('parceiro inativo retorna 422', async () => {
+      fakeState.parceiroAtivo = false
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'parceiro',
+        interessado_id: 'parceiro-1',
+        texto: 'oi',
+        envio_id: 'envio-parceiro-inativo-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      expect(response.status).toBe(422)
+    })
+
+    it('parceiro sem telefone cadastrado retorna 422', async () => {
+      fakeState.parceiroTelefone = null
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'parceiro',
+        interessado_id: 'parceiro-1',
+        texto: 'oi',
+        envio_id: 'envio-parceiro-sem-telefone-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      expect(response.status).toBe(422)
+    })
+  })
+
+  describe('tipo_interessado=imobiliaria|construtora', () => {
+    it('imobiliária vinculada ao Lead: resolve nome/telefone no servidor e envia', async () => {
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'imobiliaria',
+        interessado_id: 'imobiliaria-1',
+        texto: 'Olá, imobiliária!',
+        envio_id: 'envio-imobiliaria-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      const body = await response.json()
+      expect(response.status).toBe(200)
+      expect(body.ok).toBe(true)
+      expect(body.destinatario_nome).toBe('Imobiliária Teste')
+    })
+
+    it('construtora vinculada ao Lead: resolve nome/telefone no servidor e envia', async () => {
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'construtora',
+        interessado_id: 'imobiliaria-1',
+        texto: 'Olá, construtora!',
+        envio_id: 'envio-construtora-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      const body = await response.json()
+      expect(response.status).toBe(200)
+      expect(body.ok).toBe(true)
+      expect(body.destinatario_nome).toBe('Imobiliária Teste')
+    })
+
+    it('imobiliária/construtora não vinculada a este Lead retorna 404', async () => {
+      fakeState.imobiliariaVinculoExiste = false
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'imobiliaria',
+        interessado_id: 'imobiliaria-de-outro-lead',
+        texto: 'oi',
+        envio_id: 'envio-imobiliaria-invalida-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      expect(response.status).toBe(404)
+    })
+
+    it('imobiliária inativa retorna 422', async () => {
+      fakeState.imobiliariaAtivo = false
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'imobiliaria',
+        interessado_id: 'imobiliaria-1',
+        texto: 'oi',
+        envio_id: 'envio-imobiliaria-inativa-' + Date.now(),
+      }), { params: { id: 'lead-1' } })
+
+      expect(response.status).toBe(422)
+    })
+
+    it('imobiliária sem telefone cadastrado retorna 422', async () => {
+      fakeState.imobiliariaTelefone = null
+      const { POST } = await import('../route')
+
+      const response = await POST(montarRequest({
+        tipo_interessado: 'imobiliaria',
+        interessado_id: 'imobiliaria-1',
+        texto: 'oi',
+        envio_id: 'envio-imobiliaria-sem-telefone-' + Date.now(),
       }), { params: { id: 'lead-1' } })
 
       expect(response.status).toBe(422)
