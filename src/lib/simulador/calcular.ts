@@ -315,3 +315,41 @@ export function calcularCustas(
     percentualComDesconto: pctCom,
   }
 }
+
+// ── Ajuste para exibição ao cliente (PDF e resumo de texto) ───────────────────
+
+const RECIPROCIDADE_DESC_CLIENTE =
+  'Valor estimado é negociado entre você cliente e com o gerente da Caixa Econômica Federal na data da entrevista ou da assinatura. Podendo haver a oferta de produtos e estreitamento do relacionamento.'
+
+/**
+ * A Reciprocidade (Caixa) é negociada com o gerente, não um valor fechado —
+ * por isso, em qualquer material entregue ao cliente (PDF, resumo de texto),
+ * ela sai zerada e os totais são recalculados sem ela. A tela do CRM (uso
+ * interno) continua mostrando o valor calculado normalmente via
+ * calcularCustas() sem chamar esta função.
+ *
+ * Usar esta função sempre que o número for exibido/enviado para o cliente,
+ * para que PDF e texto nunca divirjam entre si.
+ */
+export function ajustarParaExibicaoCliente(resultado: ResultadoSimulador): ResultadoSimulador {
+  const linhas = resultado.linhas.map((linha) =>
+    linha.id === 'reciprocidade'
+      ? { ...linha, semDesconto: 0, comDesconto: 0, descricaoPDF: RECIPROCIDADE_DESC_CLIENTE }
+      : linha,
+  )
+  const visiveis = linhas.filter((l) => l.visivel)
+  const totalSem = arredondar(visiveis.reduce((s, l) => s + l.semDesconto, 0))
+  const totalCom = arredondar(visiveis.reduce((s, l) => s + l.comDesconto, 0))
+  const { valorCV } = resultado.entrada
+  const pctSem = valorCV > 0 ? arredondar((totalSem / valorCV) * 100 * 10) / 10 : 0
+  const pctCom = valorCV > 0 ? arredondar((totalCom / valorCV) * 100 * 10) / 10 : 0
+
+  return {
+    entrada: resultado.entrada,
+    linhas,
+    totalSemDesconto: totalSem,
+    totalComDesconto: totalCom,
+    percentualSemDesconto: pctSem,
+    percentualComDesconto: pctCom,
+  }
+}
