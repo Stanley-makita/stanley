@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { type Interessado } from '@/types/comunicacao'
+import { motivoIndisponibilidade } from '@/lib/comunicacao/interessados'
 
 const supabaseService = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-export interface Interessado {
-  tipo_interessado: 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora'
-  interessado_id: string
-  nome: string
-  apto: boolean
-  motivo_indisponibilidade: string | null
-}
-
-function motivoIndisponibilidade(entidade: { ativo: boolean; telefone: string | null }, labelInativo: string): string | null {
-  if (!entidade.ativo) return labelInativo
-  if (!entidade.telefone?.trim()) return 'Telefone não cadastrado'
-  return null
-}
 
 // Lista os destinatários possíveis de comunicação manual para um Lead — comprador (o próprio
 // Lead), corretores, parceiros e imobiliárias/construtoras vinculados. Alimenta o seletor de

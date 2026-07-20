@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Interessado } from '@/app/api/leads/[id]/interessados/route'
+import type { Interessado } from '@/types/comunicacao'
 
 export type { Interessado }
 
