@@ -30,6 +30,7 @@ import {
   ClipboardList, ExternalLink, Pencil, Search, Home, TrendingUp, Banknote,
 } from 'lucide-react'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
+import { BlocoImovelLead } from '@/components/leads/BlocoImovelLead'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 
@@ -69,13 +70,6 @@ const FINALIDADES = [
   { value: 'investimento', label: 'Investimento' },
   { value: 'reforma',      label: 'Reforma' },
 ]
-const TIPOS_IMOVEL = [
-  { value: 'apartamento', label: 'Apartamento' },
-  { value: 'casa',        label: 'Casa' },
-  { value: 'terreno',     label: 'Terreno' },
-  { value: 'comercial',   label: 'Comercial' },
-  { value: 'rural',       label: 'Rural' },
-]
 const ORIGENS = [
   { value: 'direto',             label: 'Direto' },
   { value: 'whatsapp',           label: 'WhatsApp' },
@@ -97,15 +91,6 @@ const REGIME_LABEL: Record<string, string> = {
   comunhao_parcial: 'Comunhão Parcial', comunhao_total: 'Comunhão Total',
   separacao_total: 'Separação Total', participacao_final_aquestos: 'Part. Final Aquestos',
 }
-
-// Campos extensíveis: adicionar aqui + migration para novos campos
-const CAMPOS_IMOVEL = [
-  { key: 'tipo_imovel',   label: 'Tipo',   tipo: 'select' as const, opcoes: TIPOS_IMOVEL },
-  { key: 'cidade_imovel', label: 'Cidade', tipo: 'text'   as const },
-  // futuras: { key: 'imovel_matricula', label: 'Matrícula', tipo: 'text' },
-  // futuras: { key: 'imovel_rua', label: 'Endereço', tipo: 'text' },
-  // futuras: { key: 'imovel_bairro', label: 'Bairro', tipo: 'text' },
-] as const
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -252,7 +237,7 @@ export function AbaCredito({ lead }: Props) {
 
       {/* 5+6. Imóvel e Vendedor lado a lado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <BlocoImovel lead={lead} />
+        <BlocoImovelLead lead={lead} />
         <BlocoVendedor
           lead={lead}
           onAbrirVendedorPessoa={lead.vendedor_pessoa_id ? () => setVendedorPessoaDrawer(lead.vendedor_pessoa_id) : undefined}
@@ -1288,100 +1273,6 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
           {editar.isPending && <p className="text-[10px] text-gray-400">Salvando…</p>}
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── BlocoImovel ───────────────────────────────────────────────
-
-function BlocoImovel({ lead }: { lead: Lead }) {
-  const editar = useEditarLead()
-  const temDados = CAMPOS_IMOVEL.some(c => lead[c.key as keyof Lead] != null)
-  const [form, setForm] = useState<Record<string, string>>(() =>
-    Object.fromEntries(CAMPOS_IMOVEL.map(c => [c.key, (lead[c.key as keyof Lead] as string) ?? '']))
-  )
-  const [dirty, setDirty] = useState(false)
-  const [editando, setEditando] = useState(false)
-
-  function set(k: string, v: string) {
-    setForm(f => ({ ...f, [k]: v }))
-    setDirty(true)
-  }
-  function salvar() {
-    const patch: Record<string, string | null> = {}
-    for (const c of CAMPOS_IMOVEL) patch[c.key] = form[c.key] || null
-    editar.mutate({ id: lead.id, ...patch as any }, { onSuccess: () => { setDirty(false); setEditando(false) } })
-  }
-
-  if (!temDados && !editando) {
-    return (
-      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Imóvel</p>
-          <button onClick={() => setEditando(true)} className="flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium">
-            <Plus className="h-3 w-3" /> Informar Imóvel
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Imóvel</p>
-        <div className="flex items-center gap-2">
-          {dirty && (
-            <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
-              {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-              Salvar
-            </Button>
-          )}
-          {!editando && (
-            <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-fonti-primary flex items-center gap-0.5">
-              <Pencil className="h-3 w-3" /> Editar
-            </button>
-          )}
-        </div>
-      </div>
-      {editando ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {CAMPOS_IMOVEL.map(c => (
-            <div key={c.key}>
-              <Label className="text-xs text-gray-500">{c.label}</Label>
-              {c.tipo === 'select' ? (
-                <Select value={form[c.key]} onValueChange={v => set(c.key, v)}>
-                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                  <SelectContent>
-                    {(c as any).opcoes?.map((o: any) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input className="h-8 text-sm mt-1" value={form[c.key]} onChange={e => set(c.key, e.target.value)} />
-              )}
-            </div>
-          ))}
-          <div className="col-span-2 flex justify-end gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditando(false)}>Cancelar</Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-          {CAMPOS_IMOVEL.map(c => {
-            const val = lead[c.key as keyof Lead] as string | null
-            if (!val) return null
-            const label = c.tipo === 'select'
-              ? (c as any).opcoes?.find((o: any) => o.value === val)?.label ?? val
-              : val
-            return (
-              <div key={c.key}>
-                <p className="text-xs text-gray-400 mb-0.5">{c.label}</p>
-                <p className="text-sm font-medium text-gray-800">{label}</p>
-              </div>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }

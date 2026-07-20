@@ -48,6 +48,21 @@ interface EditarLeadInput {
   status_analise?: Lead['status_analise']
   data_credito?: string | null
   validade_credito?: string | null
+  // Imóvel vinculado
+  imovel_id?: string | null
+  imovel_matricula?: string | null
+  imovel_tipo?: string | null
+  imovel_categoria?: string | null
+  imovel_area_construida?: number | null
+  imovel_area_terreno?: number | null
+  imovel_rua?: string | null
+  imovel_numero?: string | null
+  imovel_complemento?: string | null
+  imovel_bairro?: string | null
+  imovel_cidade?: string | null
+  imovel_uf?: string | null
+  imovel_registro_id?: string | null
+  nome_imovel?: string | null
   status_id?: string | null
   // Captação / campanha
   canal?: string | null
