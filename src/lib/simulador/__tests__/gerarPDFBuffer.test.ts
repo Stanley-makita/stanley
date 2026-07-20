@@ -88,4 +88,14 @@ describe('gerarPDFCustasBuffer', () => {
     expect(registrados.textos).toContain('Reciprocidade')
     expect(registrados.textos.some((t) => t.includes('negociado'))).toBe(true)
   })
+
+  it('renderiza o cabeçalho com os logos da Caixa (Aval + Correspondente Caixa Aqui) sem lançar erro', async () => {
+    const resultado = calcularCustas({ ...ENTRADA_BASE, banco: 'Caixa Econômica Federal' }, undefined, undefined)
+    await expect(gerarPDFCustasBuffer(resultado)).resolves.toBeInstanceOf(Buffer)
+  })
+
+  it('renderiza o cabeçalho com o logo Fontinhas para bancos que não são Caixa, sem lançar erro', async () => {
+    const resultado = calcularCustas({ ...ENTRADA_BASE, banco: 'Itaú' }, undefined, undefined)
+    await expect(gerarPDFCustasBuffer(resultado)).resolves.toBeInstanceOf(Buffer)
+  })
 })

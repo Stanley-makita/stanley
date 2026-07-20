@@ -2,8 +2,10 @@
  * Gerador de PDF server-side — variante buffer do simulador de custas.
  *
  * Usa o mesmo layout e lógica do gerador oficial (components/simulador/gerarPDF.ts),
- * mas sem APIs de browser (Image, canvas, window, document) — mesmo precedente já
- * adotado em simuladorFinanciamento/gerarPDFBuffer.ts (sem logos, header textual).
+ * mas sem APIs de browser (Image, canvas, window, document): os logos são
+ * embutidos como base64 (logos-caixa.ts) em vez de carregados via <img>/canvas,
+ * e o dimensionamento usa doc.getImageProperties() (suportado em Node) em vez
+ * de img.naturalWidth/Height.
  * Retorna um Buffer pronto para envio via WhatsApp ou Storage.
  *
  * Nunca criar um segundo template. Este arquivo apenas adapta a saída.
@@ -11,6 +13,8 @@
 
 import type { ResultadoSimulador } from '@/types/simulador'
 import { MODALIDADE_LABELS } from '@/types/simulador'
+import { ajustarParaExibicaoCliente } from './calcular'
+import { LOGO_AVAL, LOGO_CAIXA_AQUI, LOGO_FONTINHAS } from './logos-caixa'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -18,15 +22,16 @@ const COR_VERDE   = '#253B29'
 const COR_DOURADO = '#C2AA6A'
 const COR_BEGE    = '#E7E0C4'
 
-function arredondar(v: number): number {
-  return Math.round(v * 100) / 100
+function isCaixa(banco: string): boolean {
+  return banco.toLowerCase().includes('caixa')
 }
 
-// No PDF (independente de onde a simulação foi solicitada), a Reciprocidade
-// (Caixa) sai zerada — é negociada com o gerente, não um valor fechado. Na
-// tela do CRM continua mostrando o valor calculado normalmente (uso interno).
-const RECIPROCIDADE_DESC_PDF =
-  'Valor estimado de 1,5 a 2% do valor do financiamento. E negociado entre voce cliente e com o gerente da Caixa Economica Federal na data da entrevista ou da assinatura. Podendo haver a oferta de produtos e estreitamento do relacionamento.'
+function fitInBox(nW: number, nH: number, maxW: number, maxH: number): [number, number] {
+  const r = nW / nH
+  let w = maxW, h = w / r
+  if (h > maxH) { h = maxH; w = h * r }
+  return [w, h]
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -84,18 +89,14 @@ export async function gerarPDFCustasBuffer(
 
   const e = resultado.entrada
 
-  // Linhas/totais específicos do PDF: reciprocidade zerada, totais recalculados
-  // sem ela — a tela do CRM (resultado original) não é afetada por isso.
-  const linhasPdf = resultado.linhas.map((linha) =>
-    linha.id === 'reciprocidade'
-      ? { ...linha, semDesconto: 0, comDesconto: 0, descricaoPDF: RECIPROCIDADE_DESC_PDF }
-      : linha,
-  )
-  const visiveisPdf = linhasPdf.filter((l) => l.visivel)
-  const totalSemPdf = arredondar(visiveisPdf.reduce((s, l) => s + l.semDesconto, 0))
-  const totalComPdf = arredondar(visiveisPdf.reduce((s, l) => s + l.comDesconto, 0))
-  const pctSemPdf = e.valorCV > 0 ? arredondar((totalSemPdf / e.valorCV) * 100 * 10) / 10 : 0
-  const pctComPdf = e.valorCV > 0 ? arredondar((totalComPdf / e.valorCV) * 100 * 10) / 10 : 0
+  // Mesmo ajuste (Reciprocidade zerada) usado no resumo de texto do WhatsApp
+  // (workflow-custas.ts) — nunca calcular esse recorte em mais de um lugar.
+  const resultadoAjustado = ajustarParaExibicaoCliente(resultado)
+  const visiveisPdf = resultadoAjustado.linhas.filter((l) => l.visivel)
+  const totalSemPdf = resultadoAjustado.totalSemDesconto
+  const totalComPdf = resultadoAjustado.totalComDesconto
+  const pctSemPdf = resultadoAjustado.percentualSemDesconto
+  const pctComPdf = resultadoAjustado.percentualComDesconto
 
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
@@ -107,22 +108,40 @@ export async function gerarPDFCustasBuffer(
 
   let y = mTop
 
-  // ── CABEÇALHO (textual, sem logos — mesmo precedente do financiamento) ──────
+  // ── CABEÇALHO ─────────────────────────────────────────────────────────────
+  // Mesma lógica de components/simulador/gerarPDF.ts: Caixa mostra os logos
+  // Aval Financiamentos + Correspondente Caixa Aqui; outros bancos mostram a
+  // faixa verde Fontinhas Assessoria. Logos embutidos como base64
+  // (logos-caixa.ts) — doc.getImageProperties() dá as dimensões naturais sem
+  // precisar de Image()/canvas do browser.
   const HEADER_H = 24
-  setFill(doc, COR_VERDE)
-  doc.rect(mL, y, usableW, HEADER_H, 'F')
-  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-  doc.text('FONTI', mL + 4, y + 10)
-  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, '#CCCCCC')
-  doc.text('Sistema Operacional de Credito', mL + 4, y + 16)
-  doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, COR_DOURADO)
-  doc.text('by Fontinhas Assessoria', mL + 4, y + 21)
 
-  const rightEdge = pageW - mR - 2
-  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); setTxt(doc, COR_DOURADO)
-  doc.text('ESTIMATIVA DE CUSTAS', rightEdge, y + 9, { align: 'right' })
-  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-  doc.text(pdf(e.banco), rightEdge, y + 17, { align: 'right' })
+  if (isCaixa(e.banco)) {
+    const avalProps = doc.getImageProperties(LOGO_AVAL)
+    const [avalW, avalH] = fitInBox(avalProps.width, avalProps.height, usableW * 0.45, HEADER_H - 2)
+    const avalY = y + (HEADER_H - avalH) / 2
+    doc.addImage(LOGO_AVAL, 'PNG', mL, avalY, avalW, avalH)
+
+    const caixaProps = doc.getImageProperties(LOGO_CAIXA_AQUI)
+    const [caixaW, caixaH] = fitInBox(caixaProps.width, caixaProps.height, 30, HEADER_H - 6)
+    const labelText = 'Correspondente  Caixa aqui'
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    const textW = doc.getTextWidth(labelText)
+    const totalW = caixaW + 3 + textW
+    const startX = pageW - mR - totalW
+    const caixaY = y + (HEADER_H - caixaH) / 2
+    doc.addImage(LOGO_CAIXA_AQUI, 'PNG', startX, caixaY, caixaW, caixaH)
+    setTxt(doc, '#1A3A6B')
+    doc.text(labelText, startX + caixaW + 3, y + HEADER_H / 2 + 3)
+  } else {
+    setFill(doc, COR_VERDE)
+    doc.rect(mL, y, usableW, HEADER_H, 'F')
+
+    const fontinhasProps = doc.getImageProperties(LOGO_FONTINHAS)
+    const [fW, fH] = fitInBox(fontinhasProps.width, fontinhasProps.height, 75, HEADER_H - 4)
+    const fY = y + (HEADER_H - fH) / 2
+    doc.addImage(LOGO_FONTINHAS, 'JPEG', mL + 2, fY, fW, fH)
+  }
 
   y += HEADER_H + 4
 

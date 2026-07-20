@@ -12,7 +12,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { calcularCustas } from '@/lib/simulador/calcular'
+import { calcularCustas, ajustarParaExibicaoCliente } from '@/lib/simulador/calcular'
 import { gerarPDFCustasBuffer } from '@/lib/simulador/gerarPDFBuffer'
 import { enviarPDFUazapi } from './uazapi-helpers'
 import {
@@ -232,11 +232,21 @@ async function finalizarSimulacao(
     })
   if (simErr) console.error('[workflow-custas] Erro ao salvar simulação:', simErr)
 
+  // Mesmos totais mostrados no PDF (Reciprocidade fora da soma) — nunca o valor
+  // bruto de calcularCustas(), senão o resumo de texto diverge do PDF enviado
+  // junto. A Reciprocidade em si é mostrada à parte (não é um valor fechado).
+  const resumoCliente = ajustarParaExibicaoCliente(resultado)
+  const reciprocidade = resultado.linhas.find((l) => l.id === 'reciprocidade')
+  const linhaReciprocidade = reciprocidade && reciprocidade.comDesconto > 0
+    ? `💬 Reciprocidade (Caixa) estimada: ${BRL.format(reciprocidade.comDesconto)} — negociada com o gerente na entrevista/assinatura, não incluída no total acima.`
+    : null
+
   const corpo = [
     `📋 *Estimativa de Custas — ${entrada.cidade}*`,
     '',
-    `Total sem desconto: ${BRL.format(resultado.totalSemDesconto)} (${resultado.percentualSemDesconto.toFixed(1)}%)`,
-    `Total com desconto: ${BRL.format(resultado.totalComDesconto)} (${resultado.percentualComDesconto.toFixed(1)}%)`,
+    `Total sem desconto: ${BRL.format(resumoCliente.totalSemDesconto)} (${resumoCliente.percentualSemDesconto.toFixed(1)}%)`,
+    `Total com desconto: ${BRL.format(resumoCliente.totalComDesconto)} (${resumoCliente.percentualComDesconto.toFixed(1)}%)`,
+    ...(linhaReciprocidade ? ['', linhaReciprocidade] : []),
     '',
     linhaPDF,
     '',
