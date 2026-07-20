@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle } from 'lucide-react'
-import { AtualizarClienteModal } from '@/components/processos/AtualizarClienteModal'
+import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
 import { AlertaVencimentoModal } from '@/components/processos/detalhe/AlertaVencimentoModal'
@@ -305,17 +305,15 @@ export default function ProcessoDetalhePage() {
                 + Solicitação
               </Button>
 
-              {/* Atualizar Cliente — Central de Comunicação (Fase 1: manual) */}
+              {/* Comunicar — Central de Comunicação (comprador, corretor, parceiro, imobiliária/construtora) */}
               <Button
                 size="sm"
                 variant="outline"
-                disabled={!(processo.compradores?.length)}
-                title={!(processo.compradores?.length) ? 'Cadastre ao menos um comprador antes de enviar uma atualização' : undefined}
-                className="h-8 shrink-0 gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-40"
+                className="h-8 shrink-0 gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
                 onClick={() => setAtualizarClienteAberto(true)}
               >
                 <MessageCircle className="h-3.5 w-3.5" />
-                Atualizar Cliente
+                Comunicar
               </Button>
             </div>
 
@@ -542,8 +540,8 @@ export default function ProcessoDetalhePage() {
         onFechar={() => setConfirmacaoValoresAberto(false)}
       />
 
-      <AtualizarClienteModal
-        processo={processo}
+      <ComunicarPartesProcessoModal
+        processoId={id}
         open={atualizarClienteAberto}
         onOpenChange={setAtualizarClienteAberto}
       />

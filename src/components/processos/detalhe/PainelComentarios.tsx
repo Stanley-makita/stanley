@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Bell, Send, MessageSquare } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { parseCabecalhoComunicacao, LABEL_TIPO_INTERESSADO_TIMELINE } from '@/lib/comunicacao/parseCabecalhoComunicacao'
 
 const TIPOS_COMENTARIO: Record<ProcessoComentario['tipo'], { label: string; className: string }> = {
   observacao:          { label: 'Observação',        className: 'bg-gray-100 text-gray-600' },
@@ -30,6 +31,10 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
     <div className="space-y-3">
       {comentarios.map((c) => {
         const config = TIPOS_COMENTARIO[c.tipo]
+        const comunicacaoParsed = c.tipo === 'comunicacao_cliente' ? parseCabecalhoComunicacao(c.texto) : null
+        const label = comunicacaoParsed
+          ? `Mensagem ao ${LABEL_TIPO_INTERESSADO_TIMELINE[comunicacaoParsed.tipo]}`
+          : config.label
         return (
           <div key={c.id} className="space-y-1">
             <div className="flex items-center justify-between gap-2">
@@ -38,7 +43,7 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
                   {c.usuario?.nome ?? 'Sistema'}
                 </span>
                 <Badge className={`text-xs px-1.5 py-0 ${config.className}`}>
-                  {config.label}
+                  {label}
                 </Badge>
                 {c.notificar_cliente && (
                   <Bell className="h-3 w-3 text-fonti-accent" />
@@ -48,7 +53,9 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
                 {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}
               </span>
             </div>
-            <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">{c.texto}</p>
+            <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">
+              {comunicacaoParsed ? comunicacaoParsed.mensagem : c.texto}
+            </p>
           </div>
         )
       })}
