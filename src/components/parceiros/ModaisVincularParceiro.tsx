@@ -28,7 +28,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { normalizarTelefone } from '@/lib/pessoa'
 import type {
   Corretor,
   Imobiliaria,
@@ -70,6 +69,16 @@ const COLUNA_ID: Record<ContextoVinculo, string> = {
 
 function ehVinculoDuplicado(error: { code?: string } | null | undefined) {
   return error?.code === '23505'
+}
+
+// `@/lib/pessoa` é server-only (usa SUPABASE_SERVICE_ROLE_KEY no topo do
+// módulo) — importar de lá quebraria o bundle client. Duplicado localmente,
+// mesmo padrão já usado por CompletarDadosPessoaDrawer.tsx/AbaPessoa.tsx pra
+// normalizarCpf.
+function normalizarTelefone(telefone: string): string {
+  const digits = telefone.replace(/\D/g, '')
+  const temDDI = digits.startsWith('55') && digits.length >= 12
+  return temDDI ? digits : `55${digits}`
 }
 
 // ============================================================
@@ -247,6 +256,7 @@ export function ModalAdicionarImobiliaria({ open, contexto, entidadeId, onClose,
   const [imobiliariaId, setImobiliariaId] = useState('')
   const [papel, setPapel] = useState<PapelImobiliariaProcesso>('imobiliaria')
   const [novoNome, setNovoNome] = useState('')
+  const [novoTelefone, setNovoTelefone] = useState('')
   const [novoTipo, setNovoTipo] = useState<'imobiliaria' | 'construtora' | 'ambos'>('imobiliaria')
   const [modo, setModo] = useState<'buscar' | 'novo'>('buscar')
   const [saving, setSaving] = useState(false)
@@ -272,7 +282,13 @@ export function ModalAdicionarImobiliaria({ open, contexto, entidadeId, onClose,
       let id = imobiliariaId
       if (modo === 'novo') {
         const { data, error } = await supabase
-          .from('imobiliarias').insert({ nome: novoNome.trim(), tipo: novoTipo }).select('id').single()
+          .from('imobiliarias')
+          .insert({
+            nome: novoNome.trim(),
+            tipo: novoTipo,
+            telefone: novoTelefone.trim() ? normalizarTelefone(novoTelefone) : null,
+          })
+          .select('id').single()
         if (error || !data) {
           toast.error('Não foi possível cadastrar a imobiliária/construtora.')
           return
@@ -296,7 +312,7 @@ export function ModalAdicionarImobiliaria({ open, contexto, entidadeId, onClose,
     } finally { setSaving(false) }
   }
 
-  function resetForm() { setImobiliariaId(''); setPapel('imobiliaria'); setNovoNome(''); setNovoTipo('imobiliaria'); setModo('buscar') }
+  function resetForm() { setImobiliariaId(''); setPapel('imobiliaria'); setNovoNome(''); setNovoTelefone(''); setNovoTipo('imobiliaria'); setModo('buscar') }
   const podeSalvar = modo === 'buscar' ? !!imobiliariaId : novoNome.trim().length > 1
 
   return (
@@ -324,6 +340,8 @@ export function ModalAdicionarImobiliaria({ open, contexto, entidadeId, onClose,
             <div className="space-y-3">
               <div className="space-y-2"><Label>Nome *</Label>
                 <Input value={novoNome} onChange={e => setNovoNome(e.target.value)} placeholder="Nome da empresa" /></div>
+              <div className="space-y-2"><Label>Telefone</Label>
+                <Input value={novoTelefone} onChange={e => setNovoTelefone(e.target.value)} placeholder="(44) 99999-9999" /></div>
               <div className="space-y-2"><Label>Tipo</Label>
                 <Select value={novoTipo} onValueChange={v => setNovoTipo(v as any)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
