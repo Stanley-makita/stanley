@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
     const textoNormFM = textoFromMe.slice(0, 20).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(20)
 
-    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|cancelar?)\b/i.test(textoNormFM)) {
+    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|custas|cancelar?)\b/i.test(textoNormFM)) {
       const fmToken = payload.token || process.env.UAZAPI_INSTANCE_TOKEN || ''
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
@@ -605,6 +605,9 @@ export async function POST(request: NextRequest) {
       const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
       const pendente = await buscarSimulaPendente(supabase, empresa_id, telefone)
 
+      const { buscarCustasPendente } = await import('@/lib/workflows/custas-pendente')
+      const pendenteCustas = !pendente ? await buscarCustasPendente(supabase, empresa_id, telefone) : null
+
       if (pendente) {
         const resposta = await processarRespostaPendente(texto.trim(), pendente, {
           empresa_id,
@@ -619,6 +622,18 @@ export async function POST(request: NextRequest) {
         if (resposta !== null) {
           await enviarMensagemUazapi(telefone, resposta)
         }
+      } else if (pendenteCustas) {
+        const { processarRespostaCustas } = await import('@/lib/workflows/workflow-custas')
+        const resposta = await processarRespostaCustas(texto.trim(), pendenteCustas, {
+          empresa_id,
+          usuario_id: usuarioInterno.id,
+          usuario_nome: usuarioInterno.nome,
+          supabase,
+          instancia_token: instanciaToken,
+          telefone_destino: telefone,
+          telefone_operador: telefone,
+        })
+        await enviarMensagemUazapi(telefone, resposta)
       } else if (isMidia && fileUrl) {
         // Mídia solta, sem pendência de simulação ativa: só persiste se houver uma sessão
         // *fonti inicio* aberta pra este telefone (fonti_marcas) — é o sinal explícito de
@@ -723,7 +738,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|cancelar?)\b/i.test(textoParaFonti)) {
+  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|custas|cancelar?)\b/i.test(textoParaFonti)) {
     const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
       telefone_remetente: telefone,

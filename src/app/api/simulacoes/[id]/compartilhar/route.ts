@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
+import type { ResultadoSimulador } from '@/types/simulador'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,105 +23,6 @@ function normalizarTelefone(tel: string): string {
   const digits = tel.replace(/\D/g, '')
   if (digits.startsWith('55') && digits.length >= 12) return digits
   return `55${digits}`
-}
-
-// No PDF (independente de onde a simulação foi compartilhada), a Reciprocidade
-// (Caixa) sai zerada — é negociada com o gerente, não um valor fechado.
-const RECIPROCIDADE_DESC_PDF =
-  'Valor estimado de 1,5 a 2% do valor do financiamento. É negociado entre você cliente e com o gerente da Caixa Econômica Federal na data da entrevista ou da assinatura. Podendo haver a oferta de produtos e estreitamento do relacionamento.'
-
-async function gerarCustasBuffer(json: Record<string, unknown>): Promise<Buffer> {
-  const { jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const BRL = (n: number) =>
-    n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-
-  const mL = 15; const mR = 15; const W = 210; const usableW = W - mL - mR
-  let y = 20
-
-  doc.setFillColor(37, 59, 41)
-  doc.rect(mL, y, usableW, 12, 'F')
-  doc.setFontSize(13)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(255, 255, 255)
-  doc.text('Simulação de Custas — Fonti Sistema de Crédito', mL + 4, y + 8)
-  y += 20
-
-  const entrada = json.entrada as Record<string, unknown> | undefined
-  if (entrada) {
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(80, 80, 80)
-    if (entrada.cidade) doc.text(`Cidade: ${entrada.cidade}`, mL, y)
-    if (typeof entrada.valorCV === 'number') doc.text(`C&V: ${BRL(entrada.valorCV)}`, mL + 60, y)
-    if (typeof entrada.valorFinanciado === 'number') doc.text(`Financiado: ${BRL(entrada.valorFinanciado)}`, mL + 110, y)
-    y += 10
-  }
-
-  const linhasOriginais = json.linhas as Array<{ label: string; semDesconto: number; comDesconto: number; visivel: boolean }> | undefined
-  const reciprocidadeOriginal = linhasOriginais?.find(l => l.label === 'Reciprocidade' && l.visivel)
-  const linhas = linhasOriginais?.map(l =>
-    l.label === 'Reciprocidade' ? { ...l, semDesconto: 0, comDesconto: 0 } : l,
-  )
-  const visiveis = linhas?.filter(l => l.visivel) ?? []
-
-  if (visiveis.length > 0) {
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.setFillColor(37, 59, 41)
-    doc.rect(mL, y, usableW, 7, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.text('Item', mL + 2, y + 5)
-    doc.text('Valor', W - mR - 2, y + 5, { align: 'right' })
-    y += 9
-
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(40, 40, 40)
-    for (const l of visiveis) {
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(40, 40, 40)
-      doc.text(l.label, mL + 2, y + 4)
-      doc.text(BRL(l.comDesconto), W - mR - 2, y + 4, { align: 'right' })
-      doc.setDrawColor(220, 220, 220)
-      doc.line(mL, y + 7, W - mR, y + 7)
-      y += 8
-
-      if (l.label === 'Reciprocidade') {
-        doc.setFontSize(6.5)
-        doc.setFont('helvetica', 'italic')
-        doc.setTextColor(100, 100, 100)
-        const wrapped = doc.splitTextToSize(RECIPROCIDADE_DESC_PDF, usableW - 4)
-        doc.text(wrapped, mL + 2, y + 3, { lineHeightFactor: 1.3 })
-        y += wrapped.length * 2.8 + 3
-      }
-    }
-    y += 4
-  }
-
-  const totalComOriginal = typeof json.totalComDesconto === 'number' ? json.totalComDesconto : null
-  const totalSemOriginal = typeof json.totalSemDesconto === 'number' ? json.totalSemDesconto : null
-  const reciprocidadeSem = reciprocidadeOriginal?.semDesconto ?? 0
-  const reciprocidadeCom = reciprocidadeOriginal?.comDesconto ?? 0
-  const totalSem = totalSemOriginal !== null ? Math.round((totalSemOriginal - reciprocidadeSem) * 100) / 100 : null
-  const totalCom = totalComOriginal !== null ? Math.round((totalComOriginal - reciprocidadeCom) * 100) / 100 : null
-
-  if (totalCom !== null || totalSem !== null) {
-    doc.setFillColor(231, 224, 196)
-    doc.rect(mL, y, usableW, 14, 'F')
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(37, 59, 41)
-    if (totalSem !== null) {
-      doc.text(`Total sem desconto: ${BRL(totalSem)}`, mL + 4, y + 5)
-    }
-    if (totalCom !== null) {
-      doc.setFontSize(11)
-      doc.text(`Total com desconto: ${BRL(totalCom)}`, mL + 4, y + 12)
-    }
-  }
-
-  return Buffer.from(doc.output('arraybuffer'))
 }
 
 export async function POST(
@@ -202,7 +104,11 @@ export async function POST(
         responsavelNome: usuario.nome,
       })
     } else {
-      pdfBuffer = await gerarCustasBuffer(resultadoJson)
+      const { gerarPDFCustasBuffer } = await import('@/lib/simulador/gerarPDFBuffer')
+      pdfBuffer = await gerarPDFCustasBuffer(resultadoJson as unknown as ResultadoSimulador, {
+        clienteNome: nomeCliente ?? undefined,
+        responsavelNome: usuario.nome,
+      })
     }
   } catch (err) {
     console.error('[compartilhar-sim] Erro ao gerar PDF:', err)

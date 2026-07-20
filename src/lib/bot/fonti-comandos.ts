@@ -652,6 +652,10 @@ const MSG_AJUDA = `*Fonti — Comandos*
   → Consulta rápida: Motor de Crédito + PDF sem criar Lead ou Pessoa
   Ex: *simula imóvel 500k, 80%, renda 12k, Itaú Caixa, 32 anos
 
+*custas*  _(ou *fonti custas*)_
+  → Simulador de Custas: sequência de perguntas + PDF ao final
+  Responda cada pergunta; a última (banco) dispara o cálculo
+
 *cria cliente* ou *criar cliente [descrição livre]*  _(ou *fonti cria ...*)_
   → Cria Pessoa + Lead e vincula documentos recentes
 
@@ -847,6 +851,7 @@ export async function processarComandoFonti(
   else if (/^\*atualizar?\b/i.test(_texto))                        _texto = _texto.replace(/^\*atualizar?\b/i, '*fonti atualiza')
   else if (/^\*processo\b/i.test(_texto))                          _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
   else if (/^\*simula(?:r|[cç][aã]o)?\b/i.test(_texto))           _texto = _texto.replace(/^\*simula(?:r|[cç][aã]o)?\b/i, '*fonti simula')
+  else if (/^\*custas\b/i.test(_texto))                           _texto = _texto.replace(/^\*custas\b/i, '*fonti custas')
   else if (/^\*cancelar?\b/i.test(_texto))                        _texto = _texto.replace(/^\*cancelar?\b/i, '*fonti cancelar')
 
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
@@ -1180,6 +1185,38 @@ export async function processarComandoFonti(
     } catch (err) {
       console.error('[fonti] Erro inesperado no Workflow de Consulta:', err)
       return '❌ Erro inesperado ao processar a consulta. Tente novamente.'
+    }
+  }
+
+  // ── *fonti custas / *custas ──────────────────────────────────────────────
+  // Q&A fixo e determinístico (ver workflow-custas.ts) — diferente de *simula,
+  // não usa parsing por LLM. *fonti custas cancelar/novo reaproveita o mesmo
+  // vocabulário do *simula novo/cancelar.
+  if (corpoBaixo === 'custas' || corpoBaixo.startsWith('custas ')) {
+    const instrucaoCustas = corpo.replace(/^custas\s*/i, '').trim().toLowerCase()
+
+    if (instrucaoCustas === 'novo' || instrucaoCustas === 'cancelar') {
+      const { limparCustasPendente } = await import('@/lib/workflows/custas-pendente')
+      await limparCustasPendente(supabase, empresa_id, ctx.telefone_remetente)
+      if (instrucaoCustas === 'cancelar') {
+        return 'Simulação de custas cancelada. Quando quiser iniciar novamente, envie *custas.'
+      }
+    }
+
+    try {
+      const { iniciarFluxoCustas } = await import('@/lib/workflows/workflow-custas')
+      return await iniciarFluxoCustas({
+        empresa_id,
+        usuario_id: usuario.id,
+        usuario_nome: usuario.nome,
+        supabase,
+        instancia_token: ctx.instancia_token,
+        telefone_destino: ctx.telefone_destino,
+        telefone_operador: ctx.telefone_remetente,
+      })
+    } catch (err) {
+      console.error('[fonti] Erro inesperado no Workflow de Custas:', err)
+      return '❌ Erro inesperado ao iniciar o simulador de custas. Tente novamente.'
     }
   }
 
