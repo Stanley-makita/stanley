@@ -1,5 +1,26 @@
 // Central de Comunicação com o Cliente (Fase 1 — comunicação manual).
 
+export type TipoInteressado = 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora'
+
+/** Destinatário possível de comunicação manual (Lead ou Processo) — devolvido por
+ * GET /api/leads/[id]/interessados e GET /api/processos/[id]/interessados. */
+export interface Interessado {
+  tipo_interessado: TipoInteressado
+  interessado_id: string
+  nome: string
+  apto: boolean
+  motivo_indisponibilidade: string | null
+}
+
+/** Resultado individual de um envio dentro de uma seleção múltipla de destinatários. */
+export interface ResultadoEnvio {
+  chave: string
+  tipo: TipoInteressado
+  nome: string
+  ok: boolean
+  erro?: string
+}
+
 export interface ComunicacaoTemplate {
   id: string
   empresa_id: string

@@ -5,28 +5,7 @@ import { buildTimelineSummary, getTimelineBadge } from './timelineUtils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList, Bell, CheckCircle2, XCircle, Send } from 'lucide-react'
-
-const LABEL_TIPO_INTERESSADO: Record<string, string> = {
-  comprador:   'comprador',
-  corretor:    'corretor',
-  parceiro:    'parceiro',
-  imobiliaria: 'imobiliária',
-  construtora: 'construtora',
-}
-
-// lead_historico não tem coluna estruturada própria para o destinatário resolvido (ver
-// src/app/api/leads/[id]/atualizar-cliente/route.ts) — o backend grava um cabeçalho fixo e
-// parseável na primeira linha de `descricao`. Linhas antigas (formato anterior, sem cabeçalho)
-// caem no retorno `null` e o chamador usa o título genérico.
-const REGEX_CABECALHO_COMUNICACAO = /^\[COMUNICACAO tipo=(comprador|corretor|parceiro|imobiliaria|construtora) id=[^\s]+ nome="([^"]*)"\]\n?/
-
-function parseComunicacaoHistorico(descricao: string | null | undefined) {
-  if (!descricao) return null
-  const match = descricao.match(REGEX_CABECALHO_COMUNICACAO)
-  if (!match) return null
-  const [cabecalho, tipo, nome] = match as unknown as [string, 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora', string]
-  return { tipo, nome, mensagem: descricao.slice(cabecalho.length) }
-}
+import { parseCabecalhoComunicacao, LABEL_TIPO_INTERESSADO_TIMELINE } from '@/lib/comunicacao/parseCabecalhoComunicacao'
 
 const ICONES = {
   historico: Edit,
@@ -80,7 +59,7 @@ export function AbaHistorico({ leadId }: Props) {
               const tipoIcone = (item.kind === 'historico' ? item.tipo : item.kind) as keyof typeof ICONES
               const Icone = ICONES[tipoIcone] ?? Edit
               const comunicacaoParsed = item.kind === 'historico' && item.tipo === 'comunicacao'
-                ? parseComunicacaoHistorico(item.descricao)
+                ? parseCabecalhoComunicacao(item.descricao)
                 : null
               const titulo = item.kind === 'historico' && item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova
                 ? 'Mudança de fase'
@@ -98,7 +77,7 @@ export function AbaHistorico({ leadId }: Props) {
                             ? 'Acompanhamento encerrado'
                             : item.kind === 'historico' && item.tipo === 'comunicacao'
                               ? (comunicacaoParsed
-                                  ? `Mensagem enviada ao ${LABEL_TIPO_INTERESSADO[comunicacaoParsed.tipo]} — ${comunicacaoParsed.nome}`
+                                  ? `Mensagem enviada ao ${LABEL_TIPO_INTERESSADO_TIMELINE[comunicacaoParsed.tipo]} — ${comunicacaoParsed.nome}`
                                   : 'Mensagem enviada ao cliente')
                               : item.kind === 'simulacao'
                               ? 'Simulação salva'

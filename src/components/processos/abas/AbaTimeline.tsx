@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { MessageSquare, ArrowRight, CheckSquare, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { parseCabecalhoComunicacao, LABEL_TIPO_INTERESSADO_TIMELINE } from '@/lib/comunicacao/parseCabecalhoComunicacao'
 
 const TIPO_CONFIG = {
   comentario:      { icone: MessageSquare, cor: 'bg-blue-100 text-blue-600',   label: 'Comentário' },
@@ -21,14 +22,25 @@ function ItemComentario({ payload }: { payload: ProcessoComentario }) {
     solicitacao:         { label: 'Solicitação',        className: 'bg-blue-100 text-blue-700' },
     comunicacao_cliente: { label: 'Mensagem ao cliente', className: 'bg-green-100 text-green-700' },
   }
+  // processo_comentarios não tem coluna estruturada própria pro destinatário resolvido de uma
+  // comunicação manual — o servidor grava um cabeçalho parseável na primeira linha de `texto`
+  // (ver src/app/api/processos/[id]/atualizar-cliente/route.ts). Quando presente, mostra "ao
+  // corretor — Carlos" em vez do genérico "ao cliente"; comentários antigos/sem cabeçalho caem
+  // no rótulo padrão.
+  const comunicacaoParsed = payload.tipo === 'comunicacao_cliente' ? parseCabecalhoComunicacao(payload.texto) : null
   const config = TIPOS[payload.tipo] ?? TIPOS.observacao
+  const label = comunicacaoParsed
+    ? `Mensagem ao ${LABEL_TIPO_INTERESSADO_TIMELINE[comunicacaoParsed.tipo]}`
+    : config.label
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-medium text-fonti-primary">{payload.usuario?.nome ?? 'Sistema'}</span>
-        <Badge className={`text-xs px-1.5 py-0 ${config.className}`}>{config.label}</Badge>
+        <Badge className={`text-xs px-1.5 py-0 ${config.className}`}>{label}</Badge>
       </div>
-      <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">{payload.texto}</p>
+      <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">
+        {comunicacaoParsed ? comunicacaoParsed.mensagem : payload.texto}
+      </p>
     </div>
   )
 }

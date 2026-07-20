@@ -6,14 +6,15 @@ import type { Interessado } from '@/types/comunicacao'
 
 export type { Interessado }
 
-/** Lista os destinatários possíveis de comunicação manual de um Lead (comprador + corretores vinculados). */
-export function useInteressadosLead(leadId: string, enabled = true) {
+/** Lista os destinatários possíveis de comunicação manual de um Negócio (comprador(es) +
+ * corretor/parceiro/imobiliária/construtora vinculados). Espelha useInteressadosLead.ts. */
+export function useInteressadosProcesso(processoId: string, enabled = true) {
   return useQuery({
-    queryKey: ['leads', leadId, 'interessados'],
-    enabled: enabled && !!leadId,
+    queryKey: ['processos', processoId, 'interessados'],
+    enabled: enabled && !!processoId,
     queryFn: async (): Promise<Interessado[]> => {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/leads/${leadId}/interessados`, {
+      const res = await fetch(`/api/processos/${processoId}/interessados`, {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       })
       const body = await res.json()

@@ -8,13 +8,14 @@ const supabaseService = createServiceClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Lista os destinatários possíveis de comunicação manual para um Lead — comprador (o próprio
-// Lead), corretores, parceiros e imobiliárias/construtoras vinculados. Alimenta o seletor de
-// destinatário do modal "Comunicar partes". Lista TODOS os vínculos reais, inclusive os sem
-// telefone/inativos (apto=false + motivo) -- não esconde o vínculo, só marca como indisponível
-// para envio.
+// Lista os destinatários possíveis de comunicação manual para um Processo (Negócio) —
+// comprador(es), corretores, parceiros e imobiliárias/construtoras vinculados. Espelha
+// GET /api/leads/[id]/interessados. Lista TODOS os vínculos reais, inclusive os sem
+// telefone/inativos (apto=false + motivo) -- não esconde o vínculo.
 //
-// Vendedor não aparece aqui de propósito — sem identidade estável, ver migration 20260719_172.
+// Diferença do Lead: pode haver mais de um comprador por Processo (processo_compradores não é
+// 1:1 como leads). 'vendedora' (processo_imobiliarias.papel) fica de fora de propósito -- sem
+// equivalente no Lead. Vendedor não aparece aqui (mesma exclusão do Lead).
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const authHeader = request.headers.get('authorization') ?? ''
   const token = authHeader.replace('Bearer ', '').trim()
@@ -32,29 +33,37 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     .single()
   if (!usuario) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
 
-  const leadId = params.id
+  const processoId = params.id
 
-  const { data: lead } = await supabaseService
-    .from('leads')
-    .select('id, nome, telefone')
-    .eq('id', leadId)
+  const { data: processo } = await supabaseService
+    .from('processos')
+    .select('id')
+    .eq('id', processoId)
     .eq('empresa_id', usuario.empresa_id)
-    .is('deleted_at', null)
     .single()
-  if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+  if (!processo) return NextResponse.json({ error: 'Negócio não encontrado' }, { status: 404 })
 
-  const interessados: Interessado[] = [{
-    tipo_interessado: 'comprador',
-    interessado_id: lead.id,
-    nome: lead.nome,
-    apto: !!lead.telefone?.trim(),
-    motivo_indisponibilidade: lead.telefone?.trim() ? null : 'Telefone não cadastrado',
-  }]
+  const interessados: Interessado[] = []
+
+  const { data: compradores } = await supabaseService
+    .from('processo_compradores')
+    .select('id, nome, telefone')
+    .eq('processo_id', processoId)
+
+  for (const comprador of compradores ?? []) {
+    interessados.push({
+      tipo_interessado: 'comprador',
+      interessado_id: comprador.id,
+      nome: comprador.nome,
+      apto: !!comprador.telefone?.trim(),
+      motivo_indisponibilidade: comprador.telefone?.trim() ? null : 'Telefone não cadastrado',
+    })
+  }
 
   const { data: corretorVinculos } = await supabaseService
-    .from('lead_corretores')
+    .from('processo_corretores')
     .select('corretor:corretores(id, nome, telefone, ativo)')
-    .eq('lead_id', leadId)
+    .eq('processo_id', processoId)
 
   for (const vinculo of corretorVinculos ?? []) {
     const corretor = Array.isArray(vinculo.corretor) ? vinculo.corretor[0] : vinculo.corretor
@@ -69,9 +78,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   const { data: parceiroVinculos } = await supabaseService
-    .from('lead_parceiros')
+    .from('processo_parceiros')
     .select('parceiro:parceiros(id, nome, telefone, ativo)')
-    .eq('lead_id', leadId)
+    .eq('processo_id', processoId)
 
   for (const vinculo of parceiroVinculos ?? []) {
     const parceiro = Array.isArray(vinculo.parceiro) ? vinculo.parceiro[0] : vinculo.parceiro
@@ -86,9 +95,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   const { data: imobiliariaVinculos } = await supabaseService
-    .from('lead_imobiliarias')
+    .from('processo_imobiliarias')
     .select('papel, imobiliaria:imobiliarias(id, nome, telefone, ativo)')
-    .eq('lead_id', leadId)
+    .eq('processo_id', processoId)
+    .in('papel', ['imobiliaria', 'construtora'])
 
   for (const vinculo of imobiliariaVinculos ?? []) {
     const imobiliaria = Array.isArray(vinculo.imobiliaria) ? vinculo.imobiliaria[0] : vinculo.imobiliaria
