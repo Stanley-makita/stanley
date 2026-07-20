@@ -31,6 +31,11 @@ import {
 } from 'lucide-react'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 import { BlocoImovelLead } from '@/components/leads/BlocoImovelLead'
+import {
+  ModalAdicionarCorretor,
+  ModalAdicionarImobiliaria,
+  ModalAdicionarParceiro,
+} from '@/components/parceiros/ModaisVincularParceiro'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 
@@ -1540,9 +1545,9 @@ function BlocoOrigem({ origem, onChange, saving }: {
 function BlocoParceirosLead({ leadId }: { leadId: string }) {
   const supabaseClient = createClient()
   const qc = useQueryClient()
-  const [addingCorretor,    setAddingCorretor]    = useState(false)
-  const [addingImobiliaria, setAddingImobiliaria] = useState(false)
-  const [addingParceiro,    setAddingParceiro]    = useState(false)
+  const [modalCorretor,    setModalCorretor]    = useState(false)
+  const [modalImobiliaria, setModalImobiliaria] = useState(false)
+  const [modalParceiro,    setModalParceiro]    = useState(false)
 
   const { data: corretores = [] } = useQuery({
     queryKey: ['lead-corretores', leadId],
@@ -1565,42 +1570,7 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
       return (data ?? []) as unknown as ParceiroVinculado[]
     },
   })
-  const { data: todosCorretores = [] } = useQuery({
-    queryKey: ['corretores-lista'],
-    queryFn: async () => {
-      const { data } = await supabaseClient.from('corretores').select('id, nome, creci').eq('ativo', true).order('nome')
-      return (data ?? []) as { id: string; nome: string; creci: string | null }[]
-    },
-  })
-  const { data: todasImobiliarias = [] } = useQuery({
-    queryKey: ['imobiliarias-lista'],
-    queryFn: async () => {
-      const { data } = await supabaseClient.from('imobiliarias').select('id, nome, tipo').eq('ativo', true).order('nome')
-      return (data ?? []) as { id: string; nome: string; tipo: string }[]
-    },
-  })
-  const { data: todosParceiros = [] } = useQuery({
-    queryKey: ['parceiros-lista'],
-    queryFn: async () => {
-      const { data } = await supabaseClient.from('parceiros').select('id, nome, tipo').eq('ativo', true).order('nome')
-      return (data ?? []) as { id: string; nome: string; tipo: string }[]
-    },
-  })
 
-  async function vincularCorretor(id: string) {
-    await supabaseClient.from('lead_corretores').insert({ lead_id: leadId, corretor_id: id })
-    qc.invalidateQueries({ queryKey: ['lead-corretores', leadId] }); setAddingCorretor(false)
-  }
-  async function vincularImobiliaria(id: string) {
-    const imob = todasImobiliarias.find(i => i.id === id)
-    const papel = imob?.tipo === 'construtora' ? 'construtora' : 'imobiliaria'
-    await supabaseClient.from('lead_imobiliarias').insert({ lead_id: leadId, imobiliaria_id: id, papel })
-    qc.invalidateQueries({ queryKey: ['lead-imobiliarias', leadId] }); setAddingImobiliaria(false)
-  }
-  async function vincularParceiro(id: string) {
-    await supabaseClient.from('lead_parceiros').insert({ lead_id: leadId, parceiro_id: id })
-    qc.invalidateQueries({ queryKey: ['lead-parceiros', leadId] }); setAddingParceiro(false)
-  }
   async function removerCorretor(id: string) {
     await supabaseClient.from('lead_corretores').delete().eq('id', id)
     qc.invalidateQueries({ queryKey: ['lead-corretores', leadId] })
@@ -1614,33 +1584,39 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
     qc.invalidateQueries({ queryKey: ['lead-parceiros', leadId] })
   }
 
-  const corretoresDisp   = todosCorretores.filter(c => !corretores.find(v => v.corretor_id === c.id))
-  const imobiliariasDisp = todasImobiliarias.filter(i => !imobiliarias.find(v => v.imobiliaria_id === i.id))
-  const parceirosDisp    = todosParceiros.filter(p => !parceiros.find(v => v.parceiro_id === p.id))
-
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-4">
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-1">Parceiros</p>
       <ParceirosSecao
         label="Corretor" icon={<User className="h-3.5 w-3.5" />}
         items={corretores.map(c => ({ id: c.id, nome: c.corretor.nome, sub: c.corretor.creci ? `CRECI: ${c.corretor.creci}` : undefined }))}
-        onRemover={removerCorretor} adicionando={addingCorretor}
-        onAbrirAdicionar={() => setAddingCorretor(true)} onFecharAdicionar={() => setAddingCorretor(false)}
-        disponiveis={corretoresDisp.map(c => ({ id: c.id, label: c.nome }))} onSelecionar={vincularCorretor}
+        onRemover={removerCorretor} onAbrirAdicionar={() => setModalCorretor(true)}
       />
       <ParceirosSecao
         label="Imobiliária / Construtora" icon={<Building2 className="h-3.5 w-3.5" />}
         items={imobiliarias.map(i => ({ id: i.id, nome: i.imobiliaria.nome, sub: i.papel === 'construtora' ? 'Construtora' : 'Imobiliária' }))}
-        onRemover={removerImobiliaria} adicionando={addingImobiliaria}
-        onAbrirAdicionar={() => setAddingImobiliaria(true)} onFecharAdicionar={() => setAddingImobiliaria(false)}
-        disponiveis={imobiliariasDisp.map(i => ({ id: i.id, label: i.nome }))} onSelecionar={vincularImobiliaria}
+        onRemover={removerImobiliaria} onAbrirAdicionar={() => setModalImobiliaria(true)}
       />
       <ParceirosSecao
         label="Parceiro Comercial" icon={<Handshake className="h-3.5 w-3.5" />}
         items={parceiros.map(p => ({ id: p.id, nome: p.parceiro.nome, sub: p.parceiro.tipo === 'pessoa_fisica' ? 'Pessoa Física' : 'Empresa' }))}
-        onRemover={removerParceiro} adicionando={addingParceiro}
-        onAbrirAdicionar={() => setAddingParceiro(true)} onFecharAdicionar={() => setAddingParceiro(false)}
-        disponiveis={parceirosDisp.map(p => ({ id: p.id, label: p.nome }))} onSelecionar={vincularParceiro}
+        onRemover={removerParceiro} onAbrirAdicionar={() => setModalParceiro(true)}
+      />
+
+      <ModalAdicionarCorretor
+        open={modalCorretor} contexto="lead" entidadeId={leadId}
+        onClose={() => setModalCorretor(false)}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['lead-corretores', leadId] })}
+      />
+      <ModalAdicionarImobiliaria
+        open={modalImobiliaria} contexto="lead" entidadeId={leadId}
+        onClose={() => setModalImobiliaria(false)}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['lead-imobiliarias', leadId] })}
+      />
+      <ModalAdicionarParceiro
+        open={modalParceiro} contexto="lead" entidadeId={leadId}
+        onClose={() => setModalParceiro(false)}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['lead-parceiros', leadId] })}
       />
     </div>
   )
@@ -1648,12 +1624,11 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
 
 // ── ParceirosSecao ────────────────────────────────────────────
 
-function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdicionar, onFecharAdicionar, disponiveis, onSelecionar }: {
+function ParceirosSecao({ label, icon, items, onRemover, onAbrirAdicionar }: {
   label: string; icon: React.ReactNode
   items: { id: string; nome: string; sub?: string }[]
   onRemover: (id: string) => void
-  adicionando: boolean; onAbrirAdicionar: () => void; onFecharAdicionar: () => void
-  disponiveis: { id: string; label: string }[]; onSelecionar: (id: string) => void
+  onAbrirAdicionar: () => void
 }) {
   return (
     <div>
@@ -1666,7 +1641,7 @@ function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdi
           <Plus className="h-3 w-3" /> Vincular
         </button>
       </div>
-      {items.length === 0 && !adicionando && <p className="text-xs text-gray-300 italic">Nenhum vinculado</p>}
+      {items.length === 0 && <p className="text-xs text-gray-300 italic">Nenhum vinculado</p>}
       {items.map(item => (
         <div key={item.id} className="flex items-center justify-between py-1 px-2 rounded-md bg-gray-50 mb-1">
           <div>
@@ -1678,24 +1653,6 @@ function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdi
           </button>
         </div>
       ))}
-      {adicionando && (
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <Select onValueChange={onSelecionar}>
-            <SelectTrigger className="h-7 text-xs flex-1">
-              <SelectValue placeholder={`Selecionar ${label.toLowerCase()}...`} />
-            </SelectTrigger>
-            <SelectContent>
-              {disponiveis.length === 0
-                ? <div className="px-2 py-1.5 text-xs text-gray-400">Nenhum disponível</div>
-                : disponiveis.map(d => <SelectItem key={d.id} value={d.id} className="text-xs">{d.label}</SelectItem>)
-              }
-            </SelectContent>
-          </Select>
-          <button onClick={onFecharAdicionar} className="text-gray-400 hover:text-gray-600 shrink-0">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
     </div>
   )
 }
