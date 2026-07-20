@@ -81,6 +81,23 @@ export interface Lead {
   status_analise: StatusAnalise
   data_credito: string | null
   validade_credito: string | null
+  // Imóvel vinculado (referência + campos denormalizados editáveis por lead)
+  // Distinto dos legados `tipo_imovel`/`cidade_imovel` acima (migration 089,
+  // texto solto sem FK) — ver migration 174.
+  imovel_id?: string | null
+  imovel_matricula?: string | null
+  imovel_tipo?: string | null
+  imovel_categoria?: string | null
+  imovel_area_construida?: number | null
+  imovel_area_terreno?: number | null
+  imovel_rua?: string | null
+  imovel_numero?: string | null
+  imovel_complemento?: string | null
+  imovel_bairro?: string | null
+  imovel_cidade?: string | null
+  imovel_uf?: string | null
+  imovel_registro_id?: string | null
+  nome_imovel?: string | null
   // Status configurável por fase
   status_id: string | null
   // Consulta de restritivos (CPF/CNPJ/SCR)

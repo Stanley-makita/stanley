@@ -30,6 +30,12 @@ import {
   ClipboardList, ExternalLink, Pencil, Search, Home, TrendingUp, Banknote,
 } from 'lucide-react'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
+import { BlocoImovelLead } from '@/components/leads/BlocoImovelLead'
+import {
+  ModalAdicionarCorretor,
+  ModalAdicionarImobiliaria,
+  ModalAdicionarParceiro,
+} from '@/components/parceiros/ModaisVincularParceiro'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 
@@ -69,13 +75,6 @@ const FINALIDADES = [
   { value: 'investimento', label: 'Investimento' },
   { value: 'reforma',      label: 'Reforma' },
 ]
-const TIPOS_IMOVEL = [
-  { value: 'apartamento', label: 'Apartamento' },
-  { value: 'casa',        label: 'Casa' },
-  { value: 'terreno',     label: 'Terreno' },
-  { value: 'comercial',   label: 'Comercial' },
-  { value: 'rural',       label: 'Rural' },
-]
 const ORIGENS = [
   { value: 'direto',             label: 'Direto' },
   { value: 'whatsapp',           label: 'WhatsApp' },
@@ -97,15 +96,6 @@ const REGIME_LABEL: Record<string, string> = {
   comunhao_parcial: 'Comunhão Parcial', comunhao_total: 'Comunhão Total',
   separacao_total: 'Separação Total', participacao_final_aquestos: 'Part. Final Aquestos',
 }
-
-// Campos extensíveis: adicionar aqui + migration para novos campos
-const CAMPOS_IMOVEL = [
-  { key: 'tipo_imovel',   label: 'Tipo',   tipo: 'select' as const, opcoes: TIPOS_IMOVEL },
-  { key: 'cidade_imovel', label: 'Cidade', tipo: 'text'   as const },
-  // futuras: { key: 'imovel_matricula', label: 'Matrícula', tipo: 'text' },
-  // futuras: { key: 'imovel_rua', label: 'Endereço', tipo: 'text' },
-  // futuras: { key: 'imovel_bairro', label: 'Bairro', tipo: 'text' },
-] as const
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -252,7 +242,7 @@ export function AbaCredito({ lead }: Props) {
 
       {/* 5+6. Imóvel e Vendedor lado a lado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <BlocoImovel lead={lead} />
+        <BlocoImovelLead lead={lead} />
         <BlocoVendedor
           lead={lead}
           onAbrirVendedorPessoa={lead.vendedor_pessoa_id ? () => setVendedorPessoaDrawer(lead.vendedor_pessoa_id) : undefined}
@@ -1292,100 +1282,6 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
   )
 }
 
-// ── BlocoImovel ───────────────────────────────────────────────
-
-function BlocoImovel({ lead }: { lead: Lead }) {
-  const editar = useEditarLead()
-  const temDados = CAMPOS_IMOVEL.some(c => lead[c.key as keyof Lead] != null)
-  const [form, setForm] = useState<Record<string, string>>(() =>
-    Object.fromEntries(CAMPOS_IMOVEL.map(c => [c.key, (lead[c.key as keyof Lead] as string) ?? '']))
-  )
-  const [dirty, setDirty] = useState(false)
-  const [editando, setEditando] = useState(false)
-
-  function set(k: string, v: string) {
-    setForm(f => ({ ...f, [k]: v }))
-    setDirty(true)
-  }
-  function salvar() {
-    const patch: Record<string, string | null> = {}
-    for (const c of CAMPOS_IMOVEL) patch[c.key] = form[c.key] || null
-    editar.mutate({ id: lead.id, ...patch as any }, { onSuccess: () => { setDirty(false); setEditando(false) } })
-  }
-
-  if (!temDados && !editando) {
-    return (
-      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Imóvel</p>
-          <button onClick={() => setEditando(true)} className="flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium">
-            <Plus className="h-3 w-3" /> Informar Imóvel
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Imóvel</p>
-        <div className="flex items-center gap-2">
-          {dirty && (
-            <Button size="sm" className="h-7 text-xs gap-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={salvar} disabled={editar.isPending}>
-              {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-              Salvar
-            </Button>
-          )}
-          {!editando && (
-            <button onClick={() => setEditando(true)} className="text-xs text-gray-400 hover:text-fonti-primary flex items-center gap-0.5">
-              <Pencil className="h-3 w-3" /> Editar
-            </button>
-          )}
-        </div>
-      </div>
-      {editando ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {CAMPOS_IMOVEL.map(c => (
-            <div key={c.key}>
-              <Label className="text-xs text-gray-500">{c.label}</Label>
-              {c.tipo === 'select' ? (
-                <Select value={form[c.key]} onValueChange={v => set(c.key, v)}>
-                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                  <SelectContent>
-                    {(c as any).opcoes?.map((o: any) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input className="h-8 text-sm mt-1" value={form[c.key]} onChange={e => set(c.key, e.target.value)} />
-              )}
-            </div>
-          ))}
-          <div className="col-span-2 flex justify-end gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditando(false)}>Cancelar</Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-          {CAMPOS_IMOVEL.map(c => {
-            const val = lead[c.key as keyof Lead] as string | null
-            if (!val) return null
-            const label = c.tipo === 'select'
-              ? (c as any).opcoes?.find((o: any) => o.value === val)?.label ?? val
-              : val
-            return (
-              <div key={c.key}>
-                <p className="text-xs text-gray-400 mb-0.5">{c.label}</p>
-                <p className="text-sm font-medium text-gray-800">{label}</p>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── BlocoVendedor ─────────────────────────────────────────────
 
 function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
@@ -1649,9 +1545,9 @@ function BlocoOrigem({ origem, onChange, saving }: {
 function BlocoParceirosLead({ leadId }: { leadId: string }) {
   const supabaseClient = createClient()
   const qc = useQueryClient()
-  const [addingCorretor,    setAddingCorretor]    = useState(false)
-  const [addingImobiliaria, setAddingImobiliaria] = useState(false)
-  const [addingParceiro,    setAddingParceiro]    = useState(false)
+  const [modalCorretor,    setModalCorretor]    = useState(false)
+  const [modalImobiliaria, setModalImobiliaria] = useState(false)
+  const [modalParceiro,    setModalParceiro]    = useState(false)
 
   const { data: corretores = [] } = useQuery({
     queryKey: ['lead-corretores', leadId],
@@ -1674,42 +1570,7 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
       return (data ?? []) as unknown as ParceiroVinculado[]
     },
   })
-  const { data: todosCorretores = [] } = useQuery({
-    queryKey: ['corretores-lista'],
-    queryFn: async () => {
-      const { data } = await supabaseClient.from('corretores').select('id, nome, creci').eq('ativo', true).order('nome')
-      return (data ?? []) as { id: string; nome: string; creci: string | null }[]
-    },
-  })
-  const { data: todasImobiliarias = [] } = useQuery({
-    queryKey: ['imobiliarias-lista'],
-    queryFn: async () => {
-      const { data } = await supabaseClient.from('imobiliarias').select('id, nome, tipo').eq('ativo', true).order('nome')
-      return (data ?? []) as { id: string; nome: string; tipo: string }[]
-    },
-  })
-  const { data: todosParceiros = [] } = useQuery({
-    queryKey: ['parceiros-lista'],
-    queryFn: async () => {
-      const { data } = await supabaseClient.from('parceiros').select('id, nome, tipo').eq('ativo', true).order('nome')
-      return (data ?? []) as { id: string; nome: string; tipo: string }[]
-    },
-  })
 
-  async function vincularCorretor(id: string) {
-    await supabaseClient.from('lead_corretores').insert({ lead_id: leadId, corretor_id: id })
-    qc.invalidateQueries({ queryKey: ['lead-corretores', leadId] }); setAddingCorretor(false)
-  }
-  async function vincularImobiliaria(id: string) {
-    const imob = todasImobiliarias.find(i => i.id === id)
-    const papel = imob?.tipo === 'construtora' ? 'construtora' : 'imobiliaria'
-    await supabaseClient.from('lead_imobiliarias').insert({ lead_id: leadId, imobiliaria_id: id, papel })
-    qc.invalidateQueries({ queryKey: ['lead-imobiliarias', leadId] }); setAddingImobiliaria(false)
-  }
-  async function vincularParceiro(id: string) {
-    await supabaseClient.from('lead_parceiros').insert({ lead_id: leadId, parceiro_id: id })
-    qc.invalidateQueries({ queryKey: ['lead-parceiros', leadId] }); setAddingParceiro(false)
-  }
   async function removerCorretor(id: string) {
     await supabaseClient.from('lead_corretores').delete().eq('id', id)
     qc.invalidateQueries({ queryKey: ['lead-corretores', leadId] })
@@ -1723,33 +1584,39 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
     qc.invalidateQueries({ queryKey: ['lead-parceiros', leadId] })
   }
 
-  const corretoresDisp   = todosCorretores.filter(c => !corretores.find(v => v.corretor_id === c.id))
-  const imobiliariasDisp = todasImobiliarias.filter(i => !imobiliarias.find(v => v.imobiliaria_id === i.id))
-  const parceirosDisp    = todosParceiros.filter(p => !parceiros.find(v => v.parceiro_id === p.id))
-
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-4">
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-1">Parceiros</p>
       <ParceirosSecao
         label="Corretor" icon={<User className="h-3.5 w-3.5" />}
         items={corretores.map(c => ({ id: c.id, nome: c.corretor.nome, sub: c.corretor.creci ? `CRECI: ${c.corretor.creci}` : undefined }))}
-        onRemover={removerCorretor} adicionando={addingCorretor}
-        onAbrirAdicionar={() => setAddingCorretor(true)} onFecharAdicionar={() => setAddingCorretor(false)}
-        disponiveis={corretoresDisp.map(c => ({ id: c.id, label: c.nome }))} onSelecionar={vincularCorretor}
+        onRemover={removerCorretor} onAbrirAdicionar={() => setModalCorretor(true)}
       />
       <ParceirosSecao
         label="Imobiliária / Construtora" icon={<Building2 className="h-3.5 w-3.5" />}
         items={imobiliarias.map(i => ({ id: i.id, nome: i.imobiliaria.nome, sub: i.papel === 'construtora' ? 'Construtora' : 'Imobiliária' }))}
-        onRemover={removerImobiliaria} adicionando={addingImobiliaria}
-        onAbrirAdicionar={() => setAddingImobiliaria(true)} onFecharAdicionar={() => setAddingImobiliaria(false)}
-        disponiveis={imobiliariasDisp.map(i => ({ id: i.id, label: i.nome }))} onSelecionar={vincularImobiliaria}
+        onRemover={removerImobiliaria} onAbrirAdicionar={() => setModalImobiliaria(true)}
       />
       <ParceirosSecao
         label="Parceiro Comercial" icon={<Handshake className="h-3.5 w-3.5" />}
         items={parceiros.map(p => ({ id: p.id, nome: p.parceiro.nome, sub: p.parceiro.tipo === 'pessoa_fisica' ? 'Pessoa Física' : 'Empresa' }))}
-        onRemover={removerParceiro} adicionando={addingParceiro}
-        onAbrirAdicionar={() => setAddingParceiro(true)} onFecharAdicionar={() => setAddingParceiro(false)}
-        disponiveis={parceirosDisp.map(p => ({ id: p.id, label: p.nome }))} onSelecionar={vincularParceiro}
+        onRemover={removerParceiro} onAbrirAdicionar={() => setModalParceiro(true)}
+      />
+
+      <ModalAdicionarCorretor
+        open={modalCorretor} contexto="lead" entidadeId={leadId}
+        onClose={() => setModalCorretor(false)}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['lead-corretores', leadId] })}
+      />
+      <ModalAdicionarImobiliaria
+        open={modalImobiliaria} contexto="lead" entidadeId={leadId}
+        onClose={() => setModalImobiliaria(false)}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['lead-imobiliarias', leadId] })}
+      />
+      <ModalAdicionarParceiro
+        open={modalParceiro} contexto="lead" entidadeId={leadId}
+        onClose={() => setModalParceiro(false)}
+        onAdded={() => qc.invalidateQueries({ queryKey: ['lead-parceiros', leadId] })}
       />
     </div>
   )
@@ -1757,12 +1624,11 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
 
 // ── ParceirosSecao ────────────────────────────────────────────
 
-function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdicionar, onFecharAdicionar, disponiveis, onSelecionar }: {
+function ParceirosSecao({ label, icon, items, onRemover, onAbrirAdicionar }: {
   label: string; icon: React.ReactNode
   items: { id: string; nome: string; sub?: string }[]
   onRemover: (id: string) => void
-  adicionando: boolean; onAbrirAdicionar: () => void; onFecharAdicionar: () => void
-  disponiveis: { id: string; label: string }[]; onSelecionar: (id: string) => void
+  onAbrirAdicionar: () => void
 }) {
   return (
     <div>
@@ -1775,7 +1641,7 @@ function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdi
           <Plus className="h-3 w-3" /> Vincular
         </button>
       </div>
-      {items.length === 0 && !adicionando && <p className="text-xs text-gray-300 italic">Nenhum vinculado</p>}
+      {items.length === 0 && <p className="text-xs text-gray-300 italic">Nenhum vinculado</p>}
       {items.map(item => (
         <div key={item.id} className="flex items-center justify-between py-1 px-2 rounded-md bg-gray-50 mb-1">
           <div>
@@ -1787,24 +1653,6 @@ function ParceirosSecao({ label, icon, items, onRemover, adicionando, onAbrirAdi
           </button>
         </div>
       ))}
-      {adicionando && (
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <Select onValueChange={onSelecionar}>
-            <SelectTrigger className="h-7 text-xs flex-1">
-              <SelectValue placeholder={`Selecionar ${label.toLowerCase()}...`} />
-            </SelectTrigger>
-            <SelectContent>
-              {disponiveis.length === 0
-                ? <div className="px-2 py-1.5 text-xs text-gray-400">Nenhum disponível</div>
-                : disponiveis.map(d => <SelectItem key={d.id} value={d.id} className="text-xs">{d.label}</SelectItem>)
-              }
-            </SelectContent>
-          </Select>
-          <button onClick={onFecharAdicionar} className="text-gray-400 hover:text-gray-600 shrink-0">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

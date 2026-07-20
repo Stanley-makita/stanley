@@ -1,40 +1,43 @@
 'use client'
 
 import { useRegistrosImoveis } from '@/hooks/configuracoes/useRegistrosImoveis'
-import type { Processo } from '@/types/processos'
+import { useEditarLead } from '@/hooks/leads/useEditarLead'
+import type { Lead } from '@/types/leads'
 import type { Imovel } from '@/types/imoveis'
-import { ImovelVinculoCard } from './ImovelVinculoCard'
-import { AvaliacoesEngenhariaImovel } from './AvaliacoesEngenhariaImovel'
+import { ImovelVinculoCard } from '@/components/imoveis/ImovelVinculoCard'
 import type { ImovelSelecionado } from '@/components/leads/SeletorImovelProcesso'
 
 interface Props {
-  processo: Processo
-  onUpdate: (campos: Partial<Omit<Processo, 'id' | 'empresa_id'>>) => void
-  isPending?: boolean
+  lead: Lead
 }
 
-export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
+export function BlocoImovelLead({ lead }: Props) {
   const { data: registros = [] } = useRegistrosImoveis()
+  const editar = useEditarLead()
 
   const snapshot: ImovelSelecionado = {
-    imovel_id: processo.imovel_id ?? null,
-    imovel_matricula: processo.imovel_matricula ?? null,
-    imovel_tipo: processo.imovel_tipo ?? null,
-    imovel_categoria: processo.imovel_categoria ?? null,
-    imovel_area_construida: processo.imovel_area_construida ?? null,
-    imovel_area_terreno: processo.imovel_area_terreno ?? null,
-    imovel_rua: processo.imovel_rua ?? null,
-    imovel_numero: processo.imovel_numero ?? null,
-    imovel_complemento: processo.imovel_complemento ?? null,
-    imovel_bairro: processo.imovel_bairro ?? null,
-    imovel_cidade: processo.imovel_cidade ?? null,
-    imovel_uf: processo.imovel_uf ?? null,
-    imovel_registro_id: processo.imovel_registro_id ?? null,
-    nome_imovel: processo.nome_imovel ?? '',
+    imovel_id: lead.imovel_id ?? null,
+    imovel_matricula: lead.imovel_matricula ?? null,
+    imovel_tipo: lead.imovel_tipo ?? null,
+    imovel_categoria: lead.imovel_categoria ?? null,
+    imovel_area_construida: lead.imovel_area_construida ?? null,
+    imovel_area_terreno: lead.imovel_area_terreno ?? null,
+    imovel_rua: lead.imovel_rua ?? null,
+    imovel_numero: lead.imovel_numero ?? null,
+    imovel_complemento: lead.imovel_complemento ?? null,
+    imovel_bairro: lead.imovel_bairro ?? null,
+    imovel_cidade: lead.imovel_cidade ?? null,
+    imovel_uf: lead.imovel_uf ?? null,
+    imovel_registro_id: lead.imovel_registro_id ?? null,
+    nome_imovel: lead.nome_imovel ?? '',
+  }
+
+  function salvar(patch: Partial<ImovelSelecionado>) {
+    editar.mutate({ id: lead.id, ...patch })
   }
 
   function handleVincular(imovel: Imovel) {
-    onUpdate({
+    salvar({
       imovel_id: imovel.id,
       imovel_matricula: imovel.matricula,
       imovel_tipo: imovel.tipo,
@@ -48,12 +51,12 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
       imovel_cidade: imovel.cidade,
       imovel_uf: imovel.uf,
       imovel_registro_id: imovel.registro_imoveis_id,
-      nome_imovel: [imovel.rua, imovel.numero, imovel.bairro, imovel.cidade].filter(Boolean).join(', ') || processo.nome_imovel,
+      nome_imovel: [imovel.rua, imovel.numero, imovel.bairro, imovel.cidade].filter(Boolean).join(', ') || lead.nome_imovel || '',
     })
   }
 
   function handleDesvincular() {
-    onUpdate({
+    salvar({
       imovel_id: null,
       imovel_matricula: null,
       imovel_tipo: null,
@@ -75,12 +78,11 @@ export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
     <ImovelVinculoCard
       snapshot={snapshot}
       onVincular={handleVincular}
-      onEditarSnapshot={onUpdate}
+      onEditarSnapshot={salvar}
       onDesvincular={handleDesvincular}
-      isPending={isPending}
+      isPending={editar.isPending}
       registros={registros}
-      contextoLabel="este processo"
-      slotExtra={<AvaliacoesEngenhariaImovel imovelId={processo.imovel_id} />}
+      contextoLabel="este lead"
     />
   )
 }
