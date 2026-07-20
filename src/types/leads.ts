@@ -116,6 +116,9 @@ export interface Lead {
   conjuge_pessoa?: { id: string; nome: string; cpf: string | null; renda_formal: number | null; renda_informal: number | null } | null
   vendedor_pessoa?: { id: string; nome: string; cpf: string | null } | null
   parceiro?: { id: string; nome: string; imobiliaria: string | null; tipo_parceiro: string | null } | null
+  corretores?: { id: string; corretor?: { id: string; nome: string } | null }[]
+  imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]
+  parceiros?: { id: string; parceiro?: { id: string; nome: string } | null }[]
 }
 
 export type StatusAnaliseCredito = 'em_analise' | 'aprovado' | 'recusado' | 'pendente'

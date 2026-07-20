@@ -33,11 +33,15 @@ type ColKey =
   | 'comercial'
   | 'operacional'
   | 'valor'
+  | 'vendedor'
+  | 'corretor'
+  | 'imobiliaria'
+  | 'parceiro'
   | 'criado_em'
 
 type SortDir = 'asc' | 'desc'
 
-const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'comercial', 'operacional'])
+const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'comercial', 'operacional', 'corretor', 'imobiliaria', 'parceiro'])
 
 const PRODUTO_LABELS: Record<ProdutoInteresse, string> = {
   financiamento: 'Financiamento',
@@ -72,6 +76,10 @@ function getColValue(lead: Lead, col: ColKey): string {
     case 'comercial':    return lead.responsavel?.nome ?? ''
     case 'operacional':  return (lead as any).responsavel_operacional?.nome ?? ''
     case 'valor':        return String(lead.valor_pretendido ?? 0)
+    case 'vendedor':     return lead.vendedor_nome ?? ''
+    case 'corretor':     return lead.corretores?.[0]?.corretor?.nome ?? ''
+    case 'imobiliaria':  return lead.imobiliarias?.[0]?.imobiliaria?.nome ?? ''
+    case 'parceiro':     return lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? ''
     case 'criado_em':    return lead.created_at
     default:             return ''
   }
@@ -285,6 +293,22 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
                     <ColHeader label="Valor pretendido" col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <ColHeader label="Vendedor"         col="vendedor"    active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Corretor"         col="corretor"    active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Imobiliária/Construtora" col="imobiliaria" active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Parceiro"         col="parceiro"    active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
                     <ColHeader label="Criado em"        col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
                     {podeExcluir && <th className="w-10 px-2 py-3" />}
                   </tr>
@@ -682,6 +706,26 @@ function LeadRow({
       {/* Valor */}
       <td className="px-3 py-1.5 text-right text-xs font-medium text-fonti-primary">
         {fmtValor(lead.valor_pretendido)}
+      </td>
+
+      {/* Vendedor */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">{lead.vendedor_nome ?? '—'}</span>
+      </td>
+
+      {/* Corretor */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">{lead.corretores?.[0]?.corretor?.nome ?? '—'}</span>
+      </td>
+
+      {/* Imobiliária/Construtora */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">{lead.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</span>
+      </td>
+
+      {/* Parceiro */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">{lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? '—'}</span>
       </td>
 
       {/* Data */}
