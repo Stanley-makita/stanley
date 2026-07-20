@@ -3,6 +3,7 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
+import { RouteGuard } from '@/components/layout/RouteGuard'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 
 export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNode; initialLogoUrl?: string | null }) {
@@ -40,7 +41,7 @@ export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNo
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onMenuClick={() => setMenuAberto(true)} />
         <main className="flex-1 overflow-y-auto">
-          {children}
+          <RouteGuard>{children}</RouteGuard>
         </main>
       </div>
     </div>
