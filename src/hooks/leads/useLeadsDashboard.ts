@@ -217,7 +217,10 @@ export function useLeadsInativos() {
           responsavel:usuarios!responsavel_id(id, nome),
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
-          status:fase_statuses!status_id(id, nome, cor)
+          status:fase_statuses!status_id(id, nome, cor),
+          corretores:lead_corretores(id, corretor:corretores(id, nome)),
+          imobiliarias:lead_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
+          parceiros:lead_parceiros(id, parceiro:parceiros(id, nome))
         `)
         .eq('empresa_id', eid)
         .is('deleted_at', null)

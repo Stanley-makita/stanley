@@ -32,6 +32,9 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
           comercial:usuarios!comercial_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
           compradores:processo_compradores(nome, cpf, principal),
+          vendedores:processo_vendedores(id, nome, cpf),
+          corretores:processo_corretores(id, papel, principal, corretor:corretores(id, nome)),
+          imobiliarias:processo_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
           parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria)
         `)
         .eq('empresa_id', usuario!.empresa_id)

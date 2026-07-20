@@ -93,6 +93,10 @@ const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Status:       (p) => p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido',
   Chance:       (p) => p.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza',
   Assessoria:   (p) => p.tem_assessoria ? 'Sim' : 'Não',
+  Vendedor:     (p) => p.vendedores?.[0]?.nome ?? '',
+  Corretor:     (p) => (p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '',
+  Imobiliaria:  (p) => p.imobiliarias?.[0]?.imobiliaria?.nome ?? '',
+  Parceiro:     (p) => p.parceiro?.nome ?? '',
 }
 
 function getUniqueValues(col: string, processos: Processo[], extractors: Record<string, (p: Processo) => string>): string[] {
@@ -313,7 +317,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = 15 + (isGestor ? 3 : 0)
+  const totalColunas = 19 + (isGestor ? 3 : 0)
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos, extractors: EXTRACTORS }
 
@@ -427,12 +431,16 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                 <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
                 <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
                 <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
+                {isGestor && <StaticHead>Assessoria R$</StaticHead>}
+                <FilterHead col="Vendedor"    {...filterProps}>Vendedor</FilterHead>
+                <FilterHead col="Corretor"    {...filterProps}>Corretor</FilterHead>
+                <FilterHead col="Imobiliaria" {...filterProps}>Imobiliária/Construtora</FilterHead>
+                <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
                 <StaticHead>Emitido em</StaticHead>
                 {isGestor && (
                   <>
                     <StaticHead>Comissão Comercial</StaticHead>
                     <StaticHead>Comissão Empresa</StaticHead>
-                    <StaticHead>Assessoria R$</StaticHead>
                   </>
                 )}
               </TableRow>
@@ -491,6 +499,19 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           {p.tem_assessoria ? 'Sim' : 'Não'}
                         </StatusBadge>
                       </TableCell>
+                      {isGestor && (
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {p.valor_assessoria != null && p.valor_assessoria > 0
+                            ? <span className="text-gray-700 font-medium">{formatarMoeda(p.valor_assessoria)}</span>
+                            : <span className="text-gray-300">—</span>}
+                        </TableCell>
+                      )}
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.vendedores?.[0]?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">
+                        {(p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '—'}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.parceiro?.nome ?? '—'}</TableCell>
                       <TableCell className="text-xs text-gray-500 whitespace-nowrap">
                         {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
                       </TableCell>
@@ -505,11 +526,6 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                             {p.comissao_empresa != null
                               ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
                               : <span className="text-gray-400">—</span>}
-                          </TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">
-                            {p.valor_assessoria != null && p.valor_assessoria > 0
-                              ? <span className="text-gray-700 font-medium">{formatarMoeda(p.valor_assessoria)}</span>
-                              : <span className="text-gray-300">—</span>}
                           </TableCell>
                         </>
                       )}
@@ -529,7 +545,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                 <td className="px-2.5 py-2 text-xs font-bold text-fonti-primary whitespace-nowrap">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalValorFinanciado)}
                 </td>
-                <td colSpan={7 + (isGestor ? 3 : 0)} />
+                <td colSpan={11 + (isGestor ? 3 : 0)} />
               </tr>
             </tfoot>
           </Table>
