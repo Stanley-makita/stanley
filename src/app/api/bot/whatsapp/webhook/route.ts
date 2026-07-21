@@ -442,6 +442,7 @@ export async function POST(request: NextRequest) {
 
   // Identifica instância pelo token do payload (suporte multi-instância)
   const instanciaToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+  console.warn('[whatsapp-webhook][diag-temp] url:', process.env.NEXT_PUBLIC_SUPABASE_URL, '| service_role_key length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length ?? 'undefined')
   const buscarInstancia = () =>
     supabase
       .from('instancias')
