@@ -23,8 +23,8 @@ export async function POST(
   const usuario = await resolveEmpresa(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  // Apenas admin ou gerente podem fazer merge
-  if (!['admin', 'gerente'].includes(usuario.perfil)) {
+  // Apenas admin, gerente ou gestor podem fazer merge
+  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
     return NextResponse.json({ error: 'Permissão insuficiente' }, { status: 403 })
   }
 

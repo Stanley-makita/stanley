@@ -48,7 +48,7 @@ export default function BibliotecaPage() {
   const [catCor, setCatCor] = useState('#6B7280')
   const [editandoCat, setEditandoCat] = useState<Categoria | null>(null)
 
-  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
 
   const { data: categorias = [] } = useQuery<Categoria[]>({
     queryKey: ['biblioteca-categorias', usuario?.empresa_id],

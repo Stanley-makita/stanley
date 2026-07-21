@@ -38,7 +38,7 @@ export default function EditarDocumentoPage() {
   const [initialized, setInitialized] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
 
   const { data: categorias = [] } = useQuery<Categoria[]>({
     queryKey: ['biblioteca-categorias', usuario?.empresa_id],

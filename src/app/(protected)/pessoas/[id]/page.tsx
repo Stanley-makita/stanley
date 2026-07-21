@@ -187,7 +187,7 @@ const ORIGEM_LABELS: Record<string, string> = {
 function HistoricoAlteracoes({ pessoaId, perfil, usuarioId }: { pessoaId: string; perfil?: string; usuarioId?: string }) {
   const { data: alteracoes = [], isLoading } = usePessoaAlteracoes(pessoaId)
 
-  const podeVerTudo = perfil === 'admin' || perfil === 'gerente'
+  const podeVerTudo = perfil === 'admin' || perfil === 'gerente' || perfil === 'gestor'
   const visiveis = podeVerTudo
     ? alteracoes
     : alteracoes.filter((a) => a.usuario_id === usuarioId)

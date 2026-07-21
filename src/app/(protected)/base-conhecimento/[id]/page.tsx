@@ -41,7 +41,7 @@ export default function BibliotecaDocPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
 
-  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
 
   const { data: doc, isLoading, error } = useQuery<Doc>({
     queryKey: ['biblioteca-doc', id],

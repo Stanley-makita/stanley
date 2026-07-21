@@ -219,7 +219,7 @@ function TabelaConcluidas({ items, onVer }: {
 
 export default function OperacionalPage() {
   const { usuario } = useAuth()
-  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
 
   const [filtroTipo, setFiltroTipo] = useState<TipoSolicitacao | 'all'>('all')
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeSolicitacao | 'all'>('all')
