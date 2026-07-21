@@ -191,14 +191,49 @@ nesta branch. Classificação final:
   fases, checklist) sem nenhum controle de campo na aplicação além da RLS
   a nível de linha. Não foi ampliado nem restringido nesta branch.
 
-- **`comunicacao_atualizar_relacionamento()` bloqueia perfis ativos além de
-  `gestor`**: `comercial`, `operacional`, `juridico` e `apoio` também
-  recebem `USUARIO_SEM_PERMISSAO` hoje (allowlist antiga:
-  `admin/gerente/analista/consultor`), apesar do comentário da função
-  indicar que a intenção é só excluir o perfil `cliente` (login externo).
-  Não corrigido nesta branch — o fix correto (trocar por uma exclusão de
-  `cliente`, não uma allowlist) é mais amplo que o padrão "adicionar
-  gestor" usado no resto desta entrega.
+- **`comunicacao_atualizar_relacionamento()` — pendência condicionada à
+  funcionalidade futura, não corrigida**: investigação dedicada (somente
+  leitura) confirmou que a função possui validações fortes de empresa
+  (tenant isolation via `empresa_id` no `SELECT ... FOR UPDATE`), mesmo
+  caso (lead/processo), representante (mesma empresa, `ativo`, sem
+  ciclo), estado (bloqueia suspender/encerrar quem tem dependentes
+  ativos) e histórico obrigatório (`motivo` não vazio, `INSERT` na mesma
+  transação). RLS nas tabelas `comunicacao_relacionamentos`/
+  `_historico` não tem nenhuma policy de escrita para `authenticated` —
+  a RPC (`SECURITY DEFINER`) é o único caminho de escrita por design,
+  não uma camada a mais sobre RLS.
+
+  `comunicacao_atualizar_relacionamento()` possui allowlist legada
+  incompatível com os perfis atuais da Central de Comunicação, mas não é
+  chamada por nenhuma funcionalidade do Fonti hoje. A autorização deverá
+  ser revisada quando for implementada uma interface para alterar modo,
+  estado ou representação de relacionamentos.
+
+  **Recomendação preliminar, ainda não definitiva** (perfis candidatos,
+  a confirmar junto com a implementação real):
+  ```text
+  admin
+  gestor
+  comercial
+  operacional
+  juridico
+  gerente (legado)
+  ```
+  Descartada a correção de trocar o `IN (...)` por
+  `IF v_usuario.perfil = 'cliente' THEN` — liberaria automaticamente
+  qualquer perfil interno atual ou futuro, e a ausência do módulo na
+  interface não deve ser tratada como única proteção contra chamada
+  direta de uma RPC `SECURITY DEFINER`.
+
+  A decisão final deve ocorrer junto com a primeira funcionalidade que
+  chamar a RPC, avaliando **separadamente** as operações de: alterar
+  modo direto/intermediado; definir representante; suspender
+  relacionamento; encerrar relacionamento — cada uma pode ter perfis
+  autorizados diferentes. Nessa implementação futura, exigir:
+  autorização dentro da própria RPC (nunca só na interface); teste
+  cross-tenant; teste de representante pertencente ao mesmo caso; teste
+  de ciclo; teste de dependentes ativos; confirmação do histórico; teste
+  de cada perfil autorizado e bloqueado.
 
 - **`documentos` não reatribuído no merge de Pessoa**
   (`src/app/api/pessoas/[id]/merge/route.ts`): o merge reatribui
