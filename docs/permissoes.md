@@ -11,10 +11,14 @@ interface — sem precisar editar código para mudar essas regras.
 Admin?
 → sim: acesso total (garantido em código — src/lib/auth/permissaoResolver.ts,
         função resolverPermissao — nunca depende da tabela de overrides)
-→ não: existe override configurado para (empresa, perfil, ação)?
-   → sim: usa o valor do override (tabela perfil_permissoes)
-   → não: usa PERMISSOES_PADRAO (matriz oficial em código,
-           src/lib/auth/permissions.ts)
+→ não: é a ação dashboard.ver?
+   → sim: sempre true, também garantido em código — mesma proteção do admin,
+           evita que um override incorreto bloqueie justamente a rota para
+           onde o RouteGuard redireciona ao negar acesso (loop sem saída)
+   → não: existe override configurado para (empresa, perfil, ação)?
+      → sim: usa o valor do override (tabela perfil_permissoes)
+      → não: usa PERMISSOES_PADRAO (matriz oficial em código,
+              src/lib/auth/permissions.ts)
 ```
 
 A tabela `perfil_permissoes` é uma camada de **sobreposição**, não a fonte de
@@ -110,6 +114,57 @@ Registradas durante a investigação, para uma branch futura própria
    API, independente do que for configurado na tela (por isso aparecem
    desabilitadas no catálogo, com `configuravel: false`).
 
+## Comportamento antes da migration ser aplicada
+
+O código e a migration podem, por erro operacional, ser publicados fora de
+ordem. O comportamento esperado (e verificado) para cada caso:
+
+- **Aplicação publicada antes da migration** (tabela `perfil_permissoes` ainda
+  não existe): a consulta a essa tabela falha (erro do PostgREST, relação
+  inexistente). Em `usePerfilPermissoes`/`usePermissao` — usados por Sidebar,
+  RouteGuard e todos os botões ligados a `pode(acao)` — o erro não é
+  propagado: `query.data` fica `undefined`, o mapa de overrides fica vazio, e
+  `resolverPermissao` cai direto no fallback do código (`PERMISSOES_PADRAO`).
+  Sidebar, RouteGuard e os botões continuam funcionando normalmente, sem loop
+  e sem tela quebrada — só não há personalização por empresa ainda.
+- **Tela "Perfis de Acesso"**: detecta esse mesmo erro (`error` do
+  `useOverridesEmpresa`) e mostra um aviso explícito — "a configuração de
+  Perfis de Acesso ainda não está disponível nesta empresa" — com os botões
+  "Salvar alterações"/"Restaurar padrão" desabilitados, em vez de deixar o
+  admin tentar salvar e descobrir o problema só depois, ou (pior) mostrar
+  sucesso indevido.
+- **Migration aplicada antes da publicação do código**: sem nenhum efeito —
+  a tabela nova, vazia, não é lida por nenhum código ainda em produção.
+  Seguro aplicar a migration a qualquer momento antes do deploy.
+
+## Ordem segura de publicação
+
+1. Aplicar a migration `20260720_176_perfil_permissoes.sql` (cria só a tabela
+   vazia + RLS — nenhum efeito no comportamento até o código novo existir).
+2. Validar no painel do Supabase que a tabela e as 4 policies (`pp_select`,
+   `pp_insert`, `pp_update`, `pp_delete`) foram criadas corretamente.
+3. Publicar a aplicação (deploy do código desta branch).
+4. Testar com um usuário `admin`: Sidebar completa, acesso a Configurações >
+   Perfis de Acesso, matriz visível.
+5. Testar com um perfil restrito (ex.: `operacional` ou `apoio`): Sidebar
+   mostra só o esperado, acesso direto por URL a um módulo restrito é
+   bloqueado.
+6. Só depois de 1–5 confirmados, começar a configurar overrides reais para
+   personalizar por empresa.
+
+## Rollback
+
+- Rollback da aplicação (reverter o deploy) volta ao comportamento anterior
+  a esta entrega — instantâneo, mesmo padrão já usado nas entregas
+  anteriores deste projeto.
+- A tabela `perfil_permissoes` pode permanecer no banco sem nenhum efeito
+  colateral, mesmo depois de reverter o deploy — nenhum código antigo a
+  referencia, e ela não altera nenhuma tabela existente.
+- `DROP TABLE perfil_permissoes` é **último recurso** e nunca deve ser
+  executado automaticamente/como parte de um rollback padrão — só se
+  explicitamente decidido depois, sem pressa (nada depende da tabela deixar
+  de existir).
+
 ## Arquivos principais
 
 | Arquivo | Papel |
@@ -123,4 +178,6 @@ Registradas durante a investigação, para uma branch futura própria
 | `src/components/layout/Sidebar.tsx` | Menu — usa `pode(modulo.acaoVer)` |
 | `src/components/layout/RouteGuard.tsx` | Bloqueio de rota, dentro de `ProtectedShell` |
 | `src/app/(protected)/configuracoes/_components/perfis/PerfisPermissoesConfig.tsx` | Tela de configuração (admin-only) |
+| `src/app/(protected)/configuracoes/_hooks/permissoesMatrizHelpers.ts` | `aplicarToggle` (dependência Ver↔demais ações) e `planejarSalvamento` (evita persistir override redundante) — funções puras, testadas isoladamente |
+| `src/app/(protected)/configuracoes/_hooks/usePerfilPermissoesAdmin.ts` | `useOverridesEmpresa`, `useSalvarPlano`, `useRestaurarPadrao` |
 | `supabase/migrations/20260720_176_perfil_permissoes.sql` | Tabela de overrides + RLS |

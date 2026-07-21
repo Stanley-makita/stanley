@@ -41,6 +41,14 @@ describe('resolverPermissao', () => {
       expect(resolverPermissao(perfil, 'dashboard.ver', overrides)).toBe(true)
     }
   })
+
+  it('dashboard.ver é sempre true mesmo com um override tentando negá-lo (defesa contra loop de acesso negado)', () => {
+    // A tela de configuração nunca permite gravar isso (dashboard é travado no catálogo),
+    // mas a resolução também não pode confiar só na UI — um override manual/incorreto
+    // não pode bloquear a única rota para onde o RouteGuard redireciona ao negar acesso.
+    const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'dashboard.ver', permitido: false }])
+    expect(resolverPermissao('comercial', 'dashboard.ver', overrides)).toBe(true)
+  })
 })
 
 describe('construirMapaOverrides', () => {

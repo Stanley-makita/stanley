@@ -30,33 +30,45 @@ export function useOverridesEmpresa() {
   })
 }
 
-export interface OverrideParaSalvar {
-  perfil: UsuarioPerfil
-  acao: Acao
-  permitido: boolean
-}
-
-/** Salva um lote de overrides em uma única chamada (atômica ao nível da instrução SQL). */
-export function useSalvarOverrides() {
+/**
+ * Salva o plano de alterações (ver planejarSalvamento): upserts para o que
+ * realmente diverge do padrão, deletes para overrides que voltaram a bater
+ * com o padrão (evita deixar uma linha redundante/travada no banco).
+ * Se qualquer uma das duas etapas falhar, lança erro — nunca finge sucesso.
+ */
+export function useSalvarPlano() {
   const { usuario } = useAuth()
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async (overrides: OverrideParaSalvar[]) => {
-      if (overrides.length === 0) return
-      const { error } = await supabase
-        .from('perfil_permissoes')
-        .upsert(
-          overrides.map((o) => ({
-            empresa_id: usuario!.empresa_id,
-            perfil: o.perfil,
-            acao: o.acao,
-            permitido: o.permitido,
-            updated_at: new Date().toISOString(),
-          })),
-          { onConflict: 'empresa_id,perfil,acao' },
-        )
-      if (error) throw error
+    mutationFn: async ({
+      perfil, upserts, deletes,
+    }: { perfil: UsuarioPerfil; upserts: { acao: Acao; permitido: boolean }[]; deletes: Acao[] }) => {
+      if (upserts.length > 0) {
+        const { error } = await supabase
+          .from('perfil_permissoes')
+          .upsert(
+            upserts.map((o) => ({
+              empresa_id: usuario!.empresa_id,
+              perfil,
+              acao: o.acao,
+              permitido: o.permitido,
+              updated_at: new Date().toISOString(),
+            })),
+            { onConflict: 'empresa_id,perfil,acao' },
+          )
+        if (error) throw error
+      }
+
+      if (deletes.length > 0) {
+        const { error } = await supabase
+          .from('perfil_permissoes')
+          .delete()
+          .eq('empresa_id', usuario!.empresa_id)
+          .eq('perfil', perfil)
+          .in('acao', deletes)
+        if (error) throw error
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perfil-permissoes', usuario?.empresa_id] })

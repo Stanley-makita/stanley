@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { aplicarToggle } from '../permissoesMatrizHelpers'
+import { aplicarToggle, planejarSalvamento } from '../permissoesMatrizHelpers'
 import { MODULOS } from '@/lib/auth/modulos'
+import { construirMapaOverrides } from '@/hooks/auth/permissaoResolver'
 
 const moduloLeads = MODULOS.find((m) => m.key === 'leads')!
 const moduloDashboard = MODULOS.find((m) => m.key === 'dashboard')!
@@ -63,5 +64,60 @@ describe('aplicarToggle', () => {
     const resultado = aplicarToggle(moduloLeads, acaoCriar, valorAtual, { 'imoveis.ver': true } as never)
     expect(resultado['imoveis.ver']).toBe(true)
     expect(resultado['leads.criar']).toBe(true)
+  })
+})
+
+describe('planejarSalvamento', () => {
+  it('valor igual ao padrão e sem override prévio: não gera nenhuma escrita', () => {
+    // comercial já tem leads.ver=true no PERMISSOES_PADRAO — marcar de novo não deve gravar nada
+    const overrides = construirMapaOverrides([])
+    const plano = planejarSalvamento({ 'leads.ver': true }, 'comercial', overrides)
+    expect(plano.upserts).toEqual([])
+    expect(plano.deletes).toEqual([])
+  })
+
+  it('valor diferente do padrão: gera upsert', () => {
+    // comercial não tem biblioteca.ver no padrão — conceder deve gravar um override
+    const overrides = construirMapaOverrides([])
+    const plano = planejarSalvamento({ 'biblioteca.ver': true }, 'comercial', overrides)
+    expect(plano.upserts).toEqual([{ acao: 'biblioteca.ver', permitido: true }])
+    expect(plano.deletes).toEqual([])
+  })
+
+  it('valor volta a bater com o padrão, mas já existia override: apaga a linha em vez de regravar', () => {
+    // já existe um override negando leads.ver pra comercial; usuário volta a marcar
+    // (valor = true, que é o padrão) — deve apagar o override, não upsertar um valor redundante
+    const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'leads.ver', permitido: false }])
+    const plano = planejarSalvamento({ 'leads.ver': true }, 'comercial', overrides)
+    expect(plano.upserts).toEqual([])
+    expect(plano.deletes).toEqual(['leads.ver'])
+  })
+
+  it('valor diferente do padrão (mesmo que igual ao override já existente): ainda assim upserta', () => {
+    // comercial não tem rh.ver no padrão (false); já existe override concedendo (true);
+    // salvar de novo com true precisa upsertar — não é "igual ao padrão", então nunca cai no caminho de delete
+    const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'rh.ver', permitido: true }])
+    const plano = planejarSalvamento({ 'rh.ver': true }, 'comercial', overrides)
+    expect(plano.upserts).toEqual([{ acao: 'rh.ver', permitido: true }])
+    expect(plano.deletes).toEqual([])
+  })
+
+  it('não mistura overrides de outro perfil na decisão', () => {
+    const overrides = construirMapaOverrides([{ perfil: 'operacional', acao: 'leads.ver', permitido: false }])
+    const plano = planejarSalvamento({ 'leads.ver': true }, 'comercial', overrides)
+    // comercial não tinha override próprio — valor já bate com o padrão dele, nada a fazer
+    expect(plano.upserts).toEqual([])
+    expect(plano.deletes).toEqual([])
+  })
+
+  it('lida com múltiplas ações pendentes de uma vez, cada uma com seu destino', () => {
+    const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'leads.ver', permitido: false }])
+    const plano = planejarSalvamento(
+      { 'leads.ver': true, 'biblioteca.ver': true },
+      'comercial',
+      overrides,
+    )
+    expect(plano.deletes).toEqual(['leads.ver'])
+    expect(plano.upserts).toEqual([{ acao: 'biblioteca.ver', permitido: true }])
   })
 })

@@ -17,9 +17,9 @@ import { type Acao, type UsuarioPerfil } from '@/types/auth'
 import { MODULOS, type ModuloDef, type AcaoModuloDef } from '@/lib/auth/modulos'
 import { construirMapaOverrides, resolverPermissao } from '@/hooks/auth/permissaoResolver'
 import {
-  useOverridesEmpresa, useSalvarOverrides, useRestaurarPadrao, type OverrideParaSalvar,
+  useOverridesEmpresa, useSalvarPlano, useRestaurarPadrao,
 } from '../../_hooks/usePerfilPermissoesAdmin'
-import { aplicarToggle } from '../../_hooks/permissoesMatrizHelpers'
+import { aplicarToggle, planejarSalvamento } from '../../_hooks/permissoesMatrizHelpers'
 
 const PERFIS_EDITAVEIS = PERFIS_ATIVOS.filter((p) => p !== 'admin')
 
@@ -46,9 +46,15 @@ function PerfisPermissoesConfigInner() {
   const [pendentes, setPendentes] = useState<Partial<Record<Acao, boolean>>>({})
   const [confirmandoRestaurar, setConfirmandoRestaurar] = useState(false)
 
-  const { data: rows = [], isLoading } = useOverridesEmpresa()
-  const salvar = useSalvarOverrides()
+  const { data: rows = [], isLoading, error: erroCarregarOverrides } = useOverridesEmpresa()
+  const salvar = useSalvarPlano()
   const restaurar = useRestaurarPadrao()
+
+  // Se a tabela perfil_permissoes ainda não existir (migration não aplicada), a busca
+  // falha — Sidebar/RouteGuard continuam funcionando normalmente (caem no padrão do
+  // código), mas esta tela precisa avisar em vez de parecer que está tudo normal e só
+  // falhar de forma confusa quando o admin tentar salvar.
+  const configuracaoIndisponivel = !!erroCarregarOverrides
 
   const isAdminSelecionado = perfilSelecionado === 'admin'
   const overridesMap = useMemo(() => construirMapaOverrides(rows), [rows])
@@ -74,13 +80,9 @@ function PerfisPermissoesConfigInner() {
   }
 
   async function handleSalvar() {
-    const overrides: OverrideParaSalvar[] = Object.entries(pendentes).map(([acao, permitido]) => ({
-      perfil: perfilSelecionado,
-      acao: acao as Acao,
-      permitido: permitido!,
-    }))
+    const plano = planejarSalvamento(pendentes, perfilSelecionado, overridesMap)
     try {
-      await salvar.mutateAsync(overrides)
+      await salvar.mutateAsync({ perfil: perfilSelecionado, upserts: plano.upserts, deletes: plano.deletes })
       setPendentes({})
       toast.success(`Permissões de ${PERFIL_LABELS[perfilSelecionado]} salvas.`)
     } catch (e) {
@@ -121,7 +123,7 @@ function PerfisPermissoesConfigInner() {
             <Button
               variant="outline" size="sm"
               onClick={() => setConfirmandoRestaurar(true)}
-              disabled={restaurar.isPending}
+              disabled={restaurar.isPending || configuracaoIndisponivel}
             >
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
               Restaurar padrão
@@ -131,7 +133,7 @@ function PerfisPermissoesConfigInner() {
             <Button
               size="sm"
               onClick={handleSalvar}
-              disabled={!haAlteracoes || salvar.isPending}
+              disabled={!haAlteracoes || salvar.isPending || configuracaoIndisponivel}
             >
               <Save className="h-3.5 w-3.5 mr-1.5" />
               Salvar alterações
@@ -140,7 +142,16 @@ function PerfisPermissoesConfigInner() {
         </div>
       </div>
 
-      {isAdminSelecionado && (
+      {configuracaoIndisponivel && (
+        <p className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+          A configuração de Perfis de Acesso ainda não está disponível nesta empresa (a migration da tabela de permissões
+          ainda não foi aplicada). O sistema continua funcionando normalmente com as permissões padrão — assim que a
+          migration for aplicada, esta tela passa a permitir personalizar por perfil.
+        </p>
+      )}
+
+      {isAdminSelecionado && !configuracaoIndisponivel && (
         <p className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
           Admin sempre possui acesso total — não é editável nesta tela.
