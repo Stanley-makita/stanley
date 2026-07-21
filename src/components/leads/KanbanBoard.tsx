@@ -214,7 +214,12 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
         )}
       </div>
 
-      <DragOverlay>
+      <DragOverlay
+        className={undefined}
+        style={undefined}
+        transition={undefined}
+        adjustScale={undefined}
+      >
         {leadAtivo && <KanbanCard lead={leadAtivo} overlay onAbrirLead={onAbrirLead} />}
       </DragOverlay>
 
