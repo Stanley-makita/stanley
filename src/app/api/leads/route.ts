@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
+import { podeExecutarPadrao } from '@/lib/auth/permissions'
 import { type Lead } from '@/types/leads'
 
 export async function POST(request: NextRequest) {
@@ -14,16 +15,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
-  // Carrega empresa_id do usuário
+  // Carrega empresa_id e perfil do usuário
   const { data: usuario } = await supabaseAdmin
     .from('usuarios')
-    .select('empresa_id')
+    .select('empresa_id, perfil')
     .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
     .eq('ativo', true)
     .single()
 
   if (!usuario) {
     return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
+  }
+
+  if (!podeExecutarPadrao(usuario.perfil, 'leads.criar')) {
+    return NextResponse.json({ error: 'Sem permissão para criar leads' }, { status: 403 })
   }
 
   const body = await request.json() as {
