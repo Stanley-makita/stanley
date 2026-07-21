@@ -29,6 +29,7 @@ export interface ModuloDef {
 
 const MOTIVO_SOMENTE_ADMIN = 'Disponível somente para Administrador — regra fixa do servidor.'
 const MOTIVO_SERVIDOR = 'Controlado pelo servidor nesta versão.'
+const MOTIVO_MATRIZ_FIXA = 'Controlado pela matriz padrão do servidor nesta versão.'
 
 export const MODULOS: ModuloDef[] = [
   {
@@ -39,7 +40,7 @@ export const MODULOS: ModuloDef[] = [
     key: 'leads', label: 'Captação', rotas: ['/leads'], acaoVer: 'leads.ver',
     acoes: [
       { acao: 'leads.ver', label: 'Ver', tipoControle: 'misto' },
-      { acao: 'leads.criar', label: 'Criar', tipoControle: 'ui' },
+      { acao: 'leads.criar', label: 'Criar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
       { acao: 'leads.editar', label: 'Editar', tipoControle: 'ui' },
       { acao: 'leads.excluir', label: 'Excluir', tipoControle: 'ui' },
     ],
@@ -47,10 +48,10 @@ export const MODULOS: ModuloDef[] = [
   {
     key: 'pessoas', label: 'Pessoas', rotas: ['/pessoas'], acaoVer: 'pessoas.ver',
     acoes: [
-      { acao: 'pessoas.ver', label: 'Ver', tipoControle: 'ui' },
-      { acao: 'pessoas.editar', label: 'Editar', tipoControle: 'ui' },
-      { acao: 'pessoas.merge', label: 'Mesclar', tipoControle: 'ui' },
-      { acao: 'pessoas.excluir', label: 'Excluir', tipoControle: 'ui' },
+      { acao: 'pessoas.ver', label: 'Ver', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'pessoas.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'pessoas.merge', label: 'Mesclar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'pessoas.excluir', label: 'Excluir', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
     ],
   },
   {
@@ -61,8 +62,8 @@ export const MODULOS: ModuloDef[] = [
     key: 'negocios', label: 'Negócios', rotas: ['/negocios', '/processos'], acaoVer: 'processos.ver',
     acoes: [
       { acao: 'processos.ver', label: 'Ver', tipoControle: 'misto' },
-      { acao: 'processos.criar', label: 'Criar', tipoControle: 'misto' },
-      { acao: 'processos.editar', label: 'Editar', tipoControle: 'misto' },
+      { acao: 'processos.criar', label: 'Criar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'processos.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
     ],
   },
   {
@@ -104,8 +105,8 @@ export const MODULOS: ModuloDef[] = [
   {
     key: 'rh', label: 'RH', rotas: ['/rh'], acaoVer: 'rh.ver',
     acoes: [
-      { acao: 'rh.ver', label: 'Ver', tipoControle: 'ui' },
-      { acao: 'rh.editar', label: 'Editar', tipoControle: 'ui' },
+      { acao: 'rh.ver', label: 'Ver', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'rh.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_SOMENTE_ADMIN, tipoControle: 'servidor' },
     ],
   },
   {
@@ -134,3 +135,16 @@ export const MODULOS: ModuloDef[] = [
 export function encontrarModuloPorRota(pathname: string): ModuloDef | undefined {
   return MODULOS.find((m) => m.rotas.some((r) => pathname === r || pathname.startsWith(`${r}/`)))
 }
+
+/**
+ * Ações com regra fixa no servidor (RLS/API) nesta versão — um override
+ * salvo em perfil_permissoes para qualquer uma delas nunca tem efeito real,
+ * porque o servidor não consulta a tabela de overrides para essas ações
+ * (só a matriz estática PERMISSOES_PADRAO). Usado por resolverPermissao
+ * para ignorar overrides "fantasma" (salvos antes desta ação virar fixa,
+ * ou por engano) em vez de deixar a interface prometer algo que o banco
+ * recusa.
+ */
+export const ACOES_NAO_CONFIGURAVEIS: Set<Acao> = new Set(
+  MODULOS.flatMap((m) => m.acoes.filter((a) => a.configuravel === false).map((a) => a.acao))
+)

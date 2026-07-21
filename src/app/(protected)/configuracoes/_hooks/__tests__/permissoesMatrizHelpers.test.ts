@@ -8,24 +8,26 @@ const moduloDashboard = MODULOS.find((m) => m.key === 'dashboard')!
 const moduloBiblioteca = MODULOS.find((m) => m.key === 'biblioteca')!
 
 const acaoVer = moduloLeads.acoes.find((a) => a.acao === 'leads.ver')!
-const acaoCriar = moduloLeads.acoes.find((a) => a.acao === 'leads.criar')!
+// leads.criar virou configuravel:false nesta branch (RLS/API fixa) — os testes
+// abaixo usam leads.excluir como a ação "não-Ver" configurável de referência.
+const acaoCriar = moduloLeads.acoes.find((a) => a.acao === 'leads.excluir')!
 const acaoEditar = moduloLeads.acoes.find((a) => a.acao === 'leads.editar')!
 
 describe('aplicarToggle', () => {
   it('marcar uma ação diferente de Ver também marca Ver', () => {
     const valorAtual = () => false // tudo desmarcado
     const resultado = aplicarToggle(moduloLeads, acaoCriar, valorAtual, {})
-    expect(resultado['leads.criar']).toBe(true)
+    expect(resultado['leads.excluir']).toBe(true)
     expect(resultado['leads.ver']).toBe(true)
   })
 
   it('desmarcar Ver desmarca as demais ações configuráveis do módulo', () => {
     const valorAtual = (acao: string) => ({
-      'leads.ver': true, 'leads.criar': true, 'leads.editar': true, 'leads.excluir': false,
+      'leads.ver': true, 'leads.excluir': true, 'leads.editar': true,
     } as Record<string, boolean>)[acao] ?? false
     const resultado = aplicarToggle(moduloLeads, acaoVer, valorAtual as never, {})
     expect(resultado['leads.ver']).toBe(false)
-    expect(resultado['leads.criar']).toBe(false)
+    expect(resultado['leads.excluir']).toBe(false)
     expect(resultado['leads.editar']).toBe(false)
   })
 
@@ -33,7 +35,7 @@ describe('aplicarToggle', () => {
     const valorAtual = () => false
     const resultado = aplicarToggle(moduloLeads, acaoVer, valorAtual, {})
     expect(resultado['leads.ver']).toBe(true)
-    expect(resultado['leads.criar']).toBeUndefined()
+    expect(resultado['leads.excluir']).toBeUndefined()
     expect(resultado['leads.editar']).toBeUndefined()
   })
 
@@ -63,7 +65,15 @@ describe('aplicarToggle', () => {
     const valorAtual = () => false
     const resultado = aplicarToggle(moduloLeads, acaoCriar, valorAtual, { 'imoveis.ver': true } as never)
     expect(resultado['imoveis.ver']).toBe(true)
-    expect(resultado['leads.criar']).toBe(true)
+    expect(resultado['leads.excluir']).toBe(true)
+  })
+
+  it('ação não configurável (ex.: leads.criar, matriz fixa nesta versão) não é alterada', () => {
+    const acaoLeadsCriar = moduloLeads.acoes.find((a) => a.acao === 'leads.criar')!
+    expect(acaoLeadsCriar.configuravel).toBe(false)
+    const valorAtual = () => false
+    const resultado = aplicarToggle(moduloLeads, acaoLeadsCriar, valorAtual, {})
+    expect(resultado).toEqual({})
   })
 })
 
