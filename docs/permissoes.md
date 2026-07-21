@@ -150,6 +150,17 @@ nesta branch. Classificação final:
    checa `podeExecutarPadrao(perfil, 'leads.criar')` antes de qualquer
    efeito colateral (criação de pessoa, inserção do lead).
 
+   **Decisão funcional sobre o canal WhatsApp**: o comando interno `*fonti
+   cria cliente` (via `verificarUsuarioInterno`, que valida telefone +
+   `ativo`, sem checar `perfil`) **não segue essa mesma regra, por decisão
+   de negócio, não por lacuna técnica**. A criação de Lead pela interface
+   do Fonti respeita `leads.criar`; a criação por comando interno no
+   WhatsApp é permitida a qualquer funcionário ativo e identificado,
+   independentemente do perfil — não há problema em qualquer funcionário
+   interno ativo poder criar Lead por esse canal. `verificarUsuarioInterno`
+   não deve ser alterado para checar perfil, e nenhum dos perfis
+   Apoio/Jurídico/Operacional deve ser bloqueado nesse comando.
+
 6. **Ações administrativas fixas** — sem mudança, já eram e continuam
    restritas a `admin` nas rotas de API, independente da tela
    (`configuravel: false`).
@@ -179,13 +190,6 @@ nesta branch. Classificação final:
   valores, taxa, prazo, indexador, assessoria, dados de imóvel/consórcio,
   fases, checklist) sem nenhum controle de campo na aplicação além da RLS
   a nível de linha. Não foi ampliado nem restringido nesta branch.
-
-- **Criação de Lead via bot WhatsApp sem check de perfil**: o fluxo `*fonti
-  cria cliente` usa `verificarUsuarioInterno` (telefone + `ativo`, sem
-  checar `perfil`) — hoje um funcionário `apoio`, que não tem `leads.criar`
-  na matriz, consegue criar lead pelo WhatsApp mesmo assim. Estruturalmente
-  diferente da rota HTTP interativa (sem sessão, sem `auth.uid()`) —
-  decisão de estender ou não fica para depois.
 
 - **`comunicacao_atualizar_relacionamento()` bloqueia perfis ativos além de
   `gestor`**: `comercial`, `operacional`, `juridico` e `apoio` também
