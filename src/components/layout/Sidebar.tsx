@@ -28,28 +28,30 @@ import {
   PanelLeftOpen,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { usePersonalizacao } from '@/hooks/configuracoes/usePersonalizacao'
 import { useAgendaBadge } from '@/hooks/useAgendaBadge'
 import { useLeadsBadge } from '@/hooks/leads/useLeadsBadge'
 import { useSolicitacoesBadge } from '@/hooks/solicitacoes/useSolicitacoesBadge'
 import { useConversasBadge } from '@/hooks/conversas/useConversasBadge'
+import { type Acao } from '@/types/auth'
 
 const navItemsTop = [
-  { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard, mobileHidden: true },
-  { href: '/leads',             label: 'Captação',     icon: Users },
-  { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle },
-  { href: '/imoveis',           label: 'Imóveis',      icon: Building2,      mobileHidden: true },
+  { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard, mobileHidden: true, acaoVer: 'dashboard.ver' as Acao },
+  { href: '/leads',             label: 'Captação',     icon: Users,                               acaoVer: 'leads.ver' as Acao },
+  { href: '/pessoas',           label: 'Pessoas',      icon: UserCircle,                          acaoVer: 'pessoas.ver' as Acao },
+  { href: '/imoveis',           label: 'Imóveis',      icon: Building2,      mobileHidden: true,   acaoVer: 'imoveis.ver' as Acao },
 ]
 
 const navItemsBottom = [
-  { href: '/conversas',         label: 'Conversas',    icon: MessageSquare },
-  { href: '/operacional',       label: 'Solicitações', icon: ClipboardList },
-  { href: '/simuladores',       label: 'Simuladores',  icon: Calculator },
-  { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2,      mobileHidden: true },
-  { href: '/notificacoes',      label: 'Notificações', icon: Bell,           mobileHidden: true },
-  { href: '/agenda',            label: 'Agenda',       icon: Calendar,       mobileHidden: true },
-  { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen,       mobileHidden: true },
+  { href: '/conversas',         label: 'Conversas',    icon: MessageSquare,                      acaoVer: 'conversas.ver' as Acao },
+  { href: '/operacional',       label: 'Solicitações', icon: ClipboardList,                       acaoVer: 'operacional.ver' as Acao },
+  { href: '/simuladores',       label: 'Simuladores',  icon: Calculator,                          acaoVer: 'simuladores.ver' as Acao },
+  { href: '/relatorios',        label: 'Relatórios',   icon: BarChart2,      mobileHidden: true,   acaoVer: 'relatorios.ver' as Acao },
+  { href: '/notificacoes',      label: 'Notificações', icon: Bell,           mobileHidden: true,   acaoVer: 'notificacoes.ver' as Acao },
+  { href: '/agenda',            label: 'Agenda',       icon: Calendar,       mobileHidden: true,   acaoVer: 'agenda.ver' as Acao },
+  { href: '/base-conhecimento', label: 'Biblioteca',   icon: BookOpen,       mobileHidden: true,   acaoVer: 'biblioteca.ver' as Acao },
 ]
 
 const GESTAO_ROUTES = ['/gestao', '/rh', '/financeiro', '/configuracoes']
@@ -66,6 +68,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
   const pathname = usePathname()
   const { data: usuario } = useUsuarioAtual()
   const { sair } = useAuth()
+  const { pode } = usePermissao()
   const { data: agendaBadge = 0 } = useAgendaBadge()
   const { data: leadsBadge = 0 } = useLeadsBadge()
   const { data: operacionalBadge = 0 } = useSolicitacoesBadge()
@@ -77,8 +80,12 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
   // empresa.logo_url toma precedência após o query do cliente completar.
   const logoUrl = empresa?.logo_url ?? initialLogoUrl ?? '/logo-fonti-horizontal.png'
 
-  const isAdmin = usuario?.perfil === 'admin'
-  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+  const podeNegocios = pode('processos.ver')
+  const podeGestao = pode('gestao.ver')
+  const podeRh = pode('rh.ver')
+  const podeFinanceiro = pode('financeiro.ver')
+  const podeConfiguracoes = pode('configuracoes.ver')
+  const temAlgumItemGestao = podeGestao || podeRh || podeFinanceiro || podeConfiguracoes
 
   const isGestaoAtivo = GESTAO_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
   const [gestaoAberto, setGestaoAberto] = useState(isGestaoAtivo)
@@ -129,7 +136,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
 
       {/* Nav principal */}
       <nav className={cn('flex-1 py-4 space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', collapsed ? 'px-1' : 'px-3')}>
-        {navItemsTop.map(({ href, label, icon: Icon, mobileHidden }) => {
+        {navItemsTop.filter((item) => pode(item.acaoVer)).map(({ href, label, icon: Icon, mobileHidden }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isLeads = href === '/leads'
           return (
@@ -148,7 +155,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
         })}
 
         {/* ── Negócios ── */}
-        {(() => {
+        {podeNegocios && (() => {
           const active = pathname === '/negocios' || pathname.startsWith('/negocios/') || pathname.startsWith('/processos')
           return (
             <Link href="/negocios" onClick={onNavigate} className={linkCls(active)} title={collapsed ? 'Negócios' : undefined}>
@@ -158,7 +165,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
           )
         })()}
 
-        {navItemsBottom.map(({ href, label, icon: Icon, mobileHidden }) => {
+        {navItemsBottom.filter((item) => pode(item.acaoVer)).map(({ href, label, icon: Icon, mobileHidden }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           const isAgenda = href === '/agenda'
           const isConversas = href === '/conversas'
@@ -183,11 +190,13 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
         })}
 
         {/* ── Gestão (grupo colapsável) — apenas desktop ── */}
+        {temAlgumItemGestao && (
+        <>
         <div className="my-2 border-t border-white/10 hidden lg:block" />
         <div className="hidden lg:block">
           {collapsed ? (
             <Link
-              href="/gestao"
+              href={podeGestao ? '/gestao' : podeRh ? '/rh' : podeFinanceiro ? '/financeiro' : '/configuracoes'}
               onClick={onNavigate}
               className={linkCls(isGestaoAtivo)}
               title="Gestão"
@@ -211,21 +220,25 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
               </button>
               {gestaoAberto && (
                 <div className="ml-4 mt-0.5 border-l border-white/10 pl-2 space-y-0.5">
-                  {isGestor && (
+                  {podeGestao && (
                     <Link href="/gestao" onClick={onNavigate} className={linkCls(pathname === '/gestao' || pathname.startsWith('/gestao/'))}>
                       <ShieldCheck className="h-[18px] w-[18px] shrink-0" />
                       Painel
                     </Link>
                   )}
-                  <Link href="/rh" onClick={onNavigate} className={linkCls(pathname === '/rh' || pathname.startsWith('/rh/'))}>
-                    <UserCheck className="h-[18px] w-[18px] shrink-0" />
-                    RH
-                  </Link>
-                  <Link href="/financeiro" onClick={onNavigate} className={linkCls(pathname === '/financeiro' || pathname.startsWith('/financeiro/'))}>
-                    <DollarSign className="h-[18px] w-[18px] shrink-0" />
-                    Financeiro
-                  </Link>
-                  {isAdmin && (
+                  {podeRh && (
+                    <Link href="/rh" onClick={onNavigate} className={linkCls(pathname === '/rh' || pathname.startsWith('/rh/'))}>
+                      <UserCheck className="h-[18px] w-[18px] shrink-0" />
+                      RH
+                    </Link>
+                  )}
+                  {podeFinanceiro && (
+                    <Link href="/financeiro" onClick={onNavigate} className={linkCls(pathname === '/financeiro' || pathname.startsWith('/financeiro/'))}>
+                      <DollarSign className="h-[18px] w-[18px] shrink-0" />
+                      Financeiro
+                    </Link>
+                  )}
+                  {podeConfiguracoes && (
                     <Link href="/configuracoes" onClick={onNavigate} className={linkCls(pathname === '/configuracoes' || pathname.startsWith('/configuracoes/'))}>
                       <Settings className="h-[18px] w-[18px] shrink-0" />
                       Configurações
@@ -236,6 +249,8 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
             </>
           )}
         </div>
+        </>
+        )}
       </nav>
 
       {/* Footer */}

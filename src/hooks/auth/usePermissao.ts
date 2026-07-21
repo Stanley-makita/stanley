@@ -1,16 +1,15 @@
 'use client'
 
-import { useAuth } from './useAuth'
-import { podeExecutar } from '@/lib/auth/permissions'
-import { type Acao } from '@/types/auth'
+import { usePerfilPermissoes } from '@/hooks/auth/usePerfilPermissoes'
 
+/**
+ * Hook para verificar permissão de uma ação específica.
+ * Uso: const { pode } = usePermissao(); if (pode('leads.criar')) { ... }
+ *
+ * Wrapper fino sobre usePerfilPermissoes — assinatura pública mantida
+ * (`{ pode }`) para não exigir mudança nos consumidores existentes.
+ */
 export function usePermissao() {
-  const { usuario } = useAuth()
-
-  function pode(acao: Acao): boolean {
-    if (!usuario) return false
-    return podeExecutar(usuario.perfil, acao)
-  }
-
+  const { pode } = usePerfilPermissoes()
   return { pode }
 }

@@ -6,3 +6,4 @@ node_modules
 scripts/set-admin-password.mjs
 output/credifon-codigo.txt
 tsconfig.tsbuildinfo
+supabase/.temp/

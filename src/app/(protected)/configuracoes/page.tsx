@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import {
   Settings, Building2, Users, Layers, Smartphone, Calculator,
   Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target,
-  Package, ChevronRight, ArrowLeft,
+  Package, ChevronRight, ArrowLeft, ShieldCheck,
 } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
@@ -20,6 +20,7 @@ import { AbasConfigTab } from './_components/abas/AbasConfigTab'
 import { AbaComissoesPadrao } from '@/components/configuracoes/AbaComissoesPadrao'
 import { AbaMetas } from '@/components/configuracoes/AbaMetas'
 import { IdentidadeVisualConfig } from './_components/identidade/IdentidadeVisualConfig'
+import { PerfisPermissoesConfig } from './_components/perfis/PerfisPermissoesConfig'
 
 interface ConfigItem {
   key: string
@@ -68,6 +69,7 @@ const GRUPOS: ConfigGrupo[] = [
     titulo: 'Usuários & Equipe',
     itens: [
       { key: 'usuarios', label: 'Usuários', descricao: 'Gerencie usuários, acessos e permissões', icon: Users },
+      { key: 'perfis',   label: 'Perfis de Acesso', descricao: 'Defina o que cada perfil pode ver e fazer', icon: ShieldCheck },
     ],
   },
   {
@@ -95,6 +97,7 @@ function renderConteudo(key: string) {
     case 'bancos':           return wrap('Bancos Parceiros', '', <BancosLista />)
     case 'produtos':         return wrap('Produtos e Serviços', '', <ProdutosLista />)
     case 'usuarios':         return wrap('Usuários', '', <UsuariosLista />)
+    case 'perfis':           return wrap('Perfis de Acesso', 'Defina quais módulos e ações cada perfil pode ver e executar.', <PerfisPermissoesConfig />)
     case 'instancias':       return wrap('Instâncias WhatsApp', '', <InstanciasLista />)
     case 'simulador':        return wrap('Simulador de Custas', 'Configure parâmetros de cálculo, tarifas bancárias e alíquotas de ITBI por município.', <SimuladorConfigTab />)
     case 'registros-imoveis': return wrap('Registros de Imóveis', 'Cadastre os cartórios de RI utilizados nos processos.', <RegistrosImoveisLista />)
