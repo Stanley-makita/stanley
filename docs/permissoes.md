@@ -203,6 +203,37 @@ nesta branch. Classificação final:
   reatribui `documentos` — possível lacuna de integridade de dados, achada
   como efeito colateral da investigação, não relacionada a perfil.
 
+- **`usuarios_update_rbac` — divergência de schema preexistente,
+  pendente de diagnóstico específico**: a migration `181` previa incluir
+  `gestor` na policy `usuarios_update_rbac` (criada originalmente em
+  `20260415_002_auth_rbac.sql`, que deveria permitir admin/gerente/gestor
+  editarem o cadastro de outro usuário). Durante a implantação em
+  produção, confirmou-se que essa policy **não existe** no schema real —
+  a tabela `usuarios` só tem `usuarios_select`, `usuarios_insert` e
+  `usuarios_update` (esta última, de `20260415_001_base_config.sql`, só
+  permite `id = auth.uid()` ou `perfil = 'admin'`, sem `gerente`/`gestor`
+  em nenhum momento da sua história). Não foi criada nem substituída
+  nesta entrega — **não considerar este item resolvido pelo PR #18**.
+  Precisa de diagnóstico futuro específico: qual policy/fluxo hoje
+  realmente governa atualização de perfil, função, status ou dados
+  administrativos de um usuário por outro (perfil gerencial), já que
+  `usuarios_update_rbac` nunca esteve ativa.
+
+- **`processo_documentos` vs. `documentos` — referência a estrutura
+  legada substituída, pendente de alinhamento com a arquitetura
+  documental atual**: a migration `181` previa incluir `gestor` na policy
+  `membro_exclui_proprio_ou_gestor` da tabela `processo_documentos`
+  (criada em `20260415_010_documentos.sql`). Durante a implantação,
+  confirmou-se que essa tabela **não existe** em produção — a
+  arquitetura de documentos já foi substituída por um modelo genérico
+  (tabela `documentos`, com campo `dominio`, usada por exemplo pelo bot
+  do WhatsApp). A alteração prevista não era aplicável ao schema atual;
+  nenhuma policy foi criada artificialmente para reproduzir o modelo
+  antigo. Precisa de diagnóstico futuro específico: como documentos
+  ligados a Pessoas, Leads e Negócios são autorizados hoje para
+  visualização, edição e exclusão na arquitetura `documentos` atual —
+  isso não foi verificado nesta entrega.
+
 ### Overrides antigos ineficazes
 
 Como o PR #12 (Perfis de Acesso) já estava em produção antes desta branch,
@@ -221,6 +252,32 @@ WHERE acao IN (
 )
 ORDER BY empresa_id, perfil, acao;
 ```
+
+### Status da implantação (produção)
+
+Migrations `20260721_177` a `183` **aplicadas em produção**:
+
+- **5 aplicadas integralmente**: `177` (RH), `178` (Pessoas), `179`
+  (Biblioteca/Financeiro), `182` (Checklist/Fases/RPC), `183` (Processos —
+  matriz oficial).
+- **2 aplicadas com uma pendência documental cada** (ver itens
+  correspondentes em "Ainda pendente" acima — nenhuma delas é uma falha da
+  migration em si, ambas são divergência de schema preexistente):
+  - `180` (Configurações/cadastros-base) — pendência: `usuarios_update_rbac`.
+  - `181` (Processos/operação) — pendência: `processo_documentos`.
+
+PR #18 (alinhamento de permissões) mergeado no commit `c4a2087`, deploy
+concluído sem erro.
+
+Durante a implantação, um segundo achado foi identificado e corrigido à
+parte (PR #19, commit `33070ea`, deploy sem erro): a validação de formato
+de `SUPABASE_SERVICE_ROLE_KEY` (introduzida nos PRs #16/#17) exigia
+formato JWT (`eyJ...`, 100+ caracteres) — isso estava incorreto para o
+formato atual de chave usado por este projeto (`sb_secret_...`, mais
+curto). A validação disparava um falso positivo no log a cada cold start,
+sem nenhum impacto funcional real (confirmado: o bot do WhatsApp não
+sofreu nenhuma interrupção durante o alarme). Corrigido para aceitar
+ambos os formatos.
 
 ## Comportamento antes da migration ser aplicada
 
