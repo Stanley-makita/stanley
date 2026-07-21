@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { resolverOuCriarConversa } from '@/lib/conversas/resolverOuCriarConversa'
 import { enviarMensagemHumano } from '@/lib/comunicacao/enviarMensagemHumano'
-
-const supabaseService = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
 
 export type TipoInteressado = 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora'
 

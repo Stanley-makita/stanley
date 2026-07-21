@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
-
-const supabaseAdmin = createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 async function resolverEmpresaId(): Promise<string | null> {
   const supabase = await createServerClient()

@@ -2,16 +2,11 @@
 // Envia o e-mail de confirmação de valores e registra em email_envios.
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { sendEmail } from '@/lib/email/sendEmail'
 import { blocoConfirmacao } from '@/lib/email/templates/confirmacaoValores/_helpers'
-
-const supabaseAdmin = createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 async function resolverUsuarioCompleto() {
   const supabase = await createServerClient()

@@ -1,7 +1,6 @@
 // API: POST /api/processos/[id]/formularios?banco=<nome do banco>
 // Gera PDFs preenchidos e salva no acervo documental da Pessoa, vinculados ao processo
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { buscarDadosFormulario } from '@/lib/formularios/dados'
@@ -26,13 +25,9 @@ import { mapaFgtsItau }     from '@/lib/formularios/itau/fgts'
 import { mapaFgtsSantander }        from '@/lib/formularios/santander/fgts'
 import { mapaAutorizacaoSantander } from '@/lib/formularios/santander/autorizacao'
 import { mapaIqVendedorSantander }  from '@/lib/formularios/santander/iq-vendedor'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type BancoSuportado = 'BRADESCO' | 'BANCO_DO_BRASIL' | 'SANTANDER' | 'ITAU' | 'CAIXA'
-
-const supabaseAdmin = createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
 
 async function resolverUsuario() {
   const supabase = await createServerClient()

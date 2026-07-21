@@ -1,7 +1,6 @@
 // API: GET /api/leads/[id]/formularios?banco=<nome>&formularios=arq1,arq2
 // Gera PDFs selecionados e salva no acervo documental da Pessoa, vinculados ao lead
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { buscarDadosFormularioLead } from '@/lib/formularios/dados-lead'
@@ -27,13 +26,9 @@ import { mapaFgtsSantander }        from '@/lib/formularios/santander/fgts'
 import { mapaAutorizacaoSantander } from '@/lib/formularios/santander/autorizacao'
 
 import type { DadosProcesso } from '@/lib/formularios/dados'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type BancoSuportado = 'BRADESCO' | 'BANCO_DO_BRASIL' | 'SANTANDER' | 'ITAU' | 'CAIXA'
-
-const supabaseAdmin = createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
 
 async function resolverUsuario() {
   const supabase = await createServerClient()

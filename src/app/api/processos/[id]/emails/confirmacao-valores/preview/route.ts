@@ -1,19 +1,14 @@
 // POST /api/processos/[id]/emails/confirmacao-valores/preview
 // Monta assunto e corpo do e-mail de confirmação de valores sem enviar.
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
   type DadosConfirmacaoValores,
 } from '@/lib/email/templates/confirmacaoValores'
-
-const supabaseAdmin = createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
 
 async function resolverUsuarioCompleto() {
   const supabase = await createServerClient()

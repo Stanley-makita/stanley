@@ -5,8 +5,8 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -202,10 +202,7 @@ Analise o documento e responda SOMENTE com JSON válido, sem markdown, sem expli
 {"tipo_documento":"rg|cnh|cpf|comprovante_endereco|comprovante_renda|extrato_fgts|extrato_bancario|certidao_casamento|certidao_nascimento|outro","confianca":"alta|media|baixa"}`
 
 function serviceSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  return supabaseAdmin
 }
 
 function montarContentBlock(

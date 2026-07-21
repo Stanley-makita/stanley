@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { processarMensagem, gerarSaudacaoReativacao } from '@/lib/bot/agente'
 import type { MensagemHistorico } from '@/lib/bot/agente'
 import { processarEstado } from '@/lib/bot/state-machine'
@@ -10,23 +9,7 @@ import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, f
 import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-// Guarda contra chave mal configurada (ex: colar a "secret key" curta do novo
-// formato do Supabase no lugar do JWT de service_role) — sem isso, o erro só
-// aparece disfarçado como "Invalid API key"/"instância não encontrada" dentro
-// de uma consulta qualquer, muito depois de qualquer deploy problemático.
-const chave = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
-if (!chave.startsWith('eyJ') || chave.length < 100) {
-  console.error(
-    '[whatsapp-webhook] SUPABASE_SERVICE_ROLE_KEY não parece um JWT válido (tamanho:',
-    chave.length, '). Consultas ao Supabase vão falhar com "Invalid API key". Verifique a variável na Vercel.'
-  )
-}
+import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
 // Payload format sent by Uazapi
 interface UazapiMediaContent {
