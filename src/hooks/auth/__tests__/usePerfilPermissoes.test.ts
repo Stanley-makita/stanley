@@ -49,6 +49,31 @@ describe('resolverPermissao', () => {
     const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'dashboard.ver', permitido: false }])
     expect(resolverPermissao('comercial', 'dashboard.ver', overrides)).toBe(true)
   })
+
+  describe('ações não-configuráveis (regra fixa no servidor, feat/alinhamento-permissoes-servidor)', () => {
+    it('ignora um override "fantasma" concedendo pessoas.editar a um perfil que não tem no padrão', () => {
+      // apoio não tem pessoas.editar em PERMISSOES_PADRAO; um override salvo antes de
+      // pessoas.editar virar configuravel:false (ou por engano) não pode voltar a valer.
+      const overrides = construirMapaOverrides([{ perfil: 'apoio', acao: 'pessoas.editar', permitido: true }])
+      expect(resolverPermissao('apoio', 'pessoas.editar', overrides)).toBe(false)
+    })
+
+    it('ignora um override "fantasma" negando rh.ver a um perfil que tem no padrão', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'gestor', acao: 'rh.ver', permitido: false }])
+      expect(resolverPermissao('gestor', 'rh.ver', overrides)).toBe(true)
+    })
+
+    it('ignora override em processos.criar — sempre reflete a matriz estática', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'operacional', acao: 'processos.criar', permitido: true }])
+      expect(resolverPermissao('operacional', 'processos.criar', overrides)).toBe(false)
+    })
+
+    it('ignora override em leads.criar — sempre reflete a matriz estática', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'apoio', acao: 'leads.criar', permitido: true }])
+      expect(resolverPermissao('apoio', 'leads.criar', overrides)).toBe(false)
+      expect(resolverPermissao('comercial', 'leads.criar', construirMapaOverrides([]))).toBe(true)
+    })
+  })
 })
 
 describe('construirMapaOverrides', () => {

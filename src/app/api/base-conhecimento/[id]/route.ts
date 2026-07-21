@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const isGestor = ['admin', 'gerente'].includes(usuario.perfil)
+  const isGestor = ['admin', 'gerente', 'gestor'].includes(usuario.perfil)
 
   const { data, error } = await supabase
     .from('base_conhecimento_docs')
@@ -55,7 +55,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  if (!['admin', 'gerente'].includes(usuario.perfil)) {
+  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 
@@ -93,7 +93,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  if (!['admin', 'gerente'].includes(usuario.perfil)) {
+  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 

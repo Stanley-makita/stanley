@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  if (!['admin', 'gerente'].includes(usuario.perfil)) {
+  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 

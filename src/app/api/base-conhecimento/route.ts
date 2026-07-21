@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get('q') ?? ''
   const categoria_id = request.nextUrl.searchParams.get('categoria_id') ?? ''
   const tipo = request.nextUrl.searchParams.get('tipo') ?? ''
-  const isGestor = ['admin', 'gerente'].includes(usuario.perfil)
+  const isGestor = ['admin', 'gerente', 'gestor'].includes(usuario.perfil)
 
   let query = supabase
     .from('base_conhecimento_docs')
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  if (!['admin', 'gerente'].includes(usuario.perfil)) {
+  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
     return NextResponse.json({ error: 'Sem permissão para publicar' }, { status: 403 })
   }
 

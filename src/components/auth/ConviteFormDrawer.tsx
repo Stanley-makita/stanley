@@ -20,9 +20,13 @@ import { UserPlus } from 'lucide-react'
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
-  perfil: z.enum(['admin', 'gerente', 'analista', 'consultor', 'cliente'], {
-    error: 'Selecione um perfil',
-  }),
+  // Perfis ativos (oferecidos no formulário) + legados (gerente/analista/
+  // consultor/cliente mantidos aceitos no schema por compatibilidade —
+  // não aparecem mais como opção para novos convites, ver SelectItem abaixo).
+  perfil: z.enum(
+    ['admin', 'gestor', 'comercial', 'operacional', 'juridico', 'apoio', 'gerente', 'analista', 'consultor', 'cliente'],
+    { error: 'Selecione um perfil' },
+  ),
 })
 
 type FormData = z.infer<typeof schema>
@@ -85,10 +89,12 @@ export function ConviteFormDrawer() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="gerente">Gerente</SelectItem>
-                      <SelectItem value="analista">Analista</SelectItem>
-                      <SelectItem value="consultor">Consultor</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="gestor">Gestor</SelectItem>
+                      <SelectItem value="comercial">Comercial</SelectItem>
+                      <SelectItem value="operacional">Operacional</SelectItem>
+                      <SelectItem value="juridico">Jurídico</SelectItem>
+                      <SelectItem value="apoio">Apoio</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

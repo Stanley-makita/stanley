@@ -32,7 +32,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
   comercial: [
     'dashboard.ver',
     'leads.ver', 'leads.criar', 'leads.editar',
-    'pessoas.ver',
+    'pessoas.ver', 'pessoas.editar', // confirmado: fluxo real diário (aba Pessoa do Lead, Compradores/Vendedores do Processo)
     'imoveis.ver',
     'processos.ver', 'processos.criar', 'processos.editar', // "Negócios"
     'conversas.ver',
@@ -44,7 +44,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
 
   operacional: [
     'dashboard.ver',
-    'pessoas.ver',
+    'pessoas.ver', 'pessoas.editar', // confirmado: mesmo fluxo real diário do comercial em Compradores/Vendedores do Processo
     'imoveis.ver',
     'processos.ver', 'processos.editar', // sem processos.criar — não existe hoje pra este perfil
     'conversas.ver',

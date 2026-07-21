@@ -262,7 +262,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
 
   const { data: produtosConfig = [] } = useProdutos()
 
-  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente'
+  const isGestor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
 
   // Mapa modalidade → nome do produto, dinâmico a partir de Configurações > Produtos
   const modalidadeProdutoMap = useMemo<Record<string, string>>(() => {
