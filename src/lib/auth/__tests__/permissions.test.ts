@@ -16,19 +16,22 @@ describe('PERMISSOES_PADRAO — matriz oficial', () => {
     expect(PERMISSOES_PADRAO.gestor).toContain('biblioteca.ver')
   })
 
-  it('comercial não tem ações que não existiam antes (sem promoção indevida)', () => {
+  it('comercial tem pessoas.editar (fluxo real diário confirmado), mas não merge/excluir', () => {
     expect(PERMISSOES_PADRAO.comercial).toContain('pessoas.ver')
-    expect(PERMISSOES_PADRAO.comercial).not.toContain('pessoas.editar')
+    expect(PERMISSOES_PADRAO.comercial).toContain('pessoas.editar')
     expect(PERMISSOES_PADRAO.comercial).not.toContain('pessoas.merge')
     expect(PERMISSOES_PADRAO.comercial).not.toContain('pessoas.excluir')
   })
 
-  it('operacional não tem Captação nem processos.criar', () => {
+  it('operacional não tem Captação nem processos.criar, mas tem pessoas.editar (mesmo fluxo real do comercial)', () => {
     expect(PERMISSOES_PADRAO.operacional).not.toContain('leads.ver')
     expect(PERMISSOES_PADRAO.operacional).not.toContain('leads.criar')
     expect(PERMISSOES_PADRAO.operacional).not.toContain('processos.criar')
     expect(PERMISSOES_PADRAO.operacional).toContain('processos.ver')
     expect(PERMISSOES_PADRAO.operacional).toContain('processos.editar')
+    expect(PERMISSOES_PADRAO.operacional).toContain('pessoas.editar')
+    expect(PERMISSOES_PADRAO.operacional).not.toContain('pessoas.merge')
+    expect(PERMISSOES_PADRAO.operacional).not.toContain('pessoas.excluir')
   })
 
   it('juridico não tem Imóveis, Solicitações, Simuladores ou Agenda', () => {

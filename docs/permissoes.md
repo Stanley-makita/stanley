@@ -45,6 +45,24 @@ significa:
 > demais empresas continuam usando o padrão (Biblioteca oculta para
 > Comercial), sem nenhuma mudança.
 
+## Correção de matriz — `pessoas.editar` para Comercial e Operacional
+
+Na branch `feat/alinhamento-permissoes-servidor` (alinhamento de RLS/API à
+matriz), a investigação necessária para restringir a RLS de `pessoas`
+revelou que **Comercial e Operacional já editam dados de Pessoa como parte
+rotineira e esperada do fluxo diário real da empresa** — na aba "Pessoa"
+de um Lead, e ao criar/editar Compradores/Vendedores dentro de um
+Processo — sem nenhum check de perfil existir hoje nesses caminhos.
+
+A matriz original desta documentação (`comercial`/`operacional`: só
+`pessoas.ver`) não refletia esse uso real. **Esta é uma correção
+permanente da matriz oficial, decorrente da validação do processo real da
+empresa — não uma conveniência técnica para destravar a migration de
+RLS.** `PERMISSOES_PADRAO.comercial` e `.operacional` passam a incluir
+`pessoas.editar` (não `pessoas.merge`/`pessoas.excluir`, sem evidência de
+uso nesses perfis). A RLS de `pessoas` (mesma branch) é escrita já
+refletindo essa matriz corrigida.
+
 ## Limitações desta primeira versão
 
 Esta entrega controla:
