@@ -16,6 +16,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Guarda contra chave mal configurada (ex: colar a "secret key" curta do novo
+// formato do Supabase no lugar do JWT de service_role) — sem isso, o erro só
+// aparece disfarçado como "Invalid API key"/"instância não encontrada" dentro
+// de uma consulta qualquer, muito depois de qualquer deploy problemático.
+const chave = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+if (!chave.startsWith('eyJ') || chave.length < 100) {
+  console.error(
+    '[whatsapp-webhook] SUPABASE_SERVICE_ROLE_KEY não parece um JWT válido (tamanho:',
+    chave.length, '). Consultas ao Supabase vão falhar com "Invalid API key". Verifique a variável na Vercel.'
+  )
+}
+
 // Payload format sent by Uazapi
 interface UazapiMediaContent {
   URL?: string
@@ -442,7 +454,6 @@ export async function POST(request: NextRequest) {
 
   // Identifica instância pelo token do payload (suporte multi-instância)
   const instanciaToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
-  console.warn('[whatsapp-webhook][diag-temp] url:', process.env.NEXT_PUBLIC_SUPABASE_URL, '| service_role_key length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length ?? 'undefined')
   const buscarInstancia = () =>
     supabase
       .from('instancias')
