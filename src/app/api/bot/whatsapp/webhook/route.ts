@@ -442,12 +442,25 @@ export async function POST(request: NextRequest) {
 
   // Identifica instância pelo token do payload (suporte multi-instância)
   const instanciaToken = payload.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
-  const { data: instancia } = await supabase
-    .from('instancias')
-    .select('id, empresa_id, atendente_id, numero_telefone')
-    .eq('token', instanciaToken)
-    .eq('ativo', true)
-    .single()
+  const buscarInstancia = () =>
+    supabase
+      .from('instancias')
+      .select('id, empresa_id, atendente_id, numero_telefone')
+      .eq('token', instanciaToken)
+      .eq('ativo', true)
+      .single()
+
+  let { data: instancia, error: instanciaError } = await buscarInstancia()
+  // PGRST116 = nenhuma linha encontrada (token realmente não bate) — esperado e não
+  // deve ser retentado. Qualquer outro código é falha transitória de conexão/consulta;
+  // vale uma segunda tentativa antes de tratar como "instância não encontrada".
+  if (instanciaError && instanciaError.code !== 'PGRST116') {
+    console.warn('[whatsapp-webhook] erro ao consultar instancias, tentando novamente:', instanciaError.code, instanciaError.message)
+    ;({ data: instancia, error: instanciaError } = await buscarInstancia())
+    if (instanciaError && instanciaError.code !== 'PGRST116') {
+      console.error('[whatsapp-webhook] erro ao consultar instancias (2a tentativa):', instanciaError.code, instanciaError.message, 'token:', instanciaToken)
+    }
+  }
 
   // Fallback para variável de ambiente (compatibilidade retroativa)
   const empresa_id = instancia?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
