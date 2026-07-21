@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
+import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
 // Endpoint para registrar leads QUALIFICADOS de integrações externas:
 // Facebook Lead Ads, bot WhatsApp (resultado.criarLead), Instagram, formulário site.
@@ -56,12 +56,6 @@ export async function POST(request: NextRequest) {
   // Origem baseada no source do webhook
   const origens = ['whatsapp', 'instagram', 'facebook', 'site', 'indicacao', 'outros']
   const origem = origens.includes(source) ? source : 'outros'
-
-  // Cliente com service role para bypassar RLS
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
 
   // Buscar primeira fase (Prospecção) da empresa
   const { data: primeiraFase, error: faseError } = await supabase

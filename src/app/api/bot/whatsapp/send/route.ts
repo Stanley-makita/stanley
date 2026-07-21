@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { enviarMensagemHumano, type TipoMidiaEnvio } from '@/lib/comunicacao/enviarMensagemHumano'
-
-const supabaseService = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
 
 type TipoMidia = TipoMidiaEnvio
 

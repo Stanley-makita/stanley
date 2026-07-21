@@ -1,11 +1,8 @@
+import { supabaseAdmin } from '@/lib/supabase/admin'
 // Busca todos os dados necessários para preencher os formulários de um processo
-import { createClient } from '@supabase/supabase-js'
 
 function getClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  return supabaseAdmin
 }
 
 export type DadosPessoa = {

@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const BASE_URL = (process.env.CLICKSIGN_API_URL || 'https://app.clicksign.com/api/v3').replace(/\/$/, '')
 const TOKEN = (process.env.CLICKSIGN_API_TOKEN || '').trim()

@@ -1,12 +1,9 @@
 // Adapta dados de um Lead para a estrutura DadosProcesso usada pelos mappers
-import { createClient } from '@supabase/supabase-js'
 import type { DadosProcesso, DadosComprador, DadosFgts } from './dados'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 function getClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  return supabaseAdmin
 }
 
 export async function buscarDadosFormularioLead(leadId: string): Promise<DadosProcesso> {

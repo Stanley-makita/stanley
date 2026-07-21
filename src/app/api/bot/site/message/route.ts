@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { processarMensagem } from '@/lib/bot/agente'
 import type { MensagemHistorico } from '@/lib/bot/agente'
 import { processarEstado } from '@/lib/bot/state-machine'
 import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
 function parseMoeda(valor: string | number | undefined | null): number | null {
   if (valor == null || valor === '') return null
