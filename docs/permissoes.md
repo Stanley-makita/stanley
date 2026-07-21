@@ -21,6 +21,15 @@ Admin?
               src/lib/auth/permissions.ts)
 ```
 
+Desde `feat/alinhamento-permissoes-servidor`, existe um passo adicional entre
+"é dashboard.ver?" e "existe override?": **a ação é `ACOES_NAO_CONFIGURAVEIS`
+(`src/lib/auth/modulos.ts`)?** Se for, o resultado é sempre
+`PERMISSOES_PADRAO`, ignorando qualquer override — essas são as ações que
+passaram a ter RLS/API fixa nessa branch (ver seção "Resolvido" abaixo). Sem
+isso, um override salvo antes da ação virar fixa (ou gravado por engano)
+continuaria sendo obedecido pela interface mesmo com o servidor recusando a
+chamada real.
+
 A tabela `perfil_permissoes` é uma camada de **sobreposição**, não a fonte de
 verdade — ela só guarda as **diferenças** em relação à matriz padrão. Isso
 significa:
@@ -79,58 +88,139 @@ Onde já existir uma regra de RLS/API restringindo por perfil, essa regra
 **continua sendo a autorização definitiva** — a configuração de Perfis de
 Acesso desta entrega só controla a interface e a navegação por cima dela.
 Um usuário determinado a burlar a interface (chamando a API/Supabase
-diretamente) ainda está sujeito só às regras de banco/API existentes, que
-esta entrega não altera.
+diretamente) ainda está sujeito só às regras de banco/API existentes.
 
-## Dívidas técnicas encontradas (não corrigidas nesta entrega)
+**Atualização (`feat/alinhamento-permissoes-servidor`)**: essa regra de
+banco/API, para várias ações (RH, Pessoas, Processos, criação de Leads,
+Biblioteca, Financeiro), foi alinhada à matriz oficial — ver seção
+"Alinhamento servidor" abaixo. Isso fecha a maior parte da lacuna original,
+mas **não muda o princípio**: overrides por empresa continuam sendo só
+interface, nunca consultados por RLS/API (decisão arquitetural, não
+lacuna) — ver "Ainda pendente" na mesma seção.
 
-Registradas durante a investigação, para uma branch futura própria
-(`feat/alinhamento-permissoes-servidor`):
+## Alinhamento servidor — `feat/alinhamento-permissoes-servidor`
 
-1. **Processos (Negócios) incompatíveis com a matriz oficial** — a RLS
-   `processos_insert` só aceita `perfil IN ('analista','consultor','gerente','admin')`;
-   a matriz oficial também concede `processos.criar` a `comercial` e
-   `gestor`, que hoje são rejeitados pelo banco ao tentar criar um novo
-   processo. A RLS `processos_update` já permite qualquer perfil que seja o
-   `operacional_id` (responsável) do processo específico editá-lo, mas só
-   `gerente`/`admin` (sem `gestor`) podem editar processos de outra pessoa.
+As seis dívidas técnicas originalmente listadas nesta seção foram tratadas
+nesta branch. Classificação final:
 
-2. **Bug `gerente` × `gestor`** — vários pontos do sistema ainda checam o
-   perfil legado `gerente` em vez do perfil ativo `gestor`, então usuários
-   `gestor` não recebem os poderes de gestor nessas superfícies:
-   - RLS `bk_docs_write`, `bk_categorias_write`, `bk_docs_select_publicado`
-     (Biblioteca);
-   - RLS `comissoes_insert`, `comissoes_update`, `fin_lanc_insert`,
-     `fin_lanc_update`, `fin_lanc_delete` (Financeiro);
-   - API `base-conhecimento/*` (`['admin','gerente'].includes(perfil)`).
+### Resolvido
 
-   A Sidebar (Commit 3 desta entrega) já não tem mais esse bug, já que passou
-   a usar `pode(modulo.acaoVer)` em vez do antigo `isGestor` — mas a correção
-   de API/RLS continua pendente, separada, porque tem impacto direto em dados
-   (Biblioteca, Financeiro) e requer confirmar antes se existem usuários reais
-   com o perfil legado `gerente` em produção (`SELECT perfil, count(*) FROM
-   usuarios WHERE deleted_at IS NULL GROUP BY perfil;`).
+1. **Processos (Negócios) alinhados à matriz** — `processos_insert` passou a
+   aceitar `comercial` e `gestor` (mantendo os legados `analista`,
+   `consultor`, `gerente`); `processos_update` passou a incluir `gestor` na
+   condição gerencial (a condição do dono via `operacional_id` continua
+   igual). `WITH CHECK` explícito adicionado (antes implícito).
 
-3. **RH sem proteção por perfil na RLS** — as tabelas `rh_cargos`,
-   `rh_funcionarios` (inclui `salario_base`) e afins têm RLS restrita só por
-   `empresa_id`, sem checar perfil. Hoje, qualquer usuário ativo da empresa
-   que fizesse a chamada direto ao Supabase já conseguiria ler/escrever esses
-   dados — a única proteção real hoje é a Sidebar não mostrar o link. Este é
-   o achado de maior risco (dados de salário) e deveria ser priorizado na
-   branch futura.
+2. **Bug `gerente` × `gestor` corrigido em todo o sistema** — não só
+   Biblioteca/Financeiro (escopo original), mas **mais de 50 ocorrências**
+   encontradas na investigação: sub-tabelas de Processos (tarefas,
+   compradores, vendedores, conta_mov, custas), Configurações avançadas
+   (metas, comissões padrão), cadastros-base (fases, bancos, produtos),
+   usuários/convites, documentos de processo, solicitações operacionais,
+   conversas, checklist dinâmico, fase status, o RPC `relatorio_por_equipe`,
+   páginas/componentes da interface (Operacional, Pessoas, 4 páginas de
+   Biblioteca, `VisaoTabela`), rotas de API de Biblioteca e merge de
+   Pessoas, e o formulário de convite (`ConviteFormDrawer`, que nem sequer
+   oferecia os 5 perfis ativos como opção). `gerente` mantido como fallback
+   em todo lugar — 0 usuários reais com esse perfil hoje, mas não removido
+   nesta branch (decisão explícita).
 
-4. **Pessoas sem proteção por perfil na RLS** — mesma situação (`pessoas_empresa`
-   só verifica `empresa_id`).
+   Exceção deliberada: `comunicacao_atualizar_relacionamento()` **não foi
+   alterada** — a investigação encontrou que essa função bloqueia não só
+   `gestor`, mas também `comercial`/`operacional`/`juridico`/`apoio`
+   (allowlist antiga só com `admin/gerente/analista/consultor`) — um bug
+   mais amplo e de natureza diferente do padrão "adicionar gestor" desta
+   branch. Ver "Ainda pendente" abaixo.
 
-5. **Criação de Leads sem check de perfil** — `/api/leads` (rota server-side)
-   não verifica perfil algum; qualquer usuário ativo consegue criar um lead,
-   mesmo que a RLS direta de `leads` (não usada nesse caminho) exija
-   `admin/gerente/analista/consultor`.
+3. **RH protegido por perfil na RLS** — as 9 tabelas de RH (departamentos,
+   regras/faixas de comissão, cargos, funcionários — inclui `salario_base`
+   —, funcionário_empresas, ponto, férias, ausências) tinham `FOR ALL` só
+   por `empresa_id`. Agora: leitura (`rh.ver`) exige `admin`/`gestor`;
+   escrita (`rh.editar`) exige `admin`. Este era o achado de maior risco
+   (dado de salário) e foi corrigido primeiro (Commit 1 da branch).
 
-6. **Ações administrativas fixas** — `usuarios.convidar`, `usuarios.desativar`
-   e `instancias.gerenciar` continuam sempre restritas a `admin` nas rotas de
-   API, independente do que for configurado na tela (por isso aparecem
-   desabilitadas no catálogo, com `configuravel: false`).
+4. **Pessoas protegida por perfil na RLS** — `pessoas_empresa`/
+   `pessoa_telefones_empresa` também eram `FOR ALL` só por `empresa_id`.
+   Agora: leitura exige `pessoas.ver` (todos os perfis ativos exceto
+   `apoio`); escrita exige `pessoas.editar` (matriz corrigida — ver seção
+   acima); exclusão exige `pessoas.merge`/`pessoas.excluir`. A investigação
+   também corrigiu um botão "Editar" sem guard em `pessoas/[id]/page.tsx`.
+
+5. **Criação de Leads protegida por perfil** — `POST /api/leads` agora
+   checa `podeExecutarPadrao(perfil, 'leads.criar')` antes de qualquer
+   efeito colateral (criação de pessoa, inserção do lead).
+
+6. **Ações administrativas fixas** — sem mudança, já eram e continuam
+   restritas a `admin` nas rotas de API, independente da tela
+   (`configuravel: false`).
+
+7. **Catálogo e resolver respeitam ações fixas do servidor** (não estava na
+   lista original, adicionado durante esta branch) — `pessoas.ver/editar/
+   merge/excluir`, `rh.ver/editar`, `processos.criar/editar` e
+   `leads.criar` viraram `configuravel: false` no catálogo, e
+   `resolverPermissao` passou a **ignorar qualquer override** salvo para
+   essas ações (inclusive linhas antigas, de antes desta branch — ver
+   "Overrides antigos ineficazes" abaixo). Sem isso, a tela continuaria
+   prometendo uma concessão/revogação que o servidor não obedece.
+
+### Ainda pendente (dívida técnica nova, não implementada)
+
+- **Autorização dinâmica server-side por empresa**: overrides de
+  `perfil_permissoes` continuam sendo só uma camada de interface — nunca
+  consultados por RLS/API. Um admin pode conceder algo pela tela que o
+  servidor recusa, ou revogar algo que o servidor continua aceitando numa
+  chamada direta. Corrigir isso exige desenho próprio (função SQL segura,
+  multiempresa, cache, revogação, testes) — fase futura específica, fora
+  do escopo desta branch.
+
+- **Escopo de campo editável em Processos pelo `operacional_id`**:
+  confirmado por investigação que, hoje, o responsável designado de um
+  processo pode alterar praticamente qualquer coluna (banco, modalidade,
+  valores, taxa, prazo, indexador, assessoria, dados de imóvel/consórcio,
+  fases, checklist) sem nenhum controle de campo na aplicação além da RLS
+  a nível de linha. Não foi ampliado nem restringido nesta branch.
+
+- **Criação de Lead via bot WhatsApp sem check de perfil**: o fluxo `*fonti
+  cria cliente` usa `verificarUsuarioInterno` (telefone + `ativo`, sem
+  checar `perfil`) — hoje um funcionário `apoio`, que não tem `leads.criar`
+  na matriz, consegue criar lead pelo WhatsApp mesmo assim. Estruturalmente
+  diferente da rota HTTP interativa (sem sessão, sem `auth.uid()`) —
+  decisão de estender ou não fica para depois.
+
+- **`comunicacao_atualizar_relacionamento()` bloqueia perfis ativos além de
+  `gestor`**: `comercial`, `operacional`, `juridico` e `apoio` também
+  recebem `USUARIO_SEM_PERMISSAO` hoje (allowlist antiga:
+  `admin/gerente/analista/consultor`), apesar do comentário da função
+  indicar que a intenção é só excluir o perfil `cliente` (login externo).
+  Não corrigido nesta branch — o fix correto (trocar por uma exclusão de
+  `cliente`, não uma allowlist) é mais amplo que o padrão "adicionar
+  gestor" usado no resto desta entrega.
+
+- **`documentos` não reatribuído no merge de Pessoa**
+  (`src/app/api/pessoas/[id]/merge/route.ts`): o merge reatribui
+  `pessoa_telefones`, `leads`, `conversas`, `processo_compradores` e
+  `processo_vendedores` antes de excluir a pessoa perdedora, mas não
+  reatribui `documentos` — possível lacuna de integridade de dados, achada
+  como efeito colateral da investigação, não relacionada a perfil.
+
+### Overrides antigos ineficazes
+
+Como o PR #12 (Perfis de Acesso) já estava em produção antes desta branch,
+pode haver linhas em `perfil_permissoes` para ações que só agora viraram
+`configuravel: false`. Essas linhas **não são apagadas automaticamente** —
+o resolver simplesmente passa a ignorá-las (ver seção "Fluxo de resolução").
+Consulta somente-leitura para identificá-las, caso se queira uma limpeza
+manual (exige autorização separada, não faz parte desta branch):
+
+```sql
+SELECT empresa_id, perfil, acao, permitido
+FROM perfil_permissoes
+WHERE acao IN (
+  'pessoas.ver', 'pessoas.editar', 'pessoas.merge', 'pessoas.excluir',
+  'rh.ver', 'rh.editar', 'processos.criar', 'processos.editar', 'leads.criar'
+)
+ORDER BY empresa_id, perfil, acao;
+```
 
 ## Comportamento antes da migration ser aplicada
 
@@ -183,6 +273,17 @@ ordem. O comportamento esperado (e verificado) para cada caso:
   explicitamente decidido depois, sem pressa (nada depende da tabela deixar
   de existir).
 
+**Migrations de `feat/alinhamento-permissoes-servidor` (177 a 183)**: cada
+uma só recria policies/função já existentes (`DROP POLICY`/
+`CREATE OR REPLACE FUNCTION`) — nenhuma cria ou remove tabela. Rollback de
+cada uma: `DROP POLICY` da versão nova + `CREATE POLICY` com o texto
+anterior exato, documentado como comentário no topo do próprio arquivo de
+migration (ex.: `20260721_177_rh_rls_perfil.sql` documenta a policy `FOR
+ALL` original de cada tabela de RH). Aplicar/reverter uma migration desta
+lista não depende das outras — cada uma isola um domínio (RH, Pessoas,
+Biblioteca+Financeiro, Configurações+cadastros, Processos+operação,
+Checklist+Fases+RPC, matriz de Processos).
+
 ## Arquivos principais
 
 | Arquivo | Papel |
@@ -199,3 +300,11 @@ ordem. O comportamento esperado (e verificado) para cada caso:
 | `src/app/(protected)/configuracoes/_hooks/permissoesMatrizHelpers.ts` | `aplicarToggle` (dependência Ver↔demais ações) e `planejarSalvamento` (evita persistir override redundante) — funções puras, testadas isoladamente |
 | `src/app/(protected)/configuracoes/_hooks/usePerfilPermissoesAdmin.ts` | `useOverridesEmpresa`, `useSalvarPlano`, `useRestaurarPadrao` |
 | `supabase/migrations/20260720_176_perfil_permissoes.sql` | Tabela de overrides + RLS |
+| `supabase/migrations/20260721_177_rh_rls_perfil.sql` | RLS de RH por perfil (9 tabelas) |
+| `supabase/migrations/20260721_178_pessoas_rls_perfil.sql` | RLS de Pessoas por perfil |
+| `supabase/migrations/20260721_179_gestor_biblioteca_financeiro.sql` | Bug gerente/gestor — Biblioteca e Financeiro |
+| `supabase/migrations/20260721_180_gestor_config_cadastros.sql` | Bug gerente/gestor — Configurações avançadas e cadastros-base |
+| `supabase/migrations/20260721_181_gestor_processos_operacao.sql` | Bug gerente/gestor — sub-tabelas de Processos e operação |
+| `supabase/migrations/20260721_182_gestor_checklist_fases_rpc.sql` | Bug gerente/gestor — Checklist, Fases e relatório de equipe |
+| `supabase/migrations/20260721_183_processos_rls_matriz.sql` | RLS de Processos alinhada à matriz oficial |
+| `src/lib/auth/__tests__/migrations-gestor.test.ts` | Testes estáticos sobre o conteúdo das migrations acima |
