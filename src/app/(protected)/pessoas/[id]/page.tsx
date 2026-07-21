@@ -705,11 +705,13 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                   <MessageCirclePlus className="h-4 w-4" />
                   <span className="hidden sm:inline">Nova Conversa</span>
                 </Button>
-                <Button variant="outline" size="sm" onClick={iniciarEdicao} title="Editar">
-                  <Edit2 className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-1.5">Editar</span>
-                </Button>
               </>
+            )}
+            {pode('pessoas.editar') && !editando && (
+              <Button variant="outline" size="sm" onClick={iniciarEdicao} title="Editar">
+                <Edit2 className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1.5">Editar</span>
+              </Button>
             )}
             {pode('pessoas.merge') && !editando && (
               <Button variant="outline" size="sm" onClick={() => setModalMerge(true)} title="Mesclar">
