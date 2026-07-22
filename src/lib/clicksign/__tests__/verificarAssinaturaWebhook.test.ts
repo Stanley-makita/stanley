@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { createHash } from 'crypto'
+import { createHmac } from 'crypto'
 import { verificarAssinaturaWebhook } from '../verificarAssinaturaWebhook'
 
 function assinar(rawBody: string, secret: string): string {
-  return 'sha256=' + createHash('sha256').update(rawBody + secret, 'utf8').digest('hex')
+  return 'sha256=' + createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex')
 }
 
 describe('verificarAssinaturaWebhook', () => {

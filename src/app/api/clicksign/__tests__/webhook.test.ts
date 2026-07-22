@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createHash } from 'crypto'
+import { createHmac } from 'crypto'
 
 const fakeState = {
   contrato: null as null | {
@@ -35,7 +35,7 @@ vi.mock('@/lib/clicksign/processarFechamento', () => ({
 }))
 
 function assinar(rawBody: string, secret: string): string {
-  return 'sha256=' + createHash('sha256').update(rawBody + secret, 'utf8').digest('hex')
+  return 'sha256=' + createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex')
 }
 
 function montarRequest(rawBody: string, headers: Record<string, string> = {}) {
