@@ -159,31 +159,35 @@ export async function processarFechamentoContratoClicksign(
 
   // Busca/salva a URL assinada. Seguro de repetir mesmo sem reivindicação:
   // upsert no Storage, UPDATE apenas da própria coluna clicksign_signed_url.
+  //
+  // Falhas aqui (buscarDocumento, gravação no banco) SÃO relançadas — são
+  // exatamente o tipo de falha transitória (rede, ClickSign fora do ar, erro
+  // de banco) que precisa de retry, e a idempotência acima garante que
+  // repetir é seguro: se o contrato já está 'closed' e signed_url continua
+  // nulo, a próxima chamada cai direto nesta mesma busca, sem repetir a
+  // transição running->closed nem duplicar nenhum efeito já concluído. A
+  // única exceção deliberada é a falha ao SALVAR no Storage: nesse caso
+  // específico, a URL original (temporária) da própria ClickSign é aceita
+  // como fallback — decisão já tomada e mantida aqui, não uma omissão.
   let signedUrl = contrato.clicksign_signed_url
   const envelopeId = contrato.clicksign_envelope_id ?? envelopeIdFallback ?? ''
 
   if (!signedUrl && contrato.clicksign_document_id && envelopeId) {
-    try {
-      const doc = await buscarDocumento(envelopeId, contrato.clicksign_document_id)
-      if (doc.signed_url) {
-        try {
-          signedUrl = await salvarPdfAssinadoEmStorage(doc.signed_url, contrato.id, contrato.empresa_id)
-        } catch (storageErr) {
-          console.error('[clicksign] erro ao salvar PDF assinado no Storage, usando URL original:', storageErr)
-          signedUrl = doc.signed_url
-        }
-        const { error: erroUrlUpdate } = await supabaseAdmin
-          .from('processo_contratos')
-          .update({ clicksign_signed_url: signedUrl })
-          .eq('id', contrato.id)
-          .eq('empresa_id', contrato.empresa_id)
-
-        if (erroUrlUpdate) {
-          console.error('[clicksign] falha ao gravar clicksign_signed_url (best-effort, ignorado):', erroUrlUpdate.message)
-        }
+    const doc = await buscarDocumento(envelopeId, contrato.clicksign_document_id)
+    if (doc.signed_url) {
+      try {
+        signedUrl = await salvarPdfAssinadoEmStorage(doc.signed_url, contrato.id, contrato.empresa_id)
+      } catch (storageErr) {
+        console.error('[clicksign] erro ao salvar PDF assinado no Storage, usando URL original:', storageErr)
+        signedUrl = doc.signed_url
       }
-    } catch (e) {
-      console.error('[clicksign] erro ao buscar documento assinado:', e)
+      const { error: erroUrlUpdate } = await supabaseAdmin
+        .from('processo_contratos')
+        .update({ clicksign_signed_url: signedUrl })
+        .eq('id', contrato.id)
+        .eq('empresa_id', contrato.empresa_id)
+
+      if (erroUrlUpdate) throw erroUrlUpdate
     }
   }
 

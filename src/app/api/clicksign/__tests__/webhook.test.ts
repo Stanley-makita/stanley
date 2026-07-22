@@ -10,6 +10,7 @@ const fakeState = {
     clicksign_envelope_id: string | null
     clicksign_signed_url: string | null
   },
+  erroBancoNaBusca: null as null | { message: string },
 }
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -19,7 +20,7 @@ vi.mock('@/lib/supabase/admin', () => ({
       Object.assign(proxy, {
         select: () => proxy,
         eq: () => proxy,
-        maybeSingle: async () => ({ data: fakeState.contrato, error: null }),
+        maybeSingle: async () => ({ data: fakeState.contrato, error: fakeState.erroBancoNaBusca }),
       })
       return proxy
     },
@@ -63,7 +64,11 @@ describe('POST /api/clicksign/webhook', () => {
       clicksign_envelope_id: 'envelope-1',
       clicksign_signed_url: null,
     }
-    processarFechamentoMock.mockClear()
+    fakeState.erroBancoNaBusca = null
+    processarFechamentoMock.mockReset()
+    processarFechamentoMock.mockImplementation((..._args: any[]) =>
+      Promise.resolve({ status: 'closed', signed_url: 'https://x.pdf', idempotente: false }),
+    )
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -177,5 +182,44 @@ describe('POST /api/clicksign/webhook', () => {
       .map((arg) => String(arg))
     const contemPayloadCompleto = todasChamadas.some((texto) => texto.includes(payloadClose))
     expect(contemPayloadCompleto).toBe(false)
+  })
+
+  it('erro interno real ao processar o fechamento retorna 500 (permite retry da ClickSign)', async () => {
+    processarFechamentoMock.mockRejectedValueOnce(new Error('falha transitória simulada'))
+    const { POST } = await import('../webhook/route')
+
+    const response = await POST(montarRequest(payloadClose))
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body).toEqual({ error: 'Erro ao processar evento' })
+  })
+
+  it('erro transitório seguido de reenvio (retry) consegue concluir com 200', async () => {
+    processarFechamentoMock.mockRejectedValueOnce(new Error('falha transitória simulada'))
+    const { POST } = await import('../webhook/route')
+
+    const primeira = await POST(montarRequest(payloadClose))
+    expect(primeira.status).toBe(500)
+
+    // ClickSign reenvia o mesmo evento após receber um não-2xx.
+    const segunda = await POST(montarRequest(payloadClose))
+    const corpoSegunda = await segunda.json()
+
+    expect(segunda.status).toBe(200)
+    expect(corpoSegunda).toEqual({ ok: true })
+    expect(processarFechamentoMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('erro real de banco ao localizar o contrato retorna 500, não é tratado como "contrato não encontrado"', async () => {
+    fakeState.erroBancoNaBusca = { message: 'connection reset' }
+    const { POST } = await import('../webhook/route')
+
+    const response = await POST(montarRequest(payloadClose))
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body).toEqual({ error: 'Erro ao processar evento' })
+    expect(processarFechamentoMock).not.toHaveBeenCalled()
   })
 })

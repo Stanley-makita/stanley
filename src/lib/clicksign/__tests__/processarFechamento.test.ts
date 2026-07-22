@@ -11,6 +11,7 @@ interface FakeDb {
   contratos: Map<string, any>
   eventos: Map<string, any> // chave: processo_contrato_id
   forcarErroCasUmaVez: boolean
+  forcarErroUpdateUrlUmaVez: boolean
 }
 
 function criarFakeSupabaseAdmin(db: FakeDb) {
@@ -77,6 +78,11 @@ function criarFakeSupabaseAdmin(db: FakeDb) {
           return { data: null, error: { message: 'erro simulado de rede' } }
         }
 
+        if (db.forcarErroUpdateUrlUmaVez && statusFiltro === undefined && 'clicksign_signed_url' in payload) {
+          db.forcarErroUpdateUrlUmaVez = false
+          return { data: null, error: { message: 'erro simulado ao gravar url' } }
+        }
+
         Object.assign(row, payload)
         return { data: { id: row.id }, error: null }
       }
@@ -136,7 +142,7 @@ function contratoRunning(id: string) {
 
 describe('processarFechamentoContratoClicksign', () => {
   beforeEach(() => {
-    db = { contratos: new Map(), eventos: new Map(), forcarErroCasUmaVez: false }
+    db = { contratos: new Map(), eventos: new Map(), forcarErroCasUmaVez: false, forcarErroUpdateUrlUmaVez: false }
     buscarDocumentoMock.mockClear()
     salvarPdfAssinadoEmStorageMock.mockClear()
   })
@@ -281,26 +287,43 @@ describe('processarFechamentoContratoClicksign', () => {
     expect(buscarDocumentoMock).toHaveBeenCalledTimes(1)
   })
 
-  it('falha no download é logada e não impede o restante do fluxo (estado já fechado antes)', async () => {
+  it('falha no download propaga o erro (permite retry do chamador) — transição já concluída não é desfeita', async () => {
     buscarDocumentoMock.mockRejectedValueOnce(new Error('timeout ao buscar documento'))
     const { processarFechamentoContratoClicksign } = await import('../processarFechamento')
     const contrato = contratoRunning('contrato-10')
     db.contratos.set(contrato.id, { ...contrato })
 
-    const resultado = await processarFechamentoContratoClicksign({ contrato, origem: 'webhook', evento: 'close' })
+    await expect(
+      processarFechamentoContratoClicksign({ contrato, origem: 'webhook', evento: 'close' }),
+    ).rejects.toThrow('timeout ao buscar documento')
 
     // Transição running->closed já havia sido concluída (marcada 'processado')
     // antes da tentativa de busca do documento — a falha no download não a desfaz.
-    expect(resultado.status).toBe('closed')
-    expect(resultado.signed_url).toBeNull()
     expect(db.eventos.get('contrato-10').status).toBe('processado')
     expect(db.contratos.get('contrato-10').clicksign_status).toBe('closed')
+    expect(db.contratos.get('contrato-10').clicksign_signed_url).toBeNull()
 
-    // Nova tentativa (ex.: polling manual) com o estado fresco do banco
-    // (closed, sem URL) recupera sozinha, sem precisar da tabela de eventos.
+    // Nova tentativa (ex.: reenvio do webhook, ou polling manual) com o
+    // estado fresco do banco (closed, sem URL) recupera sozinha, sem
+    // precisar da tabela de eventos e sem repetir a transição de estado.
     const contratoFresco = { ...contrato, clicksign_status: 'closed' as const, clicksign_signed_url: null }
     const resultado2 = await processarFechamentoContratoClicksign({ contrato: contratoFresco, origem: 'polling', evento: 'polling_verificacao' })
     expect(resultado2.signed_url).toBe('https://supabase.example/signed/contrato.pdf')
+  })
+
+  it('falha ao gravar clicksign_signed_url no banco propaga o erro', async () => {
+    const { processarFechamentoContratoClicksign } = await import('../processarFechamento')
+    const contrato = { ...contratoRunning('contrato-12'), clicksign_status: 'closed' as const, clicksign_signed_url: null }
+    // Não registra o contrato em db.contratos — o UPDATE final não encontra
+    // linha (row undefined), simulando uma falha de gravação; o mock
+    // devolve {data:null,error:null} nesse caso hoje, então forçamos um erro
+    // explícito via um contrato id sentinela reconhecido pelo fake DB.
+    db.contratos.set(contrato.id, { ...contrato })
+    db.forcarErroUpdateUrlUmaVez = true
+
+    await expect(
+      processarFechamentoContratoClicksign({ contrato, origem: 'polling', evento: 'polling_verificacao' }),
+    ).rejects.toThrow('erro simulado ao gravar url')
   })
 
   it('falha ao salvar no Storage cai no fallback: usa a URL crua da ClickSign', async () => {

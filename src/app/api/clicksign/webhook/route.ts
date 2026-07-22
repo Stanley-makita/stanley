@@ -37,38 +37,50 @@ export async function POST(req: NextRequest) {
   // FIM DO MODO TRANSITÓRIO
   // ============================================================
 
+  // JSON malformado: retentativa não corrige o payload — 200, sem processar.
+  let body: any
   try {
-    const body = JSON.parse(rawBody)
+    body = JSON.parse(rawBody)
+  } catch (err) {
+    console.error('[clicksign webhook] JSON malformado, ignorando payload:', (err as any)?.message ?? err)
+    return NextResponse.json({ ok: true })
+  }
 
-    const event: string | undefined =
-      body?.event?.name ??
-      body?.name ??
-      body?.type
+  const event: string | undefined =
+    body?.event?.name ??
+    body?.name ??
+    body?.type
 
-    // Clicksign v3 envia eventos de DOCUMENTO — chave em event.data.document.id
-    const documentKey: string | undefined =
-      body?.event?.data?.document?.id ??
-      body?.event?.data?.document?.key ??
-      body?.document?.id ??
-      body?.document?.key
+  // Clicksign v3 envia eventos de DOCUMENTO — chave em event.data.document.id
+  const documentKey: string | undefined =
+    body?.event?.data?.document?.id ??
+    body?.event?.data?.document?.key ??
+    body?.document?.id ??
+    body?.document?.key
 
-    // Fallback: evento de envelope
-    const envelopeKey: string | undefined =
-      body?.event?.data?.envelope?.id ??
-      body?.data?.id ??
-      body?.envelope?.id ??
-      body?.id
+  // Fallback: evento de envelope
+  const envelopeKey: string | undefined =
+    body?.event?.data?.envelope?.id ??
+    body?.data?.id ??
+    body?.envelope?.id ??
+    body?.id
 
-    console.log('[clicksign webhook] event:', event, '| documentKey:', documentKey, '| envelopeKey:', envelopeKey)
+  console.log('[clicksign webhook] event:', event, '| documentKey:', documentKey, '| envelopeKey:', envelopeKey)
 
-    if (!documentKey && !envelopeKey) {
-      return NextResponse.json({ ok: true })
-    }
+  // Payload estruturalmente inútil (sem nenhuma chave de resolução) ou evento
+  // fora da allowlist: retentativa não muda nada — 200, sem processar.
+  if (!documentKey && !envelopeKey) {
+    return NextResponse.json({ ok: true })
+  }
 
-    if (!event || !EVENTOS_FECHAMENTO.includes(event)) {
-      return NextResponse.json({ ok: true })
-    }
+  if (!event || !EVENTOS_FECHAMENTO.includes(event)) {
+    return NextResponse.json({ ok: true })
+  }
 
+  // A partir daqui, qualquer falha é potencialmente transitória (banco, API
+  // ClickSign, download, Storage) — deve virar 500 para a ClickSign
+  // retentar, nunca ser mascarada como sucesso.
+  try {
     // Busca por document_id primeiro (evento de documento), fallback por envelope_id
     let contrato: {
       id: string
@@ -85,6 +97,7 @@ export async function POST(req: NextRequest) {
         .select('id, empresa_id, clicksign_status, clicksign_document_id, clicksign_envelope_id, clicksign_signed_url')
         .eq('clicksign_document_id', documentKey)
         .maybeSingle()
+      if (res.error) throw res.error
       contrato = res.data
     }
 
@@ -94,10 +107,13 @@ export async function POST(req: NextRequest) {
         .select('id, empresa_id, clicksign_status, clicksign_document_id, clicksign_envelope_id, clicksign_signed_url')
         .eq('clicksign_envelope_id', envelopeKey)
         .maybeSingle()
+      if (res.error) throw res.error
       contrato = res.data
     }
 
     if (!contrato) {
+      // Não encontrado de fato (sem erro de banco) — retentativa não vai
+      // achar o contrato do nada; 200, com log seguro (sem dados sensíveis).
       console.warn('[clicksign webhook] contrato não encontrado para o evento recebido')
       return NextResponse.json({ ok: true })
     }
@@ -111,9 +127,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    console.error('[clicksign webhook] erro ao processar evento:', err?.message ?? err)
-    // Sempre retorna 200 para a Clicksign não reenviar indefinidamente um
-    // payload que nunca vai processar (ex.: JSON malformado).
-    return NextResponse.json({ ok: true })
+    console.error('[clicksign webhook] falha ao processar evento — retornando 500 para permitir retry da ClickSign:', err?.message ?? err)
+    return NextResponse.json({ error: 'Erro ao processar evento' }, { status: 500 })
   }
 }
