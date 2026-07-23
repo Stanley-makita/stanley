@@ -56,6 +56,9 @@ export function ProcessoCard({ processo }: Props) {
             </span>
           )}
           <span className="text-xs text-gray-400">{processo.numero_processo}</span>
+          {processo.numero_proposta && (
+            <span className="text-xs text-gray-400" title="Nº da Proposta">· Prop. {processo.numero_proposta}</span>
+          )}
         </div>
         <ChanceBadge chance={processo.chance_emissao} />
       </div>

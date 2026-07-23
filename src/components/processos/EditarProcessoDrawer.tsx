@@ -37,6 +37,7 @@ const INDEXADORES = [
 const numField = z.number().or(z.nan()).nullable()
 
 const schema = z.object({
+  numero_proposta:                 z.string().nullable(),
   banco_id:                        z.string().min(1, 'Selecione o banco'),
   modalidade:                      z.string().min(1),
   taxa_juros:                      z.number({ error: 'Informe a taxa de juros' })
@@ -79,6 +80,7 @@ function initFgtsOpcao(p: Processo): boolean | null {
 function buildDefaults(proc: Processo): Partial<FormData> {
   const pa = proc as any
   return {
+    numero_proposta:                 proc.numero_proposta ?? null,
     banco_id:                        proc.banco_id ?? '',
     modalidade:                      proc.modalidade,
     taxa_juros:                      pa.taxa_juros ?? undefined,
@@ -173,6 +175,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
     try {
       await mutateAsync({
         processoId:                     processo.id,
+        numero_proposta:                dados.numero_proposta?.trim() || null,
         banco_id:                       dados.banco_id,
         ...(emFluxoRegistro ? {} : { modalidade: dados.modalidade }),
         taxa_juros:                     dados.taxa_juros,
@@ -205,6 +208,16 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
+
+          {/* ── Nº da Proposta ────────────────────────────────────────────── */}
+          <div className="space-y-1.5">
+            <Label>Nº da Proposta</Label>
+            <Input
+              placeholder="Nº dado pelo banco"
+              value={form.watch('numero_proposta') ?? ''}
+              onChange={(e) => form.setValue('numero_proposta', e.target.value || null)}
+            />
+          </div>
 
           {/* ── Banco ─────────────────────────────────────────────────────── */}
           <div className="space-y-1.5">

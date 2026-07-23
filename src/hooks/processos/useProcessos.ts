@@ -157,6 +157,7 @@ export interface DadosProcessoUpdate {
   sistema_amortizacao?: string | null
   indexador?: string | null
   financiar_despesas_cartorariais?: boolean
+  numero_proposta?: string | null
 }
 
 export function useAtualizarDadosProcesso() {
