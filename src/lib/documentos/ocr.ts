@@ -93,7 +93,7 @@ Regras para RG / Novo Documento de Identidade:
 
 Regras para CNH (ATENÇÃO — campos numerados com risco de confusão):
 - cpf: extrair EXCLUSIVAMENTE do campo "4d CPF" ou "CPF". NUNCA usar o valor de "4c DOC.IDENTIDADE" como CPF. O número do documento de identidade (RG) e o CPF são campos diferentes na CNH.
-- rg: extrair do campo "4c DOC. IDENTIDADE" — é o número do RG da pessoa (ex: "13131972-0"). Incluir dígito verificador com traço. NÃO é o CPF nem o Nº Registro da CNH.
+- rg: extrair do campo "4c DOC. IDENTIDADE" — é o número do RG da pessoa. Copie EXATAMENTE os dígitos impressos nesse campo da CNH, sem adicionar, inventar ou completar um dígito verificador que não esteja visivelmente impresso ali (a regra de sempre incluir dígito verificador com traço vale só para RG extraído de um documento de RG avulso, não para este campo da CNH). NÃO é o CPF nem o Nº Registro da CNH.
 - rg_orgao_emissor: extrair do subcampo "ORG.EMISSOR" dentro de 4c (ex: "SESP", "SSP", "PC"). Apenas o nome do órgão, sem a UF.
 - rg_uf_emissor: extrair da coluna "UF" dentro de 4c (ex: "PR", "SP"). Apenas 2 letras.
 - registro_cnh: extrair EXCLUSIVAMENTE do campo "5 Nº REGISTRO" ou "N REGISTRO" (geralmente 9-11 dígitos). Este número NÃO é o RG nem o CPF.
@@ -104,6 +104,11 @@ Regras para CNH (ATENÇÃO — campos numerados com risco de confusão):
 - cidade_nascimento: parte do município no campo "DATA, LOCAL E UF DE NASCIMENTO" (ex: "PAICANDU/PR" → "PAICANDU")
 - estado_nascimento: parte da UF no campo de nascimento (ex: "PAICANDU/PR" → "PR")
 - campos ausentes ou não aplicáveis: null (não invente)
+
+IMPORTANTE — leitura cuidadosa (documentos brasileiros têm campos numerados densos e áreas de máquina que fazem os dois principais modelos multimodais confundirem os valores):
+- A CNH tem, além dos campos numerados na frente, uma faixa MRZ (código de leitura de máquina — várias linhas de letras/números tipo "I<BRA...") e um código de barras vertical na margem lateral. NUNCA extrair cpf, rg ou registro_cnh dessas duas áreas — são formatos de máquina, não os campos oficiais 4c/4d/5.
+- Antes de responder, releia cada campo numerado (4a, 4b, 4c, 4d, 5, 9, 1ª HABILITAÇÃO) e cada data individualmente, e confirme dígito por dígito e letra por letra contra a imagem. Nomes de pai/mãe devem ser copiados exatamente como aparecem, sem trocar, adicionar ou omitir letras.
+- Se um campo estiver visível mas houver dúvida entre duas leituras, escolha a mais provável (não retorne null por incerteza) — retorne null apenas quando o campo estiver de fato ausente do documento.
 
 Regras para comprovante_endereco:
 - cpf: null (NÃO extrair CPF de comprovante de endereço — foco é endereço)
@@ -229,8 +234,14 @@ function limparJson(texto: string): string {
 }
 
 const PROVIDER = 'claude_vision'
-const MODELO = 'claude-haiku-4-5-20251001'
-const VERSAO_PROMPT = 'v1'
+// Classificação é uma tarefa fácil (tipo de documento em 1 palavra) — Haiku
+// resolve bem e barato/rápido. Extração completa precisa ler campos numerados
+// densos e pequenos (CPF vs RG vs Nº Registro, MRZ, código de barras) sem
+// confundir — Haiku errava a maioria desses campos em testes com CNH real;
+// Sonnet + thinking chegou a 10/10 campos essenciais no mesmo documento.
+const MODELO_CLASSIFICACAO = 'claude-haiku-4-5-20251001'
+const MODELO_EXTRACAO = 'claude-sonnet-5'
+const VERSAO_PROMPT = 'v2'
 
 export async function processarOcrDocumento(
   supabaseCliente: SupabaseClient,
@@ -263,7 +274,7 @@ export async function processarOcrDocumento(
       empresa_id,
       documento_id: documentoId,
       provider: PROVIDER,
-      modelo: MODELO,
+      modelo: MODELO_EXTRACAO,
       versao: VERSAO_PROMPT,
       status: 'processando',
       solicitado_por: opcoes?.solicitadoPor ?? null,
@@ -326,7 +337,7 @@ export async function processarOcrDocumento(
     // ── Fase 1: classificação rápida ──────────────────────────────
     const resClassificacao = await anthropic.messages.create(
       {
-        model: 'claude-haiku-4-5-20251001',
+        model: MODELO_CLASSIFICACAO,
         max_tokens: 120,
         system: SYSTEM_PROMPT_CLASSIFICAR,
         messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Que tipo de documento é este?' }] }],
@@ -363,18 +374,26 @@ export async function processarOcrDocumento(
     }
 
     // ── Fase 2: extração completa (só para tipos essenciais) ──────
+    // thinking "adaptive" + effort "high": deixa o modelo raciocinar antes de
+    // responder, conferindo campo por campo — é o que faz a diferença em
+    // documentos com campos numerados densos (CNH). Ver testes na sprint de
+    // calibração: sem thinking, Haiku errava a maioria dos campos essenciais
+    // (chegou a ler dígitos da faixa MRZ como CPF); com Sonnet + thinking,
+    // 10/10 campos essenciais corretos no mesmo documento real.
     const resExtracao = await anthropic.messages.create(
       {
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
+        model: MODELO_EXTRACAO,
+        max_tokens: 4000,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'high' },
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extraia os dados deste documento.' }] }],
       },
-      { signal: AbortSignal.timeout(55000) },
+      { signal: AbortSignal.timeout(90000) },
     )
 
-    const blocoExt = resExtracao.content[0]
-    if (blocoExt?.type !== 'text') throw new Error('Resposta inesperada na extração')
+    const blocoExt = resExtracao.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+    if (!blocoExt) throw new Error('Resposta inesperada na extração')
 
     const resultado = JSON.parse(limparJson(blocoExt.text)) as OcrResultado
 
