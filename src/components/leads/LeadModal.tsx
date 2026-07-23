@@ -20,6 +20,7 @@ import {
 import { useCriarLead } from '@/hooks/leads/useCriarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
+import { useAuth } from '@/hooks/auth/useAuth'
 
 const schema = z.object({
   nome: z.string().min(2, 'Informe o nome completo'),
@@ -42,6 +43,8 @@ interface Props {
 }
 
 export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
+  const { usuario } = useAuth()
+  const ehComercial = usuario?.perfil === 'comercial'
   const criarLead = useCriarLead()
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
@@ -65,9 +68,12 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
         email: '',
         fase_id: faseIdInicial ?? (fases[0]?.id ?? ''),
         origem: 'indicacao',
+        // Comercial cria sempre na própria carteira — o servidor força isso
+        // de qualquer forma, mas já deixamos refletido no formulário.
+        responsavel_id: ehComercial ? usuario?.id : undefined,
       })
     }
-  }, [aberto, faseIdInicial, fases])
+  }, [aberto, faseIdInicial, fases, ehComercial, usuario?.id])
 
   async function onSubmit(data: FormData) {
     try {
@@ -181,24 +187,31 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
 
             {/* Responsáveis + Valor */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <FormField control={form.control} name="responsavel_id" render={({ field }) => (
+              {ehComercial ? (
                 <FormItem>
-                  <FormLabel>Comercial <span className="text-gray-400 font-normal text-xs">(opcional)</span></FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sem responsável" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {membros.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                  <FormLabel>Comercial</FormLabel>
+                  <Input value={usuario?.nome ?? ''} disabled />
                 </FormItem>
-              )} />
+              ) : (
+                <FormField control={form.control} name="responsavel_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comercial <span className="text-gray-400 font-normal text-xs">(opcional)</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sem responsável" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {membros.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
 
               <FormField control={form.control} name="responsavel_operacional_id" render={({ field }) => (
                 <FormItem>

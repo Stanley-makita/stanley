@@ -726,6 +726,7 @@ export async function POST(request: NextRequest) {
               empresa_id,
               usuario_id: usuarioInterno.id,
               usuario_nome: usuarioInterno.nome,
+              usuario_perfil: usuarioInterno.perfil,
               supabase,
               telefone_remetente: telefone,
               telefone_operador: telefone,

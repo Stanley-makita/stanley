@@ -29,6 +29,9 @@ export interface WorkflowCaptacaoContexto {
   empresa_id: string
   usuario_id: string
   usuario_nome: string
+  // Perfil de quem disparou o comando — usado para preencher automaticamente
+  // responsavel_id do lead quando é um comercial criando a própria captação.
+  usuario_perfil?: string
   supabase: SupabaseClient
   // Para envio de PDF via WhatsApp
   instancia_token?: string
@@ -228,7 +231,7 @@ export async function executarWorkflowCaptacao(
   textoBruto: string,
   ctx: WorkflowCaptacaoContexto,
 ): Promise<string> {
-  const { empresa_id, usuario_id, usuario_nome, supabase } = ctx
+  const { empresa_id, usuario_id, usuario_nome, usuario_perfil, supabase } = ctx
 
   // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
   const dados = await normalizarPedidoSimulacao(textoBruto)
@@ -348,6 +351,10 @@ export async function executarWorkflowCaptacao(
           origem:           'whatsapp',
           ordem_kanban:     ordemTopo,
           pessoa_id,
+          // Se quem disparou o *cria cliente é um comercial, a captação já
+          // nasce na própria carteira. Se for recepção/gestor/admin criando
+          // em nome de terceiros, fica sem dono até ser distribuída.
+          responsavel_id:   usuario_perfil === 'comercial' ? usuario_id : null,
           valor_imovel:     dados.valor_imovel     ?? null,
           entrada:          dados.valor_entrada     ?? null,
           cidade_imovel:    dados.cidade_imovel     ?? null,
