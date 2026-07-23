@@ -1,11 +1,14 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Loader2, User, Users, FileText, Menu } from 'lucide-react'
+import { Search, Loader2, User, Users, FileText, Menu, Lock } from 'lucide-react'
 import { useBuscaGlobal, type ResultadoBusca } from '@/hooks/busca/useBuscaGlobal'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { SinoNotificacoes } from './SinoNotificacoes'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 function iniciais(nome: string) {
@@ -22,6 +25,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const { termo, setTermo, resultados, buscando, aberto, setAberto, limpar } = useBuscaGlobal()
   const wrapperRef = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
+  // Pessoa fora da carteira do comercial que buscou — resumo mínimo em vez
+  // de navegar direto pro cadastro (ver busca_pessoas_resumo, 20260725_187).
+  const [pessoaResumo, setPessoaResumo] = useState<ResultadoBusca | null>(null)
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -47,17 +53,24 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     return () => document.removeEventListener('keydown', handler)
   }, [])
 
-  function handleSelect(id: string, tipo: ResultadoBusca['tipo']) {
+  function handleSelect(item: ResultadoBusca) {
+    // Pessoa fora da carteira (situacao vem só da RPC pra quem é comercial):
+    // nunca navega direto pro cadastro — mostra o resumo mínimo.
+    if (item.tipo === 'pessoa' && item.situacao && item.situacao !== 'minha_carteira') {
+      setPessoaResumo(item)
+      setAberto(false)
+      return
+    }
     limpar()
-    if (tipo === 'lead')    router.push(`/leads?open=${id}`)
-    else if (tipo === 'pessoa') router.push(`/pessoas/${id}`)
-    else router.push(`/processos/${id}`)
+    if (item.tipo === 'lead')    router.push(`/leads?open=${item.id}`)
+    else if (item.tipo === 'pessoa') router.push(`/pessoas/${item.id}`)
+    else router.push(`/processos/${item.id}`)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape') { limpar(); inputRef.current?.blur() }
     if (e.key === 'Enter' && resultados.length > 0) {
-      handleSelect(resultados[0].id, resultados[0].tipo)
+      handleSelect(resultados[0])
     }
   }
 
@@ -101,14 +114,18 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           const processos = resultados.filter(r => r.tipo === 'processo')
 
           function ItemLinha({ item }: { item: ResultadoBusca }) {
+            const foraCarteira = item.tipo === 'pessoa' && item.situacao && item.situacao !== 'minha_carteira'
             return (
               <button
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
-                onMouseDown={e => { e.preventDefault(); handleSelect(item.id, item.tipo) }}
+                onMouseDown={e => { e.preventDefault(); handleSelect(item) }}
               >
                 {item.tipo === 'pessoa' ? (
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0 relative">
                     <Users className="h-4 w-4 text-blue-600" />
+                    {foraCarteira && (
+                      <Lock className="h-3 w-3 text-gray-400 absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-[1px]" />
+                    )}
                   </div>
                 ) : item.tipo === 'processo' ? (
                   <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
@@ -198,6 +215,36 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           )}
         </div>
       </div>
+
+      {/* Resumo mínimo de Pessoa fora da carteira — nunca abre o cadastro completo */}
+      <Dialog open={!!pessoaResumo} onOpenChange={(v) => { if (!v) setPessoaResumo(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary text-base">{pessoaResumo?.titulo}</DialogTitle>
+          </DialogHeader>
+          {pessoaResumo?.situacao === 'ativo_outro_comercial' ? (
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                Este cliente possui atendimento ativo com{' '}
+                <strong>{pessoaResumo.responsavelAtual ?? 'outro comercial'}</strong>.
+                Você não tem acesso aos dados desta carteira.
+              </p>
+              <p className="text-xs text-gray-400">
+                {pessoaResumo.negociosAndamento ?? 0} negócio(s) em andamento ·{' '}
+                {pessoaResumo.negociosConcluidos ?? 0} concluído(s)
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>Sem atendimento ativo — só histórico ou negócios já concluídos.</p>
+              <p className="text-xs text-gray-400">
+                {pessoaResumo?.negociosAndamento ?? 0} negócio(s) em andamento ·{' '}
+                {pessoaResumo?.negociosConcluidos ?? 0} concluído(s)
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }

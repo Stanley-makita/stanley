@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 
+export type SituacaoPessoa = 'minha_carteira' | 'ativo_outro_comercial' | 'sem_atendimento_ativo'
+
 export interface ResultadoBusca {
   tipo: 'lead' | 'processo' | 'pessoa'
   id: string
@@ -11,6 +13,16 @@ export interface ResultadoBusca {
   subtitulo: string
   fase?: string
   faseCor?: string
+  // Só preenchido para tipo 'pessoa' quando quem busca é perfil comercial —
+  // ver RPC busca_pessoas_resumo (migration 20260725_187). Fora da própria
+  // carteira, cpf/telefone só vêm preenchidos quando situacao é
+  // 'sem_atendimento_ativo' (nada de dado de contato de outra carteira).
+  situacao?: SituacaoPessoa
+  responsavelAtual?: string | null
+  negociosAndamento?: number
+  negociosConcluidos?: number
+  cpf?: string | null
+  telefone?: string | null
 }
 
 // Fases "avançadas" — lead já virou processo, não aparece na busca
@@ -47,8 +59,16 @@ export function useBuscaGlobal() {
       try {
         const q = `%${termo}%`
         const empresa = usuario.empresa_id
+        const ehComercial = usuario.perfil === 'comercial'
 
-        const [{ data: leadsData }, { data: pessoasData }, { data: telData }, { data: processosData }] = await Promise.all([
+        // Perfil comercial: fonte única via RPC, que já resolve dentro/fora
+        // da carteira em 3 situações (ver 20260725_187_busca_pessoas_resumo.sql).
+        // Demais perfis (visão total): query direta, sem necessidade da RPC.
+        const buscaPessoas = ehComercial
+          ? supabase.rpc('busca_pessoas_resumo', { p_termo: termo })
+          : Promise.resolve({ data: null, error: null } as { data: null; error: null })
+
+        const [{ data: leadsData }, { data: pessoasData }, { data: telData }, { data: processosData }, { data: pessoasResumoData }] = await Promise.all([
           // Leads ativos por nome, telefone ou cpf (com fase para filtrar client-side)
           supabase
             .from('leads')
@@ -58,23 +78,28 @@ export function useBuscaGlobal() {
             .or(`nome.ilike.${q},telefone.ilike.${q},cpf.ilike.${q}`)
             .limit(10),
 
-          // Pessoas ativas por nome ou cpf
-          supabase
-            .from('pessoas')
-            .select('id, nome, cpf, email, pessoa_telefones!inner(telefone, principal, ativo)')
-            .eq('empresa_id', empresa)
-            .is('deleted_at', null)
-            .or(`nome.ilike.${q},cpf.ilike.${q}`)
-            .limit(5),
+          // Pessoas ativas por nome ou cpf — só para quem não é comercial
+          // (comercial usa a RPC busca_pessoas_resumo, ver acima)
+          ehComercial
+            ? Promise.resolve({ data: null, error: null } as { data: null; error: null })
+            : supabase
+                .from('pessoas')
+                .select('id, nome, cpf, email, pessoa_telefones!inner(telefone, principal, ativo)')
+                .eq('empresa_id', empresa)
+                .is('deleted_at', null)
+                .or(`nome.ilike.${q},cpf.ilike.${q}`)
+                .limit(5),
 
-          // Pessoas por telefone (busca separada para suportar OR cross-table)
-          supabase
-            .from('pessoa_telefones')
-            .select('pessoa_id, telefone, pessoas!inner(id, nome, cpf, email, deleted_at)')
-            .eq('empresa_id', empresa)
-            .eq('ativo', true)
-            .ilike('telefone', q)
-            .limit(5),
+          // Pessoas por telefone (busca separada para suportar OR cross-table) — idem
+          ehComercial
+            ? Promise.resolve({ data: null, error: null } as { data: null; error: null })
+            : supabase
+                .from('pessoa_telefones')
+                .select('pessoa_id, telefone, pessoas!inner(id, nome, cpf, email, deleted_at)')
+                .eq('empresa_id', empresa)
+                .eq('ativo', true)
+                .ilike('telefone', q)
+                .limit(5),
 
           // Processos em andamento (exclui reprovado e cancelado)
           supabase
@@ -85,6 +110,8 @@ export function useBuscaGlobal() {
             .not('status_processo', 'in', '("reprovado","cancelado")')
             .or(`nome_imovel.ilike.${q},numero_processo.ilike.${q}`)
             .limit(5),
+
+          buscaPessoas,
         ])
 
         // Busca via cônjuge — requer migration 094 aplicada no Supabase
@@ -115,8 +142,30 @@ export function useBuscaGlobal() {
             faseCor,
           }))
 
-        // Pessoas: mescla resultados deduplicando por id
+// Pessoas: mescla resultados deduplicando por id
         const pessoaMap = new Map<string, ResultadoBusca>()
+
+        for (const p of (pessoasResumoData ?? []) as any[]) {
+          const subtitulo =
+            p.situacao === 'ativo_outro_comercial'
+              ? `Atendimento ativo com ${p.responsavel_atual_nome ?? 'outro comercial'}`
+              : p.situacao === 'sem_atendimento_ativo'
+                ? 'Sem atendimento ativo'
+                : [p.telefone, p.cpf].filter(Boolean).join(' · ') || 'Sem contato'
+
+          pessoaMap.set(p.id, {
+            tipo:              'pessoa' as const,
+            id:                p.id,
+            titulo:            p.nome,
+            subtitulo,
+            situacao:          p.situacao,
+            responsavelAtual:  p.responsavel_atual_nome,
+            negociosAndamento: p.negocios_andamento,
+            negociosConcluidos: p.negocios_concluidos,
+            cpf:               p.cpf,
+            telefone:          p.telefone,
+          })
+        }
 
         for (const p of (pessoasData ?? []) as any[]) {
           const tel = (p.pessoa_telefones ?? []).find((t: any) => t.principal && t.ativo)
