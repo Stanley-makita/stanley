@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ShieldAlert } from 'lucide-react'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { usePerfilPermissoes } from '@/hooks/auth/usePerfilPermissoes'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { encontrarModuloPorRota } from '@/lib/auth/modulos'
 
 /**
@@ -24,10 +25,11 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { pode } = usePermissao()
   const { carregando } = usePerfilPermissoes()
+  const { saindo } = useAuth()
 
   const modulo = encontrarModuloPorRota(pathname)
 
-  if (!modulo || carregando) {
+  if (!modulo || carregando || saindo) {
     return <>{children}</>
   }
 

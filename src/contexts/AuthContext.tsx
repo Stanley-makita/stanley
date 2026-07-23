@@ -7,6 +7,7 @@ import { type SessaoUsuario } from '@/types/auth'
 interface AuthContextValue {
   usuario: SessaoUsuario | null
   carregando: boolean
+  saindo: boolean
   sair: () => Promise<void>
   recarregarPerfil: () => Promise<void>
 }
@@ -23,6 +24,11 @@ export function AuthProvider({
   const [usuario, setUsuario] = useState<SessaoUsuario | null>(initialUser ?? null)
   // Se o servidor já entregou o perfil, não há carregamento inicial no cliente
   const [carregando, setCarregando] = useState(initialUser == null)
+  // Logout em andamento: o listener onAuthStateChange zera `usuario` assim que
+  // SIGNED_OUT é emitido, ainda durante o signOut() — sem esse flag, o
+  // RouteGuard vê usuario=null na página protegida atual e mostra "sem
+  // permissão" por um instante antes do redirect para /login completar.
+  const [saindo, setSaindo] = useState(false)
   const authUserIdRef = useRef<string | null>(null)
   // Evita chamar carregarPerfil no INITIAL_SESSION quando o perfil veio do servidor
   const serverLoadedRef = useRef(initialUser != null)
@@ -113,16 +119,16 @@ export function AuthProvider({
 
   async function sair() {
     authUserIdRef.current = null
+    setSaindo(true)
     try {
       await supabase.auth.signOut()
     } finally {
-      setUsuario(null)
       window.location.href = '/login'
     }
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, carregando, sair, recarregarPerfil }}>
+    <AuthContext.Provider value={{ usuario, carregando, saindo, sair, recarregarPerfil }}>
       {children}
     </AuthContext.Provider>
   )
