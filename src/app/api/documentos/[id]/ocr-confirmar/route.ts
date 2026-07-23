@@ -113,22 +113,25 @@ export async function POST(
     'passaporte', 'rne', 'outro',
   ]
 
-  const camposNaoAplicados: string[] = []
   const pessoaId = doc.pessoa_id as string  // já validado acima (400 se null)
 
   type DocPayload = Record<string, string | null>
 
-  // Upsert seguro: insere novo ou atualiza apenas campos null no existente.
-  // Retorna lista de campos que tinham valor divergente e não foram sobrescritos.
+  // Upsert: insere novo ou atualiza no existente. O operador já revisou os
+  // dados na tela de confirmação antes de clicar "Confirmar dados" — isso é
+  // uma correção explícita e deliberada, então o valor confirmado sempre
+  // prevalece, mesmo sobre um valor não-nulo já salvo (ex: de uma extração
+  // anterior pior, com Haiku, antes da calibração desta sprint — sem isso o
+  // valor ruim antigo ficava travado para sempre, já que reconfirmar nunca
+  // conseguia corrigi-lo).
   async function upsertDocPessoa(
     tipo: string,
     dadosDoc: DocPayload,
     payloadOcr: Record<string, unknown> | null,
-  ): Promise<string[]> {
-    const naoAplicados: string[] = []
+  ): Promise<void> {
     const { data: existente } = await supabase
       .from('pessoa_documentos_identificacao')
-      .select('*')
+      .select('id')
       .eq('pessoa_id', pessoaId)
       .eq('tipo_documento', tipo)
       .maybeSingle()
@@ -146,21 +149,13 @@ export async function POST(
       const updates: Record<string, unknown> = { payload_ocr: payloadOcr }
       for (const [campo, valor] of Object.entries(dadosDoc)) {
         if (valor === null || valor === undefined) continue
-        const val = (existente as Record<string, unknown>)[campo]
-        if (val === null || val === undefined) {
-          updates[campo] = valor
-        } else if (val !== valor) {
-          naoAplicados.push(campo)
-        }
+        updates[campo] = valor
       }
-      if (Object.keys(updates).length > 0) {
-        await supabase
-          .from('pessoa_documentos_identificacao')
-          .update(updates)
-          .eq('id', existente.id)
-      }
+      await supabase
+        .from('pessoa_documentos_identificacao')
+        .update(updates)
+        .eq('id', existente.id)
     }
-    return naoAplicados
   }
 
   if (tipo_confirmado && TIPOS_DOCUMENTO_VALIDOS.includes(tipo_confirmado)) {
@@ -201,8 +196,7 @@ export async function POST(
       }
     }
 
-    const naoAplicadosDoc = await upsertDocPessoa(tipo_confirmado, novoDoc, payloadOcr)
-    camposNaoAplicados.push(...naoAplicadosDoc)
+    await upsertDocPessoa(tipo_confirmado, novoDoc, payloadOcr)
 
     // Ao confirmar CNH: também popular card RG com dados do campo 4c (DOC.IDENTIDADE)
     if (tipo_confirmado === 'cnh') {
@@ -247,7 +241,6 @@ export async function POST(
     ok: true,
     cpf_divergente,
     camposSalvos: Object.keys(camposFiltrados),
-    ...(camposNaoAplicados.length > 0 ? { camposNaoAplicados } : {}),
   })
 }
 
