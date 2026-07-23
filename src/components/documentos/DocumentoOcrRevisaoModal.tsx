@@ -5,7 +5,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
-import { Loader2, ExternalLink } from 'lucide-react'
+import { Loader2, ExternalLink, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { OcrResultado } from '@/lib/documentos/ocr'
 
@@ -14,12 +14,18 @@ interface DocumentoOcrProps {
   nome_original: string
   storage_path: string
   ocr_dados: Record<string, unknown> | null
+  pessoa_id?: string | null
 }
 
 interface Props {
   documento: DocumentoOcrProps
   onClose: () => void
   onConfirmado: () => void
+  /** Pessoa do contexto atual (Lead/Pessoa sendo visualizado). Se o documento
+   * pertencer a uma Pessoa diferente (reaproveitado de outro Lead), avisa
+   * antes de confirmar — "Confirmar dados" grava sempre na Pessoa DONA do
+   * documento (documentos.pessoa_id), não na deste contexto. */
+  pessoaAtualId?: string | null
 }
 
 const TIPOS_OPCOES = [
@@ -84,9 +90,14 @@ async function getToken(): Promise<string | null> {
   return data.session?.access_token ?? null
 }
 
-export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: Props) {
+export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pessoaAtualId }: Props) {
   const ocr = documento.ocr_dados as OcrResultado | null
   const ocrRaw = ocr as unknown as Record<string, unknown> | null
+
+  const pessoaDivergente = !!(
+    pessoaAtualId && documento.pessoa_id && documento.pessoa_id !== pessoaAtualId
+  )
+  const [cienteDivergencia, setCienteDivergencia] = useState(false)
 
   const tipoDetectado = ocr?.tipo_documento ?? ''
   const tipoInicial = TIPOS_VALIDOS.has(tipoDetectado) ? tipoDetectado : 'cnh'
@@ -211,6 +222,29 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
 
         {/* Corpo */}
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          {pessoaDivergente && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-amber-800">
+                  Este documento pertence a outro cliente
+                </p>
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Ele foi reaproveitado neste Lead, mas "Confirmar dados" sempre grava no
+                  cadastro da Pessoa dona do documento — não na Pessoa deste Lead. Os
+                  campos abaixo não vão aparecer aqui depois de confirmar.
+                </p>
+                <label className="mt-2 flex items-center gap-1.5 text-xs text-amber-800">
+                  <input
+                    type="checkbox"
+                    checked={cienteDivergencia}
+                    onChange={(e) => setCienteDivergencia(e.target.checked)}
+                  />
+                  Entendi, confirmar mesmo assim
+                </label>
+              </div>
+            </div>
+          )}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
               Verifique os campos abaixo e corrija se necessário. Ao confirmar, os dados serão salvos no perfil do cliente.
@@ -263,7 +297,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado }: P
               size="sm"
               className="min-w-[110px] bg-fonti-primary text-white hover:bg-fonti-primary-hover"
               onClick={handleConfirmar}
-              disabled={salvando}
+              disabled={salvando || (pessoaDivergente && !cienteDivergencia)}
             >
               {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar dados'}
             </Button>
