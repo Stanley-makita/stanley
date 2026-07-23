@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   // Carrega empresa_id e perfil do usuário
   const { data: usuario } = await supabaseAdmin
     .from('usuarios')
-    .select('empresa_id, perfil')
+    .select('id, empresa_id, perfil')
     .or(`auth_user_id.eq.${user.id},id.eq.${user.id}`)
     .eq('ativo', true)
     .single()
@@ -91,7 +91,9 @@ export async function POST(request: NextRequest) {
       email:            body.email?.trim()   || null,
       cpf:              body.cpf?.trim()     || null,
       fase_id,
-      responsavel_id:            body.responsavel_id            || null,
+      // Comercial cria sempre na própria carteira — nunca confia no que o
+      // client mandar; demais perfis (gestor/admin/apoio) escolhem livremente.
+      responsavel_id: usuario.perfil === 'comercial' ? usuario.id : (body.responsavel_id || null),
       responsavel_operacional_id: body.responsavel_operacional_id || null,
       origem,
       valor_pretendido: body.valor_pretendido ?? null,

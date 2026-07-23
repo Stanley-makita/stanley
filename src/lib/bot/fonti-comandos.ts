@@ -37,6 +37,7 @@ export interface FontiContexto {
 interface UsuarioInterno {
   id: string
   nome: string
+  perfil?: string
 }
 
 // ── Verificação de usuário interno ────────────────────────────────────────────
@@ -54,11 +55,11 @@ export async function verificarUsuarioInterno(
 ): Promise<UsuarioInterno | null> {
   // Tenta buscar com telefone_whatsapp; se a coluna não existir (migration pendente),
   // faz fallback sem ela
-  let usuarios: Array<{ id: string; nome: string; telefone: string | null; telefone_whatsapp?: string | null }> | null = null
+  let usuarios: Array<{ id: string; nome: string; perfil: string; telefone: string | null; telefone_whatsapp?: string | null }> | null = null
 
   const { data: comWA, error: erroWA } = await supabase
     .from('usuarios')
-    .select('id, nome, telefone, telefone_whatsapp')
+    .select('id, nome, perfil, telefone, telefone_whatsapp')
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
     .is('deleted_at', null)
@@ -70,7 +71,7 @@ export async function verificarUsuarioInterno(
     console.warn('[fonti] telefone_whatsapp indisponível, usando fallback só com telefone:', erroWA.message)
     const { data: semWA } = await supabase
       .from('usuarios')
-      .select('id, nome, telefone')
+      .select('id, nome, perfil, telefone')
       .eq('empresa_id', empresa_id)
       .eq('ativo', true)
       .is('deleted_at', null)
@@ -86,7 +87,7 @@ export async function verificarUsuarioInterno(
     const phones = [u.telefone_whatsapp, u.telefone].filter(Boolean) as string[]
     for (const phone of phones) {
       if (telLocal(phone) === waLocal) {
-        return { id: u.id, nome: u.nome }
+        return { id: u.id, nome: u.nome, perfil: u.perfil }
       }
     }
   }
@@ -1142,6 +1143,7 @@ export async function processarComandoFonti(
           empresa_id,
           usuario_id:         usuario.id,
           usuario_nome:       usuario.nome,
+          usuario_perfil:     usuario.perfil,
           supabase,
           instancia_token:    ctx.instancia_token,
           telefone_destino:   ctx.telefone_destino,
@@ -1237,6 +1239,7 @@ export async function processarComandoFonti(
         empresa_id,
         usuario_id:        usuario.id,
         usuario_nome:      usuario.nome,
+        usuario_perfil:    usuario.perfil,
         supabase,
         telefone_cliente:  ctx.telefone_cliente,
         telefone_remetente: ctx.telefone_remetente,
