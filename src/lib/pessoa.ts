@@ -72,12 +72,44 @@ export async function buscarPessoaPorCpf(
 }
 
 /**
- * Busca pessoa existente pelo CPF (prioritário) ou telefone, ou cria uma nova.
+ * Busca pessoa pelo nome, exato e case-insensitive, dentro da empresa.
+ * Só retorna resultado quando há exatamente 1 match — nome duplicado entre
+ * pessoas diferentes (ambíguo) ou nenhum match faz a função devolver null,
+ * de propósito, pra nunca arriscar unir duas pessoas distintas por
+ * coincidência de nome comum.
+ */
+export async function buscarPessoaPorNomeExato(
+  empresa_id: string,
+  nome: string
+): Promise<string | null> {
+  const nomeTrim = nome.trim()
+  if (!nomeTrim) return null
+
+  const { data } = await supabase
+    .from('pessoas')
+    .select('id')
+    .eq('empresa_id', empresa_id)
+    .ilike('nome', nomeTrim)
+    .is('deleted_at', null)
+
+  if (!data || data.length !== 1) return null
+  return data[0].id
+}
+
+/**
+ * Busca pessoa existente pelo CPF (prioritário), telefone, ou nome exato
+ * (só como último recurso), ou cria uma nova.
  *
  * Hierarquia:
  *   1. CPF → encontrou: adiciona telefone se novo, retorna pessoa
  *   2. Telefone → encontrou: atualiza CPF se ausente, retorna pessoa
- *   3. Nenhum → cria Pessoa nova com CPF e telefone
+ *   3. Nome exato (1 match só, nunca ambíguo) → encontrou: atualiza CPF/
+ *      telefone se ausentes, retorna pessoa. Evita duplicar quando o
+ *      fluxo de origem (ex: workflow de captação via texto livre) não
+ *      conseguiu extrair CPF nem telefone, mas o nome já bate exatamente
+ *      com uma Pessoa existente — sem isso, cada nova captação sem CPF/
+ *      telefone reconhecíveis cria uma Pessoa duplicada do mesmo cliente.
+ *   4. Nenhum → cria Pessoa nova com CPF e telefone
  *
  * status_identidade:
  *   - 'provisoria'  → nome é placeholder ("Cliente") — não validado por humano
@@ -92,6 +124,7 @@ export async function buscarOuCriarPessoa(
   const telefone = normalizarTelefone(telefoneBruto)
   const cpfNorm = cpf ? normalizarCpf(cpf) : null
   const cpfValido = cpfNorm?.length === 11 ? cpfNorm : null
+  const nomePlaceholder = !nome || nome.toLowerCase() === 'cliente' || nome.toLowerCase() === 'desconhecido'
 
   // 1. Busca por CPF primeiro (chave forte)
   if (cpfValido) {
@@ -133,8 +166,39 @@ export async function buscarOuCriarPessoa(
     return pessoaIdByPhone
   }
 
-  // 3. Cria nova pessoa
-  const nomePlaceholder = !nome || nome.toLowerCase() === 'cliente' || nome.toLowerCase() === 'desconhecido'
+  // 3. Busca por nome exato — só quando o nome não é um placeholder genérico
+  if (!nomePlaceholder) {
+    const pessoaIdByNome = await buscarPessoaPorNomeExato(empresa_id, nome)
+    if (pessoaIdByNome) {
+      if (cpfValido) {
+        await supabase
+          .from('pessoas')
+          .update({ cpf: cpfValido })
+          .eq('id', pessoaIdByNome)
+          .is('cpf', null)
+      }
+      const { data: telefoneExistente } = await supabase
+        .from('pessoa_telefones')
+        .select('id')
+        .eq('pessoa_id', pessoaIdByNome)
+        .eq('telefone', telefone)
+        .maybeSingle()
+
+      if (!telefoneExistente) {
+        await supabase.from('pessoa_telefones').insert({
+          pessoa_id: pessoaIdByNome,
+          empresa_id,
+          telefone,
+          principal: false,
+          whatsapp: true,
+          ativo: true,
+        })
+      }
+      return pessoaIdByNome
+    }
+  }
+
+  // 4. Cria nova pessoa
   const statusIdentidade = nomePlaceholder ? 'provisoria' : 'confirmada'
 
   const { data: pessoa, error } = await supabase
