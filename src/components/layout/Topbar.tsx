@@ -9,6 +9,8 @@ import { SinoNotificacoes } from './SinoNotificacoes'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { LeadModal } from '@/components/leads/LeadModal'
 import { cn } from '@/lib/utils'
 
 function iniciais(nome: string) {
@@ -28,6 +30,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   // Pessoa fora da carteira do comercial que buscou — resumo mínimo em vez
   // de navegar direto pro cadastro (ver busca_pessoas_resumo, 20260725_187).
   const [pessoaResumo, setPessoaResumo] = useState<ResultadoBusca | null>(null)
+  const [pessoaParaReaproveitar, setPessoaParaReaproveitar] = useState<ResultadoBusca | null>(null)
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -241,10 +244,35 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 {pessoaResumo?.negociosAndamento ?? 0} negócio(s) em andamento ·{' '}
                 {pessoaResumo?.negociosConcluidos ?? 0} concluído(s)
               </p>
+              <Button
+                type="button"
+                className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover"
+                onClick={() => {
+                  setPessoaParaReaproveitar(pessoaResumo)
+                  setPessoaResumo(null)
+                  limpar()
+                }}
+              >
+                Iniciar nova captação
+              </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Reaproveita a Pessoa já existente (sem duplicar cadastro) numa nova captação */}
+      {pessoaParaReaproveitar && (
+        <LeadModal
+          aberto={!!pessoaParaReaproveitar}
+          onFechar={() => setPessoaParaReaproveitar(null)}
+          pessoaExistente={{
+            id: pessoaParaReaproveitar.id,
+            nome: pessoaParaReaproveitar.titulo,
+            telefone: pessoaParaReaproveitar.telefone ?? null,
+            cpf: pessoaParaReaproveitar.cpf ?? null,
+          }}
+        />
+      )}
     </header>
   )
 }

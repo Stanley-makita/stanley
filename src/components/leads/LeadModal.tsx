@@ -36,13 +36,24 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+interface PessoaExistente {
+  id: string
+  nome: string
+  telefone: string | null
+  cpf: string | null
+}
+
 interface Props {
   aberto: boolean
   onFechar: () => void
   faseIdInicial?: string
+  // Reaproveitamento de uma Pessoa já cadastrada, sem atendimento ativo com
+  // outro comercial (ver diálogo de resumo da Busca Global, Topbar.tsx) —
+  // pré-preenche o formulário e evita duplicar o cadastro de Pessoa.
+  pessoaExistente?: PessoaExistente
 }
 
-export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
+export function LeadModal({ aberto, onFechar, faseIdInicial, pessoaExistente }: Props) {
   const { usuario } = useAuth()
   const ehComercial = usuario?.perfil === 'comercial'
   const criarLead = useCriarLead()
@@ -63,8 +74,8 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
   useEffect(() => {
     if (aberto) {
       form.reset({
-        nome: '',
-        telefone: '',
+        nome: pessoaExistente?.nome ?? '',
+        telefone: pessoaExistente?.telefone ?? '',
         email: '',
         fase_id: faseIdInicial ?? (fases[0]?.id ?? ''),
         origem: 'indicacao',
@@ -73,7 +84,7 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
         responsavel_id: ehComercial ? usuario?.id : undefined,
       })
     }
-  }, [aberto, faseIdInicial, fases, ehComercial, usuario?.id])
+  }, [aberto, faseIdInicial, fases, ehComercial, usuario?.id, pessoaExistente])
 
   async function onSubmit(data: FormData) {
     try {
@@ -81,6 +92,8 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
         ...data,
         email: data.email || undefined,
         responsavel_operacional_id: data.responsavel_operacional_id || undefined,
+        cpf: pessoaExistente?.cpf ?? undefined,
+        pessoa_id: pessoaExistente?.id,
       })
       onFechar()
     } catch {
@@ -93,7 +106,11 @@ export function LeadModal({ aberto, onFechar, faseIdInicial }: Props) {
       <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto p-0 sm:w-full">
         <DialogHeader className="px-4 pt-5 pb-0 sm:px-6 sm:pt-6">
           <DialogTitle className="text-fonti-primary text-lg">Novo Lead</DialogTitle>
-          <p className="text-sm text-gray-500 mt-0.5">Preencha os dados do novo lead</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {pessoaExistente
+              ? `Retomando cadastro existente de ${pessoaExistente.nome}`
+              : 'Preencha os dados do novo lead'}
+          </p>
         </DialogHeader>
 
         <Form {...form}>

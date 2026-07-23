@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
     origem: Lead['origem']
     valor_pretendido?: number
     observacoes?: string
+    // Reaproveitamento explícito de uma Pessoa já existente (ex: vindo do
+    // resumo da Busca Global, quando não há atendimento ativo com outro
+    // comercial) — ver busca_pessoas_resumo, 20260725_187.
+    pessoa_id?: string
   }
 
   const { nome, telefone, fase_id, origem } = body
@@ -51,12 +55,36 @@ export async function POST(request: NextRequest) {
 
   const empresa_id = usuario.empresa_id
 
-  // Busca ou cria Pessoa (deduplicação por CPF e telefone)
   let pessoa_id: string | null = null
-  try {
-    pessoa_id = await buscarOuCriarPessoa(empresa_id, telefone.trim(), nome.trim(), body.cpf?.trim())
-  } catch (err) {
-    console.error('[POST /api/leads] erro ao buscar/criar pessoa:', err)
+
+  if (body.pessoa_id) {
+    // Pessoa explícita (reaproveitamento) — nunca confia no client: valida
+    // que existe e é da mesma empresa. Se falhar, erro controlado — SEM
+    // fallback para buscarOuCriarPessoa, que poderia mascarar um id
+    // inválido e duplicar exatamente o cadastro que isso existe pra evitar.
+    const { data: pessoaExistente } = await supabaseAdmin
+      .from('pessoas')
+      .select('id')
+      .eq('id', body.pessoa_id)
+      .eq('empresa_id', empresa_id)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (!pessoaExistente) {
+      return NextResponse.json(
+        { error: 'Pessoa inválida', detail: 'pessoa_id informado não existe ou não pertence a esta empresa.' },
+        { status: 404 }
+      )
+    }
+
+    pessoa_id = pessoaExistente.id
+  } else {
+    // Busca ou cria Pessoa (deduplicação por CPF e telefone) — fluxo automático de sempre
+    try {
+      pessoa_id = await buscarOuCriarPessoa(empresa_id, telefone.trim(), nome.trim(), body.cpf?.trim())
+    } catch (err) {
+      console.error('[POST /api/leads] erro ao buscar/criar pessoa:', err)
+    }
   }
 
   // Deduplicação: mesma pessoa + mesma fase = lead duplicado
