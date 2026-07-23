@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processarOcrDocumento } from '@/lib/documentos/ocr'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
+export const maxDuration = 300
+
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
