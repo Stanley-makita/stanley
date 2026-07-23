@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { resolverPessoaConjuge } from '@/lib/pessoa'
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -45,8 +46,13 @@ export async function POST(
     .eq('vigente', true)
     .maybeSingle()
 
-  const body = await request.json() as { campos: Record<string, unknown>; tipo_confirmado?: string }
+  const body = await request.json() as {
+    campos: Record<string, unknown>
+    tipo_confirmado?: string
+    titular?: 'principal' | 'conjuge'
+  }
   const { campos, tipo_confirmado } = body
+  const alvo = body.titular === 'conjuge' ? 'conjuge' : 'principal'
 
   // Campos permitidos para atualização na pessoa
   const CAMPOS_PERMITIDOS = [
@@ -77,6 +83,18 @@ export async function POST(
     camposFiltrados[k] = s
   }
 
+  // Se o documento foi marcado como sendo do cônjuge (não do titular), os
+  // dados abaixo — Pessoa e pessoa_documentos_identificacao — vão todos pra
+  // uma Pessoa própria do cônjuge, nunca pro titular (doc.pessoa_id).
+  const pessoaId = alvo === 'conjuge'
+    ? await resolverPessoaConjuge(
+        empresa_id,
+        doc.pessoa_id as string,
+        (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge',
+        camposFiltrados['cpf'] as string | undefined,
+      )
+    : (doc.pessoa_id as string)  // já validado acima (400 se null)
+
   // Salva todos os campos exceto CPF (para evitar que UNIQUE bloqueie tudo)
   const camposSemCpf = { ...camposFiltrados }
   delete camposSemCpf['cpf']
@@ -85,7 +103,7 @@ export async function POST(
     const { error } = await supabase
       .from('pessoas')
       .update(camposSemCpf)
-      .eq('id', doc.pessoa_id)
+      .eq('id', pessoaId)
 
     if (error) {
       console.error('[ocr-confirmar] Erro ao atualizar pessoa:', error.message, '| campos:', Object.keys(camposSemCpf))
@@ -99,7 +117,7 @@ export async function POST(
     const { error: errCpf } = await supabase
       .from('pessoas')
       .update({ cpf: camposFiltrados['cpf'] })
-      .eq('id', doc.pessoa_id)
+      .eq('id', pessoaId)
     if (errCpf) {
       console.warn('[ocr-confirmar] CPF não salvo (conflito UNIQUE):', errCpf.message)
       cpf_divergente = true
@@ -112,8 +130,6 @@ export async function POST(
     'rg', 'cnh', 'cpf', 'certidao_nascimento', 'certidao_casamento',
     'passaporte', 'rne', 'outro',
   ]
-
-  const pessoaId = doc.pessoa_id as string  // já validado acima (400 se null)
 
   type DocPayload = Record<string, string | null>
 
@@ -216,12 +232,15 @@ export async function POST(
     }
   }
 
-  // Marca documento como revisado, atualizando classificacao se o usuário confirmou o tipo
+  // Marca documento como revisado, atualizando classificacao se o usuário confirmou o tipo.
+  // Se é do cônjuge, o documento passa a pertencer de fato à Pessoa do cônjuge
+  // (não mais ao titular) — reflete a real dona da identidade no documento.
   await supabase
     .from('documentos')
     .update({
       status_ocr: 'revisado',
       ...(tipo_confirmado ? { classificacao_legado: tipo_confirmado } : {}),
+      ...(alvo === 'conjuge' ? { pessoa_id: pessoaId } : {}),
     })
     .eq('id', documentoId)
 
@@ -241,6 +260,8 @@ export async function POST(
     ok: true,
     cpf_divergente,
     camposSalvos: Object.keys(camposFiltrados),
+    pessoaId,
+    alvo,
   })
 }
 

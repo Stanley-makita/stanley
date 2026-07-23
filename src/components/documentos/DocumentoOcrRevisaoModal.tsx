@@ -98,6 +98,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
     pessoaAtualId && documento.pessoa_id && documento.pessoa_id !== pessoaAtualId
   )
   const [cienteDivergencia, setCienteDivergencia] = useState(false)
+  const [ehConjuge, setEhConjuge] = useState(false)
 
   const tipoDetectado = ocr?.tipo_documento ?? ''
   const tipoInicial = TIPOS_VALIDOS.has(tipoDetectado) ? tipoDetectado : 'cnh'
@@ -154,16 +155,22 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ campos: camposFiltrados, tipo_confirmado: tipoSelecionado }),
+        body: JSON.stringify({
+          campos: camposFiltrados,
+          tipo_confirmado: tipoSelecionado,
+          titular: ehConjuge ? 'conjuge' : 'principal',
+        }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string; detail?: string }
         toast.error((err.error ?? 'Erro ao salvar dados.') + (err.detail ? ` (${err.detail})` : ''))
         return
       }
-      const result = await res.json().catch(() => ({})) as { cpf_divergente?: boolean }
+      const result = await res.json().catch(() => ({})) as { cpf_divergente?: boolean; alvo?: string }
       if (result.cpf_divergente) {
         toast.success('Dados salvos. O CPF encontrado já pertence a outro cliente — verifique manualmente.')
+      } else if (result.alvo === 'conjuge') {
+        toast.success('Dados confirmados e salvos no cadastro do cônjuge.')
       } else {
         toast.success('Dados confirmados e salvos no perfil do cliente.')
       }
@@ -222,7 +229,25 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
 
         {/* Corpo */}
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          {pessoaDivergente && (
+          <div className="mb-4">
+            <label className="flex items-center gap-1.5 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={ehConjuge}
+                onChange={(e) => setEhConjuge(e.target.checked)}
+              />
+              Este documento é do cônjuge, não do titular
+            </label>
+            {ehConjuge && (
+              <p className="mt-1 pl-5 text-xs text-gray-400">
+                Ao confirmar, os dados vão para o cadastro do cônjuge (criado ou
+                reaproveitado se o CPF já for de um cliente existente) — não para
+                este titular.
+              </p>
+            )}
+          </div>
+
+          {pessoaDivergente && !ehConjuge && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <div className="flex-1">
@@ -297,7 +322,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
               size="sm"
               className="min-w-[110px] bg-fonti-primary text-white hover:bg-fonti-primary-hover"
               onClick={handleConfirmar}
-              disabled={salvando || (pessoaDivergente && !cienteDivergencia)}
+              disabled={salvando || (pessoaDivergente && !ehConjuge && !cienteDivergencia)}
             >
               {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar dados'}
             </Button>

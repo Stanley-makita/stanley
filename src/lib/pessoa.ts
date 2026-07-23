@@ -284,6 +284,68 @@ export async function buscarOuCriarPessoa(
 }
 
 /**
+ * Resolve a Pessoa do cônjuge a partir de um documento de identidade
+ * confirmado como sendo do cônjuge, não do titular (ver DocumentoOcrRevisaoModal
+ * / ocr-confirmar). Dá ao cônjuge um cadastro completo e próprio — com seu
+ * próprio card de Documentos — em vez de só os campos soltos conjuge_nome/
+ * conjuge_cpf/conjuge_data_nascimento (que continuam sincronizados a partir
+ * daqui via trigger, ver 20260725_190_sincronizar_pessoa_conjuge.sql).
+ *
+ * Hierarquia:
+ *   1. Titular já tem conjuge_pessoa_id → reaproveita (confirmações
+ *      seguintes de documentos do mesmo cônjuge caem todas na mesma Pessoa)
+ *   2. CPF do cônjuge bate com Pessoa existente → reaproveita (cônjuge já é
+ *      cliente por conta própria, ex: também tem processo/lead independente)
+ *   3. Nenhum → cria Pessoa nova pro cônjuge
+ * Sempre vincula titular.conjuge_pessoa_id ao resultado (só se ainda vazio
+ * — nunca troca um cônjuge já vinculado por outro silenciosamente).
+ */
+export async function resolverPessoaConjuge(
+  empresa_id: string,
+  titularPessoaId: string,
+  nome: string,
+  cpf?: string | null,
+): Promise<string> {
+  const { data: titular } = await supabase
+    .from('pessoas')
+    .select('conjuge_pessoa_id')
+    .eq('id', titularPessoaId)
+    .maybeSingle()
+
+  if (titular?.conjuge_pessoa_id) {
+    return titular.conjuge_pessoa_id
+  }
+
+  const cpfNorm = cpf ? normalizarCpf(cpf) : null
+  const cpfValido = cpfNorm?.length === 11 ? cpfNorm : null
+
+  let conjugePessoaId: string | null = cpfValido ? await buscarPessoaPorCpf(empresa_id, cpfValido) : null
+
+  if (!conjugePessoaId) {
+    const { data: nova, error } = await supabase
+      .from('pessoas')
+      .insert({
+        empresa_id,
+        nome: nome.trim() || 'Cônjuge',
+        status_identidade: 'confirmada',
+        ...(cpfValido ? { cpf: cpfValido } : {}),
+      })
+      .select('id')
+      .single()
+    if (error || !nova) throw new Error(`Erro ao criar pessoa do cônjuge: ${error?.message}`)
+    conjugePessoaId = nova.id as string
+  }
+
+  await supabase
+    .from('pessoas')
+    .update({ conjuge_pessoa_id: conjugePessoaId })
+    .eq('id', titularPessoaId)
+    .is('conjuge_pessoa_id', null)
+
+  return conjugePessoaId
+}
+
+/**
  * Atualiza status_identidade para 'confirmada' quando o bot coletou o nome real.
  * Chamado após resultado.criarLead para atualizar o registro provisório.
  */
