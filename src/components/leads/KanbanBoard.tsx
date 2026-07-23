@@ -30,6 +30,7 @@ const FASE_CONCLUIDO = 'Concluído'
 interface Props {
   onCriarLead: (faseId: string) => void
   onAbrirLead: (id: string) => void
+  responsavelId?: string
 }
 
 interface PendenteConclusao {
@@ -38,7 +39,7 @@ interface PendenteConclusao {
   lead: Lead
 }
 
-export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
+export function KanbanBoard({ onCriarLead, onAbrirLead, responsavelId }: Props) {
   const { data: todasFases = [] } = useFases('leads')
   const moverLead = useMoverLeadKanban()
   const tarefasStatus = useLeadsTarefasStatus()
@@ -190,6 +191,7 @@ export function KanbanBoard({ onCriarLead, onAbrirLead }: Props) {
             onCriarLead={onCriarLead}
             onAbrirLead={onAbrirLead}
             tarefasStatus={tarefasStatus}
+            responsavelId={responsavelId}
           />
         ))}
 
