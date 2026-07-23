@@ -20,6 +20,9 @@ export async function middleware(request: NextRequest) {
           )
         },
       },
+      // Cookie de sessão do navegador: expira ao fechar o navegador,
+      // não sobrevive como cookie persistente de 400 dias (padrão da lib).
+      cookieOptions: { maxAge: undefined },
     }
   )
 
