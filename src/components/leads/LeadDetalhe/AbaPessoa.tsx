@@ -48,7 +48,7 @@ const REGIMES = [
 type FormState = {
   telefone: string
   nome: string; email: string; cpf: string; data_nascimento: string
-  rg: string; profissao: string; estado_civil: string; sexo: string
+  profissao: string; estado_civil: string; sexo: string
   renda_formal: string; renda_informal: string; nacionalidade: string
   orgao_emissor: string; data_emissao: string
   cidade_nascimento: string; estado_nascimento: string
@@ -68,7 +68,7 @@ type FormState = {
 
 const VAZIO: FormState = {
   telefone: '',
-  nome: '', email: '', cpf: '', data_nascimento: '', rg: '', profissao: '',
+  nome: '', email: '', cpf: '', data_nascimento: '', profissao: '',
   estado_civil: '', sexo: '', renda_formal: '', renda_informal: '', nacionalidade: '',
   orgao_emissor: '', data_emissao: '', cidade_nascimento: '', estado_nascimento: '',
   filiacao_mae: '', filiacao_pai: '',
@@ -120,7 +120,7 @@ export function AbaPessoa({ lead }: Props) {
       const { data, error } = await supabase
         .from('pessoas')
         .select(`id, nome, cpf, email, data_nascimento,
-          rg, profissao, estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
+          profissao, estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
           orgao_emissor, data_emissao, cidade_nascimento, estado_nascimento, filiacao_mae, filiacao_pai,
           registro_cnh, validade_cnh, primeira_habilitacao_cnh,
           endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
@@ -150,7 +150,6 @@ export function AbaPessoa({ lead }: Props) {
       email:                    pessoa.email ?? '',
       cpf:                      formatarCpf(pessoa.cpf ?? ''),
       data_nascimento:          pessoa.data_nascimento ?? '',
-      rg:                       pessoa.rg ?? '',
       profissao:                pessoa.profissao ?? '',
       estado_civil:             pessoa.estado_civil ?? '',
       sexo:                     p.sexo ?? '',
@@ -203,7 +202,6 @@ export function AbaPessoa({ lead }: Props) {
         email:                    form.email.trim() || null,
         cpf:                      normalizarCpf(form.cpf) ?? null,
         data_nascimento:          form.data_nascimento || null,
-        rg:                       form.rg.trim() || null,
         profissao:                form.profissao.trim() || null,
         estado_civil:             form.estado_civil || null,
         sexo:                     form.sexo || null,
@@ -288,7 +286,6 @@ export function AbaPessoa({ lead }: Props) {
         email:                   payload.email,
         cpf:                     payload.cpf,
         data_nascimento:         payload.data_nascimento,
-        rg:                      payload.rg,
         profissao:               payload.profissao,
         estado_civil:            payload.estado_civil,
         renda_formal:            payload.renda_formal,
@@ -373,10 +370,6 @@ export function AbaPessoa({ lead }: Props) {
         <div>
           <L>CPF</L>
           <Input value={form.cpf} onChange={e => f({ cpf: formatarCpf(e.target.value) })} placeholder="000.000.000-00" />
-        </div>
-        <div>
-          <L>RG</L>
-          <Input value={form.rg} onChange={e => f({ rg: e.target.value })} placeholder="00.000.000-0" />
         </div>
         <div>
           <L>Data de Nascimento</L>
