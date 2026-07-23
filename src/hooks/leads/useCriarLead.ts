@@ -16,6 +16,9 @@ interface CriarLeadInput {
   origem: Lead['origem']
   valor_pretendido?: number
   observacoes?: string
+  // Reaproveitamento explícito de uma Pessoa já existente (ver LeadModal
+  // `pessoaExistente` — resumo da Busca Global sem atendimento ativo)
+  pessoa_id?: string
 }
 
 export function useCriarLead() {
