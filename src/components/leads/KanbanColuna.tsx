@@ -20,10 +20,11 @@ interface Props {
   onCriarLead: (faseId: string) => void
   onAbrirLead: (id: string) => void
   tarefasStatus: Map<string, TarefaStatusLead>
+  responsavelId?: string
 }
 
-export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLead, tarefasStatus }: Props) {
-  const { data: leads = [], isLoading, isError } = useLeadsPorFase(faseId)
+export function KanbanColuna({ faseId, faseNome, faseCor, onCriarLead, onAbrirLead, tarefasStatus, responsavelId }: Props) {
+  const { data: leads = [], isLoading, isError } = useLeadsPorFase(faseId, responsavelId)
   const { pode } = usePermissao()
 
   const { setNodeRef, isOver } = useDroppable({ id: faseId })

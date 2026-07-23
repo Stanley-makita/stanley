@@ -7,13 +7,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Lead } from '@/types/leads'
 
-export function useLeadsPorFase(faseId: string) {
+export function useLeadsPorFase(faseId: string, responsavelId?: string) {
   const { usuario } = useAuth()
 
   return useQuery({
-    queryKey: ['leads', 'fase', faseId, usuario?.empresa_id],
+    queryKey: ['leads', 'fase', faseId, usuario?.empresa_id, responsavelId],
     queryFn: async (): Promise<Lead[]> => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('leads')
         .select(`
           *,
@@ -25,6 +25,10 @@ export function useLeadsPorFase(faseId: string) {
         .eq('empresa_id', usuario!.empresa_id)
         .eq('fase_id', faseId)
         .is('deleted_at', null)
+
+      if (responsavelId) q = q.eq('responsavel_id', responsavelId)
+
+      const { data, error } = await q
         .order('ordem_kanban', { ascending: true })
         .order('created_at', { ascending: false })
         .limit(50)
@@ -34,6 +38,32 @@ export function useLeadsPorFase(faseId: string) {
     },
     enabled: !!usuario && !!faseId,
     refetchInterval: 30 * 1000,
+  })
+}
+
+// Comerciais ativos, para o seletor de "Carteira" visível só a quem tem
+// visão total (qualquer perfil exceto comercial — mesma regra da RLS de
+// leads, ver migration 20260724_186).
+export function useComerciaisAtivos() {
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['usuarios', 'comerciais', usuario?.empresa_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('id, nome')
+        .eq('empresa_id', usuario!.empresa_id)
+        .eq('perfil', 'comercial')
+        .eq('ativo', true)
+        .is('deleted_at', null)
+        .order('nome', { ascending: true })
+
+      if (error) throw error
+      return data
+    },
+    staleTime: 1000 * 60 * 10,
+    enabled: !!usuario,
   })
 }
 
@@ -67,13 +97,13 @@ export function useLead(leadId: string) {
   })
 }
 
-export function useLeadsTodos(faseId?: string, search?: string) {
+export function useLeadsTodos(faseId?: string, search?: string, responsavelId?: string) {
   const { usuario } = useAuth()
   const queryClient = useQueryClient()
   const supabaseClient = useMemo(() => createClient(), [])
 
   const query = useQuery({
-    queryKey: ['leads', 'todos', usuario?.empresa_id, faseId, search],
+    queryKey: ['leads', 'todos', usuario?.empresa_id, faseId, search, responsavelId],
     queryFn: async (): Promise<Lead[]> => {
       let q = supabase
         .from('leads')
@@ -91,6 +121,7 @@ export function useLeadsTodos(faseId?: string, search?: string) {
         .is('deleted_at', null)
 
       if (faseId) q = q.eq('fase_id', faseId)
+      if (responsavelId) q = q.eq('responsavel_id', responsavelId)
       if (search && search.length >= 2) {
         q = q.or(`nome.ilike.%${search}%,telefone.ilike.%${search}%`)
       }

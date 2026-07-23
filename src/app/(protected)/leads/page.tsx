@@ -7,10 +7,15 @@ import { LeadModal } from '@/components/leads/LeadModal'
 import { LeadListView } from '@/components/leads/LeadListView'
 import { DashboardLeads } from '@/components/leads/DashboardLeads'
 import { usePermissao } from '@/hooks/auth/usePermissao'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { useComerciaisAtivos } from '@/hooks/leads/useLeads'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { UserPlus, Columns, List, Search, LayoutDashboard } from 'lucide-react'
 
 type Visao = 'dashboard' | 'kanban' | 'lista'
@@ -24,8 +29,15 @@ const VISOES_LEADS = [
 
 function LeadsContent() {
   const { pode } = usePermissao()
+  const { usuario } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
+
+  // Mesma regra da RLS de leads (migration 20260724_186): todo perfil que
+  // não seja comercial tem visão total e pode filtrar por carteira.
+  const podeVerCarteira = usuario?.perfil !== 'comercial'
+  const { data: comerciais = [] } = useComerciaisAtivos()
+  const [carteiraId, setCarteiraId] = useState<string | undefined>()
 
   const [visao, setVisao] = useState<Visao>('dashboard')
   const [filtroLista, setFiltroLista] = useState<FiltroLista>(undefined)
@@ -73,6 +85,23 @@ function LeadsContent() {
         description="Gerencie sua captação em todas as fases"
         actions={(
           <>
+          {podeVerCarteira && visao === 'kanban' && (
+            <Select
+              value={carteiraId ?? 'todos'}
+              onValueChange={(v) => setCarteiraId(v === 'todos' ? undefined : v)}
+            >
+              <SelectTrigger className="h-9 w-full sm:w-44">
+                <SelectValue placeholder="Carteira" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as carteiras</SelectItem>
+                {comerciais.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           {visao === 'lista' && (
             <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
@@ -116,7 +145,7 @@ function LeadsContent() {
       )}
       {visao === 'kanban' && (
         <div className="-mx-4 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
-          <KanbanBoard onCriarLead={abrirModal} onAbrirLead={abrirDetalhe} />
+          <KanbanBoard onCriarLead={abrirModal} onAbrirLead={abrirDetalhe} responsavelId={podeVerCarteira ? carteiraId : undefined} />
         </div>
       )}
       {visao === 'lista' && (
