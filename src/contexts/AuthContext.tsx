@@ -113,9 +113,12 @@ export function AuthProvider({
 
   async function sair() {
     authUserIdRef.current = null
-    setUsuario(null)
-    await supabase.auth.signOut()
-    window.location.href = '/login'
+    try {
+      await supabase.auth.signOut()
+    } finally {
+      setUsuario(null)
+      window.location.href = '/login'
+    }
   }
 
   return (
