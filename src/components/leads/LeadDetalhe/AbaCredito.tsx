@@ -700,7 +700,7 @@ const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; classe: stri
 // ── BlocoAnalises ─────────────────────────────────────────────
 
 function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; empresaId: string; responsavelId: string | null }) {
-  const { analises, isLoading, criar, editar, deletar, definirBanco } = useAnalisesCredito(leadId)
+  const { analises, isLoading, criar, editar, deletar, definirBanco, limparBancoDefinido } = useAnalisesCredito(leadId)
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const qc = useQueryClient()
@@ -778,8 +778,17 @@ function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; e
   // status que ela já tiver — sem isso, só a próxima troca de status (se
   // houver) dispararia a sincronização, deixando o cabeçalho/Kanban
   // desatualizados logo após "Definir banco".
-  function handleDefinirBanco(id: string) {
+  //
+  // Clicar de novo no banco já definido desmarca (toggle) — nesse caso não
+  // sincroniza o status do lead automaticamente: sem banco definido não há
+  // "análise decisiva" nenhuma pra espelhar, e reverter status sozinho
+  // arriscaria mover o Lead pra trás no Kanban sem o usuário pedir.
+  function handleToggleBanco(id: string) {
     const analise = analises.find(a => a.id === id)
+    if (analise?.banco_definido) {
+      limparBancoDefinido.mutate(id)
+      return
+    }
     definirBanco.mutate(id, {
       onSuccess: () => { if (analise) sincronizarStatusLead(analise.status) },
     })
@@ -826,11 +835,11 @@ function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; e
             numero={i + 1}
             onEditar={() => { setEditandoId(analise.id); setCriando(false) }}
             onDeletar={() => deletar.mutate(analise.id)}
-            onDefinirBanco={() => handleDefinirBanco(analise.id)}
+            onDefinirBanco={() => handleToggleBanco(analise.id)}
             onStatusChange={(s) => handleStatusChange(analise.id, s)}
             onDataRespostaChange={(d) => handleDataRespostaChange(analise.id, d)}
             deletando={deletar.isPending}
-            definindoBanco={definirBanco.isPending}
+            definindoBanco={definirBanco.isPending || limparBancoDefinido.isPending}
           />
         )
       )}
@@ -882,7 +891,7 @@ function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onS
         {/* Badge banco definido */}
         <span
           onClick={e => { e.stopPropagation(); onDefinirBanco() }}
-          title={analise.banco_definido ? 'Banco definido' : 'Definir como banco escolhido'}
+          title={analise.banco_definido ? 'Clique para desmarcar' : 'Definir como banco escolhido'}
           className={cn(
             'flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 transition-colors cursor-pointer',
             analise.banco_definido
@@ -1007,9 +1016,15 @@ function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onS
                 </p>
               </div>
             )}
+            {analise.numero_proposta && (
+              <div>
+                <p className="text-[10px] text-gray-400">Nº da Proposta</p>
+                <p className="text-xs font-medium text-gray-800">{analise.numero_proposta}</p>
+              </div>
+            )}
           </div>
 
-          {!analise.banco_pretendido && !analise.valor_imovel && !analise.valor_pretendido && !analise.entrada && (
+          {!analise.banco_pretendido && !analise.valor_imovel && !analise.valor_pretendido && !analise.entrada && !analise.numero_proposta && (
             <p className="text-xs text-gray-400 italic pt-2">Análise vazia — clique em Editar para preencher.</p>
           )}
 
@@ -1073,6 +1088,7 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
   const [finalidade, setFinalidade]   = useState(inicial?.finalidade ?? '')
   const [status, setStatus]           = useState<StatusAnaliseCredito>(inicial?.status ?? 'em_analise')
   const [dataResposta, setDataResposta] = useState(inicial?.data_resposta ?? '')
+  const [numeroProposta, setNumeroProposta] = useState(inicial?.numero_proposta ?? '')
 
   // Qual dos dois campos (Entrada ou Valor a Financiar) o usuário editou por último —
   // decide qual dos dois é recalculado quando o Valor do Imóvel muda, e evita que os
@@ -1129,6 +1145,7 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
       finalidade:       finalidade || null,
       status,
       data_resposta:    dataResposta || null,
+      numero_proposta:  numeroProposta.trim() || null,
     })
   }
 
@@ -1168,6 +1185,15 @@ function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
         <div>
           <Label className="text-xs text-gray-500">Prazo (meses)</Label>
           <Input className="h-7 text-sm mt-1" type="number" placeholder="360" value={prazo} onChange={e => setPrazo(e.target.value)} />
+        </div>
+        <div>
+          <Label className="text-xs text-gray-500">Nº da Proposta</Label>
+          <Input
+            className="h-7 text-sm mt-1"
+            placeholder="Nº dado pelo banco"
+            value={numeroProposta}
+            onChange={e => setNumeroProposta(e.target.value)}
+          />
         </div>
         <div className="sm:col-span-2">
           <Label className="text-xs text-gray-500">Finalidade</Label>
@@ -1251,6 +1277,9 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
               </div>
               {analiseDefinida.valor_pretendido != null && (
                 <p className="text-xs text-green-700 shrink-0">{fmtMoeda(analiseDefinida.valor_pretendido)}</p>
+              )}
+              {analiseDefinida.numero_proposta && (
+                <p className="text-xs text-green-700 shrink-0">Prop. {analiseDefinida.numero_proposta}</p>
               )}
             </div>
           ) : (

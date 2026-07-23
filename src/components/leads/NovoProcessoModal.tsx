@@ -433,6 +433,9 @@ function SeletorAnalise({ analises, onSelecionar, onVoltar }: {
                 {analise.prazo_meses != null && (
                   <span className="text-xs text-gray-500">{analise.prazo_meses} meses</span>
                 )}
+                {analise.numero_proposta && (
+                  <span className="text-xs text-gray-500">Prop. {analise.numero_proposta}</span>
+                )}
               </div>
             </div>
             <ChevronRight className="h-4 w-4 text-gray-300 shrink-0 mt-1" />
@@ -592,6 +595,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       valor_financiado:  parseMoeda(valorFinanciar) || null,
       valor_entrada:     parseMoeda(valorEntrada) || null,
       validade_credito:  lead?.validade_credito ?? null,
+      numero_proposta:   fonte?.numero_proposta ?? null,
       valor_fgts:       fgts ? parseMoeda(valorFgts) : null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'incerteza',
@@ -948,6 +952,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       valor_imovel:     parseMoeda(valorGarantia) || null,
       valor_financiado: parseMoeda(valorCredito) || null,
       valor_entrada:    null,
+      numero_proposta:  lead?.numero_proposta ?? null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'incerteza',
       status_processo:  'em_analise',
@@ -1128,6 +1133,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       valor_imovel:     null,
       valor_financiado: null,
       valor_entrada:    null,
+      numero_proposta:  lead?.numero_proposta ?? null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'certeza',
       status_processo:  'em_analise',
@@ -1283,6 +1289,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       valor_imovel:     null,
       valor_financiado: parseMoeda(valorCarta) || null,
       valor_entrada:    null,
+      numero_proposta:  lead?.numero_proposta ?? null,
       status_emissao:   'nao_emitido',
       chance_emissao:   'incerteza',
       status_processo:  'em_analise',

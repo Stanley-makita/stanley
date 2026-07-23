@@ -89,5 +89,22 @@ export function useAnalisesCredito(leadId: string) {
     onError: (e: any) => toast.error(`Erro ao definir banco: ${e?.message ?? 'Tente novamente'}`),
   })
 
-  return { analises, isLoading, criar, editar, deletar, definirBanco }
+  // Desmarca o banco definido (nenhuma análise passa a ser a decisiva) —
+  // diferente de definirBanco, que sempre marca uma; esta só desliga.
+  const limparBancoDefinido = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('lead_analises_credito')
+        .update({ banco_definido: false })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data as LeadAnaliseCredito
+    },
+    onSuccess: invalidar,
+    onError: (e: any) => toast.error(`Erro ao desmarcar banco: ${e?.message ?? 'Tente novamente'}`),
+  })
+
+  return { analises, isLoading, criar, editar, deletar, definirBanco, limparBancoDefinido }
 }

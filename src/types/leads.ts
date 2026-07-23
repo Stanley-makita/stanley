@@ -81,6 +81,9 @@ export interface Lead {
   status_analise: StatusAnalise
   data_credito: string | null
   validade_credito: string | null
+  // Espelho da análise de crédito marcada banco_definido — ver
+  // lead_analises_credito.numero_proposta e migration 20260725_191.
+  numero_proposta: string | null
   // Imóvel vinculado (referência + campos denormalizados editáveis por lead)
   // Distinto dos legados `tipo_imovel`/`cidade_imovel` acima (migration 089,
   // texto solto sem FK) — ver migration 174.
@@ -137,6 +140,7 @@ export interface LeadAnaliseCredito {
   status: StatusAnaliseCredito
   data_resposta: string | null
   banco_definido: boolean
+  numero_proposta: string | null
   created_at: string
   updated_at: string
 }

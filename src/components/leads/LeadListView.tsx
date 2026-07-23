@@ -37,6 +37,7 @@ type ColKey =
   | 'corretor'
   | 'imobiliaria'
   | 'parceiro'
+  | 'proposta'
   | 'criado_em'
 
 type SortDir = 'asc' | 'desc'
@@ -80,6 +81,7 @@ function getColValue(lead: Lead, col: ColKey): string {
     case 'corretor':     return lead.corretores?.[0]?.corretor?.nome ?? ''
     case 'imobiliaria':  return lead.imobiliarias?.[0]?.imobiliaria?.nome ?? ''
     case 'parceiro':     return lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? ''
+    case 'proposta':     return lead.numero_proposta ?? ''
     case 'criado_em':    return lead.created_at
     default:             return ''
   }
@@ -309,6 +311,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
+                    <ColHeader label="Proposta"         col="proposta"    active={sortCol} dir={sortDir} onSort={handleSort} />
                     <ColHeader label="Criado em"        col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
                     {podeExcluir && <th className="w-10 px-2 py-3" />}
                   </tr>
@@ -404,6 +407,11 @@ function LeadMobileCard({
                 }}
               >
                 {lead.status.nome}
+              </span>
+            )}
+            {lead.numero_proposta && (
+              <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                Prop. {lead.numero_proposta}
               </span>
             )}
             <LeadOrigemBadge origem={lead.origem} />
@@ -726,6 +734,11 @@ function LeadRow({
       {/* Parceiro */}
       <td className="px-3 py-1.5">
         <span className="text-xs text-gray-600">{lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? '—'}</span>
+      </td>
+
+      {/* Proposta */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600 whitespace-nowrap">{lead.numero_proposta ?? '—'}</span>
       </td>
 
       {/* Data */}

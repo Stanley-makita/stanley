@@ -104,6 +104,14 @@ export function KanbanCard({ lead, overlay = false, onAbrirLead, tarefaStatus }:
             {lead.status.nome}
           </span>
         )}
+        {lead.numero_proposta && (
+          <span
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200"
+            title="Nº da Proposta"
+          >
+            Prop. {lead.numero_proposta}
+          </span>
+        )}
       </div>
 
       {/* Rodapé: tarefas + responsável + dias */}
