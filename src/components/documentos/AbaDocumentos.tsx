@@ -1026,6 +1026,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
       {docOcrRevisao && (
         <DocumentoOcrRevisaoModal
           documento={docOcrRevisao}
+          pessoaAtualId={contexto === 'lead' ? pessoaId : undefined}
           onClose={() => setDocOcrRevisao(null)}
           onConfirmado={() => {
             setDocOcrRevisao(null)
