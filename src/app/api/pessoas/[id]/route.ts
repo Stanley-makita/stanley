@@ -1,27 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
-async function resolveEmpresa(token: string) {
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return null
-  const { data: usuario } = await supabase
-    .from('usuarios')
-    .select('empresa_id')
-    .eq('auth_user_id', user.id)
-    .single()
-  return usuario?.empresa_id ?? null
-}
-
 async function resolveUsuario(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id, perfil')
+    .select('id, empresa_id, perfil')
     .eq('auth_user_id', user.id)
     .eq('ativo', true)
     .single()
   return usuario ?? null
+}
+
+// Rota usa service-role, então RLS não se aplica — replica manualmente a
+// regra de carteira comercial (ver migration 20260724_186): perfil
+// comercial só pode acessar uma pessoa se ela tiver lead atual (não
+// excluído) onde ele é o responsável.
+async function podeAcessarPessoa(usuario: { id: string; empresa_id: string; perfil: string }, pessoaId: string) {
+  if (usuario.perfil !== 'comercial') return true
+  const { data } = await supabase
+    .from('leads')
+    .select('id')
+    .eq('pessoa_id', pessoaId)
+    .eq('responsavel_id', usuario.id)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle()
+  return !!data
 }
 
 export async function GET(
@@ -30,8 +36,13 @@ export async function GET(
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  const empresa_id = await resolveEmpresa(token)
-  if (!empresa_id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const usuario = await resolveUsuario(token)
+  if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { empresa_id } = usuario
+
+  if (!(await podeAcessarPessoa(usuario, params.id))) {
+    return NextResponse.json({ error: 'Pessoa não encontrada' }, { status: 404 })
+  }
 
   const { data: pessoa, error } = await supabase
     .from('pessoas')
@@ -72,8 +83,13 @@ export async function PUT(
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  const empresa_id = await resolveEmpresa(token)
-  if (!empresa_id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const usuario = await resolveUsuario(token)
+  if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { empresa_id } = usuario
+
+  if (!(await podeAcessarPessoa(usuario, params.id))) {
+    return NextResponse.json({ error: 'Pessoa não encontrada' }, { status: 404 })
+  }
 
   let body: Record<string, unknown>
   try { body = await request.json() }
