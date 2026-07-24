@@ -5,7 +5,7 @@ import { processarEstado } from '@/lib/bot/state-machine'
 import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
 import { carregarBotConfig } from '@/lib/bot/bot-config'
 import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
-import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa, criarPessoaProvisoria } from '@/lib/pessoa'
+import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
@@ -656,27 +656,32 @@ export async function POST(request: NextRequest) {
         // salvo com esse pessoa_id pra encontrar).
         const { data: marcaAtiva } = await supabase
           .from('fonti_marcas')
-          .select('iniciado_at, pessoa_id')
+          .select('iniciado_at')
           .eq('empresa_id', empresa_id)
           .eq('telefone_conversa', telefone)
           .maybeSingle()
 
         if (marcaAtiva) {
           try {
-            // Pessoa da sessão: reaproveita se já existe (documento anterior nesta
-            // mesma sessão já criou uma); senão cria uma nova e ancora na sessão.
-            // NUNCA busca/cria pelo telefone do comercial (buscarOuCriarPessoa) —
-            // isso faria uma segunda sessão do mesmo comercial, pra outro cliente,
-            // reaproveitar por engano a Pessoa provisória do cliente anterior. Ver
-            // criarPessoaProvisoria em src/lib/pessoa.ts.
-            let pessoaIdDoc = marcaAtiva.pessoa_id as string | null
-            if (!pessoaIdDoc) {
-              pessoaIdDoc = await criarPessoaProvisoria(empresa_id, nomeContato ?? 'Cliente')
-              await supabase.from('fonti_marcas')
-                .update({ pessoa_id: pessoaIdDoc })
-                .eq('empresa_id', empresa_id)
-                .eq('telefone_conversa', telefone)
-            }
+            // Pessoa da sessão: a RPC reaproveita se já existe (documento anterior
+            // nesta mesma sessão já criou uma) ou cria uma nova e ancora na sessão
+            // (fonti_marcas.pessoa_id). NUNCA busca/cria pelo telefone do comercial
+            // (buscarOuCriarPessoa) — isso faria uma segunda sessão do mesmo
+            // comercial, pra outro cliente, reaproveitar por engano a Pessoa
+            // provisória do cliente anterior.
+            //
+            // Resolvido via RPC (obter_ou_criar_pessoa_sessao_fonti), não um
+            // SELECT+INSERT+UPDATE manual aqui: vários documentos mandados quase
+            // juntos disparam o webhook quase em paralelo, e duas invocações
+            // concorrentes liam pessoa_id=null antes de qualquer uma escrever,
+            // cada uma criando sua própria Pessoa — documentos ficavam divididos
+            // entre elas. A função Postgres trava a linha (FOR UPDATE) e resolve
+            // a corrida de forma atômica.
+            const { data: pessoaIdDoc, error: erroPessoaSessao } = await supabase.rpc(
+              'obter_ou_criar_pessoa_sessao_fonti',
+              { p_empresa_id: empresa_id, p_telefone_conversa: telefone, p_nome: nomeContato ?? 'Cliente' },
+            )
+            if (erroPessoaSessao || !pessoaIdDoc) throw erroPessoaSessao ?? new Error('RPC não retornou pessoa_id')
 
             const { data: convExistente } = await supabase
               .from('conversas')

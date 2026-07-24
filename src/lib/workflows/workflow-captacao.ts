@@ -292,10 +292,10 @@ export async function executarWorkflowCaptacao(
     // Prioridade 4: Pessoa provisória da sessão *fonti inicio (documentos soltos
     // enviados antes do comando — ex: comercial manda CNH/comprovante e só depois
     // digita "*cria cliente Fulano"). fonti_marcas.pessoa_id é a âncora dessa
-    // sessão (ver criarPessoaProvisoria em src/lib/pessoa.ts e o handler de mídia
-    // solta no webhook) — sem este passo, o Lead ganhava uma Pessoa nova e vazia,
-    // e os documentos (com CPF/RG/endereço já extraídos por OCR) ficavam presos
-    // na Pessoa provisória, órfã.
+    // sessão (criada pela RPC obter_ou_criar_pessoa_sessao_fonti, chamada pelo
+    // handler de mídia solta no webhook) — sem este passo, o Lead ganhava uma
+    // Pessoa nova e vazia, e os documentos (com CPF/RG/endereço já extraídos
+    // por OCR) ficavam presos na Pessoa provisória, órfã.
     if (!pessoa_id) {
       const telefoneSessao = ctx.telefone_cliente ?? ctx.telefone_remetente
       if (telefoneSessao) {
