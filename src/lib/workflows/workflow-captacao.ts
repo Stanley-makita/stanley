@@ -21,7 +21,7 @@ import {
   montarRespostaSimulacao, gerarPdfSimulacao,
 } from './motor-simulacao'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
-import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa } from '@/lib/pessoa'
+import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared, enviarTextoUazapi } from './uazapi-helpers'
 
@@ -289,7 +289,31 @@ export async function executarWorkflowCaptacao(
     if (!pessoa_id && dados.telefone) {
       pessoa_id = await buscarPessoaPorTelefone(empresa_id, dados.telefone) ?? null
     }
-    // Prioridade 4: Criar nova Pessoa
+    // Prioridade 4: Pessoa provisória da sessão *fonti inicio (documentos soltos
+    // enviados antes do comando — ex: comercial manda CNH/comprovante e só depois
+    // digita "*cria cliente Fulano"). fonti_marcas.pessoa_id é a âncora dessa
+    // sessão (ver criarPessoaProvisoria em src/lib/pessoa.ts e o handler de mídia
+    // solta no webhook) — sem este passo, o Lead ganhava uma Pessoa nova e vazia,
+    // e os documentos (com CPF/RG/endereço já extraídos por OCR) ficavam presos
+    // na Pessoa provisória, órfã.
+    if (!pessoa_id) {
+      const telefoneSessao = ctx.telefone_cliente ?? ctx.telefone_remetente
+      if (telefoneSessao) {
+        const { data: marca } = await supabase
+          .from('fonti_marcas')
+          .select('pessoa_id')
+          .eq('empresa_id', empresa_id)
+          .eq('telefone_conversa', telefoneSessao)
+          .maybeSingle()
+        if (marca?.pessoa_id) {
+          pessoa_id = marca.pessoa_id
+          // Promove a Pessoa provisória (nome placeholder) pro nome real informado agora.
+          // dados.nome já foi validado como não-nulo/vazio no início da função.
+          await confirmarIdentidadePessoa(pessoa_id!, dados.nome!)
+        }
+      }
+    }
+    // Prioridade 5: Criar nova Pessoa
     if (!pessoa_id) {
       pessoa_id = await buscarOuCriarPessoa(empresa_id, telefoneTemp, dados.nome, dados.cpf ?? undefined)
       pessoaCriada = true

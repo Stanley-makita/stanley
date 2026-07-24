@@ -867,8 +867,16 @@ export async function processarComandoFonti(
   // ── *fonti inicio ────────────────────────────────────────────────────────
   if (corpoBaixo === 'inicio' || corpoBaixo === 'start') {
     const telefoneConversa = ctx.telefone_cliente ?? ctx.telefone_remetente
+    // pessoa_id/candidatos_pendentes precisam ser resetados explicitamente: um
+    // upsert só atualiza as colunas listadas, então uma sessão anterior
+    // abandonada (*fonti inicio sem *cria cliente depois, pra outro cliente)
+    // deixaria o pessoa_id antigo vazando pra esta sessão nova.
     await supabase.from('fonti_marcas').upsert(
-      { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: new Date().toISOString() },
+      {
+        empresa_id, telefone_conversa: telefoneConversa,
+        iniciado_at: new Date().toISOString(),
+        pessoa_id: null, candidatos_pendentes: null,
+      },
       { onConflict: 'empresa_id,telefone_conversa' },
     )
     return '✅ Pronto! Envie os documentos do cliente agora.\nQuando terminar: *cria cliente [nome] [descrição]'
