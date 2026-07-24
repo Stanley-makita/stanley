@@ -18,6 +18,36 @@ export function normalizarCpf(cpf: string): string {
 }
 
 /**
+ * Cria uma Pessoa provisória (nome placeholder, SEM telefone vinculado) pra
+ * ancorar documentos recebidos numa sessão *fonti inicio antes do nome real
+ * do cliente ser informado (via *cria cliente).
+ *
+ * Diferente de buscarOuCriarPessoa: não associa nenhum telefone. O único
+ * telefone disponível nesse momento é o do comercial operando o bot, não o
+ * do cliente — vincular esse número à Pessoa faria uma sessão futura do
+ * MESMO comercial, pra um cliente DIFERENTE, reencontrar e reaproveitar
+ * esta Pessoa por engano (busca por telefone em buscarOuCriarPessoa não
+ * filtra por "é provisória" nem por dono real do número).
+ *
+ * O id retornado deve ser guardado pelo chamador em `fonti_marcas.pessoa_id`
+ * — essa coluna é a âncora real da sessão (por isso o escopo é "por sessão",
+ * nunca "por número de telefone de quem está operando o bot").
+ */
+export async function criarPessoaProvisoria(empresa_id: string, nome: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('pessoas')
+    .insert({
+      empresa_id,
+      nome: nome.trim() || 'Cliente',
+      status_identidade: 'provisoria',
+    })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`Erro ao criar pessoa provisória: ${error?.message}`)
+  return data.id
+}
+
+/**
  * Normaliza telefone para o formato canônico usado em toda a base: só
  * dígitos, com DDI 55 sempre presente (mesmo formato que o webhook do
  * WhatsApp já entrega). Sem isso, o mesmo número digitado de formas
