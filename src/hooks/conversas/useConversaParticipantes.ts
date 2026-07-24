@@ -32,12 +32,17 @@ export function useConversaParticipantes(conversaId: string | undefined) {
   })
 }
 
+export interface AdicionarParticipanteInput {
+  usuarioId: string
+  nomeUsuarioAdicionado: string
+}
+
 export function useAdicionarParticipante(conversaId: string) {
   const queryClient = useQueryClient()
   const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async (usuarioId: string) => {
+    mutationFn: async ({ usuarioId, nomeUsuarioAdicionado }: AdicionarParticipanteInput) => {
       const { error } = await supabase.from('conversa_participantes').insert({
         conversa_id: conversaId,
         usuario_id: usuarioId,
@@ -45,9 +50,17 @@ export function useAdicionarParticipante(conversaId: string) {
         adicionado_por: usuario!.id,
       })
       if (error) throw error
+      // Reaproveita a mesma infra de notas internas usada na transferência
+      // (nome do autor + badge de nota nova) pra avisar o participante novo.
+      await supabase.from('notas_internas').insert({
+        conversa_id: conversaId,
+        autor_id: usuario!.id,
+        conteudo: `${nomeUsuarioAdicionado} foi adicionado(a) à conversa.`,
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversa-participantes', conversaId] })
+      queryClient.invalidateQueries({ queryKey: ['notas', conversaId] })
       toast.success('Participante adicionado.')
     },
     onError: (error) => {

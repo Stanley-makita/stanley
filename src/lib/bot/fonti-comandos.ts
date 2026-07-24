@@ -10,6 +10,7 @@ import { extrairProduto, extrairNumero } from './state-machine'
 import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
 import { PERGUNTA_TIPO_CONSTRUCAO } from '@/lib/workflows/normalizador-captacao'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
+import { variantesTelefoneBR } from '@/lib/telefone'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -41,12 +42,6 @@ interface UsuarioInterno {
 }
 
 // ── Verificação de usuário interno ────────────────────────────────────────────
-
-// Normaliza para os últimos 8 dígitos (número local brasileiro sem DDD/DDI).
-// Trata a variação do dígito 9 de celular: 5544984558946 ≡ 554484558946 ≡ 84558946
-function telLocal(digits: string): string {
-  return digits.replace(/\D/g, '').slice(-8)
-}
 
 export async function verificarUsuarioInterno(
   supabase: SupabaseClient,
@@ -80,13 +75,19 @@ export async function verificarUsuarioInterno(
 
   if (!usuarios?.length) return null
 
-  const waLocal = telLocal(telefoneWA)
-  if (waLocal.length < 6) return null  // número inválido
+  const digitsWA = telefoneWA.replace(/\D/g, '')
+  if (digitsWA.length < 8) return null  // número inválido
+
+  // Compara pelo número completo (DDD + local), tratando só a variação do "9"
+  // extra do celular — nunca por sufixo cru, que ignora o DDD inteiro e faz
+  // qualquer cliente com final de número igual ao de um funcionário (DDD
+  // diferente) ser confundido com um operador interno.
+  const candidatosWA = new Set(variantesTelefoneBR(digitsWA))
 
   for (const u of usuarios) {
     const phones = [u.telefone_whatsapp, u.telefone].filter(Boolean) as string[]
     for (const phone of phones) {
-      if (telLocal(phone) === waLocal) {
+      if (variantesTelefoneBR(phone).some((v) => candidatosWA.has(v))) {
         return { id: u.id, nome: u.nome, perfil: u.perfil }
       }
     }
@@ -94,7 +95,7 @@ export async function verificarUsuarioInterno(
 
   // Loga os números cadastrados para facilitar diagnóstico
   const resumo = usuarios.map(u => `${u.nome}: wa=${u.telefone_whatsapp ?? 'null'} tel=${u.telefone ?? 'null'}`).join(' | ')
-  console.warn('[fonti] verificarUsuarioInterno: nenhum match para', telefoneWA, '(local:', waLocal, ') | cadastrados:', resumo)
+  console.warn('[fonti] verificarUsuarioInterno: nenhum match para', telefoneWA, '| cadastrados:', resumo)
   return null
 }
 

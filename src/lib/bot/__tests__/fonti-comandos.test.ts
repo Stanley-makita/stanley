@@ -62,3 +62,37 @@ describe('processarComandoFonti — *cria cliente direto', () => {
     expect(ctxPassado.telefone_operador).toBe(TELEFONE_OPERADOR)
   })
 })
+
+function criarSupabaseMockComOperador(telefoneOperador: string): SupabaseClient {
+  const usuarios = [{ id: 'u1', nome: 'Operador Teste', perfil: 'comercial', telefone: telefoneOperador, telefone_whatsapp: null }]
+  return {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            is: () => Promise.resolve({ data: usuarios, error: null }),
+          }),
+        }),
+      }),
+    }),
+  } as unknown as SupabaseClient
+}
+
+describe('verificarUsuarioInterno', () => {
+  it('não confunde cliente de outro DDD com o mesmo final de 8 dígitos de um operador', async () => {
+    const { verificarUsuarioInterno } = await import('../fonti-comandos')
+    // Operador: DDD 44, local "912345678" — mesmo final de 8 dígitos ("12345678")
+    // de um cliente de DDD 11 completamente diferente.
+    const supabase = criarSupabaseMockComOperador('5544912345678')
+    const resultado = await verificarUsuarioInterno(supabase, 'empresa-1', '5511912345678')
+    expect(resultado).toBeNull()
+  })
+
+  it('reconhece o operador mesmo com a variação do dígito "9" do celular', async () => {
+    const { verificarUsuarioInterno } = await import('../fonti-comandos')
+    // Operador cadastrado sem o "9" extra; mensagem chega com o "9" (mesmo DDD).
+    const supabase = criarSupabaseMockComOperador('554412345678')
+    const resultado = await verificarUsuarioInterno(supabase, 'empresa-1', '5544912345678')
+    expect(resultado?.id).toBe('u1')
+  })
+})
