@@ -229,7 +229,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
             const { data: vinculosExistentes } = await supabase
               .from('documento_vinculos')
               .select('documento_id')
-              .eq('entidade_tipo', 'lead')
+              // 'lead_historico': anexo de Nota (ver AnexoChip/anexoEntidade.ts) —
+              // fica só na nota por decisão do usuário, nunca aparece aqui via
+              // esse fallback de "documento da pessoa sem vínculo nenhum".
+              .in('entidade_tipo', ['lead', 'lead_historico'])
               .in('documento_id', idsPessoa)
             idsComLead = new Set((vinculosExistentes ?? []).map(v => v.documento_id))
           }

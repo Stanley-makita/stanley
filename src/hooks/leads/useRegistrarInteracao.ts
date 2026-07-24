@@ -8,13 +8,14 @@ export function useRegistrarInteracao(leadId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (descricao: string) => {
-      const { error } = await supabase.rpc('registrar_interacao_lead', {
+    mutationFn: async (descricao: string): Promise<string> => {
+      const { data, error } = await supabase.rpc('registrar_interacao_lead', {
         p_lead_id: leadId,
         p_descricao: descricao,
         p_tipo: 'comentario',
       })
       if (error) throw error
+      return data as string
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads', leadId, 'historico'], exact: false })

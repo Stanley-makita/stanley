@@ -1,8 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLeadHistorico, type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
 import { useRegistrarInteracao } from '@/hooks/leads/useRegistrarInteracao'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { useAnexosPendentes } from '@/hooks/documentos/useAnexosPendentes'
+import { anexarDocumentoEntidade } from '@/lib/documentos/anexoEntidade'
+import { AnexoChipEnviado, AnexoChipPendente } from '@/components/documentos/AnexoChip'
 import { useLeadTarefas, useCriarLeadTarefa } from '@/hooks/leads/useLeadTarefas'
 import { useLeadChecklist, useCompletarChecklistItem, type ChecklistItemComStatus } from '@/hooks/leads/useLeadChecklist'
 import { useFases } from '@/hooks/configuracoes/useFases'
@@ -14,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
   MessageSquare, Send, CheckCircle2, Circle, Plus,
-  ClipboardList, Loader2, ExternalLink,
+  ClipboardList, Loader2, ExternalLink, Paperclip,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -31,7 +36,7 @@ interface Props {
 export function PainelDireitoLead({ lead, onAbrirDocumentos }: Props) {
   return (
     <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-200">
-      <SecaoNotas leadId={lead.id} />
+      <SecaoNotas leadId={lead.id} pessoaId={lead.pessoa_id} />
       <SecaoTarefas leadId={lead.id} />
       <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} onAbrirDocumentos={onAbrirDocumentos} />
     </div>
@@ -51,6 +56,13 @@ function ListaNotas({ notas }: { notas: LeadTimelineItem[] }) {
           <div className="flex-1 min-w-0">
             <div className="bg-white border border-fonti-accent-hover rounded-lg px-2.5 py-1.5">
               <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
+              {item.anexos && item.anexos.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {item.anexos.map((anexo) => (
+                    <AnexoChipEnviado key={anexo.id} anexo={anexo} />
+                  ))}
+                </div>
+              )}
             </div>
             <p className="text-[10px] text-gray-400 mt-0.5 ml-0.5">
               <span className="font-medium text-gray-500">{item.usuario?.nome}</span>
@@ -64,17 +76,48 @@ function ListaNotas({ notas }: { notas: LeadTimelineItem[] }) {
   )
 }
 
-function SecaoNotas({ leadId }: { leadId: string }) {
+function SecaoNotas({ leadId, pessoaId }: { leadId: string; pessoaId: string | null }) {
   const { data: notas = [] } = useLeadHistorico(leadId, ['comentario'])
   const registrar = useRegistrarInteracao(leadId)
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
   const [texto, setTexto] = useState('')
   const [dialogAberto, setDialogAberto] = useState(false)
+  const [enviandoAnexos, setEnviandoAnexos] = useState(false)
+  const anexos = useAnexosPendentes()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleEnviar() {
     const nota = texto.trim()
-    if (!nota) return
-    await registrar.mutateAsync(nota)
+    if (!nota && anexos.pendentes.length === 0) return
+    if (anexos.pendentes.length > 0 && !pessoaId) {
+      toast.error('Este lead ainda não possui pessoa vinculada — não é possível anexar arquivos na nota.')
+      return
+    }
+
+    const notaId = await registrar.mutateAsync(nota || 'Anexo')
     setTexto('')
+
+    if (anexos.pendentes.length > 0 && usuario) {
+      setEnviandoAnexos(true)
+      try {
+        for (const { arquivo } of anexos.pendentes) {
+          await anexarDocumentoEntidade(arquivo, {
+            empresaId: usuario.empresa_id,
+            usuarioId: usuario.id,
+            entidadeTipo: 'lead_historico',
+            entidadeId: notaId,
+            pessoaId,
+          })
+        }
+        anexos.limpar()
+        qc.invalidateQueries({ queryKey: ['leads', leadId, 'historico'], exact: false })
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erro ao anexar arquivo.')
+      } finally {
+        setEnviandoAnexos(false)
+      }
+    }
   }
 
   return (
@@ -89,20 +132,56 @@ function SecaoNotas({ leadId }: { leadId: string }) {
 
       <div className="bg-fonti-surface-warm rounded-lg border border-fonti-accent-hover p-2.5">
         <Textarea
-          placeholder="Registre uma nota..."
+          placeholder="Registre uma nota... (cole um print ou anexe um arquivo)"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleEnviar() }}
+          onPaste={anexos.onPaste}
           rows={2}
           className="text-xs resize-none border-0 shadow-none p-0 focus-visible:ring-0 bg-transparent"
         />
+        {anexos.pendentes.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {anexos.pendentes.map((p, i) => (
+              <AnexoChipPendente
+                key={i}
+                arquivo={p.arquivo}
+                previewUrl={p.previewUrl}
+                onRemover={() => anexos.remover(i)}
+                enviando={enviandoAnexos}
+              />
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between mt-1.5">
-          <span className="text-[9px] text-gray-400">Ctrl+Enter</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-gray-400">Ctrl+Enter</span>
+            <button
+              type="button"
+              title={pessoaId ? 'Anexar arquivo' : 'Lead sem pessoa vinculada — não é possível anexar'}
+              disabled={!pessoaId}
+              onClick={() => fileInputRef.current?.click()}
+              className="text-gray-400 hover:text-fonti-primary disabled:opacity-30 disabled:hover:text-gray-400"
+            >
+              <Paperclip className="h-3.5 w-3.5" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+              className="hidden"
+              onChange={(e) => {
+                Array.from(e.target.files ?? []).forEach(anexos.adicionar)
+                e.target.value = ''
+              }}
+            />
+          </div>
           <Button
             size="sm"
             className="h-6 text-[10px] gap-1 bg-fonti-primary text-white px-2"
             onClick={handleEnviar}
-            disabled={!texto.trim() || registrar.isPending}
+            disabled={(!texto.trim() && anexos.pendentes.length === 0) || registrar.isPending || enviandoAnexos}
           >
             {registrar.isPending ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Send className="h-2.5 w-2.5" />}
             Enviar

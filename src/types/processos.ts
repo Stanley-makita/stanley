@@ -106,6 +106,7 @@ export interface ProcessoComentario {
   notificar_cliente: boolean
   created_at: string
   usuario?: { nome: string } | null
+  anexos?: import('@/lib/documentos/anexoEntidade').AnexoEntidade[]
 }
 
 export interface ProcessoTarefa {
