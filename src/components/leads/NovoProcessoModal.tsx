@@ -1202,11 +1202,11 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
               </SelectContent>
             </Select>
           </Campo>
-          <Campo label="Valor do contrato">
+          <Campo label="Valor do Serviço">
             <Input
               type="number"
               inputMode="decimal"
-              placeholder="R$ 0,00"
+              placeholder="R$ 0,00 (cobrado pela Fontinhas)"
               value={valorContrato}
               onChange={e => setValorContrato(e.target.value)}
               className="h-9 text-sm"

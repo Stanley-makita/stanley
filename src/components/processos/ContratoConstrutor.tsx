@@ -198,23 +198,29 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
       <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">① Tipo de contrato</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Select value={tipoContrato} onValueChange={(v) => salvarTipoValor({ tipo: v as TipoContrato })}>
-            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(TIPO_CONTRATO_LABELS).map(([valor, label]) => (
-                <SelectItem key={valor} value={valor}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="number"
-            inputMode="decimal"
-            placeholder="Valor do contrato (R$)"
-            value={valorContrato}
-            onChange={(e) => setValorContrato(e.target.value)}
-            onBlur={() => salvarTipoValor({})}
-            className="h-9 text-sm"
-          />
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">Tipo</label>
+            <Select value={tipoContrato} onValueChange={(v) => salvarTipoValor({ tipo: v as TipoContrato })}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(TIPO_CONTRATO_LABELS).map(([valor, label]) => (
+                  <SelectItem key={valor} value={valor}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">Valor do Serviço — cobrado pela Fontinhas, não o valor do imóvel/negociação</label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              placeholder="R$ 0,00"
+              value={valorContrato}
+              onChange={(e) => setValorContrato(e.target.value)}
+              onBlur={() => salvarTipoValor({})}
+              className="h-9 text-sm"
+            />
+          </div>
         </div>
       </section>
 

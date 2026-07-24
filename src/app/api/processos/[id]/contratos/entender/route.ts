@@ -79,6 +79,7 @@ export async function POST(
     return NextResponse.json({ resumo })
   } catch (err) {
     console.error('[contratos/entender] erro ao consolidar negociação:', err)
-    return NextResponse.json({ error: 'Não foi possível entender a negociação. Tente novamente.' }, { status: 500 })
+    const mensagem = err instanceof Error ? err.message : 'Não foi possível entender a negociação. Tente novamente.'
+    return NextResponse.json({ error: mensagem }, { status: 500 })
   }
 }
