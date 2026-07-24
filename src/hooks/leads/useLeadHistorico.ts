@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { type LeadHistorico } from '@/types/leads'
+import { type AnexoEntidade } from '@/lib/documentos/anexoEntidade'
 
 export interface LeadTimelineItem {
   id: string
@@ -17,41 +18,55 @@ export interface LeadTimelineItem {
   ocr_status?: string | null
   fase_anterior?: { nome: string } | null
   fase_nova?: { nome: string } | null
+  anexos?: AnexoEntidade[]
 }
 
 export function useLeadHistorico(leadId: string, tipos?: string[]) {
   return useQuery({
     queryKey: ['leads', leadId, 'historico', tipos ?? 'todos'],
     queryFn: async (): Promise<LeadTimelineItem[]> => {
-      const [historicoRes, simulacoesRes, documentosRes, solicitacoesRes] = await Promise.all([
+      const historicoRows = await (async () => {
+        let query = supabase
+          .from('lead_historico')
+          .select(`
+            *,
+            usuario:usuarios!usuario_id(nome),
+            fase_anterior:fases!fase_anterior_id(nome),
+            fase_nova:fases!fase_nova_id(nome)
+          `)
+          .eq('lead_id', leadId)
+          .order('created_at', { ascending: false })
+
+        if (tipos && tipos.length > 0) {
+          query = query.in('tipo', tipos)
+        }
+
+        const { data, error } = await query
+        if (error) throw error
+        return data ?? []
+      })()
+
+      const [anexosPorHistorico, simulacoesRes, documentosRes, solicitacoesRes] = await Promise.all([
         (async () => {
-          let query = supabase
-            .from('lead_historico')
-            .select(`
-              *,
-              usuario:usuarios!usuario_id(nome),
-              fase_anterior:fases!fase_anterior_id(nome),
-              fase_nova:fases!fase_nova_id(nome)
-            `)
-            .eq('lead_id', leadId)
-            .order('created_at', { ascending: false })
+          const historicoIds = historicoRows.map((h) => h.id)
+          if (historicoIds.length === 0) return new Map<string, AnexoEntidade[]>()
 
-          if (tipos && tipos.length > 0) {
-            query = query.in('tipo', tipos)
-          }
-
-          const { data, error } = await query
+          const { data: vinculos, error } = await supabase
+            .from('documento_vinculos')
+            .select('entidade_id, documento:documentos(id, nome_original, mime_type, storage_path, storage_bucket)')
+            .eq('entidade_tipo', 'lead_historico')
+            .in('entidade_id', historicoIds)
           if (error) throw error
-          return (data ?? []).map((item) => ({
-            id: item.id,
-            kind: 'historico' as const,
-            tipo: item.tipo,
-            created_at: item.created_at,
-            descricao: item.descricao,
-            usuario: item.usuario,
-            fase_anterior: item.fase_anterior,
-            fase_nova: item.fase_nova,
-          }))
+
+          const mapa = new Map<string, AnexoEntidade[]>()
+          for (const v of vinculos ?? []) {
+            const doc = Array.isArray(v.documento) ? v.documento[0] : v.documento
+            if (!doc) continue
+            const lista = mapa.get(v.entidade_id) ?? []
+            lista.push(doc as AnexoEntidade)
+            mapa.set(v.entidade_id, lista)
+          }
+          return mapa
         })(),
         (async () => {
           const { data, error } = await supabase
@@ -118,6 +133,18 @@ export function useLeadHistorico(leadId: string, tipos?: string[]) {
           }))
         })(),
       ])
+
+      const historicoRes: LeadTimelineItem[] = historicoRows.map((item) => ({
+        id: item.id,
+        kind: 'historico' as const,
+        tipo: item.tipo,
+        created_at: item.created_at,
+        descricao: item.descricao,
+        usuario: item.usuario,
+        fase_anterior: item.fase_anterior,
+        fase_nova: item.fase_nova,
+        anexos: anexosPorHistorico.get(item.id),
+      }))
 
       return [...historicoRes, ...simulacoesRes, ...documentosRes, ...solicitacoesRes]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

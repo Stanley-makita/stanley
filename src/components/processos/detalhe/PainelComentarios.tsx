@@ -1,8 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useProcessoComentarios, useAdicionarComentario } from '@/hooks/processos/useProcessoComentarios'
 import { type ProcessoComentario } from '@/types/processos'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { useAnexosPendentes } from '@/hooks/documentos/useAnexosPendentes'
+import { anexarDocumentoEntidade } from '@/lib/documentos/anexoEntidade'
+import { AnexoChipEnviado, AnexoChipPendente } from '@/components/documentos/AnexoChip'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -12,10 +17,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Send, MessageSquare } from 'lucide-react'
+import { Bell, Send, MessageSquare, Paperclip } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { parseCabecalhoComunicacao, LABEL_TIPO_INTERESSADO_TIMELINE } from '@/lib/comunicacao/parseCabecalhoComunicacao'
+import { toast } from 'sonner'
 
 const TIPOS_COMENTARIO: Record<ProcessoComentario['tipo'], { label: string; className: string }> = {
   observacao:          { label: 'Observação',        className: 'bg-gray-100 text-gray-600' },
@@ -56,6 +62,13 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
             <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">
               {comunicacaoParsed ? comunicacaoParsed.mensagem : c.texto}
             </p>
+            {c.anexos && c.anexos.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {c.anexos.map((anexo) => (
+                  <AnexoChipEnviado key={anexo.id} anexo={anexo} />
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
@@ -71,38 +84,102 @@ function FormComentario({
   onSent?: () => void
 }) {
   const adicionarComentario = useAdicionarComentario(processoId)
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
   const [texto, setTexto] = useState('')
   const [tipo, setTipo] = useState<ProcessoComentario['tipo']>('observacao')
   const [notificar, setNotificar] = useState(false)
+  const [enviandoAnexos, setEnviandoAnexos] = useState(false)
+  const anexos = useAnexosPendentes()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function enviar() {
-    if (!texto.trim()) return
-    await adicionarComentario.mutateAsync({ tipo, texto, notificar_cliente: notificar })
+    if (!texto.trim() && anexos.pendentes.length === 0) return
+
+    const comentarioId = await adicionarComentario.mutateAsync({
+      tipo, texto: texto || 'Anexo', notificar_cliente: notificar,
+    })
     setTexto('')
     setNotificar(false)
     onSent?.()
+
+    if (anexos.pendentes.length > 0 && usuario) {
+      setEnviandoAnexos(true)
+      try {
+        for (const { arquivo } of anexos.pendentes) {
+          await anexarDocumentoEntidade(arquivo, {
+            empresaId: usuario.empresa_id,
+            usuarioId: usuario.id,
+            entidadeTipo: 'processo_comentario',
+            entidadeId: comentarioId,
+            processoId,
+          })
+        }
+        anexos.limpar()
+        qc.invalidateQueries({ queryKey: ['processos', processoId, 'comentarios'] })
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erro ao anexar arquivo.')
+      } finally {
+        setEnviandoAnexos(false)
+      }
+    }
   }
 
   return (
     <div className="space-y-2">
       <Textarea
-        placeholder="Escreva um comentário..."
+        placeholder="Escreva um comentário... (cole um print ou anexe um arquivo)"
         rows={3}
         className="resize-none text-sm"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
+        onPaste={anexos.onPaste}
       />
+      {anexos.pendentes.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {anexos.pendentes.map((p, i) => (
+            <AnexoChipPendente
+              key={i}
+              arquivo={p.arquivo}
+              previewUrl={p.previewUrl}
+              onRemover={() => anexos.remover(i)}
+              enviando={enviandoAnexos}
+            />
+          ))}
+        </div>
+      )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Select value={tipo} onValueChange={(v) => setTipo(v as ProcessoComentario['tipo'])}>
-          <SelectTrigger className="h-8 w-full text-xs sm:w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="observacao">Observação</SelectItem>
-            <SelectItem value="alteracao">Alteração</SelectItem>
-            <SelectItem value="solicitacao">Solicitação</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={tipo} onValueChange={(v) => setTipo(v as ProcessoComentario['tipo'])}>
+            <SelectTrigger className="h-8 w-full text-xs sm:w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="observacao">Observação</SelectItem>
+              <SelectItem value="alteracao">Alteração</SelectItem>
+              <SelectItem value="solicitacao">Solicitação</SelectItem>
+            </SelectContent>
+          </Select>
+          <button
+            type="button"
+            title="Anexar arquivo"
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 text-gray-400 hover:text-fonti-primary"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            className="hidden"
+            onChange={(e) => {
+              Array.from(e.target.files ?? []).forEach(anexos.adicionar)
+              e.target.value = ''
+            }}
+          />
+        </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
@@ -120,7 +197,7 @@ function FormComentario({
             size="sm"
             className="h-8 gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover"
             onClick={enviar}
-            disabled={!texto.trim() || adicionarComentario.isPending}
+            disabled={(!texto.trim() && anexos.pendentes.length === 0) || adicionarComentario.isPending || enviandoAnexos}
           >
             <Send className="h-3 w-3" />
             Enviar
