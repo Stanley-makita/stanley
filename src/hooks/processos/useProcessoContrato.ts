@@ -20,6 +20,94 @@ export interface ProcessoContrato {
   clicksign_signed_url: string | null
   clicksign_enviado_em: string | null
   clicksign_assinado_em: string | null
+  resumo_negociacao_json: import('@/lib/contratos/entenderNegociacao').ResumoNegociacao | null
+  plano_contrato_json: unknown | null
+}
+
+/**
+ * Etapa "Compreensão da Negociação": chama a IA (via API route, que já lê os
+ * documentos/OCR do processo) e devolve o resumo estruturado — NÃO persiste.
+ * Persistência só acontece em useConfirmarEntendimento, depois que o usuário
+ * revisar e confirmar.
+ */
+export function useEntenderNegociacao(processoId: string) {
+  return useMutation({
+    mutationFn: async (descricao: string) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/processos/${processoId}/contratos/entender`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ descricao }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao entender a negociação.')
+      return json.resumo as import('@/lib/contratos/entenderNegociacao').ResumoNegociacao
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao entender negociação:', error)
+      toast.error(error instanceof Error ? error.message : 'Erro ao entender a negociação.')
+    },
+  })
+}
+
+/**
+ * Confirma o resumo estruturado — cria (1ª vez) ou atualiza (revisões
+ * seguintes, antes de construir a minuta) o rascunho de contrato com
+ * resumo_negociacao_json. É "patrimônio" do negócio, não estado de tela.
+ */
+export function useConfirmarEntendimento(processoId: string) {
+  const { usuario } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: {
+      rascunhoId: string | null
+      tipoContrato: string
+      resumo: import('@/lib/contratos/entenderNegociacao').ResumoNegociacao
+    }): Promise<string> => {
+      if (payload.rascunhoId) {
+        const { error } = await supabase
+          .from('processo_contratos')
+          .update({ resumo_negociacao_json: payload.resumo, updated_at: new Date().toISOString() })
+          .eq('id', payload.rascunhoId)
+        if (error) throw error
+        return payload.rascunhoId
+      }
+
+      const { data: existentes } = await supabase
+        .from('processo_contratos')
+        .select('versao')
+        .eq('processo_id', processoId)
+      const maxVersao = Math.max(0, ...(existentes ?? []).map((c) => c.versao ?? 1))
+
+      const { data, error } = await supabase
+        .from('processo_contratos')
+        .insert({
+          processo_id: processoId,
+          empresa_id: usuario!.empresa_id,
+          criado_por: usuario!.id,
+          tipo_modelo: payload.tipoContrato,
+          titulo: 'Rascunho',
+          conteudo_html: '',
+          resumo_negociacao_json: payload.resumo,
+          versao: maxVersao + 1,
+        })
+        .select('id')
+        .single()
+      if (error) throw error
+      return data.id as string
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processo-contratos', processoId] })
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao confirmar entendimento:', error)
+      toast.error('Erro ao salvar o entendimento da negociação.')
+    },
+  })
 }
 
 export function useProcessoContratos(processoId: string) {
