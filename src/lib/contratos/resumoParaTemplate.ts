@@ -1,0 +1,85 @@
+/**
+ * Adapta o Resumo Estruturado da Negociação (já confirmado pelo usuário) pro
+ * formato que substituirVariaveis já espera (Processo/ProcessoComprador/
+ * ProcessoVendedor) — usado na construção da minuta via template
+ * determinístico (etapa "Construir contrato").
+ */
+
+import type { Processo, ProcessoComprador, ProcessoVendedor, PessoaDetalhes } from '@/types/processos'
+import type { ResumoNegociacao, PessoaResumo } from './entenderNegociacao'
+import type { ExtrasResumoNegociacao } from './substituirVariaveis'
+
+function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
+  if (!p) return null
+  return {
+    rg: p.rg,
+    profissao: null,
+    nacionalidade: null,
+    data_nascimento: null,
+    data_emissao: null,
+    orgao_emissor: null,
+    estado_civil: p.estado_civil,
+    regime_casamento: null,
+    data_casamento: null,
+    conjuge_nome: null,
+    conjuge_cpf: null,
+    conjuge_data_nascimento: null,
+    endereco_rua: p.endereco,
+    endereco_numero: null,
+    endereco_bairro: null,
+    endereco_cidade: null,
+    endereco_uf: null,
+    endereco_cep: null,
+  }
+}
+
+function comprador(p: PessoaResumo, processoId: string, empresaId: string): ProcessoComprador {
+  return {
+    id: '', processo_id: processoId, empresa_id: empresaId,
+    nome: p.nome ?? '', cpf: p.cpf, email: null, telefone: null,
+    renda_mensal: null, principal: true, created_at: '',
+    pessoa: pessoaDetalhes(p),
+  }
+}
+
+function vendedor(p: PessoaResumo, processoId: string, empresaId: string): ProcessoVendedor {
+  return {
+    id: '', processo_id: processoId, empresa_id: empresaId,
+    nome: p.nome ?? '', cpf: p.cpf, email: null, telefone: null,
+    banco: null, agencia: null, conta: null,
+    estado_civil: p.estado_civil, conjuge_nome: null, conjuge_cpf: null,
+    conjuge_rg: null, conjuge_data_nasc: null, conjuge_papel: null,
+    created_at: '', pessoa: pessoaDetalhes(p),
+  }
+}
+
+export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Processo): {
+  processoAdaptado: Processo
+  compradoresAdaptados: ProcessoComprador[]
+  vendedoresAdaptados: ProcessoVendedor[]
+  extras: ExtrasResumoNegociacao
+} {
+  const processoAdaptado: Processo = {
+    ...processo,
+    valor_imovel: resumo.valor ?? processo.valor_imovel,
+    valor_entrada: resumo.entrada ?? processo.valor_entrada,
+    valor_financiado: resumo.saldo?.toLowerCase().includes('financ') ? (resumo.valor ?? null) : processo.valor_financiado,
+  }
+
+  const valorMultaTotal = (resumo.multa_percentual != null && resumo.valor != null)
+    ? `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.valor * resumo.multa_percentual / 100)} (${resumo.multa_percentual}%)`
+    : null
+
+  return {
+    processoAdaptado,
+    compradoresAdaptados: resumo.compradores.map((p) => comprador(p, processo.id, processo.empresa_id)),
+    vendedoresAdaptados: resumo.vendedores.map((p) => vendedor(p, processo.id, processo.empresa_id)),
+    extras: {
+      imovelMatricula: resumo.imovel.matricula,
+      imovelEndereco: [resumo.imovel.endereco, resumo.imovel.cidade, resumo.imovel.uf].filter(Boolean).join(', ') || null,
+      dataPosse: resumo.prazo_posse_dias != null ? `${resumo.prazo_posse_dias} dias após a assinatura` : null,
+      valorMultaTotal,
+      cidade: resumo.cidade,
+    },
+  }
+}
