@@ -5,6 +5,22 @@ export type StatusEmissao = 'emitido' | 'nao_emitido'
 export type ChanceEmissao = 'certeza' | 'incerteza'
 export type StatusProcesso = 'em_analise' | 'aprovado' | 'pendente' | 'reprovado' | 'cancelado'
 
+export type TipoContrato =
+  | 'compra_venda' | 'locacao' | 'permuta' | 'cessao_direitos'
+  | 'confissao_divida' | 'distrato' | 'aditivo' | 'prestacao_servico' | 'outros'
+
+export const TIPO_CONTRATO_LABELS: Record<TipoContrato, string> = {
+  compra_venda:      'Compra e Venda',
+  locacao:           'Locação',
+  permuta:           'Permuta',
+  cessao_direitos:   'Cessão de Direitos',
+  confissao_divida:  'Confissão de Dívida',
+  distrato:          'Distrato',
+  aditivo:           'Aditivo',
+  prestacao_servico: 'Prestação de Serviço',
+  outros:            'Outros',
+}
+
 export interface Processo {
   id: string
   empresa_id: string
@@ -31,6 +47,8 @@ export interface Processo {
   // Banco
   banco_id: string | null
   // Contrato
+  tipo_contrato?: TipoContrato | null
+  valor_contrato?: number | null
   numero_contrato?: string | null
   data_contrato?: string | null
   // Assessoria

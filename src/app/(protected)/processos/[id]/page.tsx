@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Building2, Calendar, ClipboardList, User, FileText, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
@@ -35,6 +35,7 @@ import { useProcessoFasesHistorico } from '@/hooks/processos/useProcessoFasesHis
 import { dadosFinanceirosIncompletos } from '@/lib/processos/validacaoFinanceira'
 import { BlocoImovel } from '@/components/imoveis/BlocoImovel'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
+import { ContratoConstrutor } from '@/components/processos/ContratoConstrutor'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
@@ -44,7 +45,6 @@ import { MODULO_POR_MODALIDADE, FINANCIAMENTO_MODALIDADES } from '@/lib/processo
 import { normalizarTexto } from '@/lib/utils'
 import { useEnviarParaFluxoRegistro } from '@/hooks/processos/useEnviarParaFluxoRegistro'
 import { useEnviarParaLiberacaoRecursos } from '@/hooks/processos/useEnviarParaLiberacaoRecursos'
-import { AbaContrato } from '@/components/processos/abas/AbaContrato'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
 import { AbaCustas } from '@/components/processos/abas/AbaCustas'
@@ -147,6 +147,12 @@ export default function ProcessoDetalhePage() {
 
   if (!processo) {
     return <div className="p-6 text-center py-16 text-gray-400">Processo não encontrado.</div>
+  }
+
+  // Contrato tem sua própria tela, desenhada pra construção documental —
+  // não reaproveita a tela genérica herdada de Financiamento abaixo.
+  if (processo.modalidade === 'Contrato') {
+    return <ContratoConstrutor processo={processo} />
   }
 
   const diasEmAndamento = processo.data_inicio
@@ -422,9 +428,6 @@ export default function ProcessoDetalhePage() {
               ...(MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])
                 ? [['custas','Custas']] as [string,string][]
                 : []),
-              ...(processo.modalidade === 'Contrato'
-                ? [['contrato','Contrato']] as [string,string][]
-                : []),
               ['timeline','Timeline'],['solicitacoes','Solicitações'],
             ] as [string,string][]).map(([value, label]) => (
               <TabsTrigger
@@ -479,9 +482,6 @@ export default function ProcessoDetalhePage() {
             </TabsContent>
             <TabsContent value="custas" className="m-0">
               <AbaCustas processoId={id} />
-            </TabsContent>
-            <TabsContent value="contrato" className="m-0">
-              <AbaContrato processoId={id} processo={processo} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
               <AbaTimeline processoId={id} />
@@ -697,23 +697,11 @@ function AbaResumo({
       {/* Row 2: Imóvel + Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Imóvel */}
-        {processo.modalidade === 'Contrato' ? (
-          <div className="space-y-2 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)] flex items-center gap-3">
-            <div className="w-8 h-8 bg-fonti-accent-hover rounded-lg flex items-center justify-center shrink-0">
-              <FileText className="h-4 w-4 text-fonti-primary" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Contrato</p>
-              <p className="text-sm text-gray-500 italic">Acesse a aba "Contrato" para redigir e exportar.</p>
-            </div>
-          </div>
-        ) : (
-          <BlocoImovel
-            processo={processo}
-            onUpdate={onUpdateImovel as any}
-            isPending={isPendingImovel}
-          />
-        )}
+        <BlocoImovel
+          processo={processo}
+          onUpdate={onUpdateImovel as any}
+          isPending={isPendingImovel}
+        />
 
         {/* Vendedores */}
         <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">

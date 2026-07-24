@@ -9,3 +9,6 @@ tsconfig.tsbuildinfo
 supabase/.temp/
 .vercel
 .env*
+
+# Contratos reais de clientes (dados pessoais) — nunca versionar
+Modelos_contratos_fontinhas/

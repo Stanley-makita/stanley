@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Lead, type LeadAnaliseCredito } from '@/types/leads'
+import { type TipoContrato, TIPO_CONTRATO_LABELS } from '@/types/processos'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
@@ -1085,13 +1086,6 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
 }
 
 /* ── Formulário Contrato ── */
-type TipoContrato = 'compra_venda' | 'prestacao_servico' | 'juridico_externo'
-
-const TIPO_CONTRATO_LABELS: Record<TipoContrato, string> = {
-  compra_venda:       'Compra e Venda de Imóvel',
-  prestacao_servico:  'Prestação de Serviço',
-  juridico_externo:   'Jurídico / Externo',
-}
 
 function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   lead: Lead | null
@@ -1112,6 +1106,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   const claudia = usuarios.find(u => u.nome.toLowerCase().includes('cláudia') || u.nome.toLowerCase().includes('claudia'))
 
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>('')
+  const [valorContrato, setValorContrato] = useState('')
   const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? '')
   const [juridicoId, setJuridicoId] = useState(claudia?.id ?? '')
 
@@ -1147,7 +1142,8 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       parceiro_id:      lead?.parceiro_id ?? null,
       origem:           lead?.origem ?? null,
       campanha:         lead?.campanha ?? null,
-      numero_contrato:  TIPO_CONTRATO_LABELS[tipoContrato],
+      tipo_contrato:    tipoContrato,
+      valor_contrato:   valorContrato ? Number(valorContrato) : null,
       fase_atual_id:    primeiraFase?.id ?? null,
       data_inicio:      new Date().toISOString().split('T')[0],
     })
@@ -1195,16 +1191,28 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       </Secao>
 
       <Secao titulo="Tipo de Contrato">
-        <Campo label="Tipo *">
-          <Select value={tipoContrato} onValueChange={v => setTipoContrato(v as TipoContrato)}>
-            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="compra_venda">Compra e Venda de Imóvel</SelectItem>
-              <SelectItem value="prestacao_servico">Prestação de Serviço</SelectItem>
-              <SelectItem value="juridico_externo">Jurídico / Externo</SelectItem>
-            </SelectContent>
-          </Select>
-        </Campo>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Campo label="Tipo *">
+            <Select value={tipoContrato} onValueChange={v => setTipoContrato(v as TipoContrato)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(TIPO_CONTRATO_LABELS).map(([valor, label]) => (
+                  <SelectItem key={valor} value={valor}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo label="Valor do contrato">
+            <Input
+              type="number"
+              inputMode="decimal"
+              placeholder="R$ 0,00"
+              value={valorContrato}
+              onChange={e => setValorContrato(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </Campo>
+        </div>
       </Secao>
 
       <Secao titulo="Responsáveis">
