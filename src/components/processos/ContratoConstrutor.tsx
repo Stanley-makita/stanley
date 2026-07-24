@@ -14,7 +14,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Sparkles, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,8 @@ import { type Processo, type TipoContrato, TIPO_CONTRATO_LABELS } from '@/types/
 import { FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
+import { useEntenderNegociacao, useConfirmarEntendimento } from '@/hooks/processos/useProcessoContrato'
+import { type ResumoNegociacao } from '@/lib/contratos/entenderNegociacao'
 
 function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, processoAtualId: string) {
   const { usuario } = useAuth()
@@ -71,10 +73,14 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
 
   const { data: negocioVinculado } = useNegocioFinanciamentoVinculado(pessoaId, processo.id)
   const atualizar = useAtualizarTipoValorContrato(processo.id)
+  const entenderNegociacao = useEntenderNegociacao(processo.id)
+  const confirmarEntendimento = useConfirmarEntendimento(processo.id)
 
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>(processo.tipo_contrato ?? '')
   const [valorContrato, setValorContrato] = useState(processo.valor_contrato != null ? String(processo.valor_contrato) : '')
   const [descricao, setDescricao] = useState('')
+  const [resumo, setResumo] = useState<ResumoNegociacao | null>(null)
+  const [rascunhoId, setRascunhoId] = useState<string | null>(null)
 
   function salvarTipoValor(patch: Partial<{ tipo: TipoContrato | ''; valor: string }>) {
     const tipo = patch.tipo !== undefined ? patch.tipo : tipoContrato
@@ -151,11 +157,67 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
         />
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-gray-400">{descricao.length}/1000</span>
-          <Button size="sm" disabled title="Em construção — próxima etapa do Construtor de Contratos">
-            ✨ Entender negociação
+          <Button
+            size="sm"
+            disabled={!tipoContrato || entenderNegociacao.isPending}
+            onClick={() => entenderNegociacao.mutate(descricao, { onSuccess: setResumo })}
+          >
+            {entenderNegociacao.isPending
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Entendendo...</>
+              : <><Sparkles className="h-4 w-4" /> Entender negociação</>}
           </Button>
         </div>
       </section>
+
+      {/* ④ Compreensão da Negociação + Painel de Inteligência */}
+      {resumo && (
+        <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">④ Compreensão da negociação</h2>
+
+          <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+            {resumo.compradores.length > 0 && (
+              <p><span className="text-gray-400">Comprador:</span> {resumo.compradores.map((p) => p.nome).filter(Boolean).join(', ') || '—'}</p>
+            )}
+            {resumo.vendedores.length > 0 && (
+              <p><span className="text-gray-400">Vendedor:</span> {resumo.vendedores.map((p) => p.nome).filter(Boolean).join(', ') || '—'}</p>
+            )}
+            {(resumo.imovel.endereco || resumo.imovel.matricula) && (
+              <p className="sm:col-span-2"><span className="text-gray-400">Imóvel:</span> {[resumo.imovel.endereco, resumo.imovel.cidade, resumo.imovel.uf].filter(Boolean).join(', ')}{resumo.imovel.matricula ? ` — matrícula ${resumo.imovel.matricula}` : ''}</p>
+            )}
+            {resumo.valor != null && <p><span className="text-gray-400">Valor:</span> {resumo.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+            {resumo.entrada != null && <p><span className="text-gray-400">Entrada:</span> {resumo.entrada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+            {resumo.saldo && <p><span className="text-gray-400">Saldo:</span> {resumo.saldo}</p>}
+            {resumo.prazo_posse_dias != null && <p><span className="text-gray-400">Posse:</span> {resumo.prazo_posse_dias} dias</p>}
+            {resumo.multa_percentual != null && <p><span className="text-gray-400">Multa:</span> {resumo.multa_percentual}%</p>}
+            {resumo.cidade && <p><span className="text-gray-400">Cidade:</span> {resumo.cidade}</p>}
+          </div>
+
+          <div className="rounded-md bg-gray-50 p-3 space-y-1">
+            {resumo.painel_inteligencia.map((item, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs">
+                {item.status === 'ok'
+                  ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600 mt-0.5" />
+                  : <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />}
+                <span className={item.status === 'ok' ? 'text-gray-600' : 'text-amber-700'}>{item.texto}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-between">
+            <Button variant="outline" size="sm" onClick={() => setResumo(null)}>Corrigir informações</Button>
+            <Button
+              size="sm"
+              disabled={confirmarEntendimento.isPending}
+              onClick={() => confirmarEntendimento.mutate(
+                { rascunhoId, tipoContrato: tipoContrato as string, resumo },
+                { onSuccess: setRascunhoId },
+              )}
+            >
+              {confirmarEntendimento.isPending ? 'Salvando...' : '✓ Confirmar entendimento'}
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   )
 }
