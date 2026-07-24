@@ -259,7 +259,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full h-8 text-xs gap-1.5 text-fonti-primary border-fonti-accent/50 hover:bg-fonti-accent-hover/40"
+                    className="w-full h-8 text-xs gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50"
                     onClick={() => setAtualizarClienteAberto(true)}
                   >
                     <Send className="h-3 w-3" />
@@ -270,7 +270,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 h-7 text-xs gap-1"
+                      className="flex-1 h-7 text-xs gap-1 text-violet-700 border-violet-200 hover:bg-violet-50"
                       onClick={() => setAbaAtiva('oportunidade')}
                     >
                       <DollarSign className="h-3 w-3" />
