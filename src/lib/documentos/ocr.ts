@@ -210,7 +210,7 @@ function serviceSupabase() {
   return supabaseAdmin
 }
 
-function montarContentBlock(
+export function montarContentBlock(
   base64: string,
   mimeType: string,
 ): Anthropic.Messages.ContentBlockParam | null {
@@ -229,7 +229,7 @@ function montarContentBlock(
   return null
 }
 
-function limparJson(texto: string): string {
+export function limparJson(texto: string): string {
   return texto.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
 }
 
