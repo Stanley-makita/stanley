@@ -94,7 +94,7 @@ export async function entenderNegociacao(input: {
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-5',
-    max_tokens: 2000,
+    max_tokens: 4000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: contexto }],
   })
@@ -102,9 +102,27 @@ export async function entenderNegociacao(input: {
   const bloco = response.content[0]
   if (bloco?.type !== 'text') throw new Error('Resposta inesperada da IA.')
 
-  const jsonText = bloco.text.trim()
+  const bruto = bloco.text.trim()
+  const semFences = bruto
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
 
-  return JSON.parse(jsonText) as ResumoNegociacao
+  try {
+    return JSON.parse(semFences) as ResumoNegociacao
+  } catch {
+    // Fallback: às vezes a IA acrescenta um comentário antes/depois do JSON —
+    // tenta isolar só o trecho entre a primeira { e a última }.
+    const inicio = semFences.indexOf('{')
+    const fim = semFences.lastIndexOf('}')
+    if (inicio === -1 || fim === -1) {
+      console.error('[entenderNegociacao] resposta sem JSON reconhecível:', bruto)
+      throw new Error('A IA não devolveu um resumo em formato reconhecível.')
+    }
+    try {
+      return JSON.parse(semFences.slice(inicio, fim + 1)) as ResumoNegociacao
+    } catch {
+      console.error('[entenderNegociacao] falha ao parsear JSON da IA:', bruto)
+      throw new Error('A IA não devolveu um resumo em formato reconhecível.')
+    }
+  }
 }
