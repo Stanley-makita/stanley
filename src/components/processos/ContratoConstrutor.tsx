@@ -4,17 +4,19 @@
  * Tela especializada de Negócios do tipo Contrato — substitui, só para esta
  * modalidade, a tela genérica herdada de Financiamento (ver processos/[id]/page.tsx).
  *
- * Fase 1 do plano "Construtor Inteligente de Contratos": tipo/valor, documentos
- * (reaproveitando AbaDocumentos) e descrição da negociação. As etapas de IA
- * (Compreensão da Negociação, Plano do Contrato, construção da minuta) e o
- * botão de importar documentos do Negócio de Financiamento vinculado entram
- * numa próxima fatia — não implementadas aqui ainda.
+ * Fluxo completo do Construtor Inteligente de Contratos: Tipo/Valor →
+ * Documentos (reaproveitando AbaDocumentos, com import por referência do
+ * Negócio de Financiamento vinculado) → Descrição da negociação →
+ * Compreensão da Negociação (IA) + Painel de Inteligência → Plano do
+ * Contrato (IA) → Construir contrato (template + resumo confirmado) →
+ * editor completo (TipTap/PDF/ClickSign, reaproveitando AbaContrato).
  */
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Sparkles, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Sparkles, Loader2, CheckCircle2, AlertTriangle, Import } from 'lucide-react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { Button } from '@/components/ui/button'
@@ -58,6 +60,54 @@ function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, p
   })
 }
 
+function useImportarDocumentosNegocio(processoId: string) {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (negocioOrigemId: string) => {
+      const { data: vinculosOrigem, error: erroOrigem } = await supabase
+        .from('documento_vinculos')
+        .select('documento_id')
+        .eq('entidade_tipo', 'processo')
+        .eq('entidade_id', negocioOrigemId)
+      if (erroOrigem) throw erroOrigem
+
+      const { data: vinculosAtuais } = await supabase
+        .from('documento_vinculos')
+        .select('documento_id')
+        .eq('entidade_tipo', 'processo')
+        .eq('entidade_id', processoId)
+      const jaVinculados = new Set((vinculosAtuais ?? []).map((v) => v.documento_id))
+
+      const novos = (vinculosOrigem ?? [])
+        .map((v) => v.documento_id)
+        .filter((id) => !jaVinculados.has(id))
+
+      if (novos.length === 0) return 0
+
+      const { error } = await supabase.from('documento_vinculos').insert(
+        novos.map((documento_id) => ({
+          empresa_id: usuario!.empresa_id,
+          documento_id,
+          entidade_tipo: 'processo',
+          entidade_id: processoId,
+          vinculado_por: usuario!.id,
+        })),
+      )
+      if (error) throw error
+      return novos.length
+    },
+    onSuccess: (quantidade) => {
+      qc.invalidateQueries({ queryKey: ['documentos-unificado', 'processo', processoId] })
+      toast.success(quantidade > 0 ? `${quantidade} documento(s) importado(s).` : 'Nenhum documento novo para importar.')
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao importar documentos do negócio vinculado:', error)
+      toast.error('Erro ao importar documentos.')
+    },
+  })
+}
+
 function useAtualizarTipoValorContrato(processoId: string) {
   const { usuario } = useAuth()
   const qc = useQueryClient()
@@ -80,6 +130,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const pessoaId = compradorPrincipal?.pessoa_id ?? processo.pessoa_id
 
   const { data: negocioVinculado } = useNegocioFinanciamentoVinculado(pessoaId, processo.id)
+  const importarDocumentos = useImportarDocumentosNegocio(processo.id)
   const atualizar = useAtualizarTipoValorContrato(processo.id)
   const entenderNegociacao = useEntenderNegociacao(processo.id)
   const confirmarEntendimento = useConfirmarEntendimento(processo.id)
@@ -169,7 +220,21 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
 
       {/* ② Documentos */}
       <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">② Documentos</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">② Documentos</h2>
+          {negocioVinculado && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              disabled={importarDocumentos.isPending}
+              onClick={() => importarDocumentos.mutate(negocioVinculado.id)}
+            >
+              <Import className="h-3.5 w-3.5" />
+              {importarDocumentos.isPending ? 'Importando...' : `Importar do Negócio ${negocioVinculado.numero_processo}`}
+            </Button>
+          )}
+        </div>
         <AbaDocumentos contexto="processo" processoId={processo.id} pessoaId={pessoaId ?? undefined} />
       </section>
 
