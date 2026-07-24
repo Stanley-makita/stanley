@@ -50,7 +50,10 @@ export function useAdicionarParticipante(conversaId: string) {
       queryClient.invalidateQueries({ queryKey: ['conversa-participantes', conversaId] })
       toast.success('Participante adicionado.')
     },
-    onError: () => toast.error('Erro ao adicionar participante.'),
+    onError: (error) => {
+      console.error('[conversas] erro ao adicionar participante:', error)
+      toast.error('Erro ao adicionar participante.')
+    },
   })
 }
 
@@ -68,6 +71,9 @@ export function useRemoverParticipante(conversaId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversa-participantes', conversaId] })
     },
-    onError: () => toast.error('Erro ao remover participante.'),
+    onError: (error) => {
+      console.error('[conversas] erro ao remover participante:', error)
+      toast.error('Erro ao remover participante.')
+    },
   })
 }

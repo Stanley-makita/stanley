@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { variantesTelefoneBR } from '@/lib/telefone'
 
 interface IniciarConversaInput {
   telefone: string
@@ -11,25 +12,6 @@ interface IniciarConversaInput {
   pessoa_id?: string
   instancia_id?: string
   mensagemInicial?: string
-}
-
-// Números brasileiros de celular podem chegar com ou sem o "9" extra depois
-// do DDD (55 44 9 8455-8945 vs 55 44 8455-8945), dependendo de onde vieram
-// (WhatsApp, digitação manual, sistemas antigos). Sem considerar as duas
-// formas, o dedup por telefone falha e cria uma conversa duplicada vazia
-// mesmo já existindo histórico salvo sob a outra grafia.
-function variantesTelefoneBR(telefone: string): string[] {
-  const digits = telefone.replace(/\D/g, '')
-  const semDDI = digits.startsWith('55') ? digits.slice(2) : digits
-  const ddd = semDDI.slice(0, 2)
-  const resto = semDDI.slice(2)
-  const variantes = new Set<string>([`55${ddd}${resto}`])
-  if (resto.length === 9 && resto.startsWith('9')) {
-    variantes.add(`55${ddd}${resto.slice(1)}`)
-  } else if (resto.length === 8) {
-    variantes.add(`55${ddd}9${resto}`)
-  }
-  return Array.from(variantes)
 }
 
 export function useIniciarConversa() {
