@@ -29,9 +29,14 @@ import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import {
   useEntenderNegociacao, useConfirmarEntendimento, useGerarPlanoContrato, useConfirmarPlano,
+  useSalvarContrato,
 } from '@/hooks/processos/useProcessoContrato'
 import { type ResumoNegociacao } from '@/lib/contratos/entenderNegociacao'
 import { type PlanoContrato } from '@/lib/contratos/planejarContrato'
+import { selecionarTemplate } from '@/lib/contratos/selecionarTemplate'
+import { substituirVariaveis } from '@/lib/contratos/substituirVariaveis'
+import { construirDadosTemplate } from '@/lib/contratos/resumoParaTemplate'
+import { AbaContrato } from '@/components/processos/abas/AbaContrato'
 
 function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, processoAtualId: string) {
   const { usuario } = useAuth()
@@ -80,6 +85,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const confirmarEntendimento = useConfirmarEntendimento(processo.id)
   const gerarPlano = useGerarPlanoContrato(processo.id)
   const confirmarPlano = useConfirmarPlano(processo.id)
+  const salvarContrato = useSalvarContrato(processo.id)
 
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>(processo.tipo_contrato ?? '')
   const [valorContrato, setValorContrato] = useState(processo.valor_contrato != null ? String(processo.valor_contrato) : '')
@@ -87,6 +93,23 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const [resumo, setResumo] = useState<ResumoNegociacao | null>(null)
   const [rascunhoId, setRascunhoId] = useState<string | null>(null)
   const [plano, setPlano] = useState<PlanoContrato | null>(null)
+  const [construindo, setConstruindo] = useState(false)
+  const [contratoConstruido, setContratoConstruido] = useState(false)
+
+  async function construirContrato() {
+    if (!resumo || !rascunhoId) return
+    setConstruindo(true)
+    try {
+      await confirmarPlano.mutateAsync({ contratoId: rascunhoId, plano: plano! })
+      const template = selecionarTemplate(tipoContrato)
+      const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } = construirDadosTemplate(resumo, processo)
+      const html = substituirVariaveis(template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras)
+      await salvarContrato.mutateAsync({ id: rascunhoId, tipo_modelo: tipoContrato, titulo: template.titulo, conteudo_html: html })
+      setContratoConstruido(true)
+    } finally {
+      setConstruindo(false)
+    }
+  }
 
   function salvarTipoValor(patch: Partial<{ tipo: TipoContrato | ''; valor: string }>) {
     const tipo = patch.tipo !== undefined ? patch.tipo : tipoContrato
@@ -252,15 +275,21 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
           </div>
           <div className="flex justify-between">
             <Button variant="outline" size="sm" onClick={() => setPlano(null)}>← Voltar</Button>
-            <Button
-              size="sm"
-              disabled={confirmarPlano.isPending}
-              onClick={() => rascunhoId && confirmarPlano.mutate({ contratoId: rascunhoId, plano })}
-              title="A construção da minuta em si é a próxima etapa do Construtor de Contratos — por enquanto este botão só confirma o plano."
-            >
-              {confirmarPlano.isPending ? 'Salvando...' : '✓ Confirmar plano'}
+            <Button size="sm" disabled={construindo} onClick={construirContrato}>
+              {construindo
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Construindo...</>
+                : <><Sparkles className="h-4 w-4" /> Construir contrato</>}
             </Button>
           </div>
+        </section>
+      )}
+
+      {/* Minuta construída — abre no editor completo (TipTap, Salvar, PDF, ClickSign),
+          já reaproveitado tal e qual da aba antiga de Contrato. */}
+      {contratoConstruido && (
+        <section className="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Minuta</h2>
+          <AbaContrato processoId={processo.id} processo={processo} />
         </section>
       )}
     </div>

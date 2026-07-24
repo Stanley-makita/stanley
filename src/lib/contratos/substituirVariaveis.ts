@@ -79,12 +79,21 @@ function buildEndereco(p: { endereco_rua?: string | null; endereco_numero?: stri
   return partes.length > 0 ? partes.join(', ') : '[A PREENCHER]'
 }
 
+export interface ExtrasResumoNegociacao {
+  imovelMatricula?: string | null
+  imovelEndereco?: string | null
+  dataPosse?: string | null
+  valorMultaTotal?: string | null
+  cidade?: string | null
+}
+
 export function substituirVariaveis(
   html: string,
   processo: Processo,
   compradores: ProcessoComprador[],
   vendedores: ProcessoVendedor[],
   opcoes?: ContratoAssessoriaOpcoes,
+  extras?: ExtrasResumoNegociacao,
 ): string {
   const comprador = compradores[0]
   const vendedor = vendedores[0]
@@ -252,6 +261,20 @@ export function substituirVariaveis(
       : '[A PREENCHER]',
     plataforma_assinatura: '[A PREENCHER]',
     cidade_foro: 'Maringá/PR',
+  }
+
+  // Overrides do Resumo Estruturado da Negociação (etapa "Compreensão da
+  // Negociação" do Construtor de Contratos) — campos que a IA já entendeu e o
+  // usuário já confirmou, então têm prioridade sobre os defaults acima.
+  if (extras?.imovelMatricula) variaveis.imovel_matricula = extras.imovelMatricula
+  if (extras?.imovelEndereco) variaveis.imovel_endereco = extras.imovelEndereco
+  if (extras?.dataPosse) variaveis.data_posse = extras.dataPosse
+  if (extras?.valorMultaTotal) variaveis.valor_multa_total = extras.valorMultaTotal
+  if (extras?.cidade) {
+    variaveis.cidade = extras.cidade
+    variaveis.cidade_comarca = `${extras.cidade}/PR`
+    variaveis.foro_comarca = `${extras.cidade}/PR`
+    variaveis.cidade_foro = `${extras.cidade}/PR`
   }
 
   return html.replace(/\{\{(\w+)\}\}/g, (_, chave) => variaveis[chave] ?? `[A PREENCHER]`)

@@ -160,7 +160,7 @@ export interface ProcessoCobranca {
   created_at: string
 }
 
-interface PessoaDetalhes {
+export interface PessoaDetalhes {
   rg: string | null
   profissao: string | null
   nacionalidade: string | null
