@@ -83,9 +83,9 @@ function perguntaDoPasso(passo: PassoCustas): string {
     case 'contrato_particular':
       return 'Qual o valor do *contrato particular*? (R$, ou 0 se não houver)'
     case 'primeira_aquisicao':
-      return 'É *1ª aquisição*? (sim/não)'
+      return 'É *Primeira Aquisição*?\n1 - Sim\n2 - Não'
     case 'isento_funrejus':
-      return 'É *isento de FunRejus*? (sim/não)'
+      return 'É *isento FunRejus*?\n1 - Sim\n2 - Não'
     case 'produto':
       return `Qual o *produto*?\n${menu(PRODUTO_OPCOES.map((o) => o.label))}`
     case 'banco':

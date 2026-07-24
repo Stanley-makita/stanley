@@ -93,6 +93,10 @@ export async function gerarPDFSimulacao(
   const totalComPdf = arredondar(visiveisPdf.reduce((s, l) => s + l.comDesconto, 0))
   const pctSemPdf = e.valorCV > 0 ? arredondar((totalSemPdf / e.valorCV) * 100 * 10) / 10 : 0
   const pctComPdf = e.valorCV > 0 ? arredondar((totalComPdf / e.valorCV) * 100 * 10) / 10 : 0
+
+  // Coluna "Com Desconto" só faz sentido para primeira aquisição (isenção de
+  // ITBI/Registro) — para os demais casos ela repetiria o valor "Sem Desconto".
+  const mostrarComDesconto = e.primeiraAquisicao === 'sim'
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
   const mL = 12
@@ -292,7 +296,7 @@ export async function gerarPDFSimulacao(
   // Cabeçalho da tabela
   const colItem = 42
   const colSem = 30
-  const colCom = 30
+  const colCom = mostrarComDesconto ? 30 : 0
   const colDesc = usableW - colItem - colSem - colCom
 
   const thH = 8
@@ -302,8 +306,10 @@ export async function gerarPDFSimulacao(
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(255, 255, 255)
   doc.text('Item', mL + 2, y + thH / 2 + 2.5)
-  doc.text('Sem Desconto', mL + colItem + colSem / 2, y + thH / 2 + 2.5, { align: 'center' })
-  doc.text('Com Desconto', mL + colItem + colSem + colCom / 2, y + thH / 2 + 2.5, { align: 'center' })
+  doc.text(mostrarComDesconto ? 'Sem Desconto' : 'Valor', mL + colItem + colSem / 2, y + thH / 2 + 2.5, { align: 'center' })
+  if (mostrarComDesconto) {
+    doc.text('Com Desconto', mL + colItem + colSem + colCom / 2, y + thH / 2 + 2.5, { align: 'center' })
+  }
   doc.text('Descrição', mL + colItem + colSem + colCom + 2, y + thH / 2 + 2.5)
   y += thH
 
@@ -342,7 +348,7 @@ export async function gerarPDFSimulacao(
 
     // Separadores de coluna
     doc.line(xSem, y, xSem, y + rowH)
-    doc.line(xCom, y, xCom, y + rowH)
+    if (mostrarComDesconto) doc.line(xCom, y, xCom, y + rowH)
     doc.line(xDesc, y, xDesc, y + rowH)
 
     const midY = y + rowH / 2
@@ -360,14 +366,16 @@ export async function gerarPDFSimulacao(
     doc.text(BRL.format(linha.semDesconto), xSem + colSem / 2, midY + 2, { align: 'center' })
 
     // Com Desconto
-    const isMenor = linha.comDesconto < linha.semDesconto
-    if (isMenor) {
-      setTextColor(doc, '#1E7B34')
-      doc.setFont('helvetica', 'bold')
+    if (mostrarComDesconto) {
+      const isMenor = linha.comDesconto < linha.semDesconto
+      if (isMenor) {
+        setTextColor(doc, '#1E7B34')
+        doc.setFont('helvetica', 'bold')
+      }
+      doc.text(BRL.format(linha.comDesconto), xCom + colCom / 2, midY + 2, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      setTextColor(doc, '#333333')
     }
-    doc.text(BRL.format(linha.comDesconto), xCom + colCom / 2, midY + 2, { align: 'center' })
-    doc.setFont('helvetica', 'normal')
-    setTextColor(doc, '#333333')
 
     // Descrição (multi-linha)
     doc.setFontSize(descFontSize)
@@ -395,7 +403,9 @@ export async function gerarPDFSimulacao(
   doc.text('ESTIMATIVA TOTAL', mL + 2, y + 8)
 
   doc.text(BRL.format(totalSemPdf), mL + colItem + colSem / 2, y + 8, { align: 'center' })
-  doc.text(BRL.format(totalComPdf), mL + colItem + colSem + colCom / 2, y + 8, { align: 'center' })
+  if (mostrarComDesconto) {
+    doc.text(BRL.format(totalComPdf), mL + colItem + colSem + colCom / 2, y + 8, { align: 'center' })
+  }
 
   doc.setFontSize(6)
   doc.setFont('helvetica', 'italic')
@@ -420,12 +430,14 @@ export async function gerarPDFSimulacao(
     y + 5,
     { align: 'center' },
   )
-  doc.text(
-    `${pctComPdf.toFixed(1)}%`,
-    mL + colItem + colSem + colCom / 2,
-    y + 5,
-    { align: 'center' },
-  )
+  if (mostrarComDesconto) {
+    doc.text(
+      `${pctComPdf.toFixed(1)}%`,
+      mL + colItem + colSem + colCom / 2,
+      y + 5,
+      { align: 'center' },
+    )
+  }
   y += 10
 
   // ════════════════════════════════════════════════════════════════
