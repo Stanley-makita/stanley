@@ -49,6 +49,7 @@ interface Conversa {
   atendente_id: string | null
   contato_grupo_id: string | null
   arquivada: boolean
+  transferencia_pendente: boolean
   updated_at: string
   created_at: string
   lead: { fase: { nome: string; cor: string } | null } | null
@@ -380,6 +381,20 @@ export default function ConversasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaSelecionada?.id, painelNotasAberto])
 
+  // Ao o próprio atendente abrir a conversa transferida pra ele, o aviso
+  // "aguardando seu atendimento" some (tag na lista + banner no cabeçalho).
+  useEffect(() => {
+    if (conversaSelecionada?.transferencia_pendente && conversaSelecionada.atendente_id === usuario?.id) {
+      const conversaId = conversaSelecionada.id
+      supabase.from('conversas').update({ transferencia_pendente: false }).eq('id', conversaId)
+        .then(() => {
+          setConversaSelecionada((prev) => prev && prev.id === conversaId ? { ...prev, transferencia_pendente: false } : prev)
+          qc.invalidateQueries({ queryKey: ['conversas'] })
+        })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversaSelecionada?.id])
+
   const { data: instancias = [] } = useQuery({
     queryKey: ['instancias-conversa', usuario?.empresa_id],
     enabled: !!usuario?.empresa_id,
@@ -467,7 +482,7 @@ export default function ConversasPage() {
       // de quem está atendendo — transferir só troca o responsável (atendente_id).
       const { error } = await supabase
         .from('conversas')
-        .update({ atendente_id: atendenteId })
+        .update({ atendente_id: atendenteId, transferencia_pendente: true })
         .eq('id', conversaSelecionada!.id)
       if (error) throw error
       const nomeAtendente = atendentes.find((a) => a.id === atendenteId)?.nome ?? 'outro atendente'
@@ -860,6 +875,11 @@ export default function ConversasPage() {
                         Grupo
                       </span>
                     )}
+                    {c.transferencia_pendente && c.atendente_id === usuario?.id && (
+                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">
+                        Transferida
+                      </span>
+                    )}
                   </div>
                   {c.lead?.fase ? (
                     <span
@@ -901,6 +921,12 @@ export default function ConversasPage() {
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <div className="px-3 py-3 border-b border-gray-200 bg-white space-y-2">
+            {conversaSelecionada.transferencia_pendente && conversaSelecionada.atendente_id === usuario?.id && (
+              <div className="flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700">
+                <ArrowRightLeft className="w-3.5 h-3.5 shrink-0" />
+                Transferida para você — aguardando seu atendimento
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <button
                 className="lg:hidden shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
@@ -1223,7 +1249,7 @@ export default function ConversasPage() {
                             <button
                               key={a.id}
                               onClick={() => {
-                                adicionarParticipante.mutate(a.id)
+                                adicionarParticipante.mutate({ usuarioId: a.id, nomeUsuarioAdicionado: a.nome })
                                 setSeletorParticipanteAberto(false)
                               }}
                               className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2"
