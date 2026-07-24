@@ -59,11 +59,15 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
                 {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}
               </span>
             </div>
-            <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">
-              {comunicacaoParsed ? comunicacaoParsed.mensagem : c.texto}
-            </p>
+            {/* Comentário criado só pra carregar anexo (sem texto real) — não
+                repete um "Anexo" redundante ao lado do próprio anexo. */}
+            {!(c.texto === 'Anexo' && c.anexos && c.anexos.length > 0) && (
+              <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5">
+                {comunicacaoParsed ? comunicacaoParsed.mensagem : c.texto}
+              </p>
+            )}
             {c.anexos && c.anexos.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-2">
                 {c.anexos.map((anexo) => (
                   <AnexoChipEnviado key={anexo.id} anexo={anexo} />
                 ))}

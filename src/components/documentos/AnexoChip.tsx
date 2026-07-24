@@ -1,6 +1,7 @@
 'use client'
 
-import { FileText, X, Loader2, Paperclip } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { FileText, X, Loader2, ExternalLink } from 'lucide-react'
 import { abrirAnexo, type AnexoEntidade } from '@/lib/documentos/anexoEntidade'
 import { toast } from 'sonner'
 
@@ -8,25 +9,54 @@ function ehImagem(mime: string | null | undefined) {
   return !!mime && mime.startsWith('image/')
 }
 
-/** Chip de um anexo já enviado — clica pra abrir (URL assinada, gerada na hora). */
+/**
+ * Anexo já enviado, exibido como numa conversa: imagem vira preview inline
+ * (clica pra abrir em tamanho real), documento vira um cartão com nome e
+ * ícone (clica pra abrir).
+ */
 export function AnexoChipEnviado({ anexo }: { anexo: AnexoEntidade }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const imagem = ehImagem(anexo.mime_type)
+
+  useEffect(() => {
+    if (!imagem) return
+    let cancelado = false
+    abrirAnexo(anexo).then((url) => { if (!cancelado) setPreviewUrl(url) })
+    return () => { cancelado = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anexo.id])
+
   async function abrir() {
-    const url = await abrirAnexo(anexo)
+    const url = imagem ? previewUrl : await abrirAnexo(anexo)
     if (!url) { toast.error('Não foi possível abrir o anexo.'); return }
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  if (imagem) {
+    return (
+      <button
+        type="button"
+        onClick={abrir}
+        title={anexo.nome_original}
+        className="block max-w-[220px] overflow-hidden rounded-lg border border-gray-200 hover:border-fonti-primary/40 transition-colors"
+      >
+        {previewUrl
+          ? <img src={previewUrl} alt={anexo.nome_original} className="max-h-52 w-full object-cover" />
+          : <div className="flex h-24 w-full items-center justify-center bg-gray-50"><Loader2 className="h-4 w-4 animate-spin text-gray-300" /></div>}
+      </button>
+    )
   }
 
   return (
     <button
       type="button"
       onClick={abrir}
-      className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:border-fonti-primary/40 hover:text-fonti-primary transition-colors max-w-full"
       title={anexo.nome_original}
+      className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 text-xs text-gray-600 hover:border-fonti-primary/40 hover:text-fonti-primary transition-colors max-w-[220px]"
     >
-      {ehImagem(anexo.mime_type)
-        ? <Paperclip className="h-3 w-3 shrink-0" />
-        : <FileText className="h-3 w-3 shrink-0" />}
-      <span className="truncate">{anexo.nome_original}</span>
+      <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+      <span className="truncate flex-1 text-left">{anexo.nome_original}</span>
+      <ExternalLink className="h-3 w-3 shrink-0" />
     </button>
   )
 }

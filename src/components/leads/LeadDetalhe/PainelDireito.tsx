@@ -54,10 +54,14 @@ function ListaNotas({ notas }: { notas: LeadTimelineItem[] }) {
             <MessageSquare className="h-2.5 w-2.5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="bg-white border border-fonti-accent-hover rounded-lg px-2.5 py-1.5">
-              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
+            <div className="bg-white border border-fonti-accent-hover rounded-lg px-2.5 py-1.5 space-y-1.5">
+              {/* Nota criada só pra carregar anexo (sem texto real) — não
+                  repete um "Anexo" redundante ao lado do próprio anexo. */}
+              {!(item.descricao === 'Anexo' && item.anexos && item.anexos.length > 0) && (
+                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{item.descricao}</p>
+              )}
               {item.anexos && item.anexos.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
+                <div className="flex flex-wrap gap-2">
                   {item.anexos.map((anexo) => (
                     <AnexoChipEnviado key={anexo.id} anexo={anexo} />
                   ))}
