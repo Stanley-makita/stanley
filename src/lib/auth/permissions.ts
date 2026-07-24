@@ -35,7 +35,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'pessoas.ver', 'pessoas.editar', // confirmado: fluxo real diário (aba Pessoa do Lead, Compradores/Vendedores do Processo)
     'imoveis.ver',
     'processos.ver', 'processos.criar', 'processos.editar', // "Negócios"
-    'conversas.ver',
+    'conversas.ver', 'conversas.transferir', // confirmado: qualquer perfil pode transferir conversa
     'operacional.ver', // "Solicitações"
     'simuladores.ver',
     'agenda.ver',
@@ -47,7 +47,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'pessoas.ver', 'pessoas.editar', // confirmado: mesmo fluxo real diário do comercial em Compradores/Vendedores do Processo
     'imoveis.ver',
     'processos.ver', 'processos.editar', // sem processos.criar — não existe hoje pra este perfil
-    'conversas.ver',
+    'conversas.ver', 'conversas.transferir', // confirmado: qualquer perfil pode transferir conversa
     'operacional.ver',
     'simuladores.ver',
     'agenda.ver',
@@ -58,7 +58,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'dashboard.ver',
     'pessoas.ver',
     'processos.ver', 'processos.editar',
-    'conversas.ver',
+    'conversas.ver', 'conversas.transferir', // confirmado: qualquer perfil pode transferir conversa
     'notificacoes.ver',
   ],
 

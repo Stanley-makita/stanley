@@ -29,6 +29,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
   useConversaParticipantes, useAdicionarParticipante, useRemoverParticipante,
 } from '@/hooks/conversas/useConversaParticipantes'
+import { useNotasNaoLidas, useMarcarNotasLidas } from '@/hooks/conversas/useNotasNaoLidas'
 import { useIniciarConversa } from '@/hooks/conversas/useIniciarConversa'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -57,7 +58,7 @@ interface NotaInterna {
   id: string
   conteudo: string
   created_at: string
-  autor: { nome: string }[] | null
+  autor: { nome: string } | null
 }
 
 interface Atendente {
@@ -344,7 +345,7 @@ export default function ConversasPage() {
         .eq('conversa_id', conversaSelecionada!.id)
         .order('created_at', { ascending: true })
       if (error) throw error
-      return data as NotaInterna[]
+      return data as unknown as NotaInterna[]
     },
   })
 
@@ -369,6 +370,15 @@ export default function ConversasPage() {
   const adicionarParticipante = useAdicionarParticipante(conversaSelecionada?.id ?? '')
   const removerParticipante = useRemoverParticipante(conversaSelecionada?.id ?? '')
   const [seletorParticipanteAberto, setSeletorParticipanteAberto] = useState(false)
+
+  const { data: notasNaoLidas = 0 } = useNotasNaoLidas(conversaSelecionada?.id)
+  const marcarNotasLidas = useMarcarNotasLidas(conversaSelecionada?.id)
+  useEffect(() => {
+    if (painelNotasAberto && conversaSelecionada?.id) {
+      marcarNotasLidas.mutate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversaSelecionada?.id, painelNotasAberto])
 
   const { data: instancias = [] } = useQuery({
     queryKey: ['instancias-conversa', usuario?.empresa_id],
@@ -453,10 +463,11 @@ export default function ConversasPage() {
 
   const transferir = useMutation({
     mutationFn: async (atendenteId: string) => {
-      const instanciaDoAtendente = instancias.find((i) => i.atendente_id === atendenteId)
+      // instancia_id é a propriedade do canal (qual número recebeu a conversa), não
+      // de quem está atendendo — transferir só troca o responsável (atendente_id).
       const { error } = await supabase
         .from('conversas')
-        .update({ atendente_id: atendenteId, instancia_id: instanciaDoAtendente?.id ?? null })
+        .update({ atendente_id: atendenteId })
         .eq('id', conversaSelecionada!.id)
       if (error) throw error
       const nomeAtendente = atendentes.find((a) => a.id === atendenteId)?.nome ?? 'outro atendente'
@@ -473,7 +484,10 @@ export default function ConversasPage() {
       setNovoAtendente('')
       toast.success('Conversa transferida.')
     },
-    onError: () => toast.error('Erro ao transferir conversa.'),
+    onError: (error) => {
+      console.error('[conversas] erro ao transferir conversa:', error)
+      toast.error('Erro ao transferir conversa.')
+    },
   })
 
   async function transcreverAudio(mensagemId: string, fileUrl: string) {
@@ -939,7 +953,7 @@ export default function ConversasPage() {
 
               {/* Botão chat interno */}
               <Button size="sm" variant="outline"
-                className={cn('h-7 text-xs gap-1.5',
+                className={cn('h-7 text-xs gap-1.5 relative',
                   painelNotasAberto
                     ? 'bg-fonti-primary text-white border-fonti-primary'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -947,6 +961,11 @@ export default function ConversasPage() {
                 onClick={() => setPainelNotasAberto(!painelNotasAberto)}>
                 <MessageSquareDashed className="w-3.5 h-3.5" />
                 Notas
+                {!painelNotasAberto && notasNaoLidas > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                    {notasNaoLidas > 9 ? '9+' : notasNaoLidas}
+                  </span>
+                )}
               </Button>
 
               {/* Botão ligar (SIP — abre o softphone com áudio real, ex: MicroSIP) */}
@@ -1289,7 +1308,7 @@ export default function ConversasPage() {
                   <div key={n.id} className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[11px] font-semibold text-amber-800">
-                        {n.autor?.[0]?.nome ?? 'Equipe'}
+                        {n.autor?.nome ?? 'Equipe'}
                       </span>
                       <span className="text-[10px] text-gray-400">
                         {new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}

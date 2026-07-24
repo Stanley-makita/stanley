@@ -10,6 +10,7 @@ import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { variantesTelefoneBR } from '@/lib/telefone'
 
 // Payload format sent by Uazapi
 interface UazapiMediaContent {
@@ -813,32 +814,24 @@ export async function POST(request: NextRequest) {
   let conversa_id: string
   let bot_ativo = true
 
+  // Casa tanto por match exato quanto pelas variantes com/sem o "9" extra do
+  // celular (conversas iniciadas manualmente por um atendente podem ter sido
+  // salvas sem o "9", enquanto a Uazapi sempre manda o telefone com "9" —
+  // sem isso, a resposta do cliente não encontra a conversa e cria uma nova)
+  // e também sem o prefixo 55 (conversas criadas antes da normalização do DDI).
+  const candidatosComDDI = variantesTelefoneBR(telefone)
+  const candidatos = [...candidatosComDDI, ...candidatosComDDI.map((c) => c.replace(/^55/, ''))]
   let { data: conversaExistente } = await supabase
     .from('conversas')
-    .select('id, bot_ativo, lead_id, bot_estado, bot_dados')
+    .select('id, bot_ativo, lead_id, bot_estado, bot_dados, contato_telefone')
     .eq('empresa_id', empresa_id)
     .eq('canal', 'whatsapp')
-    .eq('contato_telefone', telefone)
+    .in('contato_telefone', candidatos)
     .maybeSingle()
 
-  // Fallback por sufixo: conversas criadas antes da normalização do prefixo 55
-  // podem ter o telefone sem o código do país (ex: "44984558946" vs "5544984558946").
-  // Se não encontrou por exato, tenta os últimos 11 dígitos e normaliza o número.
-  if (!conversaExistente) {
-    const sufixo = telefone.slice(-11)
-    const { data: convSufixo } = await supabase
-      .from('conversas')
-      .select('id, bot_ativo, lead_id, bot_estado, bot_dados')
-      .eq('empresa_id', empresa_id)
-      .eq('canal', 'whatsapp')
-      .like('contato_telefone', `%${sufixo}`)
-      .maybeSingle()
-    if (convSufixo) {
-      // Auto-normaliza para evitar buscas por sufixo nas próximas mensagens
-      await supabase.from('conversas').update({ contato_telefone: telefone }).eq('id', convSufixo.id)
-      conversaExistente = convSufixo
-      console.log('[whatsapp] conversa normalizada pelo sufixo:', sufixo, '→', telefone)
-    }
+  if (conversaExistente && conversaExistente.contato_telefone !== telefone) {
+    // Auto-normaliza para o formato canônico (com "9"), evitando repetir a busca por variante
+    await supabase.from('conversas').update({ contato_telefone: telefone }).eq('id', conversaExistente.id)
   }
 
   let reativandoBot = false
