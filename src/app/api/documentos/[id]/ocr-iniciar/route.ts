@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { processarOcrDocumento } from '@/lib/documentos/ocr'
+import { processarOcrDocumentoContrato } from '@/lib/documentos/ocrContrato'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
 export const maxDuration = 300
@@ -49,7 +50,30 @@ export async function POST(
     return NextResponse.json({ ok: true, skipped: true, motivo: 'aguardando_apuracao' })
   }
 
-  const { erro } = await processarOcrDocumento(supabase, documentoId, empresa_id, { solicitadoPor: usuario_id })
+  // Documento vinculado a um Negócio de Contrato usa o extrator próprio (schema
+  // aberto — lê matrícula/IPTU/certidões etc.) em vez do extrator fechado de
+  // captação/comercial. Não afeta nenhum outro caso (leads, financiamento,
+  // consórcio, registro) — só desvia quando há vínculo com modalidade Contrato.
+  const { data: vinculoProcesso } = await supabase
+    .from('documento_vinculos')
+    .select('entidade_id')
+    .eq('documento_id', documentoId)
+    .eq('entidade_tipo', 'processo')
+    .maybeSingle()
+
+  let ehDocumentoDeContrato = false
+  if (vinculoProcesso?.entidade_id) {
+    const { data: processoVinculado } = await supabase
+      .from('processos')
+      .select('modalidade')
+      .eq('id', vinculoProcesso.entidade_id)
+      .maybeSingle()
+    ehDocumentoDeContrato = processoVinculado?.modalidade === 'Contrato'
+  }
+
+  const { erro } = ehDocumentoDeContrato
+    ? await processarOcrDocumentoContrato(documentoId, empresa_id, { solicitadoPor: usuario_id })
+    : await processarOcrDocumento(supabase, documentoId, empresa_id, { solicitadoPor: usuario_id })
 
   const { data: atualizado } = await supabase
     .from('documentos')
