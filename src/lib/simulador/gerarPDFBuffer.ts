@@ -98,6 +98,10 @@ export async function gerarPDFCustasBuffer(
   const pctSemPdf = resultadoAjustado.percentualSemDesconto
   const pctComPdf = resultadoAjustado.percentualComDesconto
 
+  // Coluna "Com Desconto" só faz sentido para primeira aquisição (isenção de
+  // ITBI/Registro) — para os demais casos ela repetiria o valor "Sem Desconto".
+  const mostrarComDesconto = e.primeiraAquisicao === 'sim'
+
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
   const mL = 12
@@ -250,7 +254,7 @@ export async function gerarPDFCustasBuffer(
 
   const colItem = 42
   const colSem = 30
-  const colCom = 30
+  const colCom = mostrarComDesconto ? 30 : 0
   const colDesc = usableW - colItem - colSem - colCom
 
   const thH = 8
@@ -258,8 +262,10 @@ export async function gerarPDFCustasBuffer(
   doc.rect(mL, y, usableW, thH, 'F')
   doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
   doc.text('Item', mL + 2, y + thH / 2 + 2.5)
-  doc.text('Sem Desconto', mL + colItem + colSem / 2, y + thH / 2 + 2.5, { align: 'center' })
-  doc.text('Com Desconto', mL + colItem + colSem + colCom / 2, y + thH / 2 + 2.5, { align: 'center' })
+  doc.text(mostrarComDesconto ? 'Sem Desconto' : 'Valor', mL + colItem + colSem / 2, y + thH / 2 + 2.5, { align: 'center' })
+  if (mostrarComDesconto) {
+    doc.text('Com Desconto', mL + colItem + colSem + colCom / 2, y + thH / 2 + 2.5, { align: 'center' })
+  }
   doc.text('Descricao', mL + colItem + colSem + colCom + 2, y + thH / 2 + 2.5)
   y += thH
 
@@ -290,7 +296,7 @@ export async function gerarPDFCustasBuffer(
     doc.setLineWidth(0.2)
     doc.rect(xItem, y, usableW, rowH, 'S')
     doc.line(xSem, y, xSem, y + rowH)
-    doc.line(xCom, y, xCom, y + rowH)
+    if (mostrarComDesconto) doc.line(xCom, y, xCom, y + rowH)
     doc.line(xDesc, y, xDesc, y + rowH)
 
     const midY = y + rowH / 2
@@ -301,14 +307,16 @@ export async function gerarPDFCustasBuffer(
     doc.setFontSize(8); doc.setFont('helvetica', 'normal'); setTxt(doc, '#333333')
     doc.text(BRL.format(linha.semDesconto), xSem + colSem / 2, midY + 2, { align: 'center' })
 
-    const isMenor = linha.comDesconto < linha.semDesconto
-    if (isMenor) {
-      setTxt(doc, '#1E7B34')
-      doc.setFont('helvetica', 'bold')
+    if (mostrarComDesconto) {
+      const isMenor = linha.comDesconto < linha.semDesconto
+      if (isMenor) {
+        setTxt(doc, '#1E7B34')
+        doc.setFont('helvetica', 'bold')
+      }
+      doc.text(BRL.format(linha.comDesconto), xCom + colCom / 2, midY + 2, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      setTxt(doc, '#333333')
     }
-    doc.text(BRL.format(linha.comDesconto), xCom + colCom / 2, midY + 2, { align: 'center' })
-    doc.setFont('helvetica', 'normal')
-    setTxt(doc, '#333333')
 
     doc.setFontSize(descFontSize); setTxt(doc, '#666666')
     doc.text(descLines, xDesc + 2, y + 4.5, { lineHeightFactor: 1.4 })
@@ -331,7 +339,9 @@ export async function gerarPDFCustasBuffer(
   doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
   doc.text('ESTIMATIVA TOTAL', mL + 2, y + 8)
   doc.text(BRL.format(totalSemPdf), mL + colItem + colSem / 2, y + 8, { align: 'center' })
-  doc.text(BRL.format(totalComPdf), mL + colItem + colSem + colCom / 2, y + 8, { align: 'center' })
+  if (mostrarComDesconto) {
+    doc.text(BRL.format(totalComPdf), mL + colItem + colSem + colCom / 2, y + 8, { align: 'center' })
+  }
 
   doc.setFontSize(6); doc.setFont('helvetica', 'italic'); setTxt(doc, '#555555')
   const totalDesc =
@@ -346,7 +356,9 @@ export async function gerarPDFCustasBuffer(
   doc.text('% do Valor do Imovel', mL + 2, y + 5)
   doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
   doc.text(`${pctSemPdf.toFixed(1)}%`, mL + colItem + colSem / 2, y + 5, { align: 'center' })
-  doc.text(`${pctComPdf.toFixed(1)}%`, mL + colItem + colSem + colCom / 2, y + 5, { align: 'center' })
+  if (mostrarComDesconto) {
+    doc.text(`${pctComPdf.toFixed(1)}%`, mL + colItem + colSem + colCom / 2, y + 5, { align: 'center' })
+  }
   y += 10
 
   // RODAPÉ
