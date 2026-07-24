@@ -185,6 +185,15 @@ export function calcIofVisivel(e: Pick<EntradaSimulador, 'tipoImovel' | 'modalid
   return false
 }
 
+// IOF adicional (0,38% sobre o valor financiado) + IOF diário (0,0082% ao dia
+// sobre o saldo devedor, limitado a 3% ao ano — sem modelar amortização
+// SAC/PRICE, usa o valor financiado como base fixa do primeiro ano).
+export function calcularIof(valorFinanciado: number): number {
+  const adicional = valorFinanciado * 0.0038
+  const diario = Math.min(valorFinanciado * 0.000082 * 365, valorFinanciado * 0.03)
+  return arredondar(adicional + diario)
+}
+
 // ── Descrições para o PDF ─────────────────────────────────────────────────────
 
 const DESC: Record<string, string> = {

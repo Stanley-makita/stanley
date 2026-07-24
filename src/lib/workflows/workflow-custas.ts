@@ -12,7 +12,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { calcularCustas, ajustarParaExibicaoCliente } from '@/lib/simulador/calcular'
+import { calcularCustas, ajustarParaExibicaoCliente, calcIofVisivel, calcularIof } from '@/lib/simulador/calcular'
 import { gerarPDFCustasBuffer } from '@/lib/simulador/gerarPDFBuffer'
 import { enviarPDFUazapi } from './uazapi-helpers'
 import {
@@ -173,6 +173,12 @@ async function finalizarSimulacao(
   dados: Partial<EntradaSimulador>,
   ctx: WorkflowCustasContexto,
 ): Promise<string> {
+  const iofVisivel = calcIofVisivel({
+    tipoImovel: dados.tipoImovel!,
+    modalidade: dados.modalidade!,
+    banco: dados.banco!,
+  })
+
   const entrada: EntradaSimulador = {
     tipoImovel: dados.tipoImovel!,
     cidade: dados.cidade!,
@@ -187,8 +193,8 @@ async function finalizarSimulacao(
     banco: dados.banco!,
     modalidade: dados.modalidade!,
     produto: dados.produto!,
-    iof: 0,
-    iofVisivel: false,
+    iof: iofVisivel ? calcularIof(dados.valorFinanciado!) : 0,
+    iofVisivel,
   }
 
   const { itbi, custas } = await carregarConfigCustas(
@@ -297,27 +303,9 @@ export async function processarRespostaCustas(
       dados.valorFinanciado = v
       const recursosProprios = Math.max(0, (dados.valorCV ?? 0) - v)
       return avancarPara(
-        'modalidade', dados, ctx,
+        'servico_registro', dados, ctx,
         `💰 Recursos próprios (calculado): ${BRL.format(recursosProprios)}`,
       )
-    }
-
-    case 'modalidade': {
-      const idx = parseMenuOpcao(texto, MODALIDADE_OPCOES.map((o) => o.label))
-      if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
-      dados.modalidade = MODALIDADE_OPCOES[idx].valor
-      if (dados.modalidade === 'terreno_construcao') {
-        return avancarPara('valor_terreno', dados, ctx)
-      }
-      dados.valorTerreno = 0
-      return avancarPara('servico_registro', dados, ctx)
-    }
-
-    case 'valor_terreno': {
-      const v = parseValorReais(texto)
-      if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
-      dados.valorTerreno = v
-      return avancarPara('servico_registro', dados, ctx)
     }
 
     case 'servico_registro': {
@@ -352,13 +340,6 @@ export async function processarRespostaCustas(
       const r = parseSimNao(texto)
       if (r === null) return repetirPergunta(pendente, ctx, 'Responda *sim* ou *não*.')
       dados.isentoFunRejus = r
-      return avancarPara('produto', dados, ctx)
-    }
-
-    case 'produto': {
-      const idx = parseMenuOpcao(texto, PRODUTO_OPCOES.map((o) => o.label))
-      if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
-      dados.produto = PRODUTO_OPCOES[idx].valor
       return avancarPara('banco', dados, ctx)
     }
 
@@ -366,6 +347,31 @@ export async function processarRespostaCustas(
       const idx = parseMenuOpcao(texto, BANCO_OPCOES)
       if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
       dados.banco = BANCO_OPCOES[idx]
+      return avancarPara('modalidade', dados, ctx)
+    }
+
+    case 'modalidade': {
+      const idx = parseMenuOpcao(texto, MODALIDADE_OPCOES.map((o) => o.label))
+      if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
+      dados.modalidade = MODALIDADE_OPCOES[idx].valor
+      if (dados.modalidade === 'terreno_construcao') {
+        return avancarPara('valor_terreno', dados, ctx)
+      }
+      dados.valorTerreno = 0
+      return avancarPara('produto', dados, ctx)
+    }
+
+    case 'valor_terreno': {
+      const v = parseValorReais(texto)
+      if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
+      dados.valorTerreno = v
+      return avancarPara('produto', dados, ctx)
+    }
+
+    case 'produto': {
+      const idx = parseMenuOpcao(texto, PRODUTO_OPCOES.map((o) => o.label))
+      if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
+      dados.produto = PRODUTO_OPCOES[idx].valor
       return finalizarSimulacao(dados, ctx)
     }
   }
