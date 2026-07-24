@@ -27,8 +27,11 @@ import { type Processo, type TipoContrato, TIPO_CONTRATO_LABELS } from '@/types/
 import { FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
-import { useEntenderNegociacao, useConfirmarEntendimento } from '@/hooks/processos/useProcessoContrato'
+import {
+  useEntenderNegociacao, useConfirmarEntendimento, useGerarPlanoContrato, useConfirmarPlano,
+} from '@/hooks/processos/useProcessoContrato'
 import { type ResumoNegociacao } from '@/lib/contratos/entenderNegociacao'
+import { type PlanoContrato } from '@/lib/contratos/planejarContrato'
 
 function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, processoAtualId: string) {
   const { usuario } = useAuth()
@@ -75,12 +78,15 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const atualizar = useAtualizarTipoValorContrato(processo.id)
   const entenderNegociacao = useEntenderNegociacao(processo.id)
   const confirmarEntendimento = useConfirmarEntendimento(processo.id)
+  const gerarPlano = useGerarPlanoContrato(processo.id)
+  const confirmarPlano = useConfirmarPlano(processo.id)
 
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>(processo.tipo_contrato ?? '')
   const [valorContrato, setValorContrato] = useState(processo.valor_contrato != null ? String(processo.valor_contrato) : '')
   const [descricao, setDescricao] = useState('')
   const [resumo, setResumo] = useState<ResumoNegociacao | null>(null)
   const [rascunhoId, setRascunhoId] = useState<string | null>(null)
+  const [plano, setPlano] = useState<PlanoContrato | null>(null)
 
   function salvarTipoValor(patch: Partial<{ tipo: TipoContrato | ''; valor: string }>) {
     const tipo = patch.tipo !== undefined ? patch.tipo : tipoContrato
@@ -204,16 +210,55 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
           </div>
 
           <div className="flex justify-between">
-            <Button variant="outline" size="sm" onClick={() => setResumo(null)}>Corrigir informações</Button>
+            <Button variant="outline" size="sm" onClick={() => { setResumo(null); setPlano(null) }}>Corrigir informações</Button>
             <Button
               size="sm"
               disabled={confirmarEntendimento.isPending}
               onClick={() => confirmarEntendimento.mutate(
                 { rascunhoId, tipoContrato: tipoContrato as string, resumo },
-                { onSuccess: setRascunhoId },
+                {
+                  onSuccess: (id) => {
+                    setRascunhoId(id)
+                    gerarPlano.mutate(id, { onSuccess: setPlano })
+                  },
+                },
               )}
             >
               {confirmarEntendimento.isPending ? 'Salvando...' : '✓ Confirmar entendimento'}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* ⑤ Plano do Contrato */}
+      {resumo && gerarPlano.isPending && (
+        <section className="rounded-lg border border-gray-200 bg-white p-4 flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 className="h-4 w-4 animate-spin" /> Planejando a estrutura do contrato...
+        </section>
+      )}
+      {resumo && plano && (
+        <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">⑤ Plano do contrato</h2>
+          <p className="text-sm text-gray-600">O contrato será composto por:</p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {plano.clausulas.map((c, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-sm">
+                {c.tipo === 'padrao'
+                  ? <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 mt-0.5" />
+                  : <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />}
+                <span className={c.tipo === 'condicional' ? 'text-amber-700' : 'text-gray-700'}>{c.texto}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between">
+            <Button variant="outline" size="sm" onClick={() => setPlano(null)}>← Voltar</Button>
+            <Button
+              size="sm"
+              disabled={confirmarPlano.isPending}
+              onClick={() => rascunhoId && confirmarPlano.mutate({ contratoId: rascunhoId, plano })}
+              title="A construção da minuta em si é a próxima etapa do Construtor de Contratos — por enquanto este botão só confirma o plano."
+            >
+              {confirmarPlano.isPending ? 'Salvando...' : '✓ Confirmar plano'}
             </Button>
           </div>
         </section>

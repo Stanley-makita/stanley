@@ -186,3 +186,49 @@ export function useSalvarContrato(processoId: string) {
     },
   })
 }
+
+/**
+ * Etapa "Plano do Contrato": a partir do resumo já confirmado (lido direto do
+ * rascunho salvo), devolve a estrutura de cláusulas prevista — ainda sem
+ * persistir. Persistência acontece em useConfirmarPlano, depois que o usuário
+ * revisar e confirmar (mesma filosofia da etapa anterior).
+ */
+export function useGerarPlanoContrato(processoId: string) {
+  return useMutation({
+    mutationFn: async (contratoId: string) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/processos/${processoId}/contratos/${contratoId}/plano`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao planejar o contrato.')
+      return json.plano as import('@/lib/contratos/planejarContrato').PlanoContrato
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao planejar contrato:', error)
+      toast.error(error instanceof Error ? error.message : 'Erro ao planejar o contrato.')
+    },
+  })
+}
+
+export function useConfirmarPlano(processoId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: { contratoId: string; plano: import('@/lib/contratos/planejarContrato').PlanoContrato }) => {
+      const { error } = await supabase
+        .from('processo_contratos')
+        .update({ plano_contrato_json: payload.plano, updated_at: new Date().toISOString() })
+        .eq('id', payload.contratoId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processo-contratos', processoId] })
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao confirmar plano:', error)
+      toast.error('Erro ao salvar o plano do contrato.')
+    },
+  })
+}
