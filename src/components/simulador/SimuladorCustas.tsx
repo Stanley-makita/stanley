@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Calculator, Clock, Download, Eye, Printer, Save, Send } from 'lucide-react'
 import { toast } from 'sonner'
-import { calcularCustas, calcIofVisivel } from '@/lib/simulador/calcular'
+import { calcularCustas, calcIofVisivel, calcularIof } from '@/lib/simulador/calcular'
 import { useItbiConfig, useCustasConfig } from '@/hooks/simulador/useSimuladorConfig'
 import { useSalvarSimulacao, useHistoricoSimulacoes } from '@/hooks/simulador/useSalvarSimulacao'
 import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
@@ -348,6 +348,11 @@ export function SimuladorCustas({
     [form.tipoImovel, form.modalidade, form.banco],
   )
 
+  const iofCalculadoValue = useMemo(
+    () => (iofVisivel ? calcularIof(parseBRL(form.valorFinanciado)) : 0),
+    [iofVisivel, form.valorFinanciado],
+  )
+
   // Reactive calculation — runs whenever form changes
   const resultado = useMemo((): ResultadoSimulador | null => {
     const cv = parseBRL(form.valorCV)
@@ -368,11 +373,11 @@ export function SimuladorCustas({
       banco: form.banco,
       modalidade: form.modalidade as Modalidade,
       produto: form.produto as Produto,
-      iof: iofVisivel ? parseBRL(form.iof) : 0,
+      iof: iofCalculadoValue,
       iofVisivel,
     }
     return calcularCustas(entrada, itbiSelecionado, custasDosBanco)
-  }, [form, isTC, iofVisivel, itbiSelecionado, custasDosBanco])
+  }, [form, isTC, iofVisivel, iofCalculadoValue, itbiSelecionado, custasDosBanco])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { onResultadoChange?.(resultado) }, [resultado])
@@ -607,7 +612,9 @@ export function SimuladorCustas({
 
                 {iofVisivel && (
                   <Row label="IOF">
-                    <CI value={form.iof} onChange={(v) => set('iof', v)} />
+                    <div className="h-7 flex items-center px-2 bg-white/60 border border-[#D5CFA8] rounded-md text-xs font-semibold text-fonti-primary w-full">
+                      {BRL.format(iofCalculadoValue)}
+                    </div>
                   </Row>
                 )}
               </div>

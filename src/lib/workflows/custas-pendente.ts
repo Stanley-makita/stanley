@@ -14,15 +14,15 @@ export type PassoCustas =
   | 'cidade'
   | 'valor_cv'
   | 'valor_financiado'
-  | 'modalidade'
-  | 'valor_terreno'         // só entra na sequência se modalidade = terreno_construcao
   | 'servico_registro'
   | 'valor_certidoes'
   | 'contrato_particular'
   | 'primeira_aquisicao'
   | 'isento_funrejus'
-  | 'produto'
-  | 'banco'                 // último passo — gatilho do cálculo
+  | 'banco'
+  | 'modalidade'
+  | 'valor_terreno'         // só entra na sequência se modalidade = terreno_construcao
+  | 'produto'               // último passo — gatilho do cálculo
 
 export interface CustasPendente {
   passo: PassoCustas
