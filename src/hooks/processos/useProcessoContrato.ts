@@ -297,6 +297,15 @@ export function useGerarPdfContrato(processoId: string) {
         .eq('id', payload.contratoId)
       if (error) throw error
 
+      await supabase.from('processo_comentarios').insert({
+        empresa_id: usuario!.empresa_id,
+        processo_id: processoId,
+        usuario_id: usuario!.id,
+        tipo: 'alteracao',
+        texto: `PDF gerado para "${payload.titulo}".`,
+        notificar_cliente: false,
+      })
+
       return storagePath
     },
     onSuccess: () => {

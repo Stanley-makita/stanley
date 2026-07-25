@@ -52,7 +52,11 @@ interface Props {
 
 type Tela = 'lista' | 'selecao' | 'configurando_assessoria' | 'editor'
 
-function badgeStatus(status: string | null) {
+// Estados só do que já é comprovadamente rastreável hoje (pdf_gerado_em é
+// local; clicksign_status vem do webhook, que só confirma 'running'/'closed'
+// até o momento — recusa/cancelamento/expiração ficam de fora até os nomes
+// de evento reais serem confirmados na conta Clicksign, ver Fase D do plano).
+function badgeStatus(status: string | null, pdfGeradoEm?: string | null) {
   if (status === 'closed') {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
@@ -65,13 +69,20 @@ function badgeStatus(status: string | null) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
         <Clock className="h-3 w-3" />
-        Enviado
+        Enviado ao ClickSign
+      </span>
+    )
+  }
+  if (pdfGeradoEm) {
+    return (
+      <span className="inline-flex items-center text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+        PDF gerado
       </span>
     )
   }
   return (
     <span className="inline-flex items-center text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
-      Rascunho
+      Minuta
     </span>
   )
 }
@@ -418,7 +429,7 @@ export function AbaContrato({ processoId, processo }: Props) {
               </button>
 
               <div className="flex items-center gap-2 shrink-0">
-                {badgeStatus(c.clicksign_status)}
+                {badgeStatus(c.clicksign_status, c.pdf_gerado_em)}
                 {c.clicksign_signed_url && (
                   <a
                     href={c.clicksign_signed_url}
