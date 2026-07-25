@@ -22,6 +22,8 @@ export interface ProcessoContrato {
   clicksign_assinado_em: string | null
   resumo_negociacao_json: import('@/lib/contratos/entenderNegociacao').ResumoNegociacao | null
   plano_contrato_json: unknown | null
+  pdf_storage_path: string | null
+  pdf_gerado_em: string | null
 }
 
 /**
@@ -229,6 +231,151 @@ export function useConfirmarPlano(processoId: string) {
     onError: (error) => {
       console.error('[contratos] erro ao confirmar plano:', error)
       toast.error('Erro ao salvar o plano do contrato.')
+    },
+  })
+}
+
+/**
+ * Registra na Timeline do processo (mesmo canal usado pelo trigger
+ * `fn_contrato_timeline_evento`) se a geração da minuta seguiu direto porque
+ * a IA não encontrou pendência nenhuma ("confirmação automática sem
+ * pendências") ou porque o operador revisou e confirmou manualmente um
+ * cartão de pendências ("confirmação manual do operador") — distinção pedida
+ * pra rastreabilidade jurídica de quem validou o quê.
+ */
+export function useRegistrarConfirmacaoGeracao(processoId: string) {
+  const { usuario } = useAuth()
+
+  return useMutation({
+    mutationFn: async (payload: { tipoConfirmacao: 'automatica' | 'manual'; tituloContrato: string }) => {
+      const texto = payload.tipoConfirmacao === 'automatica'
+        ? `Minuta de "${payload.tituloContrato}" gerada automaticamente — a IA não encontrou pendências (sem revisão manual do operador).`
+        : `Minuta de "${payload.tituloContrato}" gerada após revisão e confirmação manual do operador (pendências identificadas antes de continuar).`
+      const { error } = await supabase.from('processo_comentarios').insert({
+        empresa_id: usuario!.empresa_id,
+        processo_id: processoId,
+        usuario_id: payload.tipoConfirmacao === 'manual' ? usuario!.id : null,
+        tipo: 'alteracao',
+        texto,
+        notificar_cliente: false,
+      })
+      if (error) throw error
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao registrar confirmação de geração:', error)
+    },
+  })
+}
+
+const BUCKET_CONTRATOS = 'documentos-clientes'
+
+/**
+ * "Gerar/atualizar PDF da versão atual" — só pode ser chamada enquanto a
+ * versão ainda não foi enviada ao ClickSign (ver regra de congelamento em
+ * `AbaContrato.tsx`); repetir a ação sobrescreve o mesmo arquivo (mesma
+ * versão), nunca cria um artefato pra outra versão. Reaproveita a mesma
+ * geração jsPDF/html2canvas de sempre (`gerarPdfBlobContrato`).
+ */
+export function useGerarPdfContrato(processoId: string) {
+  const { usuario } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: { contratoId: string; titulo: string; conteudoHtml: string }): Promise<string> => {
+      const { gerarPdfBlobContrato } = await import('@/lib/contratos/gerarPdfContrato')
+      const blob = await gerarPdfBlobContrato(payload.conteudoHtml, payload.titulo)
+      const storagePath = `${usuario!.empresa_id}/contratos/${payload.contratoId}.pdf`
+
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_CONTRATOS)
+        .upload(storagePath, blob, { upsert: true, contentType: 'application/pdf' })
+      if (uploadError) throw new Error(uploadError.message)
+
+      const { error } = await supabase
+        .from('processo_contratos')
+        .update({ pdf_storage_path: storagePath, pdf_gerado_em: new Date().toISOString() })
+        .eq('id', payload.contratoId)
+      if (error) throw error
+
+      await supabase.from('processo_comentarios').insert({
+        empresa_id: usuario!.empresa_id,
+        processo_id: processoId,
+        usuario_id: usuario!.id,
+        tipo: 'alteracao',
+        texto: `PDF gerado para "${payload.titulo}".`,
+        notificar_cliente: false,
+      })
+
+      return storagePath
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processo-contratos', processoId] })
+      toast.success('PDF gerado com sucesso.')
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao gerar PDF:', error)
+      toast.error('Erro ao gerar o PDF do contrato.')
+    },
+  })
+}
+
+export async function abrirPdfStorage(storagePath: string, download?: string): Promise<string | null> {
+  const { data } = await supabase.storage
+    .from(BUCKET_CONTRATOS)
+    .createSignedUrl(storagePath, 3600, download ? { download } : undefined)
+  return data?.signedUrl ?? null
+}
+
+/** Lê o PDF já gerado da versão (storage) — usado por "Enviar para ClickSign"
+ * pra reaproveitar o mesmo arquivo em vez de gerar um novo na hora. */
+export async function baixarPdfContrato(storagePath: string): Promise<Blob> {
+  const { data, error } = await supabase.storage.from(BUCKET_CONTRATOS).download(storagePath)
+  if (error || !data) throw new Error(error?.message ?? 'Não foi possível ler o PDF gerado.')
+  return data
+}
+
+/**
+ * "Reenviar uma nova versão" — cria uma cópia editável (nova linha,
+ * `versao + 1`) de um contrato já enviado/recusado/cancelado/expirado, sem
+ * tocar na versão de origem (que permanece congelada e com seu histórico
+ * intacto). O PDF e o envio ao ClickSign da nova versão são independentes.
+ */
+export function useCriarNovaVersaoContrato(processoId: string) {
+  const { usuario } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (origem: ProcessoContrato): Promise<string> => {
+      const { data: existentes } = await supabase
+        .from('processo_contratos')
+        .select('versao')
+        .eq('processo_id', processoId)
+      const maxVersao = Math.max(0, ...(existentes ?? []).map((c) => c.versao ?? 1))
+
+      const { data, error } = await supabase
+        .from('processo_contratos')
+        .insert({
+          processo_id: processoId,
+          empresa_id: usuario!.empresa_id,
+          criado_por: usuario!.id,
+          tipo_modelo: origem.tipo_modelo,
+          titulo: origem.titulo,
+          conteudo_html: origem.conteudo_html,
+          resumo_negociacao_json: origem.resumo_negociacao_json,
+          plano_contrato_json: origem.plano_contrato_json,
+          versao: maxVersao + 1,
+        })
+        .select('id')
+        .single()
+      if (error) throw error
+      return data.id as string
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processo-contratos', processoId] })
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao criar nova versão do contrato:', error)
+      toast.error('Erro ao criar nova versão do contrato.')
     },
   })
 }

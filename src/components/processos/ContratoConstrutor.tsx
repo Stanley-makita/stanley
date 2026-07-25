@@ -4,19 +4,24 @@
  * Tela especializada de Negócios do tipo Contrato — substitui, só para esta
  * modalidade, a tela genérica herdada de Financiamento (ver processos/[id]/page.tsx).
  *
- * Fluxo completo do Construtor Inteligente de Contratos: Tipo/Valor →
- * Documentos (aba própria, reaproveitando AbaDocumentos, com import por
- * referência do Negócio de Financiamento vinculado) → Descrição da
- * negociação → Compreensão da Negociação (IA) + Painel de Inteligência →
- * Plano do Contrato (IA) → Construir contrato (template + resumo
- * confirmado) → editor completo (TipTap/PDF/ClickSign, reaproveitando
- * AbaContrato).
+ * Fluxo de ação única do Construtor Inteligente de Contratos: Modelo + Valor
+ * do Serviço → documentos (Comprador / Vendedor / Imóvel) → instruções livres
+ * → um único clique em "Gerar contrato". A compreensão estruturada e o plano
+ * de cláusulas continuam sendo gerados internamente (mesmos hooks de sempre),
+ * mas só aparecem ao operador quando há pendência real (dado ausente,
+ * divergência entre OCR e instruções, ou baixa confiança) — ver
+ * `validarResumo`. Quando não há pendência, a minuta já sai pronta pra
+ * revisão jurídica no editor completo (TipTap/PDF/ClickSign, reaproveitando
+ * `AbaContrato` sem alterá-la).
  */
 
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Sparkles, Loader2, CheckCircle2, AlertTriangle, Import, FileStack } from 'lucide-react'
+import {
+  Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
+  Upload, ChevronDown, ChevronUp, RotateCcw,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -26,21 +31,28 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { type Processo, type TipoContrato, TIPO_CONTRATO_LABELS } from '@/types/processos'
 import { FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
-import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
+import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
+import { useUploadDocumentoPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
 import {
   useEntenderNegociacao, useConfirmarEntendimento, useGerarPlanoContrato, useConfirmarPlano,
-  useSalvarContrato,
+  useSalvarContrato, useRegistrarConfirmacaoGeracao,
 } from '@/hooks/processos/useProcessoContrato'
 import { type ResumoNegociacao } from '@/lib/contratos/entenderNegociacao'
 import { type PlanoContrato } from '@/lib/contratos/planejarContrato'
+import { validarResumo, type PendenciaResumo } from '@/lib/contratos/validarResumo'
 import { selecionarTemplate } from '@/lib/contratos/selecionarTemplate'
 import { substituirVariaveis } from '@/lib/contratos/substituirVariaveis'
 import { construirDadosTemplate } from '@/lib/contratos/resumoParaTemplate'
 import { AbaContrato } from '@/components/processos/abas/AbaContrato'
+
+const PASTAS_FIXAS = [
+  { codigo: 'comprador' as const, titulo: 'Documentos do Comprador', descricao: 'RG, CPF, CNH, certidão de casamento, comprovante de endereço.' },
+  { codigo: 'vendedor' as const, titulo: 'Documentos do Vendedor', descricao: 'RG, CPF, CNH, certidão de casamento, comprovante de endereço.' },
+  { codigo: 'imovel' as const, titulo: 'Documentos do Imóvel', descricao: 'Matrícula atualizada, IPTU ou documento complementar.' },
+]
 
 function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, processoAtualId: string) {
   const { usuario } = useAuth()
@@ -62,30 +74,29 @@ function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, p
   })
 }
 
-// Resumo leve pra aba "Redigir" (contagem só) — a navegação/gestão de fato dos
-// documentos (pastas, upload, OCR) mora inteira na aba "Documentos" (AbaDocumentos).
-function useResumoDocumentosProcesso(processoId: string) {
+// Contagem de documentos já anexados em cada pasta fixa — só pra exibir nas
+// caixas de upload; a navegação/gestão de fato (OCR, mover de pasta) mora em
+// AbaDocumentos, aberta via "Ver todos os documentos".
+function useContagemDocumentosPorPasta(processoId: string) {
   const { usuario } = useAuth()
+  const { data: catalogoPastas = [] } = useCatalogoPastasProcesso()
   return useQuery({
-    queryKey: ['documentos-resumo-processo', processoId],
-    enabled: !!usuario?.empresa_id,
-    queryFn: async (): Promise<{ total: number; pendentes: number }> => {
+    queryKey: ['documentos-por-pasta', processoId],
+    enabled: !!usuario?.empresa_id && catalogoPastas.length > 0,
+    queryFn: async (): Promise<Record<string, number>> => {
       const { data: vinculos } = await supabase
         .from('documento_vinculos')
-        .select('documento_id')
+        .select('pasta_id')
         .eq('entidade_tipo', 'processo')
         .eq('entidade_id', processoId)
-      const ids = (vinculos ?? []).map((v) => v.documento_id)
-      if (ids.length === 0) return { total: 0, pendentes: 0 }
-
-      const { data: docs } = await supabase
-        .from('documentos')
-        .select('id, status_ocr')
-        .in('id', ids)
-        .is('deleted_at', null)
-      const total = docs?.length ?? 0
-      const pendentes = (docs ?? []).filter((d) => d.status_ocr !== 'concluido').length
-      return { total, pendentes }
+      const contagemPorPastaId = new Map<string, number>()
+      for (const v of vinculos ?? []) {
+        if (!v.pasta_id) continue
+        contagemPorPastaId.set(v.pasta_id, (contagemPorPastaId.get(v.pasta_id) ?? 0) + 1)
+      }
+      const porCodigo: Record<string, number> = {}
+      for (const pasta of catalogoPastas) porCodigo[pasta.codigo] = contagemPorPastaId.get(pasta.id) ?? 0
+      return porCodigo
     },
   })
 }
@@ -127,9 +138,10 @@ function useImportarDocumentosNegocio(processoId: string) {
       if (error) throw error
       return novos.length
     },
-    onSuccess: (quantidade, _vars, _ctx) => {
+    onSuccess: (quantidade) => {
       qc.invalidateQueries({ queryKey: ['documentos-unificado', 'processo', processoId] })
       qc.invalidateQueries({ queryKey: ['documentos-resumo-processo', processoId] })
+      qc.invalidateQueries({ queryKey: ['documentos-por-pasta', processoId] })
       toast.success(quantidade > 0 ? `${quantidade} documento(s) importado(s).` : 'Nenhum documento novo para importar.')
     },
     onError: (error) => {
@@ -155,13 +167,53 @@ function useAtualizarTipoValorContrato(processoId: string) {
   })
 }
 
+function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, quantidade }: {
+  processoId: string
+  pastaCodigo: 'comprador' | 'vendedor' | 'imovel'
+  titulo: string
+  descricao: string
+  quantidade: number
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const upload = useUploadDocumentoPasta(processoId, pastaCodigo)
+
+  async function handleArquivos(e: ChangeEvent<HTMLInputElement>) {
+    const arquivos = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    for (const arquivo of arquivos) {
+      await upload.mutateAsync(arquivo).catch(() => {})
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3">
+      <p className="text-sm font-semibold text-gray-700">{titulo}</p>
+      <p className="text-[11px] text-gray-400 leading-snug">{descricao}</p>
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={handleArquivos} />
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        disabled={upload.isPending}
+        onClick={() => inputRef.current?.click()}
+      >
+        {upload.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+        {upload.isPending ? 'Enviando...' : 'Escolher arquivos'}
+      </Button>
+      <p className="text-[11px] text-gray-500">{quantidade} documento(s) anexado(s)</p>
+    </div>
+  )
+}
+
+type EstadoGeracao = 'idle' | 'processando' | 'revisao' | 'pronto'
+
 export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const router = useRouter()
   const compradorPrincipal = processo.compradores?.find((c) => c.principal) ?? processo.compradores?.[0]
   const pessoaId = compradorPrincipal?.pessoa_id ?? processo.pessoa_id
 
   const { data: negocioVinculado } = useNegocioFinanciamentoVinculado(pessoaId, processo.id)
-  const { data: resumoDocumentos } = useResumoDocumentosProcesso(processo.id)
+  const { data: contagemPastas = {} } = useContagemDocumentosPorPasta(processo.id)
   const importarDocumentos = useImportarDocumentosNegocio(processo.id)
   const atualizar = useAtualizarTipoValorContrato(processo.id)
   const entenderNegociacao = useEntenderNegociacao(processo.id)
@@ -169,31 +221,18 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const gerarPlano = useGerarPlanoContrato(processo.id)
   const confirmarPlano = useConfirmarPlano(processo.id)
   const salvarContrato = useSalvarContrato(processo.id)
+  const registrarConfirmacao = useRegistrarConfirmacaoGeracao(processo.id)
 
-  const [abaAtiva, setAbaAtiva] = useState<'redigir' | 'documentos'>('redigir')
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>(processo.tipo_contrato ?? '')
   const [valorContrato, setValorContrato] = useState(processo.valor_contrato != null ? String(processo.valor_contrato) : '')
-  const [descricao, setDescricao] = useState('')
-  const [resumo, setResumo] = useState<ResumoNegociacao | null>(null)
-  const [rascunhoId, setRascunhoId] = useState<string | null>(null)
-  const [plano, setPlano] = useState<PlanoContrato | null>(null)
-  const [construindo, setConstruindo] = useState(false)
-  const [contratoConstruido, setContratoConstruido] = useState(false)
+  const [instrucoes, setInstrucoes] = useState('')
+  const [documentosExpandido, setDocumentosExpandido] = useState(false)
 
-  async function construirContrato() {
-    if (!resumo || !rascunhoId) return
-    setConstruindo(true)
-    try {
-      await confirmarPlano.mutateAsync({ contratoId: rascunhoId, plano: plano! })
-      const template = selecionarTemplate(tipoContrato)
-      const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } = construirDadosTemplate(resumo, processo)
-      const html = substituirVariaveis(template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras)
-      await salvarContrato.mutateAsync({ id: rascunhoId, tipo_modelo: tipoContrato, titulo: template.titulo, conteudo_html: html })
-      setContratoConstruido(true)
-    } finally {
-      setConstruindo(false)
-    }
-  }
+  const [estado, setEstado] = useState<EstadoGeracao>('idle')
+  const [rascunhoId, setRascunhoId] = useState<string | null>(null)
+  const [resumoAtual, setResumoAtual] = useState<ResumoNegociacao | null>(null)
+  const [planoAtual, setPlanoAtual] = useState<PlanoContrato | null>(null)
+  const [pendencias, setPendencias] = useState<PendenciaResumo[]>([])
 
   function salvarTipoValor(patch: Partial<{ tipo: TipoContrato | ''; valor: string }>) {
     const tipo = patch.tipo !== undefined ? patch.tipo : tipoContrato
@@ -206,249 +245,209 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
     })
   }
 
+  async function finalizarConstrucao(params: {
+    contratoId: string
+    resumo: ResumoNegociacao
+    plano: PlanoContrato
+    tipoConfirmacao: 'automatica' | 'manual'
+  }) {
+    setEstado('processando')
+    try {
+      await confirmarPlano.mutateAsync({ contratoId: params.contratoId, plano: params.plano })
+      const template = selecionarTemplate(tipoContrato)
+      const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } =
+        construirDadosTemplate(params.resumo, processo)
+      const html = substituirVariaveis(template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras)
+      await salvarContrato.mutateAsync({ id: params.contratoId, tipo_modelo: tipoContrato, titulo: template.titulo, conteudo_html: html })
+      registrarConfirmacao.mutate({ tipoConfirmacao: params.tipoConfirmacao, tituloContrato: template.titulo })
+      setEstado('pronto')
+    } catch (error) {
+      console.error('[contratos] erro ao construir contrato:', error)
+      setEstado('revisao')
+    }
+  }
+
+  async function gerarContrato() {
+    if (!tipoContrato) return
+    setEstado('processando')
+    try {
+      const resumo = await entenderNegociacao.mutateAsync(instrucoes)
+      const novoRascunhoId = await confirmarEntendimento.mutateAsync({ rascunhoId, tipoContrato, resumo })
+      setRascunhoId(novoRascunhoId)
+      const plano = await gerarPlano.mutateAsync(novoRascunhoId)
+      setResumoAtual(resumo)
+      setPlanoAtual(plano)
+
+      const pendenciasEncontradas = validarResumo(resumo, tipoContrato)
+      if (pendenciasEncontradas.length === 0) {
+        await finalizarConstrucao({ contratoId: novoRascunhoId, resumo, plano, tipoConfirmacao: 'automatica' })
+      } else {
+        setPendencias(pendenciasEncontradas)
+        setEstado('revisao')
+      }
+    } catch (error) {
+      console.error('[contratos] erro ao gerar contrato:', error)
+      setEstado('idle')
+    }
+  }
+
+  function continuarComPendencias() {
+    if (!rascunhoId || !resumoAtual || !planoAtual) return
+    finalizarConstrucao({ contratoId: rascunhoId, resumo: resumoAtual, plano: planoAtual, tipoConfirmacao: 'manual' })
+  }
+
+  const processando = estado === 'processando'
+  const negocioParaImportar = negocioVinculado
+    ? { id: negocioVinculado.id, numero_processo: negocioVinculado.numero_processo }
+    : null
+
   return (
-    <div className="flex flex-col gap-4 p-4 lg:p-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-lg font-bold leading-tight text-fonti-primary sm:text-xl truncate">
-          {compradorPrincipal?.nome ?? processo.nome_imovel}
-        </h1>
-        <ParticularidadeCliente pessoaId={pessoaId} />
-        {negocioVinculado && (
+    <div className="flex flex-col gap-4">
+      {negocioVinculado && (
+        <button
+          onClick={() => router.push(`/processos/${negocioVinculado.id}`)}
+          className="self-end text-xs text-blue-600 hover:underline shrink-0"
+        >
+          {negocioVinculado.numero_processo} vinculado — Ver Negócio →
+        </button>
+      )}
+
+      <div className="flex flex-col gap-4">
+        {/* ① Modelo + Valor */}
+        <section className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">Modelo de contrato</label>
+            <Select value={tipoContrato} onValueChange={(v) => salvarTipoValor({ tipo: v as TipoContrato })}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(TIPO_CONTRATO_LABELS).map(([valor, label]) => (
+                  <SelectItem key={valor} value={valor}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">Valor do Serviço — cobrado pela Fontinhas, não o valor do imóvel/negociação</label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              placeholder="R$ 0,00"
+              value={valorContrato}
+              onChange={(e) => setValorContrato(e.target.value)}
+              onBlur={() => salvarTipoValor({})}
+              className="h-9 text-sm"
+            />
+          </div>
+        </section>
+
+        {/* ② Documentos — comprador / vendedor / imóvel */}
+        <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Anexe os documentos das partes interessadas</h2>
+            {negocioParaImportar && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                disabled={importarDocumentos.isPending}
+                onClick={() => importarDocumentos.mutate(negocioParaImportar.id)}
+              >
+                <Import className="h-3.5 w-3.5" />
+                {importarDocumentos.isPending ? 'Importando...' : `Importar do Negócio ${negocioParaImportar.numero_processo}`}
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PASTAS_FIXAS.map((pasta) => (
+              <CaixaUploadPasta
+                key={pasta.codigo}
+                processoId={processo.id}
+                pastaCodigo={pasta.codigo}
+                titulo={pasta.titulo}
+                descricao={pasta.descricao}
+                quantidade={contagemPastas[pasta.codigo] ?? 0}
+              />
+            ))}
+          </div>
           <button
-            onClick={() => router.push(`/processos/${negocioVinculado.id}`)}
-            className="ml-auto text-xs text-blue-600 hover:underline shrink-0"
+            onClick={() => setDocumentosExpandido((v) => !v)}
+            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
           >
-            {negocioVinculado.numero_processo} vinculado — Ver Negócio →
+            {documentosExpandido ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            Ver todos os documentos
           </button>
+          {documentosExpandido && (
+            <div className="pt-2">
+              <AbaDocumentos contexto="processo" processoId={processo.id} pessoaId={pessoaId ?? undefined} />
+            </div>
+          )}
+        </section>
+
+        {/* ③ Instruções livres + Gerar contrato */}
+        <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Digite aqui as condições do contrato</h2>
+          <Textarea
+            value={instrucoes}
+            onChange={(e) => setInstrucoes(e.target.value)}
+            maxLength={1000}
+            rows={6}
+            placeholder="Ex: Contrato de compra e venda de imóvel residencial em Maringá. Valor R$450 mil, entrada R$180 mil, saldo financiado. Posse em 30 dias. Multa 10%."
+            className="rounded-xl text-sm"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-400">{instrucoes.length}/1000</span>
+            <Button
+              disabled={!tipoContrato || processando}
+              onClick={gerarContrato}
+            >
+              {processando
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
+                : <><Sparkles className="h-4 w-4" /> Gerar contrato</>}
+            </Button>
+          </div>
+        </section>
+
+        {/* Cartão de revisão — só aparece quando há pendência real */}
+        {estado === 'revisao' && (
+          <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" /> Revisar antes de continuar
+            </h2>
+            <div className="space-y-1.5">
+              {pendencias.map((p, i) => (
+                <div key={i} className="flex items-start gap-1.5 text-sm text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>{p.texto}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-amber-700">
+              Complete os documentos/instruções acima e clique em "Tentar novamente", ou continue mesmo assim se as pendências não forem relevantes.
+            </p>
+            <div className="flex justify-between">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={gerarContrato} disabled={processando}>
+                <RotateCcw className="h-3.5 w-3.5" /> Tentar novamente
+              </Button>
+              <Button size="sm" disabled={processando} onClick={continuarComPendencias}>
+                {processando
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
+                  : <>✓ Continuar mesmo assim</>}
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {/* Minuta construída — abre no editor completo (TipTap, Salvar, PDF, ClickSign),
+            já reaproveitado tal e qual da aba antiga de Contrato. */}
+        {estado === 'pronto' && (
+          <section className="rounded-lg border border-gray-200 bg-white p-4">
+            <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Minuta pronta para revisão
+            </h2>
+            <AbaContrato processoId={processo.id} processo={processo} />
+          </section>
         )}
       </div>
-
-      <Tabs value={abaAtiva} onValueChange={(v) => setAbaAtiva(v as 'redigir' | 'documentos')}>
-        <TabsList className="h-9 bg-gray-100">
-          <TabsTrigger value="redigir" className="text-xs data-[state=active]:bg-fonti-primary data-[state=active]:text-white">
-            Redigir Contrato
-          </TabsTrigger>
-          <TabsTrigger value="documentos" className="text-xs data-[state=active]:bg-fonti-primary data-[state=active]:text-white">
-            Documentos{resumoDocumentos ? ` (${resumoDocumentos.total})` : ''}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="documentos" className="m-0 pt-4">
-          <section className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Documentos</h2>
-              {negocioVinculado && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  disabled={importarDocumentos.isPending}
-                  onClick={() => importarDocumentos.mutate(negocioVinculado.id)}
-                >
-                  <Import className="h-3.5 w-3.5" />
-                  {importarDocumentos.isPending ? 'Importando...' : `Importar do Negócio ${negocioVinculado.numero_processo}`}
-                </Button>
-              )}
-            </div>
-            <AbaDocumentos contexto="processo" processoId={processo.id} pessoaId={pessoaId ?? undefined} />
-          </section>
-        </TabsContent>
-
-        <TabsContent value="redigir" className="m-0 pt-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-            {/* Coluna esquerda — dados de entrada */}
-            <div className="flex flex-col gap-4 lg:w-[380px] lg:shrink-0">
-              <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">① Tipo de contrato</h2>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Tipo</label>
-                  <Select value={tipoContrato} onValueChange={(v) => salvarTipoValor({ tipo: v as TipoContrato })}>
-                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(TIPO_CONTRATO_LABELS).map(([valor, label]) => (
-                        <SelectItem key={valor} value={valor}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Valor do Serviço — cobrado pela Fontinhas, não o valor do imóvel/negociação</label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="R$ 0,00"
-                    value={valorContrato}
-                    onChange={(e) => setValorContrato(e.target.value)}
-                    onBlur={() => salvarTipoValor({})}
-                    className="h-9 text-sm"
-                  />
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">② Documentos</h2>
-                <button
-                  onClick={() => setAbaAtiva('documentos')}
-                  className="flex w-full items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-left hover:bg-gray-100 transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-sm text-gray-700">
-                    <FileStack className="h-4 w-4 text-gray-400" />
-                    {resumoDocumentos?.total ?? 0} documento(s)
-                  </span>
-                  <span className="text-xs text-blue-600">Ver documentos →</span>
-                </button>
-                {!!resumoDocumentos?.pendentes && (
-                  <p className="text-[11px] text-amber-600">{resumoDocumentos.pendentes} aguardando extração de dados</p>
-                )}
-                {negocioVinculado && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-full text-xs gap-1.5"
-                    disabled={importarDocumentos.isPending}
-                    onClick={() => importarDocumentos.mutate(negocioVinculado.id)}
-                  >
-                    <Import className="h-3.5 w-3.5" />
-                    {importarDocumentos.isPending ? 'Importando...' : `Importar do Negócio ${negocioVinculado.numero_processo}`}
-                  </Button>
-                )}
-              </section>
-
-              <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">③ Descreva a negociação</h2>
-                <Textarea
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  maxLength={1000}
-                  rows={6}
-                  placeholder="Ex: Contrato de compra e venda de imóvel residencial em Maringá. Valor R$450 mil, entrada R$180 mil, saldo financiado. Posse em 30 dias. Multa 10%."
-                  className="text-sm"
-                />
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-400">{descricao.length}/1000</span>
-                  <Button
-                    size="sm"
-                    disabled={!tipoContrato || entenderNegociacao.isPending}
-                    onClick={() => entenderNegociacao.mutate(descricao, { onSuccess: setResumo })}
-                  >
-                    {entenderNegociacao.isPending
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Entendendo...</>
-                      : <><Sparkles className="h-4 w-4" /> Entender negociação</>}
-                  </Button>
-                </div>
-              </section>
-            </div>
-
-            {/* Coluna principal — compreensão, plano e minuta */}
-            <div className="flex flex-1 min-w-0 flex-col gap-4">
-              {!resumo && (
-                <section className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-400">
-                  Preencha o tipo, anexe os documentos e descreva a negociação ao lado, depois clique em "Entender negociação".
-                </section>
-              )}
-
-              {/* ④ Compreensão da Negociação + Painel de Inteligência */}
-              {resumo && (
-                <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">④ Compreensão da negociação</h2>
-
-                  <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-                    {resumo.compradores.length > 0 && (
-                      <p><span className="text-gray-400">Comprador:</span> {resumo.compradores.map((p) => p.nome).filter(Boolean).join(', ') || '—'}</p>
-                    )}
-                    {resumo.vendedores.length > 0 && (
-                      <p><span className="text-gray-400">Vendedor:</span> {resumo.vendedores.map((p) => p.nome).filter(Boolean).join(', ') || '—'}</p>
-                    )}
-                    {(resumo.imovel.endereco || resumo.imovel.matricula) && (
-                      <p className="sm:col-span-2"><span className="text-gray-400">Imóvel:</span> {[resumo.imovel.endereco, resumo.imovel.cidade, resumo.imovel.uf].filter(Boolean).join(', ')}{resumo.imovel.matricula ? ` — matrícula ${resumo.imovel.matricula}` : ''}</p>
-                    )}
-                    {resumo.valor != null && <p><span className="text-gray-400">Valor:</span> {resumo.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-                    {resumo.entrada != null && <p><span className="text-gray-400">Entrada:</span> {resumo.entrada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-                    {resumo.saldo && <p><span className="text-gray-400">Saldo:</span> {resumo.saldo}</p>}
-                    {resumo.prazo_posse_dias != null && <p><span className="text-gray-400">Posse:</span> {resumo.prazo_posse_dias} dias</p>}
-                    {resumo.multa_percentual != null && <p><span className="text-gray-400">Multa:</span> {resumo.multa_percentual}%</p>}
-                    {resumo.cidade && <p><span className="text-gray-400">Cidade:</span> {resumo.cidade}</p>}
-                  </div>
-
-                  <div className="rounded-md bg-gray-50 p-3 space-y-1">
-                    {resumo.painel_inteligencia.map((item, i) => (
-                      <div key={i} className="flex items-start gap-1.5 text-xs">
-                        {item.status === 'ok'
-                          ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600 mt-0.5" />
-                          : <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />}
-                        <span className={item.status === 'ok' ? 'text-gray-600' : 'text-amber-700'}>{item.texto}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => { setResumo(null); setPlano(null) }}>Corrigir informações</Button>
-                    <Button
-                      size="sm"
-                      disabled={confirmarEntendimento.isPending}
-                      onClick={() => confirmarEntendimento.mutate(
-                        { rascunhoId, tipoContrato: tipoContrato as string, resumo },
-                        {
-                          onSuccess: (id) => {
-                            setRascunhoId(id)
-                            gerarPlano.mutate(id, { onSuccess: setPlano })
-                          },
-                        },
-                      )}
-                    >
-                      {confirmarEntendimento.isPending ? 'Salvando...' : '✓ Confirmar entendimento'}
-                    </Button>
-                  </div>
-                </section>
-              )}
-
-              {/* ⑤ Plano do Contrato */}
-              {resumo && gerarPlano.isPending && (
-                <section className="rounded-lg border border-gray-200 bg-white p-4 flex items-center gap-2 text-sm text-gray-500">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Planejando a estrutura do contrato...
-                </section>
-              )}
-              {resumo && plano && (
-                <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">⑤ Plano do contrato</h2>
-                  <p className="text-sm text-gray-600">O contrato será composto por:</p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
-                    {plano.clausulas.map((c, i) => (
-                      <div key={i} className="flex items-start gap-1.5 text-sm">
-                        {c.tipo === 'padrao'
-                          ? <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 mt-0.5" />
-                          : <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />}
-                        <span className={c.tipo === 'condicional' ? 'text-amber-700' : 'text-gray-700'}>{c.texto}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between">
-                    <Button variant="outline" size="sm" onClick={() => setPlano(null)}>← Voltar</Button>
-                    <Button size="sm" disabled={construindo} onClick={construirContrato}>
-                      {construindo
-                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Construindo...</>
-                        : <><Sparkles className="h-4 w-4" /> Construir contrato</>}
-                    </Button>
-                  </div>
-                </section>
-              )}
-
-              {/* Minuta construída — abre no editor completo (TipTap, Salvar, PDF, ClickSign),
-                  já reaproveitado tal e qual da aba antiga de Contrato. */}
-              {contratoConstruido && (
-                <section className="rounded-lg border border-gray-200 bg-white p-4">
-                  <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Minuta</h2>
-                  <AbaContrato processoId={processo.id} processo={processo} />
-                </section>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }

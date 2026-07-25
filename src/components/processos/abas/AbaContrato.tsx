@@ -12,11 +12,16 @@ import { TableCell } from '@tiptap/extension-table-cell'
 import { Button } from '@/components/ui/button'
 import {
   Bold, Italic, UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
-  AlignJustify, Undo, Redo, FileText, Printer, Save, ChevronLeft,
+  AlignJustify, Undo, Redo, FileText, Save, ChevronLeft,
   Send, CheckCircle, Clock, Download, Loader2, RefreshCw, Plus,
+  Eye, FileOutput, Copy, Lock,
 } from 'lucide-react'
-import { useProcessoContratos, useSalvarContrato } from '@/hooks/processos/useProcessoContrato'
+import {
+  useProcessoContratos, useSalvarContrato, useGerarPdfContrato, useCriarNovaVersaoContrato,
+  abrirPdfStorage, baixarPdfContrato,
+} from '@/hooks/processos/useProcessoContrato'
 import type { ProcessoContrato } from '@/hooks/processos/useProcessoContrato'
+import { blobParaBase64 } from '@/lib/contratos/gerarPdfContrato'
 import { useProcessoCompradores } from '@/hooks/processos/useProcessoCompradores'
 import { useProcessoVendedores } from '@/hooks/processos/useProcessoVendedores'
 import { substituirVariaveis } from '@/lib/contratos/substituirVariaveis'
@@ -47,7 +52,11 @@ interface Props {
 
 type Tela = 'lista' | 'selecao' | 'configurando_assessoria' | 'editor'
 
-function badgeStatus(status: string | null) {
+// Estados só do que já é comprovadamente rastreável hoje (pdf_gerado_em é
+// local; clicksign_status vem do webhook, que só confirma 'running'/'closed'
+// até o momento — recusa/cancelamento/expiração ficam de fora até os nomes
+// de evento reais serem confirmados na conta Clicksign, ver Fase D do plano).
+function badgeStatus(status: string | null, pdfGeradoEm?: string | null) {
   if (status === 'closed') {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
@@ -60,13 +69,20 @@ function badgeStatus(status: string | null) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
         <Clock className="h-3 w-3" />
-        Enviado
+        Enviado ao ClickSign
+      </span>
+    )
+  }
+  if (pdfGeradoEm) {
+    return (
+      <span className="inline-flex items-center text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+        PDF gerado
       </span>
     )
   }
   return (
     <span className="inline-flex items-center text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
-      Rascunho
+      Minuta
     </span>
   )
 }
@@ -76,6 +92,8 @@ export function AbaContrato({ processoId, processo }: Props) {
   const { data: compradores = [] } = useProcessoCompradores(processoId)
   const { data: vendedores = [] } = useProcessoVendedores(processoId)
   const salvar = useSalvarContrato(processoId)
+  const gerarPdf = useGerarPdfContrato(processoId)
+  const criarNovaVersao = useCriarNovaVersaoContrato(processoId)
 
   const [tela, setTela] = useState<Tela>('selecao')
   const [initialized, setInitialized] = useState(false)
@@ -117,6 +135,15 @@ export function AbaContrato({ processoId, processo }: Props) {
       },
     },
   })
+
+  const contratoAtivo = contratos.find((c) => c.id === contratoAtivoId) ?? null
+  // Uma versão que já foi enviada ao Clicksign (qualquer status não-nulo:
+  // running/closed/etc.) fica congelada — edição só via "Criar nova versão".
+  const versaoCongelada = !!csStatus?.clicksign_status
+
+  useEffect(() => {
+    editor?.setEditable(!versaoCongelada)
+  }, [editor, versaoCongelada])
 
   // Ao carregar, decide a tela inicial baseada nos contratos existentes
   useEffect(() => {
@@ -197,35 +224,6 @@ export function AbaContrato({ processoId, processo }: Props) {
     }
   }
 
-  function gerarHtmlImpressao(conteudo: string, titulo: string): string {
-    return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>${titulo}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; padding: 2.5cm 3cm; }
-    h2 { font-size: 12pt; margin-bottom: 1em; }
-    h3 { font-size: 11pt; margin-top: 1.5em; margin-bottom: 0.5em; }
-    p { margin-bottom: 0.8em; text-align: justify; }
-    ul { margin: 0.5em 0 0.8em 1.5em; }
-    li { margin-bottom: 0.3em; }
-    strong { font-weight: bold; }
-    em { font-style: italic; }
-    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-    th, td { border: 1px solid #aaa; padding: 7px 12px; vertical-align: top; }
-    th { background: #eeeeee; font-weight: bold; text-align: left; }
-    hr { border: none; border-top: 1px solid #555; margin: 1.2em 0; }
-    .sig-table td { border: 1px solid #aaa; padding: 14px 16px; vertical-align: top; width: 50%; }
-    @page { size: A4; margin: 0; }
-    @media print { body { padding: 2.5cm 3cm; } }
-  </style>
-</head>
-<body>${conteudo}</body>
-</html>`
-  }
-
   async function handleEnviarClicksign() {
     if (!editor || !contratoAtivoId) return
 
@@ -236,55 +234,21 @@ export function AbaContrato({ processoId, processo }: Props) {
     }
 
     setEnviandoClicksign(true)
-    let iframe: HTMLIFrameElement | null = null
-
     try {
-      const { jsPDF } = await import('jspdf')
-      const html2canvas = (await import('html2canvas')).default
-
-      const htmlCompleto = gerarHtmlImpressao(editor.getHTML(), tituloAtivo)
-
-      // Iframe oculto garante contexto de renderização isolado, CSS no <head> e fontes carregadas
-      iframe = document.createElement('iframe')
-      iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1;'
-      document.body.appendChild(iframe)
-
-      await new Promise<void>((resolve) => {
-        iframe!.onload = () => resolve()
-        iframe!.srcdoc = htmlCompleto
-      })
-
-      if (iframe.contentDocument?.fonts?.ready) {
-        await iframe.contentDocument.fonts.ready
+      // Reaproveita o PDF já gerado da versão atual; se ainda não existir,
+      // gera agora (mesma ação de "Gerar/atualizar PDF") — nunca duplica a
+      // lógica de renderização, só decide se precisa rodar antes de enviar.
+      let storagePath = contratoAtivo?.pdf_storage_path ?? null
+      if (!storagePath) {
+        storagePath = await gerarPdf.mutateAsync({
+          contratoId: contratoAtivoId,
+          titulo: tituloAtivo,
+          conteudoHtml: editor.getHTML(),
+        })
       }
 
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-
-      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
-      const A4_WIDTH_MM = 210
-      const A4_HEIGHT_MM = 297
-
-      const canvas = await html2canvas(iframe.contentDocument!.body, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#fff',
-        windowWidth: 794,
-      })
-
-      const imgWidth = A4_WIDTH_MM
-      const imgHeight = (canvas.height * A4_WIDTH_MM) / canvas.width
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
-
-      let yPos = 0
-      let pageNum = 0
-      while (yPos < imgHeight) {
-        if (pageNum > 0) pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, -yPos, imgWidth, imgHeight)
-        yPos += A4_HEIGHT_MM
-        pageNum++
-      }
-
-      const pdfBase64 = pdf.output('datauristring').split(',')[1]
+      const pdfBlob = await baixarPdfContrato(storagePath)
+      const pdfBase64 = await blobParaBase64(pdfBlob)
       const filename = `${tituloAtivo || 'contrato'}.pdf`
 
       const res = await fetch('/api/clicksign/enviar', {
@@ -309,11 +273,34 @@ export function AbaContrato({ processoId, processo }: Props) {
       console.error('[Clicksign]', err)
       alert(`Erro ao enviar para Clicksign: ${err.message}`)
     } finally {
-      if (iframe && document.body.contains(iframe)) {
-        document.body.removeChild(iframe)
-      }
       setEnviandoClicksign(false)
     }
+  }
+
+  function handleGerarPdf() {
+    if (!editor || !contratoAtivoId) return
+    gerarPdf.mutate({ contratoId: contratoAtivoId, titulo: tituloAtivo, conteudoHtml: editor.getHTML() })
+  }
+
+  async function handleVisualizarPdf() {
+    if (!contratoAtivo?.pdf_storage_path) return
+    const url = await abrirPdfStorage(contratoAtivo.pdf_storage_path)
+    if (url) window.open(url, '_blank')
+  }
+
+  async function handleBaixarPdf() {
+    if (!contratoAtivo?.pdf_storage_path) return
+    const url = await abrirPdfStorage(contratoAtivo.pdf_storage_path, `${tituloAtivo || 'contrato'}.pdf`)
+    if (url) window.location.href = url
+  }
+
+  async function handleCriarNovaVersao() {
+    if (!contratoAtivo || !editor) return
+    const novoId = await criarNovaVersao.mutateAsync(contratoAtivo)
+    editor.commands.setContent(contratoAtivo.conteudo_html)
+    setContratoAtivoId(novoId)
+    setModeloAtivo(contratoAtivo.tipo_modelo)
+    setTituloAtivo(contratoAtivo.titulo)
   }
 
   async function handleVerificarClicksign() {
@@ -363,20 +350,6 @@ export function AbaContrato({ processoId, processo }: Props) {
     })
     if (!contratoAtivoId && novoId) {
       setContratoAtivoId(novoId)
-    }
-  }
-
-  function handleExportarPdf() {
-    if (!editor) return
-    const janela = window.open('', '_blank')
-    if (!janela) return
-    const blob = new Blob([gerarHtmlImpressao(editor.getHTML(), tituloAtivo)], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    janela.location.href = url
-    janela.onload = () => {
-      URL.revokeObjectURL(url)
-      janela.focus()
-      janela.print()
     }
   }
 
@@ -456,7 +429,7 @@ export function AbaContrato({ processoId, processo }: Props) {
               </button>
 
               <div className="flex items-center gap-2 shrink-0">
-                {badgeStatus(c.clicksign_status)}
+                {badgeStatus(c.clicksign_status, c.pdf_gerado_em)}
                 {c.clicksign_signed_url && (
                   <a
                     href={c.clicksign_signed_url}
@@ -648,35 +621,75 @@ export function AbaContrato({ processoId, processo }: Props) {
           </button>
           <span className="text-gray-300">|</span>
           <p className="text-sm font-semibold text-fonti-primary">{tituloAtivo}</p>
-          {contratoAtivoId && (() => {
-            const c = contratos.find((x) => x.id === contratoAtivoId)
-            return c ? <span className="text-xs text-gray-400">v{c.versao}</span> : null
-          })()}
+          {contratoAtivo && <span className="text-xs text-gray-400">v{contratoAtivo.versao}</span>}
+          {versaoCongelada && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
+              <Lock className="h-3 w-3" /> Somente leitura — versão já enviada
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {versaoCongelada ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs border-gray-300 text-gray-700 hover:bg-gray-50"
+              onClick={handleCriarNovaVersao}
+              disabled={criarNovaVersao.isPending}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {criarNovaVersao.isPending ? 'Criando...' : 'Criar nova versão'}
+            </Button>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
+                onClick={handleGerarPdf}
+                disabled={gerarPdf.isPending || !contratoAtivoId}
+                title={!contratoAtivoId ? 'Salve a minuta antes de gerar o PDF' : undefined}
+              >
+                {gerarPdf.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileOutput className="h-3.5 w-3.5" />}
+                {gerarPdf.isPending ? 'Gerando PDF...' : contratoAtivo?.pdf_storage_path ? 'Atualizar PDF' : 'Gerar PDF'}
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+                onClick={handleSalvar}
+                disabled={salvar.isPending}
+              >
+                <Save className="h-3.5 w-3.5" />
+                {salvar.isPending ? 'Salvando...' : 'Salvar minuta'}
+              </Button>
+            </>
+          )}
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
-            onClick={handleExportarPdf}
+            className="gap-1.5 text-xs border-gray-200 text-gray-600 disabled:opacity-40"
+            onClick={handleVisualizarPdf}
+            disabled={!contratoAtivo?.pdf_storage_path}
           >
-            <Printer className="h-3.5 w-3.5" />
-            Exportar PDF
+            <Eye className="h-3.5 w-3.5" />
+            Visualizar PDF
           </Button>
           <Button
             size="sm"
-            className="gap-1.5 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-            onClick={handleSalvar}
-            disabled={salvar.isPending}
+            variant="outline"
+            className="gap-1.5 text-xs border-gray-200 text-gray-600 disabled:opacity-40"
+            onClick={handleBaixarPdf}
+            disabled={!contratoAtivo?.pdf_storage_path}
           >
-            <Save className="h-3.5 w-3.5" />
-            {salvar.isPending ? 'Salvando...' : 'Salvar rascunho'}
+            <Download className="h-3.5 w-3.5" />
+            Baixar PDF
           </Button>
         </div>
       </div>
 
-      {/* Barra de ferramentas */}
+      {/* Barra de ferramentas — some quando a versão está congelada (só leitura) */}
+      {!versaoCongelada && (
       <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg bg-gray-50 p-1 flex-wrap">
         <ToolbarButton
           onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -750,6 +763,7 @@ export function AbaContrato({ processoId, processo }: Props) {
           <Redo className="h-3.5 w-3.5" />
         </ToolbarButton>
       </div>
+      )}
 
       {/* Área do editor */}
       <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">

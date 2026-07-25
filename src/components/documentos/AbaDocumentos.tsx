@@ -15,8 +15,9 @@ import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sp
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { inferirValidade, calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE, inferirPastaSugerida } from '@/lib/documentos'
+import { calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE, inferirPastaSugerida } from '@/lib/documentos'
 import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
+import { uploadDocumentoParaPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
 import { useMoverDocumentoParaPasta } from '@/hooks/documentos/useMoverDocumentoParaPasta'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
@@ -383,69 +384,21 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   }
 
   async function uploadArquivo(arquivo: File, tipoArquivo: string, pastaCodigoArquivo: string, pessoaIdUpload: string, token: string | undefined): Promise<void> {
-    const ext = arquivo.name.split('.').pop() ?? 'bin'
-    const storagePath = `${usuario!.empresa_id}/${entidadeId}/${crypto.randomUUID()}.${ext}`
+    const pastaId = contexto === 'processo' && pastaCodigoArquivo
+      ? catalogoPastas.find(p => p.codigo === pastaCodigoArquivo)?.id ?? null
+      : null
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, arquivo, { upsert: false })
-
-    if (uploadError) throw new Error(uploadError.message)
-
-    const rawMime = arquivo.type || ''
-    const fileExt = arquivo.name.split('.').pop()?.toLowerCase() ?? ''
-    const resolvedMime = rawMime === 'image/jpg'
-      ? 'image/jpeg'
-      : !rawMime && (fileExt === 'jpg' || fileExt === 'jpeg')
-        ? 'image/jpeg'
-        : rawMime || null
-
-    const validade = tipoArquivo !== 'auto' ? inferirValidade(tipoArquivo) : { permanente: false, validade_dias: null }
-
-    const { data: docInserido, error: dbError } = await supabase
-      .from('documentos')
-      .insert({
-        empresa_id:     usuario!.empresa_id,
-        dominio:        'acervo_documental',
-        pessoa_id:      pessoaIdUpload,
-        nome_original:  arquivo.name,
-        mime_type:      resolvedMime,
-        tamanho_bytes:  arquivo.size,
-        storage_bucket: BUCKET,
-        storage_path:   storagePath,
-        origem:         'upload_manual',
-        classificacao_legado: tipoArquivo,
-        status_ocr:     'pendente',
-        permanente:     validade.permanente,
-        validade_dias:  validade.validade_dias,
-      })
-      .select('id')
-      .single()
-
-    if (dbError) {
-      supabase.storage.from(BUCKET).remove([storagePath])
-      throw new Error(dbError.message)
-    }
-
-    if (contexto !== 'pessoa' && docInserido?.id) {
-      const pastaId = contexto === 'processo' && pastaCodigoArquivo
-        ? catalogoPastas.find(p => p.codigo === pastaCodigoArquivo)?.id ?? null
-        : null
-      await supabase.from('documento_vinculos').insert({
-        empresa_id: usuario!.empresa_id,
-        documento_id: docInserido.id,
-        entidade_tipo: contexto,
-        entidade_id: entidadeId!,
-        pasta_id: pastaId,
-      })
-    }
-
-    if (docInserido?.id && token && extrairAposUpload) {
-      fetch(`/api/documentos/${docInserido.id}/ocr-iniciar`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(console.error)
-    }
+    await uploadDocumentoParaPasta({
+      empresaId: usuario!.empresa_id,
+      entidadeTipo: contexto,
+      entidadeId: entidadeId!,
+      pessoaIdUpload,
+      pastaId,
+      arquivo,
+      tipoArquivo,
+      token,
+      extrairAposUpload,
+    })
   }
 
   async function handleUpload() {

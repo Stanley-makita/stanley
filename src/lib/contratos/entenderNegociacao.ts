@@ -61,6 +61,8 @@ Sua única tarefa é CONSOLIDAR essas informações num resumo estruturado. Voc�
 
 Além do resumo, monte um "painel_inteligencia": uma lista curta de itens de checklist, cada um com "texto" e "status" ("ok" se o dado foi encontrado/está completo, "atencao" se falta algo importante — ex: falta documento de uma parte, CPF ausente, imóvel sem matrícula). Seja específico no texto (ex: "Falta documento do vendedor", não "Falta informação").
 
+Marque "atencao" também quando houver DIVERGÊNCIA entre o que os documentos (OCR) mostram e o que a descrição livre diz — ex: valor do documento diferente do valor descrito, nome diferente, endereço diferente — e quando um dado parecer de BAIXA CONFIANÇA (extraído de forma ambígua ou incompleta do OCR). Nesses casos, descreva a divergência/incerteza específica no texto do item (ex: "Valor no documento (R$ 430.000) diverge do valor descrito (R$ 450.000)").
+
 Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
 
 {
