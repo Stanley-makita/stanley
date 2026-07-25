@@ -232,3 +232,35 @@ export function useConfirmarPlano(processoId: string) {
     },
   })
 }
+
+/**
+ * Registra na Timeline do processo (mesmo canal usado pelo trigger
+ * `fn_contrato_timeline_evento`) se a geração da minuta seguiu direto porque
+ * a IA não encontrou pendência nenhuma ("confirmação automática sem
+ * pendências") ou porque o operador revisou e confirmou manualmente um
+ * cartão de pendências ("confirmação manual do operador") — distinção pedida
+ * pra rastreabilidade jurídica de quem validou o quê.
+ */
+export function useRegistrarConfirmacaoGeracao(processoId: string) {
+  const { usuario } = useAuth()
+
+  return useMutation({
+    mutationFn: async (payload: { tipoConfirmacao: 'automatica' | 'manual'; tituloContrato: string }) => {
+      const texto = payload.tipoConfirmacao === 'automatica'
+        ? `Minuta de "${payload.tituloContrato}" gerada automaticamente — a IA não encontrou pendências (sem revisão manual do operador).`
+        : `Minuta de "${payload.tituloContrato}" gerada após revisão e confirmação manual do operador (pendências identificadas antes de continuar).`
+      const { error } = await supabase.from('processo_comentarios').insert({
+        empresa_id: usuario!.empresa_id,
+        processo_id: processoId,
+        usuario_id: payload.tipoConfirmacao === 'manual' ? usuario!.id : null,
+        tipo: 'alteracao',
+        texto,
+        notificar_cliente: false,
+      })
+      if (error) throw error
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao registrar confirmação de geração:', error)
+    },
+  })
+}
