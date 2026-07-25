@@ -149,11 +149,11 @@ export default function ProcessoDetalhePage() {
     return <div className="p-6 text-center py-16 text-gray-400">Processo não encontrado.</div>
   }
 
-  // Contrato tem sua própria tela, desenhada pra construção documental —
-  // não reaproveita a tela genérica herdada de Financiamento abaixo.
-  if (processo.modalidade === 'Contrato') {
-    return <ContratoConstrutor processo={processo} />
-  }
+  // Contrato reaproveita o mesmo header/fases/painel lateral do Negócio
+  // genérico — só o conteúdo central (KPIs, banners, abas de Financiamento)
+  // é substituído pelo corpo do Construtor de Contratos, focado em
+  // documentos/IA, sem nada específico de Financiamento.
+  const isContrato = processo.modalidade === 'Contrato'
 
   const diasEmAndamento = processo.data_inicio
     ? differenceInDays(new Date(), new Date(processo.data_inicio))
@@ -224,6 +224,10 @@ export default function ProcessoDetalhePage() {
           )}
           {/* Row 2: botões de ação */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+              {/* Botões abaixo são específicos de Financiamento — Contrato só
+                  mantém "+ Solicitação" e "Comunicar", mais abaixo. */}
+              {!isContrato && (
+              <>
               {/* Toggle Certeza / Incerteza */}
               <Button
                 size="sm"
@@ -299,6 +303,8 @@ export default function ProcessoDetalhePage() {
                   Confirmar Valores
                 </Button>
               )}
+              </>
+              )}
 
               {/* Nova Solicitação */}
               <Button
@@ -323,11 +329,12 @@ export default function ProcessoDetalhePage() {
               </Button>
             </div>
 
-          {!processo.imovel_id && processo.nome_imovel && (
+          {!isContrato && !processo.imovel_id && processo.nome_imovel && (
             <p className="ml-10 text-sm font-medium text-fonti-primary sm:ml-11">
               {processo.nome_imovel}
             </p>
           )}
+          {!isContrato && (
           <p className="ml-10 text-xs text-gray-400 sm:ml-11">
             {processo.numero_processo}
             {processo.banco && ` • ${processo.banco.nome}`}
@@ -337,8 +344,13 @@ export default function ProcessoDetalhePage() {
               {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
             </span>
           </p>
+          )}
         </div>
 
+        {isContrato ? (
+          <ContratoConstrutor processo={processo} />
+        ) : (
+        <>
         {/* KPIs + Validades */}
         {(() => {
           const faseEng = processo.fase_atual?.nome?.toLowerCase().includes('engenharia') ?? false
@@ -503,6 +515,8 @@ export default function ProcessoDetalhePage() {
             </TabsContent>
           </div>
         </Tabs>
+        </>
+        )}
       </div>
 
       <NovaSolicitacaoDrawer

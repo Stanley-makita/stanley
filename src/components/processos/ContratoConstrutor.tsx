@@ -19,7 +19,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
+  Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
   Upload, ChevronDown, ChevronUp, RotateCcw,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,7 +36,6 @@ import { FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
 import { useUploadDocumentoPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
-import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import {
   useEntenderNegociacao, useConfirmarEntendimento, useGerarPlanoContrato, useConfirmarPlano,
   useSalvarContrato, useRegistrarConfirmacaoGeracao,
@@ -303,25 +302,15 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
     : null
 
   return (
-    <div className="flex flex-col gap-4 p-4 lg:p-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-lg font-bold leading-tight text-fonti-primary sm:text-xl truncate">
-          {compradorPrincipal?.nome ?? processo.nome_imovel}
-        </h1>
-        <ParticularidadeCliente pessoaId={pessoaId} />
-        {negocioVinculado && (
-          <button
-            onClick={() => router.push(`/processos/${negocioVinculado.id}`)}
-            className="ml-auto text-xs text-blue-600 hover:underline shrink-0"
-          >
-            {negocioVinculado.numero_processo} vinculado — Ver Negócio →
-          </button>
-        )}
-      </div>
+    <div className="flex flex-col gap-4">
+      {negocioVinculado && (
+        <button
+          onClick={() => router.push(`/processos/${negocioVinculado.id}`)}
+          className="self-end text-xs text-blue-600 hover:underline shrink-0"
+        >
+          {negocioVinculado.numero_processo} vinculado — Ver Negócio →
+        </button>
+      )}
 
       <div className="flex flex-col gap-4">
         {/* ① Modelo + Valor */}
