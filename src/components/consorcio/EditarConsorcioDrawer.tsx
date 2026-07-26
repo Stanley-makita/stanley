@@ -25,6 +25,9 @@ const schema = z.object({
   credito_desejado:    numField,
   carta_sugerida:      numField,
   justificativa_carta: z.string().nullable(),
+  bem_referencia_descricao:    z.string().nullable(),
+  parcela_reduzida_percentual: numField,
+  prazo_grupo_meses:           numField,
 })
 
 type FormData = z.infer<typeof schema>
@@ -55,6 +58,9 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
       credito_desejado:    processo.credito_desejado ?? null,
       carta_sugerida:      processo.carta_sugerida ?? null,
       justificativa_carta: processo.justificativa_carta ?? null,
+      bem_referencia_descricao:    processo.bem_referencia_descricao ?? null,
+      parcela_reduzida_percentual: processo.parcela_reduzida_percentual ?? null,
+      prazo_grupo_meses:           processo.prazo_grupo_meses ?? null,
     },
   })
 
@@ -70,6 +76,9 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
         credito_desejado:    processo.credito_desejado ?? null,
         carta_sugerida:      processo.carta_sugerida ?? null,
         justificativa_carta: processo.justificativa_carta ?? null,
+        bem_referencia_descricao:    processo.bem_referencia_descricao ?? null,
+        parcela_reduzida_percentual: processo.parcela_reduzida_percentual ?? null,
+        prazo_grupo_meses:           processo.prazo_grupo_meses ?? null,
       })
     }
   }, [aberto, processo, reset])
@@ -87,6 +96,9 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
         credito_desejado:    normNum(data.credito_desejado),
         carta_sugerida:      normNum(data.carta_sugerida),
         justificativa_carta: data.justificativa_carta || null,
+        bem_referencia_descricao:    data.bem_referencia_descricao || null,
+        parcela_reduzida_percentual: normNum(data.parcela_reduzida_percentual),
+        prazo_grupo_meses:           normNum(data.prazo_grupo_meses),
       },
     })
     onFechar()
@@ -96,7 +108,7 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
     <Sheet open={aberto} onOpenChange={(o) => { if (!o) onFechar() }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-5 border-b border-gray-100">
-          <SheetTitle>Editar Consórcio</SheetTitle>
+          <SheetTitle>Dados da Carta</SheetTitle>
         </SheetHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto">
@@ -140,6 +152,38 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
                   step="0.01"
                   {...register('parcela_consorcio', { valueAsNumber: true })}
                   placeholder="0,00"
+                />
+              </div>
+            </div>
+
+            {/* Bem de Referência — descrição curta usada nos cards de resumo,
+                não é o cadastro cadastral completo de imóvel (BlocoImovel).
+                Prazo/parcela aqui são valores de REFERÊNCIA geral do Negócio;
+                cada cota na Lista de Cotas pode ter os seus próprios. */}
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-2">Bem de Referência</p>
+            <div className="space-y-1.5">
+              <Label>Descrição</Label>
+              <Input
+                {...register('bem_referencia_descricao')}
+                placeholder="Ex: Imóvel · R$ 432 mil"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Parcela reduzida (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register('parcela_reduzida_percentual', { valueAsNumber: true })}
+                  placeholder="Ex: 50"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Prazo do grupo (meses)</Label>
+                <Input
+                  type="number"
+                  {...register('prazo_grupo_meses', { valueAsNumber: true })}
+                  placeholder="Ex: 240"
                 />
               </div>
             </div>

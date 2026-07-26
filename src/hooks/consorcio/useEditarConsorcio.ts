@@ -14,6 +14,9 @@ interface DadosConsorcio {
   credito_desejado?: number | null
   carta_sugerida?: number | null
   justificativa_carta?: string | null
+  bem_referencia_descricao?: string | null
+  parcela_reduzida_percentual?: number | null
+  prazo_grupo_meses?: number | null
 }
 
 export function useEditarConsorcio() {
