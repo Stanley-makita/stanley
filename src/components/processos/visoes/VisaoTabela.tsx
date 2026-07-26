@@ -467,7 +467,9 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                     <TableRow
                       key={p.id}
                       className="cursor-pointer hover:bg-fonti-accent-hover/30 transition-colors"
-                      onClick={() => router.push(`/processos/${p.id}`)}
+                      onClick={() => router.push(
+                        p.modalidade === 'Consorcio' ? `/negocios/consorcio/${p.id}` : `/processos/${p.id}`
+                      )}
                     >
                       <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
                       <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>

@@ -76,6 +76,9 @@ export interface Processo {
   credito_desejado?: number | null
   carta_sugerida?: number | null
   justificativa_carta?: string | null
+  bem_referencia_descricao?: string | null
+  parcela_reduzida_percentual?: number | null
+  prazo_grupo_meses?: number | null
   // Imóvel vinculado (referência + campos denormalizados editáveis por processo)
   imovel_id?: string | null
   imovel_matricula?: string | null

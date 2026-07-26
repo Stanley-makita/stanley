@@ -2,13 +2,18 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { useProcesso, useAtualizarChanceEmissao } from '@/hooks/processos/useProcessos'
+import { useProcesso } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useFases } from '@/hooks/configuracoes/useFases'
-import { ProcessoStatusBadge } from '@/components/processos/ProcessoStatusBadge'
+import { Badge } from '@/components/ui/badge'
+import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
+import { PipelineBarProcesso } from '@/components/processos/PipelineBarProcesso'
+import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { PainelComentarios } from '@/components/processos/detalhe/PainelComentarios'
 import { PainelTarefas } from '@/components/processos/detalhe/PainelTarefas'
 import { PainelPendencias } from '@/components/processos/detalhe/PainelPendencias'
+import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialog'
+import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { AbaResumoConsorcio } from '@/components/consorcio/AbaResumoConsorcio'
@@ -21,7 +26,7 @@ import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
-import { ArrowLeft, Pencil, ClipboardList, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, FileText, ClipboardList, Plus, MessageCircle } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 
 const ABAS = [
@@ -40,11 +45,13 @@ export default function ConsorcioDetalhePage() {
   const { carregando } = useAuth()
   const { data: processo, isLoading, error } = useProcesso(id)
   const { data: fases = [] } = useFases('consorcio')
-  const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()
 
   const [abaAtiva, setAbaAtiva]                   = useState('resumo')
   const [editarAberto, setEditarAberto]           = useState(false)
   const [novaSolicitacaoAberta, setNovaSolicitacaoAberta] = useState(false)
+  const [novaTarefaAberta, setNovaTarefaAberta]   = useState(false)
+  const [comunicarAberto, setComunicarAberto]     = useState(false)
+  const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
 
   if (carregando || isLoading) {
     return (
@@ -68,17 +75,13 @@ export default function ConsorcioDetalhePage() {
     return <div className="p-6 text-center py-16 text-gray-400">Processo não encontrado.</div>
   }
 
-  const compradorPrincipal =
-    processo.compradores?.find((c) => c.principal)?.nome ??
-    processo.compradores?.[0]?.nome ??
-    processo.nome_imovel
+  const compradorPrincipalObj = processo.compradores?.find((c) => c.principal) ?? processo.compradores?.[0]
+  const compradorPrincipal = compradorPrincipalObj?.nome ?? processo.nome_imovel
+  const pessoaId = compradorPrincipalObj?.pessoa_id ?? processo.pessoa_id
 
   const diasEmAndamento = processo.data_inicio
     ? differenceInDays(new Date(), new Date(processo.data_inicio))
     : 0
-
-  // Mini-stepper
-  const faseAtualOrdem = fases.find((f) => f.id === processo.fase_atual_id)?.ordem ?? null
 
   const contexto: ContextoSolicitacao = {
     processoNumero: processo.numero_processo,
@@ -97,7 +100,7 @@ export default function ConsorcioDetalhePage() {
 
         {/* ── Header ── */}
         <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <Button
               variant="ghost"
               size="icon"
@@ -108,83 +111,58 @@ export default function ConsorcioDetalhePage() {
             </Button>
 
             <h1 className="text-xl font-bold text-fonti-primary truncate max-w-xs">{compradorPrincipal}</h1>
-            <ProcessoStatusBadge status={processo.status_processo} />
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-              Consórcio
-            </span>
-
-            {/* Mini-stepper */}
-            {fases.length > 0 && (
-              <div className="flex items-center gap-1 ml-1">
-                {fases.map((fase) => {
-                  const concluida = faseAtualOrdem !== null && fase.ordem < faseAtualOrdem
-                  const atual = fase.id === processo.fase_atual_id
-                  return (
-                    <div
-                      key={fase.id}
-                      className={`w-2.5 h-2.5 rounded-full transition-all ${
-                        concluida
-                          ? 'bg-fonti-primary'
-                          : atual
-                            ? 'bg-fonti-accent ring-2 ring-fonti-accent/30'
-                            : 'bg-gray-200'
-                      }`}
-                      title={fase.nome}
-                    />
-                  )
-                })}
-              </div>
-            )}
-
-            <div className="ml-auto flex items-center gap-2">
-              {/* Toggle Certeza / Incerteza */}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={atualizandoChance}
-                onClick={() =>
-                  atualizarChance({
-                    processoId: id,
-                    chance_emissao: processo.chance_emissao === 'certeza' ? 'incerteza' : 'certeza',
-                  })
-                }
-                className={
-                  processo.chance_emissao === 'certeza'
-                    ? 'gap-1.5 text-xs border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
-                    : 'gap-1.5 text-xs border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100'
-                }
-              >
-                {processo.chance_emissao === 'certeza' ? (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                ) : (
-                  <AlertCircle className="h-3.5 w-3.5" />
-                )}
-                {processo.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
-                onClick={() => setEditarAberto(true)}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Editar
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
-                onClick={() => setNovaSolicitacaoAberta(true)}
-              >
-                <ClipboardList className="h-3.5 w-3.5" />
-                + Solicitação
-              </Button>
-            </div>
+            <ParticularidadeCliente pessoaId={pessoaId} />
+            <Badge variant="outline" className="text-xs">Consórcio</Badge>
           </div>
 
-          <p className="text-xs text-gray-400 ml-10">
+          {fases.length > 0 && (
+            <div className="mb-1.5">
+              <PipelineBarProcesso processo={processo} fases={fases} itensObrigatoriosPendentes={itensObrigatoriosPendentes} />
+            </div>
+          )}
+
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+              onClick={() => setNovaTarefaAberta(true)}
+            >
+              <Plus className="h-3.5 w-3.5" /> Tarefa
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+              onClick={() => setEditarAberto(true)}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Dados da Carta
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 gap-1.5 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
+              onClick={() => setNovaSolicitacaoAberta(true)}
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              + Solicitação
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
+              onClick={() => setComunicarAberto(true)}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Comunicar
+            </Button>
+          </div>
+
+          <p className="text-xs text-gray-400 ml-10 mt-1.5">
             {processo.numero_processo}
             {processo.fase_atual && ` · Fase: ${processo.fase_atual.nome}`}
             {` · ${diasEmAndamento} dias`}
@@ -235,20 +213,21 @@ export default function ConsorcioDetalhePage() {
       </div>
 
       {/* ── Painel direito ── */}
-      <div className="w-80 shrink-0 flex flex-col gap-4 overflow-y-auto">
+      <div className="shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 w-80 flex flex-col overflow-y-auto">
+        <PainelChecklist
+          processoId={id}
+          faseId={processo.fase_atual_id}
+          onPendenciasChange={setItensObrigatoriosPendentes}
+        />
         <PainelPendencias
           processoId={id}
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
         />
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <PainelTarefas processoId={id} />
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <PainelComentarios processoId={id} />
-        </div>
+        <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
+        <PainelComentarios processoId={id} />
       </div>
 
-      {/* ── Drawers ── */}
+      {/* ── Drawers e modais ── */}
       <EditarConsorcioDrawer
         aberto={editarAberto}
         onFechar={() => setEditarAberto(false)}
@@ -261,6 +240,18 @@ export default function ConsorcioDetalhePage() {
         processoId={id}
         leadId={processo.lead_id ?? undefined}
         contexto={contexto}
+      />
+
+      <NovaTarefaDialog
+        open={novaTarefaAberta}
+        onOpenChange={setNovaTarefaAberta}
+        processoId={id}
+      />
+
+      <ComunicarPartesProcessoModal
+        processoId={id}
+        open={comunicarAberto}
+        onOpenChange={setComunicarAberto}
       />
     </div>
   )
