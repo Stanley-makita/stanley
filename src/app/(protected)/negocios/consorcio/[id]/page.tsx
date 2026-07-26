@@ -134,7 +134,7 @@ export default function ConsorcioDetalhePage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-8 shrink-0 gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+              className="h-8 shrink-0 gap-1.5 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
               onClick={() => setEditarAberto(true)}
             >
               <FileText className="h-3.5 w-3.5" />

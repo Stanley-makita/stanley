@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -105,17 +105,17 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
   }
 
   return (
-    <Sheet open={aberto} onOpenChange={(o) => { if (!o) onFechar() }}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0">
-        <SheetHeader className="px-6 py-5 border-b border-gray-100">
-          <SheetTitle>Dados da Carta</SheetTitle>
-        </SheetHeader>
+    <Dialog open={aberto} onOpenChange={(o) => { if (!o) onFechar() }}>
+      <DialogContent className="max-h-[90svh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-fonti-primary">Dados da Carta</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-4">
             {/* Operação */}
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Operação</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label>Administradora</Label>
                 <Input {...register('administradora')} placeholder="Ex: Porto Seguro" />
@@ -221,7 +221,7 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
             </div>
           </div>
 
-          <SheetFooter className="px-6 py-4 border-t border-gray-100 flex gap-2">
+          <DialogFooter className="mt-4 flex-col-reverse gap-2 sm:flex-row">
             <Button type="button" variant="outline" onClick={onFechar}>
               Cancelar
             </Button>
@@ -234,9 +234,9 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : 'Salvar'}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
