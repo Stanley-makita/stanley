@@ -11,8 +11,6 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
@@ -24,7 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { differenceInDays } from 'date-fns'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
@@ -126,6 +124,15 @@ export default function ProcessoDetalhePage() {
   const { data: fasesHistorico = [] } = useProcessoFasesHistorico(id)
   const modulo = processo ? (MODULO_POR_MODALIDADE[processo.modalidade] ?? 'processos') : 'processos'
   const { data: fases = [] } = useFases(modulo)
+
+  // Consórcio tem tela própria em /negocios/consorcio/[id] — a rota genérica
+  // só existe aqui por link antigo/direto; redireciona em vez de mostrar
+  // conteúdo de Financiamento que não se aplica.
+  useEffect(() => {
+    if (processo?.modalidade === 'Consorcio') {
+      router.replace(`/negocios/consorcio/${id}`)
+    }
+  }, [processo?.modalidade, id, router])
 
   if (carregando || isLoading) {
     return (
@@ -703,11 +710,6 @@ function AbaResumo({
         </div>
       </div>
 
-      {/* Row 1b: Plano de Consórcio + Condições — só pra modalidade Consorcio.
-          Campos ainda nao tem coluna no banco (so a tela por enquanto, ver
-          card do Kanban de Consorcio pra evolucao futura). */}
-      {processo.modalidade === 'Consorcio' && <PlanoConsorcioCard />}
-
       {/* Row 2: Imóvel + Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Imóvel */}
@@ -815,49 +817,3 @@ function Campo({ label, valor }: { label: string; valor: string }) {
   )
 }
 
-const PLANO_CONSORCIO_COLUNAS = ['Quantidade', 'Cotas', 'Grupos', 'Prazo', 'Valor', 'SubTotal'] as const
-
-/** Layout do plano de consórcio + condições — ainda sem persistência
- * (campos não existem na tabela `processos`), só a tela por enquanto. */
-function PlanoConsorcioCard() {
-  const [linha, setLinha] = useState<Record<typeof PLANO_CONSORCIO_COLUNAS[number], string>>({
-    Quantidade: '', Cotas: '', Grupos: '', Prazo: '', Valor: '', SubTotal: '',
-  })
-  const [condicoes, setCondicoes] = useState('')
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Incluir plano consórcio */}
-      <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
-        <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest text-center border-b border-gray-100 pb-2">
-          Incluir plano consórcio
-        </h4>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {PLANO_CONSORCIO_COLUNAS.map((coluna) => (
-            <div key={coluna}>
-              <p className="text-[10px] text-gray-400 mb-1">{coluna}</p>
-              <Input
-                className="h-8 text-xs"
-                value={linha[coluna]}
-                onChange={(e) => setLinha((s) => ({ ...s, [coluna]: e.target.value }))}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Condições */}
-      <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white shadow-[var(--shadow-card)]">
-        <h4 className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest text-center border-b border-gray-100 pb-2">
-          Condições
-        </h4>
-        <Textarea
-          className="min-h-[88px] text-center text-sm"
-          placeholder="Ex: Grupo com 50% de parcela com lance fixo e com indexador fixo, estimativa de contemplação 36 meses para imóvel"
-          value={condicoes}
-          onChange={(e) => setCondicoes(e.target.value)}
-        />
-      </div>
-    </div>
-  )
-}
