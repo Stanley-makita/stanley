@@ -36,8 +36,6 @@ const schema = z.object({
   produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato']).optional(),
   produto_subtipo:   z.string().optional(),
   valor_pretendido:  z.coerce.number().min(0).optional(),
-  canal:             z.string().optional(),
-  campanha:          z.string().optional(),
   observacoes:       z.string().optional(),
 })
 
@@ -79,8 +77,6 @@ function leadParaForm(lead: Lead): FormData {
     produto_interesse:          normalizarProduto(lead.produto_interesse),
     produto_subtipo:            lead.produto_subtipo ?? undefined,
     valor_pretendido:           lead.valor_pretendido ?? undefined,
-    canal:                      lead.canal ?? undefined,
-    campanha:                   lead.campanha ?? undefined,
     observacoes:                lead.observacoes ?? undefined,
   }
 }
@@ -134,8 +130,6 @@ export function AbaOportunidade({ lead }: Props) {
       produto_interesse:          data.produto_interesse ?? null,
       produto_subtipo:            data.produto_subtipo || null,
       valor_pretendido:           data.valor_pretendido ?? null,
-      canal:                      data.canal || null,
-      campanha:                   data.campanha || null,
       observacoes:                data.observacoes || null,
     })
     // Lembrete pós-salvar — a consulta em si é feita marcando o item
@@ -271,31 +265,6 @@ export function AbaOportunidade({ lead }: Props) {
                     value={field.value != null ? String(field.value) : ''}
                     onChange={v => field.onChange(v ? Number(v) : undefined)}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-          </div>
-        </Secao>
-
-        {/* ── Captação ──────────────────────────────────────────────────── */}
-        <Secao titulo="Captação">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField control={form.control} name="canal" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Canal <Opc /></FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: whatsapp" {...field} value={field.value ?? ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="campanha" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Campanha <Opc /></FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: folder_consorcio_itau" {...field} value={field.value ?? ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
