@@ -29,7 +29,7 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
   const [fasePendente, setFasePendente] = useState<Fase | null>(null)
   const editarLead = useEditarLead()
   const { data: itensChecklist = [] } = useLeadChecklist(lead.id, lead.fase_id)
-  const { analises } = useAnalisesCredito(lead.id)
+  const { analises } = useAnalisesCredito({ leadId: lead.id })
 
   const idxAtual = fases.findIndex(f => f.id === lead.fase_id)
 

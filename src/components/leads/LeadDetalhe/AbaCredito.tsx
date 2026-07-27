@@ -65,11 +65,11 @@ interface PessoaResultado {
 
 // ── Constantes ────────────────────────────────────────────────
 
-const BANCOS = [
+export const BANCOS = [
   'Caixa Econômica Federal', 'Bradesco', 'Itaú', 'Santander', 'Banco do Brasil',
   'BTG Pactual', 'Sicredi', 'Inter', 'C6 Bank', 'Pan', 'Outro',
 ]
-const FINALIDADES = [
+export const FINALIDADES = [
   { value: 'residencial',  label: 'Residencial' },
   { value: 'comercial',    label: 'Comercial' },
   { value: 'investimento', label: 'Investimento' },
@@ -131,7 +131,7 @@ interface Props { lead: Lead }
 export function AbaCredito({ lead }: Props) {
   const editar = useEditarLead()
   const qc = useQueryClient()
-  const { analises } = useAnalisesCredito(lead.id)
+  const { analises } = useAnalisesCredito({ leadId: lead.id })
   const analiseDefinida = analises.find(a => a.banco_definido) ?? null
   // Trava de obrigatoriedade (Data da Aprovação + Validade do Crédito) só entra
   // em vigor quando alguma análise está com banco definido E status aprovado —
@@ -690,7 +690,7 @@ function BlocoProduto({ lead }: { lead: Lead }) {
 
 // ── Constante status ──────────────────────────────────────────
 
-const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; classe: string }> = {
+export const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; classe: string }> = {
   em_analise: { label: 'Em Análise', classe: 'bg-amber-50  border-amber-200  text-amber-700'  },
   aprovado:   { label: 'Aprovado',   classe: 'bg-green-50  border-green-200  text-green-700'  },
   recusado:   { label: 'Recusado',   classe: 'bg-red-50    border-red-200    text-red-700'    },
@@ -700,7 +700,7 @@ const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; classe: stri
 // ── BlocoAnalises ─────────────────────────────────────────────
 
 function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; empresaId: string; responsavelId: string | null }) {
-  const { analises, isLoading, criar, editar, deletar, definirBanco, limparBancoDefinido } = useAnalisesCredito(leadId)
+  const { analises, isLoading, criar, editar, deletar, definirBanco, limparBancoDefinido } = useAnalisesCredito({ leadId })
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const qc = useQueryClient()
@@ -848,7 +848,7 @@ function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; e
         <AnaliseForm
           numero={analises.length + 1}
           onSalvar={async (campos) => {
-            await criar.mutateAsync({ empresa_id: empresaId, lead_id: leadId, banco_definido: false, ...campos })
+            await criar.mutateAsync({ empresa_id: empresaId, lead_id: leadId, processo_id: null, banco_definido: false, ...campos })
             setCriando(false)
           }}
           onCancelar={() => setCriando(false)}
@@ -861,7 +861,7 @@ function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; e
 
 // ── AnaliseCard ───────────────────────────────────────────────
 
-function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onStatusChange, onDataRespostaChange, deletando, definindoBanco }: {
+export function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onStatusChange, onDataRespostaChange, deletando, definindoBanco }: {
   analise: LeadAnaliseCredito
   numero: number
   onEditar: () => void
@@ -1067,9 +1067,9 @@ function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onS
 
 // ── AnaliseForm ───────────────────────────────────────────────
 
-type AnaliseFormInput = Omit<LeadAnaliseCredito, 'id' | 'empresa_id' | 'lead_id' | 'banco_definido' | 'created_at' | 'updated_at'>
+export type AnaliseFormInput = Omit<LeadAnaliseCredito, 'id' | 'empresa_id' | 'lead_id' | 'processo_id' | 'banco_definido' | 'created_at' | 'updated_at'>
 
-function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
+export function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }: {
   inicial?: LeadAnaliseCredito
   numero?: number
   onSalvar: (campos: AnaliseFormInput) => Promise<void>

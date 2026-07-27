@@ -198,7 +198,7 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
 
   // undefined = seletor não mostrado, null = sem análise, string = id da análise escolhida
   const [analiseId, setAnaliseId] = useState<string | null | undefined>(undefined)
-  const { analises } = useAnalisesCredito(lead?.id ?? '')
+  const { analises } = useAnalisesCredito({ leadId: lead?.id ?? '' })
 
   const analise = analises.find(a => a.id === analiseId) ?? null
 
