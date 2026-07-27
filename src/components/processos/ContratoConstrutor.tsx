@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
-  Upload, ChevronDown, ChevronUp, RotateCcw,
+  Upload, ChevronDown, ChevronUp, RotateCcw, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -74,30 +74,93 @@ function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, p
   })
 }
 
-// Contagem de documentos já anexados em cada pasta fixa — só pra exibir nas
-// caixas de upload; a navegação/gestão de fato (OCR, mover de pasta) mora em
-// AbaDocumentos, aberta via "Ver todos os documentos".
-function useContagemDocumentosPorPasta(processoId: string) {
+interface DocumentoDaPasta { id: string; nome: string }
+
+// Documentos já anexados em cada pasta fixa — alimenta tanto a contagem
+// quanto a listagem com exclusão individual nas caixas de upload; a
+// navegação/gestão completa (OCR, mover de pasta) continua morando em
+// AbaDocumentos, aberta via "Ver todos os documentos". Filtra deleted_at
+// pra contagem e lista baterem com o que foi excluído (individualmente ou
+// via "Limpar").
+function useDocumentosPorPasta(processoId: string) {
   const { usuario } = useAuth()
   const { data: catalogoPastas = [] } = useCatalogoPastasProcesso()
   return useQuery({
     queryKey: ['documentos-por-pasta', processoId],
     enabled: !!usuario?.empresa_id && catalogoPastas.length > 0,
-    queryFn: async (): Promise<Record<string, number>> => {
+    queryFn: async (): Promise<Record<string, DocumentoDaPasta[]>> => {
       const { data: vinculos } = await supabase
         .from('documento_vinculos')
-        .select('pasta_id')
+        .select('documento_id, pasta_id')
         .eq('entidade_tipo', 'processo')
         .eq('entidade_id', processoId)
-      const contagemPorPastaId = new Map<string, number>()
+      const documentoIds = (vinculos ?? []).map((v) => v.documento_id)
+      if (documentoIds.length === 0) return {}
+
+      const { data: docs } = await supabase
+        .from('documentos')
+        .select('id, nome_original')
+        .in('id', documentoIds)
+        .is('deleted_at', null)
+      const nomePorId = new Map((docs ?? []).map((d) => [d.id, d.nome_original]))
+
+      const porPastaId = new Map<string, DocumentoDaPasta[]>()
       for (const v of vinculos ?? []) {
         if (!v.pasta_id) continue
-        contagemPorPastaId.set(v.pasta_id, (contagemPorPastaId.get(v.pasta_id) ?? 0) + 1)
+        const nome = nomePorId.get(v.documento_id)
+        if (!nome) continue // excluído ou não encontrado
+        const lista = porPastaId.get(v.pasta_id) ?? []
+        lista.push({ id: v.documento_id, nome })
+        porPastaId.set(v.pasta_id, lista)
       }
-      const porCodigo: Record<string, number> = {}
-      for (const pasta of catalogoPastas) porCodigo[pasta.codigo] = contagemPorPastaId.get(pasta.id) ?? 0
+      const porCodigo: Record<string, DocumentoDaPasta[]> = {}
+      for (const pasta of catalogoPastas) porCodigo[pasta.codigo] = porPastaId.get(pasta.id) ?? []
       return porCodigo
     },
+  })
+}
+
+function invalidarDocumentos(qc: ReturnType<typeof useQueryClient>, processoId: string) {
+  qc.invalidateQueries({ queryKey: ['documentos-unificado', 'processo', processoId] })
+  qc.invalidateQueries({ queryKey: ['documentos-resumo-processo', processoId] })
+  qc.invalidateQueries({ queryKey: ['documentos-por-pasta', processoId] })
+}
+
+function useExcluirDocumento(processoId: string) {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (documentoId: string) => {
+      const { error } = await supabase
+        .from('documentos')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', documentoId)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: () => invalidarDocumentos(qc, processoId),
+    onError: () => toast.error('Não foi possível excluir o documento.'),
+  })
+}
+
+function useLimparDocumentosPasta(processoId: string) {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (documentoIds: string[]) => {
+      if (documentoIds.length === 0) return
+      const { error } = await supabase
+        .from('documentos')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', documentoIds)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      invalidarDocumentos(qc, processoId)
+      toast.success('Documentos removidos.')
+    },
+    onError: () => toast.error('Não foi possível limpar os documentos.'),
   })
 }
 
@@ -167,15 +230,18 @@ function useAtualizarTipoValorContrato(processoId: string) {
   })
 }
 
-function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, quantidade }: {
+function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, arquivos }: {
   processoId: string
   pastaCodigo: 'comprador' | 'vendedor' | 'imovel'
   titulo: string
   descricao: string
-  quantidade: number
+  arquivos: DocumentoDaPasta[]
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = useUploadDocumentoPasta(processoId, pastaCodigo)
+  const excluir = useExcluirDocumento(processoId)
+  const limpar = useLimparDocumentosPasta(processoId)
+  const [confirmandoExclusaoId, setConfirmandoExclusaoId] = useState<string | null>(null)
 
   async function handleArquivos(e: ChangeEvent<HTMLInputElement>) {
     const arquivos = Array.from(e.target.files ?? [])
@@ -185,9 +251,38 @@ function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, quantida
     }
   }
 
+  function handleExcluir(id: string) {
+    if (confirmandoExclusaoId === id) {
+      excluir.mutate(id)
+      setConfirmandoExclusaoId(null)
+    } else {
+      setConfirmandoExclusaoId(id)
+    }
+  }
+
+  function handleLimpar() {
+    if (arquivos.length === 0) return
+    const confirmado = window.confirm(
+      `Remover ${arquivos.length} documento(s) desta pasta? Essa ação não pode ser desfeita.`,
+    )
+    if (!confirmado) return
+    limpar.mutate(arquivos.map((a) => a.id))
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3">
-      <p className="text-sm font-semibold text-gray-700">{titulo}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-700">{titulo}</p>
+        {arquivos.length > 0 && (
+          <button
+            onClick={handleLimpar}
+            disabled={limpar.isPending}
+            className="shrink-0 text-[11px] text-red-500 hover:underline disabled:opacity-40"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
       <p className="text-[11px] text-gray-400 leading-snug">{descricao}</p>
       <input ref={inputRef} type="file" multiple className="hidden" onChange={handleArquivos} />
       <Button
@@ -200,7 +295,27 @@ function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, quantida
         {upload.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
         {upload.isPending ? 'Enviando...' : 'Escolher arquivos'}
       </Button>
-      <p className="text-[11px] text-gray-500">{quantidade} documento(s) anexado(s)</p>
+
+      {arquivos.length > 0 && (
+        <ul className="flex flex-col gap-1 border-t border-gray-100 pt-1.5">
+          {arquivos.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-2 text-[11px] text-gray-600">
+              <span className="truncate" title={a.nome}>{a.nome}</span>
+              <button
+                onClick={() => handleExcluir(a.id)}
+                disabled={excluir.isPending}
+                title={confirmandoExclusaoId === a.id ? 'Clique novamente para confirmar' : 'Excluir'}
+                className={`shrink-0 rounded p-0.5 transition-colors ${
+                  confirmandoExclusaoId === a.id ? 'text-red-600' : 'text-gray-400 hover:text-red-500'
+                }`}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[11px] text-gray-500">{arquivos.length} documento(s) anexado(s)</p>
     </div>
   )
 }
@@ -213,7 +328,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const pessoaId = compradorPrincipal?.pessoa_id ?? processo.pessoa_id
 
   const { data: negocioVinculado } = useNegocioFinanciamentoVinculado(pessoaId, processo.id)
-  const { data: contagemPastas = {} } = useContagemDocumentosPorPasta(processo.id)
+  const { data: documentosPastas = {} } = useDocumentosPorPasta(processo.id)
   const importarDocumentos = useImportarDocumentosNegocio(processo.id)
   const atualizar = useAtualizarTipoValorContrato(processo.id)
   const entenderNegociacao = useEntenderNegociacao(processo.id)
@@ -365,7 +480,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
                 pastaCodigo={pasta.codigo}
                 titulo={pasta.titulo}
                 descricao={pasta.descricao}
-                quantidade={contagemPastas[pasta.codigo] ?? 0}
+                arquivos={documentosPastas[pasta.codigo] ?? []}
               />
             ))}
           </div>
