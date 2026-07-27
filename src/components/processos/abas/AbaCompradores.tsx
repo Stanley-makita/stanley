@@ -35,9 +35,15 @@ interface FormCompradorState {
 
 const FORM_VAZIO: FormCompradorState = { nome: '', cpf: '', email: '', telefone: '', renda_mensal: '', principal: false }
 
-interface Props { processoId: string }
+interface Props {
+  processoId: string
+  /** Consórcio exige "Dados Cliente" com campos adicionais (PEP, residência no
+   * exterior, patrimônio, autorização de oferta) em vez do "Completar dados"
+   * genérico — ver CompletarDadosPessoaDrawer. */
+  modoConsorcio?: boolean
+}
 
-export function AbaCompradores({ processoId }: Props) {
+export function AbaCompradores({ processoId, modoConsorcio = false }: Props) {
   const { data: compradores = [], isLoading } = useProcessoCompradores(processoId)
   const adicionar = useAdicionarComprador(processoId)
   const editar = useEditarComprador(processoId)
@@ -287,7 +293,7 @@ export function AbaCompradores({ processoId }: Props) {
                     onClick={() => setCompletarDadosId(c.pessoa_id!)}
                   >
                     <ClipboardList className="h-3.5 w-3.5" />
-                    Completar dados
+                    {modoConsorcio ? 'Dados Cliente' : 'Completar dados'}
                   </Button>
                 )}
                 <Button
@@ -317,6 +323,7 @@ export function AbaCompradores({ processoId }: Props) {
       open={!!completarDadosId}
       onClose={() => setCompletarDadosId(null)}
       origemAuditoria="processos"
+      modoConsorcio={modoConsorcio}
     />
     <NovaPessoaModal
       aberto={novaPessoaAberta}

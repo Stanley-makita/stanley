@@ -43,6 +43,14 @@ function normalizarCpf(valor: string): string | null {
   return d.length === 11 ? d : (d.length === 0 ? null : d)
 }
 
+function boolParaSelect(v: boolean | null | undefined): string {
+  return v == null ? '' : (v ? 'sim' : 'nao')
+}
+
+function selectParaBool(v: string): boolean | null {
+  return v === '' ? null : v === 'sim'
+}
+
 type FormState = {
   telefone: string
   nome: string; email: string; cpf: string; data_nascimento: string
@@ -55,6 +63,10 @@ type FormState = {
   registro_cnh: string; validade_cnh: string; primeira_habilitacao_cnh: string
   endereco_rua: string; endereco_numero: string; endereco_bairro: string
   endereco_cidade: string; endereco_uf: string; endereco_cep: string
+  endereco_complemento: string
+  // Dados exigidos por formulários de consórcio (ex: Itaú Unibanco)
+  residente_exterior: string; pep: string; autoriza_oferta_marketing: string
+  patrimonio_total: string
   conjuge_nome: string; conjuge_cpf: string; conjuge_data_nascimento: string
   conjuge_telefone: string; conjuge_profissao: string
   conjuge_renda_formal: string; conjuge_renda_informal: string
@@ -75,7 +87,8 @@ const VAZIO: FormState = {
   filiacao_mae: '', filiacao_pai: '',
   registro_cnh: '', validade_cnh: '', primeira_habilitacao_cnh: '',
   endereco_rua: '', endereco_numero: '', endereco_bairro: '', endereco_cidade: '',
-  endereco_uf: '', endereco_cep: '',
+  endereco_uf: '', endereco_cep: '', endereco_complemento: '',
+  residente_exterior: '', pep: '', autoriza_oferta_marketing: '', patrimonio_total: '',
   conjuge_nome: '', conjuge_cpf: '', conjuge_data_nascimento: '',
   conjuge_telefone: '', conjuge_profissao: '',
   conjuge_renda_formal: '', conjuge_renda_informal: '',
@@ -90,10 +103,14 @@ interface Props {
   open: boolean
   onClose: () => void
   origemAuditoria?: 'leads' | 'pessoas' | 'processos'
+  /** Consórcio exige campos adicionais (PEP, residência no exterior, patrimônio,
+   * autorização de oferta) e telefone/e-mail obrigatórios — mesmo formulário,
+   * só uma seção extra e título diferente. */
+  modoConsorcio?: boolean
 }
 
 export function CompletarDadosPessoaDrawer({
-  pessoaId, open, onClose, origemAuditoria = 'processos',
+  pessoaId, open, onClose, origemAuditoria = 'processos', modoConsorcio = false,
 }: Props) {
   const { usuario } = useAuth()
   const qc = useQueryClient()
@@ -112,6 +129,7 @@ export function CompletarDadosPessoaDrawer({
           orgao_emissor, data_emissao, cidade_nascimento, estado_nascimento, filiacao_mae, filiacao_pai,
           registro_cnh, validade_cnh, primeira_habilitacao_cnh,
           endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
+          endereco_complemento, residente_exterior, pep, autoriza_oferta_marketing, patrimonio_total,
           conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
           conjuge_renda_formal, conjuge_renda_informal, regime_casamento, data_casamento,
           empresa_nome, empresa_cnpj, municipio_trabalho, uf_trabalho,
@@ -159,6 +177,11 @@ export function CompletarDadosPessoaDrawer({
         endereco_cidade:         pessoa.endereco_cidade ?? '',
         endereco_uf:             pessoa.endereco_uf ?? '',
         endereco_cep:            pessoa.endereco_cep ?? '',
+        endereco_complemento:    (pessoa as any).endereco_complemento ?? '',
+        residente_exterior:      boolParaSelect((pessoa as any).residente_exterior),
+        pep:                     boolParaSelect((pessoa as any).pep),
+        autoriza_oferta_marketing: boolParaSelect((pessoa as any).autoriza_oferta_marketing),
+        patrimonio_total:        (pessoa as any).patrimonio_total != null ? String((pessoa as any).patrimonio_total) : '',
         conjuge_nome:            pessoa.conjuge_nome ?? '',
         conjuge_cpf:             formatarCpf(pessoa.conjuge_cpf ?? ''),
         conjuge_data_nascimento: pessoa.conjuge_data_nascimento ?? '',
@@ -213,6 +236,11 @@ export function CompletarDadosPessoaDrawer({
         endereco_cidade:         form.endereco_cidade.trim() || null,
         endereco_uf:             form.endereco_uf.trim() || null,
         endereco_cep:            form.endereco_cep.trim() || null,
+        endereco_complemento:    form.endereco_complemento.trim() || null,
+        residente_exterior:      selectParaBool(form.residente_exterior),
+        pep:                     selectParaBool(form.pep),
+        autoriza_oferta_marketing: selectParaBool(form.autoriza_oferta_marketing),
+        patrimonio_total:        form.patrimonio_total ? Number(form.patrimonio_total) : null,
         conjuge_nome:            eCasado ? (form.conjuge_nome.trim() || null) : null,
         conjuge_cpf:             eCasado ? (normalizarCpf(form.conjuge_cpf) ?? null) : null,
         conjuge_data_nascimento: eCasado ? (form.conjuge_data_nascimento || null) : null,
@@ -334,7 +362,7 @@ export function CompletarDadosPessoaDrawer({
       <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-fonti-primary">
-            Completar dados{pessoa ? ` — ${pessoa.nome}` : ''}
+            {modoConsorcio ? 'Dados Cliente' : 'Completar dados'}{pessoa ? ` — ${pessoa.nome}` : ''}
           </DialogTitle>
         </DialogHeader>
 
@@ -362,11 +390,11 @@ export function CompletarDadosPessoaDrawer({
                 <Input type="date" value={form.data_nascimento} onChange={(e) => f({ data_nascimento: e.target.value })} />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">E-mail</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">E-mail{modoConsorcio && ' *'}</label>
                 <Input value={form.email} onChange={(e) => f({ email: e.target.value })} placeholder="email@exemplo.com" />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Telefone principal</label>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Celular{modoConsorcio && ' *'}</label>
                 <Input value={form.telefone} onChange={(e) => f({ telefone: e.target.value })} placeholder="5544999990000" />
               </div>
               <div>
@@ -416,6 +444,58 @@ export function CompletarDadosPessoaDrawer({
                 </div>
               </div>
             </div>
+
+            {/* Dados do Consórcio — exigidos por formulários de consórcio
+                (ex: conglomerado Itaú Unibanco); só aparece nesse fluxo. */}
+            {modoConsorcio && (
+              <div className="border-t pt-4">
+                <p className="text-xs font-semibold text-fonti-primary mb-3">Dados do Consórcio</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Patrimônio Total (R$)</label>
+                    <InputMoeda value={form.patrimonio_total} onChange={(v) => f({ patrimonio_total: v })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Possui residência no exterior?</label>
+                    <select
+                      className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
+                      value={form.residente_exterior}
+                      onChange={(e) => f({ residente_exterior: e.target.value })}
+                    >
+                      <option value="">Selecionar...</option>
+                      <option value="sim">Sim</option>
+                      <option value="nao">Não</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">É pessoa politicamente exposta (PEP)?</label>
+                    <select
+                      className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
+                      value={form.pep}
+                      onChange={(e) => f({ pep: e.target.value })}
+                    >
+                      <option value="">Selecionar...</option>
+                      <option value="sim">Sim</option>
+                      <option value="nao">Não</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">
+                      Autoriza envio de oferta sobre produtos e serviços do conglomerado Itaú Unibanco?
+                    </label>
+                    <select
+                      className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
+                      value={form.autoriza_oferta_marketing}
+                      onChange={(e) => f({ autoriza_oferta_marketing: e.target.value })}
+                    >
+                      <option value="">Selecionar...</option>
+                      <option value="sim">Sim</option>
+                      <option value="nao">Não</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Estado Civil */}
             <div className="border-t pt-4">
@@ -524,6 +604,10 @@ export function CompletarDadosPessoaDrawer({
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Rua / Logradouro</label>
                   <Input value={form.endereco_rua} onChange={(e) => f({ endereco_rua: e.target.value })} placeholder="Rua das Flores" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Complemento</label>
+                  <Input value={form.endereco_complemento} onChange={(e) => f({ endereco_complemento: e.target.value })} placeholder="Apto, bloco, etc." />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Bairro</label>

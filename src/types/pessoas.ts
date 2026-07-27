@@ -30,6 +30,12 @@ export interface Pessoa {
   endereco_cidade: string | null
   endereco_uf: string | null
   endereco_cep: string | null
+  endereco_complemento: string | null
+  // Dados exigidos por formulários de consórcio (ex: Itaú Unibanco)
+  residente_exterior: boolean | null
+  pep: boolean | null
+  autoriza_oferta_marketing: boolean | null
+  patrimonio_total: number | null
   // Cônjuge / Companheiro(a)
   conjuge_nome: string | null
   conjuge_cpf: string | null
