@@ -34,11 +34,13 @@ export function useAvancarFase(processoId: string) {
       // chamada (pipeline bar, aba de fases, etc).
       const { data: proc, error: procFetchError } = await supabase
         .from('processos')
-        .select('banco_id, taxa_juros, sistema_amortizacao, valor_imovel, valor_financiado, valor_fgts')
+        .select('modalidade, banco_id, taxa_juros, sistema_amortizacao, valor_imovel, valor_financiado, valor_fgts')
         .eq('id', processoId)
         .single()
       if (procFetchError) throw procFetchError
-      if (dadosFinanceirosIncompletos(proc)) {
+      // Contrato não tem dados financeiros no corpo do processo — fases ficam
+      // livres pra avançar (ver PipelineBarProcesso/página do processo).
+      if (proc.modalidade !== 'Contrato' && dadosFinanceirosIncompletos(proc)) {
         throw new Error('DADOS_FINANCEIROS_PENDENTES')
       }
 
