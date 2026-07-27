@@ -635,6 +635,7 @@ export default function ProcessoDetalhePage() {
         <PainelChecklist
           processoId={id}
           faseId={processo.fase_atual_id}
+          bancoId={processo.banco_id}
           onPendenciasChange={setItensObrigatoriosPendentes}
         />
         <PainelPendencias

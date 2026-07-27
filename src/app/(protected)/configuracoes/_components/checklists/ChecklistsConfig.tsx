@@ -27,6 +27,7 @@ import {
   useReordenarChecklistItens,
 } from '@/hooks/configuracoes/useChecklistConfig'
 import type { ChecklistItemDB } from '@/hooks/processos/useChecklist'
+import { useBancos } from '@/hooks/useBancos'
 
 const MODULOS = [
   { id: 'processos',  label: 'Financiamento' },
@@ -49,6 +50,8 @@ function ChecklistItemRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
+  const { data: bancos = [] } = useBancos()
+  const bancoNome = bancos.find((b) => b.id === item.condicao_banco_id)?.nome
 
   const style = { transform: CSS.Transform.toString(transform), transition }
 
@@ -85,6 +88,17 @@ function ChecklistItemRow({
       {item.acao_ao_completar === 'assinado' && (
         <span className="text-[10px] font-medium text-green-600 shrink-0">✍️ Assinado</span>
       )}
+      {item.acao_ao_completar === 'enviado_conformidade' && (
+        <span className="text-[10px] font-medium text-blue-600 shrink-0">📨 Enviado Conformidade</span>
+      )}
+      {item.acao_ao_completar === 'processo_conforme' && (
+        <span className="text-[10px] font-medium text-green-600 shrink-0">✅ Processo Conforme</span>
+      )}
+      {item.condicao_banco_id && bancoNome && (
+        <span className="text-[10px] font-medium text-amber-600 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-full">
+          🏦 só {bancoNome}
+        </span>
+      )}
       <span className={cn(
         'text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0',
         item.obrigatorio ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'
@@ -113,17 +127,19 @@ function ChecklistItemRow({
 // ── Formulário inline de item ─────────────────────────────────────────────────
 
 function ItemForm({ onSalvar, onCancelar, inicial }: {
-  onSalvar: (descricao: string, obrigatorio: boolean, acao_ao_completar: string | null) => void
+  onSalvar: (descricao: string, obrigatorio: boolean, acao_ao_completar: string | null, condicao_banco_id: string | null) => void
   onCancelar: () => void
-  inicial?: { descricao: string; obrigatorio: boolean; acao_ao_completar?: string | null }
+  inicial?: { descricao: string; obrigatorio: boolean; acao_ao_completar?: string | null; condicao_banco_id?: string | null }
 }) {
   const [descricao, setDescricao] = useState(inicial?.descricao ?? '')
   const [obrigatorio, setObrigatorio] = useState(inicial?.obrigatorio ?? false)
   const [acao, setAcao] = useState(inicial?.acao_ao_completar ?? '')
+  const [condicaoBanco, setCondicaoBanco] = useState(inicial?.condicao_banco_id ?? '')
+  const { data: bancos = [] } = useBancos()
 
   function handleSalvar() {
     if (!descricao.trim()) return
-    onSalvar(descricao, obrigatorio, acao || null)
+    onSalvar(descricao, obrigatorio, acao || null, condicaoBanco || null)
   }
 
   return (
@@ -157,6 +173,19 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
             <SelectItem value="salvar_vencimento_credito">📅 Salvar validade do Crédito</SelectItem>
             <SelectItem value="salvar_vencimento_matricula">📅 Salvar validade da Matrícula</SelectItem>
             <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>
+            <SelectItem value="enviado_conformidade">📨 Marcar como Enviado para Conformidade</SelectItem>
+            <SelectItem value="processo_conforme">✅ Marcar como Processo Conforme</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={condicaoBanco || 'todos'} onValueChange={(v) => setCondicaoBanco(v === 'todos' ? '' : v)}>
+          <SelectTrigger className="h-7 text-xs w-52 flex-shrink-0">
+            <SelectValue placeholder="Aparece para qualquer banco" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Aparece para qualquer banco</SelectItem>
+            {bancos.map((b) => (
+              <SelectItem key={b.id} value={b.id}>Só aparece para {b.nome}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -215,13 +244,14 @@ function FaseSection({
     return id
   }
 
-  async function handleSalvarNovoItem(descricao: string, obrigatorio: boolean, acao_ao_completar: string | null) {
+  async function handleSalvarNovoItem(descricao: string, obrigatorio: boolean, acao_ao_completar: string | null, condicao_banco_id: string | null) {
     const templateId = await getOuCriarTemplateId()
     await criarItem.mutateAsync({
       templateId,
       descricao,
       obrigatorio,
       acao_ao_completar,
+      condicao_banco_id,
       ordem: itensLocais.length,
       modulo,
     })
@@ -229,9 +259,9 @@ function FaseSection({
     toast.success('Item adicionado.')
   }
 
-  async function handleSalvarEdicao(descricao: string, obrigatorio: boolean, acao_ao_completar: string | null) {
+  async function handleSalvarEdicao(descricao: string, obrigatorio: boolean, acao_ao_completar: string | null, condicao_banco_id: string | null) {
     if (!editandoItem) return
-    await atualizarItem.mutateAsync({ itemId: editandoItem.id, descricao, obrigatorio, acao_ao_completar, modulo })
+    await atualizarItem.mutateAsync({ itemId: editandoItem.id, descricao, obrigatorio, acao_ao_completar, condicao_banco_id, modulo })
     setEditandoItem(null)
     toast.success('Item atualizado.')
   }
@@ -288,7 +318,7 @@ function FaseSection({
                 editandoItem?.id === item.id ? (
                   <ItemForm
                     key={item.id}
-                    inicial={{ descricao: item.descricao, obrigatorio: item.obrigatorio, acao_ao_completar: item.acao_ao_completar }}
+                    inicial={{ descricao: item.descricao, obrigatorio: item.obrigatorio, acao_ao_completar: item.acao_ao_completar, condicao_banco_id: item.condicao_banco_id }}
                     onSalvar={handleSalvarEdicao}
                     onCancelar={() => setEditandoItem(null)}
                   />

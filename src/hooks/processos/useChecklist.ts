@@ -12,6 +12,10 @@ export interface ChecklistItemDB {
   ordem: number
   ativo: boolean
   acao_ao_completar: string | null
+  // Quando preenchido, o item só aparece se o processo tiver esse banco
+  // selecionado (ex: item de conformidade que só existe para a Caixa) — null
+  // = sempre aparece.
+  condicao_banco_id: string | null
 }
 
 export interface ChecklistTemplateDB {
@@ -31,12 +35,15 @@ export interface ChecklistExecucao {
   usuario?: { nome: string } | null
 }
 
-// Busca template + itens de uma fase
-export function useChecklistTemplate(faseId: string | null | undefined) {
+// Busca template + itens de uma fase. `bancoId` filtra fora itens
+// condicionados a um banco diferente do banco do processo (ver
+// condicao_banco_id) — quando omitido, itens condicionados nunca aparecem
+// (evita vazar item de um banco específico num contexto sem banco definido).
+export function useChecklistTemplate(faseId: string | null | undefined, bancoId?: string | null) {
   const { usuario } = useAuth()
 
   return useQuery({
-    queryKey: ['checklist-template', faseId, usuario?.empresa_id],
+    queryKey: ['checklist-template', faseId, usuario?.empresa_id, bancoId],
     enabled: !!faseId && !!usuario?.empresa_id,
     queryFn: async () => {
       const { data: template, error: tErr } = await supabase
@@ -52,13 +59,15 @@ export function useChecklistTemplate(faseId: string | null | undefined) {
 
       const { data: itens, error: iErr } = await supabase
         .from('checklist_items')
-        .select('id, template_id, descricao, obrigatorio, ordem, ativo, acao_ao_completar')
+        .select('id, template_id, descricao, obrigatorio, ordem, ativo, acao_ao_completar, condicao_banco_id')
         .eq('template_id', template.id)
         .eq('ativo', true)
         .order('ordem', { ascending: true })
 
       if (iErr) throw iErr
-      return { template: template as ChecklistTemplateDB, itens: (itens ?? []) as ChecklistItemDB[] }
+      const todos = (itens ?? []) as ChecklistItemDB[]
+      const visiveis = todos.filter((i) => !i.condicao_banco_id || i.condicao_banco_id === bancoId)
+      return { template: template as ChecklistTemplateDB, itens: visiveis }
     },
     staleTime: 30_000,
   })
@@ -124,6 +133,22 @@ export function useMarcarChecklistItem(processoId: string) {
         const { error: errP } = await supabase
           .from('processos')
           .update({ assinado_em: new Date().toISOString() })
+          .eq('id', processoId)
+        if (errP) throw errP
+      }
+
+      if (marcado && item.acao_ao_completar === 'enviado_conformidade') {
+        const { error: errP } = await supabase
+          .from('processos')
+          .update({ enviado_conformidade_em: new Date().toISOString() })
+          .eq('id', processoId)
+        if (errP) throw errP
+      }
+
+      if (marcado && item.acao_ao_completar === 'processo_conforme') {
+        const { error: errP } = await supabase
+          .from('processos')
+          .update({ conformidade_aprovada_em: new Date().toISOString() })
           .eq('id', processoId)
         if (errP) throw errP
       }
