@@ -107,9 +107,11 @@ export default function ProcessoDetalhePage() {
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
 
   // Dados financeiros obrigatórios: bloqueia avanço de fase se incompletos ou inconsistentes
-  // (mesma regra também é aplicada, de forma obrigatória, dentro de useAvancarFase)
+  // (mesma regra também é aplicada, de forma obrigatória, dentro de useAvancarFase).
+  // Contrato não tem dados financeiros no corpo do processo — fases ficam livres
+  // pra avançar quando quiser; só um checklist configurado (futuro) bloquearia.
   const dadosFinanceirosPendentes = useMemo(() => {
-    if (!processo) return false
+    if (!processo || processo.modalidade === 'Contrato') return false
     return dadosFinanceirosIncompletos(processo as any)
   }, [processo])
   const { mutate: atualizarChance, isPending: atualizandoChance } = useAtualizarChanceEmissao()

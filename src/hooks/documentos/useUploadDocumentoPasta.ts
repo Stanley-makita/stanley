@@ -96,41 +96,26 @@ export async function uploadDocumentoParaPasta(input: UploadDocumentoInput): Pro
   return docInserido!.id as string
 }
 
+// Resolve a Pessoa dona dos documentos da pasta — server-side, porque cria
+// (via supabaseAdmin) um registro provisório de Comprador/Vendedor quando
+// ainda não existe nenhum, ao invés de bloquear o upload. O operador
+// completa nome/CPF reais depois nas abas Compradores/Vendedores.
 async function resolverPessoaPorPapel(
   processoId: string,
-  empresaId: string,
   papel: 'comprador' | 'vendedor' | 'imovel',
+  token?: string,
 ): Promise<string | null> {
-  if (papel === 'vendedor') {
-    const { data: principal } = await supabase
-      .from('processo_vendedores')
-      .select('pessoa_id')
-      .eq('processo_id', processoId)
-      .eq('empresa_id', empresaId)
-      .eq('principal', true)
-      .maybeSingle()
-    if (principal?.pessoa_id) return principal.pessoa_id
-    const { data: qualquer } = await supabase
-      .from('processo_vendedores')
-      .select('pessoa_id')
-      .eq('processo_id', processoId)
-      .eq('empresa_id', empresaId)
-      .limit(1)
-      .maybeSingle()
-    return qualquer?.pessoa_id ?? null
-  }
-
-  // Comprador e Imóvel: documentos ficam atribuídos ao comprador principal —
-  // mesma convenção já usada no resto do sistema (ver resolverPessoaIdUpload
-  // em AbaDocumentos.tsx), imóvel não tem "pessoa" própria.
-  const { data } = await supabase
-    .from('processo_compradores')
-    .select('pessoa_id')
-    .eq('processo_id', processoId)
-    .eq('empresa_id', empresaId)
-    .eq('principal', true)
-    .maybeSingle()
-  return data?.pessoa_id ?? null
+  const res = await fetch(`/api/processos/${processoId}/contratos/documentos/resolver-pessoa`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token ?? ''}`,
+    },
+    body: JSON.stringify({ papel }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.error ?? 'Erro ao preparar upload de documentos.')
+  return json.pessoaId ?? null
 }
 
 /**
@@ -146,16 +131,10 @@ export function useUploadDocumentoPasta(processoId: string, pastaCodigo: 'compra
   return useMutation({
     mutationFn: async (arquivo: File) => {
       if (!usuario) throw new Error('Usuário não autenticado.')
-      const pessoaIdUpload = await resolverPessoaPorPapel(processoId, usuario.empresa_id, pastaCodigo)
-      if (!pessoaIdUpload) {
-        throw new Error(
-          pastaCodigo === 'vendedor'
-            ? 'Cadastre o vendedor antes de anexar os documentos dele.'
-            : 'Cadastre o comprador antes de anexar documentos.',
-        )
-      }
-      const pastaId = catalogoPastas.find((p) => p.codigo === pastaCodigo)?.id ?? null
       const { data: { session } } = await supabase.auth.getSession()
+      const pessoaIdUpload = await resolverPessoaPorPapel(processoId, pastaCodigo, session?.access_token)
+      if (!pessoaIdUpload) throw new Error('Erro ao preparar upload de documentos.')
+      const pastaId = catalogoPastas.find((p) => p.codigo === pastaCodigo)?.id ?? null
 
       return uploadDocumentoParaPasta({
         empresaId: usuario.empresa_id,
@@ -171,6 +150,10 @@ export function useUploadDocumentoPasta(processoId: string, pastaCodigo: 'compra
       queryClient.invalidateQueries({ queryKey: ['documentos-unificado', 'processo', processoId] })
       queryClient.invalidateQueries({ queryKey: ['documentos-resumo-processo', processoId] })
       queryClient.invalidateQueries({ queryKey: ['documentos-por-pasta', processoId] })
+      // Pode ter criado um comprador/vendedor provisório (ver resolverPessoaPorPapel)
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'vendedores'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
     },
     onError: (error) => {
       console.error('[contratos] erro no upload de documento:', error)
