@@ -52,14 +52,36 @@ export async function planejarContrato(input: {
     messages: [{ role: 'user', content: contexto }],
   })
 
-  // Sonnet 5 roda thinking adaptativo por padrão — o primeiro bloco costuma
-  // ser 'thinking', não 'text' (mesmo motivo do .find() em ocr.ts).
-  const bloco = response.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
-  if (!bloco) throw new Error('Resposta inesperada da IA.')
+  // Sonnet 5 roda thinking adaptativo por padrão — o(s) primeiro(s) bloco(s)
+  // costumam ser 'thinking', não 'text' (mesmo motivo do .find() em ocr.ts).
+  // A resposta em texto pode vir dividida em mais de um bloco 'text' — junta
+  // todos, em vez de pegar só o primeiro, para não cortar o JSON no meio.
+  const blocosTexto = response.content.filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+  if (blocosTexto.length === 0) throw new Error('Resposta inesperada da IA.')
+  if (response.stop_reason === 'max_tokens') {
+    console.error('[planejarContrato] resposta cortada por max_tokens')
+    throw new Error('A IA não conseguiu concluir o plano do contrato (resposta muito longa). Tente novamente.')
+  }
 
-  const jsonText = bloco.text.trim()
+  const bruto = blocosTexto.map((b) => b.text).join('').trim()
+  const semFences = bruto
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
 
-  return JSON.parse(jsonText) as PlanoContrato
+  try {
+    return JSON.parse(semFences) as PlanoContrato
+  } catch {
+    const inicio = semFences.indexOf('{')
+    const fim = semFences.lastIndexOf('}')
+    if (inicio === -1 || fim === -1) {
+      console.error('[planejarContrato] resposta sem JSON reconhecível:', bruto)
+      throw new Error('A IA não devolveu um plano em formato reconhecível.')
+    }
+    try {
+      return JSON.parse(semFences.slice(inicio, fim + 1)) as PlanoContrato
+    } catch {
+      console.error('[planejarContrato] falha ao parsear JSON da IA:', bruto)
+      throw new Error('A IA não devolveu um plano em formato reconhecível.')
+    }
+  }
 }
