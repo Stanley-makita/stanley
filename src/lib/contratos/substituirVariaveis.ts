@@ -119,7 +119,7 @@ export function substituirVariaveis(
     comprador_email: val(comprador?.email),
     comprador_telefone: val(comprador?.telefone),
     comprador_rg: val(cp?.rg),
-    comprador_nacionalidade: val(cp?.nacionalidade),
+    comprador_nacionalidade: cp?.nacionalidade?.trim() || 'brasileiro(a)',
     comprador_estado_civil: val(cp?.estado_civil),
     comprador_profissao: val(cp?.profissao),
     comprador_cnh: '[A PREENCHER]',
@@ -134,7 +134,7 @@ export function substituirVariaveis(
     vendedor_agencia: val(vendedor?.agencia),
     vendedor_conta: val(vendedor?.conta),
     vendedor_rg: val(vp?.rg),
-    vendedor_nacionalidade: val(vp?.nacionalidade),
+    vendedor_nacionalidade: vp?.nacionalidade?.trim() || 'brasileiro(a)',
     vendedor_profissao: val(vp?.profissao),
     vendedor_cnh: '[A PREENCHER]',
     vendedor_endereco: buildEndereco(vp),
@@ -182,11 +182,11 @@ export function substituirVariaveis(
 
     // Valores financeiros
     valor_total: fmtMoeda(processo.valor_imovel),
-    valor_total_extenso: '[A PREENCHER]',
+    valor_total_extenso: processo.valor_imovel ? valorPorExtenso(processo.valor_imovel) : '[A PREENCHER]',
     valor_entrada: fmtMoeda(processo.valor_entrada),
-    valor_entrada_extenso: '[A PREENCHER]',
+    valor_entrada_extenso: processo.valor_entrada ? valorPorExtenso(processo.valor_entrada) : '[A PREENCHER]',
     valor_financiado: fmtMoeda(processo.valor_financiado),
-    valor_financiado_extenso: '[A PREENCHER]',
+    valor_financiado_extenso: processo.valor_financiado ? valorPorExtenso(processo.valor_financiado) : '[A PREENCHER]',
     banco_financiador: val(processo.banco?.nome),
 
     // Dados bancários do vendedor

@@ -55,7 +55,9 @@ export interface ResumoNegociacao {
 
 const SYSTEM_PROMPT = `Você é um assistente jurídico que ajuda a compreender negociações imobiliárias antes de um contrato ser redigido.
 
-Você recebe: o tipo de contrato, o valor informado, uma descrição livre da negociação escrita por um atendente, e os dados já extraídos (via OCR) dos documentos anexados (compradores, vendedores, imóvel).
+Você recebe: o tipo de contrato, o valor_servico_fontinhas, uma descrição livre da negociação escrita por um atendente, e os dados já extraídos (via OCR) dos documentos anexados (compradores, vendedores, imóvel).
+
+IMPORTANTE sobre valor_servico_fontinhas: é o valor cobrado pela Fontinhas (a assessoria) pelo SERVIÇO de intermediação/assessoria deste contrato — NUNCA é o valor do imóvel ou da negociação entre comprador e vendedor. Ignore-o completamente ao montar o campo "valor" do resumo (que é o valor da negociação/imóvel) e NUNCA o compare com valores descritos no texto livre ou extraídos dos documentos — não são a mesma grandeza e não devem gerar item de "atencao" no painel_inteligencia.
 
 Sua única tarefa é CONSOLIDAR essas informações num resumo estruturado. Você NÃO inventa dados que não foram informados nem extraídos — se um campo não aparece em nenhuma fonte, retorne null. Você NÃO redige cláusulas nem texto de contrato aqui.
 
@@ -89,7 +91,7 @@ export async function entenderNegociacao(input: {
 }): Promise<ResumoNegociacao> {
   const contexto = JSON.stringify({
     tipo_contrato: input.tipoContrato,
-    valor_contrato: input.valorContrato,
+    valor_servico_fontinhas: input.valorContrato,
     descricao: input.descricao,
     documentos_ocr: input.documentos,
   }, null, 2)
