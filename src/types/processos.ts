@@ -44,6 +44,10 @@ export interface Processo {
   validade_credito?: string | null
   validade_engenharia?: string | null
   validade_matricula?: string | null
+  // Data em que o crédito foi aprovado — referência da Validade do Crédito,
+  // mas o operador escolhe se uma nova aprovação atualiza a validade ou não
+  // (ver Aba Crédito de Processos)
+  data_credito?: string | null
   // Banco
   banco_id: string | null
   // Contrato

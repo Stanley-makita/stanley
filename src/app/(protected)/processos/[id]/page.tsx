@@ -530,7 +530,7 @@ export default function ProcessoDetalhePage() {
               <AbaCustas processoId={id} />
             </TabsContent>
             <TabsContent value="credito" className="m-0">
-              <AbaCredito processoId={id} />
+              <AbaCredito processoId={id} processo={processo} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
               <AbaTimeline processoId={id} />
