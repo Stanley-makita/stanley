@@ -108,6 +108,13 @@ function statusAssinatura(clicksignStatus: string | null | undefined): string {
   return clicksignStatus === 'closed' ? 'Assinado' : 'Não Assinado'
 }
 
+// Status de negócios de Consórcio — reaproveita o mesmo status_emissao
+// genérico usado por Financiamento (emitido/não emitido), só com rótulos
+// próprios do módulo (Contratada/Em Negociação).
+function statusConsorcio(statusEmissao: string): string {
+  return statusEmissao === 'emitido' ? 'Contratada' : 'Em Negociação'
+}
+
 function useAssinaturaPorProcesso(processoIds: string[], habilitado: boolean) {
   return useQuery({
     queryKey: ['contratos-assinatura-status', processoIds],
@@ -252,6 +259,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const isRegistro = produtoFixo === 'registro'
   const isFinanciamento = produtoFixo === 'financiamento'
   const isContrato = produtoFixo === 'contrato'
+  const isConsorcio = produtoFixo === 'consorcio'
   const fasesFiltroAtivo = isRegistro
     ? FASES_REGISTRO_FILTROS
     : isFinanciamento
@@ -308,7 +316,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
     ...EXTRACTORS_BASE,
     Produto: (p: Processo) => modalidadeProdutoMap[p.modalidade] ?? p.modalidade,
     ...(isContrato ? { Status: (p: Processo) => statusAssinatura(assinaturaPorProcesso[p.id]) } : {}),
-  }), [modalidadeProdutoMap, isContrato, assinaturaPorProcesso])
+    ...(isConsorcio ? { Status: (p: Processo) => statusConsorcio(p.status_emissao) } : {}),
+  }), [modalidadeProdutoMap, isContrato, assinaturaPorProcesso, isConsorcio])
 
   const filteredProcessos = useMemo(() => {
     return processos.filter(p => {
@@ -350,7 +359,11 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = isContrato ? (12 + (isGestor ? 3 : 0)) : (19 + (isGestor ? 3 : 0))
+  const totalColunas = isContrato
+    ? (12 + (isGestor ? 3 : 0))
+    : isConsorcio
+      ? (11 + (isGestor ? 2 : 0))
+      : (19 + (isGestor ? 3 : 0))
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos, extractors: EXTRACTORS }
 
@@ -472,6 +485,26 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                       </>
                     )}
                   </>
+                ) : isConsorcio ? (
+                  <>
+                    <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
+                    <StaticHead>CPF</StaticHead>
+                    <FilterHead col="Produto"     {...filterProps}>Produto</FilterHead>
+                    <FilterHead col="Fase"        {...filterProps}>Fase</FilterHead>
+                    <StaticHead>Valor do Crédito</StaticHead>
+                    <FilterHead col="Banco"       {...filterProps}>Administradora</FilterHead>
+                    <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
+                    <StaticHead>Entrada</StaticHead>
+                    <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
+                    <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
+                    <StaticHead>Contratado em</StaticHead>
+                    {isGestor && (
+                      <>
+                        <StaticHead>Comissão Comercial</StaticHead>
+                        <StaticHead>Comissão Empresa</StaticHead>
+                      </>
+                    )}
+                  </>
                 ) : (
                   <>
                     <FilterHead col="Operacional" {...filterProps}>Operacional</FilterHead>
@@ -576,6 +609,48 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                             </>
                           )}
                         </>
+                      ) : isConsorcio ? (
+                        <>
+                          <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{modalidadeProdutoMap[p.modalidade] ?? p.modalidade}</TableCell>
+                          <TableCell>
+                            {p.fase_atual
+                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
+                              : <span className="text-gray-400 text-xs">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
+                          <TableCell>
+                            {p.banco
+                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
+                              : <span className="text-gray-400 text-xs">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
+                          <TableCell>
+                            <StatusBadge variant={p.status_emissao === 'emitido' ? 'success' : 'neutral'}>
+                              {statusConsorcio(p.status_emissao)}
+                            </StatusBadge>
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.parceiro?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">
+                            {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
+                          </TableCell>
+                          {isGestor && (
+                            <>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_comercial != null
+                                  ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_empresa != null
+                                  ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                            </>
+                          )}
+                        </>
                       ) : (
                         <>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
@@ -648,7 +723,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
             <tfoot>
               <tr className="border-t-2 border-fonti-primary/20 bg-fonti-primary/[0.04]">
                 <td
-                  colSpan={7}
+                  colSpan={isConsorcio ? 4 : 7}
                   className="px-2.5 py-2 text-right text-xs font-semibold text-gray-500 whitespace-nowrap"
                 >
                   {activeFilters.length > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
@@ -656,7 +731,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                 <td className="px-2.5 py-2 text-xs font-bold text-fonti-primary whitespace-nowrap">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(isContrato ? totalValorContrato : totalValorFinanciado)}
                 </td>
-                <td colSpan={isContrato ? (4 + (isGestor ? 3 : 0)) : (11 + (isGestor ? 3 : 0))} />
+                <td colSpan={isContrato ? (4 + (isGestor ? 3 : 0)) : isConsorcio ? (6 + (isGestor ? 2 : 0)) : (11 + (isGestor ? 3 : 0))} />
               </tr>
             </tfoot>
           </Table>
