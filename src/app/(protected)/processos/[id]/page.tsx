@@ -11,7 +11,7 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
@@ -36,6 +36,8 @@ import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { ContratoConstrutor } from '@/components/processos/ContratoConstrutor'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
+import { AbaCredito } from '@/components/processos/abas/AbaCredito'
+import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { PipelineBarProcesso } from '@/components/processos/PipelineBarProcesso'
 import { useFases } from '@/hooks/configuracoes/useFases'
@@ -105,6 +107,11 @@ export default function ProcessoDetalhePage() {
   }
   const [abaAtiva, setAbaAtiva] = useState(searchParams.get('aba') ?? 'resumo')
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
+  // Aba Crédito fica escondida até o usuário pedir uma nova análise — ou já
+  // aparece direto se o negócio já tiver alguma análise registrada (evita
+  // sumir a aba com dados assim que ela navega pra outra).
+  const [mostrarAbaCredito, setMostrarAbaCredito] = useState(false)
+  const { analises: analisesCreditoProcesso } = useAnalisesCredito({ processoId: id })
 
   // Dados financeiros obrigatórios: bloqueia avanço de fase se incompletos ou inconsistentes
   // (mesma regra também é aplicada, de forma obrigatória, dentro de useAvancarFase).
@@ -297,6 +304,21 @@ export default function ProcessoDetalhePage() {
                 </Button>
               )}
 
+              {/* Nova Análise de Crédito — negócio já em Financiamento que precisa de
+                  outra tentativa (banco recusou, mudança de renda etc.) sem voltar
+                  o cliente pra fase de Lead */}
+              {FINANCIAMENTO_MODALIDADES.has(processo.modalidade) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 shrink-0 gap-1.5 text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onClick={() => { setMostrarAbaCredito(true); setAbaAtiva('credito') }}
+                >
+                  <Banknote className="h-3.5 w-3.5" />
+                  Nova Análise de Crédito
+                </Button>
+              )}
+
               {/* Confirmação de Valores — a partir da fase Engenharia */}
               {(processo.fase_atual?.nome?.toLowerCase().includes('engenharia') ||
                 fasesHistorico.some(h => h.fase?.nome?.toLowerCase().includes('engenharia'))) && (
@@ -449,6 +471,9 @@ export default function ProcessoDetalhePage() {
               ...(MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])
                 ? [['custas','Custas']] as [string,string][]
                 : []),
+              ...((mostrarAbaCredito || analisesCreditoProcesso.length > 0) && FINANCIAMENTO_MODALIDADES.has(processo.modalidade)
+                ? [['credito','Crédito']] as [string,string][]
+                : []),
               ['timeline','Timeline'],['solicitacoes','Solicitações'],
             ] as [string,string][]).map(([value, label]) => (
               <TabsTrigger
@@ -503,6 +528,9 @@ export default function ProcessoDetalhePage() {
             </TabsContent>
             <TabsContent value="custas" className="m-0">
               <AbaCustas processoId={id} />
+            </TabsContent>
+            <TabsContent value="credito" className="m-0">
+              <AbaCredito processoId={id} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
               <AbaTimeline processoId={id} />

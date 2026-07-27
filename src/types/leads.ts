@@ -126,10 +126,14 @@ export interface Lead {
 
 export type StatusAnaliseCredito = 'em_analise' | 'aprovado' | 'recusado' | 'pendente'
 
+// Vinculada a exatamente um dos dois — lead_id (fluxo original de Captação)
+// ou processo_id (negócio em Financiamento que precisa de nova análise sem
+// voltar pra fase de Lead) — nunca os dois, nunca nenhum (CHECK no banco).
 export interface LeadAnaliseCredito {
   id: string
   empresa_id: string
-  lead_id: string
+  lead_id: string | null
+  processo_id: string | null
   nome: string
   banco_pretendido: string | null
   valor_imovel: number | null
