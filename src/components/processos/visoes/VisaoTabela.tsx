@@ -2,8 +2,10 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { supabase } from '@/lib/supabase'
 import { useProdutos } from '@/app/(protected)/configuracoes/_hooks/useProdutos'
 import { ChanceBadge } from '../ChanceBadge'
 import {
@@ -97,6 +99,29 @@ const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Corretor:     (p) => (p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '',
   Imobiliaria:  (p) => p.imobiliarias?.[0]?.imobiliaria?.nome ?? '',
   Parceiro:     (p) => p.parceiro?.nome ?? '',
+}
+
+// Status de assinatura dos negócios de Contrato — vem do Clicksign
+// (processo_contratos.clicksign_status), não do status_emissao genérico
+// usado por Financiamento/Registro.
+function statusAssinatura(clicksignStatus: string | null | undefined): string {
+  return clicksignStatus === 'closed' ? 'Assinado' : 'Não Assinado'
+}
+
+function useAssinaturaPorProcesso(processoIds: string[], habilitado: boolean) {
+  return useQuery({
+    queryKey: ['contratos-assinatura-status', processoIds],
+    enabled: habilitado && processoIds.length > 0,
+    queryFn: async (): Promise<Record<string, string | null>> => {
+      const { data } = await supabase
+        .from('processo_contratos')
+        .select('processo_id, clicksign_status')
+        .in('processo_id', processoIds)
+      const mapa: Record<string, string | null> = {}
+      for (const row of data ?? []) mapa[row.processo_id] = row.clicksign_status
+      return mapa
+    },
+  })
 }
 
 function getUniqueValues(col: string, processos: Processo[], extractors: Record<string, (p: Processo) => string>): string[] {
@@ -276,10 +301,14 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
     return Object.keys(map).length > 0 ? map : MODALIDADE_PRODUTO_FALLBACK
   }, [produtosConfig])
 
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos])
+  const { data: assinaturaPorProcesso = {} } = useAssinaturaPorProcesso(processoIds, isContrato)
+
   const EXTRACTORS = useMemo<Record<string, (p: Processo) => string>>(() => ({
     ...EXTRACTORS_BASE,
     Produto: (p: Processo) => modalidadeProdutoMap[p.modalidade] ?? p.modalidade,
-  }), [modalidadeProdutoMap])
+    ...(isContrato ? { Status: (p: Processo) => statusAssinatura(assinaturaPorProcesso[p.id]) } : {}),
+  }), [modalidadeProdutoMap, isContrato, assinaturaPorProcesso])
 
   const filteredProcessos = useMemo(() => {
     return processos.filter(p => {
@@ -304,6 +333,10 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
     () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
     [filteredProcessos],
   )
+  const totalValorContrato = useMemo(
+    () => filteredProcessos.reduce((sum, p) => sum + (p.valor_contrato ?? 0), 0),
+    [filteredProcessos],
+  )
 
   const totalPaginas = Math.max(1, Math.ceil(filteredProcessos.length / ROWS_PER_PAGE))
   const paginados = useMemo(() => {
@@ -317,7 +350,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
-  const totalColunas = 19 + (isGestor ? 3 : 0)
+  const totalColunas = isContrato ? (12 + (isGestor ? 3 : 0)) : (19 + (isGestor ? 3 : 0))
 
   const filterProps = { colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos: processos, extractors: EXTRACTORS }
 
@@ -417,30 +450,56 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: 'var(--fonti-primary)' }} className="hover:bg-fonti-primary">
-                <FilterHead col="Operacional" {...filterProps}>Operacional</FilterHead>
-                <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
-                <StaticHead>CPF</StaticHead>
-                <FilterHead col="Modalidade"  {...filterProps}>Modalidade</FilterHead>
-                <FilterHead col="Produto"     {...filterProps}>Produto</FilterHead>
-                <FilterHead col="Proposta"    {...filterProps}>Proposta</FilterHead>
-                <FilterHead col="Fase"        {...filterProps}>Fase</FilterHead>
-                <StaticHead>Valor Financiado</StaticHead>
-                <FilterHead col="Banco"       {...filterProps}>Banco</FilterHead>
-                <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
-                <StaticHead>Entrada</StaticHead>
-                <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
-                <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
-                <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
-                {isGestor && <StaticHead>Assessoria R$</StaticHead>}
-                <FilterHead col="Vendedor"    {...filterProps}>Vendedor</FilterHead>
-                <FilterHead col="Corretor"    {...filterProps}>Corretor</FilterHead>
-                <FilterHead col="Imobiliaria" {...filterProps}>Imobiliária/Construtora</FilterHead>
-                <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
-                <StaticHead>Emitido em</StaticHead>
-                {isGestor && (
+                {isContrato ? (
                   <>
-                    <StaticHead>Comissão Comercial</StaticHead>
-                    <StaticHead>Comissão Empresa</StaticHead>
+                    <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
+                    <StaticHead>CPF</StaticHead>
+                    <FilterHead col="Produto"     {...filterProps}>Produto</FilterHead>
+                    <FilterHead col="Fase"        {...filterProps}>Fase</FilterHead>
+                    <StaticHead>Entrada</StaticHead>
+                    <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
+                    <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
+                    <StaticHead>Valor</StaticHead>
+                    <FilterHead col="Vendedor"    {...filterProps}>Vendedor</FilterHead>
+                    <FilterHead col="Corretor"    {...filterProps}>Corretor</FilterHead>
+                    <FilterHead col="Imobiliaria" {...filterProps}>Imobiliária/Construtora</FilterHead>
+                    <StaticHead>Emitido em</StaticHead>
+                    {isGestor && (
+                      <>
+                        <StaticHead>Comissão Comercial</StaticHead>
+                        <StaticHead>Comissão Empresa</StaticHead>
+                        <StaticHead>Comissão Jurídico</StaticHead>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <FilterHead col="Operacional" {...filterProps}>Operacional</FilterHead>
+                    <FilterHead col="Cliente"     {...filterProps}>Cliente</FilterHead>
+                    <StaticHead>CPF</StaticHead>
+                    <FilterHead col="Modalidade"  {...filterProps}>Modalidade</FilterHead>
+                    <FilterHead col="Produto"     {...filterProps}>Produto</FilterHead>
+                    <FilterHead col="Proposta"    {...filterProps}>Proposta</FilterHead>
+                    <FilterHead col="Fase"        {...filterProps}>Fase</FilterHead>
+                    <StaticHead>Valor Financiado</StaticHead>
+                    <FilterHead col="Banco"       {...filterProps}>Banco</FilterHead>
+                    <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
+                    <StaticHead>Entrada</StaticHead>
+                    <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
+                    <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
+                    <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
+                    {isGestor && <StaticHead>Assessoria R$</StaticHead>}
+                    <FilterHead col="Vendedor"    {...filterProps}>Vendedor</FilterHead>
+                    <FilterHead col="Corretor"    {...filterProps}>Corretor</FilterHead>
+                    <FilterHead col="Imobiliaria" {...filterProps}>Imobiliária/Construtora</FilterHead>
+                    <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
+                    <StaticHead>Emitido em</StaticHead>
+                    {isGestor && (
+                      <>
+                        <StaticHead>Comissão Comercial</StaticHead>
+                        <StaticHead>Comissão Empresa</StaticHead>
+                      </>
+                    )}
                   </>
                 )}
               </TableRow>
@@ -471,64 +530,114 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                         p.modalidade === 'Consorcio' ? `/negocios/consorcio/${p.id}` : `/processos/${p.id}`
                       )}
                     >
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{modalidadeProdutoMap[p.modalidade] ?? p.modalidade}</TableCell>
-                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
-                      <TableCell>
-                        {p.fase_atual
-                          ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
-                          : <span className="text-gray-400 text-xs">—</span>}
-                      </TableCell>
-                      <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
-                      <TableCell>
-                        {p.banco
-                          ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
-                          : <span className="text-gray-400 text-xs">—</span>}
-                      </TableCell>
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
-                      <TableCell>
-                        <StatusBadge variant={p.status_emissao === 'emitido' ? 'success' : 'neutral'}>
-                          {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
-                        </StatusBadge>
-                      </TableCell>
-                      <TableCell><ChanceBadge chance={p.chance_emissao} /></TableCell>
-                      <TableCell>
-                        <StatusBadge variant={p.tem_assessoria ? 'brand' : 'neutral'}>
-                          {p.tem_assessoria ? 'Sim' : 'Não'}
-                        </StatusBadge>
-                      </TableCell>
-                      {isGestor && (
-                        <TableCell className="text-xs whitespace-nowrap">
-                          {p.valor_assessoria != null && p.valor_assessoria > 0
-                            ? <span className="text-gray-700 font-medium">{formatarMoeda(p.valor_assessoria)}</span>
-                            : <span className="text-gray-300">—</span>}
-                        </TableCell>
-                      )}
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.vendedores?.[0]?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">
-                        {(p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.parceiro?.nome ?? '—'}</TableCell>
-                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">
-                        {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
-                      </TableCell>
-                      {isGestor && (
+                      {isContrato ? (
                         <>
-                          <TableCell className="text-xs whitespace-nowrap">
-                            {p.comissao_comercial != null
-                              ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
-                              : <span className="text-gray-400">—</span>}
+                          <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{modalidadeProdutoMap[p.modalidade] ?? p.modalidade}</TableCell>
+                          <TableCell>
+                            {p.fase_atual
+                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
+                              : <span className="text-gray-400 text-xs">—</span>}
                           </TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">
-                            {p.comissao_empresa != null
-                              ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
-                              : <span className="text-gray-400">—</span>}
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
+                          <TableCell>
+                            <StatusBadge variant={assinaturaPorProcesso[p.id] === 'closed' ? 'success' : 'neutral'}>
+                              {statusAssinatura(assinaturaPorProcesso[p.id])}
+                            </StatusBadge>
                           </TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_contrato ?? null)}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.vendedores?.[0]?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">
+                            {(p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '—'}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">
+                            {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
+                          </TableCell>
+                          {isGestor && (
+                            <>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_comercial != null
+                                  ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_contrato ?? null, p.comissao_comercial)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_empresa != null
+                                  ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_contrato ?? null, p.comissao_empresa)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_juridico != null
+                                  ? <span className="font-medium">{formatarComissaoRS(p.valor_contrato ?? null, p.comissao_juridico)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{modalidadeProdutoMap[p.modalidade] ?? p.modalidade}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
+                          <TableCell>
+                            {p.fase_atual
+                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
+                              : <span className="text-gray-400 text-xs">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
+                          <TableCell>
+                            {p.banco
+                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
+                              : <span className="text-gray-400 text-xs">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
+                          <TableCell>
+                            <StatusBadge variant={p.status_emissao === 'emitido' ? 'success' : 'neutral'}>
+                              {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
+                            </StatusBadge>
+                          </TableCell>
+                          <TableCell><ChanceBadge chance={p.chance_emissao} /></TableCell>
+                          <TableCell>
+                            <StatusBadge variant={p.tem_assessoria ? 'brand' : 'neutral'}>
+                              {p.tem_assessoria ? 'Sim' : 'Não'}
+                            </StatusBadge>
+                          </TableCell>
+                          {isGestor && (
+                            <TableCell className="text-xs whitespace-nowrap">
+                              {p.valor_assessoria != null && p.valor_assessoria > 0
+                                ? <span className="text-gray-700 font-medium">{formatarMoeda(p.valor_assessoria)}</span>
+                                : <span className="text-gray-300">—</span>}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.vendedores?.[0]?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">
+                            {(p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '—'}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.parceiro?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-500 whitespace-nowrap">
+                            {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
+                          </TableCell>
+                          {isGestor && (
+                            <>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_comercial != null
+                                  ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {p.comissao_empresa != null
+                                  ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
+                                  : <span className="text-gray-400">—</span>}
+                              </TableCell>
+                            </>
+                          )}
                         </>
                       )}
                     </TableRow>
@@ -545,9 +654,9 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                   {activeFilters.length > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
                 </td>
                 <td className="px-2.5 py-2 text-xs font-bold text-fonti-primary whitespace-nowrap">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalValorFinanciado)}
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(isContrato ? totalValorContrato : totalValorFinanciado)}
                 </td>
-                <td colSpan={11 + (isGestor ? 3 : 0)} />
+                <td colSpan={isContrato ? (4 + (isGestor ? 3 : 0)) : (11 + (isGestor ? 3 : 0))} />
               </tr>
             </tfoot>
           </Table>
