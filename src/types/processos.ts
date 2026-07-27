@@ -56,6 +56,7 @@ export interface Processo {
   valor_assessoria?: number | null
   comissao_comercial: number | null
   comissao_empresa: number | null
+  comissao_juridico?: number | null
   // Responsáveis
   operacional_id: string | null
   comercial_id: string | null
