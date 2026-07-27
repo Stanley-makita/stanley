@@ -122,6 +122,13 @@ function ItemFila({ item, onAbrirLead }: { item: FilaItem; onAbrirLead: (id: str
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-800 truncate">{item.leadNome}</p>
         <p className="text-xs text-gray-500 truncate">{item.titulo}</p>
+        {(item.solicitanteNome || item.responsavelNome) && (
+          <p className="text-[11px] text-gray-400 truncate">
+            {item.solicitanteNome && <>Pedido por <span className="text-gray-500 font-medium">{item.solicitanteNome}</span></>}
+            {item.solicitanteNome && item.responsavelNome && ' · '}
+            {item.responsavelNome && <>Para <span className="text-gray-500 font-medium">{item.responsavelNome}</span></>}
+          </p>
+        )}
       </div>
       {item.vencido && (
         <span className="shrink-0 text-xs text-red-500 font-medium whitespace-nowrap">
