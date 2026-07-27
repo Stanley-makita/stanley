@@ -8,6 +8,7 @@ import { ptBR } from 'date-fns/locale'
 import { Home, CircleDollarSign, FileText, MapPin, AlertCircle, Clock, LayoutList } from 'lucide-react'
 import { useNegociosDashboard } from '@/hooks/negocios/useNegociosDashboard'
 import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { cn } from '@/lib/utils'
 import type { PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
 import type { PrioridadeTarefa, TarefaAgenda } from '@/types/agenda'
@@ -91,7 +92,14 @@ function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading, desta
 
 export default function NegociosDashboardPage() {
   const router = useRouter()
-  const { contagens, tarefasHoje, solicitacoes } = useNegociosDashboard()
+  const { usuario } = useAuth()
+  const [todasDaEmpresa, setTodasDaEmpresa] = useState(false)
+  const isGestor =
+    usuario?.perfil === 'admin' ||
+    usuario?.perfil === 'gerente' ||
+    usuario?.perfil === 'gestor'
+
+  const { contagens, tarefasHoje, solicitacoes } = useNegociosDashboard(todasDaEmpresa)
   const c = contagens.data
   const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
 
@@ -155,13 +163,42 @@ export default function NegociosDashboardPage() {
         />
       </div>
 
+      {/* Toggle Minhas/Equipe — só admin/gestor/gerente escolhe; demais sempre veem as próprias */}
+      {isGestor && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Exibindo:</span>
+          <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setTodasDaEmpresa(false)}
+              className={cn(
+                'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                !todasDaEmpresa ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              )}
+            >
+              Minhas
+            </button>
+            <button
+              onClick={() => setTodasDaEmpresa(true)}
+              className={cn(
+                'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                todasDaEmpresa ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700',
+              )}
+            >
+              Equipe
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Linha 2 — Tarefas do dia + Solicitações */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Suas tarefas do dia */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="h-4 w-4 text-fonti-primary" />
-            <h2 className="font-semibold text-fonti-primary text-sm">Suas próximas tarefas</h2>
+            <h2 className="font-semibold text-fonti-primary text-sm">
+              {todasDaEmpresa ? 'Próximas tarefas da equipe' : 'Suas próximas tarefas'}
+            </h2>
             {!tarefasHoje.isLoading && (
               <span className="ml-auto text-xs text-gray-400">
                 {tarefasHoje.data?.length ?? 0} pendente{(tarefasHoje.data?.length ?? 0) !== 1 ? 's' : ''}
@@ -206,7 +243,9 @@ export default function NegociosDashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="h-4 w-4 text-fonti-primary" />
-            <h2 className="font-semibold text-fonti-primary text-sm">Solicitações a você</h2>
+            <h2 className="font-semibold text-fonti-primary text-sm">
+              {todasDaEmpresa ? 'Solicitações da equipe' : 'Solicitações a você'}
+            </h2>
             {!solicitacoes.isLoading && (
               <span className="ml-auto text-xs text-gray-400">
                 {solicitacoes.data?.length ?? 0} aberta{(solicitacoes.data?.length ?? 0) !== 1 ? 's' : ''}

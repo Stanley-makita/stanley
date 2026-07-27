@@ -17,7 +17,7 @@ export interface NegociosContagens {
   todos:         { concluidos: number; emAndamento: number }
 }
 
-export function useNegociosDashboard() {
+export function useNegociosDashboard(todasDaEmpresa: boolean = false) {
   const supabase = createClient()
   const { usuario } = useAuth()
 
@@ -78,11 +78,11 @@ export function useNegociosDashboard() {
   const uid        = usuario?.id
 
   const tarefasHoje = useQuery({
-    queryKey: ['negocios', 'dashboard', 'tarefas-proximas', uid],
+    queryKey: ['negocios', 'dashboard', 'tarefas-proximas', uid, todasDaEmpresa],
     enabled: !!usuario,
     staleTime: 1000 * 60 * 2,
     queryFn: async (): Promise<TarefaAgenda[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('processo_tarefas')
         .select(`
           id, titulo, prioridade, concluida, concluida_em,
@@ -96,7 +96,12 @@ export function useNegociosDashboard() {
         .eq('empresa_id', usuario!.empresa_id)
         .eq('concluida', false)
         .is('deleted_at', null)
-        .or(`responsavel_id.eq.${uid},criado_por.eq.${uid}`)
+
+      if (!todasDaEmpresa) {
+        query = query.or(`responsavel_id.eq.${uid},criado_por.eq.${uid}`)
+      }
+
+      const { data, error } = await query
         .or(`data_prazo.is.null,and(data_prazo.gte.${dataInicio},data_prazo.lte.${dataFim})`)
         .order('data_prazo', { ascending: true, nullsFirst: false })
         .limit(20)
@@ -129,17 +134,22 @@ export function useNegociosDashboard() {
   })
 
   const solicitacoes = useQuery({
-    queryKey: ['negocios', 'dashboard', 'solicitacoes', usuario?.id],
+    queryKey: ['negocios', 'dashboard', 'solicitacoes', usuario?.id, todasDaEmpresa],
     enabled: !!usuario,
     staleTime: 1000 * 60 * 2,
     queryFn: async (): Promise<SolicitacaoOperacional[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('solicitacoes_operacionais')
         .select('id, titulo, tipo, prioridade, status, sla_at, created_at, lead_id, processo_id, solicitante:usuarios!solicitante_id(id, nome)')
         .eq('empresa_id', usuario!.empresa_id)
-        .eq('responsavel_id', usuario!.id)
         .is('deleted_at', null)
         .not('status', 'in', '("concluido","cancelado")')
+
+      if (!todasDaEmpresa) {
+        query = query.eq('responsavel_id', usuario!.id)
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(10)
 
