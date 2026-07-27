@@ -124,6 +124,7 @@ export function substituirVariaveis(
     comprador_profissao: val(cp?.profissao),
     comprador_cnh: '[A PREENCHER]',
     comprador_endereco: buildEndereco(cp),
+    comprador_conjuge: compradorConjugeNome ? `, cônjuge ${compradorConjugeNome}` : '',
 
     // Vendedor
     vendedor_nome: val(vendedor?.nome),
@@ -138,6 +139,7 @@ export function substituirVariaveis(
     vendedor_profissao: val(vp?.profissao),
     vendedor_cnh: '[A PREENCHER]',
     vendedor_endereco: buildEndereco(vp),
+    vendedor_conjuge: vendedorConjugeNome ? `, cônjuge ${vendedorConjugeNome}` : '',
 
     // Locador/Locatário — mesmos dados do vendedor/comprador para locação
     locador_nome: val(vendedor?.nome),
