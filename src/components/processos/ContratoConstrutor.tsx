@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
-  Upload, ChevronDown, ChevronUp, RotateCcw, Trash2,
+  Upload, ChevronDown, ChevronUp, RotateCcw, Trash2, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -74,7 +74,9 @@ function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, p
   })
 }
 
-interface DocumentoDaPasta { id: string; nome: string }
+interface DocumentoDaPasta { id: string; nome: string; storagePath: string }
+
+const BUCKET_DOCUMENTOS = 'documentos-clientes'
 
 // Documentos já anexados em cada pasta fixa — alimenta tanto a contagem
 // quanto a listagem com exclusão individual nas caixas de upload; a
@@ -99,18 +101,18 @@ function useDocumentosPorPasta(processoId: string) {
 
       const { data: docs } = await supabase
         .from('documentos')
-        .select('id, nome_original')
+        .select('id, nome_original, storage_path')
         .in('id', documentoIds)
         .is('deleted_at', null)
-      const nomePorId = new Map((docs ?? []).map((d) => [d.id, d.nome_original]))
+      const docPorId = new Map((docs ?? []).map((d) => [d.id, d]))
 
       const porPastaId = new Map<string, DocumentoDaPasta[]>()
       for (const v of vinculos ?? []) {
         if (!v.pasta_id) continue
-        const nome = nomePorId.get(v.documento_id)
-        if (!nome) continue // excluído ou não encontrado
+        const doc = docPorId.get(v.documento_id)
+        if (!doc) continue // excluído ou não encontrado
         const lista = porPastaId.get(v.pasta_id) ?? []
-        lista.push({ id: v.documento_id, nome })
+        lista.push({ id: v.documento_id, nome: doc.nome_original, storagePath: doc.storage_path })
         porPastaId.set(v.pasta_id, lista)
       }
       const porCodigo: Record<string, DocumentoDaPasta[]> = {}
@@ -260,6 +262,15 @@ function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, arquivos
     }
   }
 
+  async function handleVisualizar(storagePath: string) {
+    const { data, error } = await supabase.storage.from(BUCKET_DOCUMENTOS).createSignedUrl(storagePath, 3600)
+    if (error || !data?.signedUrl) {
+      toast.error('Não foi possível abrir o documento.')
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
   function handleLimpar() {
     if (arquivos.length === 0) return
     const confirmado = window.confirm(
@@ -301,16 +312,25 @@ function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, arquivos
           {arquivos.map((a) => (
             <li key={a.id} className="flex items-center justify-between gap-2 text-[11px] text-gray-600">
               <span className="truncate" title={a.nome}>{a.nome}</span>
-              <button
-                onClick={() => handleExcluir(a.id)}
-                disabled={excluir.isPending}
-                title={confirmandoExclusaoId === a.id ? 'Clique novamente para confirmar' : 'Excluir'}
-                className={`shrink-0 rounded p-0.5 transition-colors ${
-                  confirmandoExclusaoId === a.id ? 'text-red-600' : 'text-gray-400 hover:text-red-500'
-                }`}
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+              <span className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => handleVisualizar(a.storagePath)}
+                  title="Ver documento"
+                  className="rounded p-0.5 text-gray-400 transition-colors hover:text-fonti-primary"
+                >
+                  <Eye className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => handleExcluir(a.id)}
+                  disabled={excluir.isPending}
+                  title={confirmandoExclusaoId === a.id ? 'Clique novamente para confirmar' : 'Excluir'}
+                  className={`rounded p-0.5 transition-colors ${
+                    confirmandoExclusaoId === a.id ? 'text-red-600' : 'text-gray-400 hover:text-red-500'
+                  }`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </span>
             </li>
           ))}
         </ul>
