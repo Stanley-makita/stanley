@@ -47,13 +47,15 @@ export async function planejarContrato(input: {
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-5',
-    max_tokens: 1200,
+    max_tokens: 4000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: contexto }],
   })
 
-  const bloco = response.content[0]
-  if (bloco?.type !== 'text') throw new Error('Resposta inesperada da IA.')
+  // Sonnet 5 roda thinking adaptativo por padrão — o primeiro bloco costuma
+  // ser 'thinking', não 'text' (mesmo motivo do .find() em ocr.ts).
+  const bloco = response.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+  if (!bloco) throw new Error('Resposta inesperada da IA.')
 
   const jsonText = bloco.text.trim()
     .replace(/^```(?:json)?\s*/i, '')

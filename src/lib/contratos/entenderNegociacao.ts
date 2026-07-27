@@ -101,8 +101,10 @@ export async function entenderNegociacao(input: {
     messages: [{ role: 'user', content: contexto }],
   })
 
-  const bloco = response.content[0]
-  if (bloco?.type !== 'text') throw new Error('Resposta inesperada da IA.')
+  // Sonnet 5 roda thinking adaptativo por padrão — o primeiro bloco costuma
+  // ser 'thinking', não 'text' (mesmo motivo do .find() em ocr.ts).
+  const bloco = response.content.find((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+  if (!bloco) throw new Error('Resposta inesperada da IA.')
 
   const bruto = bloco.text.trim()
   const semFences = bruto
