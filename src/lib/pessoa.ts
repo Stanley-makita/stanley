@@ -119,11 +119,13 @@ export async function buscarOuCriarPessoa(
   empresa_id: string,
   telefoneBruto: string,
   nome: string,
-  cpf?: string
+  cpf?: string,
+  email?: string
 ): Promise<string> {
   const telefone = normalizarTelefone(telefoneBruto)
   const cpfNorm = cpf ? normalizarCpf(cpf) : null
   const cpfValido = cpfNorm?.length === 11 ? cpfNorm : null
+  const emailValido = email?.trim() || null
   const nomePlaceholder = !nome || nome.toLowerCase() === 'cliente' || nome.toLowerCase() === 'desconhecido'
 
   // 1. Busca por CPF primeiro (chave forte)
@@ -148,6 +150,9 @@ export async function buscarOuCriarPessoa(
           ativo: true,
         })
       }
+      if (emailValido) {
+        await supabase.from('pessoas').update({ email: emailValido }).eq('id', pessoaIdByCpf).is('email', null)
+      }
       return pessoaIdByCpf
     }
   }
@@ -155,13 +160,16 @@ export async function buscarOuCriarPessoa(
   // 2. Busca por telefone
   const pessoaIdByPhone = await buscarPessoaPorTelefone(empresa_id, telefone)
   if (pessoaIdByPhone) {
-    // Aproveita para gravar o CPF se a pessoa ainda não tinha
+    // Aproveita para gravar o CPF/e-mail se a pessoa ainda não tinha
     if (cpfValido) {
       await supabase
         .from('pessoas')
         .update({ cpf: cpfValido })
         .eq('id', pessoaIdByPhone)
         .is('cpf', null)
+    }
+    if (emailValido) {
+      await supabase.from('pessoas').update({ email: emailValido }).eq('id', pessoaIdByPhone).is('email', null)
     }
     return pessoaIdByPhone
   }
@@ -176,6 +184,9 @@ export async function buscarOuCriarPessoa(
           .update({ cpf: cpfValido })
           .eq('id', pessoaIdByNome)
           .is('cpf', null)
+      }
+      if (emailValido) {
+        await supabase.from('pessoas').update({ email: emailValido }).eq('id', pessoaIdByNome).is('email', null)
       }
       const { data: telefoneExistente } = await supabase
         .from('pessoa_telefones')
@@ -208,6 +219,7 @@ export async function buscarOuCriarPessoa(
       nome: nomePlaceholder ? 'Novo contato' : nome,
       status_identidade: statusIdentidade,
       ...(cpfValido ? { cpf: cpfValido } : {}),
+      ...(emailValido ? { email: emailValido } : {}),
     })
     .select('id')
     .single()

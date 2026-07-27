@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   } else {
     // Busca ou cria Pessoa (deduplicação por CPF e telefone) — fluxo automático de sempre
     try {
-      pessoa_id = await buscarOuCriarPessoa(empresa_id, telefone.trim(), nome.trim(), body.cpf?.trim())
+      pessoa_id = await buscarOuCriarPessoa(empresa_id, telefone.trim(), nome.trim(), body.cpf?.trim(), body.email?.trim())
     } catch (err) {
       console.error('[POST /api/leads] erro ao buscar/criar pessoa:', err)
     }
