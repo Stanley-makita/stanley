@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 interface Props {
   processoId: string
   faseId: string | null | undefined
+  bancoId?: string | null
   onPendenciasChange: (hasPendencias: boolean) => void
 }
 
@@ -30,8 +31,8 @@ function tipoValidadeDeAcao(acao: string | null | undefined): TipoValidade | nul
   return ['credito', 'engenharia', 'matricula'].includes(tipo) ? tipo : null
 }
 
-export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Props) {
-  const { data: tmpl, isLoading: tmplLoading } = useChecklistTemplate(faseId)
+export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChange }: Props) {
+  const { data: tmpl, isLoading: tmplLoading } = useChecklistTemplate(faseId, bancoId)
   const { data: execucoes = [], isLoading: execLoading } = useChecklistExecucoes(processoId)
   const marcar          = useMarcarChecklistItem(processoId)
   const salvarValidade  = useSalvarValidadeProcesso()
@@ -154,6 +155,12 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                               if (novoMarcado && item.acao_ao_completar === 'assinado') {
                                 toast.success('✍️ Contrato assinado! Botão "Enviar para Fluxo Registro" liberado.')
                               }
+                              if (novoMarcado && item.acao_ao_completar === 'enviado_conformidade') {
+                                toast.success('📨 Processo enviado para conformidade.')
+                              }
+                              if (novoMarcado && item.acao_ao_completar === 'processo_conforme') {
+                                toast.success('✅ Processo marcado como conforme.')
+                              }
                             },
                           }
                         )
@@ -171,6 +178,12 @@ export function PainelChecklist({ processoId, faseId, onPendenciasChange }: Prop
                       )}
                       {item.acao_ao_completar === 'assinado' && (
                         <span className="ml-1.5 text-[10px] text-green-600 font-medium">✍️ libera envio para Registro</span>
+                      )}
+                      {item.acao_ao_completar === 'enviado_conformidade' && (
+                        <span className="ml-1.5 text-[10px] text-blue-600 font-medium">📨 marca como Enviado para Conformidade</span>
+                      )}
+                      {item.acao_ao_completar === 'processo_conforme' && (
+                        <span className="ml-1.5 text-[10px] text-green-600 font-medium">✅ marca como Processo Conforme</span>
                       )}
                       {tipoVal && (
                         <span className="ml-1.5 text-[10px] text-blue-600 font-medium">📅 salva validade da {LABEL_VALIDADE[tipoVal]}</span>

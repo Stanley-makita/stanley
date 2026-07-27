@@ -45,7 +45,7 @@ export function useChecklistTemplates(modulo: string) {
       if (templateIds.length > 0) {
         const { data: itensData, error: iErr } = await supabase
           .from('checklist_items')
-          .select('id, template_id, descricao, obrigatorio, ordem, ativo, acao_ao_completar')
+          .select('id, template_id, descricao, obrigatorio, ordem, ativo, acao_ao_completar, condicao_banco_id')
           .in('template_id', templateIds)
           .eq('ativo', true)
           .order('ordem', { ascending: true })
@@ -116,8 +116,8 @@ export function useCriarChecklistItem() {
 
   return useMutation({
     mutationFn: async ({
-      templateId, descricao, obrigatorio, ordem, modulo, acao_ao_completar,
-    }: { templateId: string; descricao: string; obrigatorio: boolean; ordem: number; modulo: string; acao_ao_completar?: string | null }) => {
+      templateId, descricao, obrigatorio, ordem, modulo, acao_ao_completar, condicao_banco_id,
+    }: { templateId: string; descricao: string; obrigatorio: boolean; ordem: number; modulo: string; acao_ao_completar?: string | null; condicao_banco_id?: string | null }) => {
       const { error } = await supabase
         .from('checklist_items')
         .insert({
@@ -126,6 +126,7 @@ export function useCriarChecklistItem() {
           descricao:   descricao.trim(),
           obrigatorio,
           acao_ao_completar: acao_ao_completar || null,
+          condicao_banco_id: condicao_banco_id || null,
           ordem,
           ativo:       true,
         })
@@ -145,11 +146,16 @@ export function useAtualizarChecklistItem() {
 
   return useMutation({
     mutationFn: async ({
-      itemId, descricao, obrigatorio, modulo, acao_ao_completar,
-    }: { itemId: string; descricao: string; obrigatorio: boolean; modulo: string; acao_ao_completar?: string | null }) => {
+      itemId, descricao, obrigatorio, modulo, acao_ao_completar, condicao_banco_id,
+    }: { itemId: string; descricao: string; obrigatorio: boolean; modulo: string; acao_ao_completar?: string | null; condicao_banco_id?: string | null }) => {
       const { error } = await supabase
         .from('checklist_items')
-        .update({ descricao: descricao.trim(), obrigatorio, acao_ao_completar: acao_ao_completar || null })
+        .update({
+          descricao: descricao.trim(),
+          obrigatorio,
+          acao_ao_completar: acao_ao_completar || null,
+          condicao_banco_id: condicao_banco_id || null,
+        })
         .eq('id', itemId)
       if (error) throw error
       return modulo
