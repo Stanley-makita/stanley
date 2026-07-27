@@ -280,6 +280,13 @@ export default function NegociosDashboardPage() {
                           </span>
                         )}
                       </p>
+                      {(s.solicitante?.nome || s.responsavel?.nome) && (
+                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                          {s.solicitante?.nome && <>Pedido por <span className="text-gray-500 font-medium">{s.solicitante.nome}</span></>}
+                          {s.solicitante?.nome && s.responsavel?.nome && ' · '}
+                          {s.responsavel?.nome && <>Para <span className="text-gray-500 font-medium">{s.responsavel.nome}</span></>}
+                        </p>
+                      )}
                     </div>
                     <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0', PRIORIDADE_SOL_COR[s.prioridade])}>
                       {s.prioridade}

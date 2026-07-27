@@ -140,7 +140,7 @@ export function useNegociosDashboard(todasDaEmpresa: boolean = false) {
     queryFn: async (): Promise<SolicitacaoOperacional[]> => {
       let query = supabase
         .from('solicitacoes_operacionais')
-        .select('id, titulo, tipo, prioridade, status, sla_at, created_at, lead_id, processo_id, solicitante:usuarios!solicitante_id(id, nome)')
+        .select('id, titulo, tipo, prioridade, status, sla_at, created_at, lead_id, processo_id, responsavel_id, solicitante:usuarios!solicitante_id(id, nome), responsavel:usuarios!responsavel_id(id, nome)')
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
         .not('status', 'in', '("concluido","cancelado")')

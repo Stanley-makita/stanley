@@ -32,6 +32,10 @@ export interface FilaItem {
   vencido: boolean
   venceHoje: boolean
   createdAt: string
+  // Só em solicitações — quem pediu e pra quem, pra o gestor (visão Equipe)
+  // saber quem ainda não atendeu.
+  solicitanteNome?: string | null
+  responsavelNome?: string | null
 }
 
 const TIPO_SOL_LABEL: Record<string, string> = {
@@ -250,7 +254,7 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
 
       const solQueryBase = supabase
         .from('solicitacoes_operacionais')
-        .select('id, titulo, tipo, prioridade, sla_at, created_at, lead:leads!lead_id(id, nome)')
+        .select('id, titulo, tipo, prioridade, sla_at, created_at, lead:leads!lead_id(id, nome), solicitante:usuarios!solicitante_id(id, nome), responsavel:usuarios!responsavel_id(id, nome)')
         .eq('empresa_id', eid)
         .not('status', 'in', '("concluido","cancelado")')
         .not('lead_id', 'is', null)
@@ -275,6 +279,8 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
       for (const s of (solRes.data ?? []) as any[]) {
         const lead = Array.isArray(s.lead) ? s.lead[0] : s.lead
         if (!lead) continue
+        const solicitante = Array.isArray(s.solicitante) ? s.solicitante[0] : s.solicitante
+        const responsavel = Array.isArray(s.responsavel) ? s.responsavel[0] : s.responsavel
         const prazoStr: string | null = s.sla_at ?? null
         const prazoDate = prazoStr ? parseISO(prazoStr) : null
         const venceHoje = prazoDate ? isToday(prazoDate) : false
@@ -286,6 +292,8 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
           leadId: lead.id, leadNome: lead.nome, titulo: s.titulo,
           prioridade: normalizarPrioridade(s.prioridade),
           prazo: prazoStr, vencido, venceHoje, createdAt: s.created_at,
+          solicitanteNome: solicitante?.nome ?? null,
+          responsavelNome: responsavel?.nome ?? null,
         })
       }
 
