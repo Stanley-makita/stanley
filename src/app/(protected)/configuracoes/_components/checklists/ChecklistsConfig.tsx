@@ -94,6 +94,9 @@ function ChecklistItemRow({
       {item.acao_ao_completar === 'processo_conforme' && (
         <span className="text-[10px] font-medium text-green-600 shrink-0">✅ Processo Conforme</span>
       )}
+      {item.acao_ao_completar === 'processo_inconforme' && (
+        <span className="text-[10px] font-medium text-red-600 shrink-0">❌ Processo Inconforme</span>
+      )}
       {item.condicao_banco_id && bancoNome && (
         <span className="text-[10px] font-medium text-amber-600 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-full">
           🏦 só {bancoNome}
@@ -175,6 +178,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
             <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>
             <SelectItem value="enviado_conformidade">📨 Marcar como Enviado para Conformidade</SelectItem>
             <SelectItem value="processo_conforme">✅ Marcar como Processo Conforme</SelectItem>
+            <SelectItem value="processo_inconforme">❌ Marcar como Processo Inconforme</SelectItem>
           </SelectContent>
         </Select>
         <Select value={condicaoBanco || 'todos'} onValueChange={(v) => setCondicaoBanco(v === 'todos' ? '' : v)}>
@@ -358,7 +362,7 @@ function FaseSection({
 
 export function ChecklistsConfig() {
   const [modulo, setModulo] = useState('processos')
-  const { data: dados = [], isLoading } = useChecklistTemplates(modulo)
+  const { data: dados = [], isLoading, isError, error } = useChecklistTemplates(modulo)
 
   return (
     <div className="space-y-5">
@@ -386,6 +390,11 @@ export function ChecklistsConfig() {
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="text-center py-12 text-red-400">
+          <p className="text-sm">Erro ao carregar os checklists.</p>
+          <p className="text-xs mt-1">{(error as Error)?.message ?? 'Tente novamente em instantes.'}</p>
         </div>
       ) : dados.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
