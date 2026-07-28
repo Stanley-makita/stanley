@@ -84,6 +84,21 @@ const MODALIDADE_PRODUTO_FALLBACK: Record<string, string> = {
   Registro:    'Registro',
 }
 
+// Status de Financiamento — vai além de Emitido/Não Emitido quando o
+// processo passou pelo checklist de conformidade (hoje só existe para
+// bancos com essa exigência, ex: Caixa). Emitido sempre tem prioridade
+// (já é o desfecho final); entre aprovação/reprovação de conformidade,
+// vale a que aconteceu por último (o usuário pode reverter uma pra outra).
+function statusFinanciamento(p: Processo): { label: string; variant: 'success' | 'danger' | 'brand' | 'neutral' } {
+  if (p.status_emissao === 'emitido') return { label: 'Emitido', variant: 'success' }
+  const aprovada  = p.conformidade_aprovada_em  ? new Date(p.conformidade_aprovada_em).getTime()  : null
+  const reprovada = p.conformidade_reprovada_em ? new Date(p.conformidade_reprovada_em).getTime() : null
+  if (aprovada && (!reprovada || aprovada > reprovada))   return { label: 'Processo Conforme',        variant: 'success' }
+  if (reprovada && (!aprovada || reprovada > aprovada))   return { label: 'Processo Inconforme',      variant: 'danger'  }
+  if (p.enviado_conformidade_em)                          return { label: 'Enviado p/ Conformidade',  variant: 'brand'   }
+  return { label: 'Não Emitido', variant: 'neutral' }
+}
+
 const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Operacional:  (p) => p.operacional?.nome ?? '',
   Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
@@ -92,7 +107,7 @@ const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Fase:         (p) => p.fase_atual?.nome ?? '',
   Banco:        (p) => p.banco?.nome ?? '',
   Comercial:    (p) => p.comercial?.nome ?? '',
-  Status:       (p) => p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido',
+  Status:       (p) => statusFinanciamento(p).label,
   Chance:       (p) => p.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza',
   Assessoria:   (p) => p.tem_assessoria ? 'Sim' : 'Não',
   Vendedor:     (p) => p.vendedores?.[0]?.nome ?? '',
@@ -673,8 +688,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
                           <TableCell>
-                            <StatusBadge variant={p.status_emissao === 'emitido' ? 'success' : 'neutral'}>
-                              {p.status_emissao === 'emitido' ? 'Emitido' : 'Não Emitido'}
+                            <StatusBadge variant={statusFinanciamento(p).variant}>
+                              {statusFinanciamento(p).label}
                             </StatusBadge>
                           </TableCell>
                           <TableCell><ChanceBadge chance={p.chance_emissao} /></TableCell>

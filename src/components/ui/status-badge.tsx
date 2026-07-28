@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-type StatusBadgeVariant = 'neutral' | 'success' | 'warning' | 'brand'
+type StatusBadgeVariant = 'neutral' | 'success' | 'warning' | 'brand' | 'danger'
 
 const variantClass: Record<StatusBadgeVariant, string> = {
   neutral: 'border-gray-200 bg-gray-50 text-gray-500',
   success: 'border-green-200 bg-green-50 text-green-700',
   warning: 'border-amber-200 bg-amber-50 text-amber-700',
   brand: 'border-fonti-accent bg-fonti-accent-hover text-fonti-primary',
+  danger: 'border-red-200 bg-red-50 text-red-700',
 }
 
 interface StatusBadgeProps {

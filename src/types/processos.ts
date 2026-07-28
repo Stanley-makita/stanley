@@ -102,6 +102,9 @@ export interface Processo {
   fase_atual_id: string | null
   data_inicio: string
   data_emissao?: string | null
+  enviado_conformidade_em?: string | null
+  conformidade_aprovada_em?: string | null
+  conformidade_reprovada_em?: string | null
   // Fluxo Registro <-> Liberação de Recursos (troca de modalidade, ver
   // useEnviarParaFluxoRegistro/useEnviarParaLiberacaoRecursos)
   modalidade_origem?: ModalidadeProcesso | null
