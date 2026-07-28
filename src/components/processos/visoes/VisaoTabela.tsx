@@ -120,11 +120,15 @@ const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Parceiro:     (p) => p.parceiro?.nome ?? '',
 }
 
-// Status de assinatura dos negócios de Contrato — vem do Clicksign
-// (processo_contratos.clicksign_status), não do status_emissao genérico
-// usado por Financiamento/Registro.
-function statusAssinatura(clicksignStatus: string | null | undefined): string {
-  return clicksignStatus === 'closed' ? 'Assinado' : 'Não Assinado'
+// Status de negócios de Contrato: Assinado tem prioridade (vem do Clicksign,
+// processo_contratos.clicksign_status), senão cai pro status_emissao
+// genérico (marcado manualmente pelo checklist "Contrato Assinado" com ação
+// 'emitido') — antes o Status ignorava status_emissao e sempre mostrava "Não
+// Assinado" mesmo com o checklist de emissão já concluído.
+function statusContrato(p: Processo, clicksignStatus: string | null | undefined): { label: string; variant: 'success' | 'brand' | 'neutral' } {
+  if (clicksignStatus === 'closed') return { label: 'Assinado', variant: 'success' }
+  if (p.status_emissao === 'emitido') return { label: 'Emitido', variant: 'brand' }
+  return { label: 'Não Assinado', variant: 'neutral' }
 }
 
 // Status de negócios de Consórcio — reaproveita o mesmo status_emissao
@@ -336,7 +340,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const EXTRACTORS = useMemo<Record<string, (p: Processo) => string>>(() => ({
     ...EXTRACTORS_BASE,
     Produto: (p: Processo) => modalidadeProdutoMap[p.modalidade] ?? p.modalidade,
-    ...(isContrato ? { Status: (p: Processo) => statusAssinatura(assinaturaPorProcesso[p.id]) } : {}),
+    ...(isContrato ? { Status: (p: Processo) => statusContrato(p, assinaturaPorProcesso[p.id]).label } : {}),
     ...(isConsorcio ? { Status: (p: Processo) => statusConsorcio(p.status_emissao) } : {}),
   }), [modalidadeProdutoMap, isContrato, assinaturaPorProcesso, isConsorcio])
 
@@ -596,8 +600,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           </TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
                           <TableCell>
-                            <StatusBadge variant={assinaturaPorProcesso[p.id] === 'closed' ? 'success' : 'neutral'}>
-                              {statusAssinatura(assinaturaPorProcesso[p.id])}
+                            <StatusBadge variant={statusContrato(p, assinaturaPorProcesso[p.id]).variant}>
+                              {statusContrato(p, assinaturaPorProcesso[p.id]).label}
                             </StatusBadge>
                           </TableCell>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
