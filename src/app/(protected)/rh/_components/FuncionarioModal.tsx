@@ -33,6 +33,10 @@ const VAZIO = {
   status: 'ativo' as RhStatusFuncionario,
   salario_base: 0,
   observacoes: '',
+  beneficio_vale_transporte: '' as string,
+  beneficio_vale_alimentacao: '' as string,
+  beneficio_plano_saude: '' as string,
+  beneficio_plano_odontologico: '' as string,
 }
 
 export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
@@ -59,6 +63,10 @@ export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
         status: funcionario.status,
         salario_base: funcionario.salario_base,
         observacoes: funcionario.observacoes ?? '',
+        beneficio_vale_transporte: funcionario.beneficio_vale_transporte != null ? String(funcionario.beneficio_vale_transporte) : '',
+        beneficio_vale_alimentacao: funcionario.beneficio_vale_alimentacao != null ? String(funcionario.beneficio_vale_alimentacao) : '',
+        beneficio_plano_saude: funcionario.beneficio_plano_saude != null ? String(funcionario.beneficio_plano_saude) : '',
+        beneficio_plano_odontologico: funcionario.beneficio_plano_odontologico != null ? String(funcionario.beneficio_plano_odontologico) : '',
       })
     } else {
       setForm(VAZIO)
@@ -74,6 +82,8 @@ export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
     if (!form.email.trim()) { toast.error('E-mail é obrigatório'); return }
     if (!form.data_admissao) { toast.error('Data de admissão é obrigatória'); return }
 
+    const paraNumero = (v: string) => v.trim() ? Number(v) : null
+
     try {
       if (isEdicao) {
         await atualizar.mutateAsync({
@@ -84,6 +94,10 @@ export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
           data_nascimento: form.data_nascimento || null,
           cargo_id: form.cargo_id || null,
           observacoes: form.observacoes || null,
+          beneficio_vale_transporte: paraNumero(form.beneficio_vale_transporte),
+          beneficio_vale_alimentacao: paraNumero(form.beneficio_vale_alimentacao),
+          beneficio_plano_saude: paraNumero(form.beneficio_plano_saude),
+          beneficio_plano_odontologico: paraNumero(form.beneficio_plano_odontologico),
         })
         toast.success('Funcionário atualizado.')
       } else {
@@ -94,6 +108,10 @@ export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
           data_nascimento: form.data_nascimento || null,
           cargo_id: form.cargo_id || null,
           observacoes: form.observacoes || null,
+          beneficio_vale_transporte: paraNumero(form.beneficio_vale_transporte),
+          beneficio_vale_alimentacao: paraNumero(form.beneficio_vale_alimentacao),
+          beneficio_plano_saude: paraNumero(form.beneficio_plano_saude),
+          beneficio_plano_odontologico: paraNumero(form.beneficio_plano_odontologico),
         })
         toast.success('Funcionário criado.')
       }
@@ -185,8 +203,28 @@ export function FuncionarioModal({ aberto, onFechar, funcionario }: Props) {
             </div>
           </TabsContent>
 
-          <TabsContent value="beneficios" className="pt-3">
-            <p className="text-sm text-gray-400 text-center py-10">Em breve: VR, VT, Plano de saúde, etc.</p>
+          <TabsContent value="beneficios" className="space-y-3 pt-3">
+            <p className="text-xs text-gray-400">
+              Valores mensais concedidos ao funcionário. Cadastro informativo — o lançamento na Folha de Pagamento continua sendo feito por competência.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Vale Transporte (R$)</Label>
+                <Input type="number" min={0} step="0.01" placeholder="0,00" value={form.beneficio_vale_transporte} onChange={e => set('beneficio_vale_transporte', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Vale Alimentação (R$)</Label>
+                <Input type="number" min={0} step="0.01" placeholder="0,00" value={form.beneficio_vale_alimentacao} onChange={e => set('beneficio_vale_alimentacao', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Plano de Saúde (R$)</Label>
+                <Input type="number" min={0} step="0.01" placeholder="0,00" value={form.beneficio_plano_saude} onChange={e => set('beneficio_plano_saude', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Plano Odontológico (R$)</Label>
+                <Input type="number" min={0} step="0.01" placeholder="0,00" value={form.beneficio_plano_odontologico} onChange={e => set('beneficio_plano_odontologico', e.target.value)} />
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 
