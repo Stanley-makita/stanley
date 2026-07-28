@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useFuncionarios, useExcluirFuncionario } from '@/hooks/rh/useFuncionarios'
 import { RH_STATUS_FUNCIONARIO_LABELS, RH_STATUS_FUNCIONARIO_CORES, RH_TIPO_CONTRATO_LABELS } from '@/types/rh'
-import { FuncionarioModal } from './FuncionarioModal'
-import { FuncionarioDetalheModal } from './FuncionarioDetalheModal'
+import { FuncionarioFichaModal } from './FuncionarioFichaModal'
 import type { RhFuncionario } from '@/types/rh'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -19,7 +18,6 @@ export function FuncionariosTab() {
   const [busca, setBusca] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<RhFuncionario | null>(null)
-  const [detalhe, setDetalhe] = useState<RhFuncionario | null>(null)
 
   const { data: funcionarios = [], isLoading } = useFuncionarios()
   const excluir = useExcluirFuncionario()
@@ -77,7 +75,7 @@ export function FuncionariosTab() {
             </thead>
             <tbody>
               {filtrados.map(f => (
-                <tr key={f.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer" onClick={() => setDetalhe(f)}>
+                <tr key={f.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer" onClick={() => abrir(f)}>
                   <td className="px-3 py-1.5">
                     <div>
                       <p className="font-medium text-gray-800">{f.nome}</p>
@@ -121,8 +119,7 @@ export function FuncionariosTab() {
         )}
       </div>
 
-      <FuncionarioModal aberto={modalAberto} onFechar={() => setModalAberto(false)} funcionario={editando} />
-      <FuncionarioDetalheModal funcionario={detalhe} onFechar={() => setDetalhe(null)} />
+      <FuncionarioFichaModal aberto={modalAberto} onFechar={() => setModalAberto(false)} funcionario={editando} />
     </div>
   )
 }
