@@ -69,12 +69,17 @@ export interface RhFaixaComissao {
   regra_id: string
   valor_minimo: number
   valor_maximo: number
-  percentual: number
+  // percentual/pct_*/piso_valor/teto_valor são o modelo percentual antigo —
+  // mantidos na tabela (usados por regras já existentes e pela função
+  // gerar_comissoes_a_pagar) mas não expostos mais no formulário: faixas
+  // novas usam só valor_fixo (bônus fixo em R$ por faixa de produção).
+  percentual: number | null
   pct_comercial: number | null
   pct_operacional: number | null
   pct_parceiro: number | null
   piso_valor: number
   teto_valor: number
+  valor_fixo: number | null
   created_at: string
 }
 
@@ -86,6 +91,11 @@ export interface RhRegraComissao {
   data_inicio: string
   data_termino: string | null
   ativa: boolean
+  // Valores fixos em R$ (substituem o modelo percentual anterior) — o
+  // cálculo automático em Financeiro > Fechamento ainda não usa esses
+  // campos; aguarda a reformulação do módulo Financeiro.
+  valor_fixo_emissao: number | null
+  valor_fixo_assessoria: number | null
   created_at: string
   updated_at: string
   faixas?: RhFaixaComissao[]

@@ -21,16 +21,19 @@ function fmtMoeda(v: number) {
 
 type FaixaForm = Omit<RhFaixaComissao, 'id' | 'regra_id' | 'created_at'>
 
-const VAZIO_REGRA = { nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true }
+const VAZIO_REGRA = { nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true, valor_fixo_emissao: 0, valor_fixo_assessoria: 0 }
+// Faixas novas usam só valor_fixo — os campos percentuais antigos ficam
+// null (mantidos na tabela por compatibilidade com regras já existentes).
 const VAZIO_FAIXA = (): FaixaForm => ({
   valor_minimo: 0,
   valor_maximo: 0,
-  percentual: 0,
+  percentual: null,
   pct_comercial: null,
   pct_operacional: null,
   pct_parceiro: null,
   piso_valor: 0,
   teto_valor: 0,
+  valor_fixo: 0,
 })
 
 export function ComissoesTab() {
@@ -54,7 +57,15 @@ export function ComissoesTab() {
   function abrir(regra?: RhRegraComissao) {
     if (regra) {
       setEditando(regra)
-      setForm({ nome: regra.nome, descricao: regra.descricao ?? '', data_inicio: regra.data_inicio, data_termino: regra.data_termino ?? '', ativa: regra.ativa })
+      setForm({
+        nome: regra.nome,
+        descricao: regra.descricao ?? '',
+        data_inicio: regra.data_inicio,
+        data_termino: regra.data_termino ?? '',
+        ativa: regra.ativa,
+        valor_fixo_emissao: regra.valor_fixo_emissao ?? 0,
+        valor_fixo_assessoria: regra.valor_fixo_assessoria ?? 0,
+      })
       setFaixas(regra.faixas?.length ? regra.faixas.map(f => ({
         valor_minimo: f.valor_minimo,
         valor_maximo: f.valor_maximo,
@@ -64,6 +75,7 @@ export function ComissoesTab() {
         pct_parceiro: f.pct_parceiro ?? null,
         piso_valor: f.piso_valor ?? 0,
         teto_valor: f.teto_valor ?? 0,
+        valor_fixo: f.valor_fixo ?? 0,
       })) : [VAZIO_FAIXA()])
     } else {
       setEditando(null)
@@ -81,7 +93,15 @@ export function ComissoesTab() {
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return }
     if (!form.data_inicio) { toast.error('Data de início é obrigatória'); return }
     try {
-      const base = { nome: form.nome, descricao: form.descricao || null, data_inicio: form.data_inicio, data_termino: form.data_termino || null, ativa: form.ativa }
+      const base = {
+        nome: form.nome,
+        descricao: form.descricao || null,
+        data_inicio: form.data_inicio,
+        data_termino: form.data_termino || null,
+        ativa: form.ativa,
+        valor_fixo_emissao: form.valor_fixo_emissao || null,
+        valor_fixo_assessoria: form.valor_fixo_assessoria || null,
+      }
       if (editando) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await atualizar.mutateAsync({ id: editando.id, ...base, faixas } as any)
@@ -135,6 +155,12 @@ export function ComissoesTab() {
                       Vigência: {format(parseISO(r.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}
                       {r.data_termino ? ` até ${format(parseISO(r.data_termino), 'dd/MM/yyyy', { locale: ptBR })}` : ' – Sem término definido'}
                     </p>
+                    {(!!r.valor_fixo_emissao || !!r.valor_fixo_assessoria) && (
+                      <p className="text-xs text-gray-500 mt-1 flex gap-3">
+                        {!!r.valor_fixo_emissao && <span>Por emissão: <strong>{fmtMoeda(r.valor_fixo_emissao)}</strong></span>}
+                        {!!r.valor_fixo_assessoria && <span>Por assessoria: <strong>{fmtMoeda(r.valor_fixo_assessoria)}</strong></span>}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrir(r)}>
@@ -154,27 +180,17 @@ export function ComissoesTab() {
                     <table className="w-full text-sm mt-2">
                       <thead>
                         <tr className="border-b border-gray-100">
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Val. Mínimo</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Val. Máximo</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Base</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Comercial</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Operacional</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">% Parceiro</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Piso R$</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500">Teto R$</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Produção de</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">até</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500">Valor Fixo</th>
                         </tr>
                       </thead>
                       <tbody>
                         {r.faixas.map((f, i) => (
                           <tr key={i} className="border-b border-gray-50 last:border-0">
                             <td className="py-2 text-xs text-gray-700 pr-4">{fmtMoeda(f.valor_minimo)}</td>
-                            <td className="py-2 text-xs text-gray-700 pr-4">{f.valor_maximo === 0 ? '—' : fmtMoeda(f.valor_maximo)}</td>
-                            <td className="py-2 text-xs text-gray-700 pr-4">{f.percentual}%</td>
-                            <td className="py-2 text-xs text-gray-700 pr-4">{f.pct_comercial != null ? `${f.pct_comercial}%` : '—'}</td>
-                            <td className="py-2 text-xs text-gray-700 pr-4">{f.pct_operacional != null ? `${f.pct_operacional}%` : '—'}</td>
-                            <td className="py-2 text-xs text-gray-700 pr-4">{f.pct_parceiro != null ? `${f.pct_parceiro}%` : '—'}</td>
-                            <td className="py-2 text-xs text-gray-700 pr-4">{f.piso_valor > 0 ? fmtMoeda(f.piso_valor) : '—'}</td>
-                            <td className="py-2 text-xs text-gray-700">{f.teto_valor > 0 ? fmtMoeda(f.teto_valor) : '—'}</td>
+                            <td className="py-2 text-xs text-gray-700 pr-4">{f.valor_maximo === 0 ? 'sem limite' : fmtMoeda(f.valor_maximo)}</td>
+                            <td className="py-2 text-xs text-gray-700 font-medium">{f.valor_fixo ? fmtMoeda(f.valor_fixo) : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -210,57 +226,46 @@ export function ComissoesTab() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Valor por Processo Emitido (R$)</Label>
+                <Input type="number" min={0} step={0.01} value={form.valor_fixo_emissao} onChange={e => setForm(f => ({ ...f, valor_fixo_emissao: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Valor por Processo com Assessoria (R$)</Label>
+                <Input type="number" min={0} step={0.01} value={form.valor_fixo_assessoria} onChange={e => setForm(f => ({ ...f, valor_fixo_assessoria: Number(e.target.value) }))} />
+              </div>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs">Faixas de Comissão</Label>
+                <Label className="text-xs">Faixas de Produção (valor fixo por faixa atingida)</Label>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFaixas(fs => [...fs, VAZIO_FAIXA()])}>
                   <Plus className="h-3 w-3" /> Adicionar Faixa
                 </Button>
               </div>
               <div className="space-y-2">
                 {faixas.map((f, i) => (
-                  <div key={i} className="border border-gray-100 rounded-lg p-2.5 space-y-2">
+                  <div key={i} className="border border-gray-100 rounded-lg p-2.5">
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">Val. Mínimo (R$)</Label>
+                        <Label className="text-[10px] text-gray-500">Produção de (R$)</Label>
                         <Input type="number" min={0} value={f.valor_minimo} onChange={e => setFaixa(i, 'valor_minimo', Number(e.target.value))} className="h-8 text-xs" />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">Val. Máximo (0 = sem limite)</Label>
+                        <Label className="text-[10px] text-gray-500">até (0 = sem limite)</Label>
                         <Input type="number" min={0} value={f.valor_maximo} onChange={e => setFaixa(i, 'valor_maximo', Number(e.target.value))} className="h-8 text-xs" />
                       </div>
                       <div className="flex items-end gap-1">
                         <div className="flex-1 space-y-1">
-                          <Label className="text-[10px] text-gray-500">% Base</Label>
-                          <Input type="number" min={0} step={0.1} value={f.percentual} onChange={e => setFaixa(i, 'percentual', Number(e.target.value))} className="h-8 text-xs" />
+                          <Label className="text-[10px] text-gray-500">Valor Fixo (R$)</Label>
+                          <Input type="number" min={0} step={0.01} value={f.valor_fixo ?? ''} onChange={e => setFaixa(i, 'valor_fixo', e.target.value === '' ? null : Number(e.target.value))} className="h-8 text-xs" />
                         </div>
                         {faixas.length > 1 && (
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => setFaixas(fs => fs.filter((_, j) => j !== i))}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-5 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">% Comercial</Label>
-                        <Input type="number" min={0} step={0.1} value={f.pct_comercial ?? ''} placeholder="= Base" onChange={e => setFaixa(i, 'pct_comercial', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">% Operacional</Label>
-                        <Input type="number" min={0} step={0.1} value={f.pct_operacional ?? ''} placeholder="= Base" onChange={e => setFaixa(i, 'pct_operacional', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">% Parceiro</Label>
-                        <Input type="number" min={0} step={0.1} value={f.pct_parceiro ?? ''} placeholder="= Base" onChange={e => setFaixa(i, 'pct_parceiro', e.target.value === '' ? null : Number(e.target.value))} className="h-7 text-xs" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">Piso R$</Label>
-                        <Input type="number" min={0} step={100} value={f.piso_valor} onChange={e => setFaixa(i, 'piso_valor', Number(e.target.value))} className="h-7 text-xs" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-gray-500">Teto R$ (0 = sem)</Label>
-                        <Input type="number" min={0} step={100} value={f.teto_valor} onChange={e => setFaixa(i, 'teto_valor', Number(e.target.value))} className="h-7 text-xs" />
                       </div>
                     </div>
                   </div>
