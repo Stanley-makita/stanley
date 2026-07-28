@@ -26,9 +26,31 @@ export function useCriarDepartamento() {
   const { usuario } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (nome: string) => {
+    mutationFn: async ({ nome, descricao }: { nome: string; descricao?: string | null }) => {
       const { error } = await supabase.from('rh_departamentos')
-        .insert({ nome, empresa_id: usuario!.empresa_id })
+        .insert({ nome, descricao: descricao || null, empresa_id: usuario!.empresa_id })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh', 'departamentos'] }),
+  })
+}
+
+export function useAtualizarDepartamento() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...dados }: { id: string; nome?: string; descricao?: string | null }) => {
+      const { error } = await supabase.from('rh_departamentos').update(dados).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh', 'departamentos'] }),
+  })
+}
+
+export function useExcluirDepartamento() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('rh_departamentos').update({ ativo: false }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh', 'departamentos'] }),

@@ -1,19 +1,127 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Settings, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { useCargos, useDepartamentos, useCriarCargo, useAtualizarCargo, useExcluirCargo } from '@/hooks/rh/useCargos'
+import {
+  useCargos, useDepartamentos, useCriarCargo, useAtualizarCargo, useExcluirCargo,
+  useCriarDepartamento, useAtualizarDepartamento, useExcluirDepartamento,
+} from '@/hooks/rh/useCargos'
 import { useRegrasComissao } from '@/hooks/rh/useComissoes'
 import { RH_NIVEL_COMISSAO_LABELS } from '@/types/rh'
-import type { RhCargo, RhNivelComissao } from '@/types/rh'
+import type { RhCargo, RhDepartamento, RhNivelComissao } from '@/types/rh'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+
+function DepartamentosDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { data: departamentos = [] } = useDepartamentos()
+  const criar = useCriarDepartamento()
+  const atualizar = useAtualizarDepartamento()
+  const excluir = useExcluirDepartamento()
+
+  const [novoNome, setNovoNome] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoNome, setEditandoNome] = useState('')
+
+  async function handleCriar() {
+    if (!novoNome.trim()) return
+    try {
+      await criar.mutateAsync({ nome: novoNome.trim() })
+      setNovoNome('')
+    } catch {
+      toast.error('Erro ao criar departamento.')
+    }
+  }
+
+  function abrirEdicao(d: RhDepartamento) {
+    setEditandoId(d.id)
+    setEditandoNome(d.nome)
+  }
+
+  async function handleSalvarEdicao() {
+    if (!editandoId || !editandoNome.trim()) return
+    try {
+      await atualizar.mutateAsync({ id: editandoId, nome: editandoNome.trim() })
+      setEditandoId(null)
+    } catch {
+      toast.error('Erro ao atualizar departamento.')
+    }
+  }
+
+  async function handleExcluir(d: RhDepartamento) {
+    if (!confirm(`Remover o departamento "${d.nome}"? Cargos já vinculados ficam sem departamento.`)) return
+    try {
+      await excluir.mutateAsync(d.id)
+      toast.success('Departamento removido.')
+    } catch {
+      toast.error('Erro ao remover departamento.')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Departamentos</DialogTitle></DialogHeader>
+        <div className="space-y-2 py-1">
+          {departamentos.length === 0 && (
+            <p className="text-xs text-gray-400 italic">Nenhum departamento cadastrado ainda.</p>
+          )}
+          {departamentos.map(d => (
+            <div key={d.id} className="flex items-center gap-2 border border-gray-100 rounded-lg px-3 py-2">
+              {editandoId === d.id ? (
+                <>
+                  <Input
+                    className="h-7 text-sm flex-1"
+                    value={editandoNome}
+                    onChange={e => setEditandoNome(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSalvarEdicao(); if (e.key === 'Escape') setEditandoId(null) }}
+                    autoFocus
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSalvarEdicao}>
+                    <Check className="h-3.5 w-3.5 text-green-600" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditandoId(null)}>
+                    <X className="h-3.5 w-3.5 text-gray-400" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm text-gray-700">{d.nome}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEdicao(d)}>
+                    <Pencil className="h-3.5 w-3.5 text-gray-400" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleExcluir(d)}>
+                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                  </Button>
+                </>
+              )}
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1">
+            <Input
+              placeholder="Novo departamento..."
+              className="h-8 text-sm flex-1"
+              value={novoNome}
+              onChange={e => setNovoNome(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCriar() }}
+            />
+            <Button size="sm" className="h-8 bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1" onClick={handleCriar} disabled={criar.isPending}>
+              <Plus className="h-3.5 w-3.5" /> Adicionar
+            </Button>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 const VAZIO = {
   nome: '',
@@ -28,6 +136,7 @@ export function CargosTab() {
   const [busca, setBusca] = useState('')
   const [filtroDepto, setFiltroDepto] = useState<string>('todos')
   const [modal, setModal] = useState(false)
+  const [modalDepartamentos, setModalDepartamentos] = useState(false)
   const [editando, setEditando] = useState<RhCargo | null>(null)
   const [form, setForm] = useState(VAZIO)
 
@@ -100,10 +209,15 @@ export function CargosTab() {
             </Button>
           ))}
         </div>
-        <Button size="sm" className="bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1.5 ml-auto" onClick={() => abrir()}>
+        <Button size="sm" variant="outline" className="h-9 gap-1.5 ml-auto" onClick={() => setModalDepartamentos(true)}>
+          <Settings className="h-3.5 w-3.5" /> Departamentos
+        </Button>
+        <Button size="sm" className="bg-fonti-primary text-white hover:bg-fonti-primary-hover gap-1.5" onClick={() => abrir()}>
           <Plus className="h-3.5 w-3.5" /> Novo Cargo
         </Button>
       </div>
+
+      <DepartamentosDialog open={modalDepartamentos} onOpenChange={setModalDepartamentos} />
 
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {filtrados.length === 0 ? (
@@ -165,7 +279,16 @@ export function CargosTab() {
               <Input placeholder="Ex: Gerente Comercial" value={form.nome} onChange={e => set('nome', e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Departamento</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Departamento</Label>
+                <button
+                  type="button"
+                  onClick={() => setModalDepartamentos(true)}
+                  className="text-[11px] text-fonti-primary hover:underline font-medium"
+                >
+                  Gerenciar departamentos
+                </button>
+              </div>
               <Select value={form.departamento_id ?? '__none'} onValueChange={v => set('departamento_id', v === '__none' ? null : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione um departamento" /></SelectTrigger>
                 <SelectContent>
@@ -173,6 +296,9 @@ export function CargosTab() {
                   {departamentos.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {departamentos.length === 0 && (
+                <p className="text-[10px] text-gray-400">Nenhum departamento cadastrado — clique em &quot;Gerenciar departamentos&quot;.</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Descrição</Label>
