@@ -3,6 +3,13 @@ export type RhStatusFuncionario = 'ativo' | 'ferias' | 'afastado' | 'inativo'
 export type RhNivelComissao = 'sem_comissao' | 'junior' | 'pleno' | 'senior' | 'gerente'
 export type RhStatusFerias = 'agendado' | 'em_andamento' | 'concluido' | 'cancelado'
 export type RhTipoAusencia = 'licenca' | 'atestado' | 'falta_justificada' | 'falta_injustificada' | 'outros'
+export type RhTipoContaBancaria = 'corrente' | 'poupanca' | 'salario'
+
+export const RH_TIPO_CONTA_BANCARIA_LABELS: Record<RhTipoContaBancaria, string> = {
+  corrente: 'Conta Corrente',
+  poupanca: 'Poupança',
+  salario:  'Conta Salário',
+}
 
 export const RH_TIPO_CONTRATO_LABELS: Record<RhTipoContrato, string> = {
   clt:        'CLT',
@@ -137,6 +144,13 @@ export interface RhFuncionario {
   beneficio_vale_alimentacao: number | null
   beneficio_plano_saude: number | null
   beneficio_plano_odontologico: number | null
+  // Dados bancários — informativo, usado pra folha/pagamentos fora do sistema.
+  pis: string | null
+  banco_nome: string | null
+  agencia: string | null
+  conta: string | null
+  tipo_conta: RhTipoContaBancaria | null
+  chave_pix: string | null
   created_at: string
   updated_at: string
   cargo?: RhCargo | null
