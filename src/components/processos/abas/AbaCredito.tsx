@@ -20,7 +20,9 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useSalvarValidadeProcesso } from '@/hooks/processos/useSalvarValidadeProcesso'
+import { useAdicionarComentario } from '@/hooks/processos/useProcessoComentarios'
 import { useBancos } from '@/hooks/useBancos'
+import { fmtData } from '@/lib/utils'
 import {
   AnaliseCard, AnaliseForm, type AnaliseFormInput,
 } from '@/components/leads/LeadDetalhe/AbaCredito'
@@ -82,9 +84,21 @@ export function AbaCredito({ processoId, processo }: Props) {
   const salvarValidade = useSalvarValidadeProcesso()
   const sincronizarOperacao = useSincronizarOperacaoComAnalise(processoId)
   const { data: bancos = [] } = useBancos()
+  const comentar = useAdicionarComentario(processoId)
 
   function handleStatusChange(id: string, status: StatusAnaliseCredito) {
-    editar.mutate({ id, status })
+    const analise = analises.find((a) => a.id === id)
+    editar.mutate({ id, status }, {
+      onSuccess: () => {
+        if (status === 'aprovado') {
+          comentar.mutate({
+            tipo: 'alteracao',
+            texto: `Análise de crédito aprovada${analise?.banco_pretendido ? ` — Banco: ${analise.banco_pretendido}` : ''}.`,
+            notificar_cliente: false,
+          })
+        }
+      },
+    })
   }
 
   function handleToggleBanco(id: string) {
@@ -111,6 +125,11 @@ export function AbaCredito({ processoId, processo }: Props) {
     })
     setCriando(false)
     qc.invalidateQueries({ queryKey: ['processos', processoId] })
+    comentar.mutate({
+      tipo: 'alteracao',
+      texto: `Nova análise de crédito solicitada${campos.banco_pretendido ? ` — Banco: ${campos.banco_pretendido}` : ''}.`,
+      notificar_cliente: false,
+    })
   }
 
   // Salvar a Data da Aprovação nunca é automático sobre a Validade do
@@ -124,16 +143,28 @@ export function AbaCredito({ processoId, processo }: Props) {
     await atualizarDataCredito.mutateAsync(valor)
 
     if (valor) {
+      comentar.mutate({
+        tipo: 'alteracao',
+        texto: `Data de Aprovação de Crédito registrada: ${fmtData(valor)}.`,
+        notificar_cliente: false,
+      })
+
       const substituir = window.confirm(
         'Deseja atualizar também a Validade do Crédito (+90 dias a partir de hoje) com base nesta nova aprovação?\n\nSe preferir manter a validade já em vigor, clique em Cancelar — a data de aprovação é salva de qualquer forma.',
       )
       if (substituir) {
         const novaValidade = new Date()
         novaValidade.setDate(novaValidade.getDate() + 90)
+        const dataValidade = novaValidade.toISOString().slice(0, 10)
         await salvarValidade.mutateAsync({
           processoId,
           tipo: 'credito',
-          data: novaValidade.toISOString().slice(0, 10),
+          data: dataValidade,
+        })
+        comentar.mutate({
+          tipo: 'alteracao',
+          texto: `Validade do Crédito atualizada para ${fmtData(dataValidade)}.`,
+          notificar_cliente: false,
         })
       }
 
@@ -155,6 +186,11 @@ export function AbaCredito({ processoId, processo }: Props) {
               valor_entrada: analiseDefinida.entrada,
               valor_financiado: analiseDefinida.valor_pretendido,
               prazo_amortizacao_meses: analiseDefinida.prazo_meses,
+            })
+            comentar.mutate({
+              tipo: 'alteracao',
+              texto: `Dados da Operação (Resumo) atualizados conforme análise de crédito aprovada — novo banco: ${bancoAnalise!.nome}.`,
+              notificar_cliente: false,
             })
           }
         }
