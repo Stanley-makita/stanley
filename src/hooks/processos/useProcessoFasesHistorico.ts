@@ -38,9 +38,11 @@ export function useAvancarFase(processoId: string) {
         .eq('id', processoId)
         .single()
       if (procFetchError) throw procFetchError
-      // Contrato não tem dados financeiros no corpo do processo — fases ficam
-      // livres pra avançar (ver PipelineBarProcesso/página do processo).
-      if (proc.modalidade !== 'Contrato' && dadosFinanceirosIncompletos(proc)) {
+      // Contrato e Consórcio não usam os campos financeiros de financiamento
+      // (taxa_juros, sistema_amortizacao, valor_financiado etc. não fazem
+      // sentido pro modelo de cotas do Consórcio) — fases ficam livres pra
+      // avançar, limitadas só pelos itens obrigatórios do checklist da fase.
+      if (proc.modalidade !== 'Contrato' && proc.modalidade !== 'Consorcio' && dadosFinanceirosIncompletos(proc)) {
         throw new Error('DADOS_FINANCEIROS_PENDENTES')
       }
 
