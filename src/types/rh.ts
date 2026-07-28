@@ -120,6 +120,13 @@ export interface RhFuncionario {
   status: RhStatusFuncionario
   salario_base: number
   observacoes: string | null
+  // Benefícios — cadastro informativo dos valores concedidos ao
+  // funcionário (não gera lançamento automático na Folha; os itens de
+  // financeiro_folha_itens continuam lançados manualmente por competência).
+  beneficio_vale_transporte: number | null
+  beneficio_vale_alimentacao: number | null
+  beneficio_plano_saude: number | null
+  beneficio_plano_odontologico: number | null
   created_at: string
   updated_at: string
   cargo?: RhCargo | null
