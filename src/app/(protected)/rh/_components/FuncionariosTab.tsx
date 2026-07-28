@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useFuncionarios, useExcluirFuncionario } from '@/hooks/rh/useFuncionarios'
 import { RH_STATUS_FUNCIONARIO_LABELS, RH_STATUS_FUNCIONARIO_CORES, RH_TIPO_CONTRATO_LABELS } from '@/types/rh'
 import { FuncionarioModal } from './FuncionarioModal'
+import { FuncionarioDetalheModal } from './FuncionarioDetalheModal'
 import type { RhFuncionario } from '@/types/rh'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -18,6 +19,7 @@ export function FuncionariosTab() {
   const [busca, setBusca] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<RhFuncionario | null>(null)
+  const [detalhe, setDetalhe] = useState<RhFuncionario | null>(null)
 
   const { data: funcionarios = [], isLoading } = useFuncionarios()
   const excluir = useExcluirFuncionario()
@@ -75,7 +77,7 @@ export function FuncionariosTab() {
             </thead>
             <tbody>
               {filtrados.map(f => (
-                <tr key={f.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+                <tr key={f.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer" onClick={() => setDetalhe(f)}>
                   <td className="px-3 py-1.5">
                     <div>
                       <p className="font-medium text-gray-800">{f.nome}</p>
@@ -95,7 +97,7 @@ export function FuncionariosTab() {
                       {RH_STATUS_FUNCIONARIO_LABELS[f.status]}
                     </span>
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-1.5" onClick={e => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -120,6 +122,7 @@ export function FuncionariosTab() {
       </div>
 
       <FuncionarioModal aberto={modalAberto} onFechar={() => setModalAberto(false)} funcionario={editando} />
+      <FuncionarioDetalheModal funcionario={detalhe} onFechar={() => setDetalhe(null)} />
     </div>
   )
 }

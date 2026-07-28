@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Cake, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFuncionarios } from '@/hooks/rh/useFuncionarios'
+import { proximaOcorrenciaAnual } from '@/lib/rh/datasFuncionario'
 import { format, parseISO, getMonth, getYear, addMonths, subMonths, differenceInYears } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -40,18 +41,12 @@ export function AniversariosTab() {
 
   const proximos30 = funcionarios.filter(f => {
     if (!f.data_nascimento) return false
-    const dn = parseISO(f.data_nascimento)
-    const proxAniv = new Date(hoje.getFullYear(), dn.getMonth(), dn.getDate())
-    if (proxAniv < hoje) proxAniv.setFullYear(hoje.getFullYear() + 1)
+    const proxAniv = proximaOcorrenciaAnual(parseISO(f.data_nascimento), hoje)
     const diff = (proxAniv.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
     return diff >= 0 && diff <= 30
   }).sort((a, b) => {
-    const dn_a = parseISO(a.data_nascimento!)
-    const dn_b = parseISO(b.data_nascimento!)
-    const pa = new Date(hoje.getFullYear(), dn_a.getMonth(), dn_a.getDate())
-    const pb = new Date(hoje.getFullYear(), dn_b.getMonth(), dn_b.getDate())
-    if (pa < hoje) pa.setFullYear(hoje.getFullYear() + 1)
-    if (pb < hoje) pb.setFullYear(hoje.getFullYear() + 1)
+    const pa = proximaOcorrenciaAnual(parseISO(a.data_nascimento!), hoje)
+    const pb = proximaOcorrenciaAnual(parseISO(b.data_nascimento!), hoje)
     return pa.getTime() - pb.getTime()
   })
 
