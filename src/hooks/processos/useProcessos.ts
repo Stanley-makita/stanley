@@ -64,9 +64,19 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
       }
 
       if (filtros.busca) {
-        query = query.or(
-          `nome_imovel.ilike.%${filtros.busca}%,numero_processo.ilike.%${filtros.busca}%`
-        )
+        const termo = filtros.busca.trim()
+        // Cliente/CPF ficam em processo_compradores (tabela relacionada) —
+        // não dá pra filtrar direto no .or() principal, então busca os
+        // processo_id que batem lá primeiro e inclui via id.in(...).
+        const { data: compradoresMatch } = await supabase
+          .from('processo_compradores')
+          .select('processo_id')
+          .or(`nome.ilike.%${termo}%,cpf.ilike.%${termo}%`)
+        const idsCompradores = Array.from(new Set((compradoresMatch ?? []).map((c) => c.processo_id)))
+
+        const orPartes = [`nome_imovel.ilike.%${termo}%`, `numero_processo.ilike.%${termo}%`]
+        if (idsCompradores.length > 0) orPartes.push(`id.in.(${idsCompradores.join(',')})`)
+        query = query.or(orPartes.join(','))
       }
 
       if (filtros.responsavelId) {

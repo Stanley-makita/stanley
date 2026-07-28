@@ -33,6 +33,10 @@ const FASES_FINANCIAMENTO_FILTROS = [
 const FASES_CONTRATO_FILTROS = [
   'Aguardando contato', 'Entrevista', 'Minuta', 'Conferência', 'Assinatura', 'Concluído',
 ]
+const FASES_CONSORCIO_FILTROS = [
+  'Aguardando Atendimento', 'Atendimento Consultor', 'Simulações Enviadas',
+  'Proposta Aceita', 'Aguardando Boleto', 'Concluído',
+]
 
 // Usado em Negócios/Todos os Negócios (mostrarFiltroProduto) — CGI conta
 // separado de Financiamento aqui, diferente do filtro 'produto' server-side
@@ -281,7 +285,9 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
       ? FASES_FINANCIAMENTO_FILTROS
       : isContrato
         ? FASES_CONTRATO_FILTROS
-        : null
+        : isConsorcio
+          ? FASES_CONSORCIO_FILTROS
+          : null
 
   const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
   const [faseFiltro, setFaseFiltro] = useState<string>('todos')
