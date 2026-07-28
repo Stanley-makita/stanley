@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useSalvarValidadeProcesso } from '@/hooks/processos/useSalvarValidadeProcesso'
+import { useBancos } from '@/hooks/useBancos'
 import {
   AnaliseCard, AnaliseForm, type AnaliseFormInput,
 } from '@/components/leads/LeadDetalhe/AbaCredito'
@@ -40,6 +41,31 @@ function useAtualizarDataCreditoProcesso(processoId: string) {
   })
 }
 
+// Sincroniza o card "Operação" (Resumo) com os dados de uma análise de
+// crédito aprovada em outro banco — só chamado quando o banco muda,
+// nunca automaticamente (ver handleSalvarDataAprovacao).
+function useSincronizarOperacaoComAnalise(processoId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (dados: {
+      banco_id: string
+      valor_imovel: number | null
+      valor_entrada: number | null
+      valor_financiado: number | null
+      prazo_amortizacao_meses: number | null
+    }) => {
+      const { error } = await supabase.from('processos').update(dados).eq('id', processoId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['processos'] })
+      toast.success('Dados da Operação atualizados com esta análise.')
+    },
+    onError: () => toast.error('Não foi possível atualizar os Dados da Operação.'),
+  })
+}
+
 export function AbaCredito({ processoId, processo }: Props) {
   const { usuario } = useAuth()
   const qc = useQueryClient()
@@ -54,6 +80,8 @@ export function AbaCredito({ processoId, processo }: Props) {
   const [dataAprovacao, setDataAprovacao] = useState(processo.data_credito ?? '')
   const atualizarDataCredito = useAtualizarDataCreditoProcesso(processoId)
   const salvarValidade = useSalvarValidadeProcesso()
+  const sincronizarOperacao = useSincronizarOperacaoComAnalise(processoId)
+  const { data: bancos = [] } = useBancos()
 
   function handleStatusChange(id: string, status: StatusAnaliseCredito) {
     editar.mutate({ id, status })
@@ -107,6 +135,29 @@ export function AbaCredito({ processoId, processo }: Props) {
           tipo: 'credito',
           data: novaValidade.toISOString().slice(0, 10),
         })
+      }
+
+      // Só pergunta sobre os Dados da Operação quando o banco da análise
+      // definida é diferente do banco já registrado no processo — se for o
+      // mesmo banco (ex: crédito venceu e precisou reaprovar), não há nada
+      // pra sincronizar, então nem pergunta.
+      if (analiseDefinida?.banco_pretendido) {
+        const bancoAnalise = bancos.find((b) => b.nome === analiseDefinida.banco_pretendido)
+        const bancoMudou = bancoAnalise && bancoAnalise.id !== (processo.banco_id ?? null)
+        if (bancoMudou) {
+          const sincronizar = window.confirm(
+            `O banco desta aprovação (${analiseDefinida.banco_pretendido}) é diferente do banco atual da operação (${processo.banco?.nome ?? '—'}).\n\nDeseja atualizar os Dados da Operação (Banco, Valor do Imóvel, Entrada, Valor Financiado e Prazo) com os valores desta análise?\n\nSe preferir manter os dados atuais, clique em Cancelar.`,
+          )
+          if (sincronizar) {
+            await sincronizarOperacao.mutateAsync({
+              banco_id: bancoAnalise!.id,
+              valor_imovel: analiseDefinida.valor_imovel,
+              valor_entrada: analiseDefinida.entrada,
+              valor_financiado: analiseDefinida.valor_pretendido,
+              prazo_amortizacao_meses: analiseDefinida.prazo_meses,
+            })
+          }
+        }
       }
     }
   }
@@ -211,7 +262,7 @@ export function AbaCredito({ processoId, processo }: Props) {
               onChange={(e) => setDataAprovacao(e.target.value)}
               onBlur={handleSalvarDataAprovacao}
             />
-            {(atualizarDataCredito.isPending || salvarValidade.isPending) && (
+            {(atualizarDataCredito.isPending || salvarValidade.isPending || sincronizarOperacao.isPending) && (
               <p className="text-[10px] text-gray-400">Salvando…</p>
             )}
           </div>
