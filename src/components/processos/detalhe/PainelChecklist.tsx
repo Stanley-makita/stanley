@@ -9,6 +9,7 @@ import {
   useChecklistTemplate,
   useChecklistExecucoes,
   useMarcarChecklistItem,
+  itemChecklistSatisfeito,
 } from '@/hooks/processos/useChecklist'
 import type { ChecklistItemDB } from '@/hooks/processos/useChecklist'
 import { useSalvarValidadeProcesso, LABEL_VALIDADE } from '@/hooks/processos/useSalvarValidadeProcesso'
@@ -49,7 +50,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
   const itens = tmpl?.itens ?? []
   const marcadosSet = new Set(execucoes.filter(e => e.marcado).map(e => e.item_id))
 
-  const obrigatoriosPendentes = itens.filter(i => i.obrigatorio && !marcadosSet.has(i.id)).length
+  const obrigatoriosPendentes = itens.filter(i => i.obrigatorio && !itemChecklistSatisfeito(i, itens, marcadosSet)).length
   const totalObrigatorios     = itens.filter(i => i.obrigatorio).length
 
   useEffect(() => {
@@ -161,6 +162,9 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
                               if (novoMarcado && item.acao_ao_completar === 'processo_conforme') {
                                 toast.success('✅ Processo marcado como conforme.')
                               }
+                              if (novoMarcado && item.acao_ao_completar === 'processo_inconforme') {
+                                toast.warning('❌ Processo marcado como inconforme — permanece na fase até resolução.')
+                              }
                             },
                           }
                         )
@@ -184,6 +188,9 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
                       )}
                       {item.acao_ao_completar === 'processo_conforme' && (
                         <span className="ml-1.5 text-[10px] text-green-600 font-medium">✅ marca como Processo Conforme</span>
+                      )}
+                      {item.acao_ao_completar === 'processo_inconforme' && (
+                        <span className="ml-1.5 text-[10px] text-red-600 font-medium">❌ marca como Processo Inconforme</span>
                       )}
                       {tipoVal && (
                         <span className="ml-1.5 text-[10px] text-blue-600 font-medium">📅 salva validade da {LABEL_VALIDADE[tipoVal]}</span>

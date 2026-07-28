@@ -93,6 +93,14 @@ export function useChecklistExecucoes(processoId: string) {
   })
 }
 
+// "processo_conforme"/"processo_inconforme" são mutuamente exclusivos (o
+// processo só pode estar num dos dois estados por vez) — marcar um desmarca
+// automaticamente o outro, se estava marcado.
+const PAR_CONFORMIDADE: Record<string, string> = {
+  processo_conforme: 'processo_inconforme',
+  processo_inconforme: 'processo_conforme',
+}
+
 // Mutation: marcar ou desmarcar um item (upsert)
 export function useMarcarChecklistItem(processoId: string) {
   const queryClient = useQueryClient()
@@ -145,10 +153,39 @@ export function useMarcarChecklistItem(processoId: string) {
         if (errP) throw errP
       }
 
-      if (marcado && item.acao_ao_completar === 'processo_conforme') {
+      if (marcado && (item.acao_ao_completar === 'processo_conforme' || item.acao_ao_completar === 'processo_inconforme')) {
+        const acaoOposta = PAR_CONFORMIDADE[item.acao_ao_completar]
+        const { data: itemOposto } = await supabase
+          .from('checklist_items')
+          .select('id')
+          .eq('template_id', item.template_id)
+          .eq('acao_ao_completar', acaoOposta)
+          .maybeSingle()
+
+        if (itemOposto) {
+          const { error: errOposto } = await supabase
+            .from('checklist_execucoes')
+            .upsert(
+              {
+                processo_id: processoId,
+                item_id:     itemOposto.id,
+                empresa_id:  usuario!.empresa_id,
+                marcado:     false,
+                marcado_por: null,
+                marcado_em:  null,
+              },
+              { onConflict: 'processo_id,item_id' }
+            )
+          if (errOposto) throw errOposto
+        }
+
         const { error: errP } = await supabase
           .from('processos')
-          .update({ conformidade_aprovada_em: new Date().toISOString() })
+          .update(
+            item.acao_ao_completar === 'processo_conforme'
+              ? { conformidade_aprovada_em: new Date().toISOString() }
+              : { conformidade_reprovada_em: new Date().toISOString() }
+          )
           .eq('id', processoId)
         if (errP) throw errP
       }
@@ -161,6 +198,24 @@ export function useMarcarChecklistItem(processoId: string) {
   })
 }
 
+// "processo_conforme"/"processo_inconforme" formam um par mutuamente
+// exclusivo: o par conta como satisfeito se qualquer um dos dois estiver
+// marcado (não exige os dois, mesmo que ambos sejam obrigatórios).
+const ACOES_PAR_CONFORMIDADE = ['processo_conforme', 'processo_inconforme']
+
+export function itemChecklistSatisfeito(
+  item: ChecklistItemDB,
+  itens: ChecklistItemDB[],
+  marcadosSet: Set<string>,
+): boolean {
+  if (marcadosSet.has(item.id)) return true
+  if (item.acao_ao_completar && ACOES_PAR_CONFORMIDADE.includes(item.acao_ao_completar)) {
+    const par = itens.find(x => x.id !== item.id && x.acao_ao_completar && ACOES_PAR_CONFORMIDADE.includes(x.acao_ao_completar))
+    if (par && marcadosSet.has(par.id)) return true
+  }
+  return false
+}
+
 // Hook derivado: retorna se há itens obrigatórios pendentes para uma fase/processo
 export function useChecklistPendencias(processoId: string, faseId: string | null | undefined) {
   const { data: tmpl, isLoading: tmplLoading } = useChecklistTemplate(faseId)
@@ -169,7 +224,7 @@ export function useChecklistPendencias(processoId: string, faseId: string | null
   const itens = tmpl?.itens ?? []
   const marcadosSet = new Set(execucoes.filter(e => e.marcado).map(e => e.item_id))
 
-  const itensObrigatoriosPendentes = itens.some(i => i.obrigatorio && !marcadosSet.has(i.id))
+  const itensObrigatoriosPendentes = itens.some(i => i.obrigatorio && !itemChecklistSatisfeito(i, itens, marcadosSet))
 
   return {
     itensObrigatoriosPendentes,
