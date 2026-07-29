@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FileDown, ExternalLink, Loader2, CheckSquare, Square, FileText, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { FileDown, ExternalLink, Loader2, CheckSquare, Square, FileText, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -70,6 +70,7 @@ export function AbaFormularios({ lead }: Props) {
   const [carregandoLista, setCarregandoLista] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [atalhoAberto, setAtalhoAberto] = useState(true)
+  const [resultado, setResultado] = useState<{ salvos: string[]; erros: string[] } | null>(null)
 
   async function carregarFormularios(bancNome: string) {
     if (!bancNome) { setFormularios([]); return }
@@ -91,6 +92,7 @@ export function AbaFormularios({ lead }: Props) {
     setBanco(b)
     setFormularios([])
     setSelecionados(new Set())
+    setResultado(null)
     carregarFormularios(b)
   }
 
@@ -113,6 +115,7 @@ export function AbaFormularios({ lead }: Props) {
   async function handleGerar() {
     if (!banco || selecionados.size === 0) return
     setGerando(true)
+    setResultado(null)
     try {
       const res = await fetch(`/api/leads/${lead.id}/formularios`, {
         method: 'POST',
@@ -123,7 +126,12 @@ export function AbaFormularios({ lead }: Props) {
       if (!res.ok) {
         toast.error(json.error ?? 'Erro ao gerar formulários.')
       } else {
-        toast.success(json.mensagem)
+        setResultado({ salvos: json.salvos ?? [], erros: json.erros ?? [] })
+        if (json.erros?.length) {
+          toast.warning(`${json.salvos?.length ?? 0} gerado(s), ${json.erros.length} com erro.`)
+        } else {
+          toast.success(json.mensagem)
+        }
       }
     } catch {
       toast.error('Erro de rede ao gerar formulários.')
@@ -234,6 +242,26 @@ export function AbaFormularios({ lead }: Props) {
             <p className="text-xs text-gray-400 text-center">
               Os PDFs serão salvos na aba Documentos.
             </p>
+
+            {resultado && (
+              <div className="space-y-1.5 border border-gray-100 rounded-lg p-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  Resultado da geração
+                </p>
+                {resultado.salvos.map((label) => (
+                  <div key={label} className="flex items-center gap-2 text-sm text-gray-700">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    {label}
+                  </div>
+                ))}
+                {resultado.erros.map((label) => (
+                  <div key={label} className="flex items-center gap-2 text-sm text-red-600">
+                    <XCircle className="w-4 h-4 shrink-0" />
+                    {label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

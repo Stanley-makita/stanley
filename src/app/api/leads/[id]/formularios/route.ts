@@ -233,9 +233,14 @@ export async function POST(
     for (const form of selecionados) {
       if (form.porPessoa) {
         for (const pessoa of dados.compradores) {
-          const sufixo = pessoa.principal ? '' : ` - ${pessoa.nome || 'coparticipante'}`
-          const nomeArquivo = form.nomeArquivo.replace(/\.pdf$/i, `${sufixo}.pdf`)
-          const label = `${form.label}${sufixo}`
+          // Nome do arquivo do principal fica sem sufixo (compatibilidade com
+          // PDFs já salvos antes da geração por pessoa — trocar isso deixaria
+          // órfão o documento antigo). O label exibido no resultado, porém,
+          // sempre identifica a pessoa — é o que faltava pro usuário saber
+          // de quem é cada formulário gerado.
+          const sufixoArquivo = pessoa.principal ? '' : ` - ${pessoa.nome || 'coparticipante'}`
+          const nomeArquivo = form.nomeArquivo.replace(/\.pdf$/i, `${sufixoArquivo}.pdf`)
+          const label = `${form.label} - ${pessoa.nome || (pessoa.principal ? 'Comprador principal' : 'Coparticipante')}`
           await gerarESalvar(nomeArquivo, label, form.mapa(dados, pessoa), form.template)
         }
       } else {

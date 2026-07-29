@@ -123,6 +123,7 @@ export async function buscarDadosFormularioLead(leadId: string): Promise<DadosPr
     .from('lead_coparticipantes')
     .select(`pessoa:pessoas(${SELECT_PESSOA_COMPLETA})`)
     .eq('lead_id', leadId)
+    .order('created_at', { ascending: true })
   const compradoresCoparticipantes: DadosComprador[] = (coparticipantesRows ?? [])
     .map((r: any) => r.pessoa)
     .filter(Boolean)
