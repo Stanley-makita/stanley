@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { FormConsorcio, FORM_CONSORCIO_VAZIO, type FormStateConsorcio } from './FormConsorcio'
-import { ResultadosConsorcio } from './ResultadosConsorcio'
+import { PainelConsorcio, FORM_CONSORCIO_VAZIO, type FormStateConsorcio } from './PainelConsorcio'
+import { CronogramaModal } from './CronogramaModal'
 import { simularConsorcio } from '@/lib/simuladorConsorcio/engine'
 import type { InputConsorcio, ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import { useSalvarConsorcioCentral } from '@/hooks/simulacoes/useSalvarConsorcioCentral'
@@ -153,13 +153,9 @@ export function SimuladorConsorcio({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
-        <div className="md:w-[380px] shrink-0 overflow-y-auto p-4 bg-[#F2F0E8] border-r border-[#D5CFA8]">
-          <FormConsorcio form={form} onChange={setForm} />
-        </div>
-        <div className="flex-1 min-w-0 overflow-y-auto p-4">
-          <ResultadosConsorcio resultado={resultado} />
-        </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <PainelConsorcio form={form} onChange={setForm} resultado={resultado} />
+        <CronogramaModal linhas={resultado?.linhas ?? []} />
       </div>
 
       <div className="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-gray-100 bg-white shrink-0">
