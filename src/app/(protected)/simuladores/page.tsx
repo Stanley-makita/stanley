@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Calculator, Plus, Building2, TrendingUp, CheckCircle2, Clock, AlertTriangle, Eye, Save } from 'lucide-react'
+import { Calculator, Plus, Building2, TrendingUp, Landmark, CheckCircle2, Clock, AlertTriangle, Eye, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,14 +12,17 @@ import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
+import { SimuladorConsorcio } from '@/components/simuladorConsorcio/SimuladorConsorcio'
 import { useSimulacoesCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 import { useSalvarCustasCentral } from '@/hooks/simulacoes/useSalvarCustasCentral'
+import { useSalvarConsorcioCentral } from '@/hooks/simulacoes/useSalvarConsorcioCentral'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import type { ResultadoSimulador, EntradaSimulador } from '@/types/simulador'
+import type { ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import type { SimulacaoCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 
-type TipoModal = null | 'escolha' | 'custas'
+type TipoModal = null | 'escolha' | 'custas' | 'consorcio'
 
 function fmtData(iso: string) {
   try {
@@ -29,18 +32,16 @@ function fmtData(iso: string) {
   }
 }
 
-function BadgeTipo({ tipo }: { tipo: 'custas' | 'financiamento' }) {
+function BadgeTipo({ tipo }: { tipo: 'custas' | 'financiamento' | 'consorcio' }) {
+  const cfg = {
+    custas:        { cor: 'bg-blue-50 text-blue-700 border border-blue-200',     icone: <Building2 className="w-3 h-3" />,  label: 'Custas' },
+    financiamento: { cor: 'bg-green-50 text-green-700 border border-green-200',  icone: <TrendingUp className="w-3 h-3" />, label: 'Financiamento' },
+    consorcio:     { cor: 'bg-amber-50 text-amber-700 border border-amber-200',  icone: <Landmark className="w-3 h-3" />,   label: 'Consórcio' },
+  }[tipo]
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-        tipo === 'custas'
-          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-          : 'bg-green-50 text-green-700 border border-green-200'
-      )}
-    >
-      {tipo === 'custas' ? <Building2 className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-      {tipo === 'custas' ? 'Custas' : 'Financiamento'}
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', cfg.cor)}>
+      {cfg.icone}
+      {cfg.label}
     </span>
   )
 }
@@ -155,16 +156,20 @@ export default function SimuladoresPage() {
   const [custaVer, setCustaVer]               = useState<SimulacaoCentral | null>(null)
   const [custasResultado, setCustasResultado] = useState<ResultadoSimulador | null>(null)
   const [custaVerResultado, setCustaVerResultado] = useState<ResultadoSimulador | null>(null)
+  const [consorcioVer, setConsorcioVer]               = useState<SimulacaoCentral | null>(null)
+  const [consorcioResultado, setConsorcioResultado]   = useState<ResultadoConsorcio | null>(null)
+  const [consorcioVerResultado, setConsorcioVerResultado] = useState<ResultadoConsorcio | null>(null)
 
   const { data: simulacoes = [], isLoading, error: erroLista, refetch } = useSimulacoesCentral()
   const salvar      = useSalvarSimulacaoCentral()
   const salvarCustas = useSalvarCustasCentral()
+  const salvarConsorcio = useSalvarConsorcioCentral()
 
   const total      = simulacoes.length
   const aguardando = simulacoes.filter((s) => s.status === 'aguardando').length
   const concluidas = simulacoes.filter((s) => s.status === 'concluida').length
 
-  function abrirTipo(tipo: 'custas' | 'financiamento') {
+  function abrirTipo(tipo: 'custas' | 'financiamento' | 'consorcio') {
     if (tipo === 'financiamento') {
       setModal(null)
       setVisao('financiamento')
@@ -178,6 +183,7 @@ export default function SimuladoresPage() {
     setClienteNome('')
     setClienteCpf('')
     setCustasResultado(null)
+    setConsorcioResultado(null)
   }
 
   function fecharFinanciamento() {
@@ -210,6 +216,19 @@ export default function SimuladoresPage() {
       fecharSimulador()
     } catch (err) {
       console.error('[simulacoes-central] erro ao salvar custas:', err)
+      toast.error('Erro ao salvar no histórico')
+    }
+  }
+
+  async function handleSalvarConsorcio() {
+    if (!consorcioResultado) return
+    try {
+      await salvarConsorcio.mutateAsync({ resultado: consorcioResultado })
+      toast.success('Simulação de consórcio salva no histórico')
+      await refetch()
+      fecharSimulador()
+    } catch (err) {
+      console.error('[simulacoes-central] erro ao salvar consórcio:', err)
       toast.error('Erro ao salvar no histórico')
     }
   }
@@ -251,7 +270,7 @@ export default function SimuladoresPage() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-gray-900">Central de Simulações</h1>
-            <p className="text-xs text-gray-400">Custas cartoriais e financiamento bancário</p>
+            <p className="text-xs text-gray-400">Custas cartoriais, financiamento bancário e consórcio</p>
           </div>
         </div>
         <Button
@@ -324,9 +343,13 @@ export default function SimuladoresPage() {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => s.tipo === 'custas' ? setCustaVer(s) : setSimulacaoVer(s)}
+                        onClick={() => {
+                          if (s.tipo === 'custas') setCustaVer(s)
+                          else if (s.tipo === 'consorcio') setConsorcioVer(s)
+                          else setSimulacaoVer(s)
+                        }}
                         className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                        title={s.tipo === 'custas' ? 'Abrir simulador' : 'Ver simulação'}
+                        title={s.tipo === 'financiamento' ? 'Ver simulação' : 'Abrir simulador'}
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -372,7 +395,7 @@ export default function SimuladoresPage() {
           </div>
 
           <p className="text-xs text-gray-400 mb-2">Escolha o tipo:</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <button
               type="button"
               onClick={() => abrirTipo('custas')}
@@ -393,6 +416,17 @@ export default function SimuladoresPage() {
               <div className="text-center">
                 <p className="text-sm font-semibold text-gray-800">Financiamento</p>
                 <p className="text-xs text-gray-400 mt-0.5">SAC, PRICE, 7 bancos</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => abrirTipo('consorcio')}
+              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
+            >
+              <Landmark className="w-8 h-8 text-amber-500 group-hover:scale-110 transition-transform" />
+              <div className="text-center">
+                <p className="text-sm font-semibold text-gray-800">Consórcio</p>
+                <p className="text-xs text-gray-400 mt-0.5">Consórcio x compra à vista</p>
               </div>
             </button>
           </div>
@@ -466,6 +500,82 @@ export default function SimuladoresPage() {
               clienteNome={custaVer?.nome_cliente ?? undefined}
               entradaInicial={(custaVer?.resultado_json as ResultadoSimulador | null)?.entrada as EntradaSimulador | undefined}
               onResultadoChange={setCustaVerResultado}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: SimuladorConsorcio ────────────────────────────────────── */}
+      <Dialog open={modal === 'consorcio'} onOpenChange={(o) => !o && fecharSimulador()}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+        >
+          <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Landmark className="w-4 h-4 text-amber-500" />
+              Simulador de Consórcio
+              {clienteNome && (
+                <span className="text-xs font-normal text-gray-400">— {clienteNome}</span>
+              )}
+            </DialogTitle>
+            <Button
+              size="sm"
+              className="ml-auto h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
+              onClick={handleSalvarConsorcio}
+              disabled={salvarConsorcio.isPending || !consorcioResultado}
+            >
+              <Save className="w-3 h-3" />
+              {salvarConsorcio.isPending ? 'Salvando...' : 'Salvar no histórico'}
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <SimuladorConsorcio
+              clienteNome={clienteNome || undefined}
+              clienteCpf={clienteCpf || undefined}
+              onResultadoChange={setConsorcioResultado}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Re-simular consórcio (olho na linha de consórcio) ──── */}
+      <Dialog open={!!consorcioVer} onOpenChange={(o) => !o && setConsorcioVer(null)}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+        >
+          <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Landmark className="w-4 h-4 text-amber-500" />
+              Simulador de Consórcio
+              {consorcioVer?.nome_cliente && (
+                <span className="text-xs font-normal text-gray-400">— {consorcioVer.nome_cliente}</span>
+              )}
+            </DialogTitle>
+            <Button
+              size="sm"
+              className="ml-auto h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
+              onClick={() => {
+                if (!consorcioVerResultado) return
+                salvarConsorcio.mutateAsync({ resultado: consorcioVerResultado })
+                  .then(() => { toast.success('Salvo no histórico'); setConsorcioVer(null); setConsorcioVerResultado(null) })
+                  .catch(() => toast.error('Erro ao salvar'))
+              }}
+              disabled={salvarConsorcio.isPending || !consorcioVerResultado}
+            >
+              <Save className="w-3 h-3" />
+              {salvarConsorcio.isPending ? 'Salvando...' : 'Salvar no histórico'}
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <SimuladorConsorcio
+              key={consorcioVer?.id}
+              simulacaoExistenteId={consorcioVer?.id}
+              resultadoInicial={(consorcioVer?.resultado_json as unknown as ResultadoConsorcio) ?? undefined}
+              clienteNome={consorcioVer?.nome_cliente ?? undefined}
+              clienteCpf={consorcioVer?.cpf_cliente ?? undefined}
+              onResultadoChange={setConsorcioVerResultado}
             />
           </div>
         </DialogContent>
