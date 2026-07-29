@@ -5,6 +5,11 @@ import { FormConsorcio, FORM_CONSORCIO_VAZIO, type FormStateConsorcio } from './
 import { ResultadosConsorcio } from './ResultadosConsorcio'
 import { simularConsorcio } from '@/lib/simuladorConsorcio/engine'
 import type { InputConsorcio, ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
+import { useSalvarConsorcioCentral } from '@/hooks/simulacoes/useSalvarConsorcioCentral'
+import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
+import { Button } from '@/components/ui/button'
+import { Printer, Send } from 'lucide-react'
+import { toast } from 'sonner'
 
 function parseMoeda(v: string): number {
   return Number(v) || 0
@@ -49,21 +54,33 @@ const CAMPOS_OBRIGATORIOS: Array<keyof FormStateConsorcio> = [
 interface Props {
   modoAvulso?: boolean
   onResultadoChange?: (r: ResultadoConsorcio | null) => void
+  /**
+   * ID de uma simulação já salva (ex.: "Ver simulação" no histórico) — quando
+   * presente, Imprimir/Compartilhar não salvam de novo no histórico, só
+   * reaproveitam este ID. Mesmo padrão de SimuladorFinanciamento/SimuladorCustas.
+   */
   simulacaoExistenteId?: string
   resultadoInicial?: ResultadoConsorcio
   clienteNome?: string
   clienteCpf?: string
+  responsavelNome?: string
 }
 
 export function SimuladorConsorcio({
   onResultadoChange,
+  simulacaoExistenteId,
   resultadoInicial,
   clienteNome,
   clienteCpf,
+  responsavelNome,
 }: Props) {
   const [form, setForm] = useState<FormStateConsorcio>(() =>
     resultadoInicial ? inputParaForm(resultadoInicial.input) : FORM_CONSORCIO_VAZIO,
   )
+  const [gerandoPDF, setGerandoPDF] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+  const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
+  const salvarConsorcioCentral = useSalvarConsorcioCentral()
 
   const resultado = useMemo((): ResultadoConsorcio | null => {
     const preenchido = CAMPOS_OBRIGATORIOS.every((k) => form[k] !== '')
@@ -99,14 +116,76 @@ export function SimuladorConsorcio({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { onResultadoChange?.(resultado) }, [resultado])
 
+  async function baixarPDF() {
+    if (!resultado) return
+    setGerandoPDF(true)
+    try {
+      const { gerarPDFConsorcio } = await import('@/lib/simuladorConsorcio/gerarPDF')
+      await gerarPDFConsorcio(resultado, { clienteNome, responsavelNome })
+    } finally {
+      setGerandoPDF(false)
+    }
+  }
+
+  async function compartilharSimulacao() {
+    if (!resultado) return
+    const nome = `Simulação de Consórcio${clienteNome ? ` — ${clienteNome}` : ''}`
+    // Se já é uma simulação existente, reaproveita o ID em vez de salvar uma
+    // cópia nova a cada Compartilhar — mesmo padrão de SimuladorFinanciamento.
+    if (simulacaoExistenteId) {
+      setModalCompartilhar({ id: simulacaoExistenteId, nome })
+      return
+    }
+    setEnviando(true)
+    try {
+      const salvo = await salvarConsorcioCentral.mutateAsync({ resultado })
+      setModalCompartilhar({ id: salvo.id, nome })
+    } catch {
+      toast.error('Erro ao salvar simulação para compartilhamento.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col md:flex-row gap-4 h-full min-h-0">
-      <div className="md:w-[380px] shrink-0 overflow-y-auto p-4 bg-[#F2F0E8] border-r border-[#D5CFA8]">
-        <FormConsorcio form={form} onChange={setForm} />
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
+        <div className="md:w-[380px] shrink-0 overflow-y-auto p-4 bg-[#F2F0E8] border-r border-[#D5CFA8]">
+          <FormConsorcio form={form} onChange={setForm} />
+        </div>
+        <div className="flex-1 min-w-0 overflow-y-auto p-4">
+          <ResultadosConsorcio resultado={resultado} />
+        </div>
       </div>
-      <div className="flex-1 min-w-0 overflow-y-auto p-4">
-        <ResultadosConsorcio resultado={resultado} />
+
+      <div className="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-gray-100 bg-white shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover gap-1"
+          onClick={baixarPDF}
+          disabled={!resultado || gerandoPDF}
+        >
+          <Printer className="h-3 w-3" /> {gerandoPDF ? 'Gerando...' : 'Imprimir PDF'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-green-600 text-green-700 hover:bg-green-50 gap-1"
+          onClick={compartilharSimulacao}
+          disabled={!resultado || enviando}
+        >
+          <Send className="h-3 w-3" /> {enviando ? 'Enviando...' : 'Compartilhar'}
+        </Button>
       </div>
+
+      {modalCompartilhar && (
+        <SimulacaoCompartilharModal
+          simulacao={{ id: modalCompartilhar.id, tipo: 'consorcio', nome: modalCompartilhar.nome }}
+          onClose={() => setModalCompartilhar(null)}
+          onEnviado={() => setModalCompartilhar(null)}
+        />
+      )}
     </div>
   )
 }

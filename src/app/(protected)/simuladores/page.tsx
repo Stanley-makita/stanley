@@ -508,8 +508,8 @@ export default function SimuladoresPage() {
       {/* ── Modal: SimuladorConsorcio ────────────────────────────────────── */}
       <Dialog open={modal === 'consorcio'} onOpenChange={(o) => !o && fecharSimulador()}>
         <DialogContent
-          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
-          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[97svh] rounded-xl sm:rounded-lg"
+          style={{ maxWidth: 'min(97vw, 1700px)', maxHeight: 'calc(100vh - 8px)' }}
         >
           <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
@@ -542,8 +542,8 @@ export default function SimuladoresPage() {
       {/* ── Modal: Re-simular consórcio (olho na linha de consórcio) ──── */}
       <Dialog open={!!consorcioVer} onOpenChange={(o) => !o && setConsorcioVer(null)}>
         <DialogContent
-          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
-          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[97svh] rounded-xl sm:rounded-lg"
+          style={{ maxWidth: 'min(97vw, 1700px)', maxHeight: 'calc(100vh - 8px)' }}
         >
           <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">

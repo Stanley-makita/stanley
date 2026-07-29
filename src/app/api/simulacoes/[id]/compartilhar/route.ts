@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import type { ResultadoSimulador } from '@/types/simulador'
+import type { ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 
 async function resolveUsuario(token: string) {
@@ -30,7 +31,7 @@ export async function POST(
 
   const simulacaoId = params.id
 
-  let body: { tipo: 'financiamento' | 'custas'; telefone: string; mensagem?: string; nome_destino?: string }
+  let body: { tipo: 'financiamento' | 'custas' | 'consorcio'; telefone: string; mensagem?: string; nome_destino?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
@@ -66,6 +67,26 @@ export async function POST(
     processoId = sim.processo_id
     nomeCliente = sim.nome_cliente
     nomeSim = `Simulação Financiamento${sim.banco ? ` — ${sim.banco}` : ''}${nomeCliente ? ` | ${nomeCliente}` : ''}`
+  } else if (tipo === 'consorcio') {
+    const { data: sim, error } = await supabase
+      .from('simulacoes_central')
+      .select('resultado_json, lead_id, processo_id, nome_cliente')
+      .eq('id', simulacaoId)
+      .eq('tipo', 'consorcio')
+      .single()
+
+    if (error || !sim) return NextResponse.json({ error: 'Simulação não encontrada' }, { status: 404 })
+
+    if (sim.lead_id) {
+      const { data: lead } = await supabase.from('leads').select('empresa_id').eq('id', sim.lead_id).single()
+      if (lead?.empresa_id !== usuario.empresa_id) return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
+    }
+
+    resultadoJson = sim.resultado_json as Record<string, unknown>
+    leadId = sim.lead_id
+    processoId = sim.processo_id
+    nomeCliente = sim.nome_cliente
+    nomeSim = `Simulação de Consórcio${nomeCliente ? ` — ${nomeCliente}` : ''}`
   } else {
     // custas → processo_custas_simulacoes
     const { data: sim, error } = await supabase
@@ -95,6 +116,12 @@ export async function POST(
     if (tipo === 'financiamento') {
       const { gerarPDFFinanciamentoBuffer } = await import('@/lib/simuladorFinanciamento/gerarPDFBuffer')
       pdfBuffer = await gerarPDFFinanciamentoBuffer(resultadoJson as unknown as ResultadoCompleto, {
+        clienteNome: nomeCliente ?? undefined,
+        responsavelNome: usuario.nome,
+      })
+    } else if (tipo === 'consorcio') {
+      const { gerarPDFConsorcioBuffer } = await import('@/lib/simuladorConsorcio/gerarPDFBuffer')
+      pdfBuffer = await gerarPDFConsorcioBuffer(resultadoJson as unknown as ResultadoConsorcio, {
         clienteNome: nomeCliente ?? undefined,
         responsavelNome: usuario.nome,
       })
