@@ -31,9 +31,10 @@ export const FORM_CONSORCIO_VAZIO: FormStateConsorcio = {
   valorBem: '',
   valorCarta: '',
   mesLanceContemplacao: '',
-  percentualLance: '',
+  // Padrões da planilha (editáveis) — Valor do lance (%) e % Lance embutido.
+  percentualLance: '40',
   rendimentoMensal: '',
-  percentualLanceEmbutido: '',
+  percentualLanceEmbutido: '30',
   prazoMeses: '',
   taxaAdmPercentual: '',
   indiceCorrecaoAnual: '',
