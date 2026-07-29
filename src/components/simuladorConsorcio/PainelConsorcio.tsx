@@ -65,21 +65,21 @@ function parsePercentLocal(v: string): number {
 function LinhaCampo({ label, index, children, semCaixa }: { label: string; index: number; children: React.ReactNode; semCaixa?: boolean }) {
   return (
     <div className={cn('flex items-center justify-between gap-2 px-3 py-1.5', index % 2 === 1 && 'bg-white/[0.04]')}>
-      <span className="text-[11px] text-white/85 leading-tight">{label}</span>
+      <span className="text-sm text-white/85 leading-tight">{label}</span>
       <div className={cn('shrink-0', !semCaixa && 'bg-white rounded px-2 py-1')}>{children}</div>
     </div>
   )
 }
 
 function ValorComputado({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs font-bold text-gray-800 tabular-nums">{children}</span>
+  return <span className="text-base font-bold text-gray-800 tabular-nums">{children}</span>
 }
 
 // ── Inputs compactos, estilo "célula de planilha" (fundo branco, fonte
 // preta — mesma cor da célula de input na planilha original) ──────────────
 
 function inputBaseClass() {
-  return 'bg-transparent text-gray-800 text-xs font-bold text-right outline-none placeholder:text-gray-300 w-24 tabular-nums'
+  return 'bg-transparent text-gray-800 text-base font-bold text-right outline-none placeholder:text-gray-300 w-28 tabular-nums'
 }
 
 function CampoMoeda({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -90,7 +90,7 @@ function CampoMoeda({ value, onChange }: { value: string; onChange: (v: string) 
   const exibicao = value ? Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] text-gray-400">R$</span>
+      <span className="text-xs text-gray-400">R$</span>
       <input type="text" inputMode="numeric" value={exibicao} onChange={handleChange} placeholder="0,00" className={inputBaseClass()} />
     </div>
   )
@@ -105,9 +105,9 @@ function CampoPercent({ value, onChange }: { value: string; onChange: (v: string
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ''))}
         placeholder="0"
-        className={cn(inputBaseClass(), 'w-14')}
+        className={cn(inputBaseClass(), 'w-16')}
       />
-      <span className="text-[10px] text-gray-400">%</span>
+      <span className="text-xs text-gray-400">%</span>
     </div>
   )
 }
@@ -120,7 +120,7 @@ function CampoInt({ value, onChange }: { value: string; onChange: (v: string) =>
       value={value}
       onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
       placeholder="0"
-      className={cn(inputBaseClass(), 'w-14')}
+      className={cn(inputBaseClass(), 'w-16')}
     />
   )
 }
@@ -132,7 +132,7 @@ function CampoTexto({ value, onChange }: { value: string; onChange: (v: string) 
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Ex.: 36 a 40 meses"
-      className={cn(inputBaseClass(), 'w-32 text-left')}
+      className={cn(inputBaseClass(), 'w-36 text-left')}
     />
   )
 }
@@ -141,7 +141,7 @@ function CampoTexto({ value, onChange }: { value: string; onChange: (v: string) 
 
 function BlocoVerde({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 min-w-[220px] rounded-lg overflow-hidden" style={{ backgroundColor: COR_VERDE }}>
+    <div className="flex-1 min-w-[260px] rounded-lg overflow-hidden" style={{ backgroundColor: COR_VERDE }}>
       {children}
     </div>
   )
@@ -191,34 +191,34 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
       <div className="rounded-lg overflow-hidden border border-gray-200">
         <div className="grid grid-cols-2">
           <div className="bg-[#F8D7DA] px-4 py-3">
-            <p className="text-[11px] text-gray-500 flex items-center gap-1"><Home className="h-3 w-3" /> Patrimônio compra à vista</p>
-            <p className="text-lg font-bold text-[#7A2E2E] tabular-nums">
+            <p className="text-sm text-gray-500 flex items-center gap-1"><Home className="h-3.5 w-3.5" /> Patrimônio compra à vista</p>
+            <p className="text-xl font-bold text-[#7A2E2E] tabular-nums">
               {comp ? BRL.format(comp.patrimonioCompraAVista) : dash}
             </p>
           </div>
           <div className="bg-[#D9EAD3] px-4 py-3">
-            <p className="text-[11px] text-gray-600 flex items-center gap-1"><Landmark className="h-3 w-3" /> Patrimônio compra consórcio + aplicação</p>
-            <p className="text-lg font-bold text-[#274E13] tabular-nums">
+            <p className="text-sm text-gray-600 flex items-center gap-1"><Landmark className="h-3.5 w-3.5" /> Patrimônio compra consórcio + aplicação</p>
+            <p className="text-xl font-bold text-[#274E13] tabular-nums">
               {comp ? BRL.format(comp.patrimonioCompraConsorcio) : dash}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-6 px-4 py-1.5 bg-gray-50 border-t border-gray-100">
-          <span className="text-[11px] text-gray-500">
+          <span className="text-sm text-gray-500">
             Imóvel <span className="font-semibold text-[#274E13]">{resultado ? BRL.format(resultado.linhas.at(-1)?.imovelConsorcio ?? 0) : dash}</span>
           </span>
-          <span className="text-[11px] text-gray-500">
+          <span className="text-sm text-gray-500">
             Saldo <span className="font-semibold text-[#274E13]">{resultado ? BRL.format(resultado.linhas.at(-1)?.saldoAplicacao ?? 0) : dash}</span>
           </span>
         </div>
         <div className="grid grid-cols-2 border-t border-gray-100">
           <div className="px-4 py-2 border-r border-gray-100">
-            <p className="text-[10px] text-gray-400">Prazo em anos</p>
-            <p className="text-sm font-bold text-gray-700">{comp ? comp.prazoEmAnos : dash}</p>
+            <p className="text-xs text-gray-400">Prazo em anos</p>
+            <p className="text-base font-bold text-gray-700">{comp ? comp.prazoEmAnos : dash}</p>
           </div>
           <div className="px-4 py-2">
-            <p className="text-[10px] text-gray-400">CET a.a</p>
-            <p className="text-sm font-bold text-gray-700">{comp ? PCT(comp.cetAnual) : dash}</p>
+            <p className="text-xs text-gray-400">CET a.a</p>
+            <p className="text-base font-bold text-gray-700">{comp ? PCT(comp.cetAnual) : dash}</p>
           </div>
         </div>
       </div>

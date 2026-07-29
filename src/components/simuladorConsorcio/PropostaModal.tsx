@@ -48,10 +48,22 @@ function AbaVariante({
 
   async function verNaTela() {
     if (!resultado) return
+    // Abre a aba ANTES de qualquer `await` — depois de gerar o PDF (import
+    // dinâmico + carregar imagens) o navegador já não considera mais isso
+    // parte do clique original e bloqueia window.open, caindo num fallback
+    // de download forçado (era o bug: "Ver na tela" abria "Salvar como").
+    const janela = window.open('', '_blank')
+    if (!janela) {
+      toast.error('Habilite pop-ups para este site pra usar "Ver na tela".')
+      return
+    }
     setVisualizando(true)
     try {
       const { gerarPropostaConsorcio } = await import('@/lib/simuladorConsorcio/gerarProposta')
-      await gerarPropostaConsorcio(resultado, variante, { mode: 'preview' })
+      await gerarPropostaConsorcio(resultado, variante, { mode: 'preview', janelaPreview: janela })
+    } catch {
+      janela.close()
+      toast.error('Erro ao gerar a visualização.')
     } finally {
       setVisualizando(false)
     }

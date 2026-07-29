@@ -356,6 +356,16 @@ function desenharResumida(doc: Doc, assets: Assets, resultado: ResultadoConsorci
 
 export interface PropostaOptions {
   mode?: 'download' | 'preview'
+  /**
+   * Janela já aberta (via window.open síncrono, no clique) pro modo
+   * 'preview' navegar depois que o PDF terminar de gerar. Necessário porque
+   * gerar o PDF envolve vários `await` (import dinâmico, carregar imagens) —
+   * quando window.open só é chamado no final, o navegador já perdeu o
+   * "gesto do usuário" do clique original e bloqueia o popup, caindo no
+   * fallback de download forçado (bug real: "Ver na tela" abria "Salvar
+   * como" em vez de só mostrar o PDF).
+   */
+  janelaPreview?: Window | null
 }
 
 export async function gerarPropostaConsorcio(
@@ -382,12 +392,16 @@ export async function gerarPropostaConsorcio(
   if (options.mode === 'preview') {
     const blob = doc.output('blob')
     const url = URL.createObjectURL(blob)
-    const win = window.open(url, '_blank', 'noopener,noreferrer')
-    if (!win) {
-      const a = document.createElement('a')
-      a.href = url
-      a.download = nomeArquivo
-      a.click()
+    if (options.janelaPreview) {
+      // Janela já existe (aberta síncrona no clique) — só navega pra ela.
+      options.janelaPreview.location.href = url
+    } else {
+      // Sem janela pré-aberta: tenta abrir agora (pode ser bloqueado pelo
+      // navegador já que estamos depois de vários `await`).
+      const win = window.open(url, '_blank', 'noopener,noreferrer')
+      if (!win) {
+        throw new Error('POPUP_BLOQUEADO')
+      }
     }
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } else {
