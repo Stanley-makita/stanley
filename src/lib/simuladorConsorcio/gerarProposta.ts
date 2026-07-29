@@ -8,6 +8,7 @@ import type { LinhaMensalConsorcio, ResultadoConsorcio } from './tipos'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const PCT = (v: number) => `${(v * 100).toFixed(0)}%`
+const PCT2 = (v: number) => `${(v * 100).toFixed(2)}%`
 const COR_VERDE   = '#1B3A2B'
 const COR_DOURADO = '#C2AA6A'
 const COR_CREME   = '#F2F0E8'
@@ -152,7 +153,7 @@ function itensPrincipais(resultado: ResultadoConsorcio, incluirContemplacao: boo
   const itens: [string, string][] = [
     ['Prazo em anos', String(comparativo.prazoEmAnos)],
     ['Prazo em meses', String(input.prazoMeses)],
-    ['CET a.a', PCT(comparativo.cetAnual)],
+    ['CET a.a', PCT2(comparativo.cetAnual)],
     ['Valor da carta', BRL.format(input.valorCarta)],
   ]
   if (incluirContemplacao && input.prazoEstimadoContemplacao?.trim()) {
@@ -248,23 +249,26 @@ function desenharDetalhada(doc: Doc, assets: Assets, resultado: ResultadoConsorc
 
   for (let b = 0; b < colunas; b++) {
     const bx = mL + b * blocoW
-    const subColW = blocoW / 4
+    // Sem coluna "Mês" — era idêntica à "Parcela" (parcela = mês nesse
+    // modelo, não há numeração própria), só ocupava espaço e apertava as
+    // colunas de valor até sobrepor o texto.
+    const subColW = blocoW / 3
     setFill(doc, COR_VERDE)
     doc.rect(bx, tableTop, blocoW, thH, 'F')
     doc.setFontSize(Math.min(6, thH * 1.3)); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-    ;['Parcela', 'Mês', 'Mensal', 'Anual'].forEach((h, i) => {
+    ;['Parcela', 'Mensal', 'Anual'].forEach((h, i) => {
       doc.text(h, bx + i * subColW + subColW / 2, tableTop + thH / 2 + 1, { align: 'center' })
     })
 
     const inicio = b * rowsPerCol
     const fim = Math.min(inicio + rowsPerCol, totalParcelas)
-    doc.setFontSize(Math.min(6.5, rowH * 1.8))
+    doc.setFontSize(Math.min(6, rowH * 1.8))
     for (let i = inicio; i < fim; i++) {
       const l = resultado.linhas[i]
       const ry = tableTop + thH + (i - inicio) * rowH
       if ((i - inicio) % 2 === 0) { setFill(doc, '#F8F8F5'); doc.rect(bx, ry, blocoW, rowH, 'F') }
       doc.setFont('helvetica', 'normal'); setTxt(doc, '#333333')
-      const vals = [String(l.mes), String(l.mes), BRL.format(l.parcela ?? 0), BRL.format(l.parcelaAno ?? 0)]
+      const vals = [String(l.mes), BRL.format(l.parcela ?? 0), BRL.format(l.parcelaAno ?? 0)]
       vals.forEach((v, ci) => doc.text(v, bx + ci * subColW + subColW / 2, ry + rowH / 2 + 1, { align: 'center' }))
     }
     setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
