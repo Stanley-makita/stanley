@@ -53,21 +53,29 @@ export const FORM_CONSORCIO_VAZIO: FormStateConsorcio = {
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const PCT = (v: number) => `${(v * 100).toFixed(2)}%`
-const COR_VERDE = '#1B3A2B'
+// Verde mais claro que o usado no PDF — o card verde-escuro original ficava
+// pesado demais pra leitura prolongada na tela.
+const COR_VERDE = '#3D6B4A'
 
 function parsePercentLocal(v: string): number {
   const n = parseFloat(v.replace(',', '.'))
   return isNaN(n) ? 0 : n / 100
 }
 
-// ── Linha "estilo planilha" — rótulo à esquerda, valor à direita ───────────
+// ── Linha "estilo planilha" — metade esquerda (rótulo) sempre verde, metade
+// direita (valor) sempre branca — divisão fixa no meio do card, igual à
+// planilha, em vez de uma "pílula" branca dinâmica por linha. Cada
+// LinhaCampo emite 2 células-irmãs direto no grid de 2 colunas do
+// BlocoVerde (ver função abaixo) — por isso não tem wrapper próprio.
 
-function LinhaCampo({ label, index, children, semCaixa }: { label: string; index: number; children: React.ReactNode; semCaixa?: boolean }) {
+function LinhaCampo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={cn('flex items-center justify-between gap-2 px-3 py-1.5', index % 2 === 1 && 'bg-white/[0.04]')}>
-      <span className="text-sm text-white/85 leading-tight">{label}</span>
-      <div className={cn('shrink-0', !semCaixa && 'bg-white rounded px-2 py-1')}>{children}</div>
-    </div>
+    <>
+      <div className="flex items-center px-3 py-1" style={{ backgroundColor: COR_VERDE }}>
+        <span className="text-sm text-white leading-tight">{label}</span>
+      </div>
+      <div className="flex items-center justify-end px-3 py-1 bg-white">{children}</div>
+    </>
   )
 }
 
@@ -141,14 +149,14 @@ function CampoTexto({ value, onChange }: { value: string; onChange: (v: string) 
 
 function BlocoVerde({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 min-w-[260px] rounded-lg overflow-hidden" style={{ backgroundColor: COR_VERDE }}>
+    <div className="flex-1 min-w-[280px] rounded-lg overflow-hidden grid grid-cols-[3fr_2fr] auto-rows-min">
       {children}
     </div>
   )
 }
 
 function Separador() {
-  return <div className="h-2" />
+  return <div className="col-span-2 h-2 bg-white" />
 }
 
 // ── Painel principal ────────────────────────────────────────────────────────
@@ -228,55 +236,55 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
 
         {/* Bloco G/I */}
         <BlocoVerde>
-          <LinhaCampo label="Valor disponível líquido" index={0}><CampoMoeda value={form.valorDisponivelLiquido} onChange={(v) => set('valorDisponivelLiquido', v)} /></LinhaCampo>
-          <LinhaCampo label="Valor do bem" index={1}><CampoMoeda value={form.valorBem} onChange={(v) => set('valorBem', v)} /></LinhaCampo>
-          <LinhaCampo label="Valor da carta" index={2}><CampoMoeda value={form.valorCarta} onChange={(v) => set('valorCarta', v)} /></LinhaCampo>
-          <LinhaCampo label="Mês do lance/Contemplação" index={3}><CampoInt value={form.mesLanceContemplacao} onChange={(v) => set('mesLanceContemplacao', v)} /></LinhaCampo>
-          <LinhaCampo label="Prazo estimado de contemplação" index={4}><CampoTexto value={form.prazoEstimadoContemplacao} onChange={(v) => set('prazoEstimadoContemplacao', v)} /></LinhaCampo>
-          <LinhaCampo label="Valor do lance (%)" index={5}><CampoPercent value={form.percentualLance} onChange={(v) => set('percentualLance', v)} /></LinhaCampo>
-          <LinhaCampo label="Taxa de Adm" index={6}><ValorComputado>{valorCartaNum > 0 ? BRL.format(taxaAdmReaisLocal) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Rendimento % a.m." index={7}><CampoPercent value={form.rendimentoMensal} onChange={(v) => set('rendimentoMensal', v)} /></LinhaCampo>
+          <LinhaCampo label="Valor disponível líquido"><CampoMoeda value={form.valorDisponivelLiquido} onChange={(v) => set('valorDisponivelLiquido', v)} /></LinhaCampo>
+          <LinhaCampo label="Valor do bem"><CampoMoeda value={form.valorBem} onChange={(v) => set('valorBem', v)} /></LinhaCampo>
+          <LinhaCampo label="Valor da carta"><CampoMoeda value={form.valorCarta} onChange={(v) => set('valorCarta', v)} /></LinhaCampo>
+          <LinhaCampo label="Mês do lance/Contemplação"><CampoInt value={form.mesLanceContemplacao} onChange={(v) => set('mesLanceContemplacao', v)} /></LinhaCampo>
+          <LinhaCampo label="Prazo estimado de contemplação"><CampoTexto value={form.prazoEstimadoContemplacao} onChange={(v) => set('prazoEstimadoContemplacao', v)} /></LinhaCampo>
+          <LinhaCampo label="Valor do lance (%)"><CampoPercent value={form.percentualLance} onChange={(v) => set('percentualLance', v)} /></LinhaCampo>
+          <LinhaCampo label="Taxa de Adm"><ValorComputado>{valorCartaNum > 0 ? BRL.format(taxaAdmReaisLocal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Rendimento % a.m."><CampoPercent value={form.rendimentoMensal} onChange={(v) => set('rendimentoMensal', v)} /></LinhaCampo>
           <Separador />
-          <LinhaCampo label="% Lance embutido" index={0}><CampoPercent value={form.percentualLanceEmbutido} onChange={(v) => set('percentualLanceEmbutido', v)} /></LinhaCampo>
-          <LinhaCampo label="Valor com lance embutido" index={1}><ValorComputado>{valorBemNum > 0 ? BRL.format(valorComLanceEmbutidoLocal) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Valor Líquido da carta" index={2}><ValorComputado>{valorBemNum > 0 ? BRL.format(valorLiquidoDaCartaLocal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="% Lance embutido"><CampoPercent value={form.percentualLanceEmbutido} onChange={(v) => set('percentualLanceEmbutido', v)} /></LinhaCampo>
+          <LinhaCampo label="Valor com lance embutido"><ValorComputado>{valorBemNum > 0 ? BRL.format(valorComLanceEmbutidoLocal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Valor Líquido da carta"><ValorComputado>{valorBemNum > 0 ? BRL.format(valorLiquidoDaCartaLocal) : dash}</ValorComputado></LinhaCampo>
         </BlocoVerde>
 
         {/* Bloco K/L */}
         <BlocoVerde>
-          <LinhaCampo label="Prazo em meses" index={0}><CampoInt value={form.prazoMeses} onChange={(v) => set('prazoMeses', v)} /></LinhaCampo>
-          <LinhaCampo label="Tx Adm" index={1}><CampoPercent value={form.taxaAdmPercentual} onChange={(v) => set('taxaAdmPercentual', v)} /></LinhaCampo>
-          <LinhaCampo label="Índice de correção (a.a.)" index={2}><CampoPercent value={form.indiceCorrecaoAnual} onChange={(v) => set('indiceCorrecaoAnual', v)} /></LinhaCampo>
-          <LinhaCampo label="Valorização do bem (a.a.)" index={3}><CampoPercent value={form.valorizacaoBemAnual} onChange={(v) => set('valorizacaoBemAnual', v)} /></LinhaCampo>
-          <LinhaCampo label="Valorização do bem (a.m)" index={4}><ValorComputado>{form.valorizacaoBemAnual !== '' ? PCT(valorizacaoBemMensalLocal) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="% da parcela reduzida" index={5}><CampoPercent value={form.percentualParcelaReduzida} onChange={(v) => set('percentualParcelaReduzida', v)} /></LinhaCampo>
-          <LinhaCampo label="Fundo de reserva (%)" index={6}><CampoPercent value={form.fundoReservaPercentual} onChange={(v) => set('fundoReservaPercentual', v)} /></LinhaCampo>
+          <LinhaCampo label="Prazo em meses"><CampoInt value={form.prazoMeses} onChange={(v) => set('prazoMeses', v)} /></LinhaCampo>
+          <LinhaCampo label="Tx Adm"><CampoPercent value={form.taxaAdmPercentual} onChange={(v) => set('taxaAdmPercentual', v)} /></LinhaCampo>
+          <LinhaCampo label="Índice de correção (a.a.)"><CampoPercent value={form.indiceCorrecaoAnual} onChange={(v) => set('indiceCorrecaoAnual', v)} /></LinhaCampo>
+          <LinhaCampo label="Valorização do bem (a.a.)"><CampoPercent value={form.valorizacaoBemAnual} onChange={(v) => set('valorizacaoBemAnual', v)} /></LinhaCampo>
+          <LinhaCampo label="Valorização do bem (a.m)"><ValorComputado>{form.valorizacaoBemAnual !== '' ? PCT(valorizacaoBemMensalLocal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="% da parcela reduzida"><CampoPercent value={form.percentualParcelaReduzida} onChange={(v) => set('percentualParcelaReduzida', v)} /></LinhaCampo>
+          <LinhaCampo label="Fundo de reserva (%)"><CampoPercent value={form.fundoReservaPercentual} onChange={(v) => set('fundoReservaPercentual', v)} /></LinhaCampo>
           <Separador />
-          <LinhaCampo label="Aluguel (X)" index={0} semCaixa>
+          <LinhaCampo label="Aluguel (X)">
             <Switch checked={form.aluguelAtivo} onCheckedChange={(v) => set('aluguelAtivo', v)} />
           </LinhaCampo>
           {form.aluguelAtivo && (
             <>
-              <LinhaCampo label="Valor aluguel saída mensal" index={1}><CampoMoeda value={form.valorAluguelSaidaMensal} onChange={(v) => set('valorAluguelSaidaMensal', v)} /></LinhaCampo>
-              <LinhaCampo label="Valor aluguel entrada mensal" index={2}><CampoMoeda value={form.valorAluguelEntradaMensal} onChange={(v) => set('valorAluguelEntradaMensal', v)} /></LinhaCampo>
+              <LinhaCampo label="Valor aluguel saída mensal"><CampoMoeda value={form.valorAluguelSaidaMensal} onChange={(v) => set('valorAluguelSaidaMensal', v)} /></LinhaCampo>
+              <LinhaCampo label="Valor aluguel entrada mensal"><CampoMoeda value={form.valorAluguelEntradaMensal} onChange={(v) => set('valorAluguelEntradaMensal', v)} /></LinhaCampo>
             </>
           )}
         </BlocoVerde>
 
         {/* Bloco N/O — 100% resultado */}
         <BlocoVerde>
-          <LinhaCampo label="Valor do lance" index={0}><ValorComputado>{res ? BRL.format(res.valorDoLance) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Lance embutido" index={1}><ValorComputado>{res ? BRL.format(res.lanceEmbutido) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Lance próprio" index={2}><ValorComputado>{res ? BRL.format(res.lanceProprio) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Valor Líquido" index={3}><ValorComputado>{res ? BRL.format(res.valorLiquido) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Devolução" index={4}><ValorComputado>{res ? BRL.format(res.devolucao) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Valor do lance"><ValorComputado>{res ? BRL.format(res.valorDoLance) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Lance embutido"><ValorComputado>{res ? BRL.format(res.lanceEmbutido) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Lance próprio"><ValorComputado>{res ? BRL.format(res.lanceProprio) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Valor Líquido"><ValorComputado>{res ? BRL.format(res.valorLiquido) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Devolução"><ValorComputado>{res ? BRL.format(res.devolucao) : dash}</ValorComputado></LinhaCampo>
           <Separador />
-          <LinhaCampo label="Correção saldo devedor" index={0}><ValorComputado>{res ? BRL.format(res.correcaoSaldoDevedor) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Correção valor da carta" index={1}><ValorComputado>{res ? BRL.format(res.correcaoValorDaCarta) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Custo de correção" index={2}><ValorComputado>{res ? BRL.format(res.custoDeCorrecao) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Custo de adm" index={3}><ValorComputado>{res ? BRL.format(res.custoDeAdm) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Custo total" index={4}><ValorComputado>{res ? BRL.format(res.custoTotal) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Saldo Líquido" index={5}><ValorComputado>{res ? BRL.format(res.saldoLiquido) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Correção saldo devedor"><ValorComputado>{res ? BRL.format(res.correcaoSaldoDevedor) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Correção valor da carta"><ValorComputado>{res ? BRL.format(res.correcaoValorDaCarta) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Custo de correção"><ValorComputado>{res ? BRL.format(res.custoDeCorrecao) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Custo de adm"><ValorComputado>{res ? BRL.format(res.custoDeAdm) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Custo total"><ValorComputado>{res ? BRL.format(res.custoTotal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Saldo Líquido"><ValorComputado>{res ? BRL.format(res.saldoLiquido) : dash}</ValorComputado></LinhaCampo>
         </BlocoVerde>
       </div>
     </div>

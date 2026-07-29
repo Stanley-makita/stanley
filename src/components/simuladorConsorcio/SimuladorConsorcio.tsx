@@ -153,7 +153,7 @@ export function SimuladorConsorcio({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         <PainelConsorcio form={form} onChange={setForm} resultado={resultado} />
         <CronogramaModal linhas={resultado?.linhas ?? []} />
       </div>
