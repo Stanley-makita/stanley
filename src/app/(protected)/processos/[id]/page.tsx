@@ -11,7 +11,7 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
@@ -71,6 +71,7 @@ export default function ProcessoDetalhePage() {
   const [novaTarefaAberta, setNovaTarefaAberta] = useState(false)
   const [confirmFormulariosAberto, setConfirmFormulariosAberto] = useState(false)
   const [gerandoFormularios, setGerandoFormularios] = useState(false)
+  const [resultadoFormularios, setResultadoFormularios] = useState<{ salvos: string[]; erros: string[] } | null>(null)
   const [confirmacaoValoresAberto, setConfirmacaoValoresAberto] = useState(false)
   const [atualizarClienteAberto, setAtualizarClienteAberto] = useState(false)
 
@@ -93,10 +94,7 @@ export default function ProcessoDetalhePage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar formulários')
 
-      toast.success(json.mensagem, {
-        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
-        duration: 6000,
-      })
+      setResultadoFormularios({ salvos: json.salvos ?? [], erros: json.erros ?? [] })
       // Recarrega aba de documentos
       setAbaAtiva('documentos')
     } catch (e: any) {
@@ -625,6 +623,36 @@ export default function ProcessoDetalhePage() {
             >
               <Download className="h-3.5 w-3.5 mr-1" />
               Sim, gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resultado da geração de formulários — lista cada PDF gerado por
+          nome/pessoa, em vez de só um toast com contagem agregada. */}
+      <Dialog open={!!resultadoFormularios} onOpenChange={(v) => { if (!v) setResultadoFormularios(null) }}>
+        <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-sm overflow-y-auto sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">Resultado da geração</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            {resultadoFormularios?.salvos.map((label) => (
+              <div key={label} className="flex items-center gap-2 text-sm text-gray-700">
+                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                {label}
+              </div>
+            ))}
+            {resultadoFormularios?.erros.map((label) => (
+              <div key={label} className="flex items-center gap-2 text-sm text-red-600">
+                <XCircle className="h-4 w-4 shrink-0" />
+                {label}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400">Os PDFs foram salvos na aba Documentos.</p>
+          <DialogFooter>
+            <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={() => setResultadoFormularios(null)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
