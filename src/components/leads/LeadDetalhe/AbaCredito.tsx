@@ -229,6 +229,9 @@ export function AbaCredito({ lead }: Props) {
         onCriarConjuge={vincularCriarConjuge}
       />
 
+      {/* 3b. Coparticipantes avulsos (sem vínculo familiar) */}
+      <BlocoCoparticipantes lead={lead} />
+
       {/* 4. Análises de Crédito */}
       <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} responsavelId={lead.responsavel_id ?? null} />
 
@@ -633,6 +636,223 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── BlocoCoparticipantes ──────────────────────────────────────
+// Pessoas sem vínculo familiar com o proponente (não é cônjuge) que também
+// entram como compradores no financiamento — ver migration 210.
+
+function BlocoCoparticipantes({ lead }: { lead: Lead }) {
+  const qc = useQueryClient()
+  const { usuario } = useAuth()
+  const supabaseClient = createClient()
+
+  const [buscando, setBuscando] = useState(false)
+  const [adicionando, setAdicionando] = useState(false)
+  const [termoBusca, setTermoBusca] = useState('')
+  const [resultados, setResultados] = useState<PessoaResultado[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [criandoNovo, setCriandoNovo] = useState(false)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoCpf, setNovoCpf] = useState('')
+  const [pessoaDrawer, setPessoaDrawer] = useState<string | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const coparticipantes = lead.coparticipantes ?? []
+  const jaVinculados = new Set([lead.pessoa_id, lead.conjuge_pessoa_id, ...coparticipantes.map(c => c.pessoa_id)].filter(Boolean))
+
+  useEffect(() => {
+    if (termoBusca.length < 2) { setResultados([]); setShowDropdown(false); return }
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      if (!usuario?.empresa_id) return
+      setBuscando(true)
+      const q = `%${termoBusca}%`
+      const { data } = await supabaseClient
+        .from('pessoas')
+        .select('id, nome, cpf')
+        .eq('empresa_id', usuario.empresa_id)
+        .is('deleted_at', null)
+        .or(`nome.ilike.${q},cpf.ilike.${q}`)
+        .order('nome')
+        .limit(10)
+      setResultados((data ?? []) as PessoaResultado[])
+      setShowDropdown(true)
+      setBuscando(false)
+    }, 250)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [termoBusca, usuario?.empresa_id])
+
+  async function vincularCoparticipante(pessoaId: string) {
+    if (!usuario?.empresa_id) return
+    await supabaseClient.from('lead_coparticipantes').insert({
+      empresa_id: usuario.empresa_id,
+      lead_id: lead.id,
+      pessoa_id: pessoaId,
+    })
+    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
+    setTermoBusca('')
+    setShowDropdown(false)
+    setAdicionando(false)
+  }
+
+  async function removerCoparticipante(id: string) {
+    await supabaseClient.from('lead_coparticipantes').delete().eq('id', id)
+    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
+  }
+
+  async function criarNovoCoparticipante() {
+    if (!novoNome.trim() || !usuario?.empresa_id) return
+    setCriandoNovo(false)
+    const { data: novaPessoa } = await supabaseClient
+      .from('pessoas')
+      .insert({
+        empresa_id: usuario.empresa_id,
+        nome: novoNome.trim(),
+        cpf: novoCpf.replace(/\D/g, '') || null,
+        tipo: 'cliente',
+      })
+      .select('id')
+      .single()
+    if (novaPessoa) {
+      await vincularCoparticipante(novaPessoa.id)
+      setPessoaDrawer(novaPessoa.id)
+    }
+    setNovoNome('')
+    setNovoCpf('')
+  }
+
+  return (
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Coparticipantes</p>
+        {!adicionando && (
+          <button onClick={() => setAdicionando(true)} className="flex items-center gap-0.5 text-xs text-fonti-primary hover:underline font-medium">
+            <Plus className="h-3 w-3" /> Adicionar
+          </button>
+        )}
+      </div>
+
+      {coparticipantes.length === 0 && !adicionando && (
+        <p className="text-xs text-gray-300 italic">
+          Nenhum coparticipante. Use para pessoas sem vínculo familiar que também entram no financiamento.
+        </p>
+      )}
+
+      {coparticipantes.map(c => (
+        <div key={c.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg bg-gray-50">
+          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold text-white">{iniciais(c.pessoa?.nome)}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <button
+              onClick={() => setPessoaDrawer(c.pessoa_id)}
+              className="text-xs font-semibold text-fonti-primary hover:underline flex items-center gap-1"
+            >
+              {c.pessoa?.nome ?? '—'} <ExternalLink className="h-3 w-3 opacity-40 shrink-0" />
+            </button>
+            {c.pessoa?.cpf && <p className="text-xs text-gray-500">{c.pessoa.cpf}</p>}
+          </div>
+          <button onClick={() => removerCoparticipante(c.id)} className="text-gray-300 hover:text-red-400 shrink-0">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+
+      {adicionando && (
+        <div className="relative">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 focus-within:border-fonti-primary transition-colors">
+            {buscando
+              ? <Loader2 className="h-3.5 w-3.5 text-gray-400 shrink-0 animate-spin" />
+              : <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            }
+            <input
+              autoFocus
+              className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+              placeholder="Buscar pessoa por nome ou CPF..."
+              value={termoBusca}
+              onChange={e => setTermoBusca(e.target.value)}
+              onFocus={() => { if (resultados.length > 0) setShowDropdown(true) }}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            />
+            <button onClick={() => { setAdicionando(false); setTermoBusca(''); setShowDropdown(false) }} className="text-gray-300 hover:text-gray-500 shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {showDropdown && (
+            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+              {resultados.filter(p => !jaVinculados.has(p.id)).length === 0 ? (
+                <div className="px-3 py-2.5 text-xs text-gray-400">Nenhum resultado encontrado</div>
+              ) : (
+                resultados.filter(p => !jaVinculados.has(p.id)).map(p => (
+                  <button
+                    key={p.id}
+                    onMouseDown={() => vincularCoparticipante(p.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left transition-colors"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
+                      <span className="text-[9px] font-bold text-white">{iniciais(p.nome)}</span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-800">{p.nome}</p>
+                      {p.cpf && <p className="text-[10px] text-gray-400">{p.cpf}</p>}
+                    </div>
+                  </button>
+                ))
+              )}
+              <div className="border-t border-gray-100">
+                <button
+                  onMouseDown={() => { setShowDropdown(false); setCriandoNovo(true); setNovoNome(termoBusca) }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-fonti-primary font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Criar nova pessoa
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {criandoNovo && (
+        <Dialog open onOpenChange={v => { if (!v) setCriandoNovo(false) }}>
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm p-6">
+            <h2 className="text-base font-semibold text-fonti-primary mb-1">Novo Coparticipante</h2>
+            <p className="text-xs text-gray-500 mb-4">Dados básicos para criar o cadastro. Você poderá completar depois.</p>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-gray-500">Nome completo *</Label>
+                <Input className="h-8 text-sm mt-1" value={novoNome} onChange={e => setNovoNome(e.target.value)} autoFocus />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">CPF</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="000.000.000-00" value={novoCpf} onChange={e => setNovoCpf(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <Button variant="outline" size="sm" onClick={() => setCriandoNovo(false)}>Cancelar</Button>
+              <Button
+                size="sm"
+                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+                onClick={criarNovoCoparticipante}
+                disabled={!novoNome.trim()}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Salvar e completar cadastro
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <CompletarDadosPessoaDrawer
+        pessoaId={pessoaDrawer}
+        open={!!pessoaDrawer}
+        onClose={() => setPessoaDrawer(null)}
+        origemAuditoria="leads"
+      />
     </div>
   )
 }

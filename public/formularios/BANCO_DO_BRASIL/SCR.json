@@ -16,7 +16,7 @@
       "x": 319,
       "y": 169,
       "tamanho": 10,
-      "valor": "comprador_principal.nome"
+      "valor": "comprador_atual.nome"
     },
     {
       "tipo": "texto_flat",
@@ -25,7 +25,7 @@
       "x": 253,
       "y": 147,
       "tamanho": 10,
-      "valor": "comprador_principal.cpf",
+      "valor": "comprador_atual.cpf",
       "formatador": "cpf"
     }
   ]

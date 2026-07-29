@@ -2,7 +2,7 @@
 // Uso: carregarCamposFlat('BANCO_DO_BRASIL/SCR.json', dados)
 import { readFileSync } from 'fs'
 import path from 'path'
-import type { DadosProcesso } from './dados'
+import type { DadosProcesso, DadosComprador } from './dados'
 import type { CampoTextoFlat } from './engine'
 import { fmtCpf, fmtCnpj, fmtData, fmtMoeda, fmtDataHoje, localPadrao } from './helpers'
 
@@ -22,22 +22,27 @@ const FORMATADOR: Record<Formatador, (v: string) => string> = {
   moeda: (v) => fmtMoeda(parseFloat(v) || 0),
 }
 
-// Expande aliases convenientes sobre DadosProcesso para resolução por caminho
-function expandirContexto(dados: DadosProcesso): Record<string, unknown> {
+// Expande aliases convenientes sobre DadosProcesso para resolução por caminho.
+// `comprador_principal` sempre aponta pro proponente principal do negócio;
+// `comprador_atual` aponta pra pessoa sendo preenchida no momento (default:
+// o próprio principal) — usado pelos formulários "por pessoa" (ex: SCR), que
+// geram um PDF para cada comprador/cônjuge/coparticipante.
+function expandirContexto(dados: DadosProcesso, pessoaAtual?: DadosComprador): Record<string, unknown> {
   const compradorPrincipal =
     dados.compradores.find((c) => c.principal) ?? dados.compradores[0] ?? {}
   return {
     ...dados,
     comprador_principal: compradorPrincipal,
+    comprador_atual: pessoaAtual ?? compradorPrincipal,
   }
 }
 
 // Navega um objeto por caminho pontilhado: "comprador_principal.nome"
-function resolverCaminho(caminho: string, dados: DadosProcesso): string {
+function resolverCaminho(caminho: string, dados: DadosProcesso, pessoaAtual?: DadosComprador): string {
   if (caminho.startsWith('@')) {
     return BUILTIN[caminho]?.(dados) ?? ''
   }
-  const ctx = expandirContexto(dados)
+  const ctx = expandirContexto(dados, pessoaAtual)
   const partes = caminho.split('.')
   let atual: unknown = ctx
   for (const parte of partes) {
@@ -68,16 +73,20 @@ type TemplateFlatDef = {
  * Lê um template JSON de coordenadas e resolve os valores a partir dos dados do lead/processo.
  * @param jsonRelativo Caminho relativo a public/formularios/ (ex: "BANCO_DO_BRASIL/SCR.json")
  * @param dados        Dados do lead ou processo
+ * @param pessoaAtual  Pessoa a usar em `comprador_atual` — ao gerar um formulário "por
+ *                     pessoa" (ex: SCR) para o cônjuge ou um coparticipante, em vez do
+ *                     proponente principal (default quando omitido).
  */
 export function carregarCamposFlat(
   jsonRelativo: string,
   dados: DadosProcesso,
+  pessoaAtual?: DadosComprador,
 ): CampoTextoFlat[] {
   const absPath = path.join(process.cwd(), 'public', 'formularios', jsonRelativo)
   const def = JSON.parse(readFileSync(absPath, 'utf8')) as TemplateFlatDef
 
   return def.campos.map((c): CampoTextoFlat => {
-    let texto = resolverCaminho(c.valor, dados)
+    let texto = resolverCaminho(c.valor, dados, pessoaAtual)
     if (c.formatador && FORMATADOR[c.formatador]) {
       texto = FORMATADOR[c.formatador](texto)
     }

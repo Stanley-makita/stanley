@@ -122,6 +122,15 @@ export interface Lead {
   corretores?: { id: string; corretor?: { id: string; nome: string } | null }[]
   imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]
   parceiros?: { id: string; parceiro?: { id: string; nome: string } | null }[]
+  coparticipantes?: LeadCoparticipante[]
+}
+
+// Comprador adicional sem vínculo familiar (não é cônjuge) — ver migration 210.
+export interface LeadCoparticipante {
+  id: string
+  pessoa_id: string
+  papel: string
+  pessoa: { id: string; nome: string; cpf: string | null; renda_formal: number | null; renda_informal: number | null } | null
 }
 
 export type StatusAnaliseCredito = 'em_analise' | 'aprovado' | 'recusado' | 'pendente'
