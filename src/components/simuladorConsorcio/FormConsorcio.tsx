@@ -45,9 +45,30 @@ export const FORM_CONSORCIO_VAZIO: FormStateConsorcio = {
   valorAluguelEntradaMensal: '',
 }
 
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+function parseMoedaLocal(v: string): number {
+  return Number(v) || 0
+}
+function parsePercentLocal(v: string): number {
+  const n = parseFloat(v.replace(',', '.'))
+  return isNaN(n) ? 0 : n / 100
+}
+
 interface Props {
   form: FormStateConsorcio
   onChange: (form: FormStateConsorcio) => void
+}
+
+function Sugestao({ label, valor }: { label: string; valor: number }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-[11px] text-gray-500">{label}</Label>
+      <div className="h-8 flex items-center px-2.5 bg-white/70 border border-[#D5CFA8] rounded-md text-xs font-semibold text-fonti-primary">
+        {BRL.format(valor)}
+      </div>
+    </div>
+  )
 }
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -103,6 +124,14 @@ export function FormConsorcio({ form, onChange }: Props) {
   const set = <K extends keyof FormStateConsorcio>(k: K, v: FormStateConsorcio[K]) =>
     onChange({ ...form, [k]: v })
 
+  // Sugestão ao vivo (mesma fórmula do Excel: I11 = I3/(1-I10), I12 = I11*(1-I10))
+  // — mostrada aqui do lado do campo, igual à planilha, em vez de só no
+  // painel de Resultados (longe, difícil de acompanhar enquanto digita).
+  const valorBemNum = parseMoedaLocal(form.valorBem)
+  const pctLanceEmbutido = parsePercentLocal(form.percentualLanceEmbutido)
+  const valorComLanceEmbutido = pctLanceEmbutido < 1 ? valorBemNum / (1 - pctLanceEmbutido) : 0
+  const valorLiquidoDaCarta = valorComLanceEmbutido * (1 - pctLanceEmbutido)
+
   return (
     <div className="space-y-4">
       <Secao titulo="Bem, carta e disponibilidade">
@@ -130,6 +159,12 @@ export function FormConsorcio({ form, onChange }: Props) {
         <Campo label="% Lance embutido">
           <PercentInput value={form.percentualLanceEmbutido} onChange={(v) => set('percentualLanceEmbutido', v)} />
         </Campo>
+        {valorBemNum > 0 && (
+          <>
+            <Sugestao label="Valor com lance embutido" valor={valorComLanceEmbutido} />
+            <Sugestao label="Valor Líquido da carta" valor={valorLiquidoDaCarta} />
+          </>
+        )}
       </Secao>
 
       <Secao titulo="Condições do consórcio">
