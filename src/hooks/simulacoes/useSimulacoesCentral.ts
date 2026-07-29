@@ -32,3 +32,34 @@ export function useSimulacoesCentral() {
     },
   })
 }
+
+export interface EstatisticasSimulacoesCentral {
+  total: number
+  aguardando: number
+  concluidas: number
+}
+
+// Contagem real via COUNT do banco — os cards de resumo (Total/Aguardando/
+// Concluídas) não podem derivar do array de useSimulacoesCentral, que é
+// limitado a 100 linhas (só pra listar o histórico); acima de 100
+// simulações o "Total" ficava travado em 100 (bug real, 2026-07-29).
+export function useEstatisticasSimulacoesCentral() {
+  return useQuery({
+    queryKey: ['simulacoes-central-stats'],
+    queryFn: async (): Promise<EstatisticasSimulacoesCentral> => {
+      const [totalRes, aguardandoRes, concluidasRes] = await Promise.all([
+        supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }),
+        supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }).eq('status', 'aguardando'),
+        supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }).eq('status', 'concluida'),
+      ])
+      if (totalRes.error) throw totalRes.error
+      if (aguardandoRes.error) throw aguardandoRes.error
+      if (concluidasRes.error) throw concluidasRes.error
+      return {
+        total: totalRes.count ?? 0,
+        aguardando: aguardandoRes.count ?? 0,
+        concluidas: concluidasRes.count ?? 0,
+      }
+    },
+  })
+}
