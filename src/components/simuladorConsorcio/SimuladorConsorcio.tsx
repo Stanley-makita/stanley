@@ -7,8 +7,9 @@ import { simularConsorcio } from '@/lib/simuladorConsorcio/engine'
 import type { InputConsorcio, ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import { useSalvarConsorcioCentral } from '@/hooks/simulacoes/useSalvarConsorcioCentral'
 import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
+import { PropostaModal } from './PropostaModal'
 import { Button } from '@/components/ui/button'
-import { Printer, Send } from 'lucide-react'
+import { Printer, Send, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 
 function parseMoeda(v: string): number {
@@ -41,6 +42,7 @@ function inputParaForm(input: InputConsorcio): FormStateConsorcio {
     aluguelAtivo: input.aluguelAtivo,
     valorAluguelSaidaMensal: String(input.valorAluguelSaidaMensal || ''),
     valorAluguelEntradaMensal: String(input.valorAluguelEntradaMensal || ''),
+    prazoEstimadoContemplacao: input.prazoEstimadoContemplacao ?? '',
   }
 }
 
@@ -80,6 +82,7 @@ export function SimuladorConsorcio({
   const [gerandoPDF, setGerandoPDF] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
+  const [propostaAberta, setPropostaAberta] = useState(false)
   const salvarConsorcioCentral = useSalvarConsorcioCentral()
 
   const resultado = useMemo((): ResultadoConsorcio | null => {
@@ -106,6 +109,7 @@ export function SimuladorConsorcio({
       valorAluguelEntradaMensal: parseMoeda(form.valorAluguelEntradaMensal),
       nomeCliente: clienteNome || undefined,
       cpfCliente: clienteCpf || undefined,
+      prazoEstimadoContemplacao: form.prazoEstimadoContemplacao || undefined,
     }
 
     if (input.prazoMeses <= 0 || input.mesLanceContemplacao <= 0) return null
@@ -162,6 +166,15 @@ export function SimuladorConsorcio({
         <Button
           size="sm"
           variant="outline"
+          className="h-7 text-xs border-fonti-primary text-fonti-primary hover:bg-fonti-primary/5 gap-1"
+          onClick={() => setPropostaAberta(true)}
+          disabled={!resultado}
+        >
+          <FileText className="h-3 w-3" /> Versão Proposta
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           className="h-7 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover gap-1"
           onClick={baixarPDF}
           disabled={!resultado || gerandoPDF}
@@ -186,6 +199,13 @@ export function SimuladorConsorcio({
           onEnviado={() => setModalCompartilhar(null)}
         />
       )}
+
+      <PropostaModal
+        open={propostaAberta}
+        onOpenChange={setPropostaAberta}
+        resultado={resultado}
+        simulacaoExistenteId={simulacaoExistenteId}
+      />
     </div>
   )
 }

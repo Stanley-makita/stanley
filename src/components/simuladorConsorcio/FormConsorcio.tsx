@@ -24,6 +24,7 @@ export interface FormStateConsorcio {
   aluguelAtivo: boolean
   valorAluguelSaidaMensal: string
   valorAluguelEntradaMensal: string
+  prazoEstimadoContemplacao: string
 }
 
 export const FORM_CONSORCIO_VAZIO: FormStateConsorcio = {
@@ -44,6 +45,7 @@ export const FORM_CONSORCIO_VAZIO: FormStateConsorcio = {
   aluguelAtivo: false,
   valorAluguelSaidaMensal: '',
   valorAluguelEntradaMensal: '',
+  prazoEstimadoContemplacao: '',
 }
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -153,6 +155,15 @@ export function FormConsorcio({ form, onChange }: Props) {
       <Secao titulo="Lance e contemplação">
         <Campo label="Mês do lance/contemplação">
           <IntInput value={form.mesLanceContemplacao} onChange={(v) => set('mesLanceContemplacao', v)} />
+        </Campo>
+        <Campo label="Prazo estimado de contemplação">
+          <Input
+            type="text"
+            placeholder="Ex.: 36 a 40 meses"
+            value={form.prazoEstimadoContemplacao}
+            onChange={(e) => set('prazoEstimadoContemplacao', e.target.value)}
+            className="h-8 text-sm"
+          />
         </Campo>
         <Campo label="Valor do lance (%)">
           <PercentInput value={form.percentualLance} onChange={(v) => set('percentualLance', v)} />

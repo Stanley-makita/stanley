@@ -31,11 +31,19 @@ export async function POST(
 
   const simulacaoId = params.id
 
-  let body: { tipo: 'financiamento' | 'custas' | 'consorcio'; telefone: string; mensagem?: string; nome_destino?: string }
+  let body: {
+    tipo: 'financiamento' | 'custas' | 'consorcio'
+    telefone: string
+    mensagem?: string
+    nome_destino?: string
+    // Só usado quando tipo === 'consorcio' — escolhe a "Versão Proposta"
+    // (Detalhada/Resumida) em vez do PDF interno genérico.
+    variante?: 'resumida' | 'detalhada'
+  }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
-  const { tipo, telefone, mensagem, nome_destino } = body
+  const { tipo, telefone, mensagem, nome_destino, variante } = body
   if (!telefone) return NextResponse.json({ error: 'telefone é obrigatório' }, { status: 422 })
   if (!tipo) return NextResponse.json({ error: 'tipo é obrigatório' }, { status: 422 })
 
@@ -86,7 +94,9 @@ export async function POST(
     leadId = sim.lead_id
     processoId = sim.processo_id
     nomeCliente = sim.nome_cliente
-    nomeSim = `Simulação de Consórcio${nomeCliente ? ` — ${nomeCliente}` : ''}`
+    nomeSim = variante
+      ? `Proposta de Consórcio (${variante === 'detalhada' ? 'Detalhada' : 'Resumida'})${nomeCliente ? ` — ${nomeCliente}` : ''}`
+      : `Simulação de Consórcio${nomeCliente ? ` — ${nomeCliente}` : ''}`
   } else {
     // custas → processo_custas_simulacoes
     const { data: sim, error } = await supabase
@@ -119,6 +129,9 @@ export async function POST(
         clienteNome: nomeCliente ?? undefined,
         responsavelNome: usuario.nome,
       })
+    } else if (tipo === 'consorcio' && variante) {
+      const { gerarPropostaConsorcioBuffer } = await import('@/lib/simuladorConsorcio/gerarPropostaBuffer')
+      pdfBuffer = await gerarPropostaConsorcioBuffer(resultadoJson as unknown as ResultadoConsorcio, variante)
     } else if (tipo === 'consorcio') {
       const { gerarPDFConsorcioBuffer } = await import('@/lib/simuladorConsorcio/gerarPDFBuffer')
       pdfBuffer = await gerarPDFConsorcioBuffer(resultadoJson as unknown as ResultadoConsorcio, {
