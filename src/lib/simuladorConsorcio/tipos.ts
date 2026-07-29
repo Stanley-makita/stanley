@@ -20,6 +20,10 @@ export interface InputConsorcio {
   valorAluguelEntradaMensal?: number
   nomeCliente?: string
   cpfCliente?: string
+  // Estimativa editorial (não calculável — varia por administradora/grupo,
+  // não confundir com mesLanceContemplacao que é a intenção do comprador),
+  // texto livre pra impressão na proposta, ex.: "36 a 40 meses".
+  prazoEstimadoContemplacao?: string
 }
 
 // Uma linha do cronograma mensal (colunas F:Y da planilha). `null` reproduz

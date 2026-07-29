@@ -20,6 +20,9 @@ interface Props {
   simulacao: SimulacaoRef
   leadId?: string
   processoId?: string
+  // Campos extras mesclados no corpo do POST /compartilhar — ex.: { variante }
+  // pro consórcio escolher entre a proposta Detalhada/Resumida.
+  bodyExtra?: Record<string, unknown>
   onClose: () => void
   onEnviado: () => void
 }
@@ -29,7 +32,7 @@ async function getToken(): Promise<string | null> {
   return data.session?.access_token ?? null
 }
 
-export function SimulacaoCompartilharModal({ simulacao, leadId, processoId, onClose, onEnviado }: Props) {
+export function SimulacaoCompartilharModal({ simulacao, leadId, processoId, bodyExtra, onClose, onEnviado }: Props) {
   const [opcoesFixas, setOpcoesFixas] = useState<OpcaoFixa[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioInterno[]>([])
   const [destinatario, setDestinatario] = useState<string>('')
@@ -118,6 +121,7 @@ export function SimulacaoCompartilharModal({ simulacao, leadId, processoId, onCl
           telefone:    telefoneEfetivo,
           nome_destino: nomeDestino,
           mensagem:    mensagem.trim() || undefined,
+          ...bodyExtra,
         }),
       })
       if (!res.ok) {
