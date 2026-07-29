@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
 import { SimuladorConsorcio } from '@/components/simuladorConsorcio/SimuladorConsorcio'
-import { useSimulacoesCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
+import { useSimulacoesCentral, useEstatisticasSimulacoesCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 import { useSalvarCustasCentral } from '@/hooks/simulacoes/useSalvarCustasCentral'
 import { useSalvarConsorcioCentral } from '@/hooks/simulacoes/useSalvarConsorcioCentral'
@@ -161,13 +161,16 @@ export default function SimuladoresPage() {
   const [consorcioVerResultado, setConsorcioVerResultado] = useState<ResultadoConsorcio | null>(null)
 
   const { data: simulacoes = [], isLoading, error: erroLista, refetch } = useSimulacoesCentral()
+  const { data: stats, refetch: refetchStats } = useEstatisticasSimulacoesCentral()
   const salvar      = useSalvarSimulacaoCentral()
   const salvarCustas = useSalvarCustasCentral()
   const salvarConsorcio = useSalvarConsorcioCentral()
 
-  const total      = simulacoes.length
-  const aguardando = simulacoes.filter((s) => s.status === 'aguardando').length
-  const concluidas = simulacoes.filter((s) => s.status === 'concluida').length
+  // Contagem real do banco (não do array limitado a 100 linhas usado só pra
+  // listar o histórico) — ver useEstatisticasSimulacoesCentral.
+  const total      = stats?.total ?? 0
+  const aguardando = stats?.aguardando ?? 0
+  const concluidas = stats?.concluidas ?? 0
 
   function abrirTipo(tipo: 'custas' | 'financiamento' | 'consorcio') {
     if (tipo === 'financiamento') {
@@ -196,7 +199,7 @@ export default function SimuladoresPage() {
     try {
       await salvar.mutateAsync({ resultado })
       toast.success('Simulação salva no histórico')
-      await refetch()
+      await Promise.all([refetch(), refetchStats()])
       fecharFinanciamento()
     } catch (err) {
       console.error('[simulacoes-central] erro ao salvar:', err)
@@ -212,7 +215,7 @@ export default function SimuladoresPage() {
         resultadoJson: custasResultado as unknown as Record<string, unknown> ?? undefined,
       })
       toast.success('Simulação de custas salva no histórico')
-      await refetch()
+      await Promise.all([refetch(), refetchStats()])
       fecharSimulador()
     } catch (err) {
       console.error('[simulacoes-central] erro ao salvar custas:', err)
@@ -225,7 +228,7 @@ export default function SimuladoresPage() {
     try {
       await salvarConsorcio.mutateAsync({ resultado: consorcioResultado })
       toast.success('Simulação de consórcio salva no histórico')
-      await refetch()
+      await Promise.all([refetch(), refetchStats()])
       fecharSimulador()
     } catch (err) {
       console.error('[simulacoes-central] erro ao salvar consórcio:', err)
