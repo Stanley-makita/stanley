@@ -55,26 +55,31 @@ const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 const PCT = (v: number) => `${(v * 100).toFixed(2)}%`
 const COR_VERDE = '#1B3A2B'
 
+function parsePercentLocal(v: string): number {
+  const n = parseFloat(v.replace(',', '.'))
+  return isNaN(n) ? 0 : n / 100
+}
+
 // ── Linha "estilo planilha" — rótulo à esquerda, valor à direita ───────────
 
-function LinhaCampo({ label, index, children }: { label: string; index: number; children: React.ReactNode }) {
+function LinhaCampo({ label, index, children, semCaixa }: { label: string; index: number; children: React.ReactNode; semCaixa?: boolean }) {
   return (
     <div className={cn('flex items-center justify-between gap-2 px-3 py-1.5', index % 2 === 1 && 'bg-white/[0.04]')}>
       <span className="text-[11px] text-white/85 leading-tight">{label}</span>
-      <div className="shrink-0">{children}</div>
+      <div className={cn('shrink-0', !semCaixa && 'bg-white rounded px-2 py-1')}>{children}</div>
     </div>
   )
 }
 
 function ValorComputado({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs font-bold text-white tabular-nums">{children}</span>
+  return <span className="text-xs font-bold text-gray-800 tabular-nums">{children}</span>
 }
 
-// ── Inputs compactos, estilo "célula de planilha" (fundo transparente,
-// texto branco, sem borda visível — combinam com o fundo verde escuro) ────
+// ── Inputs compactos, estilo "célula de planilha" (fundo branco, fonte
+// preta — mesma cor da célula de input na planilha original) ──────────────
 
 function inputBaseClass() {
-  return 'bg-transparent text-white text-xs font-bold text-right outline-none placeholder:text-white/30 w-24 tabular-nums'
+  return 'bg-transparent text-gray-800 text-xs font-bold text-right outline-none placeholder:text-gray-300 w-24 tabular-nums'
 }
 
 function CampoMoeda({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -85,7 +90,7 @@ function CampoMoeda({ value, onChange }: { value: string; onChange: (v: string) 
   const exibicao = value ? Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] text-white/60">R$</span>
+      <span className="text-[10px] text-gray-400">R$</span>
       <input type="text" inputMode="numeric" value={exibicao} onChange={handleChange} placeholder="0,00" className={inputBaseClass()} />
     </div>
   )
@@ -102,7 +107,7 @@ function CampoPercent({ value, onChange }: { value: string; onChange: (v: string
         placeholder="0"
         className={cn(inputBaseClass(), 'w-14')}
       />
-      <span className="text-[10px] text-white/60">%</span>
+      <span className="text-[10px] text-gray-400">%</span>
     </div>
   )
 }
@@ -158,10 +163,26 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
   const set = <K extends keyof FormStateConsorcio>(k: K, v: FormStateConsorcio[K]) =>
     onChange({ ...form, [k]: v })
 
-  const ag = resultado?.agregados
   const res = resultado?.resumo
   const comp = resultado?.comparativo
   const dash = '—'
+
+  // Campos "calculados disfarçados de input" (Taxa de Adm, Valor com lance
+  // embutido, Valor Líquido da carta, Valorização do bem a.m.) respondem
+  // direto do form, sem esperar o resultado completo (que só existe quando
+  // TODOS os campos obrigatórios estão preenchidos) — na planilha, digitar
+  // só "Valor do bem" já atualiza "Valor com lance embutido" na hora.
+  const valorBemNum = Number(form.valorBem) || 0
+  const valorCartaNum = Number(form.valorCarta) || 0
+  const pctLanceEmbutido = parsePercentLocal(form.percentualLanceEmbutido)
+  const pctTaxaAdm = parsePercentLocal(form.taxaAdmPercentual)
+  const pctFundoReserva = parsePercentLocal(form.fundoReservaPercentual)
+  const pctValorizacaoAnual = parsePercentLocal(form.valorizacaoBemAnual)
+
+  const taxaAdmReaisLocal = valorCartaNum * (pctTaxaAdm + pctFundoReserva)
+  const valorComLanceEmbutidoLocal = pctLanceEmbutido < 1 ? valorBemNum / (1 - pctLanceEmbutido) : 0
+  const valorLiquidoDaCartaLocal = valorComLanceEmbutidoLocal * (1 - pctLanceEmbutido)
+  const valorizacaoBemMensalLocal = form.valorizacaoBemAnual !== '' ? Math.pow(1 + pctValorizacaoAnual, 1 / 12) - 1 : 0
 
   return (
     <div className="space-y-3">
@@ -213,12 +234,12 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
           <LinhaCampo label="Mês do lance/Contemplação" index={3}><CampoInt value={form.mesLanceContemplacao} onChange={(v) => set('mesLanceContemplacao', v)} /></LinhaCampo>
           <LinhaCampo label="Prazo estimado de contemplação" index={4}><CampoTexto value={form.prazoEstimadoContemplacao} onChange={(v) => set('prazoEstimadoContemplacao', v)} /></LinhaCampo>
           <LinhaCampo label="Valor do lance (%)" index={5}><CampoPercent value={form.percentualLance} onChange={(v) => set('percentualLance', v)} /></LinhaCampo>
-          <LinhaCampo label="Taxa de Adm" index={6}><ValorComputado>{ag ? BRL.format(ag.taxaAdmReais) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Taxa de Adm" index={6}><ValorComputado>{valorCartaNum > 0 ? BRL.format(taxaAdmReaisLocal) : dash}</ValorComputado></LinhaCampo>
           <LinhaCampo label="Rendimento % a.m." index={7}><CampoPercent value={form.rendimentoMensal} onChange={(v) => set('rendimentoMensal', v)} /></LinhaCampo>
           <Separador />
           <LinhaCampo label="% Lance embutido" index={0}><CampoPercent value={form.percentualLanceEmbutido} onChange={(v) => set('percentualLanceEmbutido', v)} /></LinhaCampo>
-          <LinhaCampo label="Valor com lance embutido" index={1}><ValorComputado>{ag ? BRL.format(ag.valorComLanceEmbutido) : dash}</ValorComputado></LinhaCampo>
-          <LinhaCampo label="Valor Líquido da carta" index={2}><ValorComputado>{ag ? BRL.format(ag.valorLiquidoDaCarta) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Valor com lance embutido" index={1}><ValorComputado>{valorBemNum > 0 ? BRL.format(valorComLanceEmbutidoLocal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Valor Líquido da carta" index={2}><ValorComputado>{valorBemNum > 0 ? BRL.format(valorLiquidoDaCartaLocal) : dash}</ValorComputado></LinhaCampo>
         </BlocoVerde>
 
         {/* Bloco K/L */}
@@ -227,11 +248,11 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
           <LinhaCampo label="Tx Adm" index={1}><CampoPercent value={form.taxaAdmPercentual} onChange={(v) => set('taxaAdmPercentual', v)} /></LinhaCampo>
           <LinhaCampo label="Índice de correção (a.a.)" index={2}><CampoPercent value={form.indiceCorrecaoAnual} onChange={(v) => set('indiceCorrecaoAnual', v)} /></LinhaCampo>
           <LinhaCampo label="Valorização do bem (a.a.)" index={3}><CampoPercent value={form.valorizacaoBemAnual} onChange={(v) => set('valorizacaoBemAnual', v)} /></LinhaCampo>
-          <LinhaCampo label="Valorização do bem (a.m)" index={4}><ValorComputado>{ag ? PCT(ag.valorizacaoBemMensal) : dash}</ValorComputado></LinhaCampo>
+          <LinhaCampo label="Valorização do bem (a.m)" index={4}><ValorComputado>{form.valorizacaoBemAnual !== '' ? PCT(valorizacaoBemMensalLocal) : dash}</ValorComputado></LinhaCampo>
           <LinhaCampo label="% da parcela reduzida" index={5}><CampoPercent value={form.percentualParcelaReduzida} onChange={(v) => set('percentualParcelaReduzida', v)} /></LinhaCampo>
           <LinhaCampo label="Fundo de reserva (%)" index={6}><CampoPercent value={form.fundoReservaPercentual} onChange={(v) => set('fundoReservaPercentual', v)} /></LinhaCampo>
           <Separador />
-          <LinhaCampo label="Aluguel (X)" index={0}>
+          <LinhaCampo label="Aluguel (X)" index={0} semCaixa>
             <Switch checked={form.aluguelAtivo} onCheckedChange={(v) => set('aluguelAtivo', v)} />
           </LinhaCampo>
           {form.aluguelAtivo && (

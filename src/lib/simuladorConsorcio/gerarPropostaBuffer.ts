@@ -201,13 +201,15 @@ function desenharDetalhada(doc: Doc, resultado: ResultadoConsorcio) {
 
   const tableTop = y
   const tableH = pageH - mBot - 16 - tableTop
+  // thH fixo (ver comentário em gerarProposta.ts) — evita que a última
+  // linha de cada bloco seja cortada na metade pelo rodapé.
+  const thH = 4
   const minRowH = 3.1
-  const maxRowsPerCol = Math.max(1, Math.floor(tableH / minRowH))
+  const maxRowsPerCol = Math.max(1, Math.floor((tableH - thH) / minRowH))
   const colunas = Math.max(3, Math.min(8, Math.ceil(totalParcelas / maxRowsPerCol)))
   const rowsPerCol = Math.ceil(totalParcelas / colunas)
-  const rowH = tableH / rowsPerCol
+  const rowH = (tableH - thH) / rowsPerCol
   const blocoW = usableW / colunas
-  const thH = Math.min(5, rowH * 1.4)
 
   for (let b = 0; b < colunas; b++) {
     const bx = mL + b * blocoW

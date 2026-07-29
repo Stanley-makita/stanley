@@ -239,13 +239,17 @@ function desenharDetalhada(doc: Doc, assets: Assets, resultado: ResultadoConsorc
 
   const tableTop = y
   const tableH = pageH - mBot - 16 - tableTop
+  // thH é fixo (não depende de rowH) — reservado ANTES de dividir o espaço
+  // das linhas. Antes rowH era calculado como se thH não existisse e depois
+  // thH era somado por cima, estourando a altura disponível e cortando a
+  // última linha de cada bloco na metade.
+  const thH = 4
   const minRowH = 3.1
-  const maxRowsPerCol = Math.max(1, Math.floor(tableH / minRowH))
+  const maxRowsPerCol = Math.max(1, Math.floor((tableH - thH) / minRowH))
   const colunas = Math.max(3, Math.min(8, Math.ceil(totalParcelas / maxRowsPerCol)))
   const rowsPerCol = Math.ceil(totalParcelas / colunas)
-  const rowH = tableH / rowsPerCol
+  const rowH = (tableH - thH) / rowsPerCol
   const blocoW = usableW / colunas
-  const thH = Math.min(5, rowH * 1.4)
 
   for (let b = 0; b < colunas; b++) {
     const bx = mL + b * blocoW
