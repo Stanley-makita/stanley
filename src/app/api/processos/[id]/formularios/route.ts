@@ -56,6 +56,7 @@ function normalizarBanco(nome: string): BancoSuportado | null {
 
 type FormularioDef = {
   nomeArquivo: string
+  label: string
   template: string
   mapa: (d: Awaited<ReturnType<typeof buscarDadosFormulario>>, pessoaAtual?: any) => ReturnType<typeof mapaAutorizacao>
   // Formulários "por pessoa" geram um PDF para cada comprador do processo
@@ -66,28 +67,28 @@ type FormularioDef = {
 
 const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
   BRADESCO: [
-    { nomeArquivo: '1-Autorizacao.pdf',             template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf', mapa: mapaAutorizacao },
-    { nomeArquivo: '2-DPS.pdf',                     template: 'BRADESCO/2-DPS.pdf',                     mapa: mapaDps },
-    { nomeArquivo: '3-Proposta de Financiamento.pdf', template: 'BRADESCO/3-Proposta de Financiamento.pdf', mapa: mapaProposta },
-    { nomeArquivo: '4-Autorizacao FGTS.pdf',        template: 'BRADESCO/AUTORIZAÇÃO FGTS.pdf',           mapa: mapaFgts },
-    { nomeArquivo: '5-Isencao IR.pdf',              template: 'BRADESCO/ISENÇÃO IR.pdf',                 mapa: mapaIsencaoIr },
+    { nomeArquivo: '1-Autorizacao.pdf',             label: 'Autorização (análise/avaliação)', template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf', mapa: mapaAutorizacao },
+    { nomeArquivo: '2-DPS.pdf',                     label: 'DPS — Declaração Pessoal de Saúde', template: 'BRADESCO/2-DPS.pdf',                     mapa: mapaDps },
+    { nomeArquivo: '3-Proposta de Financiamento.pdf', label: 'Proposta de Financiamento',     template: 'BRADESCO/3-Proposta de Financiamento.pdf', mapa: mapaProposta },
+    { nomeArquivo: '4-Autorizacao FGTS.pdf',        label: 'Autorização FGTS',                template: 'BRADESCO/AUTORIZAÇÃO FGTS.pdf',           mapa: mapaFgts },
+    { nomeArquivo: '5-Isencao IR.pdf',              label: 'Isenção IR',                      template: 'BRADESCO/ISENÇÃO IR.pdf',                 mapa: mapaIsencaoIr },
   ],
   BANCO_DO_BRASIL: [
-    { nomeArquivo: '1-Proposta Comprador.pdf',      template: 'BANCO_DO_BRASIL/1-Formulario comprador.pdf',         mapa: mapaCompradorBB },
-    { nomeArquivo: '2-Autorizacao FGTS.pdf',        template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',     mapa: mapaFgtsBB },
-    { nomeArquivo: '3-Vendedor PF.pdf',             template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',                 mapa: () => [] },
-    { nomeArquivo: '4-Isencao IR.pdf',              template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf',    mapa: () => [] },
-    { nomeArquivo: '5-SCR.pdf',                     template: 'BANCO_DO_BRASIL/SCR - Nova BB.pdf',                  mapa: mapaScrBB, porPessoa: true },
+    { nomeArquivo: '1-Proposta Comprador.pdf',      label: 'Proposta Comprador',              template: 'BANCO_DO_BRASIL/1-Formulario comprador.pdf',         mapa: mapaCompradorBB },
+    { nomeArquivo: '2-Autorizacao FGTS.pdf',        label: 'Autorização FGTS',                template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',     mapa: mapaFgtsBB },
+    { nomeArquivo: '3-Vendedor PF.pdf',             label: 'Vendedor PF',                     template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',                 mapa: () => [] },
+    { nomeArquivo: '4-Isencao IR.pdf',              label: 'Isenção IR',                      template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf',    mapa: () => [] },
+    { nomeArquivo: '5-SCR.pdf',                     label: 'Autorização SCR',                 template: 'BANCO_DO_BRASIL/SCR - Nova BB.pdf',                  mapa: mapaScrBB, porPessoa: true },
   ],
   SANTANDER: [
-    { nomeArquivo: '1-Autorizacao Compradores.pdf', template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                        mapa: mapaAutorizacaoSantander },
-    { nomeArquivo: '2-DPS.pdf',                     template: 'SANTANDER/2-DPS.pdf',                                mapa: () => [] },
-    { nomeArquivo: '3-Declaracao SFH.pdf',          template: 'SANTANDER/3-Declaração SFH.pdf',                     mapa: () => [] },
-    { nomeArquivo: '4-Autorizacao FGTS.pdf',        template: 'SANTANDER/Autorizacao FGTS atualizada.pdf',          mapa: mapaFgtsSantander },
-    { nomeArquivo: '5-Autorizacao IQ Vendedor.pdf', template: 'SANTANDER/Autorização IQ vendedor.pdf',              mapa: mapaIqVendedorSantander },
+    { nomeArquivo: '1-Autorizacao Compradores.pdf', label: 'Autorização Compradores',         template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                        mapa: mapaAutorizacaoSantander },
+    { nomeArquivo: '2-DPS.pdf',                     label: 'DPS',                             template: 'SANTANDER/2-DPS.pdf',                                mapa: () => [] },
+    { nomeArquivo: '3-Declaracao SFH.pdf',          label: 'Declaração SFH',                  template: 'SANTANDER/3-Declaração SFH.pdf',                     mapa: () => [] },
+    { nomeArquivo: '4-Autorizacao FGTS.pdf',        label: 'Autorização FGTS',                template: 'SANTANDER/Autorizacao FGTS atualizada.pdf',          mapa: mapaFgtsSantander },
+    { nomeArquivo: '5-Autorizacao IQ Vendedor.pdf', label: 'Autorização IQ Vendedor',         template: 'SANTANDER/Autorização IQ vendedor.pdf',              mapa: mapaIqVendedorSantander },
   ],
   ITAU: [
-    { nomeArquivo: '1-Autorizacao FGTS.pdf',        template: 'ITAU/AUTORIZAÇÃO FGTS.pdf',                          mapa: mapaFgtsItau },
+    { nomeArquivo: '1-Autorizacao FGTS.pdf',        label: 'Autorização FGTS',                template: 'ITAU/AUTORIZAÇÃO FGTS.pdf',                          mapa: mapaFgtsItau },
   ],
   CAIXA: [],
 }
@@ -165,7 +166,7 @@ export async function POST(
     const salvos: string[] = []
     const erros: string[] = []
 
-    const gerarESalvar = async (nomeArquivo: string, mapa: ReturnType<typeof mapaAutorizacao>, template: string) => {
+    const gerarESalvar = async (nomeArquivo: string, label: string, mapa: ReturnType<typeof mapaAutorizacao>, template: string) => {
       // --- 1. Gerar PDF ---
       let pdfBytes: Uint8Array
       try {
@@ -173,7 +174,7 @@ export async function POST(
       } catch (err: any) {
         const msg = `PDF: ${err?.message ?? err}`
         console.error(`[formularios] ${nomeArquivo} — ${msg}`)
-        erros.push(`${nomeArquivo} (${msg})`)
+        erros.push(`${label} (${msg})`)
         return
       }
 
@@ -188,7 +189,7 @@ export async function POST(
       } catch (err: any) {
         const msg = `Storage: ${err?.message ?? err}`
         console.error(`[formularios] ${nomeArquivo} — ${msg}`)
-        erros.push(`${nomeArquivo} (${msg})`)
+        erros.push(`${label} (${msg})`)
         return
       }
 
@@ -220,22 +221,26 @@ export async function POST(
       } catch (err: any) {
         const msg = `DB: ${err?.message ?? err}`
         console.error(`[formularios] ${nomeArquivo} — ${msg}`)
-        erros.push(`${nomeArquivo} (${msg})`)
+        erros.push(`${label} (${msg})`)
         return
       }
 
-      salvos.push(nomeArquivo)
+      salvos.push(label)
     }
 
     for (const form of formularios) {
       if (form.porPessoa) {
         for (const pessoa of dados.compradores) {
-          const sufixo = pessoa.principal ? '' : ` - ${pessoa.nome || 'coparticipante'}`
-          const nomeArquivo = form.nomeArquivo.replace(/\.pdf$/i, `${sufixo}.pdf`)
-          await gerarESalvar(nomeArquivo, form.mapa(dados, pessoa), form.template)
+          // Nome do arquivo do principal fica sem sufixo (compatibilidade com
+          // PDFs já salvos antes da geração por pessoa). O label exibido no
+          // resultado, porém, sempre identifica a pessoa.
+          const sufixoArquivo = pessoa.principal ? '' : ` - ${pessoa.nome || 'coparticipante'}`
+          const nomeArquivo = form.nomeArquivo.replace(/\.pdf$/i, `${sufixoArquivo}.pdf`)
+          const label = `${form.label} - ${pessoa.nome || (pessoa.principal ? 'Comprador principal' : 'Coparticipante')}`
+          await gerarESalvar(nomeArquivo, label, form.mapa(dados, pessoa), form.template)
         }
       } else {
-        await gerarESalvar(form.nomeArquivo, form.mapa(dados), form.template)
+        await gerarESalvar(form.nomeArquivo, form.label, form.mapa(dados), form.template)
       }
     }
 
