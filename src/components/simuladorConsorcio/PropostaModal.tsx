@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Printer, Send, FileText } from 'lucide-react'
+import { Printer, Send, FileText, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import type { VarianteProposta } from '@/lib/simuladorConsorcio/gerarProposta'
@@ -28,6 +28,7 @@ function AbaVariante({
   simulacaoExistenteId?: string
 }) {
   const [gerando, setGerando] = useState(false)
+  const [visualizando, setVisualizando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
   const salvarConsorcioCentral = useSalvarConsorcioCentral()
@@ -42,6 +43,17 @@ function AbaVariante({
       await gerarPropostaConsorcio(resultado, variante)
     } finally {
       setGerando(false)
+    }
+  }
+
+  async function verNaTela() {
+    if (!resultado) return
+    setVisualizando(true)
+    try {
+      const { gerarPropostaConsorcio } = await import('@/lib/simuladorConsorcio/gerarProposta')
+      await gerarPropostaConsorcio(resultado, variante, { mode: 'preview' })
+    } finally {
+      setVisualizando(false)
     }
   }
 
@@ -72,7 +84,15 @@ function AbaVariante({
           ? 'Uma página só, com todas as parcelas listadas mês a mês.'
           : 'Resumo compacto — condições da carta, estrutura de lance e parcelas agrupadas por faixa de valor.'}
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          onClick={verNaTela}
+          disabled={!resultado || visualizando}
+          variant="outline"
+          className="gap-1.5 border-fonti-primary text-fonti-primary hover:bg-fonti-primary/5"
+        >
+          <Eye className="h-3.5 w-3.5" /> {visualizando ? 'Abrindo...' : 'Ver na tela'}
+        </Button>
         <Button
           onClick={imprimir}
           disabled={!resultado || gerando}
