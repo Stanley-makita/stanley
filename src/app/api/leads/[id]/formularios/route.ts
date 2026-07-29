@@ -59,7 +59,11 @@ type FormularioDef = {
   nomeArquivo: string
   label: string
   template: string
-  mapa: (d: DadosProcesso) => ReturnType<typeof mapaAutorizacao>
+  mapa: (d: DadosProcesso, pessoaAtual?: any) => ReturnType<typeof mapaAutorizacao>
+  // Formulários "por pessoa" geram um PDF para cada comprador do negócio
+  // (proponente principal, cônjuge, coparticipantes) em vez de um único PDF
+  // fixado no principal — ex: Autorização SCR, que cada envolvido assina.
+  porPessoa?: boolean
 }
 
 const FORMULARIOS_POR_BANCO: Record<BancoSuportado, FormularioDef[]> = {
@@ -75,7 +79,7 @@ const FORMULARIOS_POR_BANCO: Record<BancoSuportado, FormularioDef[]> = {
     { nomeArquivo: '2-Autorizacao FGTS.pdf',          label: 'Autorização FGTS',                template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',   mapa: mapaFgtsBB },
     { nomeArquivo: '3-Vendedor PF.pdf',               label: 'Vendedor PF',                     template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',              mapa: () => [] },
     { nomeArquivo: '4-Isencao IR.pdf',                label: 'Isenção IR',                      template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf', mapa: () => [] },
-    { nomeArquivo: '5-SCR.pdf',                       label: 'Autorização SCR',                 template: 'BANCO_DO_BRASIL/SCR - Preenchida.pdf',            mapa: mapaScrBB },
+    { nomeArquivo: '5-SCR.pdf',                       label: 'Autorização SCR',                 template: 'BANCO_DO_BRASIL/SCR - Nova BB.pdf',               mapa: mapaScrBB, porPessoa: true },
   ],
   SANTANDER: [
     { nomeArquivo: '1-Autorizacao Compradores.pdf',   label: 'Autorização Compradores',         template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                      mapa: mapaAutorizacaoSantander },
@@ -165,21 +169,24 @@ export async function POST(
     }
 
     const dados = await buscarDadosFormularioLead(params.id)
+    const pessoaIdLead = lead.pessoa_id
 
     const salvos: string[] = []
     const erros: string[] = []
 
-    for (const form of selecionados) {
+    // Gera, sobe e registra um PDF já preenchido. `nomeArquivo`/`label` já vêm
+    // resolvidos por chamada (formulários "por pessoa" chamam isto uma vez
+    // por comprador, com nomes distintos por pessoa).
+    const gerarESalvar = async (nomeArquivo: string, label: string, mapa: ReturnType<typeof mapaAutorizacao>, template: string) => {
       let pdfBytes: Uint8Array
       try {
-        const mapa = form.mapa(dados)
-        pdfBytes = await preencherPdf(form.template, mapa)
+        pdfBytes = await preencherPdf(template, mapa)
       } catch (err: any) {
-        erros.push(`${form.label} (PDF: ${err?.message ?? err})`)
-        continue
+        erros.push(`${label} (PDF: ${err?.message ?? err})`)
+        return
       }
 
-      const storagePath = `${dados.empresa_id}/formularios/lead_${params.id}/${form.nomeArquivo}`
+      const storagePath = `${dados.empresa_id}/formularios/lead_${params.id}/${nomeArquivo}`
       try {
         await supabaseAdmin.storage.from('documentos-clientes').remove([storagePath])
         const { error: uploadErr } = await supabaseAdmin.storage
@@ -187,23 +194,23 @@ export async function POST(
           .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
         if (uploadErr) throw uploadErr
       } catch (err: any) {
-        erros.push(`${form.label} (Storage: ${err?.message ?? err})`)
-        continue
+        erros.push(`${label} (Storage: ${err?.message ?? err})`)
+        return
       }
 
       try {
         // Remove formulário homônimo anterior desta pessoa (regeneração).
         await supabaseAdmin.from('documentos')
           .delete()
-          .eq('pessoa_id', lead.pessoa_id)
-          .eq('nome_original', form.nomeArquivo)
+          .eq('pessoa_id', pessoaIdLead)
+          .eq('nome_original', nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
         const { data: docInserido, error: dbErr } = await supabaseAdmin.from('documentos').insert({
           empresa_id:    dados.empresa_id,
           dominio:       'acervo_documental',
-          pessoa_id:     lead.pessoa_id,
-          nome_original: form.nomeArquivo,
+          pessoa_id:     pessoaIdLead,
+          nome_original: nomeArquivo,
           mime_type:     'application/pdf',
           tamanho_bytes: pdfBytes.byteLength,
           storage_bucket: 'documentos-clientes',
@@ -216,11 +223,24 @@ export async function POST(
           empresa_id: dados.empresa_id, documento_id: docInserido!.id, entidade_tipo: 'lead', entidade_id: params.id,
         })
       } catch (err: any) {
-        erros.push(`${form.label} (DB: ${err?.message ?? err})`)
-        continue
+        erros.push(`${label} (DB: ${err?.message ?? err})`)
+        return
       }
 
-      salvos.push(form.label)
+      salvos.push(label)
+    }
+
+    for (const form of selecionados) {
+      if (form.porPessoa) {
+        for (const pessoa of dados.compradores) {
+          const sufixo = pessoa.principal ? '' : ` - ${pessoa.nome || 'coparticipante'}`
+          const nomeArquivo = form.nomeArquivo.replace(/\.pdf$/i, `${sufixo}.pdf`)
+          const label = `${form.label}${sufixo}`
+          await gerarESalvar(nomeArquivo, label, form.mapa(dados, pessoa), form.template)
+        }
+      } else {
+        await gerarESalvar(form.nomeArquivo, form.label, form.mapa(dados), form.template)
+      }
     }
 
     return NextResponse.json({

@@ -57,7 +57,11 @@ function normalizarBanco(nome: string): BancoSuportado | null {
 type FormularioDef = {
   nomeArquivo: string
   template: string
-  mapa: (d: Awaited<ReturnType<typeof buscarDadosFormulario>>) => ReturnType<typeof mapaAutorizacao>
+  mapa: (d: Awaited<ReturnType<typeof buscarDadosFormulario>>, pessoaAtual?: any) => ReturnType<typeof mapaAutorizacao>
+  // Formulários "por pessoa" geram um PDF para cada comprador do processo
+  // (principal, cônjuge, coparticipantes já existentes via processo_compradores)
+  // em vez de um único PDF fixado no principal — ex: Autorização SCR.
+  porPessoa?: boolean
 }
 
 const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
@@ -73,7 +77,7 @@ const FORMULARIOS: Record<BancoSuportado, FormularioDef[]> = {
     { nomeArquivo: '2-Autorizacao FGTS.pdf',        template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',     mapa: mapaFgtsBB },
     { nomeArquivo: '3-Vendedor PF.pdf',             template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',                 mapa: () => [] },
     { nomeArquivo: '4-Isencao IR.pdf',              template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf',    mapa: () => [] },
-    { nomeArquivo: '5-SCR.pdf',                     template: 'BANCO_DO_BRASIL/SCR - Preenchida.pdf',               mapa: mapaScrBB },
+    { nomeArquivo: '5-SCR.pdf',                     template: 'BANCO_DO_BRASIL/SCR - Nova BB.pdf',                  mapa: mapaScrBB, porPessoa: true },
   ],
   SANTANDER: [
     { nomeArquivo: '1-Autorizacao Compradores.pdf', template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                        mapa: mapaAutorizacaoSantander },
@@ -136,6 +140,7 @@ export async function POST(
         { status: 400 },
       )
     }
+    const pessoaIdSalvar = pessoaIdProcesso
 
     const bancoParam = request.nextUrl.searchParams.get('banco') ?? ''
     const banco = normalizarBanco(bancoParam)
@@ -160,21 +165,20 @@ export async function POST(
     const salvos: string[] = []
     const erros: string[] = []
 
-    for (const form of formularios) {
+    const gerarESalvar = async (nomeArquivo: string, mapa: ReturnType<typeof mapaAutorizacao>, template: string) => {
       // --- 1. Gerar PDF ---
       let pdfBytes: Uint8Array
       try {
-        const mapa = form.mapa(dados)
-        pdfBytes = await preencherPdf(form.template, mapa)
+        pdfBytes = await preencherPdf(template, mapa)
       } catch (err: any) {
         const msg = `PDF: ${err?.message ?? err}`
-        console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
-        erros.push(`${form.nomeArquivo} (${msg})`)
-        continue
+        console.error(`[formularios] ${nomeArquivo} — ${msg}`)
+        erros.push(`${nomeArquivo} (${msg})`)
+        return
       }
 
       // --- 2. Upload Storage ---
-      const storagePath = `${dados.empresa_id}/formularios/${params.id}/${form.nomeArquivo}`
+      const storagePath = `${dados.empresa_id}/formularios/${params.id}/${nomeArquivo}`
       try {
         await supabaseAdmin.storage.from('documentos-clientes').remove([storagePath])
         const { error: uploadErr } = await supabaseAdmin.storage
@@ -183,9 +187,9 @@ export async function POST(
         if (uploadErr) throw uploadErr
       } catch (err: any) {
         const msg = `Storage: ${err?.message ?? err}`
-        console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
-        erros.push(`${form.nomeArquivo} (${msg})`)
-        continue
+        console.error(`[formularios] ${nomeArquivo} — ${msg}`)
+        erros.push(`${nomeArquivo} (${msg})`)
+        return
       }
 
       // --- 3. Registrar no banco ---
@@ -193,15 +197,15 @@ export async function POST(
         // Remove formulário homônimo anterior desta pessoa (regeneração).
         await supabaseAdmin.from('documentos')
           .delete()
-          .eq('pessoa_id', pessoaIdProcesso)
-          .eq('nome_original', form.nomeArquivo)
+          .eq('pessoa_id', pessoaIdSalvar)
+          .eq('nome_original', nomeArquivo)
           .eq('empresa_id', dados.empresa_id)
 
         const { data: docInserido, error: dbErr } = await supabaseAdmin.from('documentos').insert({
           empresa_id:    dados.empresa_id,
           dominio:       'acervo_documental',
-          pessoa_id:     pessoaIdProcesso,
-          nome_original: form.nomeArquivo,
+          pessoa_id:     pessoaIdSalvar,
+          nome_original: nomeArquivo,
           mime_type:     'application/pdf',
           tamanho_bytes: pdfBytes.byteLength,
           storage_bucket: 'documentos-clientes',
@@ -215,12 +219,24 @@ export async function POST(
         })
       } catch (err: any) {
         const msg = `DB: ${err?.message ?? err}`
-        console.error(`[formularios] ${form.nomeArquivo} — ${msg}`)
-        erros.push(`${form.nomeArquivo} (${msg})`)
-        continue
+        console.error(`[formularios] ${nomeArquivo} — ${msg}`)
+        erros.push(`${nomeArquivo} (${msg})`)
+        return
       }
 
-      salvos.push(form.nomeArquivo)
+      salvos.push(nomeArquivo)
+    }
+
+    for (const form of formularios) {
+      if (form.porPessoa) {
+        for (const pessoa of dados.compradores) {
+          const sufixo = pessoa.principal ? '' : ` - ${pessoa.nome || 'coparticipante'}`
+          const nomeArquivo = form.nomeArquivo.replace(/\.pdf$/i, `${sufixo}.pdf`)
+          await gerarESalvar(nomeArquivo, form.mapa(dados, pessoa), form.template)
+        }
+      } else {
+        await gerarESalvar(form.nomeArquivo, form.mapa(dados), form.template)
+      }
     }
 
     return NextResponse.json({
