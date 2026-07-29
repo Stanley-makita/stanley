@@ -90,9 +90,9 @@ export function ResultadosConsorcio({ resultado }: Props) {
         <summary className="cursor-pointer text-fonti-primary font-medium select-none">
           Ver cronograma mensal ({linhas.length} meses)
         </summary>
-        <div className="mt-2 max-h-64 overflow-y-auto border border-gray-100 rounded-lg">
+        <div className="mt-2 border border-gray-100 rounded-lg overflow-x-auto">
           <table className="w-full text-[11px] border-collapse">
-            <thead className="sticky top-0 bg-gray-50">
+            <thead className="bg-gray-50">
               <tr className="border-b border-gray-200">
                 <th className="text-left font-semibold text-gray-500 px-2 py-1.5">Mês</th>
                 <th className="text-right font-semibold text-gray-500 px-2 py-1.5">Carta</th>
