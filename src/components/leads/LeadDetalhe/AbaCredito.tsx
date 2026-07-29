@@ -233,7 +233,7 @@ export function AbaCredito({ lead }: Props) {
       <BlocoCoparticipantes lead={lead} />
 
       {/* 4. Análises de Crédito */}
-      <BlocoAnalises leadId={lead.id} empresaId={lead.empresa_id} responsavelId={lead.responsavel_id ?? null} />
+      <BlocoAnalises lead={lead} />
 
       {/* 5. Aprovação de Crédito */}
       <BlocoAprovacaoCredito
@@ -919,11 +919,35 @@ export const STATUS_ANALISE: Record<StatusAnaliseCredito, { label: string; class
 
 // ── BlocoAnalises ─────────────────────────────────────────────
 
-function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; empresaId: string; responsavelId: string | null }) {
+function BlocoAnalises({ lead }: { lead: Lead }) {
+  const leadId = lead.id
+  const empresaId = lead.empresa_id
+  const responsavelId = lead.responsavel_id ?? null
   const { analises, isLoading, criar, editar, deletar, definirBanco, limparBancoDefinido } = useAnalisesCredito({ leadId })
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const qc = useQueryClient()
+  const editarLead = useEditarLead()
+  const { data: fases = [] } = useFases('leads')
+
+  // Ao salvar a 1ª análise de crédito, avança automaticamente o Lead para a
+  // fase "Análise de Crédito" — só avança (nunca volta o Lead pra trás caso
+  // ele já esteja numa fase posterior), mesmo padrão de comparação por
+  // índice já usado em PipelineBarLead. Dispara na criação efetiva (form
+  // salvo), não no clique do botão "+ Nova Análise" — cancelar o form não
+  // deve mover a fase.
+  function avancarParaAnaliseCredito() {
+    if (fases.length === 0) return
+    const idxAtual = fases.findIndex(f => f.id === lead.fase_id)
+    const faseAnalise = fases.find(f => normalizarTexto(f.nome) === normalizarTexto('Análise de Crédito'))
+    if (!faseAnalise) return
+    const idxAlvo = fases.findIndex(f => f.id === faseAnalise.id)
+    if (idxAlvo <= idxAtual) return
+    editarLead.mutate(
+      { id: leadId, fase_id: faseAnalise.id },
+      { onSuccess: () => toast.success('Lead avançado para Análise de Crédito') },
+    )
+  }
 
   // Crédito recusado pode reverter (tentar outro banco) — dispara um
   // acompanhamento mais espaçado (10 dias, sem escalonar pra gestores),
@@ -1069,6 +1093,7 @@ function BlocoAnalises({ leadId, empresaId, responsavelId }: { leadId: string; e
           numero={analises.length + 1}
           onSalvar={async (campos) => {
             await criar.mutateAsync({ empresa_id: empresaId, lead_id: leadId, processo_id: null, banco_definido: false, ...campos })
+            avancarParaAnaliseCredito()
             setCriando(false)
           }}
           onCancelar={() => setCriando(false)}
