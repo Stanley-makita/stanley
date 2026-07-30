@@ -783,7 +783,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|custas|cancelar?)\b/i.test(textoParaFonti)) {
+  if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|custas|consorcio|cancelar?)\b/i.test(textoParaFonti)) {
     const respostaFonti = await processarComandoFonti(textoParaFonti.trim(), {
       empresa_id,
       telefone_remetente: telefone,
