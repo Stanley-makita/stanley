@@ -67,6 +67,13 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'notificacoes.ver',
   ],
 
+  // Nasce sem nenhuma permissão fixa: todo acesso configurável (ações sem
+  // configuravel:false no catálogo) fica disponível para ser liberado
+  // manualmente em Configurações > Perfis de Acesso, um a um.
+  assistente: [
+    'dashboard.ver',
+  ],
+
   // Perfis legados — fora do formulário de cadastro hoje (PERFIS_ATIVOS não os inclui).
   // Mantidos como estavam, sem redesenho: não fazem parte do escopo da matriz oficial.
   gerente: TODAS_ACOES.filter(

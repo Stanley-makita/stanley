@@ -36,6 +36,7 @@ export function useCriarUsuario() {
       senha: string
       perfil: UsuarioPerfil
       funcao: string | null
+      cargo_id: string | null
       ativo: boolean
     }) => {
       const token = await getToken()
@@ -60,8 +61,10 @@ export function useAtualizarUsuario() {
       nome?: string
       perfil?: UsuarioPerfil
       funcao?: string | null
+      cargo_id?: string | null
       ativo?: boolean
       telefone_whatsapp?: string | null
+      email?: string
     }) => {
       const { id, ...rest } = payload
       const token = await getToken()

@@ -29,6 +29,7 @@ export type Database = {
           email: string
           perfil: Database['public']['Enums']['usuario_perfil']
           funcao: string | null
+          cargo_id: string | null
           ativo: boolean
           deleted_at: string | null
           created_at: string
@@ -112,7 +113,7 @@ export type Database = {
       }
     }
     Enums: {
-      usuario_perfil: 'admin' | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'gerente' | 'analista' | 'consultor' | 'cliente'
+      usuario_perfil: 'admin' | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'assistente' | 'gerente' | 'analista' | 'consultor' | 'cliente'
     }
   }
 }

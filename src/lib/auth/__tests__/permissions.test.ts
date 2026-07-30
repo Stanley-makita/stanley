@@ -62,6 +62,10 @@ describe('PERMISSOES_PADRAO — matriz oficial', () => {
   it('cliente continua sem nenhuma permissão', () => {
     expect(PERMISSOES_PADRAO.cliente).toEqual([])
   })
+
+  it('assistente nasce sem nenhuma permissão fixa (só dashboard.ver, sempre true em qualquer perfil)', () => {
+    expect(PERMISSOES_PADRAO.assistente).toEqual(['dashboard.ver'])
+  })
 })
 
 describe('podeExecutarPadrao / podeExecutar (alias legado, usado por rotas de API)', () => {
