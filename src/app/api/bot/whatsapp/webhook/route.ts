@@ -617,6 +617,11 @@ export async function POST(request: NextRequest) {
       const { buscarCustasPendente } = await import('@/lib/workflows/custas-pendente')
       const pendenteCustas = !pendente ? await buscarCustasPendente(supabase, empresa_id, telefone) : null
 
+      const { buscarConsorcioPendente } = await import('@/lib/workflows/consorcio-pendente')
+      const pendenteConsorcio = (!pendente && !pendenteCustas)
+        ? await buscarConsorcioPendente(supabase, empresa_id, telefone)
+        : null
+
       if (pendente) {
         const resposta = await processarRespostaPendente(texto.trim(), pendente, {
           empresa_id,
@@ -634,6 +639,18 @@ export async function POST(request: NextRequest) {
       } else if (pendenteCustas) {
         const { processarRespostaCustas } = await import('@/lib/workflows/workflow-custas')
         const resposta = await processarRespostaCustas(texto.trim(), pendenteCustas, {
+          empresa_id,
+          usuario_id: usuarioInterno.id,
+          usuario_nome: usuarioInterno.nome,
+          supabase,
+          instancia_token: instanciaToken,
+          telefone_destino: telefone,
+          telefone_operador: telefone,
+        })
+        await enviarMensagemUazapi(telefone, resposta)
+      } else if (pendenteConsorcio) {
+        const { processarRespostaConsorcio } = await import('@/lib/workflows/workflow-consorcio')
+        const resposta = await processarRespostaConsorcio(texto.trim(), pendenteConsorcio, {
           empresa_id,
           usuario_id: usuarioInterno.id,
           usuario_nome: usuarioInterno.nome,
