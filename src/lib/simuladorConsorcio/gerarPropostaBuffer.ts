@@ -113,12 +113,13 @@ function desenharCaixaItens(doc: Doc, x: number, y: number, w: number, itens: [s
 }
 
 function itensPrincipais(resultado: ResultadoConsorcio, incluirContemplacao: boolean): [string, string][] {
-  const { input, comparativo } = resultado
+  const { input, comparativo, resumo } = resultado
   const itens: [string, string][] = [
     ['Prazo em anos', String(comparativo.prazoEmAnos)],
     ['Prazo em meses', String(input.prazoMeses)],
     ['CET a.a', PCT2(comparativo.cetAnual)],
     ['Valor da carta', BRL.format(input.valorCarta)],
+    ['Valor Liquido', BRL.format(resumo.valorLiquido)],
   ]
   if (incluirContemplacao && input.prazoEstimadoContemplacao?.trim()) {
     itens.push(['Prazo estimado contemplacao', input.prazoEstimadoContemplacao.trim()])
