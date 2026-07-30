@@ -400,12 +400,13 @@ export default function ConversasPage() {
     enabled: !!usuario?.empresa_id,
     staleTime: 1000 * 60 * 5,
     queryFn: async (): Promise<InstanciaSimples[]> => {
-      const { data, error } = await supabase
-        .from('instancias')
-        .select('id, nome, atendente_id')
-        .eq('ativo', true)
+      // instancias_basico() (RPC) em vez de .from('instancias') direto — a
+      // RLS de SELECT da tabela ficou restrita a admin (o token de
+      // integração não pode ser lido por qualquer perfil); esta função só
+      // devolve colunas não-sensíveis, disponível pra qualquer usuário ativo.
+      const { data, error } = await supabase.rpc('instancias_basico')
       if (error) throw error
-      return data
+      return (data ?? []).filter((i: { ativo: boolean }) => i.ativo)
     },
   })
   const instanciaNomeMap = new Map(instancias.map((i) => [i.id, i.nome]))
