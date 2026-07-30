@@ -658,6 +658,10 @@ const MSG_AJUDA = `*Fonti — Comandos*
   → Simulador de Custas: sequência de perguntas + PDF ao final
   Responda cada pergunta; a última (banco) dispara o cálculo
 
+*consorcio*  _(ou *fonti consorcio*)_
+  → Simulador de Consórcio: sequência de perguntas + 2 PDFs ao final
+  Responda cada pergunta; a última (fundo de reserva) dispara o cálculo
+
 *cria cliente* ou *criar cliente [descrição livre]*  _(ou *fonti cria ...*)_
   → Cria Pessoa + Lead e vincula documentos recentes
 
@@ -854,6 +858,7 @@ export async function processarComandoFonti(
   else if (/^\*processo\b/i.test(_texto))                          _texto = _texto.replace(/^\*processo\b/i, '*fonti processo')
   else if (/^\*simula(?:r|[cç][aã]o)?\b/i.test(_texto))           _texto = _texto.replace(/^\*simula(?:r|[cç][aã]o)?\b/i, '*fonti simula')
   else if (/^\*custas\b/i.test(_texto))                           _texto = _texto.replace(/^\*custas\b/i, '*fonti custas')
+  else if (/^\*consorcio\b/i.test(_texto))                        _texto = _texto.replace(/^\*consorcio\b/i, '*fonti consorcio')
   else if (/^\*cancelar?\b/i.test(_texto))                        _texto = _texto.replace(/^\*cancelar?\b/i, '*fonti cancelar')
 
   // Extrai o subcomando: "*fonti salva ...", "*fonti novo lead ...", "*fonti ajuda"
@@ -1228,6 +1233,37 @@ export async function processarComandoFonti(
     } catch (err) {
       console.error('[fonti] Erro inesperado no Workflow de Custas:', err)
       return '❌ Erro inesperado ao iniciar o simulador de custas. Tente novamente.'
+    }
+  }
+
+  // ── *fonti consorcio / *consorcio ─────────────────────────────────────────
+  // Q&A fixo e determinístico (ver workflow-consorcio.ts) — mesmo padrão do
+  // *custas. *fonti consorcio cancelar/novo reaproveita o mesmo vocabulário.
+  if (corpoBaixo === 'consorcio' || corpoBaixo.startsWith('consorcio ')) {
+    const instrucaoConsorcio = corpo.replace(/^consorcio\s*/i, '').trim().toLowerCase()
+
+    if (instrucaoConsorcio === 'novo' || instrucaoConsorcio === 'cancelar') {
+      const { limparConsorcioPendente } = await import('@/lib/workflows/consorcio-pendente')
+      await limparConsorcioPendente(supabase, empresa_id, ctx.telefone_remetente)
+      if (instrucaoConsorcio === 'cancelar') {
+        return 'Simulação de consórcio cancelada. Quando quiser iniciar novamente, envie *consorcio.'
+      }
+    }
+
+    try {
+      const { iniciarFluxoConsorcio } = await import('@/lib/workflows/workflow-consorcio')
+      return await iniciarFluxoConsorcio({
+        empresa_id,
+        usuario_id: usuario.id,
+        usuario_nome: usuario.nome,
+        supabase,
+        instancia_token: ctx.instancia_token,
+        telefone_destino: ctx.telefone_destino,
+        telefone_operador: ctx.telefone_remetente,
+      })
+    } catch (err) {
+      console.error('[fonti] Erro inesperado no Workflow de Consórcio:', err)
+      return '❌ Erro inesperado ao iniciar o simulador de consórcio. Tente novamente.'
     }
   }
 
