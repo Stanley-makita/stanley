@@ -131,13 +131,15 @@ export default function GestaoPage() {
     queryKey: ['instancias-gestao', usuario?.empresa_id],
     enabled: !!usuario?.empresa_id,
     queryFn: async (): Promise<Instancia[]> => {
-      const { data, error } = await supabase
-        .from('instancias')
-        .select('id, nome, atendente_id')
-        .eq('ativo', true)
-        .order('nome')
+      // instancias_basico() (RPC) em vez de .from('instancias') direto — a
+      // RLS de SELECT da tabela ficou restrita a admin (o token de
+      // integração não pode ser lido por qualquer perfil); esta função só
+      // devolve colunas não-sensíveis, disponível pra qualquer usuário ativo.
+      const { data, error } = await supabase.rpc('instancias_basico')
       if (error) throw error
-      return data
+      return (data ?? [])
+        .filter((i: { ativo: boolean }) => i.ativo)
+        .sort((a: { nome: string }, b: { nome: string }) => a.nome.localeCompare(b.nome))
     },
   })
 

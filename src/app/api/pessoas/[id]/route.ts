@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { podeExecutarPadrao } from '@/lib/auth/permissions'
+import type { UsuarioPerfil } from '@/types/auth'
 
 async function resolveUsuario(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -38,6 +40,9 @@ export async function GET(
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  if (!podeExecutarPadrao(usuario.perfil as UsuarioPerfil, 'pessoas.ver')) {
+    return NextResponse.json({ error: 'Sem permissão para ver pessoas' }, { status: 403 })
+  }
   const { empresa_id } = usuario
 
   if (!(await podeAcessarPessoa(usuario, params.id))) {
@@ -85,6 +90,9 @@ export async function PUT(
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  if (!podeExecutarPadrao(usuario.perfil as UsuarioPerfil, 'pessoas.editar')) {
+    return NextResponse.json({ error: 'Sem permissão para editar pessoas' }, { status: 403 })
+  }
   const { empresa_id } = usuario
 
   if (!(await podeAcessarPessoa(usuario, params.id))) {
