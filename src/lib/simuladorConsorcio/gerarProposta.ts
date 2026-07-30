@@ -42,6 +42,15 @@ function fitInBox(nW: number, nH: number, maxW: number, maxH: number): [number, 
   return [w, h]
 }
 
+// Reduz o tamanho da fonte até o texto caber na largura disponível (com
+// margem), sem nunca passar de tamanhoMax nem ficar ilegível abaixo de 4pt.
+function ajustarFontePraCaber(doc: Doc, texto: string, larguraDisponivel: number, tamanhoMax: number): number {
+  doc.setFontSize(tamanhoMax)
+  const largura = doc.getTextWidth(texto)
+  if (largura <= larguraDisponivel) return tamanhoMax
+  return Math.max(4, tamanhoMax * (larguraDisponivel / largura))
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
@@ -254,29 +263,47 @@ function desenharDetalhada(doc: Doc, assets: Assets, resultado: ResultadoConsorc
   const rowH = (tableH - thH) / rowsPerCol
   const blocoW = usableW / colunas
 
+  // "Parcela" é só um número de mês (1-220 no máximo), enquanto "Mensal" e
+  // "Anual" são valores em reais bem mais largos (ex.: "R$ 14.845,09") — thirds
+  // iguais sobravam espaço na primeira coluna e apertavam demais as outras
+  // duas, estourando o texto pra fora da célula.
+  const fracoesCol = [0.24, 0.38, 0.38]
+  const subColWs = fracoesCol.map((f) => f * blocoW)
+  const subColXs = [0, subColWs[0], subColWs[0] + subColWs[1]]
+
+  // Tamanho de fonte único pra toda a tabela, calculado a partir do valor
+  // mais largo que vai aparecer (mensal ou anual) — garante que nada
+  // transborda mesmo no pior caso, em vez de um tamanho fixo "no chute".
+  const valorMaisLargo = resultado.linhas.reduce((maior, l) => {
+    const candidatos = [BRL.format(l.parcela ?? 0), BRL.format(l.parcelaAno ?? 0), maior]
+    return candidatos.reduce((a, b) => (b.length > a.length ? b : a))
+  }, '')
+  const larguraColValor = Math.min(subColWs[1], subColWs[2]) - 2
+  const fonteDados = ajustarFontePraCaber(doc, valorMaisLargo, larguraColValor, Math.min(6, rowH * 1.8))
+  const fonteHeader = Math.min(6, thH * 1.3, fonteDados + 0.5)
+
   for (let b = 0; b < colunas; b++) {
     const bx = mL + b * blocoW
     // Sem coluna "Mês" — era idêntica à "Parcela" (parcela = mês nesse
     // modelo, não há numeração própria), só ocupava espaço e apertava as
     // colunas de valor até sobrepor o texto.
-    const subColW = blocoW / 3
     setFill(doc, COR_VERDE)
     doc.rect(bx, tableTop, blocoW, thH, 'F')
-    doc.setFontSize(Math.min(6, thH * 1.3)); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+    doc.setFontSize(fonteHeader); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
     ;['Parcela', 'Mensal', 'Anual'].forEach((h, i) => {
-      doc.text(h, bx + i * subColW + subColW / 2, tableTop + thH / 2 + 1, { align: 'center' })
+      doc.text(h, bx + subColXs[i] + subColWs[i] / 2, tableTop + thH / 2 + 1, { align: 'center' })
     })
 
     const inicio = b * rowsPerCol
     const fim = Math.min(inicio + rowsPerCol, totalParcelas)
-    doc.setFontSize(Math.min(6, rowH * 1.8))
+    doc.setFontSize(fonteDados)
     for (let i = inicio; i < fim; i++) {
       const l = resultado.linhas[i]
       const ry = tableTop + thH + (i - inicio) * rowH
       if ((i - inicio) % 2 === 0) { setFill(doc, '#F8F8F5'); doc.rect(bx, ry, blocoW, rowH, 'F') }
       doc.setFont('helvetica', 'normal'); setTxt(doc, '#333333')
       const vals = [String(l.mes), BRL.format(l.parcela ?? 0), BRL.format(l.parcelaAno ?? 0)]
-      vals.forEach((v, ci) => doc.text(v, bx + ci * subColW + subColW / 2, ry + rowH / 2 + 1, { align: 'center' }))
+      vals.forEach((v, ci) => doc.text(v, bx + subColXs[ci] + subColWs[ci] / 2, ry + rowH / 2 + 1, { align: 'center' }))
     }
     setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
     doc.rect(bx, tableTop, blocoW, thH + rowsPerCol * rowH, 'S')
