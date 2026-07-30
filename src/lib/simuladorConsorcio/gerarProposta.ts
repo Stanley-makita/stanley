@@ -163,7 +163,7 @@ function itensPrincipais(resultado: ResultadoConsorcio, incluirContemplacao: boo
     ['Prazo em anos', String(comparativo.prazoEmAnos)],
     ['Prazo em meses', String(input.prazoMeses)],
     ['CET a.a', PCT2(comparativo.cetAnual)],
-    ['Valor da carta', BRL.format(input.valorCarta)],
+    ['Valor da Proposta', BRL.format(input.valorCarta)],
     // Valor líquido de crédito que a pessoa efetivamente recebe (carta menos
     // lance embutido) — faltava na proposta, cliente via só o valor bruto da carta.
     ['Valor Líquido', BRL.format(resumo.valorLiquido)],

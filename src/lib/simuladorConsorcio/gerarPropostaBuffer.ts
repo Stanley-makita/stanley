@@ -127,7 +127,7 @@ function itensPrincipais(resultado: ResultadoConsorcio, incluirContemplacao: boo
     ['Prazo em anos', String(comparativo.prazoEmAnos)],
     ['Prazo em meses', String(input.prazoMeses)],
     ['CET a.a', PCT2(comparativo.cetAnual)],
-    ['Valor da carta', BRL.format(input.valorCarta)],
+    ['Valor da Proposta', BRL.format(input.valorCarta)],
     ['Valor Liquido', BRL.format(resumo.valorLiquido)],
   ]
   if (incluirContemplacao && input.prazoEstimadoContemplacao?.trim()) {
