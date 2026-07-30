@@ -10,6 +10,7 @@ const CORES: Record<UsuarioPerfil, string> = {
   operacional: 'bg-orange-100 text-orange-800',
   juridico:    'bg-purple-100 text-purple-800',
   apoio:       'bg-gray-100 text-gray-700',
+  assistente:  'bg-amber-100 text-amber-800',
   consultor:   'bg-gray-100 text-gray-700',
   cliente:     'bg-purple-100 text-purple-800',
 }
@@ -23,6 +24,7 @@ const LABELS: Record<UsuarioPerfil, string> = {
   operacional: 'Operacional',
   juridico:    'Jurídico',
   apoio:       'Apoio',
+  assistente:  'Assistente',
   consultor:   'Consultor',
   cliente:     'Cliente',
 }

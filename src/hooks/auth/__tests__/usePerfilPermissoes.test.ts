@@ -58,9 +58,14 @@ describe('resolverPermissao', () => {
       expect(resolverPermissao('apoio', 'pessoas.editar', overrides)).toBe(false)
     })
 
-    it('ignora um override "fantasma" negando rh.ver a um perfil que tem no padrão', () => {
-      const overrides = construirMapaOverrides([{ perfil: 'gestor', acao: 'rh.ver', permitido: false }])
-      expect(resolverPermissao('gestor', 'rh.ver', overrides)).toBe(true)
+    it('ignora um override "fantasma" negando rh.editar a um perfil que tem no padrão (admin)', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'admin', acao: 'rh.editar', permitido: false }])
+      expect(resolverPermissao('admin', 'rh.editar', overrides)).toBe(true)
+    })
+
+    it('rh.ver agora é configurável — um override concedendo a um perfil sem o padrão prevalece', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'rh.ver', permitido: true }])
+      expect(resolverPermissao('comercial', 'rh.ver', overrides)).toBe(true)
     })
 
     it('ignora override em processos.criar — sempre reflete a matriz estática', () => {

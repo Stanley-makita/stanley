@@ -43,7 +43,7 @@ describe('ACOES_NAO_CONFIGURAVEIS', () => {
   it('inclui as ações com regra fixa no servidor (alinhamento RLS/API desta branch)', () => {
     for (const acao of [
       'pessoas.ver', 'pessoas.editar', 'pessoas.merge', 'pessoas.excluir',
-      'rh.ver', 'rh.editar',
+      'rh.editar',
       'processos.criar', 'processos.editar',
       'leads.criar',
       'biblioteca.publicar', 'biblioteca.excluir',
@@ -54,8 +54,8 @@ describe('ACOES_NAO_CONFIGURAVEIS', () => {
     }
   })
 
-  it('não inclui ações que continuam configuráveis (ex.: leads.ver, processos.ver, biblioteca.ver)', () => {
-    for (const acao of ['leads.ver', 'processos.ver', 'biblioteca.ver'] as const) {
+  it('não inclui ações que continuam configuráveis (ex.: leads.ver, processos.ver, biblioteca.ver, rh.ver)', () => {
+    for (const acao of ['leads.ver', 'processos.ver', 'biblioteca.ver', 'rh.ver'] as const) {
       expect(ACOES_NAO_CONFIGURAVEIS.has(acao)).toBe(false)
     }
   })

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const body = await request.json()
-  const { nome, email, senha, perfil, funcao, ativo = true } = body
+  const { nome, email, senha, perfil, funcao, cargo_id, ativo = true } = body
 
   if (!nome?.trim() || !email?.trim() || !senha?.trim() || !perfil) {
     return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 })
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         nome: nome.trim(),
         perfil,
         funcao: funcao ?? null,
+        cargo_id: cargo_id ?? null,
         ativo,
       })
       .eq('id', existente.id)
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
       email: email.trim().toLowerCase(),
       perfil,
       funcao: funcao ?? null,
+      cargo_id: cargo_id ?? null,
       ativo,
     })
     .select()

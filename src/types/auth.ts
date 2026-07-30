@@ -1,6 +1,6 @@
 export type UsuarioPerfil =
   | 'admin' | 'gerente' | 'analista' | 'consultor' | 'cliente'
-  | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio'
+  | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'assistente'
 
 export interface Usuario {
   id: string
@@ -9,6 +9,7 @@ export interface Usuario {
   nome: string
   email: string
   perfil: UsuarioPerfil
+  cargo_id: string | null
   ativo: boolean
   notificar_leads_aprovados_pendentes: boolean
   ultimo_acesso: string | null

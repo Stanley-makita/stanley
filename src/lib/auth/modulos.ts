@@ -105,7 +105,7 @@ export const MODULOS: ModuloDef[] = [
   {
     key: 'rh', label: 'RH', rotas: ['/rh'], acaoVer: 'rh.ver',
     acoes: [
-      { acao: 'rh.ver', label: 'Ver', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'rh.ver', label: 'Ver', tipoControle: 'ui' },
       { acao: 'rh.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_SOMENTE_ADMIN, tipoControle: 'servidor' },
     ],
   },

@@ -6,9 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, KeyRound } from 'lucide-react'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from '@/components/ui/sheet'
-import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -21,24 +18,24 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useCriarUsuario, useAtualizarUsuario, useResetSenha } from '../../_hooks/useUsuarios'
-import {
-  PERFIS_ATIVOS, PERFIL_LABELS, FUNCOES, FUNCAO_LABELS,
-} from '@/types/configuracoes'
+import { useCargos } from '@/hooks/rh/useCargos'
+import { PERFIS_ATIVOS, PERFIL_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioPerfil } from '@/types/configuracoes'
 
 const schemaCriar = z.object({
-  nome:   z.string().min(2, 'Informe o nome completo'),
-  email:  z.string().email('E-mail inválido'),
-  senha:  z.string().min(6, 'Senha deve ter ao menos 6 caracteres'),
-  perfil: z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
-  funcao: z.string().min(1, 'Selecione a função'),
-  ativo:  z.boolean(),
+  nome:     z.string().min(2, 'Informe o nome completo'),
+  email:    z.string().email('E-mail inválido'),
+  senha:    z.string().min(6, 'Senha deve ter ao menos 6 caracteres'),
+  perfil:   z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
+  cargo_id: z.string().optional(),
+  ativo:    z.boolean(),
 })
 
 const schemaEditar = z.object({
   nome:               z.string().min(2, 'Informe o nome completo'),
+  email:              z.string().email('E-mail inválido'),
   perfil:             z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
-  funcao:             z.string().min(1, 'Selecione a função'),
+  cargo_id:           z.string().optional(),
   ativo:              z.boolean(),
   telefone_whatsapp:  z.string().optional(),
 })
@@ -58,6 +55,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const criarUsuario    = useCriarUsuario()
   const atualizarUsuario = useAtualizarUsuario()
   const resetSenha      = useResetSenha()
+  const { data: cargos = [] } = useCargos()
 
   const [mostrarSenha, setMostrarSenha]   = useState(false)
   const [modalReset, setModalReset]       = useState(false)
@@ -67,12 +65,12 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const form = useForm<FormCriar>({
     resolver: zodResolver(modoEdicao ? schemaEditar : schemaCriar) as never,
     defaultValues: {
-      nome:   '',
-      email:  '',
-      senha:  '',
-      perfil: 'comercial' as UsuarioPerfil,
-      funcao: 'comercial',
-      ativo:  true,
+      nome:     '',
+      email:    '',
+      senha:    '',
+      perfil:   'comercial' as UsuarioPerfil,
+      cargo_id: '',
+      ativo:    true,
     },
   })
 
@@ -81,19 +79,20 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
       if (usuario) {
         form.reset({
           nome:              usuario.nome,
+          email:             usuario.email,
           perfil:            PERFIS_ATIVOS.includes(usuario.perfil) ? usuario.perfil : 'comercial' as UsuarioPerfil,
-          funcao:            usuario.funcao ?? 'comercial',
+          cargo_id:          usuario.cargo_id ?? '',
           ativo:             usuario.ativo,
           telefone_whatsapp: (usuario as unknown as { telefone_whatsapp?: string }).telefone_whatsapp ?? '',
         } as unknown as FormCriar)
       } else {
         form.reset({
-          nome:   '',
-          email:  '',
-          senha:  '',
-          perfil: 'comercial' as UsuarioPerfil,
-          funcao: 'comercial',
-          ativo:  true,
+          nome:     '',
+          email:    '',
+          senha:    '',
+          perfil:   'comercial' as UsuarioPerfil,
+          cargo_id: '',
+          ativo:    true,
         })
       }
       setMostrarSenha(false)
@@ -101,25 +100,30 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   }, [aberto]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onSubmit(data: FormCriar) {
+    const cargoSelecionado = cargos.find((c) => c.id === data.cargo_id)
+    const funcao = cargoSelecionado?.nome ?? null
     try {
       if (modoEdicao) {
         await atualizarUsuario.mutateAsync({
           id:               usuario!.id,
           nome:             data.nome,
+          email:            data.email,
           perfil:           data.perfil,
-          funcao:           data.funcao,
+          funcao,
+          cargo_id:         data.cargo_id || null,
           ativo:            data.ativo,
           telefone_whatsapp: (data as unknown as { telefone_whatsapp?: string }).telefone_whatsapp?.trim() || null,
         })
         toast.success('Usuário atualizado')
       } else {
         await criarUsuario.mutateAsync({
-          nome:   data.nome,
-          email:  data.email,
-          senha:  data.senha,
-          perfil: data.perfil,
-          funcao: data.funcao,
-          ativo:  data.ativo,
+          nome:     data.nome,
+          email:    data.email,
+          senha:    data.senha,
+          perfil:   data.perfil,
+          funcao,
+          cargo_id: data.cargo_id || null,
+          ativo:    data.ativo,
         })
         toast.success('Usuário criado com sucesso')
       }
@@ -144,16 +148,16 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
 
   return (
     <>
-      <Sheet open={aberto} onOpenChange={onFechar}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="text-fonti-primary">
+      <Dialog open={aberto} onOpenChange={onFechar}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">
               {modoEdicao ? 'Editar usuário' : 'Novo usuário'}
-            </SheetTitle>
-          </SheetHeader>
+            </DialogTitle>
+          </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-2 space-y-4">
               <FormField control={form.control} name="nome" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome completo</FormLabel>
@@ -162,40 +166,38 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                 </FormItem>
               )} />
 
-              {!modoEdicao && (
-                <>
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>E-mail</FormLabel>
-                      <FormControl><Input type="email" placeholder="usuario@empresa.com" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+              <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>E-mail</FormLabel>
+                  <FormControl><Input type="email" placeholder="usuario@empresa.com" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-                  <FormField control={form.control} name="senha" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha provisória</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={mostrarSenha ? 'text' : 'password'}
-                            placeholder="Mínimo 6 caracteres"
-                            {...field}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setMostrarSenha((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            tabIndex={-1}
-                          >
-                            {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </>
+              {!modoEdicao && (
+                <FormField control={form.control} name="senha" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Senha provisória</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={mostrarSenha ? 'text' : 'password'}
+                          placeholder="Mínimo 6 caracteres"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarSenha((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          tabIndex={-1}
+                        >
+                          {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               )}
 
               <div className="grid grid-cols-2 gap-3">
@@ -216,19 +218,22 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                   </FormItem>
                 )} />
 
-                <FormField control={form.control} name="funcao" render={({ field }) => (
+                <FormField control={form.control} name={'cargo_id' as 'perfil'} render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Função</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormLabel>Função <span className="text-gray-400 font-normal text-xs">(cargo do RH)</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value as string}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {FUNCOES.map((f) => (
-                          <SelectItem key={f} value={f}>{FUNCAO_LABELS[f]}</SelectItem>
+                        {cargos.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {cargos.length === 0 && (
+                      <p className="text-xs text-gray-400">Nenhum cargo cadastrado em RH &gt; Cargos ainda.</p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -309,8 +314,8 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
               </div>
             </form>
           </Form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modalReset} onOpenChange={setModalReset}>
         <DialogContent className="sm:max-w-sm">

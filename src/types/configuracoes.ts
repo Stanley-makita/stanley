@@ -19,7 +19,7 @@ export type Produto = Database['public']['Tables']['produtos']['Row']
 export type ProdutoInsert = Database['public']['Tables']['produtos']['Insert']
 
 export const PERFIS_ATIVOS: UsuarioPerfil[] = [
-  'admin', 'gestor', 'comercial', 'operacional', 'juridico', 'apoio',
+  'admin', 'gestor', 'comercial', 'operacional', 'juridico', 'apoio', 'assistente',
 ]
 
 export const PERFIL_LABELS: Record<UsuarioPerfil, string> = {
@@ -29,6 +29,7 @@ export const PERFIL_LABELS: Record<UsuarioPerfil, string> = {
   operacional: 'Operacional',
   juridico:    'Jurídico',
   apoio:       'Apoio',
+  assistente:  'Assistente',
   // legado
   gerente:     'Gerente',
   analista:    'Analista',
@@ -43,6 +44,7 @@ export const PERFIL_CORES: Record<UsuarioPerfil, string> = {
   operacional: 'bg-indigo-100 text-indigo-800',
   juridico:    'bg-purple-100 text-purple-800',
   apoio:       'bg-teal-100 text-teal-800',
+  assistente:  'bg-amber-100 text-amber-800',
   // legado
   gerente:     'bg-fonti-accent text-fonti-primary',
   analista:    'bg-blue-100 text-blue-800',
@@ -50,6 +52,12 @@ export const PERFIL_CORES: Record<UsuarioPerfil, string> = {
   cliente:     'bg-gray-100 text-gray-700',
 }
 
+/**
+ * @deprecated Lista fixa antiga do dropdown "Função" — substituída pelos
+ * cargos reais cadastrados em RH > Cargos (rh_cargos, via useCargos()).
+ * Mantida só como fallback de rótulo para valores de usuarios.funcao
+ * gravados antes dessa mudança e que não têm um rh_cargos.nome correspondente.
+ */
 export const FUNCOES = [
   'comercial',
   'operacional',

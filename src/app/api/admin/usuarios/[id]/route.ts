@@ -22,17 +22,41 @@ export async function PUT(
   if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const body = await request.json()
-  const { nome, perfil, funcao, ativo, telefone_whatsapp } = body
+  const { nome, perfil, funcao, cargo_id, ativo, telefone_whatsapp, email } = body
 
   // Busca o usuário alvo para verificar guards de segurança
   const { data: alvo } = await supabase
     .from('usuarios')
-    .select('id, perfil, ativo, email')
+    .select('id, perfil, ativo, email, auth_user_id')
     .eq('id', params.id)
     .eq('empresa_id', admin.empresa_id)
     .single()
 
   if (!alvo) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+
+  // Troca de e-mail: precisa atualizar tanto o Auth (login) quanto a tabela
+  // usuarios, senão os dois ficam dessincronizados (login continua no antigo).
+  const emailNormalizado = typeof email === 'string' ? email.trim().toLowerCase() : undefined
+  if (emailNormalizado !== undefined && emailNormalizado !== alvo.email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+      return NextResponse.json({ error: 'E-mail inválido' }, { status: 400 })
+    }
+    if (!alvo.auth_user_id) {
+      return NextResponse.json({ error: 'Usuário sem login vinculado — não é possível trocar o e-mail.' }, { status: 400 })
+    }
+    const { error: authUpdateError } = await supabase.auth.admin.updateUserById(alvo.auth_user_id, {
+      email: emailNormalizado,
+      email_confirm: true,
+    })
+    if (authUpdateError) {
+      const jaEmUso = authUpdateError.message.toLowerCase().includes('already been registered')
+        || authUpdateError.message.toLowerCase().includes('already registered')
+      return NextResponse.json(
+        { error: jaEmUso ? 'Este e-mail já está em uso' : authUpdateError.message },
+        { status: jaEmUso ? 409 : 400 }
+      )
+    }
+  }
 
   // Guard: impede desativar o próprio usuário admin logado
   const { data: adminAtual } = await supabase
@@ -63,8 +87,10 @@ export async function PUT(
   if (nome               !== undefined) update.nome               = nome?.trim() || undefined
   if (perfil             !== undefined) update.perfil             = perfil
   if (funcao             !== undefined) update.funcao             = funcao ?? null
+  if (cargo_id           !== undefined) update.cargo_id           = cargo_id ?? null
   if (ativo              !== undefined) update.ativo              = ativo
   if (telefone_whatsapp  !== undefined) update.telefone_whatsapp  = telefone_whatsapp?.trim() || null
+  if (emailNormalizado   !== undefined && emailNormalizado !== alvo.email) update.email = emailNormalizado
 
   const { data, error } = await supabase
     .from('usuarios')
