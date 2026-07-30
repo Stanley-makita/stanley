@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { format, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle, List, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAgendaTarefas } from '@/hooks/useAgendaTarefas'
@@ -13,6 +13,7 @@ import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useConcluirTarefa } from '@/hooks/useConcluirTarefa'
 import { useSolicitacoesFila } from '@/hooks/solicitacoes/useSolicitacoesFila'
 import { CalendarioMensal } from '@/components/agenda/CalendarioMensal'
+import { CalendarioMensalCompleto } from '@/components/agenda/CalendarioMensalCompleto'
 import { ListaAgenda, type FiltroPeriodo } from '@/components/agenda/ListaAgenda'
 import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
 import { PrioridadeTarefa } from '@/types/agenda'
@@ -50,6 +51,7 @@ export default function AgendaPage() {
   const isOperacional = usuario?.perfil === 'operacional'
 
   const [mes, setMes] = useState(new Date())
+  const [visualizacao, setVisualizacao] = useState<'lista' | 'mes'>('lista')
   const [diaSelecionado, setDiaSelecionado] = useState<Date | null>(null)
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>(
     podeVerTodos ? 'todos' : (usuario?.id ?? 'todos')
@@ -101,30 +103,109 @@ export default function AgendaPage() {
           <p className="text-sm text-gray-500 mt-0.5">Tarefas de todos os processos</p>
         </div>
 
-        {podeVerTodos && (
-          <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-            <SelectTrigger className="h-9 w-full text-sm md:w-48">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Toda a equipe</SelectItem>
-              {membros.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Toggle Lista / Mês */}
+          <div className="flex items-center rounded-lg border p-0.5 bg-gray-50 shrink-0">
+            <button
+              onClick={() => setVisualizacao('lista')}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                visualizacao === 'lista' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <List className="w-3.5 h-3.5" />
+              Lista
+            </button>
+            <button
+              onClick={() => setVisualizacao('mes')}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+                visualizacao === 'mes' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Mês
+            </button>
+          </div>
+
+          {podeVerTodos && (
+            <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
+              <SelectTrigger className="h-9 w-full text-sm md:w-48">
+                <SelectValue placeholder="Responsável" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Toda a equipe</SelectItem>
+                {membros.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
-      {/* Layout 2 colunas — calendário + lista */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
-        {/* Coluna esquerda — Calendário */}
-        <div className="h-fit space-y-3 rounded-lg border bg-white p-3 sm:p-4">
-          <div className="flex items-center justify-between">
+      {visualizacao === 'lista' ? (
+        /* Layout 2 colunas — calendário + lista */
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
+          {/* Coluna esquerda — Calendário */}
+          <div className="h-fit space-y-3 rounded-lg border bg-white p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(subMonths(mes, 1))}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-semibold text-fonti-primary capitalize">
+                {format(mes, 'MMMM yyyy', { locale: ptBR })}
+              </span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(addMonths(mes, 1))}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <CalendarioMensal
+              mes={mes}
+              tarefas={tarefas}
+              diaSelecionado={diaSelecionado}
+              onDiaClick={handleDiaClick}
+            />
+
+            {diaSelecionado && (
+              <button
+                onClick={() => setDiaSelecionado(null)}
+                className="w-full text-xs text-center text-gray-400 hover:text-gray-600"
+              >
+                Limpar seleção
+              </button>
+            )}
+          </div>
+
+          {/* Coluna direita — Lista */}
+          <div className="rounded-lg border bg-white p-3 sm:p-4">
+            {isLoading ? (
+              <div className="py-12 text-center text-gray-400">Carregando...</div>
+            ) : (
+              <ListaAgenda
+                tarefas={tarefas}
+                diaSelecionado={diaSelecionado}
+                filtroStatus={filtroStatus}
+                filtroPrioridade={filtroPrioridade}
+                filtroPeriodo={filtroPeriodo}
+                onFiltroStatusChange={setFiltroStatus}
+                onFiltroPrioridadeChange={setFiltroPrioridade}
+                onFiltroPeriodoChange={setFiltroPeriodo}
+                onToggle={handleToggle}
+                onDetalhes={(id, fonte) => setTarefaAberta({ id, fonte })}
+              />
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Visão de calendário mensal completo */
+        <div className="space-y-3">
+          <div className="flex items-center justify-center gap-3">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(subMonths(mes, 1))}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-sm font-semibold text-fonti-primary capitalize">
+            <span className="text-sm font-semibold text-fonti-primary capitalize min-w-[140px] text-center">
               {format(mes, 'MMMM yyyy', { locale: ptBR })}
             </span>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMes(addMonths(mes, 1))}>
@@ -132,43 +213,17 @@ export default function AgendaPage() {
             </Button>
           </div>
 
-          <CalendarioMensal
-            mes={mes}
-            tarefas={tarefas}
-            diaSelecionado={diaSelecionado}
-            onDiaClick={handleDiaClick}
-          />
-
-          {diaSelecionado && (
-            <button
-              onClick={() => setDiaSelecionado(null)}
-              className="w-full text-xs text-center text-gray-400 hover:text-gray-600"
-            >
-              Limpar seleção
-            </button>
-          )}
-        </div>
-
-        {/* Coluna direita — Lista */}
-        <div className="rounded-lg border bg-white p-3 sm:p-4">
           {isLoading ? (
             <div className="py-12 text-center text-gray-400">Carregando...</div>
           ) : (
-            <ListaAgenda
+            <CalendarioMensalCompleto
+              mes={mes}
               tarefas={tarefas}
-              diaSelecionado={diaSelecionado}
-              filtroStatus={filtroStatus}
-              filtroPrioridade={filtroPrioridade}
-              filtroPeriodo={filtroPeriodo}
-              onFiltroStatusChange={setFiltroStatus}
-              onFiltroPrioridadeChange={setFiltroPrioridade}
-              onFiltroPeriodoChange={setFiltroPeriodo}
-              onToggle={handleToggle}
-              onDetalhes={(id, fonte) => setTarefaAberta({ id, fonte })}
+              onTarefaClick={(id, fonte) => setTarefaAberta({ id, fonte })}
             />
           )}
         </div>
-      </div>
+      )}
 
       {tarefaAberta && (
         <TarefaDetalheModal

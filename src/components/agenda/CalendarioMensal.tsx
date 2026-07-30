@@ -2,7 +2,7 @@
 
 import {
   startOfMonth, endOfMonth, eachDayOfInterval, getDay,
-  isSameDay, isSameMonth, isToday, isBefore, format,
+  isSameDay, isSameMonth, isToday, isBefore, format, parseISO,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { TarefaAgenda } from '@/types/agenda'
@@ -26,14 +26,18 @@ export function CalendarioMensal({ mes, tarefas, diaSelecionado, onDiaClick }: C
   const offsetInicio = getDay(inicio)
   const celulasVazias = Array.from({ length: offsetInicio })
 
+  // parseISO (não new Date) — tarefa_vencimento é uma data sem hora
+  // ("2026-07-18"); new Date() interpretaria como UTC meia-noite, que em
+  // fusos negativos (Brasília, UTC-3) vira o dia anterior às 21h local,
+  // fazendo o pontinho aparecer um dia adiantado no dia errado.
   function tarefasDoDia(dia: Date): TarefaAgenda[] {
     return tarefas.filter(
-      (t) => t.tarefa_vencimento && isSameDay(new Date(t.tarefa_vencimento), dia)
+      (t) => t.tarefa_vencimento && isSameDay(parseISO(t.tarefa_vencimento), dia)
     )
   }
 
   function temVencida(dia: Date): boolean {
-    return tarefasDoDia(dia).some((t) => !t.concluida && isBefore(new Date(t.tarefa_vencimento!), new Date()))
+    return tarefasDoDia(dia).some((t) => !t.concluida && isBefore(parseISO(t.tarefa_vencimento!), new Date()))
   }
 
   return (
