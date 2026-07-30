@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { resolverPermissao, construirMapaOverrides, type OverrideRow } from '../permissaoResolver'
+import {
+  resolverPermissao, construirMapaOverrides, construirMapaOverridesUsuario,
+  type OverrideRow, type UsuarioOverrideRow,
+} from '../permissaoResolver'
 
 describe('resolverPermissao', () => {
   it('admin sempre retorna true, mesmo com override tentando negar', () => {
@@ -78,6 +81,65 @@ describe('resolverPermissao', () => {
       expect(resolverPermissao('apoio', 'leads.criar', overrides)).toBe(false)
       expect(resolverPermissao('comercial', 'leads.criar', construirMapaOverrides([]))).toBe(true)
     })
+  })
+})
+
+describe('resolverPermissao — precedência exceção individual → perfil → padrão', () => {
+  it('sem overrides de nenhum tipo, cai no padrão (leads.ver_todas: comercial=false, gestor=true)', () => {
+    expect(resolverPermissao('comercial', 'leads.ver_todas', construirMapaOverrides([]))).toBe(false)
+    expect(resolverPermissao('gestor', 'leads.ver_todas', construirMapaOverrides([]))).toBe(true)
+  })
+
+  it('override de perfil prevalece sobre o padrão quando não há exceção individual', () => {
+    const overridesPerfil = construirMapaOverrides([{ perfil: 'comercial', acao: 'leads.ver_todas', permitido: true }])
+    expect(resolverPermissao('comercial', 'leads.ver_todas', overridesPerfil)).toBe(true)
+  })
+
+  it('exceção individual prevalece sobre o override de perfil (amplia acesso)', () => {
+    // perfil "assistente" não tem leads.ver_todas restrito por override de empresa,
+    // mas mesmo que tivesse, a exceção individual haveria de vencer.
+    const overridesPerfil = construirMapaOverrides([{ perfil: 'assistente', acao: 'leads.ver_todas', permitido: false }])
+    const overridesUsuario = construirMapaOverridesUsuario([{ acao: 'leads.ver_todas', permitido: true }])
+    expect(resolverPermissao('assistente', 'leads.ver_todas', overridesPerfil, overridesUsuario)).toBe(true)
+  })
+
+  it('exceção individual prevalece sobre o override de perfil (restringe acesso)', () => {
+    const overridesPerfil = construirMapaOverrides([{ perfil: 'gestor', acao: 'leads.ver_todas', permitido: true }])
+    const overridesUsuario = construirMapaOverridesUsuario([{ acao: 'leads.ver_todas', permitido: false }])
+    expect(resolverPermissao('gestor', 'leads.ver_todas', overridesPerfil, overridesUsuario)).toBe(false)
+  })
+
+  it('exceção individual de uma ação não vaza pra outra ação do mesmo usuário', () => {
+    const overridesUsuario = construirMapaOverridesUsuario([{ acao: 'leads.ver_todas', permitido: true }])
+    expect(resolverPermissao('comercial', 'leads.redistribuir', construirMapaOverrides([]), overridesUsuario)).toBe(true) // padrão: comercial já tem leads.redistribuir
+    expect(resolverPermissao('operacional', 'leads.redistribuir', construirMapaOverrides([]), overridesUsuario)).toBe(false) // sem override nem padrão
+  })
+
+  it('admin sempre true mesmo com exceção individual tentando negar', () => {
+    const overridesUsuario = construirMapaOverridesUsuario([{ acao: 'leads.ver_todas', permitido: false }])
+    expect(resolverPermissao('admin', 'leads.ver_todas', construirMapaOverrides([]), overridesUsuario)).toBe(true)
+  })
+
+  it('sem overridesUsuario (parâmetro omitido) continua funcionando como antes — compatibilidade com os call sites que só resolvem por perfil', () => {
+    const overridesPerfil = construirMapaOverrides([{ perfil: 'comercial', acao: 'leads.ver_todas', permitido: true }])
+    expect(resolverPermissao('comercial', 'leads.ver_todas', overridesPerfil)).toBe(true)
+  })
+})
+
+describe('construirMapaOverridesUsuario', () => {
+  it('monta o mapa só com a chave ação (já escopado a um usuário)', () => {
+    const rows: UsuarioOverrideRow[] = [
+      { acao: 'leads.ver_todas', permitido: true },
+      { acao: 'leads.redistribuir', permitido: false },
+    ]
+    const mapa = construirMapaOverridesUsuario(rows)
+    expect(mapa.get('leads.ver_todas')).toBe(true)
+    expect(mapa.get('leads.redistribuir')).toBe(false)
+    expect(mapa.size).toBe(2)
+  })
+
+  it('lista vazia gera mapa vazio', () => {
+    expect(construirMapaOverridesUsuario([]).size).toBe(0)
   })
 })
 

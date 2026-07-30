@@ -54,8 +54,10 @@ describe('ACOES_NAO_CONFIGURAVEIS', () => {
     }
   })
 
-  it('não inclui ações que continuam configuráveis (ex.: leads.ver, processos.ver, biblioteca.ver, rh.ver)', () => {
-    for (const acao of ['leads.ver', 'processos.ver', 'biblioteca.ver', 'rh.ver'] as const) {
+  it('não inclui ações que continuam configuráveis (ex.: leads.ver, processos.ver, biblioteca.ver, rh.ver, leads.ver_todas, leads.redistribuir)', () => {
+    for (const acao of [
+      'leads.ver', 'processos.ver', 'biblioteca.ver', 'rh.ver', 'leads.ver_todas', 'leads.redistribuir',
+    ] as const) {
       expect(ACOES_NAO_CONFIGURAVEIS.has(acao)).toBe(false)
     }
   })

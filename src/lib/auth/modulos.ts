@@ -8,9 +8,13 @@ export interface AcaoModuloDef {
   /** exibido junto ao checkbox quando configuravel=false */
   motivoBloqueio?: string
   /**
-   * Só para documentação/evolução futura — não gera nenhuma regra nova nesta entrega:
+   * Documentação de onde a regra é aplicada de fato:
    * 'ui'       — controlado só pela interface (Sidebar/RouteGuard/botões) nesta versão.
-   * 'servidor' — autorização fixa em API ou RLS, não alcançada pela configuração ainda.
+   * 'servidor' — autorização em API ou RLS. Na maioria dos casos é fixa, não
+   *              alcançada pela configuração (configuravel: false) — exceção:
+   *              leads.ver_todas/leads.redistribuir, onde a própria RLS/trigger
+   *              consulta usuario_atual_pode() (SQL), então a configuração
+   *              feita aqui chega de verdade até o banco.
    * 'misto'    — tem controle visual e também uma regra própria no servidor, que pode divergir.
    */
   tipoControle?: 'ui' | 'servidor' | 'misto'
@@ -43,6 +47,8 @@ export const MODULOS: ModuloDef[] = [
       { acao: 'leads.criar', label: 'Criar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
       { acao: 'leads.editar', label: 'Editar', tipoControle: 'ui' },
       { acao: 'leads.excluir', label: 'Excluir', tipoControle: 'ui' },
+      { acao: 'leads.ver_todas', label: 'Ver todos os leads', tipoControle: 'servidor' },
+      { acao: 'leads.redistribuir', label: 'Redistribuir leads', tipoControle: 'servidor' },
     ],
   },
   {
