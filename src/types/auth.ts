@@ -40,6 +40,7 @@ export interface SessaoUsuario {
 
 export type Acao =
   | 'leads.ver' | 'leads.criar' | 'leads.editar' | 'leads.excluir'
+  | 'leads.ver_todas' | 'leads.redistribuir'
   | 'processos.ver' | 'processos.criar' | 'processos.editar'
   | 'financeiro.ver' | 'financeiro.editar'
   | 'rh.ver' | 'rh.editar'

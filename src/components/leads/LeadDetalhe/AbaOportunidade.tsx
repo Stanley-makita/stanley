@@ -19,6 +19,7 @@ import { Search } from 'lucide-react'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
+import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
 import { type Lead } from '@/types/leads'
 import { Loader2 } from 'lucide-react'
@@ -106,6 +107,8 @@ interface Props {
 
 export function AbaOportunidade({ lead }: Props) {
   const editarLead = useEditarLead()
+  const { pode } = usePermissao()
+  const podeRedistribuir = pode('leads.redistribuir')
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
   const { data: checklistItens = [] } = useLeadChecklist(lead.id, lead.fase_id)
@@ -192,7 +195,7 @@ export function AbaOportunidade({ lead }: Props) {
             <FormField control={form.control} name="responsavel_id" render={({ field }) => (
               <FormItem>
                 <FormLabel>Comercial <Opc /></FormLabel>
-                <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={!podeRedistribuir}>
                   <FormControl>
                     <SelectTrigger><SelectValue placeholder="Sem responsável" /></SelectTrigger>
                   </FormControl>
@@ -202,6 +205,9 @@ export function AbaOportunidade({ lead }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
+                {!podeRedistribuir && (
+                  <p className="text-xs text-gray-400">Você não tem permissão para redistribuir este lead.</p>
+                )}
                 <FormMessage />
               </FormItem>
             )} />

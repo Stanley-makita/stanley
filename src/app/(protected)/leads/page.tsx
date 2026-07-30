@@ -7,7 +7,6 @@ import { LeadModal } from '@/components/leads/LeadModal'
 import { LeadListView } from '@/components/leads/LeadListView'
 import { DashboardLeads } from '@/components/leads/DashboardLeads'
 import { usePermissao } from '@/hooks/auth/usePermissao'
-import { useAuth } from '@/hooks/auth/useAuth'
 import { useComerciaisAtivos } from '@/hooks/leads/useLeads'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,13 +28,14 @@ const VISOES_LEADS = [
 
 function LeadsContent() {
   const { pode } = usePermissao()
-  const { usuario } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  // Mesma regra da RLS de leads (migration 20260724_186): todo perfil que
-  // não seja comercial tem visão total e pode filtrar por carteira.
-  const podeVerCarteira = usuario?.perfil !== 'comercial'
+  // Espelha a permissão leads.ver_todas, que também controla a RLS de SELECT
+  // de leads (migrations 20260730_216/217) — mesma regra dos dois lados,
+  // agora configurável em Perfis de Acesso e por exceção individual, não
+  // mais hardcoded em perfil.
+  const podeVerCarteira = pode('leads.ver_todas')
   const { data: comerciais = [] } = useComerciaisAtivos()
   const [carteiraId, setCarteiraId] = useState<string | undefined>()
 

@@ -21,6 +21,23 @@ import { useCriarUsuario, useAtualizarUsuario, useResetSenha } from '../../_hook
 import { useCargos } from '@/hooks/rh/useCargos'
 import { PERFIS_ATIVOS, PERFIL_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioPerfil } from '@/types/configuracoes'
+import { useUsuarioPermissoes, useSalvarPermissoesIndividuais } from '../../_hooks/useUsuarioPermissoesAdmin'
+import {
+  booleanoParaEstado, planejarPermissoesIndividuais, type EstadoPermissaoIndividual,
+} from '../../_hooks/permissoesIndividuaisHelpers'
+import { construirMapaOverridesUsuario } from '@/hooks/auth/permissaoResolver'
+import type { Acao } from '@/types/auth'
+
+const OPCOES_PERMISSAO_INDIVIDUAL: { value: EstadoPermissaoIndividual; label: string }[] = [
+  { value: 'herdar',   label: 'Usar padrão do perfil' },
+  { value: 'permitir', label: 'Permitir' },
+  { value: 'bloquear', label: 'Bloquear' },
+]
+
+const PERMISSOES_INDIVIDUAIS_CONFIGURAVEIS: { acao: Acao; label: string }[] = [
+  { acao: 'leads.ver_todas',    label: 'Ver todos os leads' },
+  { acao: 'leads.redistribuir', label: 'Redistribuir leads' },
+]
 
 const schemaCriar = z.object({
   nome:     z.string().min(2, 'Informe o nome completo'),
@@ -31,6 +48,8 @@ const schemaCriar = z.object({
   ativo:    z.boolean(),
 })
 
+const estadoPermissaoSchema = z.enum(['herdar', 'permitir', 'bloquear'])
+
 const schemaEditar = z.object({
   nome:               z.string().min(2, 'Informe o nome completo'),
   email:              z.string().email('E-mail inválido'),
@@ -38,6 +57,8 @@ const schemaEditar = z.object({
   cargo_id:           z.string().optional(),
   ativo:              z.boolean(),
   telefone_whatsapp:  z.string().optional(),
+  perm_leads_ver_todas:    estadoPermissaoSchema,
+  perm_leads_redistribuir: estadoPermissaoSchema,
 })
 
 type FormCriar  = z.infer<typeof schemaCriar>
@@ -56,6 +77,8 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const atualizarUsuario = useAtualizarUsuario()
   const resetSenha      = useResetSenha()
   const { data: cargos = [] } = useCargos()
+  const { data: permissoesIndividuais = [] } = useUsuarioPermissoes(usuario?.id)
+  const salvarPermissoesIndividuais = useSalvarPermissoesIndividuais()
 
   const [mostrarSenha, setMostrarSenha]   = useState(false)
   const [modalReset, setModalReset]       = useState(false)
@@ -84,6 +107,8 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           cargo_id:          usuario.cargo_id ?? '',
           ativo:             usuario.ativo,
           telefone_whatsapp: (usuario as unknown as { telefone_whatsapp?: string }).telefone_whatsapp ?? '',
+          perm_leads_ver_todas:    'herdar',
+          perm_leads_redistribuir: 'herdar',
         } as unknown as FormCriar)
       } else {
         form.reset({
@@ -98,6 +123,23 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
       setMostrarSenha(false)
     }
   }, [aberto]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Os 3 estados de "Permissões individuais" dependem de uma query à parte
+  // (useUsuarioPermissoes) que pode ainda não ter chegado quando o reset
+  // acima roda — atualiza os 2 campos separadamente assim que os dados
+  // chegam, sem interferir no reset dos demais campos do formulário.
+  useEffect(() => {
+    if (!aberto || !modoEdicao) return
+    const overridesUsuario = construirMapaOverridesUsuario(permissoesIndividuais)
+    form.setValue(
+      'perm_leads_ver_todas' as 'perfil',
+      booleanoParaEstado(overridesUsuario.get('leads.ver_todas')) as unknown as UsuarioPerfil,
+    )
+    form.setValue(
+      'perm_leads_redistribuir' as 'perfil',
+      booleanoParaEstado(overridesUsuario.get('leads.redistribuir')) as unknown as UsuarioPerfil,
+    )
+  }, [aberto, modoEdicao, permissoesIndividuais]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onSubmit(data: FormCriar) {
     const cargoSelecionado = cargos.find((c) => c.id === data.cargo_id)
@@ -114,6 +156,24 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           ativo:            data.ativo,
           telefone_whatsapp: (data as unknown as { telefone_whatsapp?: string }).telefone_whatsapp?.trim() || null,
         })
+
+        const dataEditar = data as unknown as FormEditar
+        const overridesExistentes = construirMapaOverridesUsuario(permissoesIndividuais)
+        const plano = planejarPermissoesIndividuais(
+          {
+            'leads.ver_todas':    dataEditar.perm_leads_ver_todas,
+            'leads.redistribuir': dataEditar.perm_leads_redistribuir,
+          },
+          overridesExistentes,
+        )
+        if (plano.upserts.length > 0 || plano.deletes.length > 0) {
+          await salvarPermissoesIndividuais.mutateAsync({
+            usuarioId: usuario!.id,
+            upserts:   plano.upserts,
+            deletes:   plano.deletes,
+          })
+        }
+
         toast.success('Usuário atualizado')
       } else {
         await criarUsuario.mutateAsync({
@@ -283,6 +343,39 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                   </div>
                 </FormItem>
               )} />
+
+              {modoEdicao && (
+                <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                  <p className="text-xs font-medium text-gray-500">
+                    Permissões individuais
+                    <span className="block font-normal text-gray-400 mt-0.5">
+                      Exceção só para esta pessoa — prevalece sobre o perfil dela.
+                    </span>
+                  </p>
+                  {PERMISSOES_INDIVIDUAIS_CONFIGURAVEIS.map(({ acao, label }) => {
+                    const nomeCampo = (
+                      acao === 'leads.ver_todas' ? 'perm_leads_ver_todas' : 'perm_leads_redistribuir'
+                    ) as 'perfil'
+                    return (
+                      <FormField key={acao} control={form.control} name={nomeCampo} render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-normal text-gray-600">{label}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {OPCOES_PERMISSAO_INDIVIDUAL.map((o) => (
+                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                    )
+                  })}
+                </div>
+              )}
 
               <div className="flex justify-between items-center pt-4">
                 {modoEdicao ? (

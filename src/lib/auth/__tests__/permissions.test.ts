@@ -40,8 +40,8 @@ describe('PERMISSOES_PADRAO — matriz oficial', () => {
     }
   })
 
-  it('apoio só tem dashboard.ver e notificacoes.ver (revoga leads/processos/pessoas/biblioteca)', () => {
-    expect(PERMISSOES_PADRAO.apoio).toEqual(['dashboard.ver', 'notificacoes.ver'])
+  it('apoio só tem dashboard.ver, notificacoes.ver e as duas ações de leads fiéis à RLS atual (revoga leads/processos/pessoas/biblioteca)', () => {
+    expect(PERMISSOES_PADRAO.apoio).toEqual(['dashboard.ver', 'notificacoes.ver', 'leads.ver_todas', 'leads.redistribuir'])
   })
 
   it('biblioteca.ver não é concedida a nenhum perfil operacional (comercial/operacional/juridico/apoio)', () => {
@@ -63,8 +63,36 @@ describe('PERMISSOES_PADRAO — matriz oficial', () => {
     expect(PERMISSOES_PADRAO.cliente).toEqual([])
   })
 
-  it('assistente nasce sem nenhuma permissão fixa (só dashboard.ver, sempre true em qualquer perfil)', () => {
-    expect(PERMISSOES_PADRAO.assistente).toEqual(['dashboard.ver'])
+  it('assistente nasce sem nenhuma permissão fixa (só dashboard.ver + leads.ver_todas fiel ao RLS)', () => {
+    expect(PERMISSOES_PADRAO.assistente).toEqual(['dashboard.ver', 'leads.ver_todas'])
+  })
+
+  describe('leads.ver_todas / leads.redistribuir — defaults que preservam o comportamento atual (RLS 20260724_186)', () => {
+    it('leads.ver_todas: true pra todo perfil que já via tudo hoje (perfil <> comercial), exceto comercial e cliente', () => {
+      const veTudo: (keyof typeof PERMISSOES_PADRAO)[] = [
+        'admin', 'gestor', 'gerente', 'operacional', 'juridico', 'apoio', 'assistente', 'analista', 'consultor',
+      ]
+      for (const perfil of veTudo) {
+        expect(PERMISSOES_PADRAO[perfil]).toContain('leads.ver_todas')
+      }
+      expect(PERMISSOES_PADRAO.comercial).not.toContain('leads.ver_todas')
+      // cliente é exceção deliberada: perfil desenhado pra zero acesso, sem
+      // caminho hoje pra leads.ver — ver comentário em permissions.ts
+      expect(PERMISSOES_PADRAO.cliente).not.toContain('leads.ver_todas')
+    })
+
+    it('leads.redistribuir: true só pra admin, gestor, gerente, apoio e comercial (bypass/ownership atuais na RLS de UPDATE)', () => {
+      const podeRedistribuir: (keyof typeof PERMISSOES_PADRAO)[] = ['admin', 'gestor', 'gerente', 'apoio', 'comercial']
+      for (const perfil of podeRedistribuir) {
+        expect(PERMISSOES_PADRAO[perfil]).toContain('leads.redistribuir')
+      }
+      const naoRedistribui: (keyof typeof PERMISSOES_PADRAO)[] = [
+        'operacional', 'juridico', 'assistente', 'analista', 'consultor', 'cliente',
+      ]
+      for (const perfil of naoRedistribui) {
+        expect(PERMISSOES_PADRAO[perfil]).not.toContain('leads.redistribuir')
+      }
+    })
   })
 })
 

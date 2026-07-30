@@ -2,6 +2,7 @@ import { type Acao, type UsuarioPerfil } from '@/types/auth'
 
 const TODAS_ACOES: Acao[] = [
   'leads.ver', 'leads.criar', 'leads.editar', 'leads.excluir',
+  'leads.ver_todas', 'leads.redistribuir',
   'processos.ver', 'processos.criar', 'processos.editar',
   'financeiro.ver', 'financeiro.editar',
   'rh.ver', 'rh.editar',
@@ -40,6 +41,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'simuladores.ver',
     'agenda.ver',
     'notificacoes.ver',
+    'leads.redistribuir', // hoje já redistribui o próprio lead (RLS de UPDATE por ownership) — preservado, não é liberação nova
   ],
 
   operacional: [
@@ -52,6 +54,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'simuladores.ver',
     'agenda.ver',
     'notificacoes.ver',
+    'leads.ver_todas', // fiel ao RLS atual (perfil <> comercial vê tudo) — hoje inerte, pois este perfil não tem leads.ver
   ], // sem leads.* — sem Captação
 
   juridico: [
@@ -60,11 +63,14 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'processos.ver', 'processos.editar',
     'conversas.ver', 'conversas.transferir', // confirmado: qualquer perfil pode transferir conversa
     'notificacoes.ver',
+    'leads.ver_todas', // fiel ao RLS atual — hoje inerte, este perfil não tem leads.ver
   ],
 
   apoio: [
     'dashboard.ver',
     'notificacoes.ver',
+    'leads.ver_todas',   // fiel ao RLS atual (perfil <> comercial) — hoje inerte, este perfil não tem leads.ver
+    'leads.redistribuir', // apoio já tem bypass de ownership na RLS de UPDATE hoje — preservado, hoje também inerte (sem leads.ver/leads.editar)
   ],
 
   // Nasce sem nenhuma permissão fixa: todo acesso configurável (ações sem
@@ -72,6 +78,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
   // manualmente em Configurações > Perfis de Acesso, um a um.
   assistente: [
     'dashboard.ver',
+    'leads.ver_todas', // fiel ao RLS atual — hoje inerte, este perfil não tem leads.ver
   ],
 
   // Perfis legados — fora do formulário de cadastro hoje (PERFIS_ATIVOS não os inclui).
@@ -86,8 +93,18 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
     'configuracoes.ver',
     'conversas.transferir',
     'pessoas.ver', 'pessoas.editar',
+    'leads.ver_todas', // já tem leads.ver e não é comercial — fiel ao RLS atual
   ],
-  consultor: ['dashboard.ver', 'notificacoes.ver', 'leads.ver', 'processos.ver', 'pessoas.ver'],
+  consultor: [
+    'dashboard.ver', 'notificacoes.ver', 'leads.ver', 'processos.ver', 'pessoas.ver',
+    'leads.ver_todas', // já tem leads.ver e não é comercial — fiel ao RLS atual
+  ],
+  // cliente permanece deliberadamente [] — não é uma leitura literal do RLS
+  // (que hoje daria leads.ver_todas=true pra qualquer perfil <> comercial,
+  // cliente incluído). "cliente" é o único perfil desenhado pra ter zero
+  // acesso por princípio, sem caminho hoje pra ganhar leads.ver — manter em
+  // [] preserva essa garantia e não muda nada observável (a ação já fica
+  // inerte sem leads.ver de qualquer forma).
   cliente: [],
 }
 
