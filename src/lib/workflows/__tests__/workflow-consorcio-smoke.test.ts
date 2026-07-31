@@ -83,6 +83,22 @@ describe('workflow-consorcio — fluxo completo (smoke)', () => {
     expect(resposta).toContain('cancelada')
   })
 
+  it('cancela a qualquer momento com "sair" — mesma resposta de "cancelar"', async () => {
+    const pendente: ConsorcioPendente = { passo: 'taxa_adm', dados: { valorBem: 900000 } }
+    const resposta = await processarRespostaConsorcio('sair', pendente, ctx)
+    expect(resposta).toContain('cancelada')
+    expect(resposta).toContain('*consorcio')
+  })
+
+  it('toda pergunta mostra a dica de como sair', async () => {
+    const inicio = await iniciarFluxoConsorcio(ctx)
+    expect(inicio).toContain('*sair*')
+
+    const pendente: ConsorcioPendente = { passo: 'valor_bem', dados: {} }
+    const resposta = await processarRespostaConsorcio('900000', pendente, ctx)
+    expect(resposta).toContain('*sair*')
+  })
+
   it('repete a pergunta quando a resposta não é entendida', async () => {
     const pendente: ConsorcioPendente = { passo: 'mes_contemplacao', dados: { valorBem: 900000, valorCarta: 1000000 } }
     const resposta = await processarRespostaConsorcio('não sei', pendente, ctx)

@@ -1238,14 +1238,15 @@ export async function processarComandoFonti(
 
   // ── *fonti consorcio / *consorcio ─────────────────────────────────────────
   // Q&A fixo e determinístico (ver workflow-consorcio.ts) — mesmo padrão do
-  // *custas. *fonti consorcio cancelar/novo reaproveita o mesmo vocabulário.
+  // *custas. *fonti consorcio cancelar/novo/sair reaproveita o mesmo vocabulário
+  // do "sair" dentro do fluxo (livre, sem *), disponível em toda pergunta.
   if (corpoBaixo === 'consorcio' || corpoBaixo.startsWith('consorcio ')) {
     const instrucaoConsorcio = corpo.replace(/^consorcio\s*/i, '').trim().toLowerCase()
 
-    if (instrucaoConsorcio === 'novo' || instrucaoConsorcio === 'cancelar') {
+    if (instrucaoConsorcio === 'novo' || instrucaoConsorcio === 'cancelar' || instrucaoConsorcio === 'sair') {
       const { limparConsorcioPendente } = await import('@/lib/workflows/consorcio-pendente')
       await limparConsorcioPendente(supabase, empresa_id, ctx.telefone_remetente)
-      if (instrucaoConsorcio === 'cancelar') {
+      if (instrucaoConsorcio === 'cancelar' || instrucaoConsorcio === 'sair') {
         return 'Simulação de consórcio cancelada. Quando quiser iniciar novamente, envie *consorcio.'
       }
     }

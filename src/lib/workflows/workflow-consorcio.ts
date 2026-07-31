@@ -49,27 +49,35 @@ function sugestaoValorCarta(valorBem: number): number {
   return valorBem / (1 - DEFAULT_PERCENTUAL_LANCE_EMBUTIDO)
 }
 
+// Rodapé fixo em toda pergunta — dá pro usuário uma saída visível em
+// qualquer etapa, sem precisar lembrar a palavra certa ou reiniciar o
+// WhatsApp; ver checagem de "sair" no topo de processarRespostaConsorcio.
+const DICA_SAIR = '_Digite *sair* para cancelar e recomeçar._'
+
 function perguntaDoPasso(passo: PassoConsorcio, dados: Partial<InputConsorcio>): string {
-  switch (passo) {
-    case 'valor_bem':
-      return 'Qual o *valor do bem*? (R$)'
-    case 'valor_carta': {
-      const sugestao = sugestaoValorCarta(dados.valorBem ?? 0)
-      return `Qual o *valor da carta*? (R$)\n💡 Sugestão: ${BRL.format(sugestao)}\nResponda *sim* pra aceitar ou informe outro valor.`
+  const pergunta = (() => {
+    switch (passo) {
+      case 'valor_bem':
+        return 'Qual o *valor do bem*? (R$)'
+      case 'valor_carta': {
+        const sugestao = sugestaoValorCarta(dados.valorBem ?? 0)
+        return `Qual o *valor da carta*? (R$)\n💡 Sugestão: ${BRL.format(sugestao)}\nResponda *sim* pra aceitar ou informe outro valor.`
+      }
+      case 'mes_contemplacao':
+        return 'Em qual *mês* você pretende dar o lance/contemplação?'
+      case 'prazo_meses':
+        return 'Qual o *prazo em meses* do consórcio?'
+      case 'taxa_adm':
+        return 'Qual a *Taxa de Adm*? (%)'
+      case 'indice_correcao':
+        return 'Qual o *Índice de correção* anual? (%)'
+      case 'parcela_reduzida':
+        return `Qual o *% da parcela reduzida*?\n💡 Sugestão: ${PCT(SUGESTAO_PARCELA_REDUZIDA)}\nResponda *sim* pra aceitar ou informe outro valor.`
+      case 'fundo_reserva':
+        return 'Qual o *Fundo de reserva*? (%)'
     }
-    case 'mes_contemplacao':
-      return 'Em qual *mês* você pretende dar o lance/contemplação?'
-    case 'prazo_meses':
-      return 'Qual o *prazo em meses* do consórcio?'
-    case 'taxa_adm':
-      return 'Qual a *Taxa de Adm*? (%)'
-    case 'indice_correcao':
-      return 'Qual o *Índice de correção* anual? (%)'
-    case 'parcela_reduzida':
-      return `Qual o *% da parcela reduzida*?\n💡 Sugestão: ${PCT(SUGESTAO_PARCELA_REDUZIDA)}\nResponda *sim* pra aceitar ou informe outro valor.`
-    case 'fundo_reserva':
-      return 'Qual o *Fundo de reserva*? (%)'
-  }
+  })()
+  return `${pergunta}\n\n${DICA_SAIR}`
 }
 
 export async function iniciarFluxoConsorcio(ctx: WorkflowConsorcioContexto): Promise<string> {
@@ -179,7 +187,7 @@ export async function processarRespostaConsorcio(
   const dados = { ...pendente.dados }
   const textoLower = texto.toLowerCase().trim()
 
-  if (/^(cancela|cancelar|desisti|encerra)/.test(textoLower)) {
+  if (/^(cancela|cancelar|desisti|encerra|sair)/.test(textoLower)) {
     await limparConsorcioPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador)
     return 'Simulação de consórcio cancelada. Quando quiser iniciar novamente, envie *consorcio.'
   }
