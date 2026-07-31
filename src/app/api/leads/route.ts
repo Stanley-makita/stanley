@@ -3,7 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
-import { podeExecutarPadrao } from '@/lib/auth/permissions'
+import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import { type Lead } from '@/types/leads'
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
   }
 
-  if (!podeExecutarPadrao(usuario.perfil, 'leads.criar')) {
+  if (!(await podeServidor(usuario.id, usuario.perfil, usuario.empresa_id, 'leads.criar'))) {
     return NextResponse.json({ error: 'Sem permissão para criar leads' }, { status: 403 })
   }
 

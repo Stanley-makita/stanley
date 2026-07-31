@@ -53,33 +53,38 @@ describe('resolverPermissao', () => {
     expect(resolverPermissao('comercial', 'dashboard.ver', overrides)).toBe(true)
   })
 
-  describe('ações não-configuráveis (regra fixa no servidor, feat/alinhamento-permissoes-servidor)', () => {
-    it('ignora um override "fantasma" concedendo pessoas.editar a um perfil que não tem no padrão', () => {
-      // apoio não tem pessoas.editar em PERMISSOES_PADRAO; um override salvo antes de
-      // pessoas.editar virar configuravel:false (ou por engano) não pode voltar a valer.
-      const overrides = construirMapaOverrides([{ perfil: 'apoio', acao: 'pessoas.editar', permitido: true }])
-      expect(resolverPermissao('apoio', 'pessoas.editar', overrides)).toBe(false)
+  describe('ações não-configuráveis (só instancias.gerenciar continua assim — credencial de integração)', () => {
+    it('ignora um override "fantasma" concedendo instancias.gerenciar a um perfil que não tem no padrão', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'apoio', acao: 'instancias.gerenciar', permitido: true }])
+      expect(resolverPermissao('apoio', 'instancias.gerenciar', overrides)).toBe(false)
     })
 
     it('ignora um override "fantasma" negando rh.editar a um perfil que tem no padrão (admin)', () => {
       const overrides = construirMapaOverrides([{ perfil: 'admin', acao: 'rh.editar', permitido: false }])
       expect(resolverPermissao('admin', 'rh.editar', overrides)).toBe(true)
     })
+  })
 
-    it('rh.ver agora é configurável — um override concedendo a um perfil sem o padrão prevalece', () => {
+  describe('ações que ganharam enforcement real em RLS/podeServidor nesta rodada — overrides agora valem de verdade', () => {
+    it('rh.ver: override concedendo a um perfil sem o padrão prevalece', () => {
       const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'rh.ver', permitido: true }])
       expect(resolverPermissao('comercial', 'rh.ver', overrides)).toBe(true)
     })
 
-    it('ignora override em processos.criar — sempre reflete a matriz estática', () => {
+    it('processos.criar: override concedendo a um perfil sem o padrão prevalece', () => {
       const overrides = construirMapaOverrides([{ perfil: 'operacional', acao: 'processos.criar', permitido: true }])
-      expect(resolverPermissao('operacional', 'processos.criar', overrides)).toBe(false)
+      expect(resolverPermissao('operacional', 'processos.criar', overrides)).toBe(true)
     })
 
-    it('ignora override em leads.criar — sempre reflete a matriz estática', () => {
+    it('leads.criar: override concedendo a um perfil sem o padrão prevalece; sem override cai na matriz', () => {
       const overrides = construirMapaOverrides([{ perfil: 'apoio', acao: 'leads.criar', permitido: true }])
-      expect(resolverPermissao('apoio', 'leads.criar', overrides)).toBe(false)
+      expect(resolverPermissao('apoio', 'leads.criar', overrides)).toBe(true)
       expect(resolverPermissao('comercial', 'leads.criar', construirMapaOverrides([]))).toBe(true)
+    })
+
+    it('pessoas.editar: override negando a um perfil que tem no padrão prevalece (restringe)', () => {
+      const overrides = construirMapaOverrides([{ perfil: 'comercial', acao: 'pessoas.editar', permitido: false }])
+      expect(resolverPermissao('comercial', 'pessoas.editar', overrides)).toBe(false)
     })
   })
 })

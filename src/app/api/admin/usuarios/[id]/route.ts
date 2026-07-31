@@ -1,16 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
+import type { UsuarioPerfil } from '@/types/auth'
 
 async function resolveAdmin(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id, perfil')
+    .select('id, empresa_id, perfil')
     .eq('auth_user_id', user.id)
     .single()
   if (!usuario || usuario.perfil !== 'admin') return null
   return usuario
+}
+
+/**
+ * Mesma resolução de sessão de resolveAdmin, mas sem exigir admin — usada
+ * pelos pontos que agora aceitam uma permissão configurável
+ * (usuarios.desativar) em vez de admin fixo. resolveAdmin continua sendo o
+ * gate pra tudo que não é modelado como Acao (criar usuário, editar
+ * perfil/função/e-mail/cargo de outro usuário) — isso não muda aqui.
+ */
+async function resolveUsuarioAtivo(token: string) {
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+  if (error || !user) return null
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('id, empresa_id, perfil')
+    .eq('auth_user_id', user.id)
+    .eq('ativo', true)
+    .single()
+  return usuario ?? null
 }
 
 export async function PUT(
@@ -18,10 +39,24 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const admin = await resolveAdmin(token)
-  if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-
   const body = await request.json()
+
+  // O único caso que não exige admin fixo é a troca isolada de `ativo`
+  // (o botão de ativar/desativar da lista, useAtualizarUsuario({ id, ativo }))
+  // — aí basta ter a permissão configurável usuarios.desativar. Qualquer
+  // outro campo (nome, perfil, função, cargo, e-mail, whatsapp) continua
+  // exigindo admin, como sempre — não são modelados como Acao configurável.
+  const somenteAtivo = Object.keys(body).length === 1 && Object.prototype.hasOwnProperty.call(body, 'ativo')
+
+  const admin: { id: string; empresa_id: string; perfil: string } | null = somenteAtivo
+    ? await resolveUsuarioAtivo(token)
+    : await resolveAdmin(token)
+  if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  if (somenteAtivo) {
+    const pode = await podeServidor(admin.id, admin.perfil as UsuarioPerfil, admin.empresa_id, 'usuarios.desativar')
+    if (!pode) return NextResponse.json({ error: 'Sem permissão para ativar/desativar usuários' }, { status: 403 })
+  }
+
   const { nome, perfil, funcao, cargo_id, ativo, telefone_whatsapp, email } = body
 
   // Busca o usuário alvo para verificar guards de segurança
@@ -109,8 +144,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const admin = await resolveAdmin(token)
+  const admin = await resolveUsuarioAtivo(token)
   if (!admin) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  if (!(await podeServidor(admin.id, admin.perfil as UsuarioPerfil, admin.empresa_id, 'usuarios.desativar'))) {
+    return NextResponse.json({ error: 'Sem permissão para excluir usuários' }, { status: 403 })
+  }
 
   const { data: alvo } = await supabase
     .from('usuarios')

@@ -5,11 +5,9 @@ import { construirMapaOverrides } from '@/hooks/auth/permissaoResolver'
 
 const moduloLeads = MODULOS.find((m) => m.key === 'leads')!
 const moduloDashboard = MODULOS.find((m) => m.key === 'dashboard')!
-const moduloBiblioteca = MODULOS.find((m) => m.key === 'biblioteca')!
+const moduloConfiguracoes = MODULOS.find((m) => m.key === 'configuracoes')!
 
 const acaoVer = moduloLeads.acoes.find((a) => a.acao === 'leads.ver')!
-// leads.criar virou configuravel:false nesta branch (RLS/API fixa) — os testes
-// abaixo usam leads.excluir como a ação "não-Ver" configurável de referência.
 const acaoCriar = moduloLeads.acoes.find((a) => a.acao === 'leads.excluir')!
 const acaoEditar = moduloLeads.acoes.find((a) => a.acao === 'leads.editar')!
 
@@ -53,11 +51,11 @@ describe('aplicarToggle', () => {
     expect(resultado).toEqual({})
   })
 
-  it('ação não configurável (ex.: biblioteca.publicar) não é alterada', () => {
-    const acaoPublicar = moduloBiblioteca.acoes.find((a) => a.acao === 'biblioteca.publicar')!
-    expect(acaoPublicar.configuravel).toBe(false)
+  it('ação não configurável (ex.: instancias.gerenciar — credencial de integração, decisão deliberada) não é alterada', () => {
+    const acaoInstancias = moduloConfiguracoes.acoes.find((a) => a.acao === 'instancias.gerenciar')!
+    expect(acaoInstancias.configuravel).toBe(false)
     const valorAtual = () => false
-    const resultado = aplicarToggle(moduloBiblioteca, acaoPublicar, valorAtual, {})
+    const resultado = aplicarToggle(moduloConfiguracoes, acaoInstancias, valorAtual, {})
     expect(resultado).toEqual({})
   })
 
@@ -68,12 +66,13 @@ describe('aplicarToggle', () => {
     expect(resultado['leads.excluir']).toBe(true)
   })
 
-  it('ação não configurável (ex.: leads.criar, matriz fixa nesta versão) não é alterada', () => {
+  it('leads.criar agora é configurável (ganhou enforcement em podeServidor) — toggle funciona normalmente', () => {
     const acaoLeadsCriar = moduloLeads.acoes.find((a) => a.acao === 'leads.criar')!
-    expect(acaoLeadsCriar.configuravel).toBe(false)
+    expect(acaoLeadsCriar.configuravel).not.toBe(false)
     const valorAtual = () => false
     const resultado = aplicarToggle(moduloLeads, acaoLeadsCriar, valorAtual, {})
-    expect(resultado).toEqual({})
+    expect(resultado['leads.criar']).toBe(true)
+    expect(resultado['leads.ver']).toBe(true)
   })
 })
 

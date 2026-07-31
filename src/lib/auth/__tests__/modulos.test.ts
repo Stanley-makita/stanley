@@ -40,23 +40,20 @@ describe('encontrarModuloPorRota', () => {
 })
 
 describe('ACOES_NAO_CONFIGURAVEIS', () => {
-  it('inclui as ações com regra fixa no servidor (alinhamento RLS/API desta branch)', () => {
+  it('só instancias.gerenciar continua com regra fixa no servidor (credencial de integração WhatsApp — decisão deliberada, ver migration 20260730_219)', () => {
+    expect(ACOES_NAO_CONFIGURAVEIS.has('instancias.gerenciar')).toBe(true)
+  })
+
+  it('não inclui ações que ganharam enforcement real em RLS/podeServidor nesta rodada (todas as 13 antes travadas, exceto instancias.gerenciar)', () => {
     for (const acao of [
+      'leads.ver', 'processos.ver', 'biblioteca.ver', 'rh.ver', 'leads.ver_todas', 'leads.redistribuir',
       'pessoas.ver', 'pessoas.editar', 'pessoas.merge', 'pessoas.excluir',
       'rh.editar',
       'processos.criar', 'processos.editar',
       'leads.criar',
       'biblioteca.publicar', 'biblioteca.excluir',
       'financeiro.editar',
-      'usuarios.convidar', 'usuarios.desativar', 'instancias.gerenciar',
-    ] as const) {
-      expect(ACOES_NAO_CONFIGURAVEIS.has(acao)).toBe(true)
-    }
-  })
-
-  it('não inclui ações que continuam configuráveis (ex.: leads.ver, processos.ver, biblioteca.ver, rh.ver, leads.ver_todas, leads.redistribuir)', () => {
-    for (const acao of [
-      'leads.ver', 'processos.ver', 'biblioteca.ver', 'rh.ver', 'leads.ver_todas', 'leads.redistribuir',
+      'usuarios.convidar', 'usuarios.desativar',
     ] as const) {
       expect(ACOES_NAO_CONFIGURAVEIS.has(acao)).toBe(false)
     }

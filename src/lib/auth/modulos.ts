@@ -10,11 +10,12 @@ export interface AcaoModuloDef {
   /**
    * Documentação de onde a regra é aplicada de fato:
    * 'ui'       — controlado só pela interface (Sidebar/RouteGuard/botões) nesta versão.
-   * 'servidor' — autorização em API ou RLS. Na maioria dos casos é fixa, não
-   *              alcançada pela configuração (configuravel: false) — exceção:
-   *              leads.ver_todas/leads.redistribuir, onde a própria RLS/trigger
-   *              consulta usuario_atual_pode() (SQL), então a configuração
-   *              feita aqui chega de verdade até o banco.
+   * 'servidor' — autorização em API ou RLS/trigger, consultando
+   *              usuario_atual_pode() (SQL) ou podeServidor() (rotas com
+   *              service-role) — a configuração feita nesta tela chega de
+   *              verdade até o banco. Só instancias.gerenciar continua com
+   *              regra fixa não alcançada pela configuração (configuravel: false),
+   *              decisão deliberada por lidar com credencial de integração.
    * 'misto'    — tem controle visual e também uma regra própria no servidor, que pode divergir.
    */
   tipoControle?: 'ui' | 'servidor' | 'misto'
@@ -32,8 +33,6 @@ export interface ModuloDef {
 }
 
 const MOTIVO_SOMENTE_ADMIN = 'Disponível somente para Administrador — regra fixa do servidor.'
-const MOTIVO_SERVIDOR = 'Controlado pelo servidor nesta versão.'
-const MOTIVO_MATRIZ_FIXA = 'Controlado pela matriz padrão do servidor nesta versão.'
 
 export const MODULOS: ModuloDef[] = [
   {
@@ -44,7 +43,7 @@ export const MODULOS: ModuloDef[] = [
     key: 'leads', label: 'Captação', rotas: ['/leads'], acaoVer: 'leads.ver',
     acoes: [
       { acao: 'leads.ver', label: 'Ver', tipoControle: 'misto' },
-      { acao: 'leads.criar', label: 'Criar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'leads.criar', label: 'Criar', tipoControle: 'servidor' },
       { acao: 'leads.editar', label: 'Editar', tipoControle: 'ui' },
       { acao: 'leads.excluir', label: 'Excluir', tipoControle: 'ui' },
       { acao: 'leads.ver_todas', label: 'Ver todos os leads', tipoControle: 'servidor' },
@@ -54,10 +53,10 @@ export const MODULOS: ModuloDef[] = [
   {
     key: 'pessoas', label: 'Pessoas', rotas: ['/pessoas'], acaoVer: 'pessoas.ver',
     acoes: [
-      { acao: 'pessoas.ver', label: 'Ver', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
-      { acao: 'pessoas.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
-      { acao: 'pessoas.merge', label: 'Mesclar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
-      { acao: 'pessoas.excluir', label: 'Excluir', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'pessoas.ver', label: 'Ver', tipoControle: 'servidor' },
+      { acao: 'pessoas.editar', label: 'Editar', tipoControle: 'servidor' },
+      { acao: 'pessoas.merge', label: 'Mesclar', tipoControle: 'servidor' },
+      { acao: 'pessoas.excluir', label: 'Excluir', tipoControle: 'servidor' },
     ],
   },
   {
@@ -68,8 +67,8 @@ export const MODULOS: ModuloDef[] = [
     key: 'negocios', label: 'Negócios', rotas: ['/negocios', '/processos'], acaoVer: 'processos.ver',
     acoes: [
       { acao: 'processos.ver', label: 'Ver', tipoControle: 'misto' },
-      { acao: 'processos.criar', label: 'Criar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
-      { acao: 'processos.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_MATRIZ_FIXA, tipoControle: 'servidor' },
+      { acao: 'processos.criar', label: 'Criar', tipoControle: 'servidor' },
+      { acao: 'processos.editar', label: 'Editar', tipoControle: 'servidor' },
     ],
   },
   {
@@ -104,22 +103,22 @@ export const MODULOS: ModuloDef[] = [
     key: 'biblioteca', label: 'Biblioteca', rotas: ['/base-conhecimento'], acaoVer: 'biblioteca.ver',
     acoes: [
       { acao: 'biblioteca.ver', label: 'Ver', tipoControle: 'ui' },
-      { acao: 'biblioteca.publicar', label: 'Publicar', configuravel: false, motivoBloqueio: MOTIVO_SERVIDOR, tipoControle: 'servidor' },
-      { acao: 'biblioteca.excluir', label: 'Excluir', configuravel: false, motivoBloqueio: MOTIVO_SERVIDOR, tipoControle: 'servidor' },
+      { acao: 'biblioteca.publicar', label: 'Publicar', tipoControle: 'servidor' },
+      { acao: 'biblioteca.excluir', label: 'Excluir', tipoControle: 'servidor' },
     ],
   },
   {
     key: 'rh', label: 'RH', rotas: ['/rh'], acaoVer: 'rh.ver',
     acoes: [
-      { acao: 'rh.ver', label: 'Ver', tipoControle: 'ui' },
-      { acao: 'rh.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_SOMENTE_ADMIN, tipoControle: 'servidor' },
+      { acao: 'rh.ver', label: 'Ver', tipoControle: 'misto' },
+      { acao: 'rh.editar', label: 'Editar', tipoControle: 'servidor' },
     ],
   },
   {
     key: 'financeiro', label: 'Financeiro', rotas: ['/financeiro'], acaoVer: 'financeiro.ver',
     acoes: [
       { acao: 'financeiro.ver', label: 'Ver', tipoControle: 'ui' },
-      { acao: 'financeiro.editar', label: 'Editar', configuravel: false, motivoBloqueio: MOTIVO_SERVIDOR, tipoControle: 'servidor' },
+      { acao: 'financeiro.editar', label: 'Editar', tipoControle: 'servidor' },
     ],
   },
   {
@@ -131,8 +130,13 @@ export const MODULOS: ModuloDef[] = [
     acoes: [
       { acao: 'configuracoes.ver', label: 'Ver', tipoControle: 'ui' },
       { acao: 'configuracoes.editar', label: 'Editar', tipoControle: 'ui' },
-      { acao: 'usuarios.convidar', label: 'Convidar usuário', configuravel: false, motivoBloqueio: MOTIVO_SOMENTE_ADMIN, tipoControle: 'servidor' },
-      { acao: 'usuarios.desativar', label: 'Desativar usuário', configuravel: false, motivoBloqueio: MOTIVO_SOMENTE_ADMIN, tipoControle: 'servidor' },
+      { acao: 'usuarios.convidar', label: 'Convidar usuário', tipoControle: 'servidor' },
+      { acao: 'usuarios.desativar', label: 'Desativar usuário', tipoControle: 'servidor' },
+      // instancias.gerenciar continua travada de propósito: dá acesso ao
+      // token de integração WhatsApp (Uazapi) — decisão deliberada de manter
+      // só admin, não faz parte desta rodada de configurabilidade (ver
+      // migration 20260730_219, que acabou de fechar o buraco de segurança
+      // que existia aqui).
       { acao: 'instancias.gerenciar', label: 'Gerenciar instâncias WhatsApp', configuravel: false, motivoBloqueio: MOTIVO_SOMENTE_ADMIN, tipoControle: 'servidor' },
     ],
   },
