@@ -923,7 +923,7 @@ function BlocoAnalises({ lead }: { lead: Lead }) {
   const leadId = lead.id
   const empresaId = lead.empresa_id
   const responsavelId = lead.responsavel_id ?? null
-  const { analises, isLoading, criar, editar, deletar, definirBanco, limparBancoDefinido } = useAnalisesCredito({ leadId })
+  const { analises, isLoading, criar, editar, definirBanco, limparBancoDefinido } = useAnalisesCredito({ leadId })
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const qc = useQueryClient()
@@ -1078,11 +1078,9 @@ function BlocoAnalises({ lead }: { lead: Lead }) {
             analise={analise}
             numero={i + 1}
             onEditar={() => { setEditandoId(analise.id); setCriando(false) }}
-            onDeletar={() => deletar.mutate(analise.id)}
             onDefinirBanco={() => handleToggleBanco(analise.id)}
             onStatusChange={(s) => handleStatusChange(analise.id, s)}
             onDataRespostaChange={(d) => handleDataRespostaChange(analise.id, d)}
-            deletando={deletar.isPending}
             definindoBanco={definirBanco.isPending || limparBancoDefinido.isPending}
           />
         )
@@ -1106,16 +1104,20 @@ function BlocoAnalises({ lead }: { lead: Lead }) {
 
 // ── AnaliseCard ───────────────────────────────────────────────
 
-export function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBanco, onStatusChange, onDataRespostaChange, deletando, definindoBanco }: {
+export function AnaliseCard({
+  analise, numero, onEditar, onDefinirBanco, onStatusChange, onDataRespostaChange,
+  definindoBanco, onSolicitarExclusao, excluindo,
+}: {
   analise: LeadAnaliseCredito
   numero: number
   onEditar: () => void
-  onDeletar: () => void
   onDefinirBanco: () => void
   onStatusChange: (s: StatusAnaliseCredito) => void
   onDataRespostaChange: (d: string | null) => void
-  deletando: boolean
   definindoBanco: boolean
+  /** Ausente = nenhuma forma de excluir aparece nesta tela (ver AbaCredito de Lead x Processo). */
+  onSolicitarExclusao?: () => void
+  excluindo?: boolean
 }) {
   const [expandido, setExpandido] = useState(false)
   const statusCfg = STATUS_ANALISE[analise.status] ?? STATUS_ANALISE.em_analise
@@ -1209,9 +1211,10 @@ export function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBan
             <Pencil className="h-3 w-3" /> Editar
           </button>
           <button
-            onClick={onDeletar}
-            disabled={deletando}
-            className="text-gray-300 hover:text-red-400 disabled:opacity-50"
+            type="button"
+            onClick={() => setExpandido(false)}
+            title="Fechar"
+            className="text-gray-300 hover:text-gray-500"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -1303,6 +1306,17 @@ export function AnaliseCard({ analise, numero, onEditar, onDeletar, onDefinirBan
                 onChange={e => onDataRespostaChange(e.target.value || null)}
               />
             </div>
+
+            {onSolicitarExclusao && (
+              <button
+                type="button"
+                onClick={onSolicitarExclusao}
+                disabled={excluindo}
+                className="ml-auto flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 disabled:opacity-50"
+              >
+                <X className="h-3 w-3" /> Excluir análise
+              </button>
+            )}
           </div>
         </div>
       )}
