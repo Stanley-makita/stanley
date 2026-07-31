@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
+import type { UsuarioPerfil } from '@/types/auth'
 
 async function resolveEmpresa(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id, perfil')
+    .select('id, empresa_id, perfil')
     .eq('auth_user_id', user.id)
     .single()
   return usuario ?? null
@@ -23,8 +25,7 @@ export async function POST(
   const usuario = await resolveEmpresa(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  // Apenas admin, gerente ou gestor podem fazer merge
-  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
+  if (!(await podeServidor(usuario.id, usuario.perfil as UsuarioPerfil, usuario.empresa_id, 'pessoas.merge'))) {
     return NextResponse.json({ error: 'Permissão insuficiente' }, { status: 403 })
   }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
+import type { UsuarioPerfil } from '@/types/auth'
 
 async function resolveUsuario(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const usuario = await resolveUsuario(token)
   if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  if (!['admin', 'gerente', 'gestor'].includes(usuario.perfil)) {
+  if (!(await podeServidor(usuario.id, usuario.perfil as UsuarioPerfil, usuario.empresa_id, 'biblioteca.publicar'))) {
     return NextResponse.json({ error: 'Sem permissão para publicar' }, { status: 403 })
   }
 
