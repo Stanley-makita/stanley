@@ -26,7 +26,8 @@ import { fmtData } from '@/lib/utils'
 import {
   AnaliseCard, AnaliseForm, type AnaliseFormInput,
 } from '@/components/leads/LeadDetalhe/AbaCredito'
-import type { StatusAnaliseCredito } from '@/types/leads'
+import { ExcluirAnaliseCreditoDialog } from '@/components/processos/abas/ExcluirAnaliseCreditoDialog'
+import type { StatusAnaliseCredito, LeadAnaliseCredito } from '@/types/leads'
 import type { Processo } from '@/types/processos'
 
 interface Props { processoId: string; processo: Processo }
@@ -77,7 +78,9 @@ export function AbaCredito({ processoId, processo }: Props) {
 
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [excluindoAnalise, setExcluindoAnalise] = useState<LeadAnaliseCredito | null>(null)
   const analiseDefinida = analises.find((a) => a.banco_definido) ?? null
+  const podeExcluirAnalise = usuario?.perfil === 'admin'
 
   const [dataAprovacao, setDataAprovacao] = useState(processo.data_credito ?? '')
   const atualizarDataCredito = useAtualizarDataCreditoProcesso(processoId)
@@ -101,13 +104,87 @@ export function AbaCredito({ processoId, processo }: Props) {
     })
   }
 
-  function handleToggleBanco(id: string) {
-    const analise = analises.find((a) => a.id === id)
-    if (analise?.banco_definido) {
-      limparBancoDefinido.mutate(id)
-    } else {
-      definirBanco.mutate(id)
+  // Compartilhada entre trocar o banco definido (handleToggleBanco) e editar
+  // manualmente a Data da Aprovação (handleSalvarDataAprovacao) — antes só o
+  // segundo caminho perguntava sobre Validade/sincronizar Operação, então
+  // trocar de banco quando a data já era igual (ex: dois bancos aprovados no
+  // mesmo dia) não disparava nada. Recebe a análise diretamente (não
+  // `analiseDefinida` do estado) pra não depender do refetch já ter chegado.
+  async function salvarDataESincronizar(analiseBase: LeadAnaliseCredito | null, novaData: string | null) {
+    if (novaData !== (processo.data_credito ?? null)) {
+      await atualizarDataCredito.mutateAsync(novaData)
+      setDataAprovacao(novaData ?? '')
+      if (novaData) {
+        comentar.mutate({
+          tipo: 'alteracao',
+          texto: `Data de Aprovação de Crédito registrada: ${fmtData(novaData)}.`,
+          notificar_cliente: false,
+        })
+      }
     }
+
+    if (!novaData) return
+
+    const substituir = window.confirm(
+      'Deseja atualizar também a Validade do Crédito (+90 dias a partir de hoje) com base nesta nova aprovação?\n\nSe preferir manter a validade já em vigor, clique em Cancelar — a data de aprovação é salva de qualquer forma.',
+    )
+    if (substituir) {
+      const novaValidade = new Date()
+      novaValidade.setDate(novaValidade.getDate() + 90)
+      const dataValidade = novaValidade.toISOString().slice(0, 10)
+      await salvarValidade.mutateAsync({
+        processoId,
+        tipo: 'credito',
+        data: dataValidade,
+      })
+      comentar.mutate({
+        tipo: 'alteracao',
+        texto: `Validade do Crédito atualizada para ${fmtData(dataValidade)}.`,
+        notificar_cliente: false,
+      })
+    }
+
+    // Só pergunta sobre os Dados da Operação quando o banco da análise base é
+    // diferente do banco já registrado no processo — se for o mesmo banco
+    // (ex: crédito venceu e precisou reaprovar), não há nada pra sincronizar.
+    if (analiseBase?.banco_pretendido) {
+      const bancoAnalise = bancos.find((b) => b.nome === analiseBase.banco_pretendido)
+      const bancoMudou = bancoAnalise && bancoAnalise.id !== (processo.banco_id ?? null)
+      if (bancoMudou) {
+        const sincronizar = window.confirm(
+          `O banco desta aprovação (${analiseBase.banco_pretendido}) é diferente do banco atual da operação (${processo.banco?.nome ?? '—'}).\n\nDeseja atualizar os Dados da Operação (Banco, Valor do Imóvel, Entrada, Valor Financiado e Prazo) com os valores desta análise?\n\nSe preferir manter os dados atuais, clique em Cancelar.`,
+        )
+        if (sincronizar) {
+          await sincronizarOperacao.mutateAsync({
+            banco_id: bancoAnalise!.id,
+            valor_imovel: analiseBase.valor_imovel,
+            valor_entrada: analiseBase.entrada,
+            valor_financiado: analiseBase.valor_pretendido,
+            prazo_amortizacao_meses: analiseBase.prazo_meses,
+          })
+          comentar.mutate({
+            tipo: 'alteracao',
+            texto: `Dados da Operação (Resumo) atualizados conforme análise de crédito aprovada — novo banco: ${bancoAnalise!.nome}.`,
+            notificar_cliente: false,
+          })
+        }
+      }
+    }
+  }
+
+  async function handleToggleBanco(id: string) {
+    const analise = analises.find((a) => a.id === id)
+    if (!analise) return
+    if (analise.banco_definido) {
+      limparBancoDefinido.mutate(id)
+      return
+    }
+    await definirBanco.mutateAsync(id)
+    // Usa a data já digitada no campo se houver; senão a data de resposta da
+    // própria análise; senão hoje — nunca fica sem data, nunca exige que o
+    // usuário mexa no campo manualmente como "gatilho".
+    const data = dataAprovacao || analise.data_resposta || new Date().toISOString().slice(0, 10)
+    await salvarDataESincronizar(analise, data)
   }
 
   function handleDataRespostaChange(id: string, data_resposta: string | null) {
@@ -132,70 +209,30 @@ export function AbaCredito({ processoId, processo }: Props) {
     })
   }
 
-  // Salvar a Data da Aprovação nunca é automático sobre a Validade do
-  // Crédito — pergunta, porque um negócio pode já ter uma validade em vigor
-  // (calculada a partir de uma aprovação anterior) que o operador pode
-  // preferir manter, mesmo registrando esta nova aprovação.
+  function handleConfirmarExclusao(motivo: string) {
+    if (!excluindoAnalise) return
+    const nomeBanco = excluindoAnalise.banco_pretendido ?? excluindoAnalise.nome
+    deletar.mutate(excluindoAnalise.id, {
+      onSuccess: () => {
+        comentar.mutate({
+          tipo: 'alteracao',
+          texto: `Análise de crédito excluída — Banco: ${nomeBanco} — Motivo: ${motivo}`,
+          notificar_cliente: false,
+        })
+        setExcluindoAnalise(null)
+      },
+    })
+  }
+
+  // Correção manual pontual da data (o campo "Data da Aprovação") — só faz
+  // algo se o valor de fato mudou, pra não reabrir os confirms de
+  // Validade/Operação toda vez que o campo só perde o foco sem alteração.
+  // A troca de banco definido (handleToggleBanco) já dispara o mesmo fluxo
+  // completo sozinha, sem depender deste campo.
   async function handleSalvarDataAprovacao() {
     const valor = dataAprovacao || null
     if (valor === (processo.data_credito ?? null)) return
-
-    await atualizarDataCredito.mutateAsync(valor)
-
-    if (valor) {
-      comentar.mutate({
-        tipo: 'alteracao',
-        texto: `Data de Aprovação de Crédito registrada: ${fmtData(valor)}.`,
-        notificar_cliente: false,
-      })
-
-      const substituir = window.confirm(
-        'Deseja atualizar também a Validade do Crédito (+90 dias a partir de hoje) com base nesta nova aprovação?\n\nSe preferir manter a validade já em vigor, clique em Cancelar — a data de aprovação é salva de qualquer forma.',
-      )
-      if (substituir) {
-        const novaValidade = new Date()
-        novaValidade.setDate(novaValidade.getDate() + 90)
-        const dataValidade = novaValidade.toISOString().slice(0, 10)
-        await salvarValidade.mutateAsync({
-          processoId,
-          tipo: 'credito',
-          data: dataValidade,
-        })
-        comentar.mutate({
-          tipo: 'alteracao',
-          texto: `Validade do Crédito atualizada para ${fmtData(dataValidade)}.`,
-          notificar_cliente: false,
-        })
-      }
-
-      // Só pergunta sobre os Dados da Operação quando o banco da análise
-      // definida é diferente do banco já registrado no processo — se for o
-      // mesmo banco (ex: crédito venceu e precisou reaprovar), não há nada
-      // pra sincronizar, então nem pergunta.
-      if (analiseDefinida?.banco_pretendido) {
-        const bancoAnalise = bancos.find((b) => b.nome === analiseDefinida.banco_pretendido)
-        const bancoMudou = bancoAnalise && bancoAnalise.id !== (processo.banco_id ?? null)
-        if (bancoMudou) {
-          const sincronizar = window.confirm(
-            `O banco desta aprovação (${analiseDefinida.banco_pretendido}) é diferente do banco atual da operação (${processo.banco?.nome ?? '—'}).\n\nDeseja atualizar os Dados da Operação (Banco, Valor do Imóvel, Entrada, Valor Financiado e Prazo) com os valores desta análise?\n\nSe preferir manter os dados atuais, clique em Cancelar.`,
-          )
-          if (sincronizar) {
-            await sincronizarOperacao.mutateAsync({
-              banco_id: bancoAnalise!.id,
-              valor_imovel: analiseDefinida.valor_imovel,
-              valor_entrada: analiseDefinida.entrada,
-              valor_financiado: analiseDefinida.valor_pretendido,
-              prazo_amortizacao_meses: analiseDefinida.prazo_meses,
-            })
-            comentar.mutate({
-              tipo: 'alteracao',
-              texto: `Dados da Operação (Resumo) atualizados conforme análise de crédito aprovada — novo banco: ${bancoAnalise!.nome}.`,
-              notificar_cliente: false,
-            })
-          }
-        }
-      }
-    }
+    await salvarDataESincronizar(analiseDefinida, valor)
   }
 
   return (
@@ -241,12 +278,12 @@ export function AbaCredito({ processoId, processo }: Props) {
                 analise={analise}
                 numero={i + 1}
                 onEditar={() => { setEditandoId(analise.id); setCriando(false) }}
-                onDeletar={() => deletar.mutate(analise.id)}
                 onDefinirBanco={() => handleToggleBanco(analise.id)}
                 onStatusChange={(s) => handleStatusChange(analise.id, s)}
                 onDataRespostaChange={(d) => handleDataRespostaChange(analise.id, d)}
-                deletando={deletar.isPending}
                 definindoBanco={definirBanco.isPending || limparBancoDefinido.isPending}
+                onSolicitarExclusao={podeExcluirAnalise ? () => setExcluindoAnalise(analise) : undefined}
+                excluindo={deletar.isPending}
               />
             ),
           )}
@@ -304,6 +341,13 @@ export function AbaCredito({ processoId, processo }: Props) {
           </div>
         </div>
       </div>
+
+      <ExcluirAnaliseCreditoDialog
+        analise={excluindoAnalise}
+        onFechar={() => setExcluindoAnalise(null)}
+        onConfirmar={handleConfirmarExclusao}
+        isPending={deletar.isPending}
+      />
     </div>
   )
 }
