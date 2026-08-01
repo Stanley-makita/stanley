@@ -118,6 +118,23 @@ export async function PUT(
     }
   }
 
+  // Guard: impede tirar o perfil admin do único admin ativo da empresa
+  // (sem isso, dava pra um admin trocar o próprio perfil — ou o de outro
+  // admin único — e ninguém mais conseguir promover ninguém de volta pela
+  // interface, só direto no banco).
+  if (perfil !== undefined && perfil !== 'admin' && alvo.perfil === 'admin') {
+    const { count } = await supabase
+      .from('usuarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('empresa_id', admin.empresa_id)
+      .eq('perfil', 'admin')
+      .eq('ativo', true)
+      .neq('id', alvo.id)
+    if ((count ?? 0) === 0) {
+      return NextResponse.json({ error: 'Não é possível remover o perfil admin do único administrador ativo.' }, { status: 400 })
+    }
+  }
+
   const update: Record<string, unknown> = {}
   if (nome               !== undefined) update.nome               = nome?.trim() || undefined
   if (perfil             !== undefined) update.perfil             = perfil
