@@ -237,7 +237,104 @@ export function useBuscaGlobal() {
           })
           .filter((r: ResultadoBusca) => !leads.find(l => l.id === r.id))
 
-        const todas = [...leads, ...leadsViaConjuge, ...Array.from(pessoaMap.values()), ...processos]
+        // Corretor / Imobiliária-Construtora / Parceiro comercial: acha a
+        // entidade pelo nome, depois todos os leads/processos vinculados a
+        // ela — útil pra achar a "carteira" de um parceiro comercial (ex:
+        // Relatórios). Junções (lead_corretores etc.) não têm empresa_id
+        // próprio, mas o join com leads/processos já é filtrado pela RLS
+        // deles, então não vaza nada entre empresas.
+        const [{ data: corretoresMatch }, { data: imobiliariasMatch }, { data: parceirosMatch }] = await Promise.all([
+          supabase.from('corretores').select('id, nome').eq('empresa_id', empresa).eq('ativo', true).ilike('nome', q).limit(5),
+          supabase.from('imobiliarias').select('id, nome').eq('empresa_id', empresa).eq('ativo', true).ilike('nome', q).limit(5),
+          supabase.from('parceiros').select('id, nome').eq('empresa_id', empresa).eq('ativo', true).ilike('nome', q).limit(5),
+        ])
+
+        const nomeDaEntidade = new Map<string, string>()
+        ;[...(corretoresMatch ?? []), ...(imobiliariasMatch ?? []), ...(parceirosMatch ?? [])]
+          .forEach((r: any) => nomeDaEntidade.set(r.id, r.nome))
+
+        const corretorIds    = (corretoresMatch ?? []).map((c: any) => c.id)
+        const imobiliariaIds = (imobiliariasMatch ?? []).map((i: any) => i.id)
+        const parceiroIds    = (parceirosMatch ?? []).map((p: any) => p.id)
+
+        const SELECT_LEAD_VIA_VINCULO = 'lead:leads(id, nome, telefone, cpf, deleted_at, fase:fases!fase_id(nome, cor))'
+        const SELECT_PROCESSO_VIA_VINCULO = 'processo:processos(id, nome_imovel, numero_processo, status_processo, deleted_at, banco:bancos!banco_id(nome), lead:leads!lead_id(nome), fase_atual:fases!fase_atual_id(nome, cor))'
+        const semResultado = Promise.resolve({ data: [] as any[] })
+
+        const [
+          { data: leadCorretoresData }, { data: processoCorretoresData },
+          { data: leadImobiliariasData }, { data: processoImobiliariasData },
+          { data: leadParceirosData }, { data: processoParceirosData },
+        ] = await Promise.all([
+          corretorIds.length    ? supabase.from('lead_corretores').select(`corretor_id, ${SELECT_LEAD_VIA_VINCULO}`).in('corretor_id', corretorIds)             : semResultado,
+          corretorIds.length    ? supabase.from('processo_corretores').select(`corretor_id, ${SELECT_PROCESSO_VIA_VINCULO}`).in('corretor_id', corretorIds)     : semResultado,
+          imobiliariaIds.length ? supabase.from('lead_imobiliarias').select(`imobiliaria_id, ${SELECT_LEAD_VIA_VINCULO}`).in('imobiliaria_id', imobiliariaIds)   : semResultado,
+          imobiliariaIds.length ? supabase.from('processo_imobiliarias').select(`imobiliaria_id, ${SELECT_PROCESSO_VIA_VINCULO}`).in('imobiliaria_id', imobiliariaIds) : semResultado,
+          parceiroIds.length    ? supabase.from('lead_parceiros').select(`parceiro_id, ${SELECT_LEAD_VIA_VINCULO}`).in('parceiro_id', parceiroIds)               : semResultado,
+          parceiroIds.length    ? supabase.from('processo_parceiros').select(`parceiro_id, ${SELECT_PROCESSO_VIA_VINCULO}`).in('parceiro_id', parceiroIds)       : semResultado,
+        ])
+
+        const leadsPorVinculo = (rows: any[] | null, campoId: string, label: string): ResultadoBusca[] => {
+          const mapa = new Map<string, ResultadoBusca>()
+          for (const row of rows ?? []) {
+            const l = Array.isArray(row.lead) ? row.lead[0] : row.lead
+            if (!l || l.deleted_at) continue
+            const faseNome = Array.isArray(l.fase) ? l.fase[0]?.nome : l.fase?.nome
+            const faseCor  = Array.isArray(l.fase) ? l.fase[0]?.cor  : l.fase?.cor
+            if (faseExcluida(faseNome)) continue
+            mapa.set(l.id, {
+              tipo:      'lead' as const,
+              id:        l.id,
+              titulo:    l.nome,
+              subtitulo: `via ${label}: ${nomeDaEntidade.get(row[campoId]) ?? ''}`,
+              fase:      faseNome,
+              faseCor,
+            })
+          }
+          return Array.from(mapa.values())
+        }
+
+        const STATUS_PROCESSO_EXCLUIDOS = ['reprovado', 'cancelado']
+
+        const processosPorVinculo = (rows: any[] | null, campoId: string, label: string): ResultadoBusca[] => {
+          const mapa = new Map<string, ResultadoBusca>()
+          for (const row of rows ?? []) {
+            const p = Array.isArray(row.processo) ? row.processo[0] : row.processo
+            if (!p || p.deleted_at || STATUS_PROCESSO_EXCLUIDOS.includes(p.status_processo)) continue
+            const leadNome  = Array.isArray(p.lead)       ? p.lead[0]?.nome       : p.lead?.nome
+            const bancoNome = Array.isArray(p.banco)      ? p.banco[0]?.nome      : p.banco?.nome
+            const faseNome  = Array.isArray(p.fase_atual) ? p.fase_atual[0]?.nome : p.fase_atual?.nome
+            const faseCor   = Array.isArray(p.fase_atual) ? p.fase_atual[0]?.cor  : p.fase_atual?.cor
+            const partes = [p.numero_processo, bancoNome].filter(Boolean).join(' · ')
+            mapa.set(p.id, {
+              tipo:      'processo' as const,
+              id:        p.id,
+              titulo:    p.nome_imovel ?? leadNome ?? 'Processo',
+              subtitulo: `via ${label}: ${nomeDaEntidade.get(row[campoId]) ?? ''}${partes ? ' · ' + partes : ''}`,
+              fase:      faseNome,
+              faseCor,
+            })
+          }
+          return Array.from(mapa.values())
+        }
+
+        const leadsPorParceiroComercial = [
+          ...leadsPorVinculo(leadCorretoresData, 'corretor_id', 'corretor'),
+          ...leadsPorVinculo(leadImobiliariasData, 'imobiliaria_id', 'imobiliária'),
+          ...leadsPorVinculo(leadParceirosData, 'parceiro_id', 'parceiro'),
+        ].filter(r => !leads.find(l => l.id === r.id) && !leadsViaConjuge.find(l => l.id === r.id))
+
+        const processosPorParceiroComercial = [
+          ...processosPorVinculo(processoCorretoresData, 'corretor_id', 'corretor'),
+          ...processosPorVinculo(processoImobiliariasData, 'imobiliaria_id', 'imobiliária'),
+          ...processosPorVinculo(processoParceirosData, 'parceiro_id', 'parceiro'),
+        ].filter(r => !processos.find(p => p.id === r.id))
+
+        const todas = [
+          ...leads, ...leadsViaConjuge, ...leadsPorParceiroComercial,
+          ...Array.from(pessoaMap.values()),
+          ...processos, ...processosPorParceiroComercial,
+        ]
         setResultados(todas)
         setAberto(todas.length > 0)
       } finally {
