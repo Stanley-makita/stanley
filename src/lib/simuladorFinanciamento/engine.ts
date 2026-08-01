@@ -499,7 +499,9 @@ export function simularComCriterios(
   const maxLtv = baseLtv - penalidade
   const maxLtvValue = input.valorImovel * maxLtv
 
-  const taxaAnual = input.correntista ? criteria.taxaAnualCorrentista : criteria.taxaAnualBase
+  const taxaAnual = (input.tipoAmortizacao === 'PRICE' && criteria.taxaAnualPrice != null)
+    ? criteria.taxaAnualPrice
+    : (input.correntista ? criteria.taxaAnualCorrentista : criteria.taxaAnualBase)
 
   // ── Verificações de elegibilidade — mesma ordem e mensagens de simularBancoComTaxa ──
   if (input.tipoAmortizacao === 'PRICE' && !suportaPrice) {

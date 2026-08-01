@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE) 1`] = `
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > PRICE (deve ficar inelegível — Santander/BB não oferecem PRICE) 1`] = `
 {
   "bancoId": "bb",
   "bancoNome": "Banco do Brasil",
@@ -345,29 +345,6 @@ exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > 
 }
 `;
 
-exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE) 1`] = `
-{
-  "bancoId": "bradesco",
-  "bancoNome": "Bradesco",
-  "corBanco": "#CC092F",
-  "elegivel": false,
-  "maxFinanciavel30": 0,
-  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
-  "parcelas": 420,
-  "primeiraParcela": 0,
-  "programa": "SBPE",
-  "resultadoId": "bradesco",
-  "taxaAnual": 0.119,
-  "taxaMensal": 0,
-  "tipoAmortizacao": "PRICE",
-  "totalJuros": 0,
-  "totalPago": 350000,
-  "totalSeguros": 0,
-  "ultimaParcela": 0,
-  "valorFinanciado": 350000,
-}
-`;
-
 exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bradesco > SAC, LTV acima do limite (deve ficar inelegível) 1`] = `
 {
   "bancoId": "bradesco",
@@ -690,7 +667,7 @@ exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > 
 }
 `;
 
-exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE) 1`] = `
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > PRICE (deve ficar inelegível — Santander/BB não oferecem PRICE) 1`] = `
 {
   "bancoId": "santander",
   "bancoNome": "Santander",
@@ -1032,5 +1009,51 @@ exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > 
   "totalSeguros": 266899.5,
   "ultimaParcela": 7796.367402214424,
   "valorFinanciado": 3150000,
+}
+`;
+
+exports[`Bradesco — PRICE (taxa própria, ago/2026) > PRICE com renda baixa: comprometimento de 15% (mais restritivo que o SAC) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 70362,
+  "parcelas": 420,
+  "primeiraParcela": 3563.2627061887715,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 1102995.3365992836,
+  "totalPago": 1489043.8033711342,
+  "totalSeguros": 36048.466771850486,
+  "ultimaParcela": 3485.2836081226146,
+  "valorFinanciado": 350000,
+}
+`;
+
+exports[`Bradesco — PRICE (taxa própria, ago/2026) > PRICE elegível com taxa própria de 12,3% (diferente dos 11,90% do SAC) 1`] = `
+{
+  "avisoRenda": true,
+  "bancoId": "bradesco",
+  "bancoNome": "Bradesco",
+  "corBanco": "#CC092F",
+  "elegivel": true,
+  "maxFinanciavel30": 362574,
+  "parcelas": 420,
+  "primeiraParcela": 3563.2627061887715,
+  "programa": "SBPE",
+  "resultadoId": "bradesco",
+  "taxaAnual": 0.123,
+  "taxaMensal": 0.009713849091260496,
+  "tipoAmortizacao": "PRICE",
+  "totalJuros": 1102995.3365992836,
+  "totalPago": 1489043.8033711342,
+  "totalSeguros": 36048.466771850486,
+  "ultimaParcela": 3485.2836081226146,
+  "valorFinanciado": 350000,
 }
 `;

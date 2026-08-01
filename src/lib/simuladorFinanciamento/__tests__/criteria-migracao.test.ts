@@ -81,10 +81,14 @@ describe('Bancos genéricos (Fase 1) — regressão antes/depois da migração',
         expect(r).toMatchSnapshot()
       })
 
-      it('PRICE (deve ficar inelegível — nenhum dos 3 bancos genéricos oferece PRICE)', () => {
-        const r = simularBanco(bancoId, { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
-        expect(r).toMatchSnapshot()
-      })
+      // Bradesco passou a oferecer PRICE (ago/2026, taxa própria travada em 12,3%) — não é
+      // mais "inelegível pra todos os 3 genéricos". Tem teste próprio logo abaixo do loop.
+      if (bancoId !== 'bradesco') {
+        it('PRICE (deve ficar inelegível — Santander/BB não oferecem PRICE)', () => {
+          const r = simularBanco(bancoId, { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
+          expect(r).toMatchSnapshot()
+        })
+      }
 
       it('valor de imóvel alto (R$ 4.500.000 — testa teto do BB)', () => {
         const r = simularBanco(bancoId, { ...BASE_INPUT, valorImovel: 4_500_000, valorEntrada: 1_350_000 })
@@ -118,4 +122,28 @@ describe('Bancos genéricos (Fase 1) — regressão antes/depois da migração',
       })
     })
   }
+})
+
+// PRICE do Bradesco (ago/2026) — taxa própria travada em 12,3% (piso de mercado 11,70%,
+// mesmo critério de segurança já usado pro piso do SAC deste banco), LTV 80%,
+// comprometimento de renda 15% (vs. 30% do SAC). MIP/DFI reaproveitam o já calibrado do
+// SAC (BRADESCO_DFI_RATE + MIP_RATES genérica) — sem tabela pública de MIP por idade
+// específica do Bradesco disponível pra calibrar uma própria.
+describe('Bradesco — PRICE (taxa própria, ago/2026)', () => {
+  it('PRICE elegível com taxa própria de 12,3% (diferente dos 11,90% do SAC)', () => {
+    const r = simularBanco('bradesco', { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
+    expect(r.elegivel).toBe(true)
+    expect(r.taxaAnual).toBeCloseTo(0.123, 4)
+    expect(r).toMatchSnapshot()
+  })
+
+  it('PRICE com renda baixa: comprometimento de 15% (mais restritivo que o SAC)', () => {
+    const r = simularBanco('bradesco', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', rendaMensal: 3_000 })
+    expect(r).toMatchSnapshot()
+  })
+
+  it('PRICE com LTV acima de 80% fica inelegível', () => {
+    const r = simularBanco('bradesco', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000 })
+    expect(r.elegivel).toBe(false)
+  })
 })
