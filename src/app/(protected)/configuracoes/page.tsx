@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import {
   Settings, Building2, Users, Layers, Smartphone, Calculator,
   Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target,
-  Package, ChevronRight, ArrowLeft, ShieldCheck,
+  Package, ChevronRight, ArrowLeft, ShieldCheck, Handshake,
 } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
@@ -21,6 +21,7 @@ import { AbaComissoesPadrao } from '@/components/configuracoes/AbaComissoesPadra
 import { AbaMetas } from '@/components/configuracoes/AbaMetas'
 import { IdentidadeVisualConfig } from './_components/identidade/IdentidadeVisualConfig'
 import { PerfisPermissoesConfig } from './_components/perfis/PerfisPermissoesConfig'
+import { ParceirosComerciaisConfig } from './_components/parceiros-comerciais/ParceirosComerciaisConfig'
 
 interface ConfigItem {
   key: string
@@ -51,6 +52,7 @@ const GRUPOS: ConfigGrupo[] = [
       { key: 'comissoes-banco', label: 'Comissões Banco',   descricao: 'Percentuais por banco, modalidade, piso e teto',        icon: Percent },
       { key: 'metas',           label: 'Metas',             descricao: 'Metas mensais de valor financiado e contratos',         icon: Target },
       { key: 'simulador',       label: 'Simulador',         descricao: 'Parâmetros de custas, ITBI e tarifas bancárias',        icon: Calculator },
+      { key: 'parceiros-comerciais', label: 'Parceiros Comerciais', descricao: 'Corretores, imobiliárias/construtoras e parceiros', icon: Handshake },
     ],
   },
   {
@@ -101,6 +103,7 @@ function renderConteudo(key: string) {
     case 'instancias':       return wrap('Instâncias WhatsApp', '', <InstanciasLista />)
     case 'simulador':        return wrap('Simulador de Custas', 'Configure parâmetros de cálculo, tarifas bancárias e alíquotas de ITBI por município.', <SimuladorConfigTab />)
     case 'registros-imoveis': return wrap('Registros de Imóveis', 'Cadastre os cartórios de RI utilizados nos processos.', <RegistrosImoveisLista />)
+    case 'parceiros-comerciais': return wrap('Parceiros Comerciais', 'Cadastre e corrija corretores, imobiliárias/construtoras e parceiros.', <ParceirosComerciaisConfig />)
     case 'checklists':       return wrap('Checklists por Fase', 'Itens obrigatórios bloqueiam o avanço de fase no processo.', <ChecklistsConfig />)
     case 'agente-fonti':     return wrap('Agente Fonti', 'Personalize o assistente virtual no WhatsApp — nome, horário, produtos e mensagens.', <AgenteFontiConfig />)
     case 'abas-lead':        return wrap('Abas do Lead', 'Defina a ordem das abas no modal de detalhe do lead.', <AbasConfigTab />)

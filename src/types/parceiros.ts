@@ -18,6 +18,7 @@ export interface Imobiliaria {
   ativo: boolean
   criado_em: string
   atualizado_em: string
+  empresa_id?: string | null
 }
 
 export interface ImobiliariaForm {
@@ -37,6 +38,7 @@ export interface Corretor {
   telefone?: string | null
   email?: string | null
   creci?: string | null
+  imobiliaria_id?: string | null
   empresa_id?: string | null
   observacao?: string | null
   ativo: boolean
@@ -51,7 +53,7 @@ export interface CorretorForm {
   telefone?: string
   email?: string
   creci?: string
-  empresa_id?: string | null
+  imobiliaria_id?: string | null
   observacao?: string
 }
 
