@@ -190,6 +190,10 @@ export function resolverCriterios(
     programa: cfg.programa,
     taxaAnualBase: overrides?.taxaAnual ?? cfg.taxaAnualBase,
     taxaAnualCorrentista: overrides?.taxaAnual ?? cfg.taxaAnualCorrentista,
+    // Override do banco de dados, quando presente, vale pros dois sistemas de amortização
+    // (mesma precedência de taxaAnualBase/Correntista acima) — só cai no valor próprio do
+    // PRICE (cfg.taxaAnualPrice) na ausência de override.
+    taxaAnualPrice: overrides?.taxaAnual ?? cfg.taxaAnualPrice,
     amortizacoesSuportadas: cfg.suportaPrice ? ['SAC', 'PRICE'] : ['SAC'],
     ltv: {
       sac: overrides?.maxLtv ?? cfg.maxLtv,

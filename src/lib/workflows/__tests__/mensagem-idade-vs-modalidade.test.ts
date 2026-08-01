@@ -6,8 +6,10 @@
  * modalidade PRICE", de um banco que só não suporta PRICE), já que "modalidade" contém
  * "idade" como substring. Corrigido jul/2026 usando `\bidade\b` (limite de palavra).
  *
- * Caso-âncora real: cliente de 39 anos pedindo Bradesco + PRICE — Bradesco não suporta
+ * Caso-âncora real: cliente de 39 anos pedindo Santander + PRICE — Santander não suporta
  * PRICE, e a resposta afirmava (errado) que a idade do cliente era o problema.
+ * (Bradesco passou a suportar PRICE em ago/2026 — trocado por Santander pra manter o
+ * cenário original do bug: banco que genuinamente não oferece PRICE.)
  */
 import { describe, it, expect } from 'vitest'
 import { executarSimulacao, montarRespostaSimulacao } from '../motor-simulacao'
@@ -26,7 +28,7 @@ function baseDados(overrides: Partial<DadosCaptacaoNormalizados>): DadosCaptacao
     valor_financiado: null,
     renda_formal: null,
     renda_informal: null,
-    bancos_ids: ['bradesco'], // não suporta PRICE
+    bancos_ids: ['santander'], // não suporta PRICE
     solicitar_simulacao: true,
     prazo_meses: null,
     tipo_amortizacao: 'PRICE',
@@ -62,9 +64,9 @@ describe('texto do WhatsApp não confunde "modalidade" com problema de idade', (
     const dados = baseDados({})
     const resultado = await executarSimulacao(dados, {})
 
-    const bradesco = resultado.bancosResult?.find((r) => r.bancoId === 'bradesco')
-    expect(bradesco?.elegivel).toBe(false)
-    expect(bradesco?.motivoInelegivel).toContain('modalidade')
+    const santander = resultado.bancosResult?.find((r) => r.bancoId === 'santander')
+    expect(santander?.elegivel).toBe(false)
+    expect(santander?.motivoInelegivel).toContain('modalidade')
 
     const texto = montarRespostaSimulacao(resultado, { nomeDisplay: 'Cliente Teste' })
     expect(texto).not.toContain('idade do cliente é incompatível')

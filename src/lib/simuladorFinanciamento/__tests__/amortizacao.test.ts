@@ -4,7 +4,7 @@
  * Cobertura:
  *   1. PRICE sem banco (simularTodosBancos com BANCOS_PRICE)
  *   2. PRICE com Caixa
- *   3. PRICE com Bradesco (inelegível — não oferta PRICE)
+ *   3. PRICE com Bradesco (taxa própria travada em 12,3% — ago/2026)
  *   4. PRICE com banco sem suporte (Santander)
  *   5. SAC explícito
  *   6. Sem amortização informada (deve usar SAC por padrão do normalizer)
@@ -30,8 +30,8 @@ const BASE_INPUT: InputFinanciamento = {
 // ─── 1. PRICE sem banco — usar BANCOS_PRICE ──────────────────────────────────
 
 describe('PRICE sem banco específico', () => {
-  it('BANCOS_PRICE contém apenas Caixa e Itaú', () => {
-    expect(BANCOS_PRICE).toEqual(['caixa', 'itau'])
+  it('BANCOS_PRICE contém Caixa, Itaú e Bradesco', () => {
+    expect(BANCOS_PRICE).toEqual(['caixa', 'itau', 'bradesco'])
   })
 
   it('todos os bancos em BANCOS_PRICE têm suportaPrice=true', () => {
@@ -108,25 +108,26 @@ describe('PRICE com Caixa', () => {
   })
 })
 
-// ─── 3. PRICE com Bradesco (não oferece PRICE) ───────────────────────────────
+// ─── 3. PRICE com Bradesco (taxa própria travada em 12,3% — ago/2026) ────────
 
 describe('PRICE com Bradesco', () => {
-  it('Bradesco não tem suportaPrice', () => {
-    expect(BANCOS_CONFIG['bradesco'].suportaPrice).toBeFalsy()
+  it('Bradesco tem suportaPrice', () => {
+    expect(BANCOS_CONFIG['bradesco'].suportaPrice).toBe(true)
   })
 
-  it('Bradesco PRICE → inelegível com mensagem clara', () => {
+  it('Bradesco PRICE → elegível, taxa própria (12,3%) diferente do SAC (11,90%)', () => {
     const input: InputFinanciamento = {
       ...BASE_INPUT,
       tipoAmortizacao: 'PRICE',
       bancosIds:        ['bradesco'],
     }
     const r = simularBanco('bradesco', input)
-    expect(r.elegivel).toBe(false)
-    expect(r.motivoInelegivel).toContain('PRICE')
+    expect(r.elegivel).toBe(true)
+    expect(r.tipoAmortizacao).toBe('PRICE')
+    expect(r.taxaAnual).toBeCloseTo(0.123, 4)
   })
 
-  it('Bradesco SAC → elegível normalmente', () => {
+  it('Bradesco SAC → elegível normalmente, taxa 11,90% (não usa a taxa do PRICE)', () => {
     const input: InputFinanciamento = {
       ...BASE_INPUT,
       tipoAmortizacao: 'SAC',
@@ -134,6 +135,19 @@ describe('PRICE com Bradesco', () => {
     }
     const r = simularBanco('bradesco', input)
     expect(r.elegivel).toBe(true)
+    expect(r.taxaAnual).toBeCloseTo(0.119, 4)
+  })
+
+  it('Bradesco PRICE excedendo LTV de 80% fica inelegível', () => {
+    const input: InputFinanciamento = {
+      ...BASE_INPUT,
+      tipoAmortizacao: 'PRICE',
+      bancosIds:        ['bradesco'],
+      valorEntrada:     50_000, // 90% financiado → excede 80% LTV
+    }
+    const r = simularBanco('bradesco', input)
+    expect(r.elegivel).toBe(false)
+    expect(r.motivoInelegivel).toMatch(/Financiamento.*excede/)
   })
 })
 
@@ -142,8 +156,8 @@ describe('PRICE com Bradesco', () => {
 describe('PRICE com bancos sem suporte', () => {
   const semSuporte = TODOS_BANCOS.filter((id) => !BANCOS_CONFIG[id].suportaPrice)
 
-  it('bancos sem suporte incluem Bradesco, Santander, BB, Inter, Daycoval', () => {
-    expect(semSuporte).toContain('bradesco')
+  it('bancos sem suporte incluem Santander, BB, Inter, Daycoval (não Bradesco)', () => {
+    expect(semSuporte).not.toContain('bradesco')
     expect(semSuporte).toContain('santander')
     expect(semSuporte).toContain('bb')
     expect(semSuporte).toContain('inter')

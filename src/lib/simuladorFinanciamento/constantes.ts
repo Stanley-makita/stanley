@@ -10,8 +10,9 @@ export interface BancoConfig {
   programa: string
   maxLtv: number               // LTV máximo SAC (% do valor do imóvel)
   maxLtvCorrentista: number    // LTV com relacionamento (alguns bancos diferem)
-  maxLtvPrice?: number         // LTV máximo PRICE — Caixa = 70% (doc seção 3.1)
-  comprometimentoMaxPrice?: number // comprometimento máximo renda PRICE — Caixa = 25%
+  maxLtvPrice?: number         // LTV máximo PRICE — Caixa = 70% (doc seção 3.1), Bradesco = 80%
+  comprometimentoMaxPrice?: number // comprometimento máximo renda PRICE — Caixa = 25%, Bradesco = 15%
+  taxaAnualPrice?: number      // taxa própria do PRICE quando diferente do SAC — Bradesco = 12,3% travado
   suportaPrice?: boolean       // banco oferece modalidade PRICE (padrão: false)
   maxValorImovel: number       // 0 = sem limite
   prazoMaximoMeses: number     // prazo máximo independente de idade
@@ -71,6 +72,17 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     // resultado real pode vir mais alto para um CPF específico.
     taxaAnualBase:        0.1190, // 11,90% a.a. — piso assumido (taxa real varia por CPF/rating)
     taxaAnualCorrentista: 0.1190,
+    // PRICE (ago/2026): piso de mercado praticado é 11,70% a.a., mas travamos em 12,3% por
+    // segurança — mesmo critério já usado pro piso do SAC deste banco (taxa real varia por
+    // CPF/rating, sem como replicar esse scoring). Prazo máximo (420, limitado pela idade),
+    // LTV (80%) e comprometimento de renda (15%, contra 30% do SAC) confirmados com o
+    // usuário; MIP/DFI reaproveitam o já calibrado do SAC deste banco (BRADESCO_DFI_RATE +
+    // MIP_RATES genérica) — não achamos tabela pública de MIP do Bradesco por idade nem
+    // nada que contradissesse o já calibrado.
+    taxaAnualPrice: 0.1230,
+    maxLtvPrice: 0.80,
+    comprometimentoMaxPrice: 0.15,
+    suportaPrice: true,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
