@@ -16,3 +16,17 @@ export function variantesTelefoneBR(telefone: string): string[] {
   }
   return Array.from(variantes)
 }
+
+/**
+ * Forma canônica única (sempre com o "9" do celular) — usar sempre que o
+ * valor for GRAVADO como chave de busca por igualdade exata (ex.:
+ * fonti_marcas.telefone_conversa, lead_telefones.telefone). Sem isso, duas
+ * mensagens da mesma pessoa que chegam com formatos diferentes (uma com "9",
+ * outra sem — comportamento real observado no `senderPn` da Uazapi/WhatsApp
+ * para o mesmo número físico) geram duas linhas/"sessões" diferentes pro
+ * mesmo contato, e uma delas fica órfã.
+ */
+export function telefoneCanonico(telefone: string): string {
+  const variantes = variantesTelefoneBR(telefone)
+  return variantes.find((v) => v.length === 13) ?? variantes[0]
+}

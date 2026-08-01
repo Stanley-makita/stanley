@@ -10,7 +10,7 @@ import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
-import { variantesTelefoneBR } from '@/lib/telefone'
+import { variantesTelefoneBR, telefoneCanonico } from '@/lib/telefone'
 
 // Payload format sent by Uazapi
 interface UazapiMediaContent {
@@ -427,8 +427,15 @@ export async function POST(request: NextRequest) {
   let fileUrl: string | null = null
 
   // Extrai telefone: "554484558946@s.whatsapp.net" → "554484558946"
+  // Canoniza (sempre com o "9" do celular) já na entrada — o senderPn da
+  // Uazapi pode reportar o mesmo número físico com ou sem o "9" dependendo
+  // da mensagem, e vários pontos abaixo (fonti_marcas.telefone_conversa,
+  // lead_telefones.telefone) comparam esse valor por igualdade exata, não
+  // por variante — sem canonizar aqui, duas mensagens da mesma pessoa podiam
+  // virar duas "sessões"/vínculos diferentes.
   const senderPn = msg?.sender_pn ?? ''
-  const telefone = senderPn.replace('@s.whatsapp.net', '')
+  const telefoneBruto = senderPn.replace('@s.whatsapp.net', '')
+  const telefone = telefoneBruto ? telefoneCanonico(telefoneBruto) : ''
   if (!telefone) {
     console.log('[whatsapp-webhook] telefone não encontrado, ignorando')
     return NextResponse.json({ ok: true })
