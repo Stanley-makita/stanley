@@ -218,6 +218,16 @@ export async function POST(request: NextRequest) {
     hasMessageId: Boolean(payload.message?.messageid),
   })
 
+  // Investigação: ligação de voz do WhatsApp (cliente ligando pelo app pro número da
+  // instância) é um evento separado de mensagem — não sabemos ainda o formato exato do
+  // payload que a Uazapi envia (a doc pública não mostra um exemplo). Só loga cru por
+  // enquanto pra descobrir o formato real numa ligação de teste, antes de implementar a
+  // notificação de verdade (mesmo padrão do /api/telefonia/chamada-recebida).
+  if (payload.EventType?.toLowerCase().includes('call')) {
+    console.log('[whatsapp-webhook] evento de CHAMADA recebido, payload completo:', JSON.stringify(payload))
+    return NextResponse.json({ ok: true })
+  }
+
   const msg = payload.message
 
   // Detecta *fonti antes do filtro fromMe (comercial envia da conversa do cliente)

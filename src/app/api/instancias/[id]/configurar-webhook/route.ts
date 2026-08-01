@@ -53,7 +53,7 @@ export async function POST(
       },
       body: JSON.stringify({
         url: webhookUrl,
-        events: ['messages', 'messages_update', 'contacts', 'sender'],
+        events: ['messages', 'messages_update', 'contacts', 'sender', 'call'],
         exclude: ['fromMeYes', 'isGroupYes'],
         addUrlEvents: false,
         addUrlTypesMessages: false,

@@ -301,7 +301,7 @@ export function InstanciasLista() {
                 </Button>
               </div>
               <p className="text-xs text-gray-400">
-                Cole esta URL no campo Webhook do dashboard Uazapi, com os eventos: messages, messages_update, contacts, sender.
+                Cole esta URL no campo Webhook do dashboard Uazapi, com os eventos: messages, messages_update, contacts, sender, call.
               </p>
             </div>
             <div className="space-y-1.5">
