@@ -6,10 +6,17 @@ import { Topbar } from '@/components/layout/Topbar'
 import { RouteGuard } from '@/components/layout/RouteGuard'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { ChamadasFlutuantes } from '@/components/notificacoes/ChamadasFlutuantes'
+import { useNotificacoesRealtimeSync } from '@/hooks/useNotificacoes'
 
 export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNode; initialLogoUrl?: string | null }) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+
+  // Assina o canal realtime de notificações uma única vez por sessão (ver
+  // useNotificacoesRealtimeSync) — não fazer isso aqui e deixar cada consumidor
+  // (Sino, ChamadasFlutuantes, central) assinar por conta própria foi o que causava
+  // eventos em tempo real pararem de chegar depois do primeiro.
+  useNotificacoesRealtimeSync()
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed')

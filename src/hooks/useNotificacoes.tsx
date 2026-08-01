@@ -24,9 +24,8 @@ const INVALIDACOES_POR_TIPO: Partial<Record<Notificacao['tipo'], QueryKey[]>> = 
 export function useNotificacoes(limite = 50) {
   const supabase = useMemo(() => createClient(), [])
   const { data: usuario } = useUsuarioAtual()
-  const queryClient = useQueryClient()
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ['notificacoes', usuario?.id, limite],
     enabled: !!usuario?.id,
     queryFn: async (): Promise<Notificacao[]> => {
@@ -40,6 +39,20 @@ export function useNotificacoes(limite = 50) {
       return (data as Notificacao[]) ?? []
     },
   })
+}
+
+// Assinatura do canal realtime de notificações — efeito com side effects (toast,
+// invalidação de queries), por isso precisa rodar UMA ÚNICA VEZ por sessão. Vários
+// componentes (Sino, card flutuante de chamadas, central) consomem notificações via
+// useNotificacoes()/useNotificacoesNaoLidas() acima, mas nenhum deles assina o canal —
+// só este hook, montado uma vez no layout raiz (ProtectedShell). Antes, cada consumidor
+// tinha seu próprio useEffect criando um canal com o mesmo nome (`notificacoes-${id}`),
+// e o cleanup-antes-de-criar de um derrubava o canal do outro — resultado: só o
+// primeiro evento em tempo real chegava, o resto exigia F5 pra reaparecer.
+export function useNotificacoesRealtimeSync() {
+  const supabase = useMemo(() => createClient(), [])
+  const { data: usuario } = useUsuarioAtual()
+  const queryClient = useQueryClient()
 
   // Realtime: INSERT dispara toast + invalidação; UPDATE/DELETE (ex.: marcar
   // como lida ou excluir em outra aba) só invalidam, para refletir sem F5.
@@ -107,8 +120,6 @@ export function useNotificacoes(limite = 50) {
       supabase.removeChannel(channel)
     }
   }, [usuario?.id, supabase, queryClient])
-
-  return query
 }
 
 export function useNotificacoesNaoLidas() {
