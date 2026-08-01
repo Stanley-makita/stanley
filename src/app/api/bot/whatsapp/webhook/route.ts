@@ -230,11 +230,13 @@ export async function POST(request: NextRequest) {
 
   // Ligação de voz do WhatsApp (cliente ligando pelo app pro número da instância) — canal
   // separado de mensagem, não passa pelo MicroSIP. A Uazapi manda um evento por etapa da
-  // chamada (visto em produção: "offer" no toque, "terminate" no fim); só processamos
-  // "offer" pra notificar o atendente no momento em que o telefone toca, mesmo padrão do
-  // /api/telefonia/chamada-recebida (que cobre ligação na operadora/MicroSIP).
+  // chamada: "offer" no toque (às vezes reanunciado com CallID novo a cada ~15-20s
+  // enquanto ninguém atende) e "terminate" quando ela para de tocar (atendida, recusada
+  // ou cancelada). Notificamos no primeiro "offer" de cada ligação de verdade, mesmo
+  // padrão do /api/telefonia/chamada-recebida (que cobre MicroSIP/operadora).
   if (payload.EventType === 'call') {
-    if (payload.event?.Data?.Tag !== 'offer') {
+    const tagCall = payload.event?.Data?.Tag
+    if (tagCall !== 'offer' && tagCall !== 'terminate') {
       return NextResponse.json({ ok: true })
     }
 
@@ -264,7 +266,7 @@ export async function POST(request: NextRequest) {
       supabase,
       messageid: callId,
       instanciaId: instanciaCall.id,
-      tipoEvento: 'call_offer',
+      tipoEvento: `call_${tagCall}`,
       empresaId: instanciaCall.empresa_id,
     })
     if (!claimCall.reivindicado) {
@@ -273,24 +275,33 @@ export async function POST(request: NextRequest) {
 
     let sucessoCall = true
     try {
-      // WhatsApp reanuncia a mesma ligação em toque contínuo (visto em produção: um
-      // "offer" novo com CallID diferente a cada ~15-20s enquanto ninguém atende) — sem
-      // isso, uma única chamada de 2 minutos gera vários cards empilhados na tela do
-      // atendente. Colapsa reanúncios do mesmo número pro mesmo atendente numa janela
-      // curta em vez de deduplicar só pelo CallID (que já foi reivindicado acima).
-      const janelaDedupe = new Date(Date.now() - 90_000).toISOString()
-      const { data: notifRecente } = await supabase
+      // "Sessão aberta" = notificação de chamada_recebida mais recente pra esse
+      // telefone+atendente que ainda não recebeu um "terminate" (dados_json.encerrada).
+      // Só assim dá pra diferenciar reanúncio da MESMA ligação tocando (não duplica)
+      // de uma ligação NOVA logo em seguida — ex.: atendente desliga e o cliente liga de
+      // novo em menos de 1 minuto pra testar. Deduplicar só por tempo (sem olhar
+      // terminate) tratava a segunda ligação real como eco da primeira e não notificava.
+      const janelaSeguranca = new Date(Date.now() - 10 * 60_000).toISOString()
+      const { data: sessaoAberta } = await supabase
         .from('notificacoes')
-        .select('id')
+        .select('id, dados_json')
         .eq('usuario_id', instanciaCall.atendente_id)
         .eq('tipo', 'chamada_recebida')
         .eq('origem', 'whatsapp_call')
         .eq('mensagem', callerPhone)
-        .gte('criado_em', janelaDedupe)
+        .gte('criado_em', janelaSeguranca)
+        .order('criado_em', { ascending: false })
         .limit(1)
         .maybeSingle()
+      const sessaoEncerrada = !sessaoAberta || (sessaoAberta.dados_json as { encerrada?: boolean } | null)?.encerrada === true
 
-      if (!notifRecente) {
+      if (tagCall === 'terminate') {
+        // Só fecha a sessão em aberto (se houver) — não cria notificação pro "fim de
+        // chamada" em si, só evita que o próximo "offer" seja tratado como reanúncio.
+        if (sessaoAberta && !sessaoEncerrada) {
+          await supabase.from('notificacoes').update({ dados_json: { encerrada: true } }).eq('id', sessaoAberta.id)
+        }
+      } else if (sessaoEncerrada) {
         let pessoaIdCall: string | null = null
         for (const variante of variantesTelefoneBR(callerPhone)) {
           pessoaIdCall = await buscarPessoaPorTelefone(instanciaCall.empresa_id, variante)
@@ -325,9 +336,11 @@ export async function POST(request: NextRequest) {
           severidade: 'info',
           prioridade: 'high',
           origem: 'whatsapp_call',
+          dados_json: { encerrada: false },
         })
         if (erroNotifCall) console.error('[whatsapp-webhook] erro ao criar notificação de chamada:', erroNotifCall.message)
       }
+      // else: "offer" de uma sessão já aberta (reanúncio) — não faz nada, já notificado.
     } catch (err) {
       sucessoCall = false
       throw err
