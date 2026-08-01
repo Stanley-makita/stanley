@@ -331,7 +331,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
   const faltaCredito = !!lead && (!lead.data_credito || !lead.validade_credito)
 
   return (
-    <div className="space-y-4 px-4 pb-5 pt-4 sm:px-5">
+    <div className="max-h-[75svh] space-y-4 overflow-y-auto px-4 pb-5 pt-4 sm:px-5">
       <div className="bg-gray-50 rounded-xl p-4 space-y-1">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-fonti-primary">{clienteNome}</p>
@@ -408,7 +408,7 @@ function SeletorAnalise({ analises, onSelecionar, onVoltar }: {
   onVoltar: () => void
 }) {
   return (
-    <div className="space-y-4 px-4 pb-5 pt-4 sm:px-5">
+    <div className="max-h-[75svh] space-y-4 overflow-y-auto px-4 pb-5 pt-4 sm:px-5">
       <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
         {analises.map((analise) => (
           <button
