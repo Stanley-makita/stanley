@@ -1877,17 +1877,17 @@ function BlocoParceirosLead({ leadId }: { leadId: string }) {
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-1">Parceiros</p>
       <ParceirosSecao
         label="Corretor" icon={<User className="h-3.5 w-3.5" />}
-        items={corretores.map(c => ({ id: c.id, nome: c.corretor.nome, sub: c.corretor.creci ? `CRECI: ${c.corretor.creci}` : undefined }))}
+        items={corretores.filter(c => c.corretor).map(c => ({ id: c.id, nome: c.corretor.nome, sub: c.corretor.creci ? `CRECI: ${c.corretor.creci}` : undefined }))}
         onRemover={removerCorretor} onAbrirAdicionar={() => setModalCorretor(true)}
       />
       <ParceirosSecao
         label="Imobiliária / Construtora" icon={<Building2 className="h-3.5 w-3.5" />}
-        items={imobiliarias.map(i => ({ id: i.id, nome: i.imobiliaria.nome, sub: i.papel === 'construtora' ? 'Construtora' : 'Imobiliária' }))}
+        items={imobiliarias.filter(i => i.imobiliaria).map(i => ({ id: i.id, nome: i.imobiliaria.nome, sub: i.papel === 'construtora' ? 'Construtora' : 'Imobiliária' }))}
         onRemover={removerImobiliaria} onAbrirAdicionar={() => setModalImobiliaria(true)}
       />
       <ParceirosSecao
         label="Parceiro Comercial" icon={<Handshake className="h-3.5 w-3.5" />}
-        items={parceiros.map(p => ({ id: p.id, nome: p.parceiro.nome, sub: p.parceiro.tipo === 'pessoa_fisica' ? 'Pessoa Física' : 'Empresa' }))}
+        items={parceiros.filter(p => p.parceiro).map(p => ({ id: p.id, nome: p.parceiro.nome, sub: p.parceiro.tipo === 'pessoa_fisica' ? 'Pessoa Física' : 'Empresa' }))}
         onRemover={removerParceiro} onAbrirAdicionar={() => setModalParceiro(true)}
       />
 
