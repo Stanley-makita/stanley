@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -95,6 +96,7 @@ interface ModalCorretorProps {
 
 export function ModalAdicionarCorretor({ open, contexto, entidadeId, onClose, onAdded }: ModalCorretorProps) {
   const supabase = createClient()
+  const { data: usuario } = useUsuarioAtual()
   const [corretores, setCorretores] = useState<Corretor[]>([])
   const [corretorId, setCorretorId] = useState('')
   const [papel, setPapel] = useState<PapelCorretorProcesso>('corretor_comprador')
@@ -122,7 +124,11 @@ export function ModalAdicionarCorretor({ open, contexto, entidadeId, onClose, on
       if (modo === 'novo') {
         const { data, error } = await supabase
           .from('corretores')
-          .insert({ nome: novoNome.trim(), telefone: novoTelefone.trim() ? normalizarTelefone(novoTelefone) : null })
+          .insert({
+            nome: novoNome.trim(),
+            telefone: novoTelefone.trim() ? normalizarTelefone(novoTelefone) : null,
+            empresa_id: usuario?.empresa_id,
+          })
           .select('id')
           .single()
         if (error || !data) {
@@ -252,6 +258,7 @@ interface ModalImobiliariaProps {
 
 export function ModalAdicionarImobiliaria({ open, contexto, entidadeId, onClose, onAdded }: ModalImobiliariaProps) {
   const supabase = createClient()
+  const { data: usuario } = useUsuarioAtual()
   const [imobiliarias, setImobiliarias] = useState<Imobiliaria[]>([])
   const [imobiliariaId, setImobiliariaId] = useState('')
   const [papel, setPapel] = useState<PapelImobiliariaProcesso>('imobiliaria')
@@ -287,6 +294,7 @@ export function ModalAdicionarImobiliaria({ open, contexto, entidadeId, onClose,
             nome: novoNome.trim(),
             tipo: novoTipo,
             telefone: novoTelefone.trim() ? normalizarTelefone(novoTelefone) : null,
+            empresa_id: usuario?.empresa_id,
           })
           .select('id').single()
         if (error || !data) {
@@ -388,6 +396,7 @@ interface ModalParceiroProps {
 
 export function ModalAdicionarParceiro({ open, contexto, entidadeId, onClose, onAdded }: ModalParceiroProps) {
   const supabase = createClient()
+  const { data: usuario } = useUsuarioAtual()
   const [parceiros, setParceiros] = useState<Parceiro[]>([])
   const [parceiroId, setParceiroId] = useState('')
   const [novoNome, setNovoNome] = useState('')
@@ -413,6 +422,7 @@ export function ModalAdicionarParceiro({ open, contexto, entidadeId, onClose, on
             nome: novoNome.trim(),
             telefone: novoTelefone.trim() ? normalizarTelefone(novoTelefone) : null,
             tipo: novoTipo,
+            empresa_id: usuario?.empresa_id,
           })
           .select('id').single()
         if (error || !data) {
