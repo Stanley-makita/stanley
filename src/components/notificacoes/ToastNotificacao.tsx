@@ -1,11 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
+import { X, PhoneCall } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { NOTIFICACAO_META, type Notificacao, type Severidade } from '@/types/notificacoes'
 import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
+import { ligarViaSip } from '@/lib/telefonia/ligarViaSip'
 
 const SEVERIDADE_BARRA: Record<Severidade, string> = {
   info: 'bg-info',
@@ -62,6 +63,15 @@ export function ToastNotificacao({ toastId, notificacao, duracaoMs }: ToastNotif
           <p className="text-sm font-semibold text-gray-900">{notificacao.titulo}</p>
           {notificacao.mensagem && (
             <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{notificacao.mensagem}</p>
+          )}
+          {notificacao.tipo === 'chamada_recebida' && notificacao.mensagem && (
+            <button
+              onClick={(e) => { e.stopPropagation(); ligarViaSip(notificacao.mensagem!); toast.dismiss(toastId) }}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+            >
+              <PhoneCall className="h-3.5 w-3.5" />
+              Retornar ligação
+            </button>
           )}
         </div>
       </div>

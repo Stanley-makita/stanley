@@ -1,9 +1,10 @@
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Bell, Trash2 } from 'lucide-react'
+import { Bell, Trash2, PhoneCall } from 'lucide-react'
 import { Notificacao, NOTIFICACAO_META } from '@/types/notificacoes'
 import { cn } from '@/lib/utils'
 import { useExcluirNotificacao } from '@/hooks/useExcluirNotificacao'
+import { ligarViaSip } from '@/lib/telefonia/ligarViaSip'
 
 interface NotificacaoItemProps {
   notificacao: Notificacao
@@ -22,7 +23,13 @@ export function NotificacaoItem({ notificacao, onClick }: NotificacaoItemProps) 
         !notificacao.lida && 'bg-blue-50/40'
       )}
     >
-      <button onClick={onClick} className="flex flex-1 items-start gap-3 text-left min-w-0">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick?.() }}
+        className="flex flex-1 items-start gap-3 text-left min-w-0 cursor-pointer"
+      >
         {/* Ícone */}
         <div className="mt-0.5 shrink-0 w-7 h-7 rounded-full bg-white border flex items-center justify-center shadow-sm">
           <Icon className={cn('w-4 h-4', meta?.cor ?? 'text-gray-400')} />
@@ -39,13 +46,22 @@ export function NotificacaoItem({ notificacao, onClick }: NotificacaoItemProps) 
           <p className="text-xs text-gray-400 mt-1">
             {formatDistanceToNow(new Date(notificacao.criado_em), { addSuffix: true, locale: ptBR })}
           </p>
+          {notificacao.tipo === 'chamada_recebida' && notificacao.mensagem && (
+            <button
+              onClick={(e) => { e.stopPropagation(); ligarViaSip(notificacao.mensagem!) }}
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+            >
+              <PhoneCall className="h-3.5 w-3.5" />
+              Retornar ligação
+            </button>
+          )}
         </div>
 
         {/* Bolinha de não lida */}
         {!notificacao.lida && (
           <div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500" />
         )}
-      </button>
+      </div>
 
       {/* Excluir — aparece no hover, não dispara a navegação do item */}
       <button
