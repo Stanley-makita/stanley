@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, KeyRound } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, Copy, Check } from 'lucide-react'
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
@@ -84,6 +84,15 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const [modalReset, setModalReset]       = useState(false)
   const [novaSenha, setNovaSenha]         = useState('')
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false)
+  const [tokenCopiado, setTokenCopiado] = useState(false)
+
+  function copiarTokenTelefonia() {
+    const token = (usuario as unknown as { token_telefonia?: string } | undefined)?.token_telefonia
+    if (!token) return
+    navigator.clipboard.writeText(token)
+    setTokenCopiado(true)
+    setTimeout(() => setTokenCopiado(false), 2000)
+  }
 
   const form = useForm<FormCriar>({
     resolver: zodResolver(modoEdicao ? schemaEditar : schemaCriar) as never,
@@ -317,6 +326,27 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                     </FormItem>
                   )}
                 />
+              )}
+
+              {modoEdicao && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium leading-none">
+                    Token de telefonia <span className="text-gray-400 font-normal text-xs">(pra identificação de chamada no MicroSIP)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={(usuario as unknown as { token_telefonia?: string } | undefined)?.token_telefonia ?? ''}
+                      className="font-mono text-xs"
+                    />
+                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={copiarTokenTelefonia} title="Copiar token">
+                      {tokenCopiado ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Configure no <code>microsip.ini</code> deste usuário: <code>cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token={(usuario as unknown as { token_telefonia?: string } | undefined)?.token_telefonia ?? '...'}&numero=%s"</code>
+                  </p>
+                </div>
               )}
 
               <FormField control={form.control} name="ativo" render={({ field }) => (

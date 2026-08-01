@@ -60,6 +60,7 @@ export type TipoNotificacao =
   | 'usuario_conectado'
   | 'login_suspeito'
   | 'lead_followup_lembrete'
+  | 'chamada_recebida'
 
 export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao'
 
@@ -129,6 +130,7 @@ export const NOTIFICACAO_META: Record<TipoNotificacao, NotificacaoMeta> = {
   usuario_conectado:   { icon: Wifi,          cor: 'text-green-500',    severidadePadrao: 'info',    prioridadePadrao: 'low',    label: 'Usuário Conectado' },
   login_suspeito:      { icon: ShieldAlert,   cor: 'text-red-600',      severidadePadrao: 'critical',prioridadePadrao: 'critical', label: 'Login Suspeito' },
   lead_followup_lembrete: { icon: Clock,      cor: 'text-amber-600',    severidadePadrao: 'warning', prioridadePadrao: 'high',   label: 'Lembrete de Acompanhamento' },
+  chamada_recebida:    { icon: Phone,         cor: 'text-green-500',    severidadePadrao: 'info',    prioridadePadrao: 'high',   label: 'Ligação Recebida' },
 }
 
 /** Tempo de permanência do toast por severidade. `critical` não fecha sozinho. */
