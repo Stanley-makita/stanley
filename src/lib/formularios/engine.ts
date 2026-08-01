@@ -36,10 +36,15 @@ export type CampoTextoFlat = {
   y: number         // coordenada Y a partir da base da página (pdf-lib)
   tamanho?: number  // tamanho da fonte em pts (padrão: 10)
   texto: string
+  // Rótulo fixo desenhado junto (ex.: "CPF: ") — usado quando o template não
+  // tem mais o rótulo impresso (ver 20260801 fix do SCR/BB, onde o PDF-base
+  // teve a data de exemplo removida e o "CPF:" saiu junto por acidente).
+  prefixo?: string
   // Quebra condicional pra rótulos lado a lado num template estático (ex.: "Nome: ___ CPF: ___"
   // na mesma linha) — quando o campo referenciado (ex.: nome_cliente) for comprido o bastante pra
   // colidir com este campo na posição normal, desenha este campo na posição alternativa em vez da
-  // normal (linha de baixo), prefixando o texto pra não ficar um número solto sem rótulo.
+  // normal (linha de baixo), com prefixoAlternativo em vez de prefixo (ou o próprio prefixo, se
+  // prefixoAlternativo não for definido).
   seColidirCom?: { campo: string; limiteX: number }
   xAlternativo?: number
   yAlternativo?: number
@@ -81,9 +86,9 @@ export async function preencherPdf(
         const pagina = paginas[c.pagina ?? 0]
         if (!pagina || !c.texto) continue
 
-        let texto = c.texto
         let x = c.x
         let y = c.y
+        let prefixo = c.prefixo ?? ''
         const tamanho = c.tamanho ?? 10
 
         if (c.seColidirCom && c.xAlternativo != null && c.yAlternativo != null) {
@@ -91,14 +96,14 @@ export async function preencherPdf(
           if (outro?.texto) {
             const larguraOutro = helvetica.widthOfTextAtSize(outro.texto, outro.tamanho ?? 10)
             if (outro.x + larguraOutro > c.seColidirCom.limiteX) {
-              texto = (c.prefixoAlternativo ?? '') + texto
+              prefixo = c.prefixoAlternativo ?? prefixo
               x = c.xAlternativo
               y = c.yAlternativo
             }
           }
         }
 
-        pagina.drawText(texto, { x, y, size: tamanho, font: helvetica })
+        pagina.drawText(prefixo + c.texto, { x, y, size: tamanho, font: helvetica })
       }
     }
 
