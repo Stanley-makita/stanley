@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { RouteGuard } from '@/components/layout/RouteGuard'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { ChamadasFlutuantes } from '@/components/notificacoes/ChamadasFlutuantes'
 
 export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNode; initialLogoUrl?: string | null }) {
   const [menuAberto, setMenuAberto] = useState(false)
@@ -44,6 +45,8 @@ export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNo
           <RouteGuard>{children}</RouteGuard>
         </main>
       </div>
+
+      <ChamadasFlutuantes />
     </div>
   )
 }

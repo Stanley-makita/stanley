@@ -76,6 +76,11 @@ export function useNotificacoes(limite = 50) {
           const keys = INVALIDACOES_POR_TIPO[nova.tipo] ?? []
           keys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }))
 
+          // chamada_recebida usa o card flutuante persistente (ChamadasFlutuantes), não
+          // o toast — toast some sozinho em alguns segundos e não reaparece se o
+          // atendente estiver longe da tela no momento da ligação.
+          if (nova.tipo === 'chamada_recebida') return
+
           const meta = NOTIFICACAO_META[nova.tipo]
           const severidade = nova.severidade ?? meta.severidadePadrao
           const duracaoMs = DURACAO_POR_SEVERIDADE[severidade]

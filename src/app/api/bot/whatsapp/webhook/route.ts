@@ -273,42 +273,61 @@ export async function POST(request: NextRequest) {
 
     let sucessoCall = true
     try {
-      let pessoaIdCall: string | null = null
-      for (const variante of variantesTelefoneBR(callerPhone)) {
-        pessoaIdCall = await buscarPessoaPorTelefone(instanciaCall.empresa_id, variante)
-        if (pessoaIdCall) break
+      // WhatsApp reanuncia a mesma ligação em toque contínuo (visto em produção: um
+      // "offer" novo com CallID diferente a cada ~15-20s enquanto ninguém atende) — sem
+      // isso, uma única chamada de 2 minutos gera vários cards empilhados na tela do
+      // atendente. Colapsa reanúncios do mesmo número pro mesmo atendente numa janela
+      // curta em vez de deduplicar só pelo CallID (que já foi reivindicado acima).
+      const janelaDedupe = new Date(Date.now() - 90_000).toISOString()
+      const { data: notifRecente } = await supabase
+        .from('notificacoes')
+        .select('id')
+        .eq('usuario_id', instanciaCall.atendente_id)
+        .eq('tipo', 'chamada_recebida')
+        .eq('origem', 'whatsapp_call')
+        .eq('mensagem', callerPhone)
+        .gte('criado_em', janelaDedupe)
+        .limit(1)
+        .maybeSingle()
+
+      if (!notifRecente) {
+        let pessoaIdCall: string | null = null
+        for (const variante of variantesTelefoneBR(callerPhone)) {
+          pessoaIdCall = await buscarPessoaPorTelefone(instanciaCall.empresa_id, variante)
+          if (pessoaIdCall) break
+        }
+
+        let nomeClienteCall: string | null = null
+        let leadIdCall: string | null = null
+        if (pessoaIdCall) {
+          const { data: pessoaCall } = await supabase.from('pessoas').select('nome').eq('id', pessoaIdCall).maybeSingle()
+          nomeClienteCall = pessoaCall?.nome ?? null
+
+          const { data: leadCall } = await supabase
+            .from('leads')
+            .select('id')
+            .eq('pessoa_id', pessoaIdCall)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          leadIdCall = leadCall?.id ?? null
+        }
+
+        const { error: erroNotifCall } = await supabase.from('notificacoes').insert({
+          empresa_id: instanciaCall.empresa_id,
+          usuario_id: instanciaCall.atendente_id,
+          tipo: 'chamada_recebida',
+          titulo: nomeClienteCall ? `📞 Ligação (WhatsApp) de ${nomeClienteCall}` : '📞 Ligação recebida (WhatsApp)',
+          mensagem: callerPhone,
+          entidade: leadIdCall ? 'lead' : null,
+          entidade_id: leadIdCall,
+          severidade: 'info',
+          prioridade: 'high',
+          origem: 'whatsapp_call',
+        })
+        if (erroNotifCall) console.error('[whatsapp-webhook] erro ao criar notificação de chamada:', erroNotifCall.message)
       }
-
-      let nomeClienteCall: string | null = null
-      let leadIdCall: string | null = null
-      if (pessoaIdCall) {
-        const { data: pessoaCall } = await supabase.from('pessoas').select('nome').eq('id', pessoaIdCall).maybeSingle()
-        nomeClienteCall = pessoaCall?.nome ?? null
-
-        const { data: leadCall } = await supabase
-          .from('leads')
-          .select('id')
-          .eq('pessoa_id', pessoaIdCall)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        leadIdCall = leadCall?.id ?? null
-      }
-
-      const { error: erroNotifCall } = await supabase.from('notificacoes').insert({
-        empresa_id: instanciaCall.empresa_id,
-        usuario_id: instanciaCall.atendente_id,
-        tipo: 'chamada_recebida',
-        titulo: nomeClienteCall ? `📞 Ligação (WhatsApp) de ${nomeClienteCall}` : '📞 Ligação recebida (WhatsApp)',
-        mensagem: callerPhone,
-        entidade: leadIdCall ? 'lead' : null,
-        entidade_id: leadIdCall,
-        severidade: 'info',
-        prioridade: 'high',
-        origem: 'whatsapp_call',
-      })
-      if (erroNotifCall) console.error('[whatsapp-webhook] erro ao criar notificação de chamada:', erroNotifCall.message)
     } catch (err) {
       sucessoCall = false
       throw err
