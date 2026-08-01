@@ -11,7 +11,7 @@
 
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
 import {
-  simularTodosBancos, calcularAnalise,
+  simularTodosBancos, calcularAnalise, calcularSAC,
   calcularMaxFinanciavel, calcularIdadeEmAnos, calcularIdadeEmMeses, calcularPrazoMaximo, getMipRate, taxaAnualParaMensal,
   LIMITE_IDADE_PRAZO_MESES, resolverLtvEfetivoCaixa,
 } from '@/lib/simuladorFinanciamento/engine'
@@ -39,15 +39,20 @@ export interface ResultadoValidacaoSimulacao {
 // (workflow-consulta/workflow-captacao) e também com dados parcialmente mesclados ao longo
 // de uma conversa (fluxo de pendência do *simula / *cria cliente).
 export function validarParaSimulacao(
-  dados: Partial<Pick<DadosCaptacaoNormalizados, 'data_nascimento' | 'valor_imovel' | 'modo_calculo' | 'prazo_maximo'>>,
+  dados: Partial<Pick<DadosCaptacaoNormalizados, 'data_nascimento' | 'valor_imovel' | 'valor_financiado' | 'modo_calculo' | 'prazo_maximo'>>,
 ): ResultadoValidacaoSimulacao {
   const camposFaltantes: string[] = []
+
+  // Só valor_financiado informado (sem imóvel, sem nascimento) nunca bloqueia — o Motor
+  // assume idade 40 anos e deriva o imóvel a partir do LTV máximo (ver executarSimulacao),
+  // pra sempre devolver uma simulação em vez de pedir dado por dado.
+  const somenteFinanciadoInformado = dados.valor_imovel == null && dados.data_nascimento == null && dados.valor_financiado != null
 
   if (!dados.data_nascimento) {
     // "Prazo máximo" sem nascimento não bloqueia: o Motor assume uma idade compatível
     // com o maior prazo entre os bancos resolvidos (ver executarSimulacao) e avisa na
     // resposta. Sem "prazo máximo", nascimento continua obrigatório como antes.
-    if (!dados.prazo_maximo) {
+    if (!dados.prazo_maximo && !somenteFinanciadoInformado) {
       camposFaltantes.push('Data de nascimento')
     }
   } else {
@@ -67,8 +72,9 @@ export function validarParaSimulacao(
         bloqueioIdade: { motivo: 'Idade incompatível com o prazo mínimo de financiamento (80 anos e 6 meses no total).', idadeCalculada: idadeAnos } }
     }
   }
-  // valor_imovel é opcional apenas quando a pergunta é "quanto essa renda comporta" (sem referência de imóvel)
-  if (dados.valor_imovel === null && dados.modo_calculo !== 'VALOR_MAXIMO_PELA_RENDA') {
+  // valor_imovel é opcional quando a pergunta é "quanto essa renda comporta" (sem referência
+  // de imóvel) ou quando só valor_financiado foi informado (imóvel é derivado do LTV máximo).
+  if (dados.valor_imovel === null && dados.modo_calculo !== 'VALOR_MAXIMO_PELA_RENDA' && !somenteFinanciadoInformado) {
     camposFaltantes.push('Valor do imóvel')
   }
 
@@ -196,6 +202,14 @@ export async function executarSimulacao(
   if (!dados.data_nascimento && dados.prazo_maximo) {
     dados.data_nascimento = dataNascimentoParaIdadeEmMeses(IDADE_JOVEM_ASSUMIDA_ANOS * 12)
     dados.idade_assumida_prazo_maximo = true
+  } else if (!dados.data_nascimento && !dados.valor_imovel && dados.valor_financiado != null) {
+    // Só valor_financiado informado (sem imóvel, sem nascimento): nunca deixa o cliente
+    // sem simulação — assume idade 40 anos (idade média) e deriva o imóvel a partir do LTV
+    // máximo padrão de 80% (financiado ÷ 0,8), simulando por todos os bancos resolvidos.
+    dados.data_nascimento = dataNascimentoParaIdadeEmMeses(40 * 12)
+    dados.valor_imovel = Math.round(dados.valor_financiado / 0.8)
+    dados.valor_entrada = dados.valor_imovel - dados.valor_financiado
+    dados.idade_assumida_valor_financiado = true
   }
 
   const rendaMensal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
@@ -348,6 +362,14 @@ function autoDerivarEntradaFinanciado(
       ? (dados.correntista ? BANCOS_CONFIG[bancoRef].taxaAnualCorrentista : BANCOS_CONFIG[bancoRef].taxaAnualBase)
       : 0.10
     maxByRenda = calcularMaxFinanciavel(rendaTotal, valorImovel, taxaAnualParaMensal(taxaRef), prazoCalc, mipCalc)
+
+    // Renda foi o fator limitante (não o teto de LTV) — informa quanto de renda seria
+    // necessário pra financiar o valor máximo permitido (LTV), pra o cliente saber o que
+    // falta em vez de só receber um valor financiado menor sem explicação.
+    if (maxByRenda < maxByLtv) {
+      const parcelaNoMaximo = calcularSAC(maxByLtv, valorImovel, taxaAnualParaMensal(taxaRef), prazoCalc, mipCalc).primeiraParcela
+      dados.renda_necessaria_para_maximo = calcularRendaNecessaria(parcelaNoMaximo)
+    }
   }
 
   dados.valor_financiado = Math.max(0, Math.min(maxByRenda, maxByLtv, valorImovel))
@@ -572,10 +594,19 @@ function montarRespostaNormal(
     linhas.push('', `ℹ️ _Os valores acima são diagnóstico de capacidade — não representam aprovação. Para o valor solicitado, a renda informada é insuficiente conforme política de crédito dos bancos._`)
   }
 
+  // Financiamento foi limitado pela renda informada, não pelo teto de LTV — mostra o que
+  // faltaria de renda pra alcançar o valor máximo permitido, em vez de só entregar um
+  // valor menor sem explicar o porquê.
+  if (dados.renda_necessaria_para_maximo != null) {
+    linhas.push('', `ℹ️ _Para financiar o valor máximo permitido, a renda necessária seria de aproximadamente ${fmt.format(dados.renda_necessaria_para_maximo)}/mês._`)
+  }
+
   if (dados.usou_idade_aproximada) {
     linhas.push('', `ℹ️ _Usei a idade informada para calcular. Para maior precisão, envie a data de nascimento completa._`)
   } else if (dados.idade_assumida_prazo_maximo) {
     linhas.push('', `ℹ️ _Esta simulação foi feita considerando que o cliente tem idade compatível para financiar no prazo máximo. Essa idade assumida também afeta o valor do seguro e da parcela. Caso queira uma simulação em prazo diferente, informe o prazo desejado ou a data de nascimento do cliente._`)
+  } else if (dados.idade_assumida_valor_financiado) {
+    linhas.push('', `ℹ️ _Simulação considerando idade até 40 anos e imóvel estimado a partir do valor financiado (LTV máximo de 80%). Envie o valor do imóvel e a data de nascimento do cliente para uma simulação mais precisa._`)
   }
 
   // Nota de modalidade (lote/construção/comercial) — sem isso, o texto do WhatsApp nunca

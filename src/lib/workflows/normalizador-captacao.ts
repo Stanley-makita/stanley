@@ -49,6 +49,15 @@ export interface DadosCaptacaoNormalizados {
   // Simulação assumiu uma idade compatível com o maior prazo entre os bancos
   // resolvidos (ver motor-simulacao.ts:executarSimulacao). Nunca vem do parser.
   idade_assumida_prazo_maximo: boolean
+  // true quando só valor_financiado foi informado (sem imóvel nem nascimento) — o Motor
+  // assumiu idade 40 anos e derivou o valor do imóvel a partir do LTV máximo (financiado
+  // ÷ 80%), pra nunca deixar o cliente sem simulação. Nunca vem do parser.
+  idade_assumida_valor_financiado: boolean
+  // Preenchido quando o financiamento foi limitado pela renda informada (não pelo teto de
+  // LTV) — renda aproximada que seria necessária pra financiar o valor máximo permitido
+  // (LTV). null quando não se aplica (renda não informada, ou renda já cobre o teto de
+  // LTV). Nunca vem do parser.
+  renda_necessaria_para_maximo: number | null
   conflito_valores:      boolean
   conflito_valores_descricao: string | null
   // Campos de modalidade de operação (novos)
@@ -502,6 +511,8 @@ export function normalizarDadosCaptacao(
     produto_normalizado:      produtoNormalizado,
     usou_idade_aproximada:    usouIdadeAproximada,
     idade_assumida_prazo_maximo: false,
+    idade_assumida_valor_financiado: false,
+    renda_necessaria_para_maximo: null,
     conflito_valores:         conflito,
     conflito_valores_descricao: conflitoDescricao,
     // Campos de modalidade

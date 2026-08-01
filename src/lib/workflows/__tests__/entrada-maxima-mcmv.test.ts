@@ -48,6 +48,8 @@ function baseDados(overrides: Partial<DadosCaptacaoNormalizados>): DadosCaptacao
     produto_normalizado: 'AQUISICAO',
     usou_idade_aproximada: false,
     idade_assumida_prazo_maximo: false,
+    idade_assumida_valor_financiado: false,
+    renda_necessaria_para_maximo: null,
     conflito_valores: false,
     conflito_valores_descricao: null,
     tipo_operacao: 'aquisicao',
