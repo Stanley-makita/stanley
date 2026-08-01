@@ -40,7 +40,14 @@ export function ChamadasFlutuantes() {
                 <p className="mt-0.5 text-xs text-gray-500">{chamada.mensagem}</p>
               )}
               <button
-                onClick={() => { ligarViaSip(chamada.mensagem!); marcarLidas([chamada.id]) }}
+                onClick={() => {
+                  ligarViaSip(chamada.mensagem!)
+                  // Adia a marcação como lida (que remove o card da tela) — o repasse do
+                  // tel: pro MicroSIP é assíncrono no nível do SO/navegador; desmontar o
+                  // elemento que disparou o clique enquanto isso ainda está em andamento
+                  // interrompe a entrega do número (MicroSIP abre, mas o campo fica vazio).
+                  setTimeout(() => marcarLidas([chamada.id]), 500)
+                }}
                 className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
               >
                 <PhoneCall className="h-3.5 w-3.5" />
