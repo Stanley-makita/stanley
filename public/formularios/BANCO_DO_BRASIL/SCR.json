@@ -13,8 +13,8 @@
       "tipo": "texto_flat",
       "campo": "nome_cliente",
       "pagina": 0,
-      "x": 319,
-      "y": 169,
+      "x": 108,
+      "y": 204,
       "tamanho": 10,
       "valor": "comprador_atual.nome"
     },
@@ -22,11 +22,15 @@
       "tipo": "texto_flat",
       "campo": "cpf_cliente",
       "pagina": 0,
-      "x": 253,
-      "y": 147,
+      "x": 325,
+      "y": 204,
       "tamanho": 10,
       "valor": "comprador_atual.cpf",
-      "formatador": "cpf"
+      "formatador": "cpf",
+      "seColidirCom": { "campo": "nome_cliente", "limiteX": 285 },
+      "xAlternativo": 108,
+      "yAlternativo": 190,
+      "prefixoAlternativo": "CPF: "
     }
   ]
 }

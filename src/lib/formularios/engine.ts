@@ -30,11 +30,20 @@ export type CampoDropdown = {
 // Overlay de texto por coordenadas — para PDFs flat sem AcroForm
 export type CampoTextoFlat = {
   tipo: 'texto_flat'
+  campo?: string    // identificador, usado só como referência por outro campo (ver seColidirCom)
   pagina?: number   // índice base 0 (padrão: 0)
   x: number
   y: number         // coordenada Y a partir da base da página (pdf-lib)
   tamanho?: number  // tamanho da fonte em pts (padrão: 10)
   texto: string
+  // Quebra condicional pra rótulos lado a lado num template estático (ex.: "Nome: ___ CPF: ___"
+  // na mesma linha) — quando o campo referenciado (ex.: nome_cliente) for comprido o bastante pra
+  // colidir com este campo na posição normal, desenha este campo na posição alternativa em vez da
+  // normal (linha de baixo), prefixando o texto pra não ficar um número solto sem rótulo.
+  seColidirCom?: { campo: string; limiteX: number }
+  xAlternativo?: number
+  yAlternativo?: number
+  prefixoAlternativo?: string
 }
 
 export type CampoFormulario = CampoTexto | CampoCheckbox | CampoRadio | CampoDropdown | CampoTextoFlat
@@ -67,11 +76,29 @@ export async function preencherPdf(
     if (camposFlat.length > 0) {
       const helvetica = await doc.embedFont(StandardFonts.Helvetica)
       const paginas = doc.getPages()
+      const porCampo = new Map(camposFlat.filter((c) => c.campo).map((c) => [c.campo, c]))
       for (const c of camposFlat) {
         const pagina = paginas[c.pagina ?? 0]
-        if (pagina && c.texto) {
-          pagina.drawText(c.texto, { x: c.x, y: c.y, size: c.tamanho ?? 10, font: helvetica })
+        if (!pagina || !c.texto) continue
+
+        let texto = c.texto
+        let x = c.x
+        let y = c.y
+        const tamanho = c.tamanho ?? 10
+
+        if (c.seColidirCom && c.xAlternativo != null && c.yAlternativo != null) {
+          const outro = porCampo.get(c.seColidirCom.campo)
+          if (outro?.texto) {
+            const larguraOutro = helvetica.widthOfTextAtSize(outro.texto, outro.tamanho ?? 10)
+            if (outro.x + larguraOutro > c.seColidirCom.limiteX) {
+              texto = (c.prefixoAlternativo ?? '') + texto
+              x = c.xAlternativo
+              y = c.yAlternativo
+            }
+          }
         }
+
+        pagina.drawText(texto, { x, y, size: tamanho, font: helvetica })
       }
     }
 

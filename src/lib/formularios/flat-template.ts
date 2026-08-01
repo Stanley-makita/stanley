@@ -63,6 +63,11 @@ type CampoFlatDef = {
   tamanho?: number
   valor: string        // caminho pontilhado ou @builtin
   formatador?: Formatador
+  // Ver CampoTextoFlat em engine.ts — quebra condicional pra rótulos lado a lado
+  seColidirCom?: { campo: string; limiteX: number }
+  xAlternativo?: number
+  yAlternativo?: number
+  prefixoAlternativo?: string
 }
 
 type TemplateFlatDef = {
@@ -92,11 +97,16 @@ export function carregarCamposFlat(
     }
     return {
       tipo:    'texto_flat',
+      campo:   c.campo,
       pagina:  c.pagina ?? 0,
       x:       c.x,
       y:       c.y,
       tamanho: c.tamanho,
       texto,
+      seColidirCom:      c.seColidirCom,
+      xAlternativo:      c.xAlternativo,
+      yAlternativo:      c.yAlternativo,
+      prefixoAlternativo: c.prefixoAlternativo,
     }
   })
 }
