@@ -533,6 +533,67 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Texto puro do operador (sem *, sem mídia) na conversa do cliente pode ser resposta
+    // a uma pendência de simulação aberta por um *simula anterior (ex.: "sim"/"não"
+    // confirmando um valor ambíguo, ou completando um dado faltante). Sem este bloco a
+    // resposta nunca chegava em processarRespostaPendente — o bloco fromMe (comercial
+    // digitando *fonti/*simula de dentro da própria conversa do cliente) só tratava
+    // comandos com "*" ou mídia; um "sim" solto caía no vazio, sem responder nada.
+    if (!nmIsMidia && textoFromMe) {
+      const pendToken = payload.token || process.env.UAZAPI_INSTANCE_TOKEN || ''
+      const pendOwnerPhone = (payload.owner ?? '').replace(/\D/g, '')
+      let { data: pendInst } = await supabase
+        .from('instancias').select('id, empresa_id, atendente_id')
+        .eq('token', pendToken).eq('ativo', true).maybeSingle()
+      if (!pendInst && pendOwnerPhone.length >= 8) {
+        const { data: instByPhone } = await supabase
+          .from('instancias').select('id, empresa_id, atendente_id')
+          .eq('ativo', true).like('numero_telefone', `%${pendOwnerPhone.slice(-10)}`).maybeSingle()
+        pendInst = instByPhone
+      }
+      const pendEmpresaId = pendInst?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
+
+      if (pendInst?.atendente_id && pendEmpresaId) {
+        const { data: atendentePend } = await supabase
+          .from('usuarios').select('id, nome').eq('id', pendInst.atendente_id).eq('ativo', true).maybeSingle()
+
+        if (atendentePend) {
+          const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+          // Pendência é salva com telefone_operador = owner (ver fonti-comandos.ts,
+          // executarWorkflowConsulta chamado com telefone_operador: ctx.telefone_remetente,
+          // e telefone_remetente do fromMe é sempre o owner, nunca o cliente).
+          const pendenteSim = await buscarSimulaPendente(supabase, pendEmpresaId, pendOwnerPhone)
+
+          if (pendenteSim) {
+            const { processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
+            const pendDestino = nmClientPhone || pendOwnerPhone
+            const respostaPend = await processarRespostaPendente(textoFromMe, pendenteSim, {
+              empresa_id: pendEmpresaId,
+              telefone_remetente: pendOwnerPhone,
+              supabase,
+              arquivos: [],
+              instancia_token: pendToken,
+              telefone_destino: pendDestino,
+            }, atendentePend)
+
+            if (respostaPend !== null) {
+              await enviarMensagemUazapi(pendDestino, respostaPend, pendToken)
+              if (nmClientPhone) {
+                const { data: convPend } = await supabase
+                  .from('conversas').select('id')
+                  .eq('empresa_id', pendEmpresaId).eq('canal', 'whatsapp')
+                  .eq('contato_telefone', nmClientPhone).maybeSingle()
+                if (convPend) {
+                  await supabase.from('mensagens').insert({ conversa_id: convPend.id, origem: 'sistema', conteudo: respostaPend })
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ ok: true })
   }
 
