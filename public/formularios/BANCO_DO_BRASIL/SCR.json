@@ -5,7 +5,7 @@
       "campo": "local_data",
       "pagina": 0,
       "x": 64,
-      "y": 212,
+      "y": 249,
       "tamanho": 10,
       "valor": "@local_data"
     },
@@ -13,8 +13,8 @@
       "tipo": "texto_flat",
       "campo": "nome_cliente",
       "pagina": 0,
-      "x": 319,
-      "y": 169,
+      "x": 178,
+      "y": 204,
       "tamanho": 10,
       "valor": "comprador_atual.nome"
     },
@@ -22,11 +22,16 @@
       "tipo": "texto_flat",
       "campo": "cpf_cliente",
       "pagina": 0,
-      "x": 253,
-      "y": 147,
+      "x": 370,
+      "y": 204,
       "tamanho": 10,
       "valor": "comprador_atual.cpf",
-      "formatador": "cpf"
+      "formatador": "cpf",
+      "prefixo": "CPF: ",
+      "seColidirCom": { "campo": "nome_cliente", "limiteX": 360 },
+      "xAlternativo": 178,
+      "yAlternativo": 190,
+      "prefixoAlternativo": "CPF: "
     }
   ]
 }
