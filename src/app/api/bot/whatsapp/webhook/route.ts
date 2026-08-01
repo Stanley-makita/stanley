@@ -23,6 +23,16 @@ interface UazapiMediaContent {
 interface UazapiPayload {
   EventType?: string
   chatSource?: string
+  // Evento de chamada de voz do WhatsApp (EventType: "call", type: "Call") — campos
+  // ficam no topo do payload, não dentro de `message`. Descoberto lendo o payload real
+  // em produção (ver commit que introduziu o log cru): `event.Data.Tag` é "offer" no
+  // toque da ligação e "terminate" no encerramento; `sender_pn` é o número de quem ligou.
+  type?: string
+  event?: {
+    CallID?: string
+    Data?: { Tag?: string }
+  }
+  sender_pn?: string
   message?: {
     fromMe?: boolean
     isGroup?: boolean
@@ -218,13 +228,94 @@ export async function POST(request: NextRequest) {
     hasMessageId: Boolean(payload.message?.messageid),
   })
 
-  // Investigação: ligação de voz do WhatsApp (cliente ligando pelo app pro número da
-  // instância) é um evento separado de mensagem — não sabemos ainda o formato exato do
-  // payload que a Uazapi envia (a doc pública não mostra um exemplo). Só loga cru por
-  // enquanto pra descobrir o formato real numa ligação de teste, antes de implementar a
-  // notificação de verdade (mesmo padrão do /api/telefonia/chamada-recebida).
-  if (payload.EventType?.toLowerCase().includes('call')) {
-    console.log('[whatsapp-webhook] evento de CHAMADA recebido, payload completo:', JSON.stringify(payload))
+  // Ligação de voz do WhatsApp (cliente ligando pelo app pro número da instância) — canal
+  // separado de mensagem, não passa pelo MicroSIP. A Uazapi manda um evento por etapa da
+  // chamada (visto em produção: "offer" no toque, "terminate" no fim); só processamos
+  // "offer" pra notificar o atendente no momento em que o telefone toca, mesmo padrão do
+  // /api/telefonia/chamada-recebida (que cobre ligação na operadora/MicroSIP).
+  if (payload.EventType === 'call') {
+    if (payload.event?.Data?.Tag !== 'offer') {
+      return NextResponse.json({ ok: true })
+    }
+
+    const callId = payload.event?.CallID
+    const callToken = payload.token ?? ''
+    const callerPhoneBruto = (payload.sender_pn ?? '').replace('@s.whatsapp.net', '')
+    const callerPhone = callerPhoneBruto ? telefoneCanonico(callerPhoneBruto) : ''
+
+    if (!callId || !callToken || !callerPhone) {
+      console.warn('[whatsapp-webhook] evento de chamada sem callId/token/número, ignorando')
+      return NextResponse.json({ ok: true })
+    }
+
+    const { data: instanciaCall } = await supabase
+      .from('instancias')
+      .select('id, empresa_id, atendente_id')
+      .eq('token', callToken)
+      .eq('ativo', true)
+      .maybeSingle()
+
+    if (!instanciaCall || !instanciaCall.atendente_id) {
+      console.warn('[whatsapp-webhook] chamada recebida mas instância/atendente não resolvidos, ignorando. token:', callToken)
+      return NextResponse.json({ ok: true })
+    }
+
+    const claimCall = await reivindicarEvento({
+      supabase,
+      messageid: callId,
+      instanciaId: instanciaCall.id,
+      tipoEvento: 'call_offer',
+      empresaId: instanciaCall.empresa_id,
+    })
+    if (!claimCall.reivindicado) {
+      return NextResponse.json({ ok: true })
+    }
+
+    let sucessoCall = true
+    try {
+      let pessoaIdCall: string | null = null
+      for (const variante of variantesTelefoneBR(callerPhone)) {
+        pessoaIdCall = await buscarPessoaPorTelefone(instanciaCall.empresa_id, variante)
+        if (pessoaIdCall) break
+      }
+
+      let nomeClienteCall: string | null = null
+      let leadIdCall: string | null = null
+      if (pessoaIdCall) {
+        const { data: pessoaCall } = await supabase.from('pessoas').select('nome').eq('id', pessoaIdCall).maybeSingle()
+        nomeClienteCall = pessoaCall?.nome ?? null
+
+        const { data: leadCall } = await supabase
+          .from('leads')
+          .select('id')
+          .eq('pessoa_id', pessoaIdCall)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        leadIdCall = leadCall?.id ?? null
+      }
+
+      const { error: erroNotifCall } = await supabase.from('notificacoes').insert({
+        empresa_id: instanciaCall.empresa_id,
+        usuario_id: instanciaCall.atendente_id,
+        tipo: 'chamada_recebida',
+        titulo: nomeClienteCall ? `📞 Ligação (WhatsApp) de ${nomeClienteCall}` : '📞 Ligação recebida (WhatsApp)',
+        mensagem: callerPhone,
+        entidade: leadIdCall ? 'lead' : null,
+        entidade_id: leadIdCall,
+        severidade: 'info',
+        prioridade: 'high',
+        origem: 'whatsapp_call',
+      })
+      if (erroNotifCall) console.error('[whatsapp-webhook] erro ao criar notificação de chamada:', erroNotifCall.message)
+    } catch (err) {
+      sucessoCall = false
+      throw err
+    } finally {
+      await marcarEventoConcluido(supabase, claimCall.eventoId!, sucessoCall)
+    }
+
     return NextResponse.json({ ok: true })
   }
 
