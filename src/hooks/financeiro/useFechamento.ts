@@ -173,13 +173,23 @@ export function useAprovarFechamento() {
 
   return useMutation({
     mutationFn: async (fechamento_id: string) => {
-      const { error } = await supabase.rpc('aprovar_fechamento', {
+      // preparar_fechamento encadeia puxar processos/contratos, gerar
+      // comissões, gerar folha e rodar conferências (tudo que antes eram
+      // botões manuais) — sempre commita, mesmo se houver conferências
+      // críticas, pra não perder o que já foi puxado/calculado. Só depois
+      // aprovar_fechamento decide se aprova ou bloqueia por pendência crítica.
+      const { error: erroPreparar } = await supabase.rpc('preparar_fechamento', {
         p_fechamento_id: fechamento_id,
       })
-      if (error) throw error
+      if (erroPreparar) throw erroPreparar
+
+      const { error: erroAprovar } = await supabase.rpc('aprovar_fechamento', {
+        p_fechamento_id: fechamento_id,
+      })
+      if (erroAprovar) throw erroAprovar
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financeiro', 'fechamento'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] })
       toast.success('Fechamento aprovado.')
     },
     onError: (err: Error) => toast.error(err.message || 'Erro ao aprovar fechamento.'),

@@ -27,6 +27,8 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
         .from('processos')
         .select(`
           *,
+          comissao_comercial_calculada,
+          comissao_empresa_calculada,
           banco:bancos!banco_id(id, nome),
           operacional:usuarios!operacional_id(id, nome, email),
           comercial:usuarios!comercial_id(id, nome, email),
@@ -103,6 +105,8 @@ export function useProcesso(processoId: string) {
         .from('processos')
         .select(`
           *,
+          comissao_comercial_calculada,
+          comissao_empresa_calculada,
           banco:bancos!banco_id(id, nome),
           operacional:usuarios!operacional_id(id, nome, email),
           comercial:usuarios!comercial_id(id, nome, email),

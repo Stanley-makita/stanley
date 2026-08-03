@@ -34,6 +34,52 @@ export function useContasAReceber(fechamento_id: string | null | undefined) {
   })
 }
 
+// Preview ao vivo: calcula direto de `processos` emitidos no mês, sem
+// exigir fechamento aberto/puxado. Usado enquanto o mês não tem fechamento
+// aprovado/travado (ver AbaAReceber em financeiro/page.tsx).
+export function useContasAReceberPreview(mes: number, ano: number, enabled = true) {
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['financeiro', 'contas_receber_preview', usuario?.empresa_id, mes, ano],
+    queryFn: async (): Promise<FinContaReceber[]> => {
+      const { data, error } = await supabase.rpc('contas_a_receber_mes_preview', {
+        p_empresa_id: usuario!.empresa_id,
+        p_mes: mes,
+        p_ano: ano,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: {
+        id: string; processo_id: string | null; banco_id: string | null
+        banco_nome: string | null; banco_cor: string | null; cliente_nome: string | null
+        origem: string; valor_base: number; percentual_previsto: number; valor_previsto: number
+      }) => ({
+        id: r.id,
+        empresa_id: usuario!.empresa_id,
+        fechamento_id: null,
+        processo_id: r.processo_id,
+        banco_id: r.banco_id,
+        cliente_nome: r.cliente_nome,
+        origem: r.origem as FinContaReceber['origem'],
+        valor_base: r.valor_base,
+        percentual_previsto: r.percentual_previsto,
+        valor_previsto: r.valor_previsto,
+        valor_recebido: 0,
+        status: 'a_faturar' as const,
+        data_prevista: null,
+        data_recebimento: null,
+        observacoes: null,
+        created_at: '',
+        updated_at: '',
+        banco: r.banco_nome ? { nome: r.banco_nome, cor: r.banco_cor } : undefined,
+        notas_fiscais: [],
+        recebimentos: [],
+      }))
+    },
+    enabled: !!usuario && enabled,
+  })
+}
+
 export function useAdicionarContaReceber() {
   const queryClient = useQueryClient()
   const { usuario } = useAuth()

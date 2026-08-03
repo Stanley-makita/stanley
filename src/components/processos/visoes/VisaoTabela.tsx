@@ -617,13 +617,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           {isGestor && (
                             <>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_comercial != null
-                                  ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_contrato ?? null, p.comissao_comercial)}</span>
+                                {p.comissao_comercial_calculada != null
+                                  ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
                                   : <span className="text-gray-400">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_empresa != null
-                                  ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_contrato ?? null, p.comissao_empresa)}</span>
+                                {p.comissao_empresa_calculada != null
+                                  ? <span className="text-fonti-accent font-medium">{formatarMoeda(p.comissao_empresa_calculada)}</span>
                                   : <span className="text-gray-400">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
@@ -664,13 +664,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           {isGestor && (
                             <>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_comercial != null
-                                  ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
+                                {p.comissao_comercial_calculada != null
+                                  ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
                                   : <span className="text-gray-400">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_empresa != null
-                                  ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
+                                {p.comissao_empresa_calculada != null
+                                  ? <span className="text-fonti-accent font-medium">{formatarMoeda(p.comissao_empresa_calculada)}</span>
                                   : <span className="text-gray-400">—</span>}
                               </TableCell>
                             </>
@@ -727,13 +727,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           {isGestor && (
                             <>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_comercial != null
-                                  ? <span className="text-fonti-primary font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_comercial)}</span>
+                                {p.comissao_comercial_calculada != null
+                                  ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
                                   : <span className="text-gray-400">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_empresa != null
-                                  ? <span className="text-fonti-accent font-medium">{formatarComissaoRS(p.valor_financiado, p.comissao_empresa)}</span>
+                                {p.comissao_empresa_calculada != null
+                                  ? <span className="text-fonti-accent font-medium">{formatarMoeda(p.comissao_empresa_calculada)}</span>
                                   : <span className="text-gray-400">—</span>}
                               </TableCell>
                             </>
