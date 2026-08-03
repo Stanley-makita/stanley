@@ -51,6 +51,9 @@ export function useSalvarConsorcioCentral() {
       if (vars.leadId) {
         qc.invalidateQueries({ queryKey: ['simulacoes-lead', vars.leadId] })
       }
+      if (vars.processoId) {
+        qc.invalidateQueries({ queryKey: ['simulacoes-central-processo', vars.processoId] })
+      }
     },
   })
 }
