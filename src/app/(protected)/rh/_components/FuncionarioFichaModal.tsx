@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useCargos } from '@/hooks/rh/useCargos'
+import { useRegrasComissao } from '@/hooks/rh/useComissoes'
 import { useCriarFuncionario, useAtualizarFuncionario } from '@/hooks/rh/useFuncionarios'
 import { useFerias } from '@/hooks/rh/useFerias'
 import { useAssiduidadeFuncionario } from '@/hooks/rh/useAssiduidade'
@@ -38,6 +39,7 @@ const VAZIO = {
   data_admissao: '',
   tipo_contrato: 'clt' as RhTipoContrato,
   cargo_id: null as string | null,
+  regra_comissao_id: null as string | null,
   status: 'ativo' as RhStatusFuncionario,
   salario_base: 0,
   observacoes: '',
@@ -60,6 +62,7 @@ function iniciais(nome: string) {
 export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) {
   const [form, setForm] = useState(VAZIO)
   const { data: cargos = [] } = useCargos()
+  const { data: regrasComissao = [] } = useRegrasComissao()
   const criar = useCriarFuncionario()
   const atualizar = useAtualizarFuncionario()
 
@@ -80,6 +83,7 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
         data_admissao: funcionario.data_admissao,
         tipo_contrato: funcionario.tipo_contrato,
         cargo_id: funcionario.cargo_id,
+        regra_comissao_id: funcionario.regra_comissao_id,
         status: funcionario.status,
         salario_base: funcionario.salario_base,
         observacoes: funcionario.observacoes ?? '',
@@ -118,6 +122,7 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
       data_admissao: form.data_admissao,
       tipo_contrato: form.tipo_contrato,
       cargo_id: form.cargo_id || null,
+      regra_comissao_id: form.regra_comissao_id || null,
       status: form.status,
       salario_base: form.salario_base,
       observacoes: form.observacoes || null,
@@ -277,6 +282,21 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
                     {cargos.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Regra de Comissão (override individual)</Label>
+                <Select value={form.regra_comissao_id ?? '__cargo'} onValueChange={v => set('regra_comissao_id', v === '__cargo' ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__cargo">— Usar a regra do cargo —</SelectItem>
+                    {regrasComissao.filter(r => r.ativa).map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-gray-400">
+                  {form.regra_comissao_id
+                    ? 'Sobrescreve a regra do cargo só para este funcionário.'
+                    : 'Sem override — usa a regra vinculada ao cargo selecionado acima, se houver.'}
+                </p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Status</Label>

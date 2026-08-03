@@ -98,6 +98,7 @@ export interface FinFechamentoProcesso {
   banco_id: string | null
   modalidade: string | null
   valor_financiado: number | null
+  valor_assessoria: number
   data_emissao: string | null
   comercial_id: string | null
   operacional_id: string | null
@@ -172,6 +173,7 @@ export interface FinComissaoPagar {
   tipo_destinatario: 'funcionario' | 'usuario' | 'externo'
   papel: FinPapelComissao
   regra_id: string | null
+  parceiro_id: string | null
   valor_base: number
   percentual: number
   valor_calculado: number
@@ -369,6 +371,15 @@ export interface KpisFinanceiro {
   a_receber: number
   despesas_mes: number
   resultado_liquido: number
+}
+
+export interface PainelFinanceiroKpis {
+  a_receber_aberto: number
+  a_receber_atraso: number
+  a_pagar_mes: number
+  a_pagar_atraso: number
+  producao_financiamento_mes: number
+  qtd_processos_financiamento: number
 }
 
 export interface RelatorioComercial {

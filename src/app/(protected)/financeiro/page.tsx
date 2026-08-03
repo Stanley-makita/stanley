@@ -146,14 +146,16 @@ export default function FinanceiroPage() {
         {/* Painel */}
         {aba === 'painel' && (
           <PainelFinanceiro
+            mes={mes}
+            ano={ano}
             onAbrirFechamento={() => {
               setFormMes(String(mes))
               setFormAno(String(ano))
               setModalAbrir(true)
             }}
-            onIrParaFechamento={(m, a) => {
+            onIrParaFechamento={(m, a, abaDestino) => {
               setData(new Date(a, m - 1, 1))
-              setAba('fechamento')
+              setAba(abaDestino ?? 'fechamento')
             }}
           />
         )}

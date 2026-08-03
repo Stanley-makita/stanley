@@ -90,6 +90,13 @@ export interface RhFaixaComissao {
   created_at: string
 }
 
+export type RhTipoCalculoComissao = 'valor_fixo_emissao' | 'percentual_faixa_producao_mensal'
+
+export const RH_TIPO_CALCULO_LABELS: Record<RhTipoCalculoComissao, string> = {
+  valor_fixo_emissao: 'Valor fixo por emissão (operacional)',
+  percentual_faixa_producao_mensal: 'Percentual por faixa de produção mensal (comercial)',
+}
+
 export interface RhRegraComissao {
   id: string
   empresa_id: string
@@ -98,9 +105,13 @@ export interface RhRegraComissao {
   data_inicio: string
   data_termino: string | null
   ativa: boolean
-  // Valores fixos em R$ (substituem o modelo percentual anterior) — o
-  // cálculo automático em Financeiro > Fechamento ainda não usa esses
-  // campos; aguarda a reformulação do módulo Financeiro.
+  // tipo_calculo define qual conjunto de campos é usado pelo cálculo
+  // automático em Financeiro > Fechamento (gerar_comissoes_a_pagar):
+  // 'valor_fixo_emissao' usa valor_fixo_emissao/valor_fixo_assessoria +
+  // faixas.valor_fixo (modelo operacional). 'percentual_faixa_producao_mensal'
+  // usa faixas.pct_comercial avaliado contra a produção mensal ACUMULADA
+  // do funcionário (modelo comercial).
+  tipo_calculo: RhTipoCalculoComissao
   valor_fixo_emissao: number | null
   valor_fixo_assessoria: number | null
   created_at: string
@@ -134,6 +145,9 @@ export interface RhFuncionario {
   data_admissao: string
   tipo_contrato: RhTipoContrato
   cargo_id: string | null
+  // Override individual da regra de comissão do cargo — quando null, o
+  // cálculo automático usa a regra do cargo (rh_cargos.regra_comissao_id).
+  regra_comissao_id: string | null
   status: RhStatusFuncionario
   salario_base: number
   observacoes: string | null
@@ -154,6 +168,7 @@ export interface RhFuncionario {
   created_at: string
   updated_at: string
   cargo?: RhCargo | null
+  regra_comissao?: RhRegraComissao | null
 }
 
 export interface RhPonto {
