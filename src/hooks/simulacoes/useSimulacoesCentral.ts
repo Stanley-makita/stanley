@@ -33,6 +33,24 @@ export function useSimulacoesCentral() {
   })
 }
 
+export function useSimulacoesCentralPorProcesso(processoId: string | undefined, tipo?: SimulacaoCentral['tipo']) {
+  return useQuery({
+    queryKey: ['simulacoes-central-processo', processoId, tipo],
+    queryFn: async (): Promise<SimulacaoCentral[]> => {
+      let query = supabase
+        .from('simulacoes_central')
+        .select('*')
+        .eq('processo_id', processoId!)
+        .order('created_at', { ascending: false })
+      if (tipo) query = query.eq('tipo', tipo)
+      const { data, error } = await query
+      if (error) throw error
+      return (data ?? []) as SimulacaoCentral[]
+    },
+    enabled: !!processoId,
+  })
+}
+
 export interface EstatisticasSimulacoesCentral {
   total: number
   aguardando: number

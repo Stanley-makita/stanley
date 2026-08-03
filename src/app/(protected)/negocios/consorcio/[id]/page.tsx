@@ -194,7 +194,11 @@ export default function ConsorcioDetalhePage() {
               <AbaCompradores processoId={id} modoConsorcio />
             </TabsContent>
             <TabsContent value="simulacoes" className="m-0">
-              <AbaSimulacoes processoId={id} />
+              <AbaSimulacoes
+                processoId={id}
+                clienteNome={processo?.compradores?.[0]?.nome ?? undefined}
+                clienteCpf={processo?.compradores?.[0]?.cpf ?? undefined}
+              />
             </TabsContent>
             <TabsContent value="fases" className="m-0">
               <AbaFases processoId={id} processo={processo} />
