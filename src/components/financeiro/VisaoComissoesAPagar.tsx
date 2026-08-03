@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/dialog'
 import { Pencil, CheckCircle2, Loader2 } from 'lucide-react'
 import {
-  useComissoesAPagar,
   useAtualizarComissaoPagar,
   useMarcarComissoesPagas,
 } from '@/hooks/financeiro/useComissoesAPagar'
@@ -49,12 +48,12 @@ const PAPEL_COLORS: Record<FinPapelComissao, string> = {
 }
 
 interface Props {
-  fechamento_id: string
+  comissoes: FinComissaoPagar[]
+  isLoading: boolean
   travado: boolean
 }
 
-export function VisaoComissoesAPagar({ fechamento_id, travado }: Props) {
-  const { data: comissoes = [], isLoading } = useComissoesAPagar(fechamento_id)
+export function VisaoComissoesAPagar({ comissoes, isLoading, travado }: Props) {
   const atualizar = useAtualizarComissaoPagar()
   const marcarPagas = useMarcarComissoesPagas()
 
@@ -156,7 +155,7 @@ export function VisaoComissoesAPagar({ fechamento_id, travado }: Props) {
             ) : comissoes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8 text-gray-400 text-sm">
-                  Nenhuma comissão. Use "Gerar Comissões" na aba Fechamento.
+                  Nenhuma comissão calculada para o período.
                 </TableCell>
               </TableRow>
             ) : (

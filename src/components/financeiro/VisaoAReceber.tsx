@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/dialog'
 import { FileText, Plus, DollarSign, ChevronDown, ChevronRight } from 'lucide-react'
 import {
-  useContasAReceber,
   useAdicionarNotaFiscal,
   useAdicionarRecebimento,
 } from '@/hooks/financeiro/useContasAReceber'
@@ -39,12 +38,12 @@ const STATUS_NF: Record<FinStatusContaReceber, { label: string; class: string }>
 }
 
 interface Props {
-  fechamento_id: string
+  contas: FinContaReceber[]
+  isLoading: boolean
   travado: boolean
 }
 
-export function VisaoAReceber({ fechamento_id, travado }: Props) {
-  const { data: contas = [], isLoading } = useContasAReceber(fechamento_id)
+export function VisaoAReceber({ contas, isLoading, travado }: Props) {
   const adicionarNF = useAdicionarNotaFiscal()
   const adicionarRecebimento = useAdicionarRecebimento()
 
@@ -110,7 +109,7 @@ export function VisaoAReceber({ fechamento_id, travado }: Props) {
             ) : contas.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-gray-400 text-sm">
-                  Nenhuma conta a receber. Puxe as emissões primeiro.
+                  Nenhuma conta a receber para o período.
                 </TableCell>
               </TableRow>
             ) : (

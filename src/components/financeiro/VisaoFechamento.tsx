@@ -17,23 +17,11 @@ import {
   Lock,
   Unlock,
   CheckCircle2,
-  CircleDashed,
-  ChevronRight,
   AlertTriangle,
-  RefreshCw,
-  FileText,
-  Users,
-  TrendingUp,
-  ClipboardCheck,
   Loader2,
 } from 'lucide-react'
 import { type FinFechamento, type FinFechamentoStatus } from '@/types/financeiro'
 import {
-  usePuxarProcessos,
-  usePuxarContratos,
-  useGerarComissoesAPagar,
-  useGerarFolha,
-  useExecutarConferencias,
   useAprovarFechamento,
   useTravarFechamento,
   useReabrirFechamento,
@@ -72,58 +60,26 @@ export function VisaoFechamento({ fechamento }: Props) {
     critico: conferencias.filter(c => c.status === 'pendente' && c.severidade === 'critico').length,
   }
 
-  const puxarProcessos = usePuxarProcessos()
-  const puxarContratos = usePuxarContratos()
-  const gerarComissoes = useGerarComissoesAPagar()
-  const gerarFolha = useGerarFolha()
-  const executarConferencias = useExecutarConferencias()
   const aprovar = useAprovarFechamento()
   const travar = useTravarFechamento()
   const reabrir = useReabrirFechamento()
 
   const travado = fechamento.status === 'travado'
 
+  // Aprovar Fechamento encadeia por trás (puxar processos/contratos, gerar
+  // comissões, gerar folha, rodar conferências) o que antes eram passos
+  // manuais — ver useAprovarFechamento. Antes de aprovar, os valores já
+  // aparecem ao vivo nas abas A Receber/Comissões a Pagar.
   const ETAPAS = [
     {
       numero: 1,
-      titulo: 'Puxar Processos',
-      descricao: 'Importar financiamentos/CGI e contratos emitidos do mês',
-      icone: <FileText className="h-4 w-4" />,
-      acao: () => puxarProcessos.mutate(fechamento.id),
-      carregando: puxarProcessos.isPending,
-      desabilitado: travado,
-      acaoSecundaria: {
-        label: 'Contratos',
-        acao: () => puxarContratos.mutate(fechamento.id),
-        carregando: puxarContratos.isPending,
-      },
-    },
-    {
-      numero: 2,
-      titulo: 'Gerar Comissões',
-      descricao: 'Calcular comissões a pagar por pessoa',
-      icone: <TrendingUp className="h-4 w-4" />,
-      acao: () => gerarComissoes.mutate(fechamento.id),
-      carregando: gerarComissoes.isPending,
-      desabilitado: travado,
-    },
-    {
-      numero: 3,
-      titulo: 'Gerar Folha',
-      descricao: 'Montar folha mensal por funcionário',
-      icone: <Users className="h-4 w-4" />,
-      acao: () => gerarFolha.mutate(fechamento.id),
-      carregando: gerarFolha.isPending,
-      desabilitado: travado,
-    },
-    {
-      numero: 4,
-      titulo: 'Executar Conferências',
-      descricao: 'Rodar checks automáticos e detectar divergências',
-      icone: <ClipboardCheck className="h-4 w-4" />,
-      acao: () => executarConferencias.mutate(fechamento.id),
-      carregando: executarConferencias.isPending,
-      desabilitado: travado,
+      titulo: 'Aprovar Fechamento',
+      descricao: 'Puxa processos/contratos, gera comissões e folha, roda conferências e aprova',
+      icone: <CheckCircle2 className="h-4 w-4" />,
+      acao: () => aprovar.mutate(fechamento.id),
+      carregando: aprovar.isPending,
+      desabilitado: travado || fechamento.status === 'aprovado' || fechamento.status === 'pago',
+      destaque: true,
       badge: conferenciasCount.critico > 0
         ? <Badge className="bg-red-100 text-red-700 text-xs">{conferenciasCount.critico} crítica(s)</Badge>
         : conferenciasCount.pendente > 0
@@ -131,17 +87,7 @@ export function VisaoFechamento({ fechamento }: Props) {
           : null,
     },
     {
-      numero: 5,
-      titulo: 'Aprovar Fechamento',
-      descricao: 'Confirmar todos os valores e aprovar',
-      icone: <CheckCircle2 className="h-4 w-4" />,
-      acao: () => aprovar.mutate(fechamento.id),
-      carregando: aprovar.isPending,
-      desabilitado: travado || fechamento.status === 'aprovado' || fechamento.status === 'pago' || conferenciasCount.critico > 0,
-      destaque: true,
-    },
-    {
-      numero: 6,
+      numero: 2,
       titulo: 'Travar Mês',
       descricao: 'Encerrar definitivamente o fechamento',
       icone: <Lock className="h-4 w-4" />,
@@ -204,7 +150,7 @@ export function VisaoFechamento({ fechamento }: Props) {
       )}
 
       {/* Stepper */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 max-w-xl">
         {ETAPAS.map((etapa) => (
           <Card
             key={etapa.numero}
@@ -229,51 +175,26 @@ export function VisaoFechamento({ fechamento }: Props) {
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-2">
               <p className="text-xs text-gray-500">{etapa.descricao}</p>
-              {etapa.acaoSecundaria ? (
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs"
-                    onClick={etapa.acao}
-                    disabled={etapa.desabilitado || etapa.carregando}
-                  >
-                    {etapa.carregando ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
-                    Emissões
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs"
-                    onClick={etapa.acaoSecundaria.acao}
-                    disabled={etapa.desabilitado || etapa.acaoSecundaria.carregando}
-                  >
-                    {etapa.acaoSecundaria.carregando ? <Loader2 className="h-3 w-3 animate-spin" /> : <ClipboardCheck className="h-3 w-3" />}
-                    Contratos
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  variant={etapa.perigo ? 'destructive' : etapa.destaque ? 'default' : 'outline'}
-                  className={`w-full gap-1 text-xs ${
-                    etapa.destaque && !etapa.perigo
-                      ? 'bg-fonti-primary hover:bg-fonti-primary-hover text-white'
-                      : ''
-                  }`}
-                  onClick={etapa.acao}
-                  disabled={etapa.desabilitado || etapa.carregando}
-                >
-                  {etapa.carregando ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : travado ? (
-                    <Lock className="h-3.5 w-3.5" />
-                  ) : (
-                    etapa.icone
-                  )}
-                  {etapa.carregando ? 'Aguarde...' : travado ? 'Travado' : 'Executar'}
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant={etapa.perigo ? 'destructive' : etapa.destaque ? 'default' : 'outline'}
+                className={`w-full gap-1 text-xs ${
+                  etapa.destaque && !etapa.perigo
+                    ? 'bg-fonti-primary hover:bg-fonti-primary-hover text-white'
+                    : ''
+                }`}
+                onClick={etapa.acao}
+                disabled={etapa.desabilitado || etapa.carregando}
+              >
+                {etapa.carregando ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : travado ? (
+                  <Lock className="h-3.5 w-3.5" />
+                ) : (
+                  etapa.icone
+                )}
+                {etapa.carregando ? 'Aguarde...' : travado ? 'Travado' : 'Executar'}
+              </Button>
             </CardContent>
           </Card>
         ))}

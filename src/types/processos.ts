@@ -61,6 +61,11 @@ export interface Processo {
   comissao_comercial: number | null
   comissao_empresa: number | null
   comissao_juridico?: number | null
+  // Computed columns (funções SQL comissao_comercial_calculada/comissao_empresa_calculada,
+  // migration 237) — NULL antes de status_emissao='emitido'; comercial vem da regra
+  // do RH (faixa de produção mensal), empresa vem de comissoes_padrao (banco).
+  comissao_comercial_calculada?: number | null
+  comissao_empresa_calculada?: number | null
   // Responsáveis
   operacional_id: string | null
   comercial_id: string | null
