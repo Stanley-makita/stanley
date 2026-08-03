@@ -45,7 +45,7 @@ function KpiCard({ cor, icone, valor, label }: { cor: string; icone: React.React
   return (
     <div className={`rounded-xl p-4 text-white ${cor}`}>
       <div className="flex items-start justify-between">
-        <p className="text-xl font-bold">{formatarMoeda(valor)}</p>
+        <p className="text-lg font-bold">{formatarMoeda(valor)}</p>
         <div className="opacity-80">{icone}</div>
       </div>
       <p className="text-xs font-medium mt-2 opacity-95">{label}</p>
@@ -116,32 +116,28 @@ export function PainelFinanceiro({ mes, ano, onAbrirFechamento, onIrParaFechamen
         </div>
       )}
 
-      {/* A receber */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
+      {/* Cabeçalhos A receber / A pagar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700">A receber</h3>
           <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => onIrParaFechamento(mes, ano, 'a_receber')}>
             <Plus className="h-3.5 w-3.5" /> Nova venda
           </Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <KpiCard cor="bg-green-600" icone={<Clock className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_receber_aberto ?? 0} label="Contas a receber em aberto este mês" />
-          <KpiCard cor="bg-sky-500" icone={<AlertTriangle className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_receber_atraso ?? 0} label="Contas a receber em atraso" />
-        </div>
-      </div>
-
-      {/* A pagar */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700">A pagar</h3>
           <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => onIrParaFechamento(mes, ano, 'despesas')}>
             <Plus className="h-3.5 w-3.5" /> Nova despesa
           </Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <KpiCard cor="bg-amber-500" icone={<Clock className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_pagar_mes ?? 0} label="Contas a pagar este mês" />
-          <KpiCard cor="bg-red-600" icone={<AlertTriangle className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_pagar_atraso ?? 0} label="Contas a pagar em atraso este mês" />
-        </div>
+      </div>
+
+      {/* 4 cards lado a lado — mesma largura/altura dos cards de fechamento abaixo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard cor="bg-green-600" icone={<Clock className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_receber_aberto ?? 0} label="Contas a receber em aberto este mês" />
+        <KpiCard cor="bg-sky-500" icone={<AlertTriangle className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_receber_atraso ?? 0} label="Contas a receber em atraso" />
+        <KpiCard cor="bg-amber-500" icone={<Clock className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_pagar_mes ?? 0} label="Contas a pagar este mês" />
+        <KpiCard cor="bg-red-600" icone={<AlertTriangle className="h-5 w-5" />} valor={kpisLoading ? 0 : kpis?.a_pagar_atraso ?? 0} label="Contas a pagar em atraso este mês" />
       </div>
 
       {/* Contas bancárias */}
