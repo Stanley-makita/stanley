@@ -10,6 +10,11 @@ import { useSalvarComissaoPadrao, useExcluirComissaoPadrao } from '@/hooks/confi
 import { useToast } from '@/components/ui/use-toast'
 import { type ComissaoPadrao } from '@/types/configuracoes-avancadas'
 
+// Referência estável — evita recriar array a cada render enquanto a query
+// ainda não resolveu (data undefined), o que causava loop infinito no
+// useEffect abaixo (dependência `comissoes` "mudando" a cada render).
+const COMISSOES_VAZIO: ComissaoPadrao[] = []
+
 const MODALIDADES = [
   { value: '', label: 'Todas' },
   { value: 'SBPE', label: 'SBPE' },
@@ -74,7 +79,7 @@ function parseNum(s: string): number {
 
 export function AbaComissoesPadrao() {
   const { data: bancos = [] } = useBancos()
-  const { data: comissoes = [] } = useComissoesPadrao()
+  const { data: comissoes = COMISSOES_VAZIO } = useComissoesPadrao()
   const { mutate: salvar, isPending: salvando } = useSalvarComissaoPadrao()
   const { mutate: excluir, isPending: excluindo } = useExcluirComissaoPadrao()
   const { toast } = useToast()
