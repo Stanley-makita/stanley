@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useRegrasComissao, useCriarRegraComissao, useAtualizarRegraComissao, useExcluirRegraComissao } from '@/hooks/rh/useComissoes'
-import type { RhRegraComissao, RhFaixaComissao } from '@/types/rh'
+import type { RhRegraComissao, RhFaixaComissao, RhTipoCalculoComissao } from '@/types/rh'
+import { RH_TIPO_CALCULO_LABELS } from '@/types/rh'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -19,11 +20,21 @@ function fmtMoeda(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
 
+function fmtPercentual(v: number) {
+  return `${v.toFixed(2).replace('.', ',')}%`
+}
+
 type FaixaForm = Omit<RhFaixaComissao, 'id' | 'regra_id' | 'created_at'>
 
-const VAZIO_REGRA = { nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true, valor_fixo_emissao: 0, valor_fixo_assessoria: 0 }
-// Faixas novas usam só valor_fixo — os campos percentuais antigos ficam
-// null (mantidos na tabela por compatibilidade com regras já existentes).
+const VAZIO_REGRA = {
+  nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true,
+  tipo_calculo: 'valor_fixo_emissao' as RhTipoCalculoComissao,
+  valor_fixo_emissao: 0, valor_fixo_assessoria: 0,
+}
+// pct_comercial é usado quando tipo_calculo = percentual_faixa_producao_mensal;
+// valor_fixo quando tipo_calculo = valor_fixo_emissao. Os demais campos
+// percentuais antigos (percentual/pct_operacional/pct_parceiro) ficam null —
+// mantidos na tabela só por compatibilidade com regras já existentes.
 const VAZIO_FAIXA = (): FaixaForm => ({
   valor_minimo: 0,
   valor_maximo: 0,
@@ -63,6 +74,7 @@ export function ComissoesTab() {
         data_inicio: regra.data_inicio,
         data_termino: regra.data_termino ?? '',
         ativa: regra.ativa,
+        tipo_calculo: regra.tipo_calculo,
         valor_fixo_emissao: regra.valor_fixo_emissao ?? 0,
         valor_fixo_assessoria: regra.valor_fixo_assessoria ?? 0,
       })
@@ -99,6 +111,7 @@ export function ComissoesTab() {
         data_inicio: form.data_inicio,
         data_termino: form.data_termino || null,
         ativa: form.ativa,
+        tipo_calculo: form.tipo_calculo,
         valor_fixo_emissao: form.valor_fixo_emissao || null,
         valor_fixo_assessoria: form.valor_fixo_assessoria || null,
       }
@@ -144,10 +157,14 @@ export function ComissoesTab() {
               <div key={r.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                 <div className="flex items-start gap-3 p-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-gray-800">{r.nome}</p>
                       <span className={cn('text-xs font-medium rounded-full px-2 py-0.5', r.ativa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
                         {r.ativa ? 'Ativa' : 'Inativa'}
+                      </span>
+                      <span className={cn('text-xs font-medium rounded-full px-2 py-0.5',
+                        r.tipo_calculo === 'percentual_faixa_producao_mensal' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700')}>
+                        {r.tipo_calculo === 'percentual_faixa_producao_mensal' ? 'Percentual (comercial)' : 'Valor fixo (operacional)'}
                       </span>
                     </div>
                     {r.descricao && <p className="text-xs text-gray-400 mt-0.5">{r.descricao}</p>}
@@ -155,7 +172,7 @@ export function ComissoesTab() {
                       Vigência: {format(parseISO(r.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}
                       {r.data_termino ? ` até ${format(parseISO(r.data_termino), 'dd/MM/yyyy', { locale: ptBR })}` : ' – Sem término definido'}
                     </p>
-                    {(!!r.valor_fixo_emissao || !!r.valor_fixo_assessoria) && (
+                    {r.tipo_calculo === 'valor_fixo_emissao' && (!!r.valor_fixo_emissao || !!r.valor_fixo_assessoria) && (
                       <p className="text-xs text-gray-500 mt-1 flex gap-3">
                         {!!r.valor_fixo_emissao && <span>Por emissão: <strong>{fmtMoeda(r.valor_fixo_emissao)}</strong></span>}
                         {!!r.valor_fixo_assessoria && <span>Por assessoria: <strong>{fmtMoeda(r.valor_fixo_assessoria)}</strong></span>}
@@ -182,7 +199,9 @@ export function ComissoesTab() {
                         <tr className="border-b border-gray-100">
                           <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Produção de</th>
                           <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">até</th>
-                          <th className="text-left py-2 text-xs font-medium text-gray-500">Valor Fixo</th>
+                          <th className="text-left py-2 text-xs font-medium text-gray-500">
+                            {r.tipo_calculo === 'percentual_faixa_producao_mensal' ? '% Comercial' : 'Valor Fixo'}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -190,7 +209,11 @@ export function ComissoesTab() {
                           <tr key={i} className="border-b border-gray-50 last:border-0">
                             <td className="py-2 text-xs text-gray-700 pr-4">{fmtMoeda(f.valor_minimo)}</td>
                             <td className="py-2 text-xs text-gray-700 pr-4">{f.valor_maximo === 0 ? 'sem limite' : fmtMoeda(f.valor_maximo)}</td>
-                            <td className="py-2 text-xs text-gray-700 font-medium">{f.valor_fixo ? fmtMoeda(f.valor_fixo) : '—'}</td>
+                            <td className="py-2 text-xs text-gray-700 font-medium">
+                              {r.tipo_calculo === 'percentual_faixa_producao_mensal'
+                                ? (f.pct_comercial ? fmtPercentual(f.pct_comercial) : '—')
+                                : (f.valor_fixo ? fmtMoeda(f.valor_fixo) : '—')}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -226,20 +249,44 @@ export function ComissoesTab() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Valor por Processo Emitido (R$)</Label>
-                <Input type="number" min={0} step={0.01} value={form.valor_fixo_emissao} onChange={e => setForm(f => ({ ...f, valor_fixo_emissao: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Valor por Processo com Assessoria (R$)</Label>
-                <Input type="number" min={0} step={0.01} value={form.valor_fixo_assessoria} onChange={e => setForm(f => ({ ...f, valor_fixo_assessoria: Number(e.target.value) }))} />
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo de Cálculo *</Label>
+              <select
+                className="w-full h-9 rounded-md border border-gray-200 px-2 text-sm"
+                value={form.tipo_calculo}
+                onChange={e => setForm(f => ({ ...f, tipo_calculo: e.target.value as RhTipoCalculoComissao }))}
+              >
+                {Object.entries(RH_TIPO_CALCULO_LABELS).map(([valor, label]) => (
+                  <option key={valor} value={valor}>{label}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-gray-400">
+                {form.tipo_calculo === 'percentual_faixa_producao_mensal'
+                  ? 'A faixa é aplicada sobre a produção mensal ACUMULADA do funcionário (financiamento + contrato + assessoria), não sobre um processo isolado.'
+                  : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
+              </p>
             </div>
+
+            {form.tipo_calculo === 'valor_fixo_emissao' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor por Processo Emitido (R$)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.valor_fixo_emissao} onChange={e => setForm(f => ({ ...f, valor_fixo_emissao: Number(e.target.value) }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor por Processo com Assessoria (R$)</Label>
+                  <Input type="number" min={0} step={0.01} value={form.valor_fixo_assessoria} onChange={e => setForm(f => ({ ...f, valor_fixo_assessoria: Number(e.target.value) }))} />
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs">Faixas de Produção (valor fixo por faixa atingida)</Label>
+                <Label className="text-xs">
+                  {form.tipo_calculo === 'percentual_faixa_producao_mensal'
+                    ? 'Faixas de Produção Mensal (percentual sobre o total acumulado)'
+                    : 'Faixas de Produção (valor fixo por faixa atingida)'}
+                </Label>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFaixas(fs => [...fs, VAZIO_FAIXA()])}>
                   <Plus className="h-3 w-3" /> Adicionar Faixa
                 </Button>
@@ -257,10 +304,17 @@ export function ComissoesTab() {
                         <Input type="number" min={0} value={f.valor_maximo} onChange={e => setFaixa(i, 'valor_maximo', Number(e.target.value))} className="h-8 text-xs" />
                       </div>
                       <div className="flex items-end gap-1">
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-[10px] text-gray-500">Valor Fixo (R$)</Label>
-                          <Input type="number" min={0} step={0.01} value={f.valor_fixo ?? ''} onChange={e => setFaixa(i, 'valor_fixo', e.target.value === '' ? null : Number(e.target.value))} className="h-8 text-xs" />
-                        </div>
+                        {form.tipo_calculo === 'percentual_faixa_producao_mensal' ? (
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] text-gray-500">% Comercial</Label>
+                            <Input type="number" min={0} step={0.01} value={f.pct_comercial ?? ''} onChange={e => setFaixa(i, 'pct_comercial', e.target.value === '' ? null : Number(e.target.value))} className="h-8 text-xs" />
+                          </div>
+                        ) : (
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] text-gray-500">Valor Fixo (R$)</Label>
+                            <Input type="number" min={0} step={0.01} value={f.valor_fixo ?? ''} onChange={e => setFaixa(i, 'valor_fixo', e.target.value === '' ? null : Number(e.target.value))} className="h-8 text-xs" />
+                          </div>
+                        )}
                         {faixas.length > 1 && (
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => setFaixas(fs => fs.filter((_, j) => j !== i))}>
                             <Trash2 className="h-3.5 w-3.5" />

@@ -25,6 +25,34 @@ export function useContasBancarias() {
   })
 }
 
+// Saldo mais recente por conta bancária, independente de fechamento —
+// usado no Painel (Tela 1), que mostra o saldo atual da empresa, não
+// atrelado a uma competência específica.
+export function useSaldosBancariosAtuais() {
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['financeiro', 'saldos_bancarios_atuais', usuario?.empresa_id],
+    queryFn: async (): Promise<Record<string, FinSaldoBancario>> => {
+      const { data, error } = await supabase
+        .from('financeiro_saldos_bancarios')
+        .select('*')
+        .eq('empresa_id', usuario!.empresa_id)
+        .order('data_saldo', { ascending: false })
+      if (error) throw error
+
+      const maisRecentePorConta: Record<string, FinSaldoBancario> = {}
+      for (const saldo of data ?? []) {
+        if (!maisRecentePorConta[saldo.conta_bancaria_id]) {
+          maisRecentePorConta[saldo.conta_bancaria_id] = saldo
+        }
+      }
+      return maisRecentePorConta
+    },
+    enabled: !!usuario,
+  })
+}
+
 export function useSaldosBancarios(fechamento_id: string | null | undefined) {
   const { usuario } = useAuth()
 
