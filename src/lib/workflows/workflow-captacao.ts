@@ -380,6 +380,7 @@ export async function executarWorkflowCaptacao(
           // em nome de terceiros, fica sem dono até ser distribuída.
           responsavel_id:   usuario_perfil === 'comercial' ? usuario_id : null,
           valor_imovel:     dados.valor_imovel     ?? null,
+          valor_pretendido: dados.valor_financiado  ?? null,
           entrada:          dados.valor_entrada     ?? null,
           cidade_imovel:    dados.cidade_imovel     ?? null,
           tipo_imovel:      mapTipoImovelLead(dados.tipo_imovel),
@@ -417,6 +418,7 @@ export async function executarWorkflowCaptacao(
   if (leadAtualizado) {
     const camposLead: Record<string, unknown> = {}
     if (dados.valor_imovel)   { camposLead.valor_imovel    = dados.valor_imovel;  camposAtualizados.push('imóvel') }
+    if (dados.valor_financiado) { camposLead.valor_pretendido = dados.valor_financiado; camposAtualizados.push('valor financiado') }
     if (dados.valor_entrada)  { camposLead.entrada          = dados.valor_entrada; camposAtualizados.push('entrada') }
     if (dados.cidade_imovel)  { camposLead.cidade_imovel   = dados.cidade_imovel }
     if (dados.tipo_imovel)    { camposLead.tipo_imovel     = mapTipoImovelLead(dados.tipo_imovel) }

@@ -36,6 +36,7 @@ const schema = z.object({
   ]),
   produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato']).optional(),
   produto_subtipo:   z.string().optional(),
+  valor_imovel:      z.coerce.number().min(0).optional(),
   valor_pretendido:  z.coerce.number().min(0).optional(),
   observacoes:       z.string().optional(),
 })
@@ -77,6 +78,7 @@ function leadParaForm(lead: Lead): FormData {
     origem:                     lead.origem,
     produto_interesse:          normalizarProduto(lead.produto_interesse),
     produto_subtipo:            lead.produto_subtipo ?? undefined,
+    valor_imovel:               lead.valor_imovel ?? undefined,
     valor_pretendido:           lead.valor_pretendido ?? undefined,
     observacoes:                lead.observacoes ?? undefined,
   }
@@ -132,6 +134,7 @@ export function AbaOportunidade({ lead }: Props) {
       origem:                     data.origem,
       produto_interesse:          data.produto_interesse ?? null,
       produto_subtipo:            data.produto_subtipo || null,
+      valor_imovel:               data.valor_imovel ?? null,
       valor_pretendido:           data.valor_pretendido ?? null,
       observacoes:                data.observacoes || null,
     })
@@ -263,9 +266,22 @@ export function AbaOportunidade({ lead }: Props) {
               </FormItem>
             )} />
 
+            <FormField control={form.control} name="valor_imovel" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor do Imóvel <Opc /></FormLabel>
+                <FormControl>
+                  <InputMoeda
+                    value={field.value != null ? String(field.value) : ''}
+                    onChange={v => field.onChange(v ? Number(v) : undefined)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <FormField control={form.control} name="valor_pretendido" render={({ field }) => (
               <FormItem>
-                <FormLabel>Valor Pretendido <Opc /></FormLabel>
+                <FormLabel>Valor Pretendido (financiado) <Opc /></FormLabel>
                 <FormControl>
                   <InputMoeda
                     value={field.value != null ? String(field.value) : ''}

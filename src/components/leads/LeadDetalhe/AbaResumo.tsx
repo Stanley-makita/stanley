@@ -6,9 +6,14 @@ import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
 import { useLeadTarefas } from '@/hooks/leads/useLeadTarefas'
 import { formatDistanceToNow, differenceInDays, isPast, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageSquare, Calendar, TrendingUp, Banknote, Users, AlertCircle, Clock, CheckCircle2, CalendarClock, Home } from 'lucide-react'
+import { MessageSquare, Calendar, TrendingUp, Banknote, Users, AlertCircle, Clock, CheckCircle2, CalendarClock, Home, Pencil } from 'lucide-react'
 import { cn, fmtData } from '@/lib/utils'
 import { useSolicitacoesAbertasPorLead } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorLead'
+import { useEditarLead } from '@/hooks/leads/useEditarLead'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { InputMoeda } from '@/components/ui/input-moeda'
+import { toast } from 'sonner'
 
 const PRODUTO_LABELS: Record<string, string> = {
   financiamento: 'Financiamento',
@@ -46,6 +51,33 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
   const { data: pendencias = [] } = useSolicitacoesAbertasPorLead(lead.id)
   const diasComoLead = differenceInDays(new Date(), new Date(lead.created_at))
   const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0)
+
+  const editarLead = useEditarLead()
+  const [campoEdicao, setCampoEdicao] = useState<'valor_imovel' | 'valor_pretendido' | null>(null)
+  const [valorEdicao, setValorEdicao] = useState('')
+
+  function abrirEdicaoValor(campo: 'valor_imovel' | 'valor_pretendido') {
+    setValorEdicao(lead[campo] != null ? String(lead[campo]) : '')
+    setCampoEdicao(campo)
+  }
+
+  async function salvarValorEdicao() {
+    if (!campoEdicao) return
+    try {
+      await editarLead.mutateAsync({
+        id: lead.id,
+        [campoEdicao]: valorEdicao ? Number(valorEdicao) : null,
+      })
+      setCampoEdicao(null)
+    } catch {
+      toast.error('Não foi possível salvar. Tente novamente.')
+    }
+  }
+
+  const CAMPO_LABEL: Record<'valor_imovel' | 'valor_pretendido', string> = {
+    valor_imovel:     'Valor do Imóvel',
+    valor_pretendido: 'Valor Pretendido (financiado)',
+  }
 
   const tarefasVencidas  = tarefas.filter(t => !t.concluida && t.data_prazo && isPast(parseISO(t.data_prazo + 'T23:59:59'))).length
   const tarefasPendentes = tarefas.filter(t => !t.concluida && !(t.data_prazo && isPast(parseISO(t.data_prazo + 'T23:59:59')))).length
@@ -124,6 +156,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           valor={fmtMoeda(lead.valor_imovel)}
           sub={lead.tipo_imovel ?? 'Não informado'}
           cor="blue"
+          onClick={() => abrirEdicaoValor('valor_imovel')}
         />
         <KpiCard
           icone={<TrendingUp className="h-4 w-4" />}
@@ -131,6 +164,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           valor={fmtMoeda(lead.valor_pretendido)}
           sub={lead.produto_interesse ? PRODUTO_LABELS[lead.produto_interesse] ?? lead.produto_interesse : 'Produto não informado'}
           cor="gold"
+          onClick={() => abrirEdicaoValor('valor_pretendido')}
         />
         <KpiCard
           icone={<Banknote className="h-4 w-4" />}
@@ -203,6 +237,28 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           </p>
         </div>
       )}
+
+      <Dialog open={campoEdicao !== null} onOpenChange={(v) => !v && setCampoEdicao(null)}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">
+              {campoEdicao ? CAMPO_LABEL[campoEdicao] : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <InputMoeda value={valorEdicao} onChange={setValorEdicao} />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCampoEdicao(null)}>Cancelar</Button>
+            <Button
+              size="sm"
+              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+              disabled={editarLead.isPending}
+              onClick={salvarValorEdicao}
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -245,13 +301,14 @@ function MiniStat({
 }
 
 function KpiCard({
-  icone, label, valor, sub, cor,
+  icone, label, valor, sub, cor, onClick,
 }: {
   icone: React.ReactNode
   label: string
   valor: string
   sub: string
   cor: 'blue' | 'green' | 'gold' | 'gray' | 'red' | 'amber'
+  onClick?: () => void
 }) {
   const cores = {
     blue:  'bg-blue-50   text-blue-600',
@@ -269,17 +326,28 @@ function KpiCard({
     red:   'border-red-200',
     amber: 'border-amber-200',
   }
+  const Tag = onClick ? 'button' : 'div'
   return (
-    <div className={cn('border rounded-xl p-3.5 space-y-2 bg-white shadow', borderCores[cor])}>
+    <Tag
+      onClick={onClick}
+      className={cn(
+        'group border rounded-xl p-3.5 space-y-2 bg-white shadow w-full text-left',
+        borderCores[cor],
+        onClick && 'hover:border-fonti-primary/30 hover:bg-gray-50 transition-colors cursor-pointer'
+      )}
+    >
       <div className="flex items-center gap-2">
         <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', cores[cor])}>
           {icone}
         </div>
-        <p className="text-xs text-gray-400 font-medium leading-tight">{label}</p>
+        <p className="text-xs text-gray-400 font-medium leading-tight flex items-center gap-1">
+          {label}
+          {onClick && <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />}
+        </p>
       </div>
       <p className="text-lg font-bold text-fonti-primary leading-none">{valor}</p>
       <p className="text-xs text-gray-400 leading-tight">{sub}</p>
-    </div>
+    </Tag>
   )
 }
 
