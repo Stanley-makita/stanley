@@ -59,6 +59,7 @@ export function useAdicionarDespesa() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'despesas'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Despesa adicionada.')
     },
     onError: () => toast.error('Erro ao adicionar despesa.'),
@@ -78,6 +79,7 @@ export function useAtualizarDespesa() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'despesas'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Despesa atualizada.')
     },
     onError: () => toast.error('Erro ao atualizar despesa.'),
@@ -97,6 +99,7 @@ export function useMarcarDespesaPaga() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'despesas'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Despesa marcada como paga.')
     },
     onError: () => toast.error('Erro ao marcar despesa.'),
@@ -116,6 +119,7 @@ export function useRemoverDespesa() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'despesas'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Despesa removida.')
     },
     onError: () => toast.error('Erro ao remover despesa.'),

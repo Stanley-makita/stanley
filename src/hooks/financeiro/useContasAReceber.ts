@@ -47,6 +47,7 @@ export function useAdicionarContaReceber() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Conta a receber adicionada.')
     },
     onError: () => toast.error('Erro ao adicionar conta a receber.'),
@@ -66,6 +67,7 @@ export function useAdicionarNotaFiscal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Nota fiscal registrada.')
     },
     onError: () => toast.error('Erro ao registrar nota fiscal.'),
@@ -85,6 +87,7 @@ export function useAdicionarRecebimento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Recebimento registrado.')
     },
     onError: () => toast.error('Erro ao registrar recebimento.'),
@@ -104,6 +107,7 @@ export function useRemoverRecebimento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Recebimento removido.')
     },
     onError: () => toast.error('Erro ao remover recebimento.'),
@@ -123,6 +127,7 @@ export function useAtualizarStatusConta() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
     },
     onError: () => toast.error('Erro ao atualizar status.'),
   })
