@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Plus, Trash2, Pencil, X, Building2 } from 'lucide-react'
 import type { Banco } from '@/types/configuracoes'
+import { toast } from 'sonner'
 
 const SIMULADOR_KEYS = [
   { value: '', label: '— não vinculado ao simulador —' },
@@ -106,12 +107,16 @@ export function BancosLista() {
   async function salvar() {
     if (!form.nome.trim()) return
     const payload = formParaPayload(form)
-    if (modal?.modo === 'criar') {
-      await criar.mutateAsync(payload as any)
-    } else if (modal?.banco) {
-      await atualizar.mutateAsync({ id: modal.banco.id, ...payload } as any)
+    try {
+      if (modal?.modo === 'criar') {
+        await criar.mutateAsync(payload as any)
+      } else if (modal?.banco) {
+        await atualizar.mutateAsync({ id: modal.banco.id, ...payload } as any)
+      }
+      fechar()
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Não foi possível salvar o banco.')
     }
-    fechar()
   }
 
   const isPending = criar.isPending || atualizar.isPending

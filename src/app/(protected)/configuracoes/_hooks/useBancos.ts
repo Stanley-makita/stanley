@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import type { Banco, BancoInsert } from '@/types/configuracoes'
 
 const supabase = createClient()
@@ -26,9 +27,14 @@ export function useBancos() {
 
 export function useCriarBanco() {
   const queryClient = useQueryClient()
+  const { data: usuario } = useUsuarioAtual()
   return useMutation({
-    mutationFn: async (banco: BancoInsert) => {
-      const { data, error } = await supabase.from('bancos').insert(banco).select().single()
+    mutationFn: async (banco: Omit<BancoInsert, 'empresa_id'>) => {
+      const { data, error } = await supabase
+        .from('bancos')
+        .insert({ ...banco, empresa_id: usuario!.empresa_id })
+        .select()
+        .single()
       if (error) throw error
       return data
     },
