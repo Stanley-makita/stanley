@@ -14,6 +14,7 @@ import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { TableShell } from '@/components/ui/table-shell'
 import { type Lead, type ProdutoInteresse } from '@/types/leads'
+import { fmtCpf } from '@/lib/formularios/helpers'
 
 interface Props {
   busca: string
@@ -25,7 +26,7 @@ interface Props {
 
 type ColKey =
   | 'nome'
-  | 'contato'
+  | 'cpf'
   | 'fase'
   | 'status'
   | 'origem'
@@ -69,7 +70,7 @@ function fmtValor(v: number | null) {
 function getColValue(lead: Lead, col: ColKey): string {
   switch (col) {
     case 'nome':         return lead.nome.toLowerCase()
-    case 'contato':      return lead.telefone ?? ''
+    case 'cpf':          return lead.cpf ?? ''
     case 'fase':         return lead.fase?.nome ?? ''
     case 'status':       return lead.perdido_em ? 'Perdido' : (lead.status?.nome ?? '')
     case 'origem':       return lead.origem ?? ''
@@ -263,7 +264,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 <thead>
                   <tr className="border-b border-fonti-accent" style={{ backgroundColor: 'var(--fonti-accent)' }}>
                     <ColHeader label="Nome"             col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
-                    <ColHeader label="Contato"          col="contato"     active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="CPF"              col="cpf"         active={sortCol} dir={sortDir} onSort={handleSort} />
                     <ColHeader label="Fase"             col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
                       filterable colFilters={colFilters} setColFilters={setColFilters}
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
@@ -649,12 +650,9 @@ function LeadRow({
         </div>
       </td>
 
-      {/* Contato */}
+      {/* CPF */}
       <td className="px-3 py-1.5">
-        <p className="text-xs text-gray-700">{lead.telefone}</p>
-        {lead.email && (
-          <p className="text-xs text-gray-400 mt-0.5">{lead.email}</p>
-        )}
+        <p className="text-xs text-gray-700 whitespace-nowrap">{lead.cpf ? fmtCpf(lead.cpf) : '—'}</p>
       </td>
 
       {/* Fase */}
@@ -703,12 +701,12 @@ function LeadRow({
 
       {/* Comercial */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">{lead.responsavel?.nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.responsavel?.nome ?? '—'}</span>
       </td>
 
       {/* Operacional */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">{responsavelOp?.nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{responsavelOp?.nome ?? '—'}</span>
       </td>
 
       {/* Valor */}
@@ -718,22 +716,22 @@ function LeadRow({
 
       {/* Vendedor */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">{lead.vendedor_nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.vendedor_nome ?? '—'}</span>
       </td>
 
       {/* Corretor */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">{lead.corretores?.[0]?.corretor?.nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.corretores?.[0]?.corretor?.nome ?? '—'}</span>
       </td>
 
       {/* Imobiliária/Construtora */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">{lead.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</span>
       </td>
 
       {/* Parceiro */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">{lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? '—'}</span>
       </td>
 
       {/* Proposta */}
