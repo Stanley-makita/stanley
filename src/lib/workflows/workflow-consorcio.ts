@@ -168,7 +168,7 @@ async function finalizarSimulacao(
     `Valor do lance: ${BRL.format(resumo.valorDoLance)}`,
     `Lance embutido: ${BRL.format(resumo.lanceEmbutido)}`,
     `Lance próprio: ${BRL.format(resumo.lanceProprio)}`,
-    `Saldo Líquido: ${BRL.format(resumo.saldoLiquido)}`,
+    `Valor Líquido: ${BRL.format(resumo.valorLiquido)}`,
     `CET a.a: ${PCT(comparativo.cetAnual)}`,
     '',
     linhaPDF,

@@ -72,7 +72,7 @@ describe('workflow-consorcio — fluxo completo (smoke)', () => {
     const final = await processarRespostaConsorcio('3', pendente, ctx)
     expect(final).toContain('Simulação de Consórcio')
     expect(final).toContain('Valor do lance')
-    expect(final).toContain('Saldo Líquido')
+    expect(final).toContain('Valor Líquido')
     expect(final).toContain('CET a.a')
     // Sem instancia_token/telefone_destino no ctx — PDF é pulado conforme
     // esperado (mesmo comportamento de produção sem credenciais).
