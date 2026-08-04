@@ -10,13 +10,15 @@ import type { ConsorcioPendente } from '../consorcio-pendente'
 function criarSupabaseStub() {
   const chain: any = {
     update: () => chain,
-    insert: async () => ({ error: null }),
+    insert: () => chain,
     eq: () => chain,
+    in: () => chain,
     ilike: () => chain,
     select: () => chain,
     order: () => chain,
     limit: () => chain,
     maybeSingle: async () => ({ data: null }),
+    single: async () => ({ data: { id: 'conversa-teste' }, error: null }),
   }
   return { from: () => chain } as any
 }

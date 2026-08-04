@@ -9,6 +9,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InputConsorcio } from '@/lib/simuladorConsorcio/tipos'
+import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
 
 export type PassoConsorcio =
   | 'valor_bem'
@@ -37,13 +38,11 @@ export async function salvarConsorcioPendente(
   telefone: string,
   pendente: ConsorcioPendente,
 ): Promise<void> {
-  const sufixo = buildSufixoQuery(telefone)
   const expira = new Date(Date.now() + TTL_MS).toISOString()
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   await supabase.from('conversas')
     .update({ consorcio_pendente: pendente, consorcio_pendente_expira: expira })
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
+    .eq('id', conversaId)
 }
 
 export async function buscarConsorcioPendente(

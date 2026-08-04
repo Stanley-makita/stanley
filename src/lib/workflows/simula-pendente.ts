@@ -9,6 +9,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
+import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
 
 export interface WorkflowPendente {
   /** Motivo da pendência — só influencia qual pergunta fazer; nunca limita o parser. */
@@ -41,14 +42,11 @@ export async function salvarSimulaPendente(
   telefone: string,
   pendente: WorkflowPendente,
 ): Promise<void> {
-  const sufixo = buildSufixoQuery(telefone)
   const expira = new Date(Date.now() + TTL_MS).toISOString()
-  // Usa .ilike para tolerar variações de DDI (554499... vs 4499...) — mesmo padrão do webhook
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   await supabase.from('conversas')
     .update({ simula_pendente: pendente, simula_pendente_expira: expira })
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
+    .eq('id', conversaId)
 }
 
 export async function buscarSimulaPendente(
