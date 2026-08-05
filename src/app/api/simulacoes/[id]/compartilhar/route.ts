@@ -74,7 +74,10 @@ export async function POST(
     leadId = sim.lead_id
     processoId = sim.processo_id
     nomeCliente = sim.nome_cliente
-    nomeSim = `Simulação Financiamento${sim.banco ? ` — ${sim.banco}` : ''}${nomeCliente ? ` | ${nomeCliente}` : ''}`
+    // Não usa sim.banco: o PDF compara vários bancos (não só o mais barato) e
+    // nomear o arquivo com um banco só confundia o cliente, que achava que
+    // tinha recebido a proposta de um único banco (2026-08-05).
+    nomeSim = `Simulação Preliminar${nomeCliente ? ` — ${nomeCliente}` : ''}`
   } else if (tipo === 'consorcio') {
     const { data: sim, error } = await supabase
       .from('simulacoes_central')

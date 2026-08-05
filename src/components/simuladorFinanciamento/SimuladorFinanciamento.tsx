@@ -45,6 +45,11 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
   const [enviando, setEnviando] = useState(false)
   const [gerandoPDFId, setGerandoPDFId] = useState<string | null>(null)
   const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
+  // ID já salvo no histórico nesta sessão (via prop, Imprimir ou Compartilhar).
+  // Compartilhado entre as 3 ações que podem salvar (Imprimir, Compartilhar,
+  // Salvar no histórico) pra nenhuma delas duplicar o registro (bug real,
+  // simulação salvando 3x — 2026-08-05).
+  const [savedId, setSavedId] = useState<string | undefined>(simulacaoExistenteId)
   const salvarSimulacaoCentral = useSalvarSimulacaoCentral()
 
   // Busca configurações dos bancos do banco de dados
@@ -78,8 +83,9 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
         // Só salva no histórico na primeira vez (simulação nova). Se já é uma
         // simulação existente (ex.: "Ver simulação"), não salva de novo.
         onSalvarAntesImprimir: async (sim) => {
-          if (!simulacaoExistenteId && _leadId) {
-            await salvarSimulacaoCentral.mutateAsync({ resultado: sim, leadId: _leadId })
+          if (!savedId && _leadId) {
+            const salvo = await salvarSimulacaoCentral.mutateAsync({ resultado: sim, leadId: _leadId })
+            setSavedId(salvo.id)
           }
         },
         gerarPdf: async (sim) => {
@@ -109,17 +115,19 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
 
   async function compartilharSimulacao() {
     if (!resultado) return
-    const melhor = resultado.bancos.find((b) => b.elegivel)
-    const nome = `Simulação Financiamento${melhor ? ` — ${melhor.bancoNome}` : ''}`
-    // Se já é uma simulação existente, reaproveita o ID em vez de salvar uma
-    // cópia nova a cada Compartilhar (mesmo motivo do baixarPDF acima).
-    if (simulacaoExistenteId) {
-      setModalCompartilhar({ id: simulacaoExistenteId, nome })
+    // Sem nome do banco: o PDF compara vários bancos, então nomear com um só
+    // confundia o cliente (achava que só tinha recebido a proposta daquele banco).
+    const nome = 'Simulação Preliminar'
+    // Reaproveita um ID já salvo (seja da prop, seja de um Imprimir/Compartilhar
+    // anterior nesta mesma tela) em vez de salvar uma cópia nova a cada clique.
+    if (savedId) {
+      setModalCompartilhar({ id: savedId, nome })
       return
     }
     setEnviando(true)
     try {
       const salvo = await salvarSimulacaoCentral.mutateAsync({ resultado, leadId: _leadId })
+      setSavedId(salvo.id)
       setModalCompartilhar({ id: salvo.id, nome })
     } catch {
       toast.error('Erro ao salvar simulação para compartilhamento.')
@@ -192,7 +200,15 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
               <Button
                 size="sm"
                 className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-                onClick={() => onSalvar(resultado)}
+                onClick={() => {
+                  // Já salva via Imprimir/Compartilhar nesta mesma tela — evita
+                  // criar um segundo registro no histórico pra mesma simulação.
+                  if (savedId) {
+                    toast.success('Esta simulação já está salva no histórico.')
+                    return
+                  }
+                  onSalvar(resultado)
+                }}
                 disabled={salvando}
               >
                 {salvando ? 'Salvando...' : 'Salvar no histórico'}
