@@ -787,6 +787,24 @@ export async function POST(request: NextRequest) {
       grupoConversaId = novaGrupo.id
     }
 
+    // Eco da própria instância: quando um atendente manda mensagem pra este grupo
+    // pela tela de Conversas (enviarMensagemHumano), aquele fluxo já insere a linha
+    // em `mensagens` (com o nome do atendente) E manda pra Uazapi — que depois ecoa
+    // essa mesma mensagem de volta aqui como um evento fromMe. Sem checar isso, cada
+    // mensagem enviada pelo Fonti pra um grupo aparecia duplicada (a original, com
+    // rótulo do atendente, e o eco, sem rótulo). messageid é o mesmo dos dois lados.
+    if (msg.fromMe && msg.messageid) {
+      const { data: jaEnviadaPeloFonti } = await supabase
+        .from('mensagens')
+        .select('id')
+        .eq('conversa_id', grupoConversaId)
+        .eq('metadata->>uazapi_message_id', msg.messageid)
+        .maybeSingle()
+      if (jaEnviadaPeloFonti) {
+        return NextResponse.json({ ok: true })
+      }
+    }
+
     const remetente = msg.senderName ?? telefone
     await supabase.from('mensagens').insert({
       conversa_id: grupoConversaId,
@@ -798,6 +816,7 @@ export async function POST(request: NextRequest) {
         atendente: msg.fromMe ? remetente : undefined,
         sender_nome: !msg.fromMe ? remetente : undefined,
         sender_telefone: telefone,
+        uazapi_message_id: msg.messageid ?? null,
       },
     })
 
