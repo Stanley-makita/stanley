@@ -63,7 +63,7 @@ export interface EnviarMensagemHumanoParams {
   /** ID da mensagem (na Uazapi) a que esta responde — vira citação real no WhatsApp do cliente. */
   replyId?: string
   /** Prévia (autor + trecho) da mensagem respondida, só pra exibir a citação na bolha do Fonti. */
-  replyPreview?: { autor: string; texto: string }
+  replyPreview?: { autor: string; texto: string; mensagemId?: string; fileUrl?: string; tipoMidia?: string }
 }
 
 export type EnviarMensagemHumanoResultado =
