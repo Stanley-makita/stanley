@@ -436,15 +436,41 @@ export default function ConversasPage() {
     enabled: grupoAberto && buscaContatoGrupo.trim().length >= 2,
     queryFn: async () => {
       const q = buscaContatoGrupo.trim()
-      const { data } = await supabase
-        .from('leads')
-        .select('id, nome, telefone')
-        .eq('empresa_id', usuario!.empresa_id)
-        .is('deleted_at', null)
-        .not('telefone', 'is', null)
-        .or(`nome.ilike.%${q}%,telefone.ilike.%${q}%`)
-        .limit(8)
-      return (data ?? []) as { id: string; nome: string; telefone: string }[]
+
+      // Busca em leads e em conversas já existentes (contatos que já falam com a
+      // empresa mas ainda não viraram lead, ex.: "Marcio Fontinhas") — mescladas
+      // e deduplicadas por telefone, leads primeiro.
+      const [{ data: leads }, { data: conversasContato }] = await Promise.all([
+        supabase
+          .from('leads')
+          .select('id, nome, telefone')
+          .eq('empresa_id', usuario!.empresa_id)
+          .is('deleted_at', null)
+          .not('telefone', 'is', null)
+          .or(`nome.ilike.%${q}%,telefone.ilike.%${q}%`)
+          .limit(8),
+        supabase
+          .from('conversas')
+          .select('id, contato_nome, contato_telefone')
+          .eq('empresa_id', usuario!.empresa_id)
+          .eq('canal', 'whatsapp')
+          .not('contato_telefone', 'is', null)
+          .or(`contato_nome.ilike.%${q}%,contato_telefone.ilike.%${q}%`)
+          .limit(8),
+      ])
+
+      const resultado: { id: string; nome: string; telefone: string }[] =
+        (leads ?? []).map((l) => ({ id: l.id, nome: l.nome, telefone: l.telefone }))
+
+      const telefonesJaListados = new Set(resultado.map((r) => r.telefone.replace(/\D/g, '')))
+      for (const c of conversasContato ?? []) {
+        const telDigits = (c.contato_telefone ?? '').replace(/\D/g, '')
+        if (!telDigits || telefonesJaListados.has(telDigits)) continue
+        telefonesJaListados.add(telDigits)
+        resultado.push({ id: c.id, nome: c.contato_nome ?? c.contato_telefone!, telefone: c.contato_telefone! })
+      }
+
+      return resultado.slice(0, 8)
     },
   })
 
