@@ -89,10 +89,31 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
 
   // Assinatura visível no WhatsApp de verdade só em grupo — numa conversa 1:1 o
   // cliente já sabe que fala com a empresa, mas num grupo com várias pessoas da
-  // equipe (e do cliente) ninguém sabe quem digitou sem essa marca. O rótulo que
+  // equipe (e do cliente) ninguém sabe quem mandou sem essa marca. O rótulo que
   // já aparece na bolha do Fonti (metadata.atendente) continua vindo do texto
   // original, sem prefixo — só o que vai pro WhatsApp leva a assinatura.
-  const textoParaEnvio = ehGrupo && texto ? `*${usuarioNome}:*\n${texto}` : texto
+  //
+  // Imagem/vídeo/documento aceitam legenda — a assinatura vai nela (mesmo sem
+  // o atendente ter digitado nada, pra sempre identificar quem anexou).
+  // Áudio/PTT NÃO aceitam legenda — é limitação do próprio protocolo do
+  // WhatsApp (nenhum cliente, nem o oficial, permite legenda em nota de voz),
+  // não da Uazapi nem do Fonti. Pra esses dois, manda a assinatura como uma
+  // mensagem de texto curta logo antes do áudio (best-effort — se falhar, não
+  // deve impedir o envio do áudio em si).
+  const podeLevarLegenda = tipo === 'image' || tipo === 'video' || tipo === 'document'
+  const semLegenda = tipo === 'audio' || tipo === 'ptt'
+
+  if (ehGrupo && semLegenda) {
+    try {
+      await enviarUazapi(telEnvio, 'text', instanceToken, `*${usuarioNome}:* enviou um áudio 🎤`)
+    } catch (err) {
+      console.error('[enviarMensagemHumano] Falha ao mandar assinatura antes do áudio (grupo):', err)
+    }
+  }
+
+  const textoParaEnvio = ehGrupo && (podeLevarLegenda || tipo === 'text')
+    ? `*${usuarioNome}:*${texto ? `\n${texto}` : ''}`
+    : texto
 
   let uazapiResult
   try {
