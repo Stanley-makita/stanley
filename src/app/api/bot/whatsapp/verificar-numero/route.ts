@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       const detail = await res.text()
       console.error('[verificar-numero] Uazapi retornou erro:', res.status, detail)
-      return NextResponse.json({ error: 'Falha ao verificar número' }, { status: 502 })
+      return NextResponse.json({ error: `Falha ao verificar número (Uazapi ${res.status}): ${detail.slice(0, 200)}` }, { status: 502 })
     }
     resultado = await res.json()
   } catch (err) {
