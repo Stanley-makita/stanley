@@ -17,7 +17,7 @@ const UAZAPI_TIPO_MAP: Record<TipoMidiaEnvio, string> = {
   ptt:      'ptt',
 }
 
-async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToken: string, texto?: string, arquivo?: string, nomeArquivo?: string, replyId?: string) {
+async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToken: string, texto?: string, arquivoUrl?: string, nomeArquivo?: string, replyId?: string) {
   if (tipo === 'text') {
     const body: Record<string, unknown> = { number: telefone, text: texto, track_source: 'crm-humano', delay: 800 }
     if (replyId) body.replyid = replyId
@@ -31,10 +31,13 @@ async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToke
     return res.json()
   }
 
+  // `file` aceita URL ou base64 (doc oficial: "URL or base64 string of the media
+  // file") — usamos sempre URL (Supabase Storage assinada) pra nunca precisar
+  // passar o conteúdo do arquivo pelo corpo da nossa própria requisição.
   const body: Record<string, unknown> = {
     number: telefone,
     type: UAZAPI_TIPO_MAP[tipo],
-    file: arquivo,
+    file: arquivoUrl,
     track_source: 'crm-humano',
   }
   if (texto)       body.text = texto
@@ -56,7 +59,8 @@ export interface EnviarMensagemHumanoParams {
   telefone: string
   tipo: TipoMidiaEnvio
   texto?: string
-  arquivo?: string
+  /** URL assinada do Supabase Storage — o cliente já subiu o arquivo lá antes de chamar. */
+  arquivoUrl?: string
   nomeArquivo?: string
   usuarioId: string
   usuarioNome: string
@@ -71,7 +75,7 @@ export type EnviarMensagemHumanoResultado =
   | { ok: false; status: number; error: string }
 
 export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): Promise<EnviarMensagemHumanoResultado> {
-  const { supabase, conversaId, telefone, tipo, texto, arquivo, nomeArquivo, usuarioId, usuarioNome, replyId, replyPreview } = params
+  const { supabase, conversaId, telefone, tipo, texto, arquivoUrl, nomeArquivo, usuarioId, usuarioNome, replyId, replyPreview } = params
 
   // Resolve token da instância correta (fallback para env se não tiver instância vinculada)
   const instanceToken = await resolverInstanceToken(supabase, conversaId)
@@ -117,7 +121,7 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
 
   let uazapiResult
   try {
-    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, textoParaEnvio, arquivo, nomeArquivo, replyId)
+    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, textoParaEnvio, arquivoUrl, nomeArquivo, replyId)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[enviarMensagemHumano] Erro Uazapi:', detail)
@@ -129,8 +133,10 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
 
   const conteudo = texto ?? ''
 
-  // Tenta obter URL pública do arquivo enviado
-  let fileUrl: string | null = uazapiResult?.fileURL ?? null
+  // Pra exibir na bolha do Fonti: preferimos a própria URL do Supabase Storage
+  // que já mandamos pra Uazapi (arquivoUrl) — ela já aponta pro arquivo certo,
+  // sem precisar de mais uma chamada à Uazapi pra redescobrir isso.
+  let fileUrl: string | null = arquivoUrl ?? uazapiResult?.fileURL ?? null
   if (!fileUrl && uazapiResult?.messageid && tipo !== 'text') {
     try {
       const dlRes = await fetch(`${process.env.UAZAPI_API_URL}/message/download`, {

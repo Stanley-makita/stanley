@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     telefone: string
     tipo: TipoMidia
     texto?: string
-    arquivo?: string
+    arquivo_url?: string
     nome_arquivo?: string
     reply_id?: string
     reply_preview?: { autor: string; texto: string; mensagemId?: string; fileUrl?: string; tipoMidia?: string }
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
-  const { conversa_id, telefone, tipo, texto, arquivo, nome_arquivo, reply_id, reply_preview } = body
+  const { conversa_id, telefone, tipo, texto, arquivo_url, nome_arquivo, reply_id, reply_preview } = body
 
   if (!conversa_id || !telefone || !tipo) {
     return NextResponse.json({ error: 'conversa_id, telefone e tipo são obrigatórios' }, { status: 422 })
@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
   if (tipo === 'text' && !texto?.trim()) {
     return NextResponse.json({ error: 'texto é obrigatório para tipo text' }, { status: 422 })
   }
-  if (tipo !== 'text' && !arquivo) {
-    return NextResponse.json({ error: 'arquivo é obrigatório para mídias' }, { status: 422 })
-  }
-  // Limite de tamanho no backend (~25MB em base64)
-  if (arquivo && arquivo.length > 35_000_000) {
-    return NextResponse.json({ error: 'Arquivo muito grande. Reduza o tamanho antes de enviar.' }, { status: 413 })
+  // arquivo_url é uma URL assinada do Supabase Storage (o cliente já subiu o
+  // arquivo lá antes de chamar este endpoint) — a Uazapi busca o arquivo
+  // direto por ela, o conteúdo nunca passa pelo corpo desta requisição
+  // (funções serverless da Vercel rejeitam corpo > ~4.5MB).
+  if (tipo !== 'text' && !arquivo_url) {
+    return NextResponse.json({ error: 'arquivo_url é obrigatório para mídias' }, { status: 422 })
   }
 
   // Verifica que a conversa pertence à empresa do atendente
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     telefone,
     tipo,
     texto,
-    arquivo,
+    arquivoUrl: arquivo_url,
     nomeArquivo: nome_arquivo,
     usuarioId: usuario.id,
     usuarioNome: usuario.nome,

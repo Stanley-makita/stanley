@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/auth/useAuth'
 
 interface EmojiPickerProps {
   data: object
@@ -26,7 +27,7 @@ type TipoMidia = 'text' | 'image' | 'video' | 'audio' | 'document' | 'ptt'
 
 interface AnexoPendente {
   tipo: TipoMidia
-  base64: string
+  storagePath: string
   mimeType: string
   nome?: string
   previewUrl?: string
@@ -52,15 +53,6 @@ interface PainelComposicaoProps {
 
 const LIMITE_MB: Record<string, number> = { image: 5, video: 15, audio: 10, document: 20, ptt: 10 }
 
-function fileParaBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1])
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
 function detectarTipo(mime: string): TipoMidia {
   if (mime.startsWith('image/'))  return 'image'
   if (mime.startsWith('video/'))  return 'video'
@@ -69,8 +61,10 @@ function detectarTipo(mime: string): TipoMidia {
 }
 
 export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, respondendoA, onCancelarResposta }: PainelComposicaoProps) {
+  const { usuario } = useAuth()
   const [texto, setTexto] = useState('')
   const [anexo, setAnexo] = useState<AnexoPendente | null>(null)
+  const [subindoAnexo, setSubindoAnexo] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [gravando, setGravando] = useState(false)
   const [tempoGravacao, setTempoGravacao] = useState(0)
@@ -90,10 +84,24 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
     }
   }, [emojiAberto, emojiData])
 
-  async function enviar(tipoOverride?: TipoMidia, arquivoOverride?: string, mimeOverride?: string, nomeOverride?: string) {
+  // Sobe o arquivo direto pro Supabase Storage (nunca passa pelo corpo da
+  // requisição da nossa API) — funções serverless da Vercel rejeitam corpo
+  // maior que ~4.5MB, e o arquivo em base64 (que infla ~33% o tamanho) batia
+  // nesse teto pra qualquer anexo um pouco maior, falhando com "Erro ao
+  // enviar" sem aviso claro. Storage não tem esse limite.
+  async function subirArquivo(blob: File | Blob, nome: string, mimeType: string): Promise<string> {
+    const ext = nome.includes('.') ? nome.split('.').pop() : (mimeType.split('/')[1] ?? 'bin')
+    const path = `${usuario!.empresa_id}/conversas-envio/${conversaId}/${crypto.randomUUID()}.${ext}`
+    const { error } = await supabase.storage.from('documentos').upload(path, blob, { contentType: mimeType })
+    if (error) throw new Error(`Falha ao subir arquivo: ${error.message}`)
+    return path
+  }
+
+  async function enviar(tipoOverride?: TipoMidia, storagePathOverride?: string, mimeOverride?: string, nomeOverride?: string) {
     const tipo: TipoMidia = tipoOverride ?? (anexo ? anexo.tipo : 'text')
+    const storagePath = storagePathOverride ?? anexo?.storagePath
     const temTexto = texto.trim().length > 0
-    const temAnexo = !!anexo || !!arquivoOverride
+    const temAnexo = !!storagePath
 
     if (!temTexto && !temAnexo) return
 
@@ -101,6 +109,18 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token ?? ''
+
+      // URL assinada (7 dias) — a Uazapi busca o arquivo direto por essa URL
+      // (o conteúdo nunca passa pela nossa API), e a mesma URL fica guardada
+      // pra exibir a mídia na bolha do Fonti depois.
+      let arquivoUrl: string | undefined
+      if (storagePath) {
+        const { data: signed, error: signedError } = await supabase.storage
+          .from('documentos')
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 7)
+        if (signedError || !signed) throw new Error('Falha ao preparar o arquivo para envio.')
+        arquivoUrl = signed.signedUrl
+      }
 
       const res = await fetch('/api/bot/whatsapp/send', {
         method: 'POST',
@@ -113,7 +133,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
           telefone,
           tipo,
           texto: temTexto ? texto.trim() : undefined,
-          arquivo: arquivoOverride ?? anexo?.base64,
+          arquivo_url: arquivoUrl,
           nome_arquivo: nomeOverride ?? anexo?.nome,
           reply_id: respondendoA?.uazapiMessageId || undefined,
           reply_preview: respondendoA
@@ -150,10 +170,17 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
       toast.error(`Arquivo muito grande. Limite: ${limiteMB}MB para ${tipo}.`)
       return
     }
-    const base64 = await fileParaBase64(file)
-    const previewUrl = tipo === 'image' ? URL.createObjectURL(file) : undefined
-    setAnexo({ tipo, base64, mimeType: file.type, nome: file.name, previewUrl })
     setEmojiAberto(false)
+    setSubindoAnexo(true)
+    const previewUrl = tipo === 'image' ? URL.createObjectURL(file) : undefined
+    try {
+      const storagePath = await subirArquivo(file, file.name, file.type)
+      setAnexo({ tipo, storagePath, mimeType: file.type, nome: file.name, previewUrl })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao anexar arquivo.')
+    } finally {
+      setSubindoAnexo(false)
+    }
   }
 
   function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -169,7 +196,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      enviar()
+      if (!subindoAnexo) enviar()
     }
   }
 
@@ -182,13 +209,13 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const reader = new FileReader()
-        reader.onload = async () => {
-          const base64 = (reader.result as string).split(',')[1]
-          await enviar('ptt', base64, 'audio/webm')
-        }
-        reader.readAsDataURL(blob)
         setTempoGravacao(0)
+        try {
+          const storagePath = await subirArquivo(blob, 'audio.webm', 'audio/webm')
+          await enviar('ptt', storagePath, 'audio/webm')
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Falha ao enviar áudio.')
+        }
       }
       mr.start()
       mediaRecorderRef.current = mr
@@ -240,6 +267,14 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
           <button onClick={onCancelarResposta} className="text-gray-400 hover:text-gray-600 shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* Subindo anexo pro Storage antes de liberar o envio */}
+      {subindoAnexo && (
+        <div className="px-4 pt-3 flex items-center gap-2 text-xs text-gray-500">
+          <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-fonti-primary rounded-full animate-spin" />
+          Enviando arquivo…
         </div>
       )}
 
@@ -367,7 +402,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
           ) : (
             <button
               onClick={() => enviar()}
-              disabled={enviando}
+              disabled={enviando || subindoAnexo}
               className="w-9 h-9 rounded-full bg-fonti-primary flex items-center justify-center text-white hover:bg-fonti-primary-hover disabled:opacity-50 transition-colors shrink-0"
               title="Enviar (Enter)"
             >
