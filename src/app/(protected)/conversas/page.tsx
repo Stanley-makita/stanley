@@ -1460,7 +1460,7 @@ export default function ConversasPage() {
           {/* Painel de composição */}
           <PainelComposicao
             conversaId={conversaSelecionada.id}
-            telefone={conversaSelecionada.contato_telefone ?? ''}
+            telefone={conversaSelecionada.contato_grupo_id ?? conversaSelecionada.contato_telefone ?? ''}
             disabled={conversaSelecionada.status === 'encerrado'}
             respondendoA={respondendoA}
             onCancelarResposta={() => setRespondendoA(null)}

@@ -76,9 +76,16 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
   // Resolve token da instância correta (fallback para env se não tiver instância vinculada)
   const instanceToken = await resolverInstanceToken(supabase, conversaId)
 
+  // Grupo: `telefone` aqui é na verdade o JID do grupo (contato_grupo_id, ex.:
+  // "1203...@g.us") — não é um telefone BR, não pode passar pela normalização
+  // de dígitos (isso destruiria o JID) nem pela "cura" de contato_telefone abaixo.
+  const ehGrupo = telefone.includes('@g.us')
+
   // Normaliza número: garante prefixo 55 para números brasileiros
   const telRaw = telefone.replace(/\D/g, '')
-  const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
+  const telEnvio = ehGrupo
+    ? telefone
+    : (telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw)
 
   let uazapiResult
   try {
@@ -130,8 +137,9 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
   }).select('id').single()
 
   // Atualiza updated_at e cura contato_telefone se estava sem prefixo 55
+  // (nunca em grupo — lá quem identifica a conversa é contato_grupo_id)
   const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  if (telEnvio !== telRaw) updatePayload.contato_telefone = telEnvio
+  if (!ehGrupo && telEnvio !== telRaw) updatePayload.contato_telefone = telEnvio
   await supabase
     .from('conversas')
     .update(updatePayload)

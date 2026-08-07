@@ -234,6 +234,8 @@ export async function POST(request: NextRequest) {
     isGroup: payload.message?.isGroup,
     hasToken: Boolean(payload.token),
     hasMessageId: Boolean(payload.message?.messageid),
+    chatid: payload.message?.chatid,
+    senderPn: payload.message?.sender_pn,
   })
 
   // Ligação de voz do WhatsApp (cliente ligando pelo app pro número da instância) — canal
@@ -638,7 +640,13 @@ export async function POST(request: NextRequest) {
   const senderPn = msg?.sender_pn ?? ''
   const telefoneBruto = senderPn.replace('@s.whatsapp.net', '')
   const telefone = telefoneBruto ? telefoneCanonico(telefoneBruto) : ''
-  if (!telefone) {
+  // Mensagens de grupo não podem morrer aqui: sender_pn identifica quem mandou a
+  // mensagem DENTRO do grupo (não necessariamente populado do mesmo jeito que numa
+  // conversa 1:1 pela Uazapi), mas o handler de grupo abaixo não depende de telefone
+  // pra nada essencial (usa contato_grupo_id) — sem esse bypass, um sender_pn ausente
+  // ou malformado pra um participante do grupo derrubava o evento inteiro antes de
+  // chegar no bloco `if (msg?.isGroup)`, e o grupo nunca aparecia no Fonti.
+  if (!telefone && !msg?.isGroup) {
     console.log('[whatsapp-webhook] telefone não encontrado, ignorando')
     return NextResponse.json({ ok: true })
   }
