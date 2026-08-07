@@ -119,7 +119,11 @@ interface VerificacaoNumero {
 
 // Verifica se números estão registrados no WhatsApp antes de criar
 // conversa/grupo, evitando desperdiçar cadastro num telefone digitado errado.
-async function verificarNumerosWhatsapp(numeros: string[]): Promise<VerificacaoNumero[]> {
+// instanciaId deve ser a mesma instância que vai efetivamente criar a
+// conversa/grupo — sem isso, o backend pega "qualquer" instância ativa da
+// empresa pra checar, que pode estar desconectada mesmo com outra instância
+// (a que o atendente está de fato usando) funcionando normalmente.
+async function verificarNumerosWhatsapp(numeros: string[], instanciaId?: string): Promise<VerificacaoNumero[]> {
   const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch('/api/bot/whatsapp/verificar-numero', {
     method: 'POST',
@@ -127,7 +131,7 @@ async function verificarNumerosWhatsapp(numeros: string[]): Promise<VerificacaoN
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session?.access_token ?? ''}`,
     },
-    body: JSON.stringify({ numbers: numeros }),
+    body: JSON.stringify({ numbers: numeros, instancia_id: instanciaId || undefined }),
   })
   const json = await res.json()
   if (!res.ok) throw new Error(json.error ?? 'Falha ao verificar número')
@@ -889,13 +893,16 @@ export default function ConversasPage() {
               className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50"
               onClick={() => {
                 setGrupoNome('')
-                setGrupoInstanciaId('')
-                // Pré-carrega o número da conversa aberta — criar um grupo "a partir" dela
-                // não deveria exigir digitar de novo um número que já está na tela.
+                // Pré-carrega o número E a instância da conversa aberta — criar um grupo
+                // "a partir" dela não deveria exigir escolher de novo o mesmo número/instância
+                // que já estão na tela. Sem isso, a verificação do número podia cair numa
+                // instância diferente (e às vezes desconectada) da que o atendente já está
+                // usando pra falar com esse cliente.
                 const telAtual = conversaSelecionada && !conversaSelecionada.contato_grupo_id
                   ? formatarTelefone(conversaSelecionada.contato_telefone)
                   : null
                 setGrupoParticipantes(telAtual ? [telAtual, ''] : ['', ''])
+                setGrupoInstanciaId(conversaSelecionada?.instancia_id ?? '')
                 setBuscaContatoGrupo('')
                 setGrupoAberto(true)
               }}
@@ -1902,7 +1909,7 @@ export default function ConversasPage() {
               className="w-full gap-1.5 bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
               onClick={async () => {
                 try {
-                  const [verificacao] = await verificarNumerosWhatsapp([novaConversaTelefone])
+                  const [verificacao] = await verificarNumerosWhatsapp([novaConversaTelefone], novaConversaInstanciaId)
                   if (verificacao && !verificacao.isInWhatsapp) {
                     toast.error('Esse número não está registrado no WhatsApp. Confira o telefone.')
                     return
@@ -2051,7 +2058,7 @@ export default function ConversasPage() {
                 setCriandoGrupo(true)
                 try {
                   const telefones = grupoParticipantes.filter((p) => p.replace(/\D/g, ''))
-                  const verificacoes = await verificarNumerosWhatsapp(telefones)
+                  const verificacoes = await verificarNumerosWhatsapp(telefones, grupoInstanciaId)
                   const invalidos = verificacoes.filter((v) => !v.isInWhatsapp)
                   if (invalidos.length > 0) {
                     toast.error(`Número(s) fora do WhatsApp: ${invalidos.map((v) => v.query).join(', ')}`)
@@ -2071,7 +2078,7 @@ export default function ConversasPage() {
                     }),
                   })
                   const json = await res.json()
-                  if (!res.ok) throw new Error(json.error ?? 'Falha ao criar grupo')
+                  if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : (json.error ?? 'Falha ao criar grupo'))
                   setGrupoAberto(false)
                   qc.invalidateQueries({ queryKey: ['conversas'] })
                   toast.success('Grupo criado com sucesso.')

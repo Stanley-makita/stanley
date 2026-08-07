@@ -62,10 +62,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // A doc da Uazapi anuncia resposta plana ({JID, Name, ...}), mas a resposta
-  // real vem aninhada em { group: {...}, failed: [...] } — confirmado testando
-  // o endpoint direto.
-  let resultado: { group?: { JID?: string; Name?: string }; failed?: unknown[] | null }
+  // A doc oficial da Uazapi (https://docs.uazapi.com/endpoint/post/group~create)
+  // documenta resposta plana ({JID, Name, Participants, ...}). Uma sessão
+  // anterior tinha achado resposta aninhada ({ group: {...} }) testando direto —
+  // aceita os dois formatos aqui pra não depender de qual versão está no ar.
+  let resultado: { JID?: string; Name?: string; group?: { JID?: string; Name?: string } }
   try {
     const res = await fetch(`${process.env.UAZAPI_API_URL}/group/create`, {
       method: 'POST',
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Falha de conexão com Uazapi' }, { status: 502 })
   }
 
-  const grupoId = resultado.group?.JID
+  const grupoId = resultado.JID ?? resultado.group?.JID
   if (!grupoId) {
     console.error('[conversas/grupo] Uazapi não retornou o JID do grupo criado. Resposta:', JSON.stringify(resultado))
     return NextResponse.json({ error: 'Uazapi não retornou o JID do grupo criado' }, { status: 502 })
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     .insert({
       empresa_id: usuario.empresa_id,
       canal: 'whatsapp',
-      contato_nome: resultado.group?.Name ?? nome,
+      contato_nome: resultado.Name ?? resultado.group?.Name ?? nome,
       contato_grupo_id: grupoId,
       status: 'ativo',
       bot_ativo: false,

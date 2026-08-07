@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     .single()
   if (!usuario) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
 
-  let body: { numbers?: string[] }
+  let body: { numbers?: string[]; instancia_id?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
@@ -39,14 +39,30 @@ export async function POST(request: NextRequest) {
   }
   const numbers = numbersRaw.map((n) => (n.length <= 11 && !n.startsWith('55') ? `55${n}` : n))
 
-  const { data: instancia } = await supabase
-    .from('instancias')
-    .select('token')
-    .eq('empresa_id', usuario.empresa_id)
-    .eq('ativo', true)
-    .limit(1)
-    .maybeSingle()
-  const instanceToken = instancia?.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+  // Usa a instância informada pelo chamador (a que vai efetivamente criar a
+  // conversa/grupo) sempre que possível — sem isso, cai numa instância
+  // "qualquer" da empresa que pode estar desconectada mesmo com outra em uso.
+  let instanceToken = ''
+  if (body.instancia_id) {
+    const { data: instancia } = await supabase
+      .from('instancias')
+      .select('token')
+      .eq('id', body.instancia_id)
+      .eq('empresa_id', usuario.empresa_id)
+      .eq('ativo', true)
+      .maybeSingle()
+    instanceToken = instancia?.token ?? ''
+  }
+  if (!instanceToken) {
+    const { data: instancia } = await supabase
+      .from('instancias')
+      .select('token')
+      .eq('empresa_id', usuario.empresa_id)
+      .eq('ativo', true)
+      .limit(1)
+      .maybeSingle()
+    instanceToken = instancia?.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+  }
 
   let resultado: UazapiCheckResult[]
   try {
