@@ -363,6 +363,17 @@ export async function POST(request: NextRequest) {
 
   const msg = payload.message
 
+  // Reação (❤️👍😂 etc.) chega como um evento de mensagem próprio na maioria dos
+  // provedores de WhatsApp (inclusive quando é eco de uma reação que o próprio
+  // Fonti mandou via /api/bot/whatsapp/reagir) — sem esse filtro, cada reação
+  // virava uma bolha avulsa na conversa com só o emoji, sem remetente nem vínculo
+  // com a mensagem reagida. A reação em si já é aplicada como badge na mensagem
+  // certa pelo endpoint de reagir; esse evento de webhook não precisa criar nada.
+  if (msg?.type === 'reaction' || msg?.mediaType === 'reaction') {
+    console.log('[whatsapp-webhook] evento de reação, ignorando (não cria mensagem)')
+    return NextResponse.json({ ok: true })
+  }
+
   // Detecta *fonti antes do filtro fromMe (comercial envia da conversa do cliente)
   if (msg?.fromMe && !msg?.isGroup) {
     const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
