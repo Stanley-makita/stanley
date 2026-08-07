@@ -166,7 +166,10 @@ async function baixarMidiaUazapi(messageid: string, tipoMidia: string, instancia
   }
 }
 
-async function enviarMensagemUazapi(telefone: string, texto: string, token?: string): Promise<void> {
+// Retorna o messageid da Uazapi quando o envio funciona — usado pra gravar
+// em mensagens.metadata.uazapi_message_id, permitindo responder/reagir a
+// esta mensagem depois pela tela de Conversas.
+async function enviarMensagemUazapi(telefone: string, texto: string, token?: string): Promise<{ messageid?: string } | null> {
   const url = `${process.env.UAZAPI_API_URL}/send/text`
   const res = await fetch(url, {
     method: 'POST',
@@ -184,8 +187,13 @@ async function enviarMensagemUazapi(telefone: string, texto: string, token?: str
   if (!res.ok) {
     const body = await res.text()
     console.error('[uazapi] Erro ao enviar mensagem:', res.status, body)
-  } else {
-    console.log('[uazapi] Mensagem enviada com sucesso para', telefone)
+    return null
+  }
+  console.log('[uazapi] Mensagem enviada com sucesso para', telefone)
+  try {
+    return await res.json()
+  } catch {
+    return null
   }
 }
 
@@ -1095,6 +1103,7 @@ export async function POST(request: NextRequest) {
       nome_arquivo: mediaContent?.fileName ?? undefined,
       sender_pn: senderPn,
       senderName: nomeContato,
+      uazapi_message_id: msg?.messageid ?? null,
     },
   }).select('id').single()
 
@@ -1219,14 +1228,15 @@ export async function POST(request: NextRequest) {
     .update({ bot_estado: transicao.novoEstado, bot_dados: transicao.novosDados })
     .eq('id', conversa_id)
 
-  // Salva e envia resposta
+  // Envia e salva resposta (envia primeiro pra capturar o messageid da Uazapi
+  // e permitir responder/reagir a esta mensagem depois pela tela de Conversas)
+  const envioResposta = await enviarMensagemUazapi(telefone, resultado.resposta)
   await supabase.from('mensagens').insert({
     conversa_id,
     origem: 'bot',
     conteudo: resultado.resposta,
+    metadata: { uazapi_message_id: envioResposta?.messageid ?? null },
   })
-
-  await enviarMensagemUazapi(telefone, resultado.resposta)
 
   // Bot sinalizou que coletou dados suficientes (CONCLUIDO) → marca conversa como qualificada
   // O Lead NÃO é criado automaticamente — o operador cria via *fonti cria lead
