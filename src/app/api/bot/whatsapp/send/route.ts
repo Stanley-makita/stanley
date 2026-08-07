@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     arquivo?: string
     nome_arquivo?: string
     reply_id?: string
-    reply_preview?: { autor: string; texto: string }
+    reply_preview?: { autor: string; texto: string; mensagemId?: string; fileUrl?: string; tipoMidia?: string }
   }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }

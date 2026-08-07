@@ -91,7 +91,7 @@ interface Mensagem {
     sender_telefone?: string
     uazapi_message_id?: string | null
     reacao?: string | null
-    reply_preview?: { autor: string; texto: string } | null
+    reply_preview?: { autor: string; texto: string; mensagemId?: string; fileUrl?: string; tipoMidia?: string } | null
   } | null
 }
 
@@ -100,6 +100,8 @@ interface RespondendoA {
   uazapiMessageId: string
   autor: string
   texto: string
+  fileUrl?: string
+  tipoMidia?: string
 }
 
 const EMOJIS_RAPIDOS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
@@ -268,6 +270,15 @@ export default function ConversasPage() {
   const [modoSelecao, setModoSelecao] = useState(false)
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [emojiRapidoAberto, setEmojiRapidoAberto] = useState<string | null>(null)
+  const [mensagemDestacada, setMensagemDestacada] = useState<string | null>(null)
+
+  // Rola até a mensagem original e pisca um destaque nela — mesmo comportamento
+  // de clicar na citação de uma resposta no WhatsApp nativo.
+  function irParaMensagem(mensagemId: string) {
+    document.getElementById(`msg-${mensagemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setMensagemDestacada(mensagemId)
+    setTimeout(() => setMensagemDestacada((atual) => atual === mensagemId ? null : atual), 1500)
+  }
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro, instanciaFiltro],
@@ -1235,6 +1246,7 @@ export default function ConversasPage() {
               return (
                 <div
                   key={m.id}
+                  id={`msg-${m.id}`}
                   className={cn('group flex items-center gap-1.5', ehCliente ? 'justify-start' : 'justify-end')}
                 >
                   {/* Checkbox de seleção (aparece à esquerda pra bolhas do cliente) */}
@@ -1257,6 +1269,8 @@ export default function ConversasPage() {
                           uazapiMessageId: m.metadata?.uazapi_message_id ?? '',
                           autor: autorDaMensagem(m),
                           texto: previewDaMensagem(m),
+                          fileUrl: m.metadata?.tipo_midia === 'image' ? m.metadata?.file_url : undefined,
+                          tipoMidia: m.metadata?.tipo_midia,
                         })}
                         disabled={!m.metadata?.uazapi_message_id}
                         className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-fonti-primary hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
@@ -1312,21 +1326,35 @@ export default function ConversasPage() {
                   <div
                     onClick={() => modoSelecao && alternarSelecionada(m.id)}
                     className={cn(
-                      'relative max-w-[65%] rounded-2xl text-sm leading-snug overflow-hidden',
+                      'relative max-w-[65%] rounded-2xl text-sm leading-snug overflow-hidden transition-shadow',
                       modoSelecao && 'cursor-pointer',
                       selecionada && 'ring-2 ring-fonti-primary',
+                      mensagemDestacada === m.id && 'ring-2 ring-amber-400',
                       ehCliente
                         ? 'bg-white border border-gray-100 rounded-bl-sm text-gray-800 shadow-sm'
                         : m.origem === 'bot'
                         ? 'bg-fonti-primary text-white rounded-br-sm'
                         : 'bg-fonti-accent text-fonti-primary rounded-br-sm font-medium'
                   )}>
-                    {/* Citação da mensagem respondida */}
+                    {/* Citação da mensagem respondida — clicável, igual ao WhatsApp: rola até a original */}
                     {m.metadata?.reply_preview && (
-                      <div className="mx-2 mt-2 px-2 py-1 rounded-lg bg-black/5 border-l-2 border-current/40 text-[11px] opacity-80">
-                        <p className="font-semibold">{m.metadata.reply_preview.autor}</p>
-                        <p className="truncate">{m.metadata.reply_preview.texto}</p>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={!m.metadata.reply_preview.mensagemId}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (m.metadata?.reply_preview?.mensagemId) irParaMensagem(m.metadata.reply_preview.mensagemId)
+                        }}
+                        className="w-[calc(100%-1rem)] mx-2 mt-2 flex items-center gap-2 rounded-lg bg-black/5 border-l-2 border-current/40 px-2 py-1 text-left text-[11px] opacity-80 hover:opacity-100"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold">{m.metadata.reply_preview.autor}</p>
+                          <p className="truncate">{m.metadata.reply_preview.texto}</p>
+                        </div>
+                        {m.metadata.reply_preview.fileUrl && (
+                          <img src={m.metadata.reply_preview.fileUrl} alt="Prévia" className="w-8 h-8 rounded object-cover shrink-0" />
+                        )}
+                      </button>
                     )}
 
                     {m.origem === 'cliente' && conversaSelecionada.contato_grupo_id && m.metadata?.sender_nome && (

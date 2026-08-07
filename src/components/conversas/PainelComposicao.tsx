@@ -37,6 +37,8 @@ interface RespondendoA {
   uazapiMessageId: string
   autor: string
   texto: string
+  fileUrl?: string
+  tipoMidia?: string
 }
 
 interface PainelComposicaoProps {
@@ -114,7 +116,15 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
           arquivo: arquivoOverride ?? anexo?.base64,
           nome_arquivo: nomeOverride ?? anexo?.nome,
           reply_id: respondendoA?.uazapiMessageId || undefined,
-          reply_preview: respondendoA ? { autor: respondendoA.autor, texto: respondendoA.texto } : undefined,
+          reply_preview: respondendoA
+            ? {
+                autor: respondendoA.autor,
+                texto: respondendoA.texto,
+                mensagemId: respondendoA.mensagemId,
+                fileUrl: respondendoA.fileUrl,
+                tipoMidia: respondendoA.tipoMidia,
+              }
+            : undefined,
         }),
       })
       if (!res.ok) {
@@ -218,9 +228,14 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
       {respondendoA && (
         <div className="px-4 pt-3 flex items-start gap-2">
           <Reply className="w-3.5 h-3.5 text-fonti-primary mt-1 shrink-0" />
-          <div className="flex-1 min-w-0 rounded-lg bg-gray-50 border-l-2 border-fonti-primary px-2.5 py-1.5">
-            <p className="text-xs font-semibold text-fonti-primary">{respondendoA.autor}</p>
-            <p className="text-xs text-gray-500 truncate">{respondendoA.texto}</p>
+          <div className="flex-1 min-w-0 rounded-lg bg-gray-50 border-l-2 border-fonti-primary px-2.5 py-1.5 flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-fonti-primary">{respondendoA.autor}</p>
+              <p className="text-xs text-gray-500 truncate">{respondendoA.texto}</p>
+            </div>
+            {respondendoA.fileUrl && (
+              <img src={respondendoA.fileUrl} alt="Prévia" className="w-8 h-8 rounded object-cover shrink-0" />
+            )}
           </div>
           <button onClick={onCancelarResposta} className="text-gray-400 hover:text-gray-600 shrink-0">
             <X className="w-3.5 h-3.5" />
