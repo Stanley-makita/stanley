@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { resolverInstanceToken } from '@/lib/workflows/uazapi-helpers'
 
 // Extraído de src/app/api/bot/whatsapp/send/route.ts (comportamento idêntico, sem mudança de
 // lógica) pra ser reaproveitado também pelo endpoint da Central de Comunicação
@@ -16,12 +17,15 @@ const UAZAPI_TIPO_MAP: Record<TipoMidiaEnvio, string> = {
   ptt:      'ptt',
 }
 
-async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToken: string, texto?: string, arquivo?: string, nomeArquivo?: string) {
+async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToken: string, texto?: string, arquivo?: string, nomeArquivo?: string, replyId?: string) {
   if (tipo === 'text') {
+    const body: Record<string, unknown> = { number: telefone, text: texto, track_source: 'crm-humano', delay: 800 }
+    if (replyId) body.replyid = replyId
+
     const res = await fetch(`${process.env.UAZAPI_API_URL}/send/text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'token': instanceToken },
-      body: JSON.stringify({ number: telefone, text: texto, track_source: 'crm-humano', delay: 800 }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) throw new Error(`Uazapi send/text: ${res.status} ${await res.text()}`)
     return res.json()
@@ -35,6 +39,7 @@ async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToke
   }
   if (texto)       body.text = texto
   if (nomeArquivo) body.docName = nomeArquivo
+  if (replyId)     body.replyid = replyId
 
   const res = await fetch(`${process.env.UAZAPI_API_URL}/send/media`, {
     method: 'POST',
@@ -55,6 +60,10 @@ export interface EnviarMensagemHumanoParams {
   nomeArquivo?: string
   usuarioId: string
   usuarioNome: string
+  /** ID da mensagem (na Uazapi) a que esta responde — vira citação real no WhatsApp do cliente. */
+  replyId?: string
+  /** Prévia (autor + trecho) da mensagem respondida, só pra exibir a citação na bolha do Fonti. */
+  replyPreview?: { autor: string; texto: string }
 }
 
 export type EnviarMensagemHumanoResultado =
@@ -62,25 +71,10 @@ export type EnviarMensagemHumanoResultado =
   | { ok: false; status: number; error: string }
 
 export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): Promise<EnviarMensagemHumanoResultado> {
-  const { supabase, conversaId, telefone, tipo, texto, arquivo, nomeArquivo, usuarioId, usuarioNome } = params
+  const { supabase, conversaId, telefone, tipo, texto, arquivo, nomeArquivo, usuarioId, usuarioNome, replyId, replyPreview } = params
 
   // Resolve token da instância correta (fallback para env se não tiver instância vinculada)
-  const { data: conversa } = await supabase
-    .from('conversas')
-    .select('instancia_id')
-    .eq('id', conversaId)
-    .single()
-
-  let instanceToken = process.env.UAZAPI_INSTANCE_TOKEN ?? ''
-  if (conversa?.instancia_id) {
-    const { data: instancia } = await supabase
-      .from('instancias')
-      .select('token')
-      .eq('id', conversa.instancia_id)
-      .eq('ativo', true)
-      .maybeSingle()
-    if (instancia?.token) instanceToken = instancia.token
-  }
+  const instanceToken = await resolverInstanceToken(supabase, conversaId)
 
   // Normaliza número: garante prefixo 55 para números brasileiros
   const telRaw = telefone.replace(/\D/g, '')
@@ -88,7 +82,7 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
 
   let uazapiResult
   try {
-    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, texto, arquivo, nomeArquivo)
+    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, texto, arquivo, nomeArquivo, replyId)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[enviarMensagemHumano] Erro Uazapi:', detail)
@@ -131,6 +125,7 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
       uazapi_message_id: uazapiResult?.messageid ?? null,
       nome_arquivo: nomeArquivo ?? null,
       atendente: usuarioNome,
+      reply_preview: replyPreview ?? undefined,
     },
   }).select('id').single()
 

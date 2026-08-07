@@ -30,11 +30,13 @@ export async function POST(request: NextRequest) {
     texto?: string
     arquivo?: string
     nome_arquivo?: string
+    reply_id?: string
+    reply_preview?: { autor: string; texto: string }
   }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
 
-  const { conversa_id, telefone, tipo, texto, arquivo, nome_arquivo } = body
+  const { conversa_id, telefone, tipo, texto, arquivo, nome_arquivo, reply_id, reply_preview } = body
 
   if (!conversa_id || !telefone || !tipo) {
     return NextResponse.json({ error: 'conversa_id, telefone e tipo são obrigatórios' }, { status: 422 })
@@ -69,6 +71,8 @@ export async function POST(request: NextRequest) {
     nomeArquivo: nome_arquivo,
     usuarioId: usuario.id,
     usuarioNome: usuario.nome,
+    replyId: reply_id,
+    replyPreview: reply_preview,
   })
 
   if (!resultado.ok) {

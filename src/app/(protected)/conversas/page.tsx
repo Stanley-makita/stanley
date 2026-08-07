@@ -9,7 +9,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { type Lead } from '@/types/leads'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MessageCircle, MessageSquare, Globe, Phone, PhoneCall, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus, Mail, MailOpen } from 'lucide-react'
+import { MessageCircle, MessageSquare, Globe, Phone, PhoneCall, UserCheck, Clock, X, Image as ImageIcon, FileText, Volume2, Bot, Smartphone, MessageSquareDashed, ArrowRightLeft, Send, Search, Link2, ClipboardList, UserPlus, Users, ArrowLeft, Check, RotateCcw, Plus, Mail, MailOpen, Reply, SmilePlus, CheckSquare, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -89,8 +89,20 @@ interface Mensagem {
     transcricao?: string
     sender_nome?: string
     sender_telefone?: string
+    uazapi_message_id?: string | null
+    reacao?: string | null
+    reply_preview?: { autor: string; texto: string } | null
   } | null
 }
+
+interface RespondendoA {
+  mensagemId: string
+  uazapiMessageId: string
+  autor: string
+  texto: string
+}
+
+const EMOJIS_RAPIDOS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
 interface UltimaMsgInfo {
   origem: string
@@ -234,6 +246,10 @@ export default function ConversasPage() {
   const [criandoGrupo, setCriandoGrupo] = useState(false)
   const [conversaMarcadaNaoLida, setConversaMarcadaNaoLida] = useState(false)
   const [instanciaFiltro, setInstanciaFiltro] = useState<string>('todos')
+  const [respondendoA, setRespondendoA] = useState<RespondendoA | null>(null)
+  const [modoSelecao, setModoSelecao] = useState(false)
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+  const [emojiRapidoAberto, setEmojiRapidoAberto] = useState<string | null>(null)
 
   const { data: conversas = [], isLoading } = useQuery({
     queryKey: ['conversas', usuario?.empresa_id, canal, statusFiltro, instanciaFiltro],
@@ -522,6 +538,10 @@ export default function ConversasPage() {
   // Reseta o toggle local de leitura ao trocar de conversa (status não é persistido no Fonti)
   useEffect(() => {
     setConversaMarcadaNaoLida(false)
+    setRespondendoA(null)
+    setModoSelecao(false)
+    setSelecionadas(new Set())
+    setEmojiRapidoAberto(null)
   }, [conversaSelecionada?.id])
 
   // Auto-scroll notas
@@ -670,6 +690,61 @@ export default function ConversasPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   })
+
+  const reagir = useMutation({
+    mutationFn: async ({ mensagemId, emoji }: { mensagemId: string; emoji: string }) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/bot/whatsapp/reagir', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          conversa_id: conversaSelecionada!.id,
+          mensagem_id: mensagemId,
+          telefone: conversaSelecionada!.contato_telefone,
+          emoji,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Falha ao reagir')
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mensagens', conversaSelecionada?.id] })
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  function iniciarSelecao(mensagemId: string) {
+    setModoSelecao(true)
+    setSelecionadas(new Set([mensagemId]))
+  }
+
+  function alternarSelecionada(mensagemId: string) {
+    setSelecionadas((prev) => {
+      const novo = new Set(prev)
+      if (novo.has(mensagemId)) novo.delete(mensagemId)
+      else novo.add(mensagemId)
+      return novo
+    })
+  }
+
+  function autorDaMensagem(m: Mensagem): string {
+    if (m.origem === 'cliente') return conversaSelecionada?.contato_nome ?? 'Cliente'
+    if (m.origem === 'bot') return 'Fonti'
+    return m.metadata?.atendente ?? 'Atendente'
+  }
+
+  function previewDaMensagem(m: Mensagem): string {
+    if (m.conteudo && !m.conteudo.match(/^\[.+\]$/)) return m.conteudo.slice(0, 80)
+    const tipo = m.metadata?.tipo_midia
+    if (tipo === 'image') return '📷 Imagem'
+    if (tipo === 'video') return '🎥 Vídeo'
+    if (tipo === 'audio' || tipo === 'ptt') return '🎤 Áudio'
+    if (tipo === 'document') return '📄 Documento'
+    return 'Mensagem'
+  }
 
   const reabrir = useMutation({
     mutationFn: async (id: string) => {
@@ -1060,23 +1135,122 @@ export default function ConversasPage() {
             </div>
           </div>
 
+          {/* Barra de seleção */}
+          {modoSelecao && (
+            <div className="px-4 py-1.5 bg-fonti-accent-hover/40 border-b border-fonti-accent/40 flex items-center justify-between">
+              <p className="text-xs font-medium text-fonti-primary">{selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}</p>
+              <button
+                className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                onClick={() => { setModoSelecao(false); setSelecionadas(new Set()) }}
+              >
+                <X className="w-3.5 h-3.5" /> Cancelar
+              </button>
+            </div>
+          )}
+
           {/* Mensagens */}
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50">
             {mensagens.map((m) => {
               const tipoMidia = m.metadata?.tipo_midia
               const fileUrl = m.metadata?.file_url
               const docSalvo = documentoPorMensagem.get(m.id)
+              const ehCliente = m.origem === 'cliente'
+              const selecionada = selecionadas.has(m.id)
 
               return (
-                <div key={m.id} className={`flex ${m.origem === 'cliente' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={cn(
-                    'max-w-[65%] rounded-2xl text-sm leading-snug overflow-hidden',
-                    m.origem === 'cliente'
-                      ? 'bg-white border border-gray-100 rounded-bl-sm text-gray-800 shadow-sm'
-                      : m.origem === 'bot'
-                      ? 'bg-fonti-primary text-white rounded-br-sm'
-                      : 'bg-fonti-accent text-fonti-primary rounded-br-sm font-medium'
+                <div
+                  key={m.id}
+                  className={cn('group flex items-center gap-1.5', ehCliente ? 'justify-start' : 'justify-end')}
+                >
+                  {/* Checkbox de seleção (aparece à esquerda pra bolhas do cliente) */}
+                  {modoSelecao && ehCliente && (
+                    <button onClick={() => alternarSelecionada(m.id)} className="text-fonti-primary shrink-0">
+                      {selecionada ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-gray-300" />}
+                    </button>
+                  )}
+
+                  {/* Ações ao passar o mouse (aparecem do lado oposto ao "canto" da bolha) */}
+                  {!modoSelecao && (
+                    <div className={cn(
+                      'flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0',
+                      ehCliente ? 'order-2' : 'order-first'
+                    )}>
+                      <button
+                        title="Responder"
+                        onClick={() => setRespondendoA({
+                          mensagemId: m.id,
+                          uazapiMessageId: m.metadata?.uazapi_message_id ?? '',
+                          autor: autorDaMensagem(m),
+                          texto: previewDaMensagem(m),
+                        })}
+                        disabled={!m.metadata?.uazapi_message_id}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-fonti-primary hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Reply className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="relative">
+                        <button
+                          title="Reagir"
+                          onClick={() => setEmojiRapidoAberto((v) => v === m.id ? null : m.id)}
+                          disabled={!m.metadata?.uazapi_message_id}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-fonti-primary hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <SmilePlus className="w-3.5 h-3.5" />
+                        </button>
+                        {emojiRapidoAberto === m.id && (
+                          <div className={cn(
+                            'absolute z-20 top-7 flex items-center gap-0.5 bg-white rounded-full shadow-lg border border-gray-100 px-1.5 py-1',
+                            ehCliente ? 'left-0' : 'right-0'
+                          )}>
+                            {EMOJIS_RAPIDOS.map((e) => (
+                              <button
+                                key={e}
+                                className="text-base hover:scale-125 transition-transform px-0.5"
+                                onClick={() => { reagir.mutate({ mensagemId: m.id, emoji: e }); setEmojiRapidoAberto(null) }}
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        title="Selecionar"
+                        onClick={() => iniciarSelecao(m.id)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-fonti-primary hover:bg-white"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div
+                    onClick={() => modoSelecao && alternarSelecionada(m.id)}
+                    className={cn(
+                      'relative max-w-[65%] rounded-2xl text-sm leading-snug overflow-hidden',
+                      modoSelecao && 'cursor-pointer',
+                      selecionada && 'ring-2 ring-fonti-primary',
+                      ehCliente
+                        ? 'bg-white border border-gray-100 rounded-bl-sm text-gray-800 shadow-sm'
+                        : m.origem === 'bot'
+                        ? 'bg-fonti-primary text-white rounded-br-sm'
+                        : 'bg-fonti-accent text-fonti-primary rounded-br-sm font-medium'
                   )}>
+                    {/* Checkbox de seleção (bolhas próprias, do lado direito) */}
+                    {modoSelecao && !ehCliente && (
+                      <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-fonti-primary">
+                        {selecionada ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-gray-300" />}
+                      </div>
+                    )}
+
+                    {/* Citação da mensagem respondida */}
+                    {m.metadata?.reply_preview && (
+                      <div className="mx-2 mt-2 px-2 py-1 rounded-lg bg-black/5 border-l-2 border-current/40 text-[11px] opacity-80">
+                        <p className="font-semibold">{m.metadata.reply_preview.autor}</p>
+                        <p className="truncate">{m.metadata.reply_preview.texto}</p>
+                      </div>
+                    )}
+
                     {m.origem === 'cliente' && conversaSelecionada.contato_grupo_id && m.metadata?.sender_nome && (
                       <p className="text-[10px] font-semibold text-purple-600 px-3 pt-2">
                         {m.metadata.sender_nome}
@@ -1180,6 +1354,16 @@ export default function ConversasPage() {
                     <p className="text-[10px] opacity-60 text-right px-3 pb-1.5">
                       {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
+
+                    {/* Badge de reação (emoji real enviado via Uazapi) */}
+                    {m.metadata?.reacao && (
+                      <div className={cn(
+                        'absolute -bottom-2.5 flex items-center justify-center w-5 h-5 rounded-full bg-white border border-gray-200 shadow text-[11px]',
+                        ehCliente ? 'right-1' : 'left-1'
+                      )}>
+                        {m.metadata.reacao}
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -1203,7 +1387,12 @@ export default function ConversasPage() {
             conversaId={conversaSelecionada.id}
             telefone={conversaSelecionada.contato_telefone ?? ''}
             disabled={conversaSelecionada.status === 'encerrado'}
-            onEnviado={() => qc.invalidateQueries({ queryKey: ['mensagens', conversaSelecionada.id] })}
+            respondendoA={respondendoA}
+            onCancelarResposta={() => setRespondendoA(null)}
+            onEnviado={() => {
+              qc.invalidateQueries({ queryKey: ['mensagens', conversaSelecionada.id] })
+              setRespondendoA(null)
+            }}
           />
         </div>
 

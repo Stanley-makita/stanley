@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Paperclip, Mic, MicOff, X, Smile, FileText } from 'lucide-react'
+import { Send, Paperclip, Mic, MicOff, X, Smile, FileText, Reply } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -32,11 +32,20 @@ interface AnexoPendente {
   previewUrl?: string
 }
 
+interface RespondendoA {
+  mensagemId: string
+  uazapiMessageId: string
+  autor: string
+  texto: string
+}
+
 interface PainelComposicaoProps {
   conversaId: string
   telefone: string
   disabled?: boolean
   onEnviado?: () => void
+  respondendoA?: RespondendoA | null
+  onCancelarResposta?: () => void
 }
 
 const LIMITE_MB: Record<string, number> = { image: 5, video: 15, audio: 10, document: 20, ptt: 10 }
@@ -57,7 +66,7 @@ function detectarTipo(mime: string): TipoMidia {
   return 'document'
 }
 
-export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: PainelComposicaoProps) {
+export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, respondendoA, onCancelarResposta }: PainelComposicaoProps) {
   const [texto, setTexto] = useState('')
   const [anexo, setAnexo] = useState<AnexoPendente | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -104,6 +113,8 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
           texto: temTexto ? texto.trim() : undefined,
           arquivo: arquivoOverride ?? anexo?.base64,
           nome_arquivo: nomeOverride ?? anexo?.nome,
+          reply_id: respondendoA?.uazapiMessageId || undefined,
+          reply_preview: respondendoA ? { autor: respondendoA.autor, texto: respondendoA.texto } : undefined,
         }),
       })
       if (!res.ok) {
@@ -113,6 +124,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
       setTexto('')
       setAnexo(null)
       textareaRef.current?.focus()
+      onCancelarResposta?.()
       onEnviado?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Não foi possível enviar. Tente novamente.')
@@ -202,6 +214,20 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado }: 
 
   return (
     <div className="border-t border-gray-200 bg-white">
+      {/* Banner de resposta (cria citação real no WhatsApp do cliente via replyid) */}
+      {respondendoA && (
+        <div className="px-4 pt-3 flex items-start gap-2">
+          <Reply className="w-3.5 h-3.5 text-fonti-primary mt-1 shrink-0" />
+          <div className="flex-1 min-w-0 rounded-lg bg-gray-50 border-l-2 border-fonti-primary px-2.5 py-1.5">
+            <p className="text-xs font-semibold text-fonti-primary">{respondendoA.autor}</p>
+            <p className="text-xs text-gray-500 truncate">{respondendoA.texto}</p>
+          </div>
+          <button onClick={onCancelarResposta} className="text-gray-400 hover:text-gray-600 shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Preview de anexo */}
       {anexo && (
         <div className="px-4 pt-3 flex items-start gap-3">
