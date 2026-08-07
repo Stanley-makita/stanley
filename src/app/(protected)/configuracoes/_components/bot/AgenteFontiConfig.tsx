@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { Bot, Save } from 'lucide-react'
+import { Bot, Save, Power } from 'lucide-react'
 
 interface BotConfigRow {
   id?: string
@@ -20,6 +20,7 @@ interface BotConfigRow {
   dias_atendimento: number[]
   mensagem_fora_horario: string
   produtos_ativos: string[]
+  agente_ativo: boolean
 }
 
 const DIAS = [
@@ -42,6 +43,7 @@ const DEFAULTS: BotConfigRow = {
   dias_atendimento: [1, 2, 3, 4, 5],
   mensagem_fora_horario: '',
   produtos_ativos: ['Financiamento Imobiliário', 'CGI', 'Consórcio', 'Contrato'],
+  agente_ativo: true,
 }
 
 export function AgenteFontiConfig() {
@@ -76,6 +78,7 @@ export function AgenteFontiConfig() {
         dias_atendimento:      configDB.dias_atendimento       ?? DEFAULTS.dias_atendimento,
         mensagem_fora_horario: configDB.mensagem_fora_horario  ?? '',
         produtos_ativos:       configDB.produtos_ativos        ?? DEFAULTS.produtos_ativos,
+        agente_ativo:          configDB.agente_ativo           ?? DEFAULTS.agente_ativo,
       } as BotConfigRow)
     }
   }, [configDB])
@@ -93,6 +96,7 @@ export function AgenteFontiConfig() {
         dias_atendimento:      form.dias_atendimento,
         mensagem_fora_horario: form.mensagem_fora_horario.trim() || null,
         produtos_ativos:       form.produtos_ativos,
+        agente_ativo:          form.agente_ativo,
       }
 
       const { error } = await supabase
@@ -104,6 +108,25 @@ export function AgenteFontiConfig() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bot_config', empresa_id] })
       toast.success('Configurações do agente salvas.')
+    },
+    onError: (err: Error) => toast.error(`Erro: ${err.message}`),
+  })
+
+  // Toggle isolado: salva na hora (não depende do botão "Salvar configurações"
+  // lá embaixo) — é um interruptor de emergência, precisa ter efeito imediato.
+  const alternarAtivo = useMutation({
+    mutationFn: async (novoValor: boolean) => {
+      if (!empresa_id) throw new Error('Empresa não identificada')
+      const { error } = await supabase
+        .from('bot_config')
+        .upsert({ empresa_id, agente_ativo: novoValor }, { onConflict: 'empresa_id' })
+      if (error) throw error
+      return novoValor
+    },
+    onSuccess: (novoValor) => {
+      setForm((f) => ({ ...f, agente_ativo: novoValor }))
+      qc.invalidateQueries({ queryKey: ['bot_config', empresa_id] })
+      toast.success(novoValor ? 'Agente Fonti ativado.' : 'Agente Fonti desativado — ele não vai responder em nenhuma conversa até você reativar.')
     },
     onError: (err: Error) => toast.error(`Erro: ${err.message}`),
   })
@@ -134,6 +157,36 @@ export function AgenteFontiConfig() {
 
   return (
     <div className="space-y-8 max-w-2xl">
+
+      {/* Chave-geral: liga/desliga o agente em qualquer horário */}
+      <section
+        className={`flex items-center justify-between gap-4 rounded-lg border p-4 ${
+          form.agente_ativo ? 'border-gray-200 bg-white' : 'border-red-200 bg-red-50'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <Power className={`w-5 h-5 ${form.agente_ativo ? 'text-fonti-accent' : 'text-red-500'}`} />
+          <div>
+            <p className="text-sm font-semibold text-gray-800">
+              Agente {form.agente_ativo ? 'ativo' : 'desativado'}
+            </p>
+            <p className="text-xs text-gray-500">
+              {form.agente_ativo
+                ? 'Responde automaticamente nas conversas de WhatsApp.'
+                : 'Não responde em nenhuma conversa, em nenhum horário, até você reativar.'}
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant={form.agente_ativo ? 'outline' : 'default'}
+          className={form.agente_ativo ? 'text-red-600 border-red-200 hover:bg-red-50' : 'bg-fonti-primary hover:bg-fonti-primary-hover text-white'}
+          disabled={alternarAtivo.isPending}
+          onClick={() => alternarAtivo.mutate(!form.agente_ativo)}
+        >
+          {alternarAtivo.isPending ? 'Salvando...' : form.agente_ativo ? 'Desativar agente' : 'Ativar agente'}
+        </Button>
+      </section>
 
       {/* Identidade */}
       <section className="space-y-4">

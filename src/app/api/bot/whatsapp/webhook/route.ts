@@ -1072,7 +1072,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Se humano assumiu mas está fora do horário de atendimento → bot reassume
-    if (!bot_ativo && !estaEmHorarioConfig(botConfig)) {
+    // (só quando o agente está ligado na chave-geral — ver botConfig.agente_ativo)
+    if (!bot_ativo && botConfig.agente_ativo && !estaEmHorarioConfig(botConfig)) {
       await supabase.from('conversas')
         .update({ bot_ativo: true, status: 'ativo' })
         .eq('id', conversa_id)
@@ -1114,8 +1115,9 @@ export async function POST(request: NextRequest) {
     }).catch((err: unknown) => console.error('[whatsapp] Erro ao salvar documento:', err))
   }
 
-  // Se humano assumiu, ou é mídia sem legenda, não responde com bot
-  if (!bot_ativo || (isMidia && !texto.trim())) {
+  // Se humano assumiu, é mídia sem legenda, ou o agente está desligado na
+  // chave-geral (Configurações > Agente Fonti), não responde com bot
+  if (!bot_ativo || !botConfig.agente_ativo || (isMidia && !texto.trim())) {
     return NextResponse.json({ ok: true })
   }
 
