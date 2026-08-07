@@ -134,6 +134,19 @@ async function verificarNumerosWhatsapp(numeros: string[]): Promise<VerificacaoN
   return json.resultados as VerificacaoNumero[]
 }
 
+// Formata telefone bruto (com ou sem DDI 55) pro padrão (DD) 9XXXX-XXXX legível
+function formatarTelefone(telefone: string | null | undefined): string | null {
+  if (!telefone) return null
+  const digits = telefone.replace(/\D/g, '')
+  const semDDI = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits
+  if (semDDI.length !== 10 && semDDI.length !== 11) return telefone
+  const ddd = semDDI.slice(0, 2)
+  const resto = semDDI.slice(2)
+  const meio = resto.length === 9 ? resto.slice(0, 5) : resto.slice(0, 4)
+  const fim = resto.length === 9 ? resto.slice(5) : resto.slice(4)
+  return `(${ddd}) ${meio}-${fim}`
+}
+
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/)
   return ((partes[0]?.[0] ?? '') + (partes[1]?.[0] ?? '')).toUpperCase()
@@ -243,6 +256,7 @@ export default function ConversasPage() {
   const [grupoNome, setGrupoNome] = useState('')
   const [grupoInstanciaId, setGrupoInstanciaId] = useState('')
   const [grupoParticipantes, setGrupoParticipantes] = useState<string[]>(['', ''])
+  const [buscaContatoGrupo, setBuscaContatoGrupo] = useState('')
   const [criandoGrupo, setCriandoGrupo] = useState(false)
   const [conversaMarcadaNaoLida, setConversaMarcadaNaoLida] = useState(false)
   const [instanciaFiltro, setInstanciaFiltro] = useState<string>('todos')
@@ -416,6 +430,23 @@ export default function ConversasPage() {
     },
   })
   const instanciaNomeMap = new Map(instancias.map((i) => [i.id, i.nome]))
+
+  const { data: contatosEncontradosGrupo = [] } = useQuery({
+    queryKey: ['busca-contatos-grupo', buscaContatoGrupo, usuario?.empresa_id],
+    enabled: grupoAberto && buscaContatoGrupo.trim().length >= 2,
+    queryFn: async () => {
+      const q = buscaContatoGrupo.trim()
+      const { data } = await supabase
+        .from('leads')
+        .select('id, nome, telefone')
+        .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
+        .not('telefone', 'is', null)
+        .or(`nome.ilike.%${q}%,telefone.ilike.%${q}%`)
+        .limit(8)
+      return (data ?? []) as { id: string; nome: string; telefone: string }[]
+    },
+  })
 
   const { data: leadsEncontrados = [] } = useQuery({
     queryKey: ['busca-leads-vincular', buscaLead, usuario?.empresa_id],
@@ -833,7 +864,13 @@ export default function ConversasPage() {
               onClick={() => {
                 setGrupoNome('')
                 setGrupoInstanciaId('')
-                setGrupoParticipantes(['', ''])
+                // Pré-carrega o número da conversa aberta — criar um grupo "a partir" dela
+                // não deveria exigir digitar de novo um número que já está na tela.
+                const telAtual = conversaSelecionada && !conversaSelecionada.contato_grupo_id
+                  ? formatarTelefone(conversaSelecionada.contato_telefone)
+                  : null
+                setGrupoParticipantes(telAtual ? [telAtual, ''] : ['', ''])
+                setBuscaContatoGrupo('')
                 setGrupoAberto(true)
               }}
             >
@@ -1005,6 +1042,11 @@ export default function ConversasPage() {
                 <p className="text-sm font-semibold text-gray-800 truncate">
                   {conversaSelecionada.contato_nome ?? conversaSelecionada.contato_telefone ?? 'Desconhecido'}
                 </p>
+                {conversaSelecionada.contato_nome && conversaSelecionada.contato_telefone && (
+                  <p className="text-xs text-gray-400 truncate">
+                    {formatarTelefone(conversaSelecionada.contato_telefone)}
+                  </p>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={conversaSelecionada.status} />
                   {conversaSelecionada.lead?.fase && (
@@ -1893,6 +1935,45 @@ export default function ConversasPage() {
                 </Select>
               </div>
             )}
+            <div className="space-y-1.5 relative">
+              <label className="text-xs font-medium text-gray-700">Buscar contato pra adicionar</label>
+              <Input
+                placeholder="Nome ou telefone de um lead já cadastrado..."
+                value={buscaContatoGrupo}
+                onChange={(e) => setBuscaContatoGrupo(e.target.value)}
+              />
+              {buscaContatoGrupo.trim().length >= 2 && (
+                <div className="absolute z-30 mt-1 w-full max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  {contatosEncontradosGrupo.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-gray-400">Nenhum contato encontrado.</p>
+                  ) : (
+                    contatosEncontradosGrupo.map((c) => {
+                      const jaAdicionado = grupoParticipantes.some((p) => p.replace(/\D/g, '') === c.telefone.replace(/\D/g, ''))
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          disabled={jaAdicionado}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between gap-2"
+                          onClick={() => {
+                            setGrupoParticipantes((prev) => {
+                              const vazio = prev.findIndex((p) => !p.trim())
+                              const formatado = formatarTelefone(c.telefone) ?? c.telefone
+                              if (vazio >= 0) return prev.map((p, idx) => idx === vazio ? formatado : p)
+                              return [...prev, formatado]
+                            })
+                            setBuscaContatoGrupo('')
+                          }}
+                        >
+                          <span className="font-medium text-gray-700 truncate">{c.nome}</span>
+                          <span className="text-gray-400 shrink-0">{jaAdicionado ? 'já incluído' : formatarTelefone(c.telefone)}</span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              )}
+            </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-700">Participantes (telefone com DDD)</label>
               {grupoParticipantes.map((tel, i) => (
