@@ -87,9 +87,16 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
     ? telefone
     : (telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw)
 
+  // Assinatura visível no WhatsApp de verdade só em grupo — numa conversa 1:1 o
+  // cliente já sabe que fala com a empresa, mas num grupo com várias pessoas da
+  // equipe (e do cliente) ninguém sabe quem digitou sem essa marca. O rótulo que
+  // já aparece na bolha do Fonti (metadata.atendente) continua vindo do texto
+  // original, sem prefixo — só o que vai pro WhatsApp leva a assinatura.
+  const textoParaEnvio = ehGrupo && texto ? `*${usuarioNome}:*\n${texto}` : texto
+
   let uazapiResult
   try {
-    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, texto, arquivo, nomeArquivo, replyId)
+    uazapiResult = await enviarUazapi(telEnvio, tipo, instanceToken, textoParaEnvio, arquivo, nomeArquivo, replyId)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[enviarMensagemHumano] Erro Uazapi:', detail)
