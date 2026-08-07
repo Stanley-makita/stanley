@@ -1028,37 +1028,42 @@ export async function POST(request: NextRequest) {
     console.error('[whatsapp] Erro ao buscar/criar pessoa:', err)
   }
 
-  // Busca ou cria conversa para este telefone
-  let conversa_id: string
-  let bot_ativo = true
+  // Busca ou cria conversa para este telefone via RPC atômica (INSERT ... ON
+  // CONFLICT) — evita a corrida de um SELECT-then-INSERT que, com mensagens
+  // concorrentes do mesmo número (rajada, retries do Uazapi), criava várias
+  // conversas duplicadas pro mesmo telefone. Ver
+  // 20260807_251_conversas_dedupe_telefone_atomico.sql.
+  const { data: conversaIdResolvida, error: erroConversa } = await supabase.rpc('obter_ou_criar_conversa', {
+    p_empresa_id: empresa_id,
+    p_canal: 'whatsapp',
+    p_telefone: telefone,
+    p_nome: nomeContato ?? null,
+    p_lead_id: leadIdVinculo,
+    p_pessoa_id: pessoaId,
+    p_instancia_id: instancia_id,
+    p_atendente_id: atendente_id_instancia,
+    p_bot_ativo: true,
+  })
 
-  // Casa tanto por match exato quanto pelas variantes com/sem o "9" extra do
-  // celular (conversas iniciadas manualmente por um atendente podem ter sido
-  // salvas sem o "9", enquanto a Uazapi sempre manda o telefone com "9" —
-  // sem isso, a resposta do cliente não encontra a conversa e cria uma nova)
-  // e também sem o prefixo 55 (conversas criadas antes da normalização do DDI).
-  const candidatosComDDI = variantesTelefoneBR(telefone)
-  const candidatos = [...candidatosComDDI, ...candidatosComDDI.map((c) => c.replace(/^55/, ''))]
-  let { data: conversaExistente } = await supabase
-    .from('conversas')
-    .select('id, bot_ativo, lead_id, bot_estado, bot_dados, contato_telefone')
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .in('contato_telefone', candidatos)
-    .maybeSingle()
-
-  if (conversaExistente && conversaExistente.contato_telefone !== telefone) {
-    // Auto-normaliza para o formato canônico (com "9"), evitando repetir a busca por variante
-    await supabase.from('conversas').update({ contato_telefone: telefone }).eq('id', conversaExistente.id)
+  if (erroConversa || !conversaIdResolvida) {
+    console.error('[whatsapp] Erro ao buscar/criar conversa:', erroConversa)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 
+  const conversa_id = conversaIdResolvida as string
+  const { data: conversaExistente } = await supabase
+    .from('conversas')
+    .select('id, bot_ativo, lead_id, bot_estado, bot_dados')
+    .eq('id', conversa_id)
+    .single()
+
+  let bot_ativo = conversaExistente?.bot_ativo ?? true
   let reativandoBot = false
 
   if (conversaExistente) {
-    conversa_id = conversaExistente.id
-    bot_ativo = conversaExistente.bot_ativo
-
-    // Vincula ao lead e/ou pessoa se ainda não estava vinculado
+    // Vincula ao lead e/ou pessoa se ainda não estava vinculado (a RPC só
+    // faz isso no momento da criação; conversas já existentes de antes
+    // podem não ter os vínculos ainda).
     const atualizacoes: Record<string, unknown> = {}
     if (!conversaExistente.lead_id && leadIdVinculo) atualizacoes.lead_id = leadIdVinculo
     if (pessoaId) atualizacoes.pessoa_id = pessoaId
@@ -1075,29 +1080,6 @@ export async function POST(request: NextRequest) {
       reativandoBot = true
       console.log('[whatsapp] Bot reativado automaticamente (fora do horário)')
     }
-  } else {
-    const { data: nova, error } = await supabase
-      .from('conversas')
-      .insert({
-        empresa_id,
-        canal: 'whatsapp',
-        contato_telefone: telefone,
-        contato_nome: nomeContato ?? null,
-        status: 'ativo',
-        bot_ativo: true,
-        instancia_id: instancia_id ?? undefined,
-        atendente_id: atendente_id_instancia ?? undefined,
-        lead_id: leadIdVinculo ?? undefined,
-        pessoa_id: pessoaId ?? undefined,
-      })
-      .select('id')
-      .single()
-
-    if (error || !nova) {
-      console.error('[whatsapp] Erro ao criar conversa:', error)
-      return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
-    }
-    conversa_id = nova.id
   }
 
   // Salva mensagem do cliente

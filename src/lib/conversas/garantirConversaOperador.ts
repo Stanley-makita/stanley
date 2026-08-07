@@ -1,5 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { variantesTelefoneBR, telefoneCanonico } from '@/lib/telefone'
 
 /**
  * Garante que existe uma linha em `conversas` para o telefone de um
@@ -13,34 +12,23 @@ import { variantesTelefoneBR, telefoneCanonico } from '@/lib/telefone'
  * (Supabase não retorna erro), o estado nunca era persistido, e a resposta
  * seguinte do operador não achava nada em buscar*Pendente — o fluxo parecia
  * travado na primeira pergunta sem nenhum erro visível.
+ *
+ * Get-or-create via RPC atômica (obter_ou_criar_conversa) em vez de
+ * SELECT-then-INSERT — evita criar conversas duplicadas para o mesmo
+ * telefone quando chegam mensagens concorrentes.
  */
 export async function garantirConversaOperador(
   supabase: SupabaseClient,
   empresa_id: string,
   telefone: string,
 ): Promise<string> {
-  const { data: existente } = await supabase
-    .from('conversas')
-    .select('id')
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .in('contato_telefone', variantesTelefoneBR(telefone))
-    .maybeSingle()
-
-  if (existente) return existente.id
-
-  const { data: nova, error } = await supabase
-    .from('conversas')
-    .insert({
-      empresa_id,
-      canal: 'whatsapp',
-      contato_telefone: telefoneCanonico(telefone),
-      status: 'ativo',
-      bot_ativo: false,
-    })
-    .select('id')
-    .single()
+  const { data, error } = await supabase.rpc('obter_ou_criar_conversa', {
+    p_empresa_id: empresa_id,
+    p_canal: 'whatsapp',
+    p_telefone: telefone,
+    p_bot_ativo: false,
+  })
 
   if (error) throw error
-  return nova.id
+  return data as string
 }
