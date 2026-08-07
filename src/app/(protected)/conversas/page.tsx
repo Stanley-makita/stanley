@@ -764,7 +764,7 @@ export default function ConversasPage() {
         body: JSON.stringify({
           conversa_id: conversaSelecionada!.id,
           mensagem_id: mensagemId,
-          telefone: conversaSelecionada!.contato_telefone,
+          telefone: conversaSelecionada!.contato_grupo_id ?? conversaSelecionada!.contato_telefone,
           emoji,
         }),
       })
@@ -1299,6 +1299,16 @@ export default function ConversasPage() {
                     </div>
                   )}
 
+                  {/* Wrapper sem overflow-hidden — os badges (seleção, reação) ficam
+                      parcialmente fora da bolha e não podem ser cortados por ela */}
+                  <div className="relative">
+                    {/* Checkbox de seleção (bolhas próprias, do lado direito) */}
+                    {modoSelecao && !ehCliente && (
+                      <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-fonti-primary">
+                        {selecionada ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-gray-300" />}
+                      </div>
+                    )}
+
                   <div
                     onClick={() => modoSelecao && alternarSelecionada(m.id)}
                     className={cn(
@@ -1311,13 +1321,6 @@ export default function ConversasPage() {
                         ? 'bg-fonti-primary text-white rounded-br-sm'
                         : 'bg-fonti-accent text-fonti-primary rounded-br-sm font-medium'
                   )}>
-                    {/* Checkbox de seleção (bolhas próprias, do lado direito) */}
-                    {modoSelecao && !ehCliente && (
-                      <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-fonti-primary">
-                        {selecionada ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-gray-300" />}
-                      </div>
-                    )}
-
                     {/* Citação da mensagem respondida */}
                     {m.metadata?.reply_preview && (
                       <div className="mx-2 mt-2 px-2 py-1 rounded-lg bg-black/5 border-l-2 border-current/40 text-[11px] opacity-80">
@@ -1429,8 +1432,10 @@ export default function ConversasPage() {
                     <p className="text-[10px] opacity-60 text-right px-3 pb-1.5">
                       {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
+                  </div>
 
-                    {/* Badge de reação (emoji real enviado via Uazapi) */}
+                    {/* Badge de reação (emoji real enviado via Uazapi) — fora da bolha
+                        (que tem overflow-hidden), senão fica cortado */}
                     {m.metadata?.reacao && (
                       <div className={cn(
                         'absolute -bottom-2.5 flex items-center justify-center w-5 h-5 rounded-full bg-white border border-gray-200 shadow text-[11px]',

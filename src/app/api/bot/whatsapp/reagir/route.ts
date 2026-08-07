@@ -51,8 +51,14 @@ export async function POST(request: NextRequest) {
   }
 
   const instanceToken = await resolverInstanceToken(supabaseService, conversa_id)
+
+  // Grupo: `telefone` aqui é o JID do grupo (contato_grupo_id) — não pode passar
+  // pela normalização de telefone BR, que destruiria o JID.
+  const ehGrupo = telefone.includes('@g.us')
   const telRaw = telefone.replace(/\D/g, '')
-  const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
+  const telEnvio = ehGrupo
+    ? telefone
+    : (telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw)
 
   const res = await fetch(`${process.env.UAZAPI_API_URL}/message/react`, {
     method: 'POST',
