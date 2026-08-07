@@ -2078,7 +2078,7 @@ export default function ConversasPage() {
                     }),
                   })
                   const json = await res.json()
-                  if (!res.ok) throw new Error(json.error ?? 'Falha ao criar grupo')
+                  if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : (json.error ?? 'Falha ao criar grupo'))
                   setGrupoAberto(false)
                   qc.invalidateQueries({ queryKey: ['conversas'] })
                   toast.success('Grupo criado com sucesso.')
