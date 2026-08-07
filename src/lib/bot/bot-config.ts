@@ -8,6 +8,7 @@ export interface BotConfig {
   dias_atendimento: number[]
   mensagem_fora_horario: string | null
   produtos_ativos: string[]
+  agente_ativo: boolean
 }
 
 export const BOT_CONFIG_DEFAULTS: BotConfig = {
@@ -18,6 +19,7 @@ export const BOT_CONFIG_DEFAULTS: BotConfig = {
   dias_atendimento: [1, 2, 3, 4, 5],
   mensagem_fora_horario: null,
   produtos_ativos: ['Financiamento Imobiliário', 'CGI', 'Consórcio', 'Contrato'],
+  agente_ativo: true,
 }
 
 export async function carregarBotConfig(
@@ -41,6 +43,7 @@ export async function carregarBotConfig(
       dias_atendimento:      data.dias_atendimento       ?? BOT_CONFIG_DEFAULTS.dias_atendimento,
       mensagem_fora_horario: data.mensagem_fora_horario  ?? null,
       produtos_ativos:       data.produtos_ativos        ?? BOT_CONFIG_DEFAULTS.produtos_ativos,
+      agente_ativo:          data.agente_ativo           ?? BOT_CONFIG_DEFAULTS.agente_ativo,
     }
   } catch {
     return { ...BOT_CONFIG_DEFAULTS }
