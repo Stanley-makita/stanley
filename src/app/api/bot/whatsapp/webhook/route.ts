@@ -1149,7 +1149,9 @@ export async function POST(request: NextRequest) {
   // await garante que o registro existe no banco antes de retornar (vincular do *fonti depende disso)
   // pessoaId só fica null se buscarOuCriarPessoa falhou acima (já logado) — sem pessoa
   // resolvível não há como gravar no acervo documental (constraint exige pessoa_id).
-  if (isMidia && fileUrl && pessoaId) {
+  // Áudio fica de fora: já é reproduzível na própria conversa, salvar como
+  // documento só poluía a aba Documentos sem necessidade.
+  if (isMidia && fileUrl && pessoaId && tipoMidia !== 'audio' && tipoMidia !== 'ptt') {
     await salvarDocumentoCliente({
       empresa_id,
       pessoa_id: pessoaId,
