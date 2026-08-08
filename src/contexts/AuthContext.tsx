@@ -14,6 +14,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+// sessionStorage é limpo de verdade quando a aba/janela fecha (diferente do
+// cookie de sessão, que pode sobreviver se o navegador mantiver o processo
+// rodando em segundo plano). Usado pra detectar reabertura via atalho/favoritos
+// com cookie ainda válido e forçar novo login.
+const MARCADOR_SESSAO_ATIVA = 'credifon_sessao_ativa'
+// Rede de segurança complementar: desloga sozinho depois de tempo parado.
+const LIMITE_INATIVIDADE_MS = 30 * 60 * 1000
+
 export function AuthProvider({
   children,
   initialUser,
@@ -93,6 +101,42 @@ export function AuthProvider({
       subscription.unsubscribe()
     }
   }, [carregarPerfil])
+
+  // Se não há marcador nesta aba/janela, é uma sessão de navegador nova.
+  // Um cookie de sessão válido nesse caso significa que o navegador não
+  // encerrou de fato o processo anterior — força logout e novo login.
+  useEffect(() => {
+    if (sessionStorage.getItem(MARCADOR_SESSAO_ATIVA)) return
+    sessionStorage.setItem(MARCADOR_SESSAO_ATIVA, '1')
+    if (initialUser) {
+      supabase.auth.signOut().finally(() => {
+        window.location.href = '/login'
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Logout automático por inatividade
+  useEffect(() => {
+    if (!usuario) return
+
+    let ultimaAtividade = Date.now()
+    const registrarAtividade = () => { ultimaAtividade = Date.now() }
+    const eventos = ['mousedown', 'keydown', 'scroll', 'touchstart'] as const
+    eventos.forEach((evento) => window.addEventListener(evento, registrarAtividade, { passive: true }))
+
+    const intervalo = setInterval(() => {
+      if (Date.now() - ultimaAtividade >= LIMITE_INATIVIDADE_MS) {
+        sair()
+      }
+    }, 60_000)
+
+    return () => {
+      eventos.forEach((evento) => window.removeEventListener(evento, registrarAtividade))
+      clearInterval(intervalo)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usuario])
 
   // Realtime: detecta mudanças no perfil/ativo do usuário logado sem precisar de F5
   useEffect(() => {
