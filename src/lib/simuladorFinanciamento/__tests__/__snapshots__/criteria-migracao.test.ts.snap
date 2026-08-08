@@ -1,24 +1,24 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > bb > PRICE (deve ficar inelegível — Santander/BB não oferecem PRICE) 1`] = `
+exports[`BB — PRICE (taxa própria, ago/2026) > PRICE elegível com taxa própria de 11,90% (diferente dos 12,00% do SAC) 1`] = `
 {
+  "avisoRenda": false,
   "bancoId": "bb",
   "bancoNome": "Banco do Brasil",
   "corBanco": "#FDCA00",
-  "elegivel": false,
-  "maxFinanciavel30": 0,
-  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
+  "elegivel": true,
+  "maxFinanciavel30": 359753,
   "parcelas": 360,
-  "primeiraParcela": 0,
+  "primeiraParcela": 3554.497952905767,
   "programa": "SBPE",
   "resultadoId": "bb",
-  "taxaAnual": 0.12,
-  "taxaMensal": 0,
+  "taxaAnual": 0.119,
+  "taxaMensal": 0.009413651406458445,
   "tipoAmortizacao": "PRICE",
-  "totalJuros": 0,
-  "totalPago": 350000,
-  "totalSeguros": 0,
-  "ultimaParcela": 0,
+  "totalJuros": 878229.2630460765,
+  "totalPago": 1272220.462992846,
+  "totalSeguros": 43991.199946769564,
+  "ultimaParcela": 3436.747952905767,
   "valorFinanciado": 350000,
 }
 `;
@@ -667,7 +667,7 @@ exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > 
 }
 `;
 
-exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > PRICE (deve ficar inelegível — Santander/BB não oferecem PRICE) 1`] = `
+exports[`Bancos genéricos (Fase 1) — regressão antes/depois da migração > santander > PRICE (deve ficar inelegível — Santander não oferece PRICE) 1`] = `
 {
   "bancoId": "santander",
   "bancoNome": "Santander",

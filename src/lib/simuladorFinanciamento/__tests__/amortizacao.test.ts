@@ -5,7 +5,7 @@
  *   1. PRICE sem banco (simularTodosBancos com BANCOS_PRICE)
  *   2. PRICE com Caixa
  *   3. PRICE com Bradesco (taxa própria travada em 12,3% — ago/2026)
- *   4. PRICE com banco sem suporte (Santander)
+ *   4. PRICE com banco sem suporte (Santander, Inter)
  *   5. SAC explícito
  *   6. Sem amortização informada (deve usar SAC por padrão do normalizer)
  */
@@ -30,8 +30,8 @@ const BASE_INPUT: InputFinanciamento = {
 // ─── 1. PRICE sem banco — usar BANCOS_PRICE ──────────────────────────────────
 
 describe('PRICE sem banco específico', () => {
-  it('BANCOS_PRICE contém Caixa, Itaú e Bradesco', () => {
-    expect(BANCOS_PRICE).toEqual(['caixa', 'itau', 'bradesco'])
+  it('BANCOS_PRICE contém Caixa, Bradesco e BB (Itaú desativado 2026-08-08)', () => {
+    expect(BANCOS_PRICE).toEqual(['caixa', 'bradesco', 'bb'])
   })
 
   it('todos os bancos em BANCOS_PRICE têm suportaPrice=true', () => {
@@ -53,7 +53,7 @@ describe('PRICE sem banco específico', () => {
       expect(BANCOS_PRICE).toContain(r.bancoId)
       // Caixa (Comparação de Cenários) sempre tenta SAC e PRICE independente do pedido —
       // um resultado SAC elegível dela pode aparecer mesmo pedindo PRICE. Bancos de
-      // cenário único (Itaú) continuam respeitando exatamente o tipoAmortizacao pedido.
+      // cenário único (Bradesco, BB) continuam respeitando exatamente o tipoAmortizacao pedido.
       if (r.bancoId !== 'caixa') {
         expect(r.tipoAmortizacao).toBe('PRICE')
       }
@@ -151,20 +151,20 @@ describe('PRICE com Bradesco', () => {
   })
 })
 
-// ─── 4. PRICE com banco sem suporte (Santander, BB, Inter, Daycoval) ─────────
+// ─── 4. PRICE com banco sem suporte (Santander, Inter, Daycoval) ─────────────
 
 describe('PRICE com bancos sem suporte', () => {
   const semSuporte = TODOS_BANCOS.filter((id) => !BANCOS_CONFIG[id].suportaPrice)
 
-  it('bancos sem suporte incluem Santander, BB, Inter, Daycoval (não Bradesco)', () => {
+  it('bancos sem suporte incluem Santander, Inter, Daycoval (não Bradesco nem BB)', () => {
     expect(semSuporte).not.toContain('bradesco')
+    expect(semSuporte).not.toContain('bb')
     expect(semSuporte).toContain('santander')
-    expect(semSuporte).toContain('bb')
     expect(semSuporte).toContain('inter')
     expect(semSuporte).toContain('daycoval')
   })
 
-  for (const id of ['santander', 'bb', 'inter'] as const) {
+  for (const id of ['santander', 'inter'] as const) {
     it(`${id} PRICE → inelegível`, () => {
       const input: InputFinanciamento = {
         ...BASE_INPUT,

@@ -44,8 +44,9 @@ describe('Itaú — regressão antes/depois da migração (Fase 3)', () => {
     expect(r).toMatchSnapshot()
   })
 
-  it('PRICE, aquisição residencial padrão', () => {
+  it('PRICE (deve ficar inelegível — desativado 2026-08-08, Itaú não oferece PRICE de verdade)', () => {
     const r = simularBanco('itau', { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
+    expect(r.elegivel).toBe(false)
     expect(r).toMatchSnapshot()
   })
 

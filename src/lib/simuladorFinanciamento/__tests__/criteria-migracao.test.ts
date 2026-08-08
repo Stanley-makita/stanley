@@ -81,10 +81,11 @@ describe('Bancos genéricos (Fase 1) — regressão antes/depois da migração',
         expect(r).toMatchSnapshot()
       })
 
-      // Bradesco passou a oferecer PRICE (ago/2026, taxa própria travada em 12,3%) — não é
-      // mais "inelegível pra todos os 3 genéricos". Tem teste próprio logo abaixo do loop.
-      if (bancoId !== 'bradesco') {
-        it('PRICE (deve ficar inelegível — Santander/BB não oferecem PRICE)', () => {
+      // Bradesco e BB passaram a oferecer PRICE (ago/2026, taxa própria) — não são
+      // mais "inelegível pra todos os 3 genéricos". Cada um tem teste próprio logo
+      // abaixo do loop. Só Santander segue sem suporte.
+      if (bancoId !== 'bradesco' && bancoId !== 'bb') {
+        it('PRICE (deve ficar inelegível — Santander não oferece PRICE)', () => {
           const r = simularBanco(bancoId, { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
           expect(r).toMatchSnapshot()
         })
@@ -144,6 +145,24 @@ describe('Bradesco — PRICE (taxa própria, ago/2026)', () => {
 
   it('PRICE com LTV acima de 80% fica inelegível', () => {
     const r = simularBanco('bradesco', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000 })
+    expect(r.elegivel).toBe(false)
+  })
+})
+
+// PRICE do BB (ago/2026) — taxa própria de 11,90% (piso genérico entre 11,85% correntista
+// e 12,00% não correntista, confirmado em simulação real 2026-08-08), LTV 80% (mesmo do
+// SAC, confirmado na mesma simulação). Comprometimento de renda sem dado próprio ainda,
+// usa o genérico de 30% (mesmo do SAC). MIP/DFI reaproveitam o já calibrado do SAC do BB.
+describe('BB — PRICE (taxa própria, ago/2026)', () => {
+  it('PRICE elegível com taxa própria de 11,90% (diferente dos 12,00% do SAC)', () => {
+    const r = simularBanco('bb', { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
+    expect(r.elegivel).toBe(true)
+    expect(r.taxaAnual).toBeCloseTo(0.119, 4)
+    expect(r).toMatchSnapshot()
+  })
+
+  it('PRICE com LTV acima de 80% fica inelegível', () => {
+    const r = simularBanco('bb', { ...BASE_INPUT, tipoAmortizacao: 'PRICE', valorEntrada: 50_000 })
     expect(r.elegivel).toBe(false)
   })
 })

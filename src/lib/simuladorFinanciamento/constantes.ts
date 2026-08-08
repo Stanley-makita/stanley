@@ -56,7 +56,12 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
-    suportaPrice: true,
+    // Desativado 2026-08-08: confirmado com o usuário que o Itaú não oferece
+    // PRICE de verdade — suportaPrice=true estava ligado desde a implementação
+    // original do motor específico do Itaú (73e5fe4), nunca validado contra a
+    // oferta real do banco. Cálculo PRICE próprio do Itaú (estrategiaMipItau,
+    // regraIdadePrazo 'proximo-aniversario') continua no código, só não é mais
+    // oferecido — se algum dia for confirmado que existe, é só religar aqui.
     maxValorImovel: 0,
     prazoMaximoMeses: 420,
     aceitaMcmv: false,
@@ -120,6 +125,16 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     // confirma o valor.
     taxaAnualBase:        0.1200, // 12,00% a.a. — confirmado no simulador oficial jul/2026
     taxaAnualCorrentista: 0.1200,
+    // PRICE (ago/2026): confirmado no simulador oficial (2026-08-08, imóvel R$485.000
+    // novo em Maringá, SFH, 360 meses, LTV 80%) — taxa efetiva variou por CPF: 11,85%
+    // a.a. pra correntista BB, 12,00% pra não correntista. Sem como saber de antemão se o
+    // cliente é correntista (mesma limitação já assumida pro SAC de Bradesco/Santander/
+    // Itaú), assume-se piso genérico de 11,90% a.a. como premissa de calibração. LTV
+    // máximo do PRICE é o mesmo do SAC (80%) — confirmado na mesma simulação. Comprometimento
+    // de renda máximo não tem dado próprio ainda, fica no genérico de 30% (mesmo do SAC).
+    taxaAnualPrice: 0.1190,
+    maxLtvPrice: 0.80,
+    suportaPrice: true,
     programa: 'SBPE',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,

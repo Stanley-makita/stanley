@@ -69,25 +69,25 @@ exports[`Itaú — regressão antes/depois da migração (Fase 3) > LTV no limit
 }
 `;
 
-exports[`Itaú — regressão antes/depois da migração (Fase 3) > PRICE, aquisição residencial padrão 1`] = `
+exports[`Itaú — regressão antes/depois da migração (Fase 3) > PRICE (deve ficar inelegível — desativado 2026-08-08, Itaú não oferece PRICE de verdade) 1`] = `
 {
-  "avisoRenda": false,
   "bancoId": "itau",
   "bancoNome": "Itaú",
   "corBanco": "#EC7000",
-  "elegivel": true,
-  "maxFinanciavel30": 371630,
+  "elegivel": false,
+  "maxFinanciavel30": 0,
+  "motivoInelegivel": "Não oferece financiamento na modalidade PRICE",
   "parcelas": 420,
-  "primeiraParcela": 3499.8394658072843,
+  "primeiraParcela": 0,
   "programa": "SBPE",
   "resultadoId": "itau",
   "taxaAnual": 0.119,
-  "taxaMensal": 0.009413651406458,
+  "taxaMensal": 0,
   "tipoAmortizacao": "PRICE",
-  "totalJuros": 1061386.6756390512,
-  "totalPago": 1537620.3305224539,
-  "totalSeguros": 115733.65488340252,
-  "ultimaParcela": 3385.4444658072844,
+  "totalJuros": 0,
+  "totalPago": 350000,
+  "totalSeguros": 0,
+  "ultimaParcela": 0,
   "valorFinanciado": 350000,
 }
 `;
