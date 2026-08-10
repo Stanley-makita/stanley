@@ -14,13 +14,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// sessionStorage é limpo de verdade quando a aba/janela fecha (diferente do
-// cookie de sessão, que pode sobreviver se o navegador mantiver o processo
-// rodando em segundo plano). Usado pra detectar reabertura via atalho/favoritos
-// com cookie ainda válido e forçar novo login.
-const MARCADOR_SESSAO_ATIVA = 'credifon_sessao_ativa'
-// Rede de segurança complementar: desloga sozinho depois de tempo parado.
-const LIMITE_INATIVIDADE_MS = 30 * 60 * 1000
+// Logout automático só depois de muito tempo parado — usuário só deve ser
+// deslogado ao clicar em "Sair", fechar o navegador (cookie de sessão) ou
+// ficar 12h sem interagir.
+const LIMITE_INATIVIDADE_MS = 12 * 60 * 60 * 1000
 
 export function AuthProvider({
   children,
@@ -101,20 +98,6 @@ export function AuthProvider({
       subscription.unsubscribe()
     }
   }, [carregarPerfil])
-
-  // Se não há marcador nesta aba/janela, é uma sessão de navegador nova.
-  // Um cookie de sessão válido nesse caso significa que o navegador não
-  // encerrou de fato o processo anterior — força logout e novo login.
-  useEffect(() => {
-    if (sessionStorage.getItem(MARCADOR_SESSAO_ATIVA)) return
-    sessionStorage.setItem(MARCADOR_SESSAO_ATIVA, '1')
-    if (initialUser) {
-      supabase.auth.signOut().finally(() => {
-        window.location.href = '/login'
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Logout automático por inatividade
   useEffect(() => {
