@@ -40,7 +40,7 @@ export async function POST(
 
   const { data: vinculos } = await supabase
     .from('documento_vinculos')
-    .select('documento_id')
+    .select('documento_id, pasta_id')
     .eq('entidade_tipo', 'processo')
     .eq('entidade_id', processoId)
     .eq('empresa_id', empresa_id)
@@ -48,7 +48,8 @@ export async function POST(
 
   let documentos: DocumentoOcrResumo[] = []
   if (documentoIds.length > 0) {
-    const [{ data: docs }, { data: extracoes }] = await Promise.all([
+    const pastaIds = Array.from(new Set((vinculos ?? []).map((v) => v.pasta_id).filter((id): id is string => !!id)))
+    const [{ data: docs }, { data: extracoes }, { data: pastas }] = await Promise.all([
       supabase
         .from('documentos')
         .select('id, nome_original, classificacao:classificacao_legado')
@@ -59,12 +60,20 @@ export async function POST(
         .select('documento_id, dados, dados_validados')
         .in('documento_id', documentoIds)
         .eq('vigente', true),
+      pastaIds.length > 0
+        ? supabase.from('catalogo_pastas_processo').select('id, codigo').in('id', pastaIds)
+        : Promise.resolve({ data: [] as { id: string; codigo: string }[] }),
     ])
 
     const ocrPorDocumento = new Map((extracoes ?? []).map((e) => [e.documento_id, e.dados_validados ?? e.dados ?? null]))
+    const codigoPorPastaId = new Map((pastas ?? []).map((p) => [p.id, p.codigo]))
+    const pastaCodigoPorDocumento = new Map(
+      (vinculos ?? []).map((v) => [v.documento_id, v.pasta_id ? codigoPorPastaId.get(v.pasta_id) ?? null : null]),
+    )
     documentos = (docs ?? []).map((d) => ({
       nome_arquivo: d.nome_original,
       tipo_documento: d.classificacao ?? null,
+      pasta: pastaCodigoPorDocumento.get(d.id) ?? null,
       dados: ocrPorDocumento.get(d.id) ?? null,
     }))
   }

@@ -13,17 +13,20 @@ function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
   if (!p) return null
   return {
     rg: p.rg,
-    profissao: null,
-    nacionalidade: null,
-    data_nascimento: null,
+    profissao: p.profissao,
+    nacionalidade: p.nacionalidade,
+    data_nascimento: p.data_nascimento,
     data_emissao: null,
-    orgao_emissor: null,
+    orgao_emissor: p.orgao_emissor_rg,
     estado_civil: p.estado_civil,
-    regime_casamento: null,
+    regime_casamento: p.regime_casamento,
     data_casamento: null,
     conjuge_nome: null,
     conjuge_cpf: null,
     conjuge_data_nascimento: null,
+    // Endereço vem só do comprovante anexado na pasta da própria pessoa
+    // (comprador/vendedor) — nunca do endereço do imóvel (ver instrução
+    // dedicada no SYSTEM_PROMPT de entenderNegociacao.ts).
     endereco_rua: p.endereco,
     endereco_numero: null,
     endereco_bairro: null,
@@ -76,6 +79,9 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
     vendedoresAdaptados: resumo.vendedores.map((p) => vendedor(p, processo.id, processo.empresa_id)),
     extras: {
       imovelMatricula: resumo.imovel.matricula,
+      imovelCartorio: resumo.imovel.cartorio,
+      imovelArea: resumo.imovel.area,
+      imovelCadastroPrefeitura: resumo.imovel.cadastro_prefeitura,
       imovelEndereco: [resumo.imovel.endereco, resumo.imovel.cidade, resumo.imovel.uf].filter(Boolean).join(', ') || null,
       dataPosse: resumo.prazo_posse_dias != null ? `${resumo.prazo_posse_dias} dias após a assinatura` : null,
       valorMultaTotal,

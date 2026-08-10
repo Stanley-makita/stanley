@@ -81,6 +81,9 @@ function buildEndereco(p: { endereco_rua?: string | null; endereco_numero?: stri
 
 export interface ExtrasResumoNegociacao {
   imovelMatricula?: string | null
+  imovelCartorio?: string | null
+  imovelArea?: string | null
+  imovelCadastroPrefeitura?: string | null
   imovelEndereco?: string | null
   dataPosse?: string | null
   valorMultaTotal?: string | null
@@ -269,6 +272,9 @@ export function substituirVariaveis(
   // Negociação" do Construtor de Contratos) — campos que a IA já entendeu e o
   // usuário já confirmou, então têm prioridade sobre os defaults acima.
   if (extras?.imovelMatricula) variaveis.imovel_matricula = extras.imovelMatricula
+  if (extras?.imovelCartorio) variaveis.imovel_cartorio = extras.imovelCartorio
+  if (extras?.imovelArea) variaveis.imovel_area = extras.imovelArea
+  if (extras?.imovelCadastroPrefeitura) variaveis.imovel_cadastro_prefeitura = extras.imovelCadastroPrefeitura
   if (extras?.imovelEndereco) variaveis.imovel_endereco = extras.imovelEndereco
   if (extras?.dataPosse) variaveis.data_posse = extras.dataPosse
   if (extras?.valorMultaTotal) variaveis.valor_multa_total = extras.valorMultaTotal

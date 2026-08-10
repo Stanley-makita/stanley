@@ -16,6 +16,11 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 export interface DocumentoOcrResumo {
   nome_arquivo: string
   tipo_documento: string | null
+  /** Pasta em que o documento foi anexado no Construtor de Contratos
+   * (comprador/vendedor/imovel/terceiros/certidoes) — é o sinal
+   * estrutural de A QUEM o documento pertence; ver instrução no
+   * SYSTEM_PROMPT sobre nunca inferir isso pelo conteúdo. */
+  pasta: string | null
   dados: Record<string, unknown> | null
 }
 
@@ -23,13 +28,21 @@ export interface PessoaResumo {
   nome: string | null
   cpf: string | null
   rg: string | null
+  orgao_emissor_rg: string | null
   estado_civil: string | null
+  regime_casamento: string | null
+  profissao: string | null
+  nacionalidade: string | null
+  data_nascimento: string | null
   endereco: string | null
 }
 
 export interface ImovelResumo {
   endereco: string | null
   matricula: string | null
+  cartorio: string | null
+  area: string | null
+  cadastro_prefeitura: string | null
   cidade: string | null
   uf: string | null
 }
@@ -61,16 +74,26 @@ IMPORTANTE sobre valor_servico_fontinhas: é o valor cobrado pela Fontinhas (a a
 
 Sua única tarefa é CONSOLIDAR essas informações num resumo estruturado. Você NÃO inventa dados que não foram informados nem extraídos — se um campo não aparece em nenhuma fonte, retorne null. Você NÃO redige cláusulas nem texto de contrato aqui.
 
-Além do resumo, monte um "painel_inteligencia": uma lista curta de itens de checklist, cada um com "texto" e "status" ("ok" se o dado foi encontrado/está completo, "atencao" se falta algo importante — ex: falta documento de uma parte, CPF ausente, imóvel sem matrícula). Seja específico no texto (ex: "Falta documento do vendedor", não "Falta informação").
+IMPORTANTE sobre a pasta de cada documento (campo "pasta" em cada item de documentos_ocr): é o sinal DEFINITIVO de a quem o documento pertence — "comprador", "vendedor", "imovel", "terceiros" ou "certidoes". Trate os documentos de cada pasta de forma ISOLADA, nunca misturando dados entre elas:
+- Documentos da pasta "comprador" (RG, CPF, CNH, comprovante de endereço) descrevem SOMENTE o(s) comprador(es) — o endereço encontrado ali é o endereço ATUAL de residência do comprador.
+- Documentos da pasta "vendedor" descrevem SOMENTE o(s) vendedor(es) — o endereço ali é o endereço ATUAL de residência do vendedor.
+- Documentos da pasta "imovel" (matrícula, IPTU, etc.) descrevem o IMÓVEL, não uma pessoa. O endereço que aparece na matrícula é o endereço DO IMÓVEL (campo "imovel.endereco") — NUNCA copie esse endereço para o campo "endereco" de um comprador ou vendedor, mesmo que o nome do proprietário na matrícula bata com o nome do vendedor. Uma pessoa pode ser proprietária de um imóvel e residir em outro endereço/cidade/estado — o endereço pessoal dela só vem de documento anexado nas pastas "comprador"/"vendedor" (comprovante de endereço), nunca da matrícula.
+- Para os dados do imóvel, combine informações de TODOS os documentos da pasta "imovel": se a matrícula não tiver o número de cadastro imobiliário/inscrição municipal (comum em matrículas antigas), procure esse dado em outros documentos da mesma pasta (ex: IPTU) e preencha "cadastro_prefeitura" a partir dali. Sempre que o número de cadastro imobiliário aparecer em QUALQUER documento da pasta "imovel", ele deve constar no resumo — é um dado obrigatório de qualificação do imóvel.
+- Documentos da pasta "terceiros" são de pessoas que não são comprador nem vendedor (procurador, herdeiro, cônjuge não incluído como parte etc.) — não os misture com compradores/vendedores; mencione dados relevantes deles em "observacoes_adicionais" se a descrição livre indicar que são partes do negócio.
+- Documentos da pasta "certidoes" comprovam a regularidade das partes/imóvel — não são fonte de dados cadastrais, apenas de comprovação; mencione a existência delas em "observacoes_adicionais" quando relevante.
+
+Preencha o MÁXIMO de subcampos de cada pessoa/imóvel que estiverem disponíveis no OCR da pasta correspondente (nome, cpf, rg, órgão emissor do RG, estado civil, regime de bens, profissão, nacionalidade, data de nascimento) — não deixe um campo null se o dado está literalmente presente no OCR de um documento daquela pasta.
+
+Além do resumo, monte um "painel_inteligencia": uma lista curta de itens de checklist, cada um com "texto" e "status" ("ok" se o dado foi encontrado/está completo, "atencao" se falta algo importante — ex: falta documento de uma parte, CPF ausente, imóvel sem matrícula, imóvel sem cadastro na prefeitura em nenhum documento anexado). Seja específico no texto (ex: "Falta documento do vendedor", não "Falta informação").
 
 Marque "atencao" também quando houver DIVERGÊNCIA entre o que os documentos (OCR) mostram e o que a descrição livre diz — ex: valor do documento diferente do valor descrito, nome diferente, endereço diferente — e quando um dado parecer de BAIXA CONFIANÇA (extraído de forma ambígua ou incompleta do OCR). Nesses casos, descreva a divergência/incerteza específica no texto do item (ex: "Valor no documento (R$ 430.000) diverge do valor descrito (R$ 450.000)").
 
 Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
 
 {
-  "compradores": [{"nome": "...", "cpf": "...", "rg": "...", "estado_civil": "...", "endereco": "..."}],
-  "vendedores": [{"nome": "...", "cpf": "...", "rg": "...", "estado_civil": "...", "endereco": "..."}],
-  "imovel": {"endereco": "...", "matricula": "...", "cidade": "...", "uf": "..."},
+  "compradores": [{"nome": "...", "cpf": "...", "rg": "...", "orgao_emissor_rg": "...", "estado_civil": "...", "regime_casamento": "..._ou_null", "profissao": "...", "nacionalidade": "...", "data_nascimento": "...", "endereco": "..."}],
+  "vendedores": [{"nome": "...", "cpf": "...", "rg": "...", "orgao_emissor_rg": "...", "estado_civil": "...", "regime_casamento": "..._ou_null", "profissao": "...", "nacionalidade": "...", "data_nascimento": "...", "endereco": "..."}],
+  "imovel": {"endereco": "...", "matricula": "...", "cartorio": "..._ou_null", "area": "..._ou_null", "cadastro_prefeitura": "..._ou_null", "cidade": "...", "uf": "..."},
   "valor": numero_ou_null,
   "entrada": numero_ou_null,
   "saldo": "financiado|a_vista|texto_livre_ou_null",
