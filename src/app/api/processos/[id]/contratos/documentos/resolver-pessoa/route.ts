@@ -11,8 +11,9 @@ import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
  * provisório agora, o operador completa nome/CPF reais depois nas abas
  * Compradores/Vendedores.
  *
- * Imóvel não tem Pessoa própria — documentos dele ficam sob o comprador
- * principal, mesma convenção do resto do sistema.
+ * Imóvel, Terceiros Interessados e Certidões não têm Pessoa própria —
+ * documentos deles ficam sob o comprador principal, mesma convenção do
+ * resto do sistema.
  */
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string } | null> {
@@ -75,11 +76,11 @@ export async function POST(
   if (!processo) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
 
   const body = await request.json().catch(() => ({}))
-  const papelRecebido = body?.papel as 'comprador' | 'vendedor' | 'imovel' | undefined
-  if (!papelRecebido || !['comprador', 'vendedor', 'imovel'].includes(papelRecebido)) {
+  const papelRecebido = body?.papel as 'comprador' | 'vendedor' | 'imovel' | 'terceiros' | 'certidoes' | undefined
+  if (!papelRecebido || !['comprador', 'vendedor', 'imovel', 'terceiros', 'certidoes'].includes(papelRecebido)) {
     return NextResponse.json({ error: 'Papel inválido' }, { status: 400 })
   }
-  // Imóvel não tem Pessoa própria — documentos ficam sob o comprador principal.
+  // Imóvel, Terceiros e Certidões não têm Pessoa própria — documentos ficam sob o comprador principal.
   const papel: 'comprador' | 'vendedor' = papelRecebido === 'vendedor' ? 'vendedor' : 'comprador'
 
   try {
