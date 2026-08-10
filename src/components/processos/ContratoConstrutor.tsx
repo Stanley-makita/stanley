@@ -52,6 +52,8 @@ const PASTAS_FIXAS = [
   { codigo: 'comprador' as const, titulo: 'Documentos do Comprador', descricao: 'RG, CPF, CNH, certidão de casamento, comprovante de endereço.' },
   { codigo: 'vendedor' as const, titulo: 'Documentos do Vendedor', descricao: 'RG, CPF, CNH, certidão de casamento, comprovante de endereço.' },
   { codigo: 'imovel' as const, titulo: 'Documentos do Imóvel', descricao: 'Matrícula atualizada, IPTU ou documento complementar.' },
+  { codigo: 'terceiros' as const, titulo: 'Documentos de Terceiros Interessados', descricao: 'Procurador, cônjuge não incluído como parte, herdeiro ou outro interessado.' },
+  { codigo: 'certidoes' as const, titulo: 'Certidões Apresentadas', descricao: 'Certidões pessoais (comprador/vendedor) e do imóvel relacionadas nesta operação.' },
 ]
 
 function useNegocioFinanciamentoVinculado(pessoaId: string | null | undefined, processoAtualId: string) {
@@ -234,7 +236,7 @@ function useAtualizarTipoValorContrato(processoId: string) {
 
 function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, arquivos }: {
   processoId: string
-  pastaCodigo: 'comprador' | 'vendedor' | 'imovel'
+  pastaCodigo: 'comprador' | 'vendedor' | 'imovel' | 'terceiros' | 'certidoes'
   titulo: string
   descricao: string
   arquivos: DocumentoDaPasta[]
@@ -492,7 +494,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
               </Button>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PASTAS_FIXAS.map((pasta) => (
               <CaixaUploadPasta
                 key={pasta.codigo}
@@ -524,13 +526,11 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
           <Textarea
             value={instrucoes}
             onChange={(e) => setInstrucoes(e.target.value)}
-            maxLength={1000}
             rows={6}
             placeholder="Ex: Contrato de compra e venda de imóvel residencial em Maringá. Valor R$450 mil, entrada R$180 mil, saldo financiado. Posse em 30 dias. Multa 10%."
             className="rounded-xl text-sm"
           />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-gray-400">{instrucoes.length}/1000</span>
+          <div className="flex items-center justify-end">
             <Button
               disabled={!tipoContrato || processando}
               onClick={gerarContrato}

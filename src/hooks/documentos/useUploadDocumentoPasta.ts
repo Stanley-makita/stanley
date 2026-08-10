@@ -102,7 +102,7 @@ export async function uploadDocumentoParaPasta(input: UploadDocumentoInput): Pro
 // completa nome/CPF reais depois nas abas Compradores/Vendedores.
 async function resolverPessoaPorPapel(
   processoId: string,
-  papel: 'comprador' | 'vendedor' | 'imovel',
+  papel: 'comprador' | 'vendedor' | 'imovel' | 'terceiros' | 'certidoes',
   token?: string,
 ): Promise<string | null> {
   const res = await fetch(`/api/processos/${processoId}/contratos/documentos/resolver-pessoa`, {
@@ -123,7 +123,7 @@ async function resolverPessoaPorPapel(
  * Construtor de Contratos: Comprador / Vendedor / Imóvel) — sem seletor de
  * tipo/pasta manual, a pasta já vem definida pelo chamador.
  */
-export function useUploadDocumentoPasta(processoId: string, pastaCodigo: 'comprador' | 'vendedor' | 'imovel') {
+export function useUploadDocumentoPasta(processoId: string, pastaCodigo: 'comprador' | 'vendedor' | 'imovel' | 'terceiros' | 'certidoes') {
   const { usuario } = useAuth()
   const queryClient = useQueryClient()
   const { data: catalogoPastas = [] } = useCatalogoPastasProcesso()
