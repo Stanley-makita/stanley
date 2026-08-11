@@ -5,6 +5,14 @@
  * "Gerar/atualizar PDF" (Fase C do Construtor de Contratos). Mesma lógica
  * jsPDF + html2canvas de sempre — só passou a produzir um Blob persistível
  * em vez de já sair direto num payload de envio.
+ *
+ * Paginação: pré-calcula em que ponto cada página termina (medindo a altura
+ * real de cada elemento de bloco do conteúdo) e monta o documento já como
+ * uma pilha de páginas de altura fixa (cabeçalho + fatia do conteúdo que
+ * cabe + rodapé, repetidos em cada uma) ANTES de tirar o screenshot. Assim
+ * o corte de página cai sempre entre elementos, nunca no meio de uma frase,
+ * e cabeçalho/rodapé aparecem em toda página impressa — não só na primeira/
+ * última, como na primeira versão desta função.
  */
 
 // Logotipo institucional padrão (mesmo arquivo usado nos PDFs do Simulador
@@ -16,15 +24,40 @@ const LOGO_FONTINHAS = '/images/logos/logotipo%20retangular%20fontinhas%20assess
 const COR_VERDE = '#253B29'
 const COR_DOURADO = '#C2AA6A'
 
-/**
- * Cabeçalho e rodapé institucionais — padrão visual único pra TODOS os
- * contratos (independentemente do modelo/tipo), reproduzindo o papel
- * timbrado usado historicamente pela Fontinhas em Word (logotipo + título
- * sublinhado no alto, e no rodapé o mesmo logotipo + razão social/endereço).
- * Aparecem só uma vez (início/fim do documento) porque a geração do PDF
- * (`gerarPdfBlobContrato`) tira um screenshot único do HTML e fatia em
- * páginas A4 — não repagina header/footer por página como o Word fazia.
- */
+// Geometria da página em px CSS a 96dpi (A4 = 210x297mm) — mesma referência
+// usada tanto pra medir quanto pra capturar via html2canvas.
+const PAGE_WIDTH_PX = 794
+const PAGE_HEIGHT_PX = 1123
+const PAGE_PAD_X_PX = 113 // ~3cm
+const PAGE_PAD_TOP_PX = 76 // ~2cm
+const PAGE_PAD_BOTTOM_PX = 38 // ~1cm — o resto do respiro fica na margin-top do rodapé
+
+function estiloBase(): string {
+  return `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; }
+    h2 { font-size: 12pt; margin-bottom: 1em; }
+    h3 { font-size: 11pt; margin-top: 1.5em; margin-bottom: 0.5em; }
+    p { margin-bottom: 0.8em; text-align: justify; }
+    ul { margin: 0.5em 0 0.8em 1.5em; }
+    li { margin-bottom: 0.3em; }
+    strong { font-weight: bold; }
+    em { font-style: italic; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+    th, td { border: 1px solid #aaa; padding: 7px 12px; vertical-align: top; }
+    th { background: #eeeeee; font-weight: bold; text-align: left; }
+    hr { border: none; border-top: 1px solid #555; margin: 1.2em 0; }
+    .sig-table td { border: 1px solid #aaa; padding: 14px 16px; vertical-align: top; width: 50%; }
+    .doc-header { display: flex; align-items: center; gap: 0.8cm; padding-bottom: 0.4cm; margin-bottom: 0.8cm; border-bottom: 2px solid ${COR_VERDE}; }
+    .doc-header-logo { height: 1.3cm; width: auto; flex-shrink: 0; }
+    .doc-header-title { flex: 1; font-size: 11.5pt; font-weight: bold; color: ${COR_VERDE}; text-decoration: underline; text-align: right; letter-spacing: 0.02em; }
+    .doc-footer { display: flex; align-items: center; gap: 0.6cm; margin-top: 0.6cm; padding-top: 0.3cm; border-top: 1px solid #999; }
+    .doc-footer-logo { height: 0.65cm; width: auto; flex-shrink: 0; }
+    .doc-footer-text p { margin: 0; text-align: left; font-size: 6.5pt; color: #444; }
+    .doc-footer-empresa { font-style: italic; margin-top: 0.1cm !important; color: ${COR_DOURADO} !important; }
+  `
+}
+
 function cabecalhoInstitucional(titulo: string): string {
   return `<header class="doc-header">
     <img src="${LOGO_FONTINHAS}" alt="Fontinhas Assessoria" class="doc-header-logo" />
@@ -42,42 +75,6 @@ function rodapeInstitucional(): string {
   </footer>`
 }
 
-export function gerarHtmlImpressao(conteudo: string, titulo: string): string {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>${titulo}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #000; padding: 2.5cm 3cm; }
-    h2 { font-size: 12pt; margin-bottom: 1em; }
-    h3 { font-size: 11pt; margin-top: 1.5em; margin-bottom: 0.5em; }
-    p { margin-bottom: 0.8em; text-align: justify; }
-    ul { margin: 0.5em 0 0.8em 1.5em; }
-    li { margin-bottom: 0.3em; }
-    strong { font-weight: bold; }
-    em { font-style: italic; }
-    table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-    th, td { border: 1px solid #aaa; padding: 7px 12px; vertical-align: top; }
-    th { background: #eeeeee; font-weight: bold; text-align: left; }
-    hr { border: none; border-top: 1px solid #555; margin: 1.2em 0; }
-    .sig-table td { border: 1px solid #aaa; padding: 14px 16px; vertical-align: top; width: 50%; }
-    .doc-header { display: flex; align-items: center; gap: 0.8cm; padding-bottom: 0.4cm; margin-bottom: 1cm; border-bottom: 2px solid ${COR_VERDE}; }
-    .doc-header-logo { height: 1.4cm; width: auto; flex-shrink: 0; }
-    .doc-header-title { flex: 1; font-size: 11.5pt; font-weight: bold; color: ${COR_VERDE}; text-decoration: underline; text-align: right; letter-spacing: 0.02em; }
-    .doc-footer { display: flex; align-items: center; gap: 0.6cm; margin-top: 1.5cm; padding-top: 0.3cm; border-top: 1px solid #999; }
-    .doc-footer-logo { height: 0.65cm; width: auto; flex-shrink: 0; }
-    .doc-footer-text p { margin: 0; text-align: left; font-size: 6.5pt; color: #444; }
-    .doc-footer-empresa { font-style: italic; margin-top: 0.1cm !important; color: ${COR_DOURADO} !important; }
-    @page { size: A4; margin: 0; }
-    @media print { body { padding: 2.5cm 3cm; } }
-  </style>
-</head>
-<body>${cabecalhoInstitucional(titulo)}${conteudo}${rodapeInstitucional()}</body>
-</html>`
-}
-
 export async function blobParaBase64(blob: Blob): Promise<string> {
   const buffer = await blob.arrayBuffer()
   const bytes = new Uint8Array(buffer)
@@ -86,60 +83,126 @@ export async function blobParaBase64(blob: Blob): Promise<string> {
   return btoa(binary)
 }
 
+function criarIframeOculto(): HTMLIFrameElement {
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = `position:fixed;top:0;left:0;width:${PAGE_WIDTH_PX}px;height:${PAGE_HEIGHT_PX}px;opacity:0;pointer-events:none;z-index:-1;`
+  document.body.appendChild(iframe)
+  return iframe
+}
+
+async function carregarNoIframe(iframe: HTMLIFrameElement, html: string): Promise<Document> {
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve()
+    iframe.srcdoc = html
+  })
+  const doc = iframe.contentDocument!
+  if (doc.fonts?.ready) await doc.fonts.ready
+
+  const imagens = Array.from(doc.images)
+  await Promise.all(imagens.map((img) => (img.complete ? Promise.resolve() : new Promise<void>((resolve) => {
+    img.addEventListener('load', () => resolve(), { once: true })
+    img.addEventListener('error', () => resolve(), { once: true })
+  }))))
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  return doc
+}
+
+/**
+ * Mede a altura de cada elemento de bloco do conteúdo (na largura real da
+ * área imprimível) e agrupa em páginas — cada página recebe só os elementos
+ * que cabem no espaço disponível depois de descontar cabeçalho/rodapé, sem
+ * nunca partir um elemento ao meio.
+ */
+async function paginarConteudo(iframe: HTMLIFrameElement, conteudoHtml: string, titulo: string): Promise<string[]> {
+  const htmlMedicao = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8" /><style>
+  ${estiloBase()}
+  body { width: ${PAGE_WIDTH_PX - PAGE_PAD_X_PX * 2}px; }
+</style></head>
+<body>
+  <div id="medir-header">${cabecalhoInstitucional(titulo)}</div>
+  <div id="medir-footer">${rodapeInstitucional()}</div>
+  <div id="medir-conteudo">${conteudoHtml}</div>
+</body></html>`
+
+  const doc = await carregarNoIframe(iframe, htmlMedicao)
+  const headerH = doc.getElementById('medir-header')!.getBoundingClientRect().height
+  const footerH = doc.getElementById('medir-footer')!.getBoundingClientRect().height
+  const conteudoEl = doc.getElementById('medir-conteudo')!
+
+  // getBoundingClientRect não inclui margin — desconta um respiro extra pra
+  // cobrir a margin-bottom do cabeçalho e a margin-top do rodapé (ver CSS
+  // .doc-header/.doc-footer em estiloBase), senão a última linha de cada
+  // página fica espremida contra o rodapé.
+  const RESPIRO_MARGENS_PX = 60
+  const alturaDisponivel = PAGE_HEIGHT_PX - PAGE_PAD_TOP_PX - PAGE_PAD_BOTTOM_PX - headerH - footerH - RESPIRO_MARGENS_PX
+
+  const paginas: string[] = []
+  let paginaAtual: string[] = []
+  let alturaAtual = 0
+
+  for (const filho of Array.from(conteudoEl.children)) {
+    const alturaFilho = filho.getBoundingClientRect().height
+    // Elemento maior que uma página inteira (ex: tabela grande) — deixa
+    // estourar sozinho numa página própria em vez de tentar dividir.
+    if (alturaAtual > 0 && alturaAtual + alturaFilho > alturaDisponivel) {
+      paginas.push(paginaAtual.join(''))
+      paginaAtual = []
+      alturaAtual = 0
+    }
+    paginaAtual.push(filho.outerHTML)
+    alturaAtual += alturaFilho
+  }
+  if (paginaAtual.length > 0) paginas.push(paginaAtual.join(''))
+
+  return paginas.length > 0 ? paginas : ['']
+}
+
 /** Só funciona no browser (usa iframe/canvas) — nunca chamar em rota de servidor. */
 export async function gerarPdfBlobContrato(conteudoHtml: string, titulo: string): Promise<Blob> {
   const { jsPDF } = await import('jspdf')
   const html2canvas = (await import('html2canvas')).default
 
-  const htmlCompleto = gerarHtmlImpressao(conteudoHtml, titulo)
-
-  // Iframe oculto garante contexto de renderização isolado, CSS no <head> e fontes carregadas
-  const iframe = document.createElement('iframe')
-  iframe.style.cssText = 'position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1;'
-  document.body.appendChild(iframe)
+  const iframe = criarIframeOculto()
 
   try {
-    await new Promise<void>((resolve) => {
-      iframe.onload = () => resolve()
-      iframe.srcdoc = htmlCompleto
-    })
+    const paginas = await paginarConteudo(iframe, conteudoHtml, titulo)
 
-    if (iframe.contentDocument?.fonts?.ready) {
-      await iframe.contentDocument.fonts.ready
-    }
+    // Redimensiona o iframe pra caber a pilha inteira de páginas — sem isso
+    // o html2canvas capturaria as páginas além da primeira fora da área
+    // visível do iframe (altura fixa original, só de 1 página).
+    iframe.style.height = `${paginas.length * PAGE_HEIGHT_PX}px`
 
-    // Espera o logotipo do cabeçalho/rodapé carregar — sem isso o
-    // html2canvas pode capturar antes da imagem chegar e sair em branco.
-    const imagens = Array.from(iframe.contentDocument?.images ?? [])
-    await Promise.all(imagens.map((img) => (img.complete ? Promise.resolve() : new Promise<void>((resolve) => {
-      img.addEventListener('load', () => resolve(), { once: true })
-      img.addEventListener('error', () => resolve(), { once: true })
-    }))))
+    const htmlPaginado = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8" /><title>${titulo}</title><style>
+  ${estiloBase()}
+  .pdf-page {
+    width: ${PAGE_WIDTH_PX}px;
+    height: ${PAGE_HEIGHT_PX}px;
+    padding: ${PAGE_PAD_TOP_PX}px ${PAGE_PAD_X_PX}px ${PAGE_PAD_BOTTOM_PX}px;
+    overflow: hidden;
+    background: #fff;
+  }
+</style></head>
+<body>${paginas.map((p) => `<div class="pdf-page">${cabecalhoInstitucional(titulo)}${p}${rodapeInstitucional()}</div>`).join('')}</body></html>`
 
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    const doc = await carregarNoIframe(iframe, htmlPaginado)
 
     const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
     const A4_WIDTH_MM = 210
     const A4_HEIGHT_MM = 297
 
-    const canvas = await html2canvas(iframe.contentDocument!.body, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#fff',
-      windowWidth: 794,
-    })
-
-    const imgWidth = A4_WIDTH_MM
-    const imgHeight = (canvas.height * A4_WIDTH_MM) / canvas.width
-    const imgData = canvas.toDataURL('image/jpeg', 0.92)
-
-    let yPos = 0
-    let pageNum = 0
-    while (yPos < imgHeight) {
-      if (pageNum > 0) pdf.addPage()
-      pdf.addImage(imgData, 'JPEG', 0, -yPos, imgWidth, imgHeight)
-      yPos += A4_HEIGHT_MM
-      pageNum++
+    const paginaEls = Array.from(doc.getElementsByClassName('pdf-page'))
+    for (let i = 0; i < paginaEls.length; i++) {
+      const canvas = await html2canvas(paginaEls[i] as HTMLElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#fff',
+        windowWidth: PAGE_WIDTH_PX,
+      })
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      if (i > 0) pdf.addPage()
+      pdf.addImage(imgData, 'JPEG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM)
     }
 
     return pdf.output('blob')

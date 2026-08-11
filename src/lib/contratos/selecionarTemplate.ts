@@ -10,8 +10,7 @@ const TEMPLATE_GENERICO = {
   id: 'generico',
   titulo: 'Contrato (modelo genérico)',
   descricao: 'Este tipo de contrato ainda não tem um modelo dedicado — a minuta abaixo é só um ponto de partida.',
-  conteudo: `<h2 style="text-align:center">INSTRUMENTO PARTICULAR</h2>
-<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
+  conteudo: `<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
 <p><em>Este tipo de contrato ainda não tem um modelo próprio no Construtor — os dados já identificados foram preenchidos abaixo, mas as cláusulas precisam ser redigidas manualmente no editor.</em></p>
 <p><strong>Parte 1 (comprador/contratante):</strong> {{comprador_nome}}, CPF {{comprador_cpf}}, RG {{comprador_rg}}, {{comprador_estado_civil}}, {{comprador_profissao}}, residente em {{comprador_endereco}}.</p>
 <p><strong>Parte 2 (vendedor/contratado):</strong> {{vendedor_nome}}, CPF {{vendedor_cpf}}, RG {{vendedor_rg}}, {{vendedor_estado_civil}}, {{vendedor_profissao}}, residente em {{vendedor_endereco}}.</p>
