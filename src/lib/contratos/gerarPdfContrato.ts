@@ -50,16 +50,19 @@ function estiloBase(): string {
     .doc-header { display: flex; align-items: center; gap: 0.8cm; padding-bottom: 0.4cm; margin-bottom: 0.8cm; border-bottom: 2px solid ${COR_VERDE}; }
     .doc-header-logo { height: 1.3cm; width: auto; flex-shrink: 0; }
     .doc-header-title { flex: 1; font-size: 11.5pt; font-weight: bold; color: ${COR_VERDE}; text-decoration: underline; text-align: right; letter-spacing: 0.02em; }
-    .doc-footer { display: flex; align-items: center; gap: 0.6cm; margin-top: 0.6cm; padding-top: 0.3cm; border-top: 1px solid #999; }
+    .doc-footer { display: flex; align-items: center; gap: 0.6cm; padding-top: 0.3cm; border-top: 1px solid #999; }
     .doc-footer-logo { height: 0.65cm; width: auto; flex-shrink: 0; }
     .doc-footer-text p { margin: 0; text-align: left; font-size: 6.5pt; color: #444; }
     .doc-footer-empresa { font-style: italic; margin-top: 0.1cm !important; color: #000 !important; }
-    /* Rodapé sempre no pé da página (padrão ABNT), não colado ao fim do
-       conteúdo — .pdf-page é flex column e margin-top:auto empurra o
-       rodapé pro final mesmo quando a página termina no meio. Não afeta a
-       medição em paginarConteudo() porque ali .doc-footer não está dentro
-       de um container flex, então margin-top:auto resolve pra 0. */
-    .pdf-page > .doc-footer { margin-top: auto; }
+    .doc-page-number { text-align: center; font-size: 8pt; color: #666; margin-top: 0.2cm; }
+    /* Rodapé (+ numeração) sempre no pé da página (padrão ABNT), não colado
+       ao fim do conteúdo — .pdf-page é flex column e margin-top:auto no
+       wrapper empurra o bloco todo pro final mesmo quando a página termina
+       no meio. Não afeta a medição em paginarConteudo() porque ali
+       .doc-footer-wrap não está dentro de um container flex, então
+       margin-top:auto resolve pra 0. */
+    .doc-footer-wrap { margin-top: 0.6cm; }
+    .pdf-page > .doc-footer-wrap { margin-top: auto; }
   `
 }
 
@@ -70,14 +73,17 @@ function cabecalhoInstitucional(titulo: string): string {
   </header>`
 }
 
-function rodapeInstitucional(): string {
-  return `<footer class="doc-footer">
-    <img src="${LOGO_FONTINHAS}" alt="Fontinhas Assessoria" class="doc-footer-logo" />
-    <div class="doc-footer-text">
-      <p>Assessoria em processos de Financiamentos Habitacionais/Contratos particulares/Regularização de Imóveis</p>
-      <p class="doc-footer-empresa">FONTINHAS E FONTINHAS LTDA – 77.543.700/0001-57 · Av. Dr. Gastão Vidigal, 634, loja 03, Edifício Z08, Zona 08 · Maringá/PR · (44) 3262-1685</p>
-    </div>
-  </footer>`
+function rodapeInstitucional(paginaAtual: number, totalPaginas: number): string {
+  return `<div class="doc-footer-wrap">
+    <footer class="doc-footer">
+      <img src="${LOGO_FONTINHAS}" alt="Fontinhas Assessoria" class="doc-footer-logo" />
+      <div class="doc-footer-text">
+        <p>Assessoria em processos de Financiamentos Habitacionais/Contratos particulares/Regularização de Imóveis</p>
+        <p class="doc-footer-empresa">FONTINHAS E FONTINHAS LTDA – 77.543.700/0001-57 · Av. Dr. Gastão Vidigal, 634, loja 03, Edifício Z08, Zona 08 · Maringá/PR · (44) 3262-1685</p>
+      </div>
+    </footer>
+    <p class="doc-page-number">${paginaAtual}/${totalPaginas}</p>
+  </div>`
 }
 
 export async function blobParaBase64(blob: Blob): Promise<string> {
@@ -126,7 +132,7 @@ async function paginarConteudo(iframe: HTMLIFrameElement, conteudoHtml: string, 
 </style></head>
 <body>
   <div id="medir-header">${cabecalhoInstitucional(titulo)}</div>
-  <div id="medir-footer">${rodapeInstitucional()}</div>
+  <div id="medir-footer">${rodapeInstitucional(1, 1)}</div>
   <div id="medir-conteudo">${conteudoHtml}</div>
 </body></html>`
 
@@ -219,7 +225,7 @@ export async function gerarPdfBlobContrato(conteudoHtml: string, titulo: string)
     flex-direction: column;
   }
 </style></head>
-<body>${paginas.map((p) => `<div class="pdf-page">${cabecalhoInstitucional(titulo)}${p}${rodapeInstitucional()}</div>`).join('')}</body></html>`
+<body>${paginas.map((p, i) => `<div class="pdf-page">${cabecalhoInstitucional(titulo)}${p}${rodapeInstitucional(i + 1, paginas.length)}</div>`).join('')}</body></html>`
 
     const doc = await carregarNoIframe(iframe, htmlPaginado)
 
