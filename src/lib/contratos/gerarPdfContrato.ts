@@ -137,12 +137,40 @@ async function paginarConteudo(iframe: HTMLIFrameElement, conteudoHtml: string, 
   const RESPIRO_MARGENS_PX = 60
   const alturaDisponivel = PAGE_HEIGHT_PX - PAGE_PAD_TOP_PX - PAGE_PAD_BOTTOM_PX - headerH - footerH - RESPIRO_MARGENS_PX
 
+  // getBoundingClientRect() não inclui margin — sem isso a soma acumulada
+  // subestima o espaço real de cada elemento (ex: h3 com margin-top: 1.5em)
+  // e o último elemento de uma página pode estourar o `.pdf-page` (que tem
+  // overflow: hidden) e sair cortado no screenshot final.
+  function alturaComMargens(el: Element): number {
+    const rect = el.getBoundingClientRect()
+    const estilo = el.ownerDocument.defaultView!.getComputedStyle(el)
+    return rect.height + parseFloat(estilo.marginTop || '0') + parseFloat(estilo.marginBottom || '0')
+  }
+
   const paginas: string[] = []
   let paginaAtual: string[] = []
   let alturaAtual = 0
 
-  for (const filho of Array.from(conteudoEl.children)) {
-    const alturaFilho = filho.getBoundingClientRect().height
+  const filhos = Array.from(conteudoEl.children)
+  for (let i = 0; i < filhos.length; i++) {
+    const filho = filhos[i]
+    const alturaFilho = alturaComMargens(filho)
+
+    // Evita título de cláusula órfão: se este filho é um heading e cabe
+    // sozinho no fim da página, mas o elemento seguinte (o corpo da
+    // cláusula) não cabe junto, quebra a página antes do heading em vez de
+    // depois — o título some junto com o resto pra próxima página.
+    const ehHeading = /^H[1-6]$/.test(filho.tagName)
+    const proximo = filhos[i + 1]
+    if (ehHeading && proximo && alturaAtual > 0 && alturaAtual + alturaFilho <= alturaDisponivel) {
+      const alturaProximo = alturaComMargens(proximo)
+      if (alturaAtual + alturaFilho + alturaProximo > alturaDisponivel) {
+        paginas.push(paginaAtual.join(''))
+        paginaAtual = []
+        alturaAtual = 0
+      }
+    }
+
     // Elemento maior que uma página inteira (ex: tabela grande) — deixa
     // estourar sozinho numa página própria em vez de tentar dividir.
     if (alturaAtual > 0 && alturaAtual + alturaFilho > alturaDisponivel) {
