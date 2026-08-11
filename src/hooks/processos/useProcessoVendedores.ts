@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoVendedor } from '@/types/processos'
 import { toast } from 'sonner'
 
-const PESSOA_SELECT = 'rg, profissao, nacionalidade, data_nascimento, data_emissao, orgao_emissor, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep'
+const PESSOA_SELECT = 'rg, registro_cnh, profissao, nacionalidade, data_nascimento, data_emissao, orgao_emissor, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep'
 
 async function buscarPessoaIdPorCpf(cpf: string, empresaId: string): Promise<string | null> {
   const cpfNorm = cpf.replace(/\D/g, '')

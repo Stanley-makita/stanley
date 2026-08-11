@@ -13,6 +13,7 @@ function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
   if (!p) return null
   return {
     rg: p.rg,
+    registro_cnh: p.cnh,
     profissao: p.profissao,
     nacionalidade: p.nacionalidade,
     data_nascimento: p.data_nascimento,
@@ -66,7 +67,10 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
     ...processo,
     valor_imovel: resumo.valor ?? processo.valor_imovel,
     valor_entrada: resumo.entrada ?? processo.valor_entrada,
-    valor_financiado: resumo.saldo?.toLowerCase().includes('financ') ? (resumo.valor ?? null) : processo.valor_financiado,
+    // Nunca "valor - entrada": pode haver parcelas intermediárias pagas com
+    // recursos próprios além da entrada (ver observacoes_adicionais/extras
+    // abaixo) — só usa o valor financiado que a IA extraiu explicitamente.
+    valor_financiado: resumo.valor_financiado ?? processo.valor_financiado,
   }
 
   const valorMultaTotal = (resumo.multa_percentual != null && resumo.valor != null)
@@ -78,14 +82,17 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
     compradoresAdaptados: resumo.compradores.map((p) => comprador(p, processo.id, processo.empresa_id)),
     vendedoresAdaptados: resumo.vendedores.map((p) => vendedor(p, processo.id, processo.empresa_id)),
     extras: {
+      imovelDescricao: resumo.imovel.descricao,
       imovelMatricula: resumo.imovel.matricula,
       imovelCartorio: resumo.imovel.cartorio,
       imovelArea: resumo.imovel.area,
       imovelCadastroPrefeitura: resumo.imovel.cadastro_prefeitura,
       imovelEndereco: [resumo.imovel.endereco, resumo.imovel.cidade, resumo.imovel.uf].filter(Boolean).join(', ') || null,
+      bancoFinanciador: resumo.banco_financiador,
       dataPosse: resumo.prazo_posse_dias != null ? `${resumo.prazo_posse_dias} dias após a assinatura` : null,
       valorMultaTotal,
       cidade: resumo.cidade,
+      observacoesPagamento: resumo.observacoes_adicionais,
     },
   }
 }

@@ -29,6 +29,7 @@ export interface PessoaResumo {
   cpf: string | null
   rg: string | null
   orgao_emissor_rg: string | null
+  cnh: string | null
   estado_civil: string | null
   regime_casamento: string | null
   profissao: string | null
@@ -38,6 +39,7 @@ export interface PessoaResumo {
 }
 
 export interface ImovelResumo {
+  descricao: string | null
   endereco: string | null
   matricula: string | null
   cartorio: string | null
@@ -59,6 +61,13 @@ export interface ResumoNegociacao {
   valor: number | null
   entrada: number | null
   saldo: string | null
+  /** Valor efetivamente obtido via crédito bancário — NUNCA presuma que é
+   * "valor - entrada": pode haver parcelas intermediárias pagas com
+   * recursos próprios do comprador (ver banco_financiador e
+   * observacoes_adicionais). Só preencha quando esse valor específico for
+   * informado ou calculável com segurança. */
+  valor_financiado: number | null
+  banco_financiador: string | null
   prazo_posse_dias: number | null
   multa_percentual: number | null
   cidade: string | null
@@ -78,11 +87,14 @@ IMPORTANTE sobre a pasta de cada documento (campo "pasta" em cada item de docume
 - Documentos da pasta "comprador" (RG, CPF, CNH, comprovante de endereço) descrevem SOMENTE o(s) comprador(es) — o endereço encontrado ali é o endereço ATUAL de residência do comprador.
 - Documentos da pasta "vendedor" descrevem SOMENTE o(s) vendedor(es) — o endereço ali é o endereço ATUAL de residência do vendedor.
 - Documentos da pasta "imovel" (matrícula, IPTU, etc.) descrevem o IMÓVEL, não uma pessoa. O endereço que aparece na matrícula é o endereço DO IMÓVEL (campo "imovel.endereco") — NUNCA copie esse endereço para o campo "endereco" de um comprador ou vendedor, mesmo que o nome do proprietário na matrícula bata com o nome do vendedor. Uma pessoa pode ser proprietária de um imóvel e residir em outro endereço/cidade/estado — o endereço pessoal dela só vem de documento anexado nas pastas "comprador"/"vendedor" (comprovante de endereço), nunca da matrícula.
-- Para os dados do imóvel, combine informações de TODOS os documentos da pasta "imovel": se a matrícula não tiver o número de cadastro imobiliário/inscrição municipal (comum em matrículas antigas), procure esse dado em outros documentos da mesma pasta (ex: IPTU) e preencha "cadastro_prefeitura" a partir dali. Sempre que o número de cadastro imobiliário aparecer em QUALQUER documento da pasta "imovel", ele deve constar no resumo — é um dado obrigatório de qualificação do imóvel.
+- Para os dados do imóvel, combine informações de TODOS os documentos da pasta "imovel": se a matrícula não tiver o número de cadastro imobiliário/inscrição municipal (comum em matrículas antigas), procure esse dado em outros documentos da mesma pasta (ex: IPTU) e preencha "cadastro_prefeitura" a partir dali. Sempre que o número de cadastro imobiliário aparecer em QUALQUER documento da pasta "imovel", ele deve constar no resumo — é um dado obrigatório de qualificação do imóvel. Preencha também "descricao" com uma frase curta do tipo/composição do imóvel (ex: "lote de terras nº 04 (parte) da quadra nº 083 do Jardim Alvorada" ou "apartamento nº 208, 3º pavimento, com vaga de garagem"), extraída da matrícula ou de outro documento da pasta — sem esse dado a cláusula de objeto do contrato fica incompleta.
+- A matrícula e a escritura, além de descreverem o imóvel, costumam trazer embutida a QUALIFICAÇÃO CIVIL de quem comprou/vendeu naquela transação anterior (nome, RG, CPF, profissão, estado civil, CNH) — pode aproveitar esses dados de qualificação (profissão, RG, CNH etc.) para a pessoa correspondente SE ela for de fato o comprador ou vendedor desta negociação atual, EXCETO o endereço: o endereço "residente e domiciliado" que aparece dentro da matrícula reflete a situação de quando aquele registro foi lavrado (a pessoa pode ter se mudado depois) — o endereço atual da pessoa continua vindo exclusivamente do comprovante de endereço na pasta "comprador"/"vendedor".
 - Documentos da pasta "terceiros" são de pessoas que não são comprador nem vendedor (procurador, herdeiro, cônjuge não incluído como parte etc.) — não os misture com compradores/vendedores; mencione dados relevantes deles em "observacoes_adicionais" se a descrição livre indicar que são partes do negócio.
 - Documentos da pasta "certidoes" comprovam a regularidade das partes/imóvel — não são fonte de dados cadastrais, apenas de comprovação; mencione a existência delas em "observacoes_adicionais" quando relevante.
 
-Preencha o MÁXIMO de subcampos de cada pessoa/imóvel que estiverem disponíveis no OCR da pasta correspondente (nome, cpf, rg, órgão emissor do RG, estado civil, regime de bens, profissão, nacionalidade, data de nascimento) — não deixe um campo null se o dado está literalmente presente no OCR de um documento daquela pasta.
+Preencha o MÁXIMO de subcampos de cada pessoa/imóvel que estiverem disponíveis no OCR da pasta correspondente (nome, cpf, rg, órgão emissor do RG, cnh, estado civil, regime de bens, profissão, nacionalidade, data de nascimento) — não deixe um campo null se o dado está literalmente presente no OCR de um documento daquela pasta ou na descrição livre.
+
+IMPORTANTE sobre valores de pagamento: "entrada" é só o sinal pago no ato. "valor_financiado" é EXCLUSIVAMENTE o valor obtido via crédito/financiamento bancário — nunca calcule como "valor - entrada", pois pode haver parcelas intermediárias pagas com recursos próprios do comprador antes do financiamento. Se a descrição livre detalhar 3 ou mais parcelas (ex: sinal + recursos próprios + financiamento), preencha "valor_financiado" apenas com a parcela realmente financiada e descreva TODAS as demais parcelas (inclusive as que não são "entrada" nem "valor_financiado") em "observacoes_adicionais", de forma clara e numerada, pois elas serão inseridas como texto complementar na cláusula de preço. Preencha "banco_financiador" com o nome da instituição financeira mencionada (ex: "Caixa Econômica Federal"), mesmo que só conste na descrição livre e não em documento.
 
 Além do resumo, monte um "painel_inteligencia": uma lista curta de itens de checklist, cada um com "texto" e "status" ("ok" se o dado foi encontrado/está completo, "atencao" se falta algo importante — ex: falta documento de uma parte, CPF ausente, imóvel sem matrícula, imóvel sem cadastro na prefeitura em nenhum documento anexado). Seja específico no texto (ex: "Falta documento do vendedor", não "Falta informação").
 
@@ -91,12 +103,14 @@ Marque "atencao" também quando houver DIVERGÊNCIA entre o que os documentos (O
 Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
 
 {
-  "compradores": [{"nome": "...", "cpf": "...", "rg": "...", "orgao_emissor_rg": "...", "estado_civil": "...", "regime_casamento": "..._ou_null", "profissao": "...", "nacionalidade": "...", "data_nascimento": "...", "endereco": "..."}],
-  "vendedores": [{"nome": "...", "cpf": "...", "rg": "...", "orgao_emissor_rg": "...", "estado_civil": "...", "regime_casamento": "..._ou_null", "profissao": "...", "nacionalidade": "...", "data_nascimento": "...", "endereco": "..."}],
-  "imovel": {"endereco": "...", "matricula": "...", "cartorio": "..._ou_null", "area": "..._ou_null", "cadastro_prefeitura": "..._ou_null", "cidade": "...", "uf": "..."},
+  "compradores": [{"nome": "...", "cpf": "...", "rg": "...", "orgao_emissor_rg": "...", "cnh": "..._ou_null", "estado_civil": "...", "regime_casamento": "..._ou_null", "profissao": "...", "nacionalidade": "...", "data_nascimento": "...", "endereco": "..."}],
+  "vendedores": [{"nome": "...", "cpf": "...", "rg": "...", "orgao_emissor_rg": "...", "cnh": "..._ou_null", "estado_civil": "...", "regime_casamento": "..._ou_null", "profissao": "...", "nacionalidade": "...", "data_nascimento": "...", "endereco": "..."}],
+  "imovel": {"descricao": "..._ou_null", "endereco": "...", "matricula": "...", "cartorio": "..._ou_null", "area": "..._ou_null", "cadastro_prefeitura": "..._ou_null", "cidade": "...", "uf": "..."},
   "valor": numero_ou_null,
   "entrada": numero_ou_null,
   "saldo": "financiado|a_vista|texto_livre_ou_null",
+  "valor_financiado": numero_ou_null,
+  "banco_financiador": "..._ou_null",
   "prazo_posse_dias": numero_ou_null,
   "multa_percentual": numero_ou_null,
   "cidade": "..._ou_null",
@@ -104,7 +118,7 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
   "painel_inteligencia": [{"texto": "...", "status": "ok|atencao"}]
 }
 
-Campos de pessoa (compradores/vendedores) sem nenhum dado disponível: use null nos subcampos, mas ainda assim gere um item de painel_inteligencia com status "atencao" avisando que falta o documento dessa parte, se a descrição mencionar a parte mas não houver documento correspondente.`
+Campos de pessoa (compradores/vendedores) sem nenhum dado disponível: use null nos subcampos, mas ainda assim gere um item de painel_inteligencia com status "atencao" avisando que falta o documento dessa parte, se a descrição mencionar a parte mas não houver documento correspondente. Da mesma forma, se "saldo" indicar financiamento mas "valor_financiado" não puder ser determinado com segurança, gere um item de painel_inteligencia com status "atencao" pedindo confirmação do valor financiado.`
 
 export async function entenderNegociacao(input: {
   tipoContrato: string | null
