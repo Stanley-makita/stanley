@@ -3,15 +3,6 @@ export const TEMPLATE_PRESTACAO_SERVICOS = {
   titulo: 'Prestação de Serviços',
   descricao: 'Contrato de prestação de serviços de assessoria imobiliária.',
   conteudo: `
-<p style="text-align:center"><strong>FONTINHAS ASSESSORIA</strong></p>
-<p style="text-align:center">FONTINHAS &amp; FONTINHAS LTDA – CNPJ 77.543.700/0001-57</p>
-
-<hr/>
-
-<p style="text-align:center"><strong>CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE ASSESSORIA</strong></p>
-
-<br/>
-
 <p><strong>1. PARTES CONTRATANTES</strong></p>
 
 <p><strong>CONTRATADA:</strong> FONTINHAS &amp; FONTINHAS LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 77.543.700/0001-57, denominada simplesmente CONTRATADA.</p>

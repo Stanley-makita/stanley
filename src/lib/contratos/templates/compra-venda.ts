@@ -2,9 +2,7 @@ export const TEMPLATE_COMPRA_VENDA = {
   id: 'compra_venda',
   titulo: 'Compromisso de Venda e Compra',
   descricao: 'Contrato de compra e venda de imóvel com partes, valores e condições de pagamento.',
-  conteudo: `<h2 style="text-align:center">INSTRUMENTO PARTICULAR DE COMPROMISSO DE VENDA E COMPRA</h2>
-
-<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
+  conteudo: `<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
 
 <p>Pelo presente instrumento particular, regido pelas disposições dos artigos 481 a 504 do Código Civil Brasileiro e demais legislações pertinentes, as partes abaixo qualificadas reduzem a termo o compromisso de venda e compra do imóvel adiante descrito:</p>
 

@@ -2,9 +2,7 @@ export const TEMPLATE_LOCACAO_IMOVEL = {
   id: 'locacao_imovel',
   titulo: 'Locação de Imóvel',
   descricao: 'Contrato de locação residencial ou comercial com fiador e condições de pagamento.',
-  conteudo: `<h2 style="text-align:center">INSTRUMENTO PARTICULAR DE CONTRATO DE LOCAÇÃO</h2>
-
-<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
+  conteudo: `<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
 
 <p>Pelo presente instrumento particular, as partes abaixo qualificadas:</p>
 

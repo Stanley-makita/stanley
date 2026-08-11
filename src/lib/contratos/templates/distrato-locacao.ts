@@ -2,9 +2,7 @@ export const TEMPLATE_DISTRATO_LOCACAO = {
   id: 'distrato_locacao',
   titulo: 'Distrato de Locação',
   descricao: 'Rescisão amigável de contrato de locação com acerto de valores entre as partes.',
-  conteudo: `<h2 style="text-align:center">INSTRUMENTO PARTICULAR DE DISTRATO DE LOCAÇÃO</h2>
-
-<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
+  conteudo: `<p style="text-align:center">{{cidade_comarca}}, {{data_extenso}}</p>
 
 <p>Pelo presente instrumento particular, as partes abaixo qualificadas:</p>
 
