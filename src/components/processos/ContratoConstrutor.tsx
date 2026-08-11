@@ -15,12 +15,12 @@
  * `AbaContrato` sem alterá-la).
  */
 
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
-  Upload, ChevronDown, ChevronUp, RotateCcw, Trash2, Eye,
+  Upload, ChevronDown, ChevronUp, RotateCcw, Trash2, Eye, FileText, Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -38,8 +38,10 @@ import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasP
 import { useUploadDocumentoPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
 import {
   useEntenderNegociacao, useConfirmarEntendimento, useGerarPlanoContrato, useConfirmarPlano,
-  useSalvarContrato, useRegistrarConfirmacaoGeracao,
+  useSalvarContrato, useRegistrarConfirmacaoGeracao, useProcessoContratos,
 } from '@/hooks/processos/useProcessoContrato'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { type ResumoNegociacao } from '@/lib/contratos/entenderNegociacao'
 import { type PlanoContrato } from '@/lib/contratos/planejarContrato'
 import { validarResumo, type PendenciaResumo } from '@/lib/contratos/validarResumo'
@@ -342,6 +344,67 @@ function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, arquivos
   )
 }
 
+function badgeVersao(status: string | null, pdfGeradoEm: string | null) {
+  if (status === 'closed') return { texto: 'Assinado', className: 'text-green-700 bg-green-50 border-green-200' }
+  if (status === 'running') return { texto: 'Enviado', className: 'text-amber-700 bg-amber-50 border-amber-200' }
+  if (pdfGeradoEm) return { texto: 'PDF gerado', className: 'text-blue-600 bg-blue-50 border-blue-200' }
+  return { texto: 'Minuta', className: 'text-gray-500 bg-gray-100 border-gray-200' }
+}
+
+// Atalho pras minutas/contratos já salvos deste Negócio — sem isso, só dava
+// pra vê-los gerando outro contrato (o que reabre o editor com a lista).
+function CaixaMinutasSalvas({ processoId, onAbrir }: { processoId: string; onAbrir: () => void }) {
+  const { data: contratos = [], isLoading } = useProcessoContratos(processoId)
+  const recentes = [...contratos].reverse().slice(0, 4)
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-700">Minutas e Contratos Salvos</p>
+      </div>
+      <p className="text-[11px] text-gray-400 leading-snug">Versões já geradas para este Negócio.</p>
+
+      {isLoading ? (
+        <p className="text-[11px] text-gray-400">Carregando...</p>
+      ) : recentes.length === 0 ? (
+        <p className="text-[11px] text-gray-400">Nenhuma minuta salva ainda — gere o contrato abaixo.</p>
+      ) : (
+        <ul className="flex flex-col gap-1 border-t border-gray-100 pt-1.5">
+          {recentes.map((c) => {
+            const badge = badgeVersao(c.clicksign_status, c.pdf_gerado_em)
+            return (
+              <li key={c.id}>
+                <button
+                  onClick={onAbrir}
+                  className="flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left text-[11px] text-gray-600 hover:bg-gray-50"
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <FileText className="h-3 w-3 shrink-0 text-fonti-primary" />
+                    <span className="truncate" title={c.titulo}>{c.titulo}</span>
+                    <span className="shrink-0 text-gray-400">
+                      v{c.versao} · {format(new Date(c.created_at), 'dd/MM/yy', { locale: ptBR })}
+                    </span>
+                  </span>
+                  <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${badge.className}`}>
+                    {badge.texto}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {contratos.length > 0 && (
+        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={onAbrir}>
+          <Clock className="h-3.5 w-3.5" />
+          Ver {contratos.length > 1 ? `todas as ${contratos.length} versões` : 'a minuta salva'}
+        </Button>
+      )}
+    </div>
+  )
+}
+
 type EstadoGeracao = 'idle' | 'processando' | 'revisao' | 'pronto'
 
 export function ContratoConstrutor({ processo }: { processo: Processo }) {
@@ -351,6 +414,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
 
   const { data: negocioVinculado } = useNegocioFinanciamentoVinculado(pessoaId, processo.id)
   const { data: documentosPastas = {} } = useDocumentosPorPasta(processo.id)
+  const { data: contratosExistentes, isLoading: carregandoContratos } = useProcessoContratos(processo.id)
   const importarDocumentos = useImportarDocumentosNegocio(processo.id)
   const atualizar = useAtualizarTipoValorContrato(processo.id)
   const entenderNegociacao = useEntenderNegociacao(processo.id)
@@ -370,6 +434,18 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const [resumoAtual, setResumoAtual] = useState<ResumoNegociacao | null>(null)
   const [planoAtual, setPlanoAtual] = useState<PlanoContrato | null>(null)
   const [pendencias, setPendencias] = useState<PendenciaResumo[]>([])
+  const [jaVerificouExistentes, setJaVerificouExistentes] = useState(false)
+
+  // Ao abrir a tela, se este Negócio já tem minuta/contrato salvo, pula
+  // direto pro editor (que já mostra a lista de versões) em vez de sempre
+  // cair na tela de upload/geração — antes só dava pra ver o que já existia
+  // gerando outro contrato.
+  useEffect(() => {
+    if (!jaVerificouExistentes && !carregandoContratos) {
+      setJaVerificouExistentes(true)
+      if ((contratosExistentes?.length ?? 0) > 0) setEstado('pronto')
+    }
+  }, [jaVerificouExistentes, carregandoContratos, contratosExistentes])
 
   function salvarTipoValor(patch: Partial<{ tipo: TipoContrato | ''; valor: string }>) {
     const tipo = patch.tipo !== undefined ? patch.tipo : tipoContrato
@@ -505,6 +581,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
                 arquivos={documentosPastas[pasta.codigo] ?? []}
               />
             ))}
+            <CaixaMinutasSalvas processoId={processo.id} onAbrir={() => setEstado('pronto')} />
           </div>
           <button
             onClick={() => setDocumentosExpandido((v) => !v)}
