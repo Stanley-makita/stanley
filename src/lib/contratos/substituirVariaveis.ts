@@ -80,14 +80,17 @@ function buildEndereco(p: { endereco_rua?: string | null; endereco_numero?: stri
 }
 
 export interface ExtrasResumoNegociacao {
+  imovelDescricao?: string | null
   imovelMatricula?: string | null
   imovelCartorio?: string | null
   imovelArea?: string | null
   imovelCadastroPrefeitura?: string | null
   imovelEndereco?: string | null
+  bancoFinanciador?: string | null
   dataPosse?: string | null
   valorMultaTotal?: string | null
   cidade?: string | null
+  observacoesPagamento?: string | null
 }
 
 export function substituirVariaveis(
@@ -125,7 +128,7 @@ export function substituirVariaveis(
     comprador_nacionalidade: cp?.nacionalidade?.trim() || 'brasileiro(a)',
     comprador_estado_civil: val(cp?.estado_civil),
     comprador_profissao: val(cp?.profissao),
-    comprador_cnh: '[A PREENCHER]',
+    comprador_cnh: val(cp?.registro_cnh),
     comprador_endereco: buildEndereco(cp),
     comprador_conjuge: compradorConjugeNome ? `, cônjuge ${compradorConjugeNome}` : '',
 
@@ -140,7 +143,7 @@ export function substituirVariaveis(
     vendedor_rg: val(vp?.rg),
     vendedor_nacionalidade: vp?.nacionalidade?.trim() || 'brasileiro(a)',
     vendedor_profissao: val(vp?.profissao),
-    vendedor_cnh: '[A PREENCHER]',
+    vendedor_cnh: val(vp?.registro_cnh),
     vendedor_endereco: buildEndereco(vp),
     vendedor_conjuge: vendedorConjugeNome ? `, cônjuge ${vendedorConjugeNome}` : '',
 
@@ -148,7 +151,7 @@ export function substituirVariaveis(
     locador_nome: val(vendedor?.nome),
     locador_cpf: val(vendedor?.cpf),
     locador_rg: val(vp?.rg),
-    locador_cnh: '[A PREENCHER]',
+    locador_cnh: val(vp?.registro_cnh),
     locador_profissao: val(vp?.profissao),
     locador_endereco: buildEndereco(vp),
     locador_conjuge: vendedorConjugeNome ? `, cônjuge ${vendedorConjugeNome}` : '',
@@ -166,7 +169,7 @@ export function substituirVariaveis(
     contratante_nacionalidade: val(cp?.nacionalidade),
     contratante_estado_civil: val(cp?.estado_civil),
     contratante_profissao: val(cp?.profissao),
-    contratante_cnh: '[A PREENCHER]',
+    contratante_cnh: val(cp?.registro_cnh),
     contratante_endereco: buildEndereco(cp),
 
     // Fiador — não há tabela de fiadores no sistema ainda
@@ -266,18 +269,29 @@ export function substituirVariaveis(
       : '[A PREENCHER]',
     plataforma_assinatura: '[A PREENCHER]',
     cidade_foro: 'Maringá/PR',
+
+    // Texto complementar da cláusula de preço (ex: parcelas intermediárias
+    // pagas com recursos próprios, além de entrada e financiamento) — vazio
+    // por padrão pra não aparecer como "[A PREENCHER]" quando não há nada a
+    // acrescentar; só populado via override abaixo.
+    clausula_pagamento_observacoes: '',
   }
 
   // Overrides do Resumo Estruturado da Negociação (etapa "Compreensão da
   // Negociação" do Construtor de Contratos) — campos que a IA já entendeu e o
   // usuário já confirmou, então têm prioridade sobre os defaults acima.
+  if (extras?.imovelDescricao) variaveis.imovel_descricao_completa = extras.imovelDescricao
   if (extras?.imovelMatricula) variaveis.imovel_matricula = extras.imovelMatricula
   if (extras?.imovelCartorio) variaveis.imovel_cartorio = extras.imovelCartorio
   if (extras?.imovelArea) variaveis.imovel_area = extras.imovelArea
   if (extras?.imovelCadastroPrefeitura) variaveis.imovel_cadastro_prefeitura = extras.imovelCadastroPrefeitura
   if (extras?.imovelEndereco) variaveis.imovel_endereco = extras.imovelEndereco
+  if (extras?.bancoFinanciador) variaveis.banco_financiador = extras.bancoFinanciador
   if (extras?.dataPosse) variaveis.data_posse = extras.dataPosse
   if (extras?.valorMultaTotal) variaveis.valor_multa_total = extras.valorMultaTotal
+  if (extras?.observacoesPagamento) {
+    variaveis.clausula_pagamento_observacoes = `<p><strong>Parágrafo Único:</strong> ${extras.observacoesPagamento}</p>`
+  }
   if (extras?.cidade) {
     variaveis.cidade = extras.cidade
     variaveis.cidade_comarca = `${extras.cidade}/PR`

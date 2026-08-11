@@ -178,6 +178,7 @@ export interface ProcessoCobranca {
 
 export interface PessoaDetalhes {
   rg: string | null
+  registro_cnh: string | null
   profissao: string | null
   nacionalidade: string | null
   data_nascimento: string | null

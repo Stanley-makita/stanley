@@ -26,6 +26,8 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <p><strong>b) Saldo/Financiamento:</strong> {{valor_financiado}} ({{valor_financiado_extenso}}), a ser quitado junto ao {{banco_financiador}}, mediante crédito imobiliário, cujo saldo devedor será assumido integralmente pelo(a) COMPROMISSÁRIO(A) COMPRADOR(A).</p>
 
+{{clausula_pagamento_observacoes}}
+
 <p>Os dados bancários para eventual transferência são: Banco {{conta_banco}}, Agência {{agencia}}, em nome de {{titular_conta}}.</p>
 
 <h3>CLÁUSULA TERCEIRA — DO INADIMPLEMENTO</h3>
