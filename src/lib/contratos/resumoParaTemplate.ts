@@ -79,8 +79,8 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
     valor_imovel: resumo.valor ?? processo.valor_imovel,
     valor_entrada: resumo.entrada ?? processo.valor_entrada,
     // Nunca "valor - entrada": pode haver parcelas intermediárias pagas com
-    // recursos próprios além da entrada (ver observacoes_adicionais/extras
-    // abaixo) — só usa o valor financiado que a IA extraiu explicitamente.
+    // recursos próprios além da entrada (ver clausula_pagamento_complementar/
+    // extras abaixo) — só usa o valor financiado que a IA extraiu explicitamente.
     valor_financiado: resumo.valor_financiado ?? processo.valor_financiado,
   }
 
@@ -112,7 +112,10 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
       valorMultaTotal,
       multaPercentualTexto: resumo.multa_percentual != null ? percentualTexto(resumo.multa_percentual) : null,
       cidade: resumo.cidade,
-      observacoesPagamento: resumo.observacoes_adicionais,
+      // Só o que é texto de cláusula (parcelas de pagamento extras) —
+      // nunca análise/divergência, que fica em painel_inteligencia e não
+      // chega até aqui (ver separação em entenderNegociacao.ts).
+      observacoesPagamento: resumo.clausula_pagamento_complementar,
       listaCertidoes: resumo.certidoes.length > 0 ? resumo.certidoes.map(certidaoTexto).join('; ') : null,
       corretorNome: resumo.corretor?.nome ?? null,
       corretorCpf: resumo.corretor?.cpf ?? null,
