@@ -99,8 +99,8 @@ export interface ResumoNegociacao {
   /** Valor efetivamente obtido via crédito bancário — NUNCA presuma que é
    * "valor - entrada": pode haver parcelas intermediárias pagas com
    * recursos próprios do comprador (ver banco_financiador e
-   * observacoes_adicionais). Só preencha quando esse valor específico for
-   * informado ou calculável com segurança. */
+   * clausula_pagamento_complementar). Só preencha quando esse valor
+   * específico for informado ou calculável com segurança. */
   valor_financiado: number | null
   banco_financiador: string | null
   /** Mantido por compatibilidade — prefira condicao_posse pra qualquer
@@ -116,7 +116,15 @@ export interface ResumoNegociacao {
   condicao_posse: string | null
   multa_percentual: number | null
   cidade: string | null
-  observacoes_adicionais: string | null
+  /** APENAS texto que vai virar cláusula do contrato (ex: parcelas de
+   * pagamento além de entrada/financiamento, condição extra do preço) —
+   * é inserido literalmente como "Parágrafo Único" na cláusula de preço.
+   * NUNCA coloque aqui: divergências entre fontes, ressalvas de confiança,
+   * explicações sobre documentos, contexto de estado civil/situação das
+   * partes ou qualquer outra observação de bastidor — isso é análise, não
+   * cláusula, e vai em painel_inteligencia. Se não houver nenhuma condição
+   * de pagamento extra pra registrar, use null (não force um parágrafo). */
+  clausula_pagamento_complementar: string | null
   painel_inteligencia: ChecklistItem[]
   /** Testemunhas do instrumento — normalmente vêm da descrição livre, não
    * de documento. Só inclua quem foi explicitamente indicado como
@@ -147,8 +155,13 @@ IMPORTANTE sobre a pasta de cada documento (campo "pasta" em cada item de docume
 - Documentos da pasta "imovel" (matrícula, IPTU, etc.) descrevem o IMÓVEL, não uma pessoa. O endereço que aparece na matrícula é o endereço DO IMÓVEL (campo "imovel.endereco") — NUNCA copie esse endereço para o campo "endereco" de um comprador ou vendedor, mesmo que o nome do proprietário na matrícula bata com o nome do vendedor. Uma pessoa pode ser proprietária de um imóvel e residir em outro endereço/cidade/estado — o endereço pessoal dela só vem de documento anexado nas pastas "comprador"/"vendedor" (comprovante de endereço), nunca da matrícula.
 - Para os dados do imóvel, combine informações de TODOS os documentos da pasta "imovel": se a matrícula não tiver o número de cadastro imobiliário/inscrição municipal (comum em matrículas antigas), procure esse dado em outros documentos da mesma pasta (ex: IPTU) e preencha "cadastro_prefeitura" a partir dali. Sempre que o número de cadastro imobiliário aparecer em QUALQUER documento da pasta "imovel", ele deve constar no resumo — é um dado obrigatório de qualificação do imóvel. Preencha também "descricao" com uma frase curta do tipo/composição do imóvel (ex: "lote de terras nº 04 (parte) da quadra nº 083 do Jardim Alvorada" ou "apartamento nº 208, 3º pavimento, com vaga de garagem"), extraída da matrícula ou de outro documento da pasta — sem esse dado a cláusula de objeto do contrato fica incompleta.
 - A matrícula e a escritura, além de descreverem o imóvel, costumam trazer embutida a QUALIFICAÇÃO CIVIL de quem comprou/vendeu naquela transação anterior (nome, RG, CPF, profissão, estado civil, CNH) — pode aproveitar esses dados de qualificação (profissão, RG, CNH etc.) para a pessoa correspondente SE ela for de fato o comprador ou vendedor desta negociação atual, EXCETO o endereço: o endereço "residente e domiciliado" que aparece dentro da matrícula reflete a situação de quando aquele registro foi lavrado (a pessoa pode ter se mudado depois) — o endereço atual da pessoa continua vindo exclusivamente do comprovante de endereço na pasta "comprador"/"vendedor".
-- Documentos da pasta "terceiros" são de pessoas que não são comprador nem vendedor (procurador, herdeiro, cônjuge não incluído como parte etc.) — não os misture com compradores/vendedores; mencione dados relevantes deles em "observacoes_adicionais" se a descrição livre indicar que são partes do negócio.
-- Documentos da pasta "certidoes" comprovam a regularidade das partes/imóvel — extraia cada uma como um item da lista "certidoes" (tipo, número, órgão emissor, data de emissão, validade), não como texto solto em "observacoes_adicionais". Uma certidão sem número/órgão identificável ainda vale um item (com os campos que faltarem em null) — não descarte a menção só porque falta um dado.
+- Documentos da pasta "terceiros" são de pessoas que não são comprador nem vendedor (procurador, herdeiro, cônjuge não incluído como parte etc.) — não os misture com compradores/vendedores; se a descrição livre indicar que são partes do negócio, registre um item em "painel_inteligencia" mencionando quem são e por quê (isso é contexto pro operador revisar, não texto de cláusula).
+- Documentos da pasta "certidoes" comprovam a regularidade das partes/imóvel — extraia cada uma como um item da lista "certidoes" (tipo, número, órgão emissor, data de emissão, validade), não como texto solto em "clausula_pagamento_complementar". Uma certidão sem número/órgão identificável ainda vale um item (com os campos que faltarem em null) — não descarte a menção só porque falta um dado.
+
+IMPORTANTE — separe ANÁLISE de CLÁUSULA, são coisas diferentes que vão pra lugares diferentes:
+- "painel_inteligencia" é a sua ANÁLISE: divergências entre fontes, dados de baixa confiança, contexto sobre por que um documento diz uma coisa e outro diz outra, observações sobre estado civil/situação das partes que ajudam o operador a entender o caso. NADA disso é lido pelas partes — é uso interno.
+- "clausula_pagamento_complementar" (e qualquer outro campo que alimente texto de cláusula) é o CONTRATO: só o que efetivamente vai ser lido e assinado pelas partes. Escreva nesse tom — direto, jurídico, sem parênteses explicativos, sem "nota: ...", sem mencionar de onde veio o dado ou por que você tem certeza dele.
+- Teste rápido antes de escrever em qualquer campo que vira cláusula: "isso é uma condição do negócio, ou é uma nota minha sobre os documentos?" Condição do negócio → cláusula. Nota sobre os documentos → painel_inteligencia. Nunca os dois no mesmo campo.
 
 Testemunhas, corretor e comissão normalmente vêm da DESCRIÇÃO LIVRE (o atendente digitou), não de documento — mas se algum documento também trouxer esses dados, prefira o dado mais completo. Regras:
 - "testemunhas": só inclua quem foi explicitamente indicado como testemunha do instrumento — não confunda com corretor, procurador ou parte do negócio.
@@ -157,7 +170,7 @@ Testemunhas, corretor e comissão normalmente vêm da DESCRIÇÃO LIVRE (o atend
 
 Preencha o MÁXIMO de subcampos de cada pessoa/imóvel que estiverem disponíveis no OCR da pasta correspondente (nome, cpf, rg, órgão emissor do RG, cnh, estado civil, regime de bens, profissão, nacionalidade, data de nascimento) — não deixe um campo null se o dado está literalmente presente no OCR de um documento daquela pasta ou na descrição livre.
 
-IMPORTANTE sobre valores de pagamento: "entrada" é só o sinal pago no ato. "valor_financiado" é EXCLUSIVAMENTE o valor obtido via crédito/financiamento bancário — nunca calcule como "valor - entrada", pois pode haver parcelas intermediárias pagas com recursos próprios do comprador antes do financiamento. Se a descrição livre detalhar 3 ou mais parcelas (ex: sinal + recursos próprios + financiamento), preencha "valor_financiado" apenas com a parcela realmente financiada e descreva TODAS as demais parcelas (inclusive as que não são "entrada" nem "valor_financiado") em "observacoes_adicionais", de forma clara e numerada, pois elas serão inseridas como texto complementar na cláusula de preço. Preencha "banco_financiador" com o nome da instituição financeira mencionada (ex: "Caixa Econômica Federal"), mesmo que só conste na descrição livre e não em documento.
+IMPORTANTE sobre valores de pagamento: "entrada" é só o sinal pago no ato. "valor_financiado" é EXCLUSIVAMENTE o valor obtido via crédito/financiamento bancário — nunca calcule como "valor - entrada", pois pode haver parcelas intermediárias pagas com recursos próprios do comprador antes do financiamento. Se a descrição livre detalhar 3 ou mais parcelas (ex: sinal + recursos próprios + financiamento), preencha "valor_financiado" apenas com a parcela realmente financiada e descreva TODAS as demais parcelas (inclusive as que não são "entrada" nem "valor_financiado") em "clausula_pagamento_complementar", de forma clara e numerada, redigida como cláusula (ex: "(1) R$ 150.000,00 pagos pelos compradores com recursos próprios no momento da assinatura do contrato de financiamento.") — sem comentários sobre de onde veio o dado. Preencha "banco_financiador" com o nome da instituição financeira mencionada (ex: "Caixa Econômica Federal"), mesmo que só conste na descrição livre e não em documento.
 
 Além do resumo, monte um "painel_inteligencia": uma lista curta de itens de checklist, cada um com "texto" e "status" ("ok" se o dado foi encontrado/está completo, "atencao" se falta algo importante — ex: falta documento de uma parte, CPF ausente, imóvel sem matrícula, imóvel sem cadastro na prefeitura em nenhum documento anexado). Seja específico no texto (ex: "Falta documento do vendedor", não "Falta informação").
 
@@ -178,7 +191,7 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
   "condicao_posse": "..._ou_null",
   "multa_percentual": numero_ou_null,
   "cidade": "..._ou_null",
-  "observacoes_adicionais": "..._ou_null",
+  "clausula_pagamento_complementar": "..._ou_null",
   "painel_inteligencia": [{"texto": "...", "status": "ok|atencao"}],
   "testemunhas": [{"nome": "...", "cpf": "..._ou_null", "rg": "..._ou_null", "profissao": "..._ou_null", "endereco": "..._ou_null", "email": "..._ou_null"}],
   "corretor": {"nome": "...", "cpf": "..._ou_null", "creci": "..._ou_null", "email": "..._ou_null", "telefone": "..._ou_null"} ,
