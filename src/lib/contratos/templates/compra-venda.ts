@@ -1,3 +1,24 @@
+/**
+ * Cláusulas PROTEGIDAS (Fase 3 do diagnóstico do Construtor de Contratos) —
+ * revisadas contra um contrato real da Fontinhas ("Contrato Carolina e Bruna
+ * — Wagner") pra bater com o padrão jurídico já em uso pela empresa, não
+ * inventado neste arquivo. Só o texto institucional é protegido; nomes,
+ * valores, datas e condições da negociação continuam vindo de {{variável}}.
+ * Mudar o texto abaixo é uma decisão jurídica, não só de redação — qualquer
+ * alteração deveria ser conferida contra um contrato real aprovado, do
+ * mesmo jeito que esta revisão foi feita:
+ *   - CLÁUSULA QUARTA (sanção penal): base da multa é o valor JÁ PAGO pelos
+ *     compradores até a rescisão, não o valor total da negociação — bug
+ *     jurídico real corrigido aqui (o texto anterior, sem fonte real,
+ *     cobrava sobre o valor total, uma base bem maior).
+ *   - CLÁUSULA QUINTA (escritura): outorga condicionada também ao pedido da
+ *     instituição financeira, não só à integralização do preço.
+ *   - CLÁUSULA DÉCIMA QUINTA (proteção de dados): cita a legislação
+ *     completa (CF, CDC, Código Civil, Marco Civil da Internet + decreto,
+ *     LGPD) — a versão anterior citava só a LGPD, mais curta que o padrão
+ *     real usado pela empresa (é este o achado do diagnóstico original:
+ *     "o Fonti reduziu a cláusula de LGPD pra um parágrafo genérico").
+ */
 export const TEMPLATE_COMPRA_VENDA = {
   id: 'compra_venda',
   titulo: 'Compromisso de Venda e Compra',
@@ -34,11 +55,11 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <h3>CLÁUSULA QUARTA — DA SANÇÃO PENAL</h3>
 
-<p>A parte que, por inadimplência ou desistência das obrigações avençadas, der causa à rescisão contratual, ficará sujeita à multa contratual equivalente a {{multa_percentual_texto}} sobre o valor desta tratativa, sem prejuízo das perdas e danos que a parte infratora causar à parte inocente, bem como custas, emolumentos, comissão de corretagem e demais despesas judiciais e extrajudiciais, além de honorários advocatícios relativos à sucumbência.</p>
+<p>A parte que, por inadimplência ou desistência das obrigações avençadas, der causa à rescisão contratual, ficará sujeita à multa contratual equivalente a {{multa_percentual_texto}} sobre o valor pago pelo(a) COMPROMISSÁRIO(A) COMPRADOR(A) até então, sem prejuízo das perdas e danos que a parte infratora causar à parte inocente, bem como custas, emolumentos, comissão de corretagem e demais despesas judiciais e extrajudiciais, além de honorários advocatícios relativos à sucumbência.</p>
 
 <h3>CLÁUSULA QUINTA — DA ESCRITURA</h3>
 
-<p>A escritura pública de venda e compra em favor do(a) COMPROMISSÁRIO(A) COMPRADOR(A) será outorgada no ato da integralização do preço desta avença, correndo as despesas de escrituração por conta exclusiva do(a) COMPROMISSÁRIO(A) COMPRADOR(A).</p>
+<p>A escritura pública de venda e compra em favor do(a) COMPROMISSÁRIO(A) COMPRADOR(A) será outorgada após a integralização do preço desta avença ou quando solicitada pela instituição financeira, em virtude do financiamento pleiteado, correndo as despesas de escrituração por conta exclusiva do(a) COMPROMISSÁRIO(A) COMPRADOR(A).</p>
 
 <h3>CLÁUSULA SEXTA — DA POSSE</h3>
 
@@ -78,7 +99,7 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <h3>CLÁUSULA DÉCIMA QUINTA — DA PROTEÇÃO DE DADOS</h3>
 
-<p>De acordo com a Lei Geral de Proteção de Dados (Lei nº 13.709/18), as partes declaram concordar que os dados fornecidos serão acessados, utilizados e tratados, eletrônica e manualmente, com a finalidade exclusiva de atingir o objeto da presente contratação, permanecendo armazenados até o encerramento das obrigações contratuais, observada toda a legislação aplicável sobre privacidade e proteção de dados.</p>
+<p>De acordo com a Lei Geral de Proteção de Dados, as partes declaram concordar que os dados fornecidos serão acessados, utilizados e tratados, eletrônica e manualmente, com a finalidade de atingir o objeto da presente contratação (elaboração deste Instrumento Particular de Compromisso de Venda e Compra). Dessa forma, os dados permanecerão armazenados até o encerramento das obrigações contratuais, devendo ser cumprida toda a legislação aplicável sobre privacidade e proteção de dados, incluindo, mas não se limitando, à Constituição Federal, ao Código de Defesa do Consumidor, ao Código Civil, ao Marco Civil da Internet (Lei Federal nº 12.965/14) e seu decreto regulamentador (Decreto nº 8.771/16), à Lei Geral de Proteção de Dados (Lei nº 13.709/18) e às demais normas setoriais ou regras sobre o assunto.</p>
 
 <h3>CLÁUSULA DÉCIMA SEXTA — DO FORO</h3>
 
