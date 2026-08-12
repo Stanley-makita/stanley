@@ -61,6 +61,52 @@ describe('percentualTexto', () => {
   })
 })
 
+describe('substituirVariaveis — extras da Fase 1 (schema expandido)', () => {
+  it('lista_certidoes só aparece quando informado nos extras', () => {
+    const semExtras = substituirVariaveis('{{lista_certidoes}}', processoBase, [], [])
+    expect(semExtras).toBe('[A PREENCHER]')
+
+    const comExtras = substituirVariaveis('{{lista_certidoes}}', processoBase, [], [], undefined, {
+      listaCertidoes: 'Certidão de Situação Jurídica nº 21471/2024',
+    })
+    expect(comExtras).toBe('Certidão de Situação Jurídica nº 21471/2024')
+  })
+
+  it('corretor/comissão vêm do resumo, não só do cadastro do processo', () => {
+    const html = substituirVariaveis(
+      '{{corretor_nome}} {{corretor_cpf}} {{valor_comissao}} {{corretagem_responsavel}}{{corretagem_momento_pagamento}}',
+      processoBase, [], [], undefined,
+      {
+        corretorNome: 'Ricardo Henrique Martins',
+        corretorCpf: '321.654.987-20',
+        valorComissao: 'R$ 23.400,00',
+        corretagemResponsavel: 'do(a) COMPROMITENTE VENDEDOR(A)',
+        corretagemMomentoPagamento: ', devida na assinatura do contrato de financiamento',
+      },
+    )
+    expect(html).toBe('Ricardo Henrique Martins 321.654.987-20 R$ 23.400,00 do(a) COMPROMITENTE VENDEDOR(A), devida na assinatura do contrato de financiamento')
+  })
+
+  it('testemunhas vêm dos extras quando informadas', () => {
+    const html = substituirVariaveis('{{testemunha1_nome}}/{{testemunha1_cpf}}', processoBase, [], [], undefined, {
+      testemunha1Nome: 'Carlos Eduardo Moreira',
+      testemunha1Cpf: '123.456.789-09',
+    })
+    expect(html).toBe('Carlos Eduardo Moreira/123.456.789-09')
+  })
+
+  it('condicao_posse_evento some quando a posse vem de condição composta (não escritura+quitação)', () => {
+    const padrao = substituirVariaveis('{{data_posse}}{{condicao_posse_evento}}', processoBase, [], [])
+    expect(padrao).toBe('[A PREENCHER], mediante a assinatura da escritura pública de venda e compra e quitação integral do preço')
+
+    const composta = substituirVariaveis('{{data_posse}}{{condicao_posse_evento}}', processoBase, [], [], undefined, {
+      dataPosse: 'no dia da assinatura do contrato de financiamento',
+      condicaoPosseComposta: true,
+    })
+    expect(composta).toBe('no dia da assinatura do contrato de financiamento')
+  })
+})
+
 describe('valorPorExtenso — regressão do bug " e oitenta mil reais"', () => {
   it('não deixa "e" solto quando a centena é zero (ex: 80 mil)', () => {
     expect(valorPorExtenso(80000)).toBe('oitenta mil reais')

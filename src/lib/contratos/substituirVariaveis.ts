@@ -165,10 +165,26 @@ export interface ExtrasResumoNegociacao {
   imovelEndereco?: string | null
   bancoFinanciador?: string | null
   dataPosse?: string | null
+  /** true quando dataPosse veio de condicao_posse (texto livre já
+   * autossuficiente) — nesse caso o "mediante ..." padrão de
+   * condicao_posse_evento fica vazio pra não duplicar/contradizer. */
+  condicaoPosseComposta?: boolean
   valorMultaTotal?: string | null
   multaPercentualTexto?: string | null
   cidade?: string | null
   observacoesPagamento?: string | null
+  listaCertidoes?: string | null
+  corretorNome?: string | null
+  corretorCpf?: string | null
+  corretorCreci?: string | null
+  valorComissao?: string | null
+  valorComissaoExtenso?: string | null
+  corretagemResponsavel?: string | null
+  corretagemMomentoPagamento?: string | null
+  testemunha1Nome?: string | null
+  testemunha1Cpf?: string | null
+  testemunha2Nome?: string | null
+  testemunha2Cpf?: string | null
 }
 
 export function substituirVariaveis(
@@ -318,15 +334,25 @@ export function substituirVariaveis(
     agencia: val(vendedor?.agencia),
     titular_conta: val(vendedor?.nome),
 
-    // Corretor
+    // Corretor — nome/CRECI por padrão vêm do cadastro do Negócio; CPF e
+    // comissão só existem se vierem do Resumo da Negociação (extras abaixo),
+    // já que não há campo pra isso no cadastro do processo.
     corretor_nome: val(processo.corretor_nome),
     corretor_creci: val(processo.corretor_creci),
     corretor_cpf: '[A PREENCHER]',
     valor_comissao: '[A PREENCHER]',
     valor_comissao_extenso: '[A PREENCHER]',
+    corretagem_responsavel: 'do(a) COMPROMITENTE VENDEDOR(A)',
+    corretagem_momento_pagamento: '',
 
-    // Posse
+    // Posse — condicao_posse_evento é o "mediante ..." que fecha a frase de
+    // posse; o padrão (escritura + quitação integral) só faz sentido quando
+    // data_posse é um prazo em dias. Quando a negociação já traz uma
+    // condição composta (extras.dataPosse vindo de condicao_posse), essa
+    // condição já é auto-suficiente e o "mediante" padrão viraria
+    // redundante/contraditório — nesse caso fica vazio (ver override abaixo).
     data_posse: '[A PREENCHER]',
+    condicao_posse_evento: ', mediante a assinatura da escritura pública de venda e compra e quitação integral do preço',
 
     // Locação
     valor_aluguel: '[A PREENCHER]',
@@ -404,8 +430,21 @@ export function substituirVariaveis(
   if (extras?.imovelEndereco) variaveis.imovel_endereco = extras.imovelEndereco
   if (extras?.bancoFinanciador) variaveis.banco_financiador = extras.bancoFinanciador
   if (extras?.dataPosse) variaveis.data_posse = extras.dataPosse
+  if (extras?.condicaoPosseComposta) variaveis.condicao_posse_evento = ''
   if (extras?.valorMultaTotal) variaveis.valor_multa_total = extras.valorMultaTotal
   if (extras?.multaPercentualTexto) variaveis.multa_percentual_texto = extras.multaPercentualTexto
+  if (extras?.listaCertidoes) variaveis.lista_certidoes = extras.listaCertidoes
+  if (extras?.corretorNome) variaveis.corretor_nome = extras.corretorNome
+  if (extras?.corretorCpf) variaveis.corretor_cpf = extras.corretorCpf
+  if (extras?.corretorCreci) variaveis.corretor_creci = extras.corretorCreci
+  if (extras?.valorComissao) variaveis.valor_comissao = extras.valorComissao
+  if (extras?.valorComissaoExtenso) variaveis.valor_comissao_extenso = extras.valorComissaoExtenso
+  if (extras?.corretagemResponsavel) variaveis.corretagem_responsavel = extras.corretagemResponsavel
+  if (extras?.corretagemMomentoPagamento) variaveis.corretagem_momento_pagamento = extras.corretagemMomentoPagamento
+  if (extras?.testemunha1Nome) variaveis.testemunha1_nome = extras.testemunha1Nome
+  if (extras?.testemunha1Cpf) variaveis.testemunha1_cpf = extras.testemunha1Cpf
+  if (extras?.testemunha2Nome) variaveis.testemunha2_nome = extras.testemunha2Nome
+  if (extras?.testemunha2Cpf) variaveis.testemunha2_cpf = extras.testemunha2Cpf
   if (extras?.observacoesPagamento) {
     variaveis.clausula_pagamento_observacoes = `<p><strong>Parágrafo Único:</strong> ${extras.observacoesPagamento}</p>`
   }
