@@ -35,9 +35,16 @@ function centenasExtenso(n: number): string {
   if (n === 100) return 'cem'
   const c = Math.floor(n / 100)
   const resto = n % 100
-  const centena = CENTENAS[c]
-  if (resto === 0) return centena
   const dezena = resto < 20 ? UNIDADES[resto] : DEZENAS[Math.floor(resto / 10)] + (resto % 10 !== 0 ? ' e ' + UNIDADES[resto % 10] : '')
+  // Sem centena (ex: 80 → "oitenta") — sem isso, virava " e oitenta" (achado
+  // ao escrever teste pro percentual novo; mesmo bug já aparecia em produção
+  // como "R$ 80.000,00 ( e oitenta mil reais)").
+  if (c === 0) return dezena
+  // "cento" (não "cem") quando há resto — "cento e cinquenta", não "cem e
+  // cinquenta". "cem" sozinho só se aplica ao número exato 100, já tratado
+  // acima.
+  const centena = c === 1 && resto !== 0 ? 'cento' : CENTENAS[c]
+  if (resto === 0) return centena
   return centena + ' e ' + dezena
 }
 
@@ -79,6 +86,76 @@ function buildEndereco(p: { endereco_rua?: string | null; endereco_numero?: stri
   return partes.length > 0 ? partes.join(', ') : '[A PREENCHER]'
 }
 
+/**
+ * Qualificação civil de UMA pessoa (comprador ou vendedor) no formato usado
+ * nas cláusulas de qualificação das partes — extraído do que antes era
+ * texto fixo pra só o primeiro comprador/vendedor (ver qualificacaoParagrafo
+ * e assinaturasBloco logo abaixo, que juntam N pessoas usando esta função).
+ */
+function formatarQualificacao(d: {
+  nome: string
+  cpf: string | null
+  email: string | null
+  rg?: string | null
+  cnh?: string | null
+  profissao?: string | null
+  nacionalidade?: string | null
+  estadoCivil?: string | null
+  endereco: string
+  conjugeNome?: string | null
+}): string {
+  const nacionalidade = d.nacionalidade?.trim() || 'brasileiro(a)'
+  const conjuge = d.conjugeNome ? `, cônjuge ${d.conjugeNome}` : ''
+  return `${val(d.nome)}, ${nacionalidade}, ${val(d.estadoCivil)}${conjuge}, ${val(d.profissao)}, portador(a) da CNH nº ${val(d.cnh)}, RG nº ${val(d.rg)}, CPF nº ${val(d.cpf)}, residente e domiciliado(a) em ${d.endereco}, e-mail: ${val(d.email)}`
+}
+
+function dadosComprador(c: ProcessoComprador) {
+  const p = c.pessoa
+  return {
+    nome: c.nome, cpf: c.cpf, email: c.email,
+    rg: p?.rg, cnh: p?.registro_cnh, profissao: p?.profissao,
+    nacionalidade: p?.nacionalidade, estadoCivil: p?.estado_civil,
+    endereco: buildEndereco(p), conjugeNome: p?.conjuge_nome,
+  }
+}
+
+function dadosVendedor(v: ProcessoVendedor) {
+  const p = v.pessoa
+  return {
+    nome: v.nome, cpf: v.cpf, email: v.email,
+    rg: p?.rg, cnh: p?.registro_cnh, profissao: p?.profissao,
+    nacionalidade: p?.nacionalidade, estadoCivil: v.estado_civil ?? p?.estado_civil,
+    endereco: buildEndereco(p), conjugeNome: v.conjuge_nome ?? p?.conjuge_nome,
+  }
+}
+
+/**
+ * Parágrafo de qualificação cobrindo N pessoas (não só a primeira) — cada
+ * uma com sua qualificação civil completa, unidas por "; e " sob o mesmo
+ * papel contratual (ex: dois compromissários compradores em união estável).
+ */
+function qualificacaoParagrafo(pessoas: string[], papel: string): string {
+  if (pessoas.length === 0) return `<p><strong>${papel}:</strong> [A PREENCHER].</p>`
+  return `<p><strong>${papel}:</strong> ${pessoas.join('; e ')}.</p>`
+}
+
+/** Um bloco de assinatura por pessoa (não só a primeira). */
+function assinaturasBloco(pessoas: { nome: string; cpf: string | null }[], papel: string): string {
+  if (pessoas.length === 0) {
+    return `<p>________________________________________<br/>\n<strong>[A PREENCHER]</strong><br/>\nCPF: [A PREENCHER]<br/>\n${papel}</p>`
+  }
+  return pessoas
+    .map((p) => `<p>________________________________________<br/>\n<strong>${val(p.nome)}</strong><br/>\nCPF: ${val(p.cpf)}<br/>\n${papel}</p>`)
+    .join('\n\n<br/>\n\n')
+}
+
+/** "10" → "10% (dez por cento)"; percentuais não-inteiros só saem numéricos
+ * (sem por extenso) — caso raro, não vale a complexidade de extenso fracionário. */
+export function percentualTexto(n: number): string {
+  if (!Number.isInteger(n)) return `${n.toFixed(2).replace('.', ',')}%`
+  return `${n}% (${inteiroExtenso(n)} por cento)`
+}
+
 export interface ExtrasResumoNegociacao {
   imovelDescricao?: string | null
   imovelMatricula?: string | null
@@ -89,6 +166,7 @@ export interface ExtrasResumoNegociacao {
   bancoFinanciador?: string | null
   dataPosse?: string | null
   valorMultaTotal?: string | null
+  multaPercentualTexto?: string | null
   cidade?: string | null
   observacoesPagamento?: string | null
 }
@@ -118,6 +196,44 @@ export function substituirVariaveis(
     data_extenso: format(hoje, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
     cidade_comarca: 'Maringá/PR',
     cidade: 'Maringá',
+
+    // Qualificação e assinatura cobrindo TODOS os compradores/vendedores
+    // (não só o primeiro) — ver formatarQualificacao/qualificacaoParagrafo/
+    // assinaturasBloco acima. Usado por templates que suportam múltiplas
+    // partes do mesmo papel (ex: casal em união estável comprando junto).
+    compradores_qualificacao: qualificacaoParagrafo(
+      compradores.map((c) => formatarQualificacao(dadosComprador(c))),
+      'COMPROMISSÁRIO(A) COMPRADOR(A)',
+    ),
+    vendedores_qualificacao: qualificacaoParagrafo(
+      vendedores.map((v) => formatarQualificacao(dadosVendedor(v))),
+      'COMPROMITENTE VENDEDOR(A)',
+    ),
+    compradores_assinaturas: assinaturasBloco(
+      compradores.map((c) => ({ nome: c.nome, cpf: c.cpf })),
+      'COMPROMISSÁRIO(A) COMPRADOR(A)',
+    ),
+    vendedores_assinaturas: assinaturasBloco(
+      vendedores.map((v) => ({ nome: v.nome, cpf: v.cpf })),
+      'COMPROMITENTE VENDEDOR(A)',
+    ),
+
+    // Multa percentual (cláusula de sanção penal) — 10% é o padrão até hoje
+    // usado nos contratos da Fontinhas; só muda quando a negociação
+    // especificar outro percentual (ver extras.multaPercentualTexto abaixo).
+    multa_percentual_texto: '10% (dez por cento)',
+
+    // Certidões e testemunhas — ainda sem fonte de dados estruturada (isso é
+    // a Fase 1 do diagnóstico do Construtor de Contratos: falta um campo
+    // dedicado no Resumo da Negociação pra certidões e testemunhas). Por ora
+    // ficam como variáveis reais (antes "lista_certidoes" nem existia, e o
+    // bloco de testemunhas era texto fixo no template, impossível de
+    // preencher mesmo quando o dado é informado).
+    lista_certidoes: '[A PREENCHER]',
+    testemunha1_nome: '[A PREENCHER]',
+    testemunha1_cpf: '[A PREENCHER]',
+    testemunha2_nome: '[A PREENCHER]',
+    testemunha2_cpf: '[A PREENCHER]',
 
     // Comprador
     comprador_nome: val(comprador?.nome),
@@ -289,6 +405,7 @@ export function substituirVariaveis(
   if (extras?.bancoFinanciador) variaveis.banco_financiador = extras.bancoFinanciador
   if (extras?.dataPosse) variaveis.data_posse = extras.dataPosse
   if (extras?.valorMultaTotal) variaveis.valor_multa_total = extras.valorMultaTotal
+  if (extras?.multaPercentualTexto) variaveis.multa_percentual_texto = extras.multaPercentualTexto
   if (extras?.observacoesPagamento) {
     variaveis.clausula_pagamento_observacoes = `<p><strong>Parágrafo Único:</strong> ${extras.observacoesPagamento}</p>`
   }
