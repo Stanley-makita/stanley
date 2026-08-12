@@ -6,9 +6,9 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <p>Pelo presente instrumento particular, regido pelas disposições dos artigos 481 a 504 do Código Civil Brasileiro e demais legislações pertinentes, as partes abaixo qualificadas reduzem a termo o compromisso de venda e compra do imóvel adiante descrito:</p>
 
-<p><strong>COMPROMITENTE VENDEDOR(A):</strong> {{vendedor_nome}}, {{vendedor_nacionalidade}}, {{vendedor_estado_civil}}{{vendedor_conjuge}}, {{vendedor_profissao}}, portador(a) da CNH nº {{vendedor_cnh}}, RG nº {{vendedor_rg}}, CPF nº {{vendedor_cpf}}, residente e domiciliado(a) em {{vendedor_endereco}}, e-mail: {{vendedor_email}}.</p>
+{{vendedores_qualificacao}}
 
-<p><strong>COMPROMISSÁRIO(A) COMPRADOR(A):</strong> {{comprador_nome}}, {{comprador_nacionalidade}}, {{comprador_estado_civil}}{{comprador_conjuge}}, {{comprador_profissao}}, portador(a) da CNH nº {{comprador_cnh}}, RG nº {{comprador_rg}}, CPF nº {{comprador_cpf}}, residente e domiciliado(a) em {{comprador_endereco}}, e-mail: {{comprador_email}}.</p>
+{{compradores_qualificacao}}
 
 <p>Têm entre si justo e acertado o presente compromisso de venda e compra, mediante as cláusulas e condições seguintes:</p>
 
@@ -34,7 +34,7 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <h3>CLÁUSULA QUARTA — DA SANÇÃO PENAL</h3>
 
-<p>A parte que, por inadimplência ou desistência das obrigações avençadas, der causa à rescisão contratual, ficará sujeita à multa contratual equivalente a 10% (dez por cento) sobre o valor desta tratativa, sem prejuízo das perdas e danos que a parte infratora causar à parte inocente, bem como custas, emolumentos, comissão de corretagem e demais despesas judiciais e extrajudiciais, além de honorários advocatícios relativos à sucumbência.</p>
+<p>A parte que, por inadimplência ou desistência das obrigações avençadas, der causa à rescisão contratual, ficará sujeita à multa contratual equivalente a {{multa_percentual_texto}} sobre o valor desta tratativa, sem prejuízo das perdas e danos que a parte infratora causar à parte inocente, bem como custas, emolumentos, comissão de corretagem e demais despesas judiciais e extrajudiciais, além de honorários advocatícios relativos à sucumbência.</p>
 
 <h3>CLÁUSULA QUINTA — DA ESCRITURA</h3>
 
@@ -92,26 +92,20 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <br/><br/>
 
-<p>________________________________________<br/>
-<strong>{{vendedor_nome}}</strong><br/>
-CPF: {{vendedor_cpf}}<br/>
-COMPROMITENTE VENDEDOR(A)</p>
+{{vendedores_assinaturas}}
 
 <br/>
 
-<p>________________________________________<br/>
-<strong>{{comprador_nome}}</strong><br/>
-CPF: {{comprador_cpf}}<br/>
-COMPROMISSÁRIO(A) COMPRADOR(A)</p>
+{{compradores_assinaturas}}
 
 <br/>
 
 <p>Testemunhas:<br/><br/>
 1. ________________________________________<br/>
-Nome: [A PREENCHER]<br/>
-CPF: [A PREENCHER]<br/><br/>
+Nome: {{testemunha1_nome}}<br/>
+CPF: {{testemunha1_cpf}}<br/><br/>
 2. ________________________________________<br/>
-Nome: [A PREENCHER]<br/>
-CPF: [A PREENCHER]</p>
+Nome: {{testemunha2_nome}}<br/>
+CPF: {{testemunha2_cpf}}</p>
 `,
 }

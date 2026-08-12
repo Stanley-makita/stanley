@@ -7,7 +7,7 @@
 
 import type { Processo, ProcessoComprador, ProcessoVendedor, PessoaDetalhes } from '@/types/processos'
 import type { ResumoNegociacao, PessoaResumo } from './entenderNegociacao'
-import type { ExtrasResumoNegociacao } from './substituirVariaveis'
+import { percentualTexto, type ExtrasResumoNegociacao } from './substituirVariaveis'
 
 function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
   if (!p) return null
@@ -91,6 +91,7 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
       bancoFinanciador: resumo.banco_financiador,
       dataPosse: resumo.prazo_posse_dias != null ? `${resumo.prazo_posse_dias} dias após a assinatura` : null,
       valorMultaTotal,
+      multaPercentualTexto: resumo.multa_percentual != null ? percentualTexto(resumo.multa_percentual) : null,
       cidade: resumo.cidade,
       observacoesPagamento: resumo.observacoes_adicionais,
     },
