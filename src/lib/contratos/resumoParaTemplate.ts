@@ -7,7 +7,7 @@
 
 import type { Processo, ProcessoComprador, ProcessoVendedor, PessoaDetalhes } from '@/types/processos'
 import type { ResumoNegociacao, PessoaResumo } from './entenderNegociacao'
-import { percentualTexto, type ExtrasResumoNegociacao } from './substituirVariaveis'
+import { percentualTexto, valorPorExtenso, type ExtrasResumoNegociacao } from './substituirVariaveis'
 
 function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
   if (!p) return null
@@ -57,6 +57,17 @@ function vendedor(p: PessoaResumo, processoId: string, empresaId: string): Proce
   }
 }
 
+function certidaoTexto(c: ResumoNegociacao['certidoes'][number]): string {
+  const partes = [
+    c.tipo ?? 'Certidão',
+    c.numero ? `nº ${c.numero}` : null,
+    c.orgao_emissor ? `emitida por ${c.orgao_emissor}` : null,
+    c.data_emissao ? `em ${c.data_emissao}` : null,
+    c.validade ? `válida até ${c.validade}` : null,
+  ].filter(Boolean)
+  return partes.join(', ')
+}
+
 export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Processo): {
   processoAdaptado: Processo
   compradoresAdaptados: ProcessoComprador[]
@@ -89,11 +100,37 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
       imovelCadastroPrefeitura: resumo.imovel.cadastro_prefeitura,
       imovelEndereco: [resumo.imovel.endereco, resumo.imovel.cidade, resumo.imovel.uf].filter(Boolean).join(', ') || null,
       bancoFinanciador: resumo.banco_financiador,
-      dataPosse: resumo.prazo_posse_dias != null ? `${resumo.prazo_posse_dias} dias após a assinatura` : null,
+      // condicao_posse (texto livre) tem prioridade — cobre condições
+      // compostas que um número de dias não representa (ver comentário no
+      // schema em entenderNegociacao.ts).
+      // "em" fica embutido aqui (não no template) porque só o prazo em dias
+      // precisa dele — condicao_posse já vem pronto pra encaixar direto
+      // (ex: "no dia da assinatura do financiamento...").
+      dataPosse: resumo.condicao_posse
+        ?? (resumo.prazo_posse_dias != null ? `em ${resumo.prazo_posse_dias} dias após a assinatura` : null),
+      condicaoPosseComposta: resumo.condicao_posse != null,
       valorMultaTotal,
       multaPercentualTexto: resumo.multa_percentual != null ? percentualTexto(resumo.multa_percentual) : null,
       cidade: resumo.cidade,
       observacoesPagamento: resumo.observacoes_adicionais,
+      listaCertidoes: resumo.certidoes.length > 0 ? resumo.certidoes.map(certidaoTexto).join('; ') : null,
+      corretorNome: resumo.corretor?.nome ?? null,
+      corretorCpf: resumo.corretor?.cpf ?? null,
+      corretorCreci: resumo.corretor?.creci ?? null,
+      valorComissao: resumo.comissao?.valor != null
+        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.comissao.valor)
+        : null,
+      valorComissaoExtenso: resumo.comissao?.valor != null ? valorPorExtenso(resumo.comissao.valor) : null,
+      corretagemResponsavel: resumo.comissao?.responsavel === 'comprador'
+        ? 'do(a) COMPROMISSÁRIO(A) COMPRADOR(A)'
+        : resumo.comissao?.responsavel === 'vendedor'
+          ? 'do(a) COMPROMITENTE VENDEDOR(A)'
+          : null,
+      corretagemMomentoPagamento: resumo.comissao?.momento_pagamento ? `, devida ${resumo.comissao.momento_pagamento}` : null,
+      testemunha1Nome: resumo.testemunhas[0]?.nome ?? null,
+      testemunha1Cpf: resumo.testemunhas[0]?.cpf ?? null,
+      testemunha2Nome: resumo.testemunhas[1]?.nome ?? null,
+      testemunha2Cpf: resumo.testemunhas[1]?.cpf ?? null,
     },
   }
 }

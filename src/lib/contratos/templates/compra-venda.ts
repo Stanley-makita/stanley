@@ -42,7 +42,7 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <h3>CLÁUSULA SEXTA — DA POSSE</h3>
 
-<p>O(A) COMPROMISSÁRIO(A) COMPRADOR(A) ficará imitido(a) na posse do imóvel em {{data_posse}}, mediante a assinatura da escritura pública de venda e compra e quitação integral do preço, ocasião em que o(a) COMPROMITENTE VENDEDOR(A) entregará o imóvel tal como vendido e vistoriado pelo(a) comprador(a), respondendo civil e criminalmente pelas obrigações assumidas.</p>
+<p>O(A) COMPROMISSÁRIO(A) COMPRADOR(A) ficará imitido(a) na posse do imóvel {{data_posse}}{{condicao_posse_evento}}, ocasião em que o(a) COMPROMITENTE VENDEDOR(A) entregará o imóvel tal como vendido e vistoriado pelo(a) comprador(a), respondendo civil e criminalmente pelas obrigações assumidas.</p>
 
 <h3>CLÁUSULA SÉTIMA — DA INEXISTÊNCIA DE DÍVIDAS E ÔNUS</h3>
 
@@ -74,7 +74,7 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <h3>CLÁUSULA DÉCIMA QUARTA — DA CORRETAGEM</h3>
 
-<p>A corretagem foi intermediada pelo(a) corretor(a) {{corretor_nome}}, CPF nº {{corretor_cpf}}, CRECI nº {{corretor_creci}}, no valor de {{valor_comissao}} ({{valor_comissao_extenso}}), de responsabilidade do(a) COMPROMITENTE VENDEDOR(A).</p>
+<p>A corretagem foi intermediada pelo(a) corretor(a) {{corretor_nome}}, CPF nº {{corretor_cpf}}, CRECI nº {{corretor_creci}}, no valor de {{valor_comissao}} ({{valor_comissao_extenso}}), de responsabilidade {{corretagem_responsavel}}{{corretagem_momento_pagamento}}.</p>
 
 <h3>CLÁUSULA DÉCIMA QUINTA — DA PROTEÇÃO DE DADOS</h3>
 
