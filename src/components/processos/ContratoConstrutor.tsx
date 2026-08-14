@@ -38,7 +38,7 @@ import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasP
 import { useUploadDocumentoPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
 import {
   useEntenderNegociacao, useConfirmarEntendimento, useGerarPlanoContrato, useConfirmarPlano,
-  useSalvarContrato, useRegistrarConfirmacaoGeracao, useProcessoContratos,
+  useSalvarContrato, useRegistrarConfirmacaoGeracao, useProcessoContratos, useRedigirContrato,
 } from '@/hooks/processos/useProcessoContrato'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -421,6 +421,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const confirmarEntendimento = useConfirmarEntendimento(processo.id)
   const gerarPlano = useGerarPlanoContrato(processo.id)
   const confirmarPlano = useConfirmarPlano(processo.id)
+  const redigirContrato = useRedigirContrato(processo.id)
   const salvarContrato = useSalvarContrato(processo.id)
   const registrarConfirmacao = useRegistrarConfirmacaoGeracao(processo.id)
 
@@ -468,11 +469,27 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
     try {
       await confirmarPlano.mutateAsync({ contratoId: params.contratoId, plano: params.plano })
       const template = selecionarTemplate(tipoContrato)
-      const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } =
-        construirDadosTemplate(params.resumo, processo)
-      const html = substituirVariaveis(template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras)
+
+      // Fase 4 — só compra_venda tem redação por IA; os demais tipos
+      // continuam no caminho determinístico de sempre (substituirVariaveis),
+      // intocado. O servidor decide sozinho, internamente, entre a minuta
+      // da IA e o fallback determinístico (mesmo template/substituirVariaveis
+      // de baixo) — ver gerarMinutaPorIA.ts.
+      let html: string
+      let avisoFallback: string | undefined
+      if (tipoContrato === 'compra_venda') {
+        const resultado = await redigirContrato.mutateAsync(params.contratoId)
+        html = resultado.html
+        avisoFallback = resultado.avisoFallback
+      } else {
+        const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } =
+          construirDadosTemplate(params.resumo, processo)
+        html = substituirVariaveis(template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras)
+      }
+
       await salvarContrato.mutateAsync({ id: params.contratoId, tipo_modelo: tipoContrato, titulo: template.titulo, conteudo_html: html })
       registrarConfirmacao.mutate({ tipoConfirmacao: params.tipoConfirmacao, tituloContrato: template.titulo })
+      if (avisoFallback) toast.warning(avisoFallback)
       setEstado('pronto')
     } catch (error) {
       console.error('[contratos] erro ao construir contrato:', error)
@@ -485,7 +502,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
     setEstado('processando')
     try {
       const resumo = await entenderNegociacao.mutateAsync(instrucoes)
-      const novoRascunhoId = await confirmarEntendimento.mutateAsync({ rascunhoId, tipoContrato, resumo })
+      const novoRascunhoId = await confirmarEntendimento.mutateAsync({ rascunhoId, tipoContrato, resumo, instrucoesLivres: instrucoes })
       setRascunhoId(novoRascunhoId)
       const plano = await gerarPlano.mutateAsync(novoRascunhoId)
       setResumoAtual(resumo)
