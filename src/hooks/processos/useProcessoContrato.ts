@@ -59,6 +59,14 @@ export function useEntenderNegociacao(processoId: string) {
  * Confirma o resumo estruturado — cria (1ª vez) ou atualiza (revisões
  * seguintes, antes de construir a minuta) o rascunho de contrato com
  * resumo_negociacao_json. É "patrimônio" do negócio, não estado de tela.
+ *
+ * `instrucoesLivres` (texto digitado pelo atendente, hoje só em state do
+ * React — ver ContratoConstrutor.tsx) viaja como chave irmã `_instrucoesLivres`
+ * dentro do MESMO JSONB de resumo_negociacao_json, em vez de coluna própria —
+ * evita migration nova só para persistir isso. É lido de volta em
+ * app/api/processos/[id]/contratos/redigir/route.ts. Essa é uma solução de
+ * curto prazo: quando a Fase 4.5 (Assistente Conversacional) precisar de
+ * histórico real de mensagens, isso vira uma tabela própria.
  */
 export function useConfirmarEntendimento(processoId: string) {
   const { usuario } = useAuth()
@@ -69,11 +77,16 @@ export function useConfirmarEntendimento(processoId: string) {
       rascunhoId: string | null
       tipoContrato: string
       resumo: import('@/lib/contratos/entenderNegociacao').ResumoNegociacao
+      instrucoesLivres?: string
     }): Promise<string> => {
+      const resumoPersistido = payload.instrucoesLivres?.trim()
+        ? { ...payload.resumo, _instrucoesLivres: payload.instrucoesLivres }
+        : payload.resumo
+
       if (payload.rascunhoId) {
         const { error } = await supabase
           .from('processo_contratos')
-          .update({ resumo_negociacao_json: payload.resumo, updated_at: new Date().toISOString() })
+          .update({ resumo_negociacao_json: resumoPersistido, updated_at: new Date().toISOString() })
           .eq('id', payload.rascunhoId)
         if (error) throw error
         return payload.rascunhoId
@@ -94,7 +107,7 @@ export function useConfirmarEntendimento(processoId: string) {
           tipo_modelo: payload.tipoContrato,
           titulo: 'Rascunho',
           conteudo_html: '',
-          resumo_negociacao_json: payload.resumo,
+          resumo_negociacao_json: resumoPersistido,
           versao: maxVersao + 1,
         })
         .select('id')
@@ -231,6 +244,39 @@ export function useConfirmarPlano(processoId: string) {
     onError: (error) => {
       console.error('[contratos] erro ao confirmar plano:', error)
       toast.error('Erro ao salvar o plano do contrato.')
+    },
+  })
+}
+
+/**
+ * Etapa "Redigir contrato" (Fase 4, só compra_venda): a partir do resumo e
+ * do plano já confirmados (relidos pelo servidor via contratoId — nunca
+ * confia num payload fresco do client), chama a redação por IA. Servidor
+ * decide sozinho, internamente, entre devolver a minuta redigida pela IA
+ * (já com cláusulas protegidas injetadas, sanitizada e validada) ou o
+ * fallback determinístico — ver gerarMinutaPorIA.ts para a política de
+ * retry/fallback. Não persiste; ContratoConstrutor.tsx decide quando salvar
+ * (mesma filosofia das etapas anteriores).
+ */
+export function useRedigirContrato(processoId: string) {
+  return useMutation({
+    mutationFn: async (contratoId: string) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/processos/${processoId}/contratos/redigir`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ contratoId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao redigir o contrato.')
+      return json as import('@/lib/contratos/gerarMinutaPorIA').ResultadoGeracaoMinuta
+    },
+    onError: (error) => {
+      console.error('[contratos] erro ao redigir contrato:', error)
+      toast.error(error instanceof Error ? error.message : 'Erro ao redigir o contrato.')
     },
   })
 }

@@ -4,21 +4,16 @@
  * — Wagner") pra bater com o padrão jurídico já em uso pela empresa, não
  * inventado neste arquivo. Só o texto institucional é protegido; nomes,
  * valores, datas e condições da negociação continuam vindo de {{variável}}.
- * Mudar o texto abaixo é uma decisão jurídica, não só de redação — qualquer
- * alteração deveria ser conferida contra um contrato real aprovado, do
- * mesmo jeito que esta revisão foi feita:
- *   - CLÁUSULA QUARTA (sanção penal): base da multa é o valor JÁ PAGO pelos
- *     compradores até a rescisão, não o valor total da negociação — bug
- *     jurídico real corrigido aqui (o texto anterior, sem fonte real,
- *     cobrava sobre o valor total, uma base bem maior).
- *   - CLÁUSULA QUINTA (escritura): outorga condicionada também ao pedido da
- *     instituição financeira, não só à integralização do preço.
- *   - CLÁUSULA DÉCIMA QUINTA (proteção de dados): cita a legislação
- *     completa (CF, CDC, Código Civil, Marco Civil da Internet + decreto,
- *     LGPD) — a versão anterior citava só a LGPD, mais curta que o padrão
- *     real usado pela empresa (é este o achado do diagnóstico original:
- *     "o Fonti reduziu a cláusula de LGPD pra um parágrafo genérico").
+ *
+ * A partir da Fase 4, o texto das 5 cláusulas protegidas (QUARTA, QUINTA,
+ * DÉCIMA PRIMEIRA, DÉCIMA QUINTA, DÉCIMA SEXTA) mora em `clausulasProtegidas.ts`
+ * — é a MESMA fonte usada pela redação por IA (`redigirContrato.ts`), pra
+ * nunca haver dois textos institucionais divergentes no sistema. Este
+ * arquivo só interpola essas constantes; o resultado final do caminho
+ * determinístico é byte a byte igual ao que era antes desta mudança.
  */
+import { CLAUSULAS_PROTEGIDAS_COMPRA_VENDA as C } from '../clausulasProtegidas'
+
 export const TEMPLATE_COMPRA_VENDA = {
   id: 'compra_venda',
   titulo: 'Compromisso de Venda e Compra',
@@ -53,13 +48,9 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <p>Havendo o descumprimento pelas partes das obrigações elencadas neste instrumento, incidirá sobre o débito inadimplido correção monetária apurada pela variação do IGP-M (FGV), juros de mora de 1% (um por cento) ao mês, além de multa de 2% (dois por cento) sobre o débito inadimplido. Persistindo a inadimplência por mais de 30 (trinta) dias, salvo expressa convenção em contrário, dar-se-á por rescindido de pleno direito o presente instrumento, ficando a parte que der causa constituída em mora e sujeita à sanção penal inerente à rescisão contratual, independentemente de notificação ou interpelação judicial ou extrajudicial.</p>
 
-<h3>CLÁUSULA QUARTA — DA SANÇÃO PENAL</h3>
+${C.SANCAO_PENAL}
 
-<p>A parte que, por inadimplência ou desistência das obrigações avençadas, der causa à rescisão contratual, ficará sujeita à multa contratual equivalente a {{multa_percentual_texto}} sobre o valor pago pelo(a) COMPROMISSÁRIO(A) COMPRADOR(A) até então, sem prejuízo das perdas e danos que a parte infratora causar à parte inocente, bem como custas, emolumentos, comissão de corretagem e demais despesas judiciais e extrajudiciais, além de honorários advocatícios relativos à sucumbência.</p>
-
-<h3>CLÁUSULA QUINTA — DA ESCRITURA</h3>
-
-<p>A escritura pública de venda e compra em favor do(a) COMPROMISSÁRIO(A) COMPRADOR(A) será outorgada após a integralização do preço desta avença ou quando solicitada pela instituição financeira, em virtude do financiamento pleiteado, correndo as despesas de escrituração por conta exclusiva do(a) COMPROMISSÁRIO(A) COMPRADOR(A).</p>
+${C.ESCRITURA}
 
 <h3>CLÁUSULA SEXTA — DA POSSE</h3>
 
@@ -81,9 +72,7 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <p>O presente compromisso é firmado em caráter irrevogável e irretratável, desde que cumpridas as obrigações contratuais acima estipuladas, ficando facultado ao(à) COMPROMISSÁRIO(A) COMPRADOR(A), em caso de recusa ou impedimento da outorga da escritura, exigir a adjudicação compulsória do imóvel nos termos da Lei nº 649, de 11 de março de 1949, ou o que for de direito; podendo, todavia, o(a) COMPROMITENTE VENDEDOR(A) considerá-lo rescindido caso o(a) comprador(a) não cumpra o pagamento do saldo devedor pactuado na Cláusula Segunda, no prazo e forma convencionados, perdendo, nesta hipótese, os direitos adquiridos por força deste contrato.</p>
 
-<h3>CLÁUSULA DÉCIMA PRIMEIRA — DA BOA-FÉ</h3>
-
-<p>As partes firmam o presente instrumento em condições de igualdade, pautando-se nos princípios da probidade e boa-fé, conforme o artigo 422 do Código Civil Brasileiro, não podendo qualquer delas alegar desconhecimento, vício, dolo, coação ou má-fé, uma vez que o instrumento foi redigido pela empresa contratada FONTINHAS ASSESSORIA, conforme vontade mútua das partes, não tendo a respectiva empresa qualquer responsabilidade quanto à negociação havida entre elas.</p>
+${C.BOA_FE}
 
 <h3>CLÁUSULA DÉCIMA SEGUNDA — DA INEXISTÊNCIA DE ÔNUS</h3>
 
@@ -97,13 +86,9 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <p>A corretagem foi intermediada pelo(a) corretor(a) {{corretor_nome}}, CPF nº {{corretor_cpf}}, CRECI nº {{corretor_creci}}, no valor de {{valor_comissao}} ({{valor_comissao_extenso}}), de responsabilidade {{corretagem_responsavel}}{{corretagem_momento_pagamento}}.</p>
 
-<h3>CLÁUSULA DÉCIMA QUINTA — DA PROTEÇÃO DE DADOS</h3>
+${C.LGPD}
 
-<p>De acordo com a Lei Geral de Proteção de Dados, as partes declaram concordar que os dados fornecidos serão acessados, utilizados e tratados, eletrônica e manualmente, com a finalidade de atingir o objeto da presente contratação (elaboração deste Instrumento Particular de Compromisso de Venda e Compra). Dessa forma, os dados permanecerão armazenados até o encerramento das obrigações contratuais, devendo ser cumprida toda a legislação aplicável sobre privacidade e proteção de dados, incluindo, mas não se limitando, à Constituição Federal, ao Código de Defesa do Consumidor, ao Código Civil, ao Marco Civil da Internet (Lei Federal nº 12.965/14) e seu decreto regulamentador (Decreto nº 8.771/16), à Lei Geral de Proteção de Dados (Lei nº 13.709/18) e às demais normas setoriais ou regras sobre o assunto.</p>
-
-<h3>CLÁUSULA DÉCIMA SEXTA — DO FORO</h3>
-
-<p>As partes elegem o foro da Comarca de {{cidade_comarca}} para dirimir quaisquer dúvidas oriundas do presente instrumento, com exclusão de qualquer outro, por mais privilegiado que seja.</p>
+${C.FORO}
 
 <p>E, por estarem justas e acertadas, as partes assinam o presente instrumento em duas vias de igual teor e forma, na presença das testemunhas abaixo, podendo as assinaturas ser de forma física ou por meio digital.</p>
 
