@@ -218,7 +218,12 @@ export async function entenderNegociacao(input: {
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-5',
-    max_tokens: 8000,
+    // 8000 já foi insuficiente em negociações com 4+ documentos anexados —
+    // thinking adaptativo e o JSON de resposta disputam o mesmo orçamento
+    // de max_tokens, e uma análise de mais documentos legitimamente precisa
+    // de mais espaço de raciocínio antes de terminar de escrever o JSON
+    // (achado testando a Fase 4 do Construtor de Contratos, 2026-08-15).
+    max_tokens: 16000,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: contexto }],
   })
