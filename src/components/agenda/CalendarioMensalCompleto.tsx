@@ -12,7 +12,7 @@ import { TarefaChip } from '@/components/agenda/TarefaChip'
 interface CalendarioMensalCompletoProps {
   mes: Date
   tarefas: TarefaAgenda[]
-  onTarefaClick: (tarefaId: string, fonte: 'processo' | 'lead') => void
+  onTarefaClick: (tarefaId: string, fonte: 'processo' | 'lead' | 'compromisso') => void
 }
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -79,7 +79,7 @@ function DiaCelula({
   mesAtual: boolean
   hoje: boolean
   tarefas: TarefaAgenda[]
-  onTarefaClick: (tarefaId: string, fonte: 'processo' | 'lead') => void
+  onTarefaClick: (tarefaId: string, fonte: 'processo' | 'lead' | 'compromisso') => void
 }) {
   const [expandido, setExpandido] = useState(false)
 

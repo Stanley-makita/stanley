@@ -51,11 +51,24 @@ export function useAgendaTarefas(mes: Date, responsavelId?: string) {
         ltQuery = ltQuery.or(`responsavel_id.eq.${responsavelId},criado_por.eq.${responsavelId}`)
       }
 
-      const [{ data: pt, error: ptErr }, { data: lt, error: ltErr }] =
-        await Promise.all([ptQuery, ltQuery])
+      let cpQuery = supabase
+        .from('compromissos')
+        .select('id, titulo, descricao, local, data, hora_inicio, hora_fim, concluido, concluido_em, usuario_id, criado_por, usuario:usuarios!usuario_id(nome)')
+        .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
+        .gte('data', dataInicio)
+        .lte('data', dataFim)
+
+      if (responsavelId) {
+        cpQuery = cpQuery.or(`usuario_id.eq.${responsavelId},criado_por.eq.${responsavelId}`)
+      }
+
+      const [{ data: pt, error: ptErr }, { data: lt, error: ltErr }, { data: cp, error: cpErr }] =
+        await Promise.all([ptQuery, ltQuery, cpQuery])
 
       if (ptErr) throw ptErr
       if (ltErr) throw ltErr
+      if (cpErr) throw cpErr
 
       const processoTarefas: TarefaAgenda[] = (pt ?? []).map((t: any) => {
         const p = t.processo
@@ -96,7 +109,27 @@ export function useAgendaTarefas(mes: Date, responsavelId?: string) {
         lead_id:              t.lead_id,
       }))
 
-      return [...processoTarefas, ...leadTarefas].sort((a, b) => {
+      const compromissos: TarefaAgenda[] = (cp ?? []).map((c: any) => ({
+        tarefa_id:              c.id,
+        tarefa_titulo:          c.titulo,
+        tarefa_vencimento:      c.data,
+        tarefa_prioridade:      'media',
+        concluida:              c.concluido,
+        concluida_em:           c.concluido_em,
+        processo_id:            null,
+        processo_nome_imovel:   '',
+        processo_numero:        '',
+        responsavel_id:         c.usuario_id,
+        responsavel_nome:       c.usuario?.nome ?? 'Sem responsável',
+        fonte:                  'compromisso' as const,
+        lead_id:                null,
+        compromisso_local:      c.local,
+        compromisso_descricao:  c.descricao,
+        compromisso_hora_inicio: c.hora_inicio,
+        compromisso_hora_fim:    c.hora_fim,
+      }))
+
+      return [...processoTarefas, ...leadTarefas, ...compromissos].sort((a, b) => {
         if (!a.tarefa_vencimento) return 1
         if (!b.tarefa_vencimento) return -1
         return a.tarefa_vencimento.localeCompare(b.tarefa_vencimento)

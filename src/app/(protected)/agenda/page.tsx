@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { format, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, AlertCircle, List, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle, List, CalendarDays, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAgendaTarefas } from '@/hooks/useAgendaTarefas'
@@ -16,6 +16,7 @@ import { CalendarioMensal } from '@/components/agenda/CalendarioMensal'
 import { CalendarioMensalCompleto } from '@/components/agenda/CalendarioMensalCompleto'
 import { ListaAgenda, type FiltroPeriodo } from '@/components/agenda/ListaAgenda'
 import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
+import { NovoCompromissoModal } from '@/components/agenda/NovoCompromissoModal'
 import { PrioridadeTarefa } from '@/types/agenda'
 import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -47,19 +48,19 @@ export default function AgendaPage() {
   const { data: membros = [] } = useUsuariosEmpresa()
   const queryClient = useQueryClient()
 
-  const podeVerTodos = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
   const isOperacional = usuario?.perfil === 'operacional'
 
   const [mes, setMes] = useState(new Date())
   const [visualizacao, setVisualizacao] = useState<'lista' | 'mes'>('lista')
   const [diaSelecionado, setDiaSelecionado] = useState<Date | null>(null)
-  const [filtroResponsavel, setFiltroResponsavel] = useState<string>(
-    podeVerTodos ? 'todos' : (usuario?.id ?? 'todos')
-  )
+  // Qualquer pessoa da equipe pode ver/agendar compromisso de qualquer
+  // colega — não é mais restrito a admin/gerente/gestor.
+  const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
   const [filtroStatus, setFiltroStatus] = useState<'pendentes' | 'concluidas' | 'todas'>('pendentes')
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeTarefa | 'todas'>('todas')
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>('todos')
   const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
+  const [novoCompromissoAberto, setNovoCompromissoAberto] = useState(false)
 
   // Deep-link vindo de notificação (toast/sino): /agenda?tarefa=ID&fonte=lead|processo
   const searchParams = useSearchParams()
@@ -81,7 +82,7 @@ export default function AgendaPage() {
     incluirConcluidas: false,
   })
 
-  const handleToggle = useCallback((tarefaId: string, concluida: boolean, fonte?: 'processo' | 'lead') => {
+  const handleToggle = useCallback((tarefaId: string, concluida: boolean, fonte?: 'processo' | 'lead' | 'compromisso') => {
     if (concluida) {
       concluirTarefa({ tarefaId, fonte }, {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda-tarefas'] }),
@@ -92,6 +93,14 @@ export default function AgendaPage() {
   function handleDiaClick(dia: Date) {
     setDiaSelecionado((prev) => (prev && dia.toDateString() === prev.toDateString() ? null : dia))
     if (dia) setFiltroPeriodo('todos')
+  }
+
+  // Compromisso não tem TarefaDetalheModal próprio (é autocontido — o
+  // TarefaCard já mostra local/hora/descrição direto no card), então só abre
+  // o modal de detalhe pra processo/lead.
+  function abrirDetalhes(tarefaId: string, fonte: 'processo' | 'lead' | 'compromisso') {
+    if (fonte === 'compromisso') return
+    setTarefaAberta({ id: tarefaId, fonte })
   }
 
   return (
@@ -128,19 +137,26 @@ export default function AgendaPage() {
             </button>
           </div>
 
-          {podeVerTodos && (
-            <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
-              <SelectTrigger className="h-9 w-full text-sm md:w-48">
-                <SelectValue placeholder="Responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Toda a equipe</SelectItem>
-                {membros.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={filtroResponsavel} onValueChange={setFiltroResponsavel}>
+            <SelectTrigger className="h-9 w-full text-sm md:w-48">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Toda a equipe</SelectItem>
+              {membros.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            size="sm"
+            className="h-9 shrink-0 gap-1.5 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+            onClick={() => setNovoCompromissoAberto(true)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo Compromisso
+          </Button>
         </div>
       </div>
 
@@ -193,7 +209,7 @@ export default function AgendaPage() {
                 onFiltroPrioridadeChange={setFiltroPrioridade}
                 onFiltroPeriodoChange={setFiltroPeriodo}
                 onToggle={handleToggle}
-                onDetalhes={(id, fonte) => setTarefaAberta({ id, fonte })}
+                onDetalhes={abrirDetalhes}
               />
             )}
           </div>
@@ -219,7 +235,7 @@ export default function AgendaPage() {
             <CalendarioMensalCompleto
               mes={mes}
               tarefas={tarefas}
-              onTarefaClick={(id, fonte) => setTarefaAberta({ id, fonte })}
+              onTarefaClick={abrirDetalhes}
             />
           )}
         </div>
@@ -232,6 +248,11 @@ export default function AgendaPage() {
           onFechar={() => setTarefaAberta(null)}
         />
       )}
+
+      <NovoCompromissoModal
+        aberto={novoCompromissoAberto}
+        onFechar={() => setNovoCompromissoAberto(false)}
+      />
 
       {/* Painel operacional — só para perfil operacional */}
       {isOperacional && (

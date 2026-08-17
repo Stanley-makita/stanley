@@ -22,8 +22,8 @@ interface ListaAgendaProps {
   onFiltroStatusChange: (v: FiltroStatus) => void
   onFiltroPrioridadeChange: (v: PrioridadeTarefa | 'todas') => void
   onFiltroPeriodoChange: (v: FiltroPeriodo) => void
-  onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead') => void
-  onDetalhes?: (tarefaId: string, fonte: 'processo' | 'lead') => void
+  onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead' | 'compromisso') => void
+  onDetalhes?: (tarefaId: string, fonte: 'processo' | 'lead' | 'compromisso') => void
 }
 
 const PERIODOS: { value: FiltroPeriodo; label: string }[] = [

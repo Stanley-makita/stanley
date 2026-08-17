@@ -2,9 +2,10 @@
 
 import { format, isToday, isBefore, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { TarefaAgenda, PrioridadeTarefa } from '@/types/agenda'
+import { TarefaAgenda, PrioridadeTarefa, COMPROMISSO_LOCAL_LABELS } from '@/types/agenda'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { MapPin } from 'lucide-react'
 
 const PRIORIDADE_LABEL: Record<PrioridadeTarefa, string> = {
   alta:    'Alta',
@@ -22,8 +23,8 @@ const PRIORIDADE_COLOR: Record<PrioridadeTarefa, string> = {
 
 interface TarefaCardProps {
   tarefa: TarefaAgenda
-  onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead') => void
-  onDetalhes?: (tarefaId: string, fonte: 'processo' | 'lead') => void
+  onToggle: (id: string, concluida: boolean, fonte?: 'processo' | 'lead' | 'compromisso') => void
+  onDetalhes?: (tarefaId: string, fonte: 'processo' | 'lead' | 'compromisso') => void
 }
 
 export function TarefaCard({ tarefa, onToggle, onDetalhes }: TarefaCardProps) {
@@ -67,8 +68,14 @@ export function TarefaCard({ tarefa, onToggle, onDetalhes }: TarefaCardProps) {
           {tarefa.tarefa_titulo}
         </p>
 
-        {/* Processo ou Lead */}
-        {tarefa.fonte === 'lead' ? (
+        {/* Processo, Lead ou Compromisso */}
+        {tarefa.fonte === 'compromisso' ? (
+          <span className="flex items-center gap-1 text-xs text-fonti-primary/70 truncate mt-0.5">
+            <MapPin className="h-3 w-3 shrink-0" />
+            {tarefa.compromisso_local ? COMPROMISSO_LOCAL_LABELS[tarefa.compromisso_local] : 'Compromisso'}
+            {tarefa.compromisso_hora_inicio && ` · ${tarefa.compromisso_hora_inicio.slice(0, 5)}`}
+          </span>
+        ) : tarefa.fonte === 'lead' ? (
           <span className="text-xs text-fonti-primary/70 truncate block mt-0.5">
             Lead: {tarefa.processo_nome_imovel}
           </span>

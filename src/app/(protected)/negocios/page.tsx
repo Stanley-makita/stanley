@@ -221,7 +221,7 @@ export default function NegociosDashboardPage() {
               {tarefasHoje.data?.map((t) => (
                 <button
                   key={t.tarefa_id}
-                  onClick={() => setTarefaAberta({ id: t.tarefa_id, fonte: t.fonte })}
+                  onClick={() => setTarefaAberta({ id: t.tarefa_id, fonte: t.fonte as 'processo' | 'lead' })}
                   className="w-full flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left"
                 >
                   <div className="flex-1 min-w-0">

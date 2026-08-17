@@ -12,7 +12,7 @@ const PRIORIDADE_COLOR: Record<PrioridadeTarefa, string> = {
 
 interface TarefaChipProps {
   tarefa: TarefaAgenda
-  onClick: (tarefaId: string, fonte: 'processo' | 'lead') => void
+  onClick: (tarefaId: string, fonte: 'processo' | 'lead' | 'compromisso') => void
 }
 
 /** Versão compacta do TarefaCard, feita pra caber dentro da célula de um dia no calendário mensal. */
