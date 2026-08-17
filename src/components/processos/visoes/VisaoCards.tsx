@@ -90,7 +90,12 @@ function fmtMoeda(v: number) {
 
 function KanbanCard({ processo, arrastavel, overlay }: { processo: Processo; arrastavel?: boolean; overlay?: boolean }) {
   const router = useRouter()
-  const { data: pendencias = [] } = useSolicitacoesAbertasPorProcesso(processo.id)
+  // O "fantasma" do DragOverlay é uma 2ª cópia do card renderizada enquanto o
+  // card original continua montado na coluna — se ambos chamassem o hook, os
+  // dois tentariam abrir o mesmo canal realtime `pendencias-processo-<id>` ao
+  // mesmo tempo e o Supabase derruba a página (channel já subscrito). No
+  // overlay não faz sentido buscar isso de novo mesmo, é só um preview visual.
+  const { data: pendencias = [] } = useSolicitacoesAbertasPorProcesso(overlay ? undefined : processo.id)
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
