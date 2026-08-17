@@ -11,7 +11,7 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle } from 'lucide-react'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle, Lock } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
@@ -42,7 +42,7 @@ import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
 import { PipelineBarProcesso } from '@/components/processos/PipelineBarProcesso'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { MODULO_POR_MODALIDADE, FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
-import { normalizarTexto } from '@/lib/utils'
+import { normalizarTexto, cn } from '@/lib/utils'
 import { useEnviarParaFluxoRegistro } from '@/hooks/processos/useEnviarParaFluxoRegistro'
 import { useEnviarParaLiberacaoRecursos } from '@/hooks/processos/useEnviarParaLiberacaoRecursos'
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
@@ -193,7 +193,12 @@ export default function ProcessoDetalhePage() {
               <ParticularidadeCliente
                 pessoaId={(processo.compradores?.find(c => c.principal) ?? processo.compradores?.[0])?.pessoa_id}
               />
-              {FINANCIAMENTO_MODALIDADES.has(processo.modalidade) && processo.assinado_em && (
+              {/* Some depois que o processo já passou por Liberação de Recursos
+                  (fluxo é de mão única: Emissão Contrato -> [Registro] ->
+                  Liberação de Recursos -> banco libera pro vendedor — não volta
+                  mais pro Registro a partir daí, mesmo com assinado_em setado). */}
+              {FINANCIAMENTO_MODALIDADES.has(processo.modalidade) && processo.assinado_em
+                && normalizarTexto(processo.fase_atual?.nome) !== normalizarTexto('Liberação de Recursos') && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -216,6 +221,11 @@ export default function ProcessoDetalhePage() {
                 </Button>
               )}
             </div>
+            {processo.concluido_em && (
+              <Badge className="text-xs bg-fonti-primary text-white border-fonti-primary gap-1">
+                <Lock className="h-3 w-3" /> Processo Concluído
+              </Badge>
+            )}
             {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
@@ -225,6 +235,11 @@ export default function ProcessoDetalhePage() {
             )}
             <EmailConfirmacaoBadge processoId={id} />
           </div>
+          {processo.concluido_em && (
+            <div className="mb-1.5 rounded-lg border border-fonti-accent/40 bg-fonti-accent-hover/30 px-3 py-1.5 text-xs font-medium text-fonti-primary">
+              Processo concluído em {new Date(processo.concluido_em).toLocaleDateString('pt-BR')} — somente visualização.
+            </div>
+          )}
           {/* Barra de fases (igual ao Lead) — avança sequencial, respeitando checklist/dados financeiros */}
           {fases.length > 0 && (
             <div className="mb-1.5">
@@ -376,6 +391,7 @@ export default function ProcessoDetalhePage() {
           )}
         </div>
 
+        <div className={cn(processo.concluido_em && 'pointer-events-none select-none opacity-60')}>
         {isContrato ? (
           <ContratoConstrutor processo={processo} />
         ) : (
@@ -552,6 +568,7 @@ export default function ProcessoDetalhePage() {
         </Tabs>
         </>
         )}
+        </div>
       </div>
 
       <NovaSolicitacaoDrawer
@@ -659,7 +676,10 @@ export default function ProcessoDetalhePage() {
       </Dialog>
 
       {/* Painel direito — sempre visível */}
-      <div className="shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 lg:w-80 lg:flex lg:flex-col lg:overflow-y-auto">
+      <div className={cn(
+        'shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 lg:w-80 lg:flex lg:flex-col lg:overflow-y-auto',
+        processo.concluido_em && 'pointer-events-none select-none opacity-60',
+      )}>
         <PainelChecklist
           processoId={id}
           faseId={processo.fase_atual_id}

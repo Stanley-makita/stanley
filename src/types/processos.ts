@@ -114,6 +114,9 @@ export interface Processo {
   // useEnviarParaFluxoRegistro/useEnviarParaLiberacaoRecursos)
   modalidade_origem?: ModalidadeProcesso | null
   assinado_em?: string | null
+  // Checklist item com acao_ao_completar='processo_concluido' marcado — trava
+  // o processo (só leitura) e exibe o status "Processo Concluído".
+  concluido_em?: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

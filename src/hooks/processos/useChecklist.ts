@@ -145,6 +145,16 @@ export function useMarcarChecklistItem(processoId: string) {
         if (errP) throw errP
       }
 
+      // Trava o processo (leitura) e passa a exibir "Processo Concluído" no
+      // cabeçalho — ver PainelChecklist/processos/[id]/page.tsx.
+      if (marcado && item.acao_ao_completar === 'processo_concluido') {
+        const { error: errP } = await supabase
+          .from('processos')
+          .update({ concluido_em: new Date().toISOString() })
+          .eq('id', processoId)
+        if (errP) throw errP
+      }
+
       if (marcado && item.acao_ao_completar === 'enviado_conformidade') {
         const { error: errP } = await supabase
           .from('processos')

@@ -97,6 +97,9 @@ function ChecklistItemRow({
       {item.acao_ao_completar === 'processo_inconforme' && (
         <span className="text-[10px] font-medium text-red-600 shrink-0">❌ Processo Inconforme</span>
       )}
+      {item.acao_ao_completar === 'processo_concluido' && (
+        <span className="text-[10px] font-medium text-fonti-primary shrink-0">🔒 Processo Concluído</span>
+      )}
       {item.condicao_banco_id && bancoNome && (
         <span className="text-[10px] font-medium text-amber-600 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-full">
           🏦 só {bancoNome}
@@ -179,6 +182,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
             <SelectItem value="enviado_conformidade">📨 Marcar como Enviado para Conformidade</SelectItem>
             <SelectItem value="processo_conforme">✅ Marcar como Processo Conforme</SelectItem>
             <SelectItem value="processo_inconforme">❌ Marcar como Processo Inconforme</SelectItem>
+            <SelectItem value="processo_concluido">🔒 Marcar como Concluído (trava o processo)</SelectItem>
           </SelectContent>
         </Select>
         <Select value={condicaoBanco || 'todos'} onValueChange={(v) => setCondicaoBanco(v === 'todos' ? '' : v)}>
