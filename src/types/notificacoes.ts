@@ -3,7 +3,7 @@ import {
   CheckSquare, ArrowRight, UserPlus, FileCheck, CreditCard, MessageSquare,
   Bell, UserPlus2, RefreshCcw, FileText, ScanLine, ScanEye, Phone,
   UserRound, StickyNote, ListTodo, Clock, AlertTriangle, DatabaseBackup,
-  RefreshCw, Wifi, ShieldAlert,
+  RefreshCw, Wifi, ShieldAlert, CalendarClock,
 } from 'lucide-react'
 
 /**
@@ -61,8 +61,10 @@ export type TipoNotificacao =
   | 'login_suspeito'
   | 'lead_followup_lembrete'
   | 'chamada_recebida'
+  | 'compromisso_criado'
+  | 'compromisso_recepcao'
 
-export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao'
+export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao' | 'compromisso'
 
 export interface Notificacao {
   id: string
@@ -131,6 +133,8 @@ export const NOTIFICACAO_META: Record<TipoNotificacao, NotificacaoMeta> = {
   login_suspeito:      { icon: ShieldAlert,   cor: 'text-red-600',      severidadePadrao: 'critical',prioridadePadrao: 'critical', label: 'Login Suspeito' },
   lead_followup_lembrete: { icon: Clock,      cor: 'text-amber-600',    severidadePadrao: 'warning', prioridadePadrao: 'high',   label: 'Lembrete de Acompanhamento' },
   chamada_recebida:    { icon: Phone,         cor: 'text-green-500',    severidadePadrao: 'info',    prioridadePadrao: 'high',   label: 'Ligação Recebida' },
+  compromisso_criado:   { icon: CalendarClock, cor: 'text-fonti-primary', severidadePadrao: 'info', prioridadePadrao: 'normal', label: 'Novo Compromisso' },
+  compromisso_recepcao: { icon: CalendarClock, cor: 'text-amber-600',    severidadePadrao: 'info', prioridadePadrao: 'normal', label: 'Compromisso na Sede' },
 }
 
 /** Tempo de permanência do toast por severidade. `critical` não fecha sozinho. */

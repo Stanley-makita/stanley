@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
+import { X, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { NOTIFICACAO_META, type Notificacao, type Severidade } from '@/types/notificacoes'
@@ -37,8 +37,10 @@ interface ToastNotificacaoProps {
  */
 export function ToastNotificacao({ toastId, notificacao, duracaoMs }: ToastNotificacaoProps) {
   const router = useRouter()
-  const meta = NOTIFICACAO_META[notificacao.tipo]
-  const Icon = meta.icon
+  // Opcional (não ?.icon direto): `tipo` na tabela é TEXT livre — um valor
+  // novo sem entrada em NOTIFICACAO_META não pode derrubar o toast inteiro.
+  const meta = NOTIFICACAO_META[notificacao.tipo] as typeof NOTIFICACAO_META[keyof typeof NOTIFICACAO_META] | undefined
+  const Icon = meta?.icon ?? Bell
   const rota = resolverRotaNotificacao(notificacao.entidade, notificacao.entidade_id)
 
   function abrir() {

@@ -21,6 +21,10 @@ export function resolverRotaNotificacao(
       return `/agenda?tarefa=${entidadeId}&fonte=processo`
     case 'lead_tarefa':
       return `/agenda?tarefa=${entidadeId}&fonte=lead`
+    case 'compromisso':
+      // Compromisso não tem deep-link próprio (é autocontido, sem modal de
+      // detalhe) — só leva pra Agenda, onde ele já aparece na lista/calendário.
+      return '/agenda'
     default:
       // 'solicitacao' ainda não tem deep-link próprio na UI — sem rota até existir.
       return null

@@ -80,12 +80,17 @@ ALTER TABLE empresas
   ADD COLUMN IF NOT EXISTS recepcao_usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL;
 
 -- Novos tipos de notificação in-app (sino) — dono do compromisso e recepção.
-ALTER TYPE tipo_notificacao ADD VALUE IF NOT EXISTS 'compromisso_criado';
-ALTER TYPE tipo_notificacao ADD VALUE IF NOT EXISTS 'compromisso_recepcao';
+-- Sem ALTER TYPE aqui: nesta produção `notificacoes.tipo` já é TEXT livre,
+-- não o enum `tipo_notificacao` original das migrations mais antigas (drift
+-- pré-existente, fora do controle de migrations) — qualquer valor novo já é
+-- aceito direto, sem precisar liberar nada.
 
 -- notificacoes.entidade precisa aceitar 'compromisso' pro deep-link do sino
 -- (mesmo padrão de entidade/entidade_id já usado por processo/lead/tarefa).
+-- Lista inclui 'solicitacao' porque já existem linhas em produção com esse
+-- valor — outro drift pré-existente fora do controle de migrations: a
+-- constraint real já era mais ampla que a da migration original 008.
 ALTER TABLE notificacoes DROP CONSTRAINT IF EXISTS notificacoes_entidade_check;
 ALTER TABLE notificacoes
   ADD CONSTRAINT notificacoes_entidade_check
-    CHECK (entidade IN ('processo', 'lead', 'tarefa', 'compromisso'));
+    CHECK (entidade IN ('processo', 'lead', 'tarefa', 'solicitacao', 'compromisso'));
