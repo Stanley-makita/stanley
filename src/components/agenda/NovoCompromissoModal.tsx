@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { format } from 'date-fns'
+import { useQuery } from '@tanstack/react-query'
+import { AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,11 +13,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { useCriarCompromisso } from '@/hooks/useCriarCompromisso'
+import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 import { COMPROMISSO_LOCAL_LABELS, type CompromissoLocal } from '@/types/agenda'
 
 interface Props {
   aberto: boolean
   onFechar: () => void
+}
+
+// Aviso não-bloqueante: quando já existe compromisso na Sede no mesmo
+// horário, quem está cadastrando decide (na Descrição) qual sala usar — não
+// impede o agendamento, só evita que dois compromissos "colidam" sem que
+// ninguém perceba.
+function useConflitosSede(empresaId: string | undefined, data: string, horaInicio: string, local: CompromissoLocal) {
+  return useQuery({
+    queryKey: ['agenda-conflitos-sede', empresaId, data, horaInicio, local],
+    enabled: !!empresaId && !!data && !!horaInicio && local === 'sede_fontinhas',
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from('compromissos')
+        .select('id, titulo, usuario:usuarios!usuario_id(nome)')
+        .eq('empresa_id', empresaId!)
+        .eq('data', data)
+        .eq('hora_inicio', horaInicio)
+        .eq('local', 'sede_fontinhas')
+        .is('deleted_at', null)
+      if (error) throw error
+      return (rows ?? []) as unknown as { id: string; titulo: string; usuario: { nome: string } | null }[]
+    },
+    staleTime: 10_000,
+  })
 }
 
 export function NovoCompromissoModal({ aberto, onFechar }: Props) {
@@ -32,6 +60,8 @@ export function NovoCompromissoModal({ aberto, onFechar }: Props) {
   const [descricao, setDescricao] = useState('')
 
   const donoId = usuarioId || usuarioAtual?.id || ''
+
+  const { data: conflitos = [] } = useConflitosSede(usuarioAtual?.empresa_id, data, horaInicio, local)
 
   function limpar() {
     setUsuarioId('')
@@ -118,6 +148,31 @@ export function NovoCompromissoModal({ aberto, onFechar }: Props) {
             </Select>
             {local === 'sede_fontinhas' && (
               <p className="text-[11px] text-gray-400">A recepção também será avisada por WhatsApp.</p>
+            )}
+            {conflitos.length > 0 && (
+              <div className={cn(
+                'flex items-start gap-2 rounded-lg border px-3 py-2 text-xs',
+                conflitos.length >= 2
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-amber-200 bg-amber-50 text-amber-700',
+              )}>
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <div>
+                  {conflitos.length >= 2 ? (
+                    <p className="font-medium">
+                      Já existem {conflitos.length} compromissos na Sede nesse mesmo horário — confira a disponibilidade de sala antes de confirmar.
+                    </p>
+                  ) : (
+                    <p className="font-medium">
+                      Já existe um compromisso na Sede nesse mesmo horário ({conflitos[0].titulo}
+                      {conflitos[0].usuario?.nome ? ` — ${conflitos[0].usuario.nome}` : ''}).
+                    </p>
+                  )}
+                  <p className="mt-0.5 text-[11px] opacity-80">
+                    Não impede o agendamento — se for o caso, indique a sala na Descrição (ex.: "Sala 2").
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
