@@ -62,7 +62,7 @@ export function FaseBreadcrumbBar({ fases, faseAtualId, podeClicar, onClicarFase
               idx > 0 && '-ml-[14px]',
               // z-index crescente para que a fase atual fique na frente das seguintes
               idx === idxAtual && 'z-10',
-              isPast    && 'z-[5]',
+              isPast && cn('z-[5]', isClicavel && 'cursor-pointer hover:brightness-90'),
               !isPast && !isAtual && cn('z-[4]', isClicavel && 'cursor-pointer hover:brightness-95'),
             )}
             style={{

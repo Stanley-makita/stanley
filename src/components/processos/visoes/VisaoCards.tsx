@@ -1,15 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { useProcessos, type ProdutoFiltro } from '@/hooks/processos/useProcessos'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useSolicitacoesAbertasPorProcesso } from '@/hooks/solicitacoes/useSolicitacoesAbertasPorProcesso'
+import { useMoverProcessoKanban } from '@/hooks/processos/useProcessoFasesHistorico'
+import { usePermissao } from '@/hooks/auth/usePermissao'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { supabase } from '@/lib/supabase'
 import { ChanceBadge } from '@/components/processos/ChanceBadge'
 import { ProcessoStatusBadge } from '@/components/processos/ProcessoStatusBadge'
 import { Input } from '@/components/ui/input'
-import { Search, User, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
+import { Search, User, Clock, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Processo, ModalidadeProcesso } from '@/types/processos'
+import type { Fase } from '@/types/configuracoes'
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 
@@ -66,9 +88,16 @@ function fmtMoeda(v: number) {
 
 // ─── Card compacto ────────────────────────────────────────────────────────────
 
-function KanbanCard({ processo }: { processo: Processo }) {
+function KanbanCard({ processo, arrastavel, overlay }: { processo: Processo; arrastavel?: boolean; overlay?: boolean }) {
   const router = useRouter()
   const { data: pendencias = [] } = useSolicitacoesAbertasPorProcesso(processo.id)
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: processo.id,
+    data: { processo },
+    disabled: !arrastavel,
+  })
 
   const comprador =
     processo.compradores?.find((c) => c.principal)?.nome ??
@@ -76,15 +105,37 @@ function KanbanCard({ processo }: { processo: Processo }) {
 
   const mod = MODALIDADE_CONFIG[processo.modalidade]
 
+  function abrir() {
+    const rota = processo.modalidade === 'Consorcio'
+      ? `/negocios/consorcio/${processo.id}`
+      : `/processos/${processo.id}`
+    router.push(rota)
+  }
+
   return (
     <div
-      onClick={() => {
-        const rota = processo.modalidade === 'Consorcio'
-          ? `/negocios/consorcio/${processo.id}`
-          : `/processos/${processo.id}`
-        router.push(rota)
-      }}
-      className="bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:shadow-md hover:border-fonti-accent transition-all select-none"
+      ref={arrastavel ? setNodeRef : undefined}
+      style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
+      {...(arrastavel ? attributes : {})}
+      {...(arrastavel ? listeners : {})}
+      onMouseDown={arrastavel ? (e) => { mouseDownPos.current = { x: e.clientX, y: e.clientY } } : undefined}
+      onClick={arrastavel
+        ? (e) => {
+          e.stopPropagation()
+          if (mouseDownPos.current) {
+            const dx = e.clientX - mouseDownPos.current.x
+            const dy = e.clientY - mouseDownPos.current.y
+            if (Math.sqrt(dx * dx + dy * dy) < 5) abrir()
+          }
+          mouseDownPos.current = null
+        }
+        : abrir}
+      className={cn(
+        'bg-white border border-gray-200 rounded-lg p-2.5 hover:shadow-md hover:border-fonti-accent transition-all select-none',
+        arrastavel ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+        isDragging && 'opacity-40 border-fonti-accent',
+        overlay && 'shadow-lg rotate-1 opacity-95',
+      )}
     >
       {/* linha 1: status + modalidade + chance */}
       <div className="flex items-center justify-between gap-1 mb-1.5">
@@ -148,13 +199,17 @@ function KanbanCard({ processo }: { processo: Processo }) {
 // ─── Coluna do Kanban ─────────────────────────────────────────────────────────
 
 function KanbanColuna({
-  nome, cor, count, processos,
+  faseId, nome, cor, count, processos, arrastavel,
 }: {
+  faseId: string
   nome: string
   cor: string | null
   count: number
   processos: Processo[]
+  arrastavel?: boolean
 }) {
+  const { setNodeRef, isOver } = useDroppable({ id: faseId, disabled: !arrastavel })
+
   return (
     <div className="flex w-[82vw] max-w-[21rem] shrink-0 flex-col sm:w-64 lg:min-w-[180px] lg:max-w-[260px] lg:flex-1">
       {/* cabeçalho */}
@@ -172,11 +227,17 @@ function KanbanColuna({
       </div>
 
       {/* corpo */}
-      <div className="flex-1 bg-gray-50/80 border border-gray-200 rounded-xl p-2 space-y-2 overflow-y-auto">
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'flex-1 bg-gray-50/80 border rounded-xl p-2 space-y-2 overflow-y-auto transition-colors',
+          isOver ? 'border-fonti-accent bg-fonti-accent-hover/20' : 'border-gray-200',
+        )}
+      >
         {processos.length === 0 ? (
           <p className="text-center py-6 text-[11px] text-gray-300">—</p>
         ) : (
-          processos.map((p) => <KanbanCard key={p.id} processo={p} />)
+          processos.map((p) => <KanbanCard key={p.id} processo={p} arrastavel={arrastavel} />)
         )}
       </div>
     </div>
@@ -213,6 +274,118 @@ export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId, p
   })
 
   const isLoading = fasesLoading || processosLoading
+
+  // ── Drag-and-drop (mover processo de fase pelo Kanban) ──
+  const { usuario } = useAuth()
+  const { pode } = usePermissao()
+  const podeEditar = pode('processos.editar')
+  const podeRetroceder = pode('processos.retroceder_fase')
+  const moverProcesso = useMoverProcessoKanban()
+
+  const [processoArrastado, setProcessoArrastado] = useState<Processo | null>(null)
+  const [retornoPendente, setRetornoPendente] = useState<{ processo: Processo; faseDestino: Fase } | null>(null)
+  const [motivoRetorno, setMotivoRetorno] = useState('')
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  const onDragStart = useCallback((event: DragStartEvent) => {
+    const processo = event.active.data.current?.processo as Processo | undefined
+    if (processo) setProcessoArrastado(processo)
+  }, [])
+
+  const onDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      setProcessoArrastado(null)
+      const { active, over } = event
+      if (!over) return
+
+      const processo = active.data.current?.processo as Processo | undefined
+      const faseDestinoId = over.id as string
+      if (!processo || processo.fase_atual_id === faseDestinoId) return
+
+      const idxOrigem  = fases.findIndex((f) => f.id === processo.fase_atual_id)
+      const idxDestino = fases.findIndex((f) => f.id === faseDestinoId)
+      const faseDestino = fases[idxDestino]
+      if (idxDestino === -1 || !faseDestino) return
+
+      // Retrocesso: só quem tem processos.retroceder_fase, e pede motivo
+      // (mesmo padrão do PipelineBarProcesso/AbaFases do Consórcio). O
+      // checklist já marcado permanece — vinculado a processo+item, não à fase.
+      if (idxOrigem === -1 || idxDestino < idxOrigem) {
+        if (!podeRetroceder) {
+          toast.error('Você não tem permissão para retroceder a fase deste processo.')
+          return
+        }
+        setMotivoRetorno('')
+        setRetornoPendente({ processo, faseDestino })
+        return
+      }
+
+      // Avanço: só uma fase de cada vez, mesma regra do PipelineBarProcesso.
+      if (idxDestino !== idxOrigem + 1) {
+        toast.error('Processo só pode avançar uma fase por vez.')
+        return
+      }
+
+      // Checklist obrigatório da fase de origem precisa estar completo.
+      const faseOrigem = fases[idxOrigem]
+      const { data: template } = await supabase
+        .from('checklist_templates')
+        .select('id')
+        .eq('fase_id', faseOrigem.id)
+        .eq('empresa_id', usuario!.empresa_id)
+        .eq('ativo', true)
+        .maybeSingle()
+
+      if (template) {
+        const { data: itens } = await supabase
+          .from('checklist_items')
+          .select('id, descricao')
+          .eq('template_id', template.id)
+          .eq('obrigatorio', true)
+          .eq('ativo', true)
+
+        if (itens && itens.length > 0) {
+          const itemIds = itens.map((i) => i.id)
+          const { data: execucoes } = await supabase
+            .from('checklist_execucoes')
+            .select('item_id, marcado')
+            .eq('processo_id', processo.id)
+            .in('item_id', itemIds)
+
+          const concluidos = new Set(execucoes?.filter((e) => e.marcado).map((e) => e.item_id) ?? [])
+          const bloqueadores = itens.filter((i) => !concluidos.has(i.id))
+          if (bloqueadores.length > 0) {
+            toast.error('Complete os itens obrigatórios do checklist antes de avançar.', {
+              description: bloqueadores.map((b) => b.descricao).join(', '),
+            })
+            return
+          }
+        }
+      }
+
+      moverProcesso.mutate({ processoId: processo.id, faseId: faseDestinoId })
+    },
+    [fases, moverProcesso, podeRetroceder, usuario]
+  )
+
+  async function confirmarRetorno() {
+    if (!retornoPendente || !motivoRetorno.trim()) return
+    try {
+      await moverProcesso.mutateAsync({
+        processoId: retornoPendente.processo.id,
+        faseId: retornoPendente.faseDestino.id,
+        observacao: motivoRetorno.trim(),
+        retrocedendo: true,
+      })
+      setRetornoPendente(null)
+      setMotivoRetorno('')
+    } catch {
+      // Erro já exibido via onError de useMoverProcessoKanban — mantém o dialog aberto.
+    }
+  }
 
   // contagens para os filtros
   const contagemProduto = processos.reduce((acc, p) => {
@@ -307,19 +480,80 @@ export function VisaoCards({ modulo = 'processos', produtoFixo, responsavelId, p
           ))}
         </div>
       ) : (
-        <div className="-mx-4 flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
-          {fases.map((fase) => (
-            <KanbanColuna
-              key={fase.id}
-              nome={fase.nome}
-              cor={fase.cor}
-              count={(porFase[fase.id] ?? []).length}
-              processos={porFase[fase.id] ?? []}
-            />
-          ))}
+        <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+          <div className="-mx-4 flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
+            {fases.map((fase) => (
+              <KanbanColuna
+                key={fase.id}
+                faseId={fase.id}
+                nome={fase.nome}
+                cor={fase.cor}
+                count={(porFase[fase.id] ?? []).length}
+                processos={porFase[fase.id] ?? []}
+                arrastavel={podeEditar}
+              />
+            ))}
+          </div>
 
-        </div>
+          <DragOverlay
+            className={undefined}
+            style={undefined}
+            transition={undefined}
+            adjustScale={undefined}
+          >
+            {processoArrastado && <KanbanCard processo={processoArrastado} overlay />}
+          </DragOverlay>
+        </DndContext>
       )}
+
+      {/* Dialog de retorno de fase pelo Kanban — só chega aqui quem tem
+          processos.retroceder_fase (checado antes de abrir). */}
+      <Dialog open={!!retornoPendente} onOpenChange={(o) => { if (!o) { setRetornoPendente(null); setMotivoRetorno('') } }}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="h-5 w-5" />
+              Retornar processo para "{retornoPendente?.faseDestino.nome}"?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500">
+            {(retornoPendente?.processo.compradores?.find((c) => c.principal)?.nome
+              ?? retornoPendente?.processo.compradores?.[0]?.nome
+              ?? retornoPendente?.processo.nome_imovel)} retornará para uma fase anterior.
+            Esta ação fica registrada no histórico. Os itens já marcados no checklist continuam marcados.
+          </p>
+          <div className="space-y-1.5">
+            <Label>Motivo <span className="text-red-500">*</span></Label>
+            <Textarea
+              value={motivoRetorno}
+              onChange={(e) => setMotivoRetorno(e.target.value)}
+              placeholder="Descreva o motivo do retorno..."
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => { setRetornoPendente(null); setMotivoRetorno('') }}
+              disabled={moverProcesso.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="flex-1"
+              disabled={!motivoRetorno.trim() || moverProcesso.isPending}
+              onClick={confirmarRetorno}
+            >
+              {moverProcesso.isPending ? 'Salvando...' : 'Confirmar retorno'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

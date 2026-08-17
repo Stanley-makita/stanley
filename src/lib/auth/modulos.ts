@@ -69,6 +69,7 @@ export const MODULOS: ModuloDef[] = [
       { acao: 'processos.ver', label: 'Ver', tipoControle: 'misto' },
       { acao: 'processos.criar', label: 'Criar', tipoControle: 'servidor' },
       { acao: 'processos.editar', label: 'Editar', tipoControle: 'servidor' },
+      { acao: 'processos.retroceder_fase', label: 'Retroceder fase do processo', tipoControle: 'servidor' },
     ],
   },
   {
