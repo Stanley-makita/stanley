@@ -117,6 +117,10 @@ export interface Processo {
   // Checklist item com acao_ao_completar='processo_concluido' marcado — trava
   // o processo (só leitura) e exibe o status "Processo Concluído".
   concluido_em?: string | null
+  // Preenchidos por reabrir_processo (RPC) — ver useReabrirProcesso.
+  reaberto_em?: string | null
+  reaberto_por?: string | null
+  motivo_reabertura?: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

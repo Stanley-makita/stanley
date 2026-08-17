@@ -70,6 +70,7 @@ export const MODULOS: ModuloDef[] = [
       { acao: 'processos.criar', label: 'Criar', tipoControle: 'servidor' },
       { acao: 'processos.editar', label: 'Editar', tipoControle: 'servidor' },
       { acao: 'processos.retroceder_fase', label: 'Retroceder fase do processo', tipoControle: 'servidor' },
+      { acao: 'processos.reabrir', label: 'Reabrir processo concluído', tipoControle: 'servidor' },
     ],
   },
   {

@@ -11,6 +11,10 @@ import { PainelChecklist } from '@/components/processos/detalhe/PainelChecklist'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { usePermissao } from '@/hooks/auth/usePermissao'
+import { useReabrirProcesso } from '@/hooks/processos/useReabrirProcesso'
 import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle, Lock } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
@@ -74,6 +78,22 @@ export default function ProcessoDetalhePage() {
   const [resultadoFormularios, setResultadoFormularios] = useState<{ salvos: string[]; erros: string[] } | null>(null)
   const [confirmacaoValoresAberto, setConfirmacaoValoresAberto] = useState(false)
   const [atualizarClienteAberto, setAtualizarClienteAberto] = useState(false)
+  const [reabrirAberto, setReabrirAberto] = useState(false)
+  const [motivoReabertura, setMotivoReabertura] = useState('')
+  const reabrirProcesso = useReabrirProcesso(id)
+  const { pode } = usePermissao()
+  const podeReabrir = pode('processos.reabrir')
+
+  async function confirmarReabertura() {
+    if (!motivoReabertura.trim()) return
+    try {
+      await reabrirProcesso.mutateAsync(motivoReabertura.trim())
+      setReabrirAberto(false)
+      setMotivoReabertura('')
+    } catch {
+      // Erro já exibido via onError de useReabrirProcesso — mantém o dialog aberto.
+    }
+  }
 
   function bancoTemFormularios(nome?: string | null): boolean {
     if (!nome) return false
@@ -104,6 +124,11 @@ export default function ProcessoDetalhePage() {
     }
   }
   const [abaAtiva, setAbaAtiva] = useState(searchParams.get('aba') ?? 'resumo')
+  // Processo concluído: Resumo é a tela principal ao abrir — navegação entre
+  // abas continua livre depois disso (só a edição dentro delas é bloqueada).
+  useEffect(() => {
+    if (processo?.concluido_em) setAbaAtiva('resumo')
+  }, [processo?.id, processo?.concluido_em])
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   // Aba Crédito fica escondida até o usuário pedir uma nova análise — ou já
   // aparece direto se o negócio já tiver alguma análise registrada (evita
@@ -168,6 +193,11 @@ export default function ProcessoDetalhePage() {
   // é substituído pelo corpo do Construtor de Contratos, focado em
   // documentos/IA, sem nada específico de Financiamento.
   const isContrato = processo.modalidade === 'Contrato'
+  // Processo Concluído (checklist com acao_ao_completar='processo_concluido')
+  // trava toda edição — só a navegação entre abas (visualização) continua
+  // livre. Reabertura exige processos.reabrir (admin/gestor/gerente).
+  const bloqueado = !!processo.concluido_em
+  const lockClass = cn(bloqueado && 'pointer-events-none select-none opacity-60')
 
   const diasEmAndamento = processo.data_inicio
     ? differenceInDays(new Date(), new Date(processo.data_inicio))
@@ -226,6 +256,16 @@ export default function ProcessoDetalhePage() {
                 <Lock className="h-3 w-3" /> Processo Concluído
               </Badge>
             )}
+            {processo.concluido_em && podeReabrir && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-fonti-accent/60 text-fonti-primary hover:bg-fonti-accent-hover"
+                onClick={() => setReabrirAberto(true)}
+              >
+                Reabrir
+              </Button>
+            )}
             {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
             <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
             {processo.tem_assessoria && (
@@ -242,7 +282,7 @@ export default function ProcessoDetalhePage() {
           )}
           {/* Barra de fases (igual ao Lead) — avança sequencial, respeitando checklist/dados financeiros */}
           {fases.length > 0 && (
-            <div className="mb-1.5">
+            <div className={cn('mb-1.5', lockClass)}>
               <PipelineBarProcesso
                 processo={processo}
                 fases={fases}
@@ -252,7 +292,7 @@ export default function ProcessoDetalhePage() {
             </div>
           )}
           {/* Row 2: botões de ação */}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          <div className={cn('-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0', lockClass)}>
               {/* Botões abaixo são específicos de Financiamento — Contrato só
                   mantém "+ Solicitação" e "Comunicar", mais abaixo. */}
               {!isContrato && (
@@ -391,9 +431,10 @@ export default function ProcessoDetalhePage() {
           )}
         </div>
 
-        <div className={cn(processo.concluido_em && 'pointer-events-none select-none opacity-60')}>
         {isContrato ? (
-          <ContratoConstrutor processo={processo} />
+          <div className={lockClass}>
+            <ContratoConstrutor processo={processo} />
+          </div>
         ) : (
         <>
         {/* KPIs + Validades */}
@@ -405,7 +446,7 @@ export default function ProcessoDetalhePage() {
           const numCards = 3 + (temMatricula ? 1 : 0) + (temEngenharia ? 1 : 0)
           const gridColsClass = numCards <= 3 ? 'md:grid-cols-3' : numCards === 4 ? 'md:grid-cols-4' : 'md:grid-cols-5'
           return (
-            <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridColsClass}`}>
+            <div className={cn(`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridColsClass}`, lockClass)}>
               {/* Valor do Imóvel */}
               <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
@@ -450,7 +491,7 @@ export default function ProcessoDetalhePage() {
 
         {/* Banner não-bloqueante para prazos já vencidos */}
         {alertasVencidos.length > 0 && (
-          <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-start">
+          <div className={cn('flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-start', lockClass)}>
             <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-red-800">Prazo(s) vencido(s)</p>
@@ -501,7 +542,7 @@ export default function ProcessoDetalhePage() {
           </TabsList>
           </div>
 
-          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+          <div className={cn('mt-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5', lockClass)}>
             <TabsContent value="resumo" className="m-0">
               <AbaResumo
                 processo={processo}
@@ -568,7 +609,6 @@ export default function ProcessoDetalhePage() {
         </Tabs>
         </>
         )}
-        </div>
       </div>
 
       <NovaSolicitacaoDrawer
@@ -675,10 +715,51 @@ export default function ProcessoDetalhePage() {
         </DialogContent>
       </Dialog>
 
+      {/* Reabrir processo concluído — só admin/gestor/gerente (podeReabrir) */}
+      <Dialog open={reabrirAberto} onOpenChange={(o) => { if (!o) { setReabrirAberto(false); setMotivoReabertura('') } }}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-fonti-primary">Reabrir processo?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500">
+            O processo volta a ficar editável. Esta ação fica registrada.
+          </p>
+          <div className="space-y-1.5">
+            <Label>Motivo <span className="text-red-500">*</span></Label>
+            <Textarea
+              value={motivoReabertura}
+              onChange={(e) => setMotivoReabertura(e.target.value)}
+              placeholder="Descreva o motivo da reabertura..."
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => { setReabrirAberto(false); setMotivoReabertura('') }}
+              disabled={reabrirProcesso.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+              disabled={!motivoReabertura.trim() || reabrirProcesso.isPending}
+              onClick={confirmarReabertura}
+            >
+              {reabrirProcesso.isPending ? 'Reabrindo...' : 'Confirmar reabertura'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Painel direito — sempre visível */}
       <div className={cn(
         'shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 lg:w-80 lg:flex lg:flex-col lg:overflow-y-auto',
-        processo.concluido_em && 'pointer-events-none select-none opacity-60',
+        lockClass,
       )}>
         <PainelChecklist
           processoId={id}
