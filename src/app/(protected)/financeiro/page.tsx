@@ -87,7 +87,7 @@ export default function FinanceiroPage() {
   const precisaFechamento: Aba[] = ['fechamento', 'emissoes', 'folha', 'despesas', 'conferencias']
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 md:p-6">
       {/* Header */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
