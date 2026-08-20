@@ -26,6 +26,7 @@ import { VisaoFechamento } from '@/components/financeiro/VisaoFechamento'
 import { VisaoEmissoes } from '@/components/financeiro/VisaoEmissoes'
 import { AbaAReceber } from '@/components/financeiro/AbaAReceber'
 import { AbaComissoesPagar } from '@/components/financeiro/AbaComissoesPagar'
+import { AbaConsorcio } from '@/components/financeiro/AbaConsorcio'
 import { VisaoFolha } from '@/components/financeiro/VisaoFolha'
 import { VisaoDespesas } from '@/components/financeiro/VisaoDespesas'
 import { VisaoConferencias } from '@/components/financeiro/VisaoConferencias'
@@ -36,6 +37,7 @@ type Aba =
   | 'emissoes'
   | 'a_receber'
   | 'comissoes_pagar'
+  | 'consorcio'
   | 'folha'
   | 'despesas'
   | 'fluxo'
@@ -49,6 +51,7 @@ const ABAS: { key: Aba; label: string; novo?: boolean }[] = [
   { key: 'emissoes',        label: 'Emissões',          novo: true },
   { key: 'a_receber',       label: 'A Receber',         novo: true },
   { key: 'comissoes_pagar', label: 'Comissões a Pagar', novo: true },
+  { key: 'consorcio',       label: 'Consórcio',         novo: true },
   { key: 'folha',           label: 'Folha',             novo: true },
   { key: 'despesas',        label: 'Despesas',          novo: true },
   { key: 'fluxo',           label: 'Fluxo de Caixa' },
@@ -204,6 +207,9 @@ export default function FinanceiroPage() {
         {/* A Receber e Comissões a Pagar: ao vivo, não exigem fechamento aberto */}
         {aba === 'a_receber'       && <AbaAReceber fechamento={fechamento ?? null} mes={mes} ano={ano} />}
         {aba === 'comissoes_pagar' && <AbaComissoesPagar fechamento={fechamento ?? null} mes={mes} ano={ano} />}
+
+        {/* Consórcio: fluxo próprio, desacoplado de fechamento mensal (ver migration 261) */}
+        {aba === 'consorcio' && <AbaConsorcio />}
 
         {/* Abas legado / independentes */}
         {aba === 'fluxo'     && <VisaoFluxoCaixa mes={mes} ano={ano} />}
