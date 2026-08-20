@@ -109,7 +109,7 @@ export function mergeCapturados(
     'nome', 'cpf', 'telefone', 'data_nascimento', 'cidade_imovel',
     'tipo_imovel', 'valor_imovel', 'valor_entrada', 'valor_financiado',
     'renda_formal', 'renda_informal', 'prazo_meses',
-    'tipo_amortizacao', 'fgts_valor',
+    'fgts_valor',
     'finalidade_efetiva', 'valor_terreno', 'valor_obra',
     'modo_calculo', 'produto', 'produto_normalizado',
   ]
@@ -151,6 +151,20 @@ export function mergeCapturados(
     result.tipo_operacao = novo.tipo_operacao
   } else if (!result.tipo_operacao) {
     result.tipo_operacao = novo.tipo_operacao ?? 'aquisicao'
+  }
+
+  // tipo_amortizacao: mesmo problema dos campos booleanos acima, mas o valor não é
+  // nullable — 'SAC' é o default do normalizador quando o texto não menciona amortização
+  // nenhuma (não um "usuário pediu SAC" de verdade). Bug real: cliente pede "Tabela price"
+  // na mensagem original; ao confirmar ("sim") ou completar um dado faltante numa
+  // mensagem seguinte que não fala em amortização, o reparse devolvia 'SAC' e, tratado
+  // como campo escalar comum, apagava o PRICE já capturado — o Fonti simulava e
+  // respondia em SAC mesmo o operador tendo pedido Price. Mesmo critério já usado acima
+  // para tipo_operacao: só troca quando o novo texto pediu PRICE explicitamente.
+  if (novo.tipo_amortizacao === 'PRICE') {
+    result.tipo_amortizacao = 'PRICE'
+  } else if (!result.tipo_amortizacao) {
+    result.tipo_amortizacao = novo.tipo_amortizacao
   }
 
   return result
