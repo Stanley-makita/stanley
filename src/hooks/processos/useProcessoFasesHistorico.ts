@@ -37,18 +37,20 @@ async function moverFaseProcesso({ processoId, faseId, observacao, retrocedendo,
   // financeiros incompletos/inconsistentes, seja qual for o caminho de
   // chamada (pipeline bar, aba de fases, Kanban, etc). Retrocesso não exige
   // dados que a fase de destino (anterior) nunca chegou a pedir.
+  let proc: { modalidade: string } | null = null
   if (!retrocedendo) {
-    const { data: proc, error: procFetchError } = await supabase
+    const { data: procData, error: procFetchError } = await supabase
       .from('processos')
       .select('modalidade, banco_id, taxa_juros, sistema_amortizacao, valor_imovel, valor_financiado, valor_fgts')
       .eq('id', processoId)
       .single()
     if (procFetchError) throw procFetchError
+    proc = procData
     // Contrato e Consórcio não usam os campos financeiros de financiamento
     // (taxa_juros, sistema_amortizacao, valor_financiado etc. não fazem
     // sentido pro modelo de cotas do Consórcio) — fases ficam livres pra
     // avançar, limitadas só pelos itens obrigatórios do checklist da fase.
-    if (proc.modalidade !== 'Contrato' && proc.modalidade !== 'Consorcio' && dadosFinanceirosIncompletos(proc)) {
+    if (procData.modalidade !== 'Contrato' && procData.modalidade !== 'Consorcio' && dadosFinanceirosIncompletos(procData)) {
       throw new Error('DADOS_FINANCEIROS_PENDENTES')
     }
   }
@@ -72,6 +74,23 @@ async function moverFaseProcesso({ processoId, faseId, observacao, retrocedendo,
     .update({ fase_atual_id: faseId })
     .eq('id', processoId)
   if (procError) throw procError
+
+  // 3. Consórcio: fase marcada como final do módulo (fases.e_fase_final_consorcio)
+  // dispara a geração do fluxo financeiro (N parcelas a receber da empresa + N a
+  // pagar ao comercial, por cota ativa) — ver gerar_fluxo_financeiro_consorcio
+  // (migration 262). Retrocesso nunca dispara; ON CONFLICT DO NOTHING no RPC
+  // também protege contra gerar duas vezes se o processo passar pela fase de novo.
+  if (!retrocedendo && proc?.modalidade === 'Consorcio') {
+    const { data: fase } = await supabase
+      .from('fases')
+      .select('e_fase_final_consorcio')
+      .eq('id', faseId)
+      .single()
+    if (fase?.e_fase_final_consorcio) {
+      const { error: rpcError } = await supabase.rpc('gerar_fluxo_financeiro_consorcio', { p_processo_id: processoId })
+      if (rpcError) throw rpcError
+    }
+  }
 }
 
 function mensagemErroMoverFase(err: Error) {

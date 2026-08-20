@@ -25,6 +25,7 @@ const schema = z.object({
   modulo:            z.string().min(1, 'Selecione o módulo'),
   notificar_cliente: z.boolean(),
   mensagem_cliente:  z.string().optional(),
+  e_fase_final_consorcio: z.boolean(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -44,12 +45,13 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { cor: 'var(--fonti-accent)', notificar_cliente: false, modulo: moduloInicial },
+    defaultValues: { cor: 'var(--fonti-accent)', notificar_cliente: false, modulo: moduloInicial, e_fase_final_consorcio: false },
   })
 
   const notificar = watch('notificar_cliente')
   const corAtual  = watch('cor')
   const moduloAtual = watch('modulo')
+  const faseFinalConsorcio = watch('e_fase_final_consorcio')
 
   useEffect(() => {
     if (fase) {
@@ -61,9 +63,10 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
         modulo:            fase.modulo ?? moduloInicial,
         notificar_cliente: false,
         mensagem_cliente:  '',
+        e_fase_final_consorcio: fase.e_fase_final_consorcio ?? false,
       })
     } else {
-      reset({ cor: 'var(--fonti-accent)', notificar_cliente: false, modulo: moduloInicial })
+      reset({ cor: 'var(--fonti-accent)', notificar_cliente: false, modulo: moduloInicial, e_fase_final_consorcio: false })
     }
   }, [fase, reset, moduloInicial])
 
@@ -76,6 +79,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
           cor: values.cor,
           prazo_dias: values.prazo_dias ?? null,
           modulo: values.modulo,
+          e_fase_final_consorcio: values.modulo === 'consorcio' ? values.e_fase_final_consorcio : false,
         })
         toast.success('Fase atualizada com sucesso.')
       } else {
@@ -91,6 +95,13 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
       onFechar()
     } catch (err) {
       console.error('[FaseFormDrawer]', err)
+      const codigo = (err as { code?: string })?.code
+      if (codigo === '23505') {
+        toast.error('Já existe outra fase marcada como conclusão do Consórcio.', {
+          description: 'Desmarque a fase atual antes de marcar esta.',
+        })
+        return
+      }
       toast.error('Não foi possível salvar a fase. Tente novamente.')
     }
   }
@@ -165,6 +176,23 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
               {...register('prazo_dias', { valueAsNumber: true })}
             />
           </div>
+
+          {/* Fase final do Consórcio — dispara o fluxo financeiro (a receber/a pagar) */}
+          {moduloAtual === 'consorcio' && (
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5">
+              <div>
+                <Label htmlFor="fase_final_consorcio">Esta é a fase de conclusão do Consórcio</Label>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Ao entrar nesta fase, gera automaticamente o fluxo de comissão (a receber da empresa e a pagar ao comercial). Só 1 fase pode ser marcada.
+                </p>
+              </div>
+              <Switch
+                id="fase_final_consorcio"
+                checked={faseFinalConsorcio}
+                onCheckedChange={(v) => setValue('e_fase_final_consorcio', v)}
+              />
+            </div>
+          )}
 
           {/* Notificação WhatsApp */}
           <div className="flex items-center justify-between">
