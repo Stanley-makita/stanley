@@ -390,3 +390,54 @@ export interface RelatorioComercial {
   comissao_gerada: number
   comissao_recebida: number
 }
+
+// ─── Financeiro de Consórcio ────────────────────────────────────────────────
+
+export type FinStatusParcelaConsorcio = 'prevista' | 'recebida' | 'paga' | 'cancelada' | 'atrasada'
+
+export interface FinConfigConsorcio {
+  id: string
+  empresa_id: string
+  administradora_nome: string | null  // null = linha "padrão/geral"
+  comissao_total_percentual: number
+  comissao_comercial_percentual: number
+  numero_parcelas_padrao: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FinConsorcioReceber {
+  id: string
+  empresa_id: string
+  processo_id: string
+  processo_cota_id: string
+  numero_parcela: number
+  total_parcelas: number
+  valor_parcela: number
+  data_vencimento: string
+  status: FinStatusParcelaConsorcio
+  data_recebimento: string | null
+  valor_recebido: number | null
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FinConsorcioComercialPagar {
+  id: string
+  empresa_id: string
+  processo_id: string
+  processo_cota_id: string
+  usuario_id: string | null
+  numero_parcela: number
+  total_parcelas: number
+  valor_parcela: number
+  data_vencimento: string
+  status: FinStatusParcelaConsorcio
+  data_pagamento: string | null
+  valor_pago: number | null
+  observacoes: string | null
+  created_at: string
+  updated_at: string
+  usuario?: { nome: string }
+}

@@ -48,6 +48,7 @@ export type Database = {
           prazo_dias: number | null
           modulo: string
           ativo: boolean
+          e_fase_final_consorcio: boolean
           created_at: string
           updated_at: string
         }
