@@ -12,6 +12,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { executarSimulacao, montarRespostaSimulacao } from '../motor-simulacao'
+import { mergeCapturados } from '../simula-pendente'
 import type { DadosCaptacaoNormalizados } from '../normalizador-captacao'
 
 function baseDados(overrides: Partial<DadosCaptacaoNormalizados>): DadosCaptacaoNormalizados {
@@ -85,5 +86,40 @@ describe('texto do WhatsApp — amortização', () => {
     const texto = montarRespostaSimulacao(resultado, { nomeDisplay: 'Cliente Teste' })
 
     expect(texto).toMatch(/Itaú.*- SAC/)
+  })
+})
+
+describe('mergeCapturados — PRICE não é apagado ao reparsear texto sem menção a amortização', () => {
+  // Bug real: cliente pede "*simula ... Banco Bradesco ... Tabela price". O Fonti detecta
+  // valores numéricos ambíguos e pede confirmação ("sim"/"não") antes de simular. Ao
+  // confirmar, o texto reparseado ("" ou a própria confirmação) não menciona amortização
+  // — o normalizador devolve 'SAC' (default), e mergeCapturados, tratando o campo como
+  // escalar comum, sobrescrevia o 'PRICE' já capturado na mensagem original. Resultado:
+  // o operador pedia Price e o Fonti respondia em SAC.
+  it('mantém PRICE capturado quando o reparse (ex.: confirmação "sim") não menciona amortização', () => {
+    const anterior = baseDados({ tipo_amortizacao: 'PRICE' })
+    const novo = baseDados({ tipo_amortizacao: 'SAC' })  // reparse de texto vazio/neutro: default do normalizador
+
+    const mesclado = mergeCapturados(anterior, novo)
+
+    expect(mesclado.tipo_amortizacao).toBe('PRICE')
+  })
+
+  it('ainda troca para PRICE quando o novo texto pede explicitamente', () => {
+    const anterior = baseDados({ tipo_amortizacao: 'SAC' })
+    const novo = baseDados({ tipo_amortizacao: 'PRICE' })
+
+    const mesclado = mergeCapturados(anterior, novo)
+
+    expect(mesclado.tipo_amortizacao).toBe('PRICE')
+  })
+
+  it('ainda troca para SAC quando não havia nada capturado antes', () => {
+    const anterior = {}
+    const novo = baseDados({ tipo_amortizacao: 'SAC' })
+
+    const mesclado = mergeCapturados(anterior, novo)
+
+    expect(mesclado.tipo_amortizacao).toBe('SAC')
   })
 })
