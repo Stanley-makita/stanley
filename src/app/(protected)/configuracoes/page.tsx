@@ -18,6 +18,7 @@ import { ChecklistsConfig } from './_components/checklists/ChecklistsConfig'
 import { AgenteFontiConfig } from './_components/bot/AgenteFontiConfig'
 import { AbasConfigTab } from './_components/abas/AbasConfigTab'
 import { AbaComissoesPadrao } from '@/components/configuracoes/AbaComissoesPadrao'
+import { AbaConfigConsorcio } from '@/components/configuracoes/AbaConfigConsorcio'
 import { AbaMetas } from '@/components/configuracoes/AbaMetas'
 import { IdentidadeVisualConfig } from './_components/identidade/IdentidadeVisualConfig'
 import { PerfisPermissoesConfig } from './_components/perfis/PerfisPermissoesConfig'
@@ -51,6 +52,7 @@ const GRUPOS: ConfigGrupo[] = [
       { key: 'bancos',          label: 'Bancos',            descricao: 'Bancos e instituições parceiras',                       icon: Building2 },
       { key: 'produtos',        label: 'Produtos',          descricao: 'Produtos e modalidades de crédito oferecidos',          icon: Package },
       { key: 'comissoes-banco', label: 'Comissões Banco',   descricao: 'Percentuais por banco, modalidade, piso e teto',        icon: Percent },
+      { key: 'comissoes-consorcio', label: 'Comissões Consórcio', descricao: 'Percentuais de comissão por administradora de consórcio', icon: Percent },
       { key: 'metas',           label: 'Metas',             descricao: 'Metas mensais de valor financiado e contratos',         icon: Target },
       { key: 'simulador',       label: 'Simulador',         descricao: 'Parâmetros de custas, ITBI e tarifas bancárias',        icon: Calculator },
       { key: 'parceiros-comerciais', label: 'Parceiros Comerciais', descricao: 'Corretores, imobiliárias/construtoras e parceiros', icon: Handshake },
@@ -110,6 +112,7 @@ function renderConteudo(key: string) {
     case 'agente-fonti':     return wrap('Agente Fonti', 'Personalize o assistente virtual no WhatsApp — nome, horário, produtos e mensagens.', <AgenteFontiConfig />)
     case 'abas-lead':        return wrap('Abas do Lead', 'Defina a ordem das abas no modal de detalhe do lead.', <AbasConfigTab />)
     case 'comissoes-banco':  return wrap('Comissões por Banco', 'Configure o percentual por banco e modalidade, com piso e teto por operação.', <AbaComissoesPadrao />)
+    case 'comissoes-consorcio': return wrap('Comissões por Administradora de Consórcio', 'Configure o percentual de comissão da empresa e a fatia do comercial, por administradora.', <AbaConfigConsorcio />)
     case 'metas':            return wrap('Metas da Equipe', 'Metas mensais de valor financiado e número de contratos.', <AbaMetas />)
     case 'identidade':       return wrap('Logo & Marca', 'Logo exibida no sidebar e na tela de login. Documentos e PDFs gerados pelo sistema mantêm sua própria identidade visual.', <IdentidadeVisualConfig />)
     case 'recepcao':         return wrap('Agenda & Recepção', 'Defina quem recebe o aviso de compromissos agendados na Sede Fontinhas.', <RecepcaoConfig />)
