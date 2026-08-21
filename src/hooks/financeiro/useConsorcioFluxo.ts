@@ -53,6 +53,29 @@ export function useConsorcioComercialPagar() {
   })
 }
 
+// Resumo pro card "Fechamento Consórcios" do Painel — soma das parcelas a
+// receber (empresa) com vencimento no mês/ano, fora as canceladas.
+export function useConsorcioResumoMes(mes: number, ano: number) {
+  const { usuario } = useAuth()
+  const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
+  const fim = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, '0')}-01`
+
+  return useQuery({
+    queryKey: ['financeiro', 'consorcio_resumo_mes', usuario?.empresa_id, mes, ano],
+    queryFn: async (): Promise<{ total: number; qtd: number }> => {
+      const { data, error } = await supabase
+        .from('financeiro_consorcio_receber')
+        .select('valor_parcela')
+        .gte('data_vencimento', inicio)
+        .lt('data_vencimento', fim)
+        .neq('status', 'cancelada')
+      if (error) throw error
+      return { total: data.reduce((s, r) => s + r.valor_parcela, 0), qtd: data.length }
+    },
+    enabled: !!usuario,
+  })
+}
+
 export function useMarcarParcelaConsorcioRecebida() {
   const queryClient = useQueryClient()
 

@@ -19,6 +19,7 @@ import { type FinFechamentoStatus } from '@/types/financeiro'
 import { useFechamentos } from '@/hooks/financeiro/useFechamento'
 import { useConferencias } from '@/hooks/financeiro/useConferencias'
 import { usePainelFinanceiro } from '@/hooks/financeiro/usePainelFinanceiro'
+import { useConsorcioResumoMes } from '@/hooks/financeiro/useConsorcioFluxo'
 import { useContasBancarias, useSaldosBancariosAtuais } from '@/hooks/financeiro/useContasBancarias'
 import { ModalDetalheEmissoes } from '@/components/financeiro/ModalDetalheEmissoes'
 import { formatarMoeda } from '@/lib/utils'
@@ -57,7 +58,7 @@ interface Props {
   mes: number
   ano: number
   onAbrirFechamento: () => void
-  onIrParaFechamento: (mes: number, ano: number, aba?: 'fechamento' | 'a_receber' | 'despesas') => void
+  onIrParaFechamento: (mes: number, ano: number, aba?: 'fechamento' | 'a_receber' | 'despesas' | 'consorcio') => void
 }
 
 export function PainelFinanceiro({ mes, ano, onAbrirFechamento, onIrParaFechamento }: Props) {
@@ -69,6 +70,7 @@ export function PainelFinanceiro({ mes, ano, onAbrirFechamento, onIrParaFechamen
   const criticos = conferencias.filter(c => c.status === 'pendente' && c.severidade === 'critico').length
 
   const { data: kpis, isLoading: kpisLoading } = usePainelFinanceiro(mes, ano)
+  const { data: consorcioResumo } = useConsorcioResumoMes(mes, ano)
   const { data: contasBancarias = [] } = useContasBancarias()
   const { data: saldosAtuais = {} } = useSaldosBancariosAtuais()
 
@@ -181,14 +183,17 @@ export function PainelFinanceiro({ mes, ano, onAbrirFechamento, onIrParaFechamen
           </p>
         </button>
 
-        <div className="rounded-xl p-4 bg-gray-200 text-gray-500">
+        <button
+          className="rounded-xl p-4 text-left bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+          onClick={() => onIrParaFechamento(mes, ano, 'consorcio')}
+        >
           <div className="flex items-start justify-between">
-            <p className="text-lg font-bold">—</p>
-            <Boxes className="h-5 w-5 opacity-60" />
+            <p className="text-lg font-bold">{formatarMoeda(consorcioResumo?.total ?? 0)}</p>
+            <Boxes className="h-5 w-5 opacity-80" />
           </div>
-          <p className="text-xs font-medium mt-2">Fechamento Consórcios</p>
-          <p className="text-[11px] opacity-75">Em breve — fase seguinte</p>
-        </div>
+          <p className="text-xs font-medium mt-2 opacity-95">Fechamento Consórcios</p>
+          <p className="text-[11px] opacity-75">{consorcioResumo?.qtd ?? 0} parcela(s) no mês · ver detalhes</p>
+        </button>
 
         <div className="rounded-xl p-4 bg-gray-200 text-gray-500">
           <div className="flex items-start justify-between">
