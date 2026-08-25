@@ -706,8 +706,9 @@ export async function executarWorkflowCaptacao(
 
   // ── Etapa 6.1: Produto não habilitado no motor ──────────────────────────────
   // Construção via Caixa (construcao_terreno_proprio / terreno_mais_construcao) agora é suportada.
+  // CGI_HOME_EQUITY tem motor próprio isolado (ver Etapa 6.1b) e não está mais bloqueado aqui.
   const PRODUTOS_BLOQUEADOS_CAPTACAO: Array<typeof dados.produto_normalizado> = [
-    'CGI_HOME_EQUITY', 'CONSORCIO', 'PORTABILIDADE',
+    'CONSORCIO', 'PORTABILIDADE',
   ]
   const ehConstrucaoSuportada = dados.tipo_operacao === 'construcao_terreno_proprio' || dados.tipo_operacao === 'terreno_mais_construcao'
   if (PRODUTOS_BLOQUEADOS_CAPTACAO.includes(dados.produto_normalizado) ||
@@ -719,6 +720,25 @@ export async function executarWorkflowCaptacao(
       'A simulação automática desse produto ainda não está habilitada.',
       'O lead foi salvo e o comercial responsável pode analisar manualmente.',
     ].join('\n')
+  }
+
+  // ── Etapa 6.1b: CGI / Home Equity — motor próprio isolado ───────────────────
+  if (dados.produto_normalizado === 'CGI_HOME_EQUITY') {
+    const acaoCgi = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    const { executarFluxoCgi } = await import('./workflow-cgi')
+    return await executarFluxoCgi(textoBruto, dados, {
+      empresa_id, usuario_id, usuario_nome, supabase,
+      instancia_token: ctx.instancia_token,
+      telefone_destino: ctx.telefone_destino,
+      telefone_cliente: ctx.telefone_cliente,
+      telefone_remetente: ctx.telefone_remetente,
+      telefone_operador: ctx.telefone_remetente,
+      vem_de_pendente: ctx.vem_de_pendente,
+      usouConsulta: false,
+      leadIdExistente: lead_id,
+      pessoaIdExistente: pessoa_id ?? undefined,
+      cabecalhoPrefixo: `✅ ${acaoCgi}.`,
+    })
   }
 
   // ── Etapa 6.2: Conflito de valores ───────────────────────────────────────

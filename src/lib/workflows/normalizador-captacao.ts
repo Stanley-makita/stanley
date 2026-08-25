@@ -12,6 +12,7 @@
 
 import type { DadosCaptacaoRaw } from './parser-captacao'
 import type { BancoId, TipoOperacao } from '@/lib/simuladorFinanciamento/tipos'
+import type { BancoCgiId } from '@/lib/simuladorCgi/tipos'
 
 export interface DadosCaptacaoNormalizados {
   nome:                  string | null
@@ -26,6 +27,10 @@ export interface DadosCaptacaoNormalizados {
   renda_formal:          number | null
   renda_informal:        number | null
   bancos_ids:            BancoId[]       // mapeados para o motor de crédito
+  // Mapeamento paralelo para o motor de CGI (BancoCgiId != BancoId — bancos e produto
+  // diferentes, ver src/lib/simuladorCgi/). Opcional (ausente = []) para não quebrar
+  // literais de DadosCaptacaoNormalizados escritos antes deste campo existir (testes).
+  bancos_cgi_ids?:       BancoCgiId[]
   solicitar_simulacao:   boolean
   // Campos do Workflow de Consulta Comercial (*simula)
   prazo_meses:           number | null   // 120–420; null = usar máximo do banco
@@ -220,6 +225,26 @@ function normalizarBanco(nome: string): BancoId | null {
   return BANCO_ALIAS_MAP[chave] ?? null
 }
 
+// ── Mapa de aliases de bancos → BancoCgiId (motor de CGI, isolado do financiamento) ────
+// Não estender BANCO_ALIAS_MAP acima com 'cashme' — poluiria o tipo BancoId do
+// financiamento imobiliário com um banco que não existe naquele motor.
+const BANCO_CGI_ALIAS_MAP: Record<string, BancoCgiId> = {
+  inter:            'inter',
+  'banco inter':    'inter',
+  daycoval:         'daycoval',
+  cashme:           'cashme',
+  'cash me':        'cashme',
+  santander:        'santander',
+  bradesco:         'bradesco',
+}
+
+function normalizarBancoCgi(nome: string): BancoCgiId | null {
+  const chave = nome.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim()
+  return BANCO_CGI_ALIAS_MAP[chave] ?? null
+}
+
 function normalizarCpf(cpf: string | null | undefined): string | null {
   if (!cpf) return null
   const digits = cpf.replace(/\D/g, '')
@@ -328,7 +353,11 @@ function normalizarProduto(produto: string | null | undefined): DadosCaptacaoNor
   const p = produto.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .trim()
-  if (p === 'cgi' || p.includes('home equity') || p.includes('homeequity') || p.includes('home_equity'))
+  if (
+    p === 'cgi' || p.includes('home equity') || p.includes('homeequity') || p.includes('home_equity') ||
+    p.includes('garantia de imov') || (p.includes('imov') && p.includes('garantia')) ||
+    p.includes('credito com garantia') || p.includes('emprestimo com garantia')
+  )
     return 'CGI_HOME_EQUITY'
   if (p.includes('constru')) return 'CONSTRUCAO'
   if (p.includes('consorcio')) return 'CONSORCIO'
@@ -355,6 +384,11 @@ export function normalizarDadosCaptacao(
   classificacao?: ClassificacaoOperacao,
   valoresAmbiguosBrutos?: string[] | null,
 ): DadosCaptacaoNormalizados {
+  // Calculado cedo (antes da derivação de valores abaixo) porque CGI usa uma semântica
+  // diferente de valor_imovel/valor_financiado (não há "entrada" — ver guarda abaixo).
+  const produtoNormalizado = normalizarProduto(raw.produto)
+  const ehCgi = produtoNormalizado === 'CGI_HOME_EQUITY'
+
   const valorImovel        = raw.valor_imovel    ?? null
   const valorEntradaRaw    = raw.valor_entrada   ?? null
   const valorFinanciadoRaw = raw.valor_financiado ?? null
@@ -378,10 +412,12 @@ export function normalizarDadosCaptacao(
 
   // Deriva campos faltantes a partir das combinações disponíveis
   // Quando há conflito, não tenta derivar — deixa os valores como vieram para que o workflow sinalize
+  // CGI não tem "entrada" (valor_imovel = imóvel dado em garantia, já quitado;
+  // valor_financiado = crédito desejado) — essa derivação não se aplica, pularia.
   let valorEntrada    = valorEntradaRaw
   let valorFinanciado = valorFinanciadoRaw
 
-  if (!conflito && valorImovel !== null) {
+  if (!ehCgi && !conflito && valorImovel !== null) {
     if (valorEntrada === null && valorFinanciado !== null) {
       // imóvel + financiado → entrada
       valorEntrada = Math.round(valorImovel - valorFinanciado)
@@ -403,6 +439,17 @@ export function normalizarDadosCaptacao(
     if (id && !seen.has(id)) {
       bancosIds.push(id)
       seen.add(id)
+    }
+  }
+
+  // Mapeamento paralelo para CGI (BancoCgiId != BancoId) — mesmo texto bruto de bancos.
+  const bancosCgiIds: BancoCgiId[] = []
+  const seenCgi = new Set<string>()
+  for (const nome of raw.bancos_raw ?? []) {
+    const id = normalizarBancoCgi(nome)
+    if (id && !seenCgi.has(id)) {
+      bancosCgiIds.push(id)
+      seenCgi.add(id)
     }
   }
 
@@ -461,9 +508,6 @@ export function normalizarDadosCaptacao(
     ? valorTerreno + valorObra
     : valorImovel
 
-  // Produto normalizado
-  const produtoNormalizado = normalizarProduto(raw.produto)
-
   // Modo de cálculo
   const modoCalculo = raw.modo_calculo === 'VALOR_MAXIMO_PELA_RENDA'
     ? 'VALOR_MAXIMO_PELA_RENDA' as const
@@ -496,6 +540,7 @@ export function normalizarDadosCaptacao(
     renda_formal:        raw.renda_formal   ?? null,
     renda_informal:      raw.renda_informal ?? null,
     bancos_ids:          bancosIds,
+    bancos_cgi_ids:      bancosCgiIds,
     solicitar_simulacao: raw.solicitar_simulacao === true,
     prazo_meses:         prazoMeses,
     tipo_amortizacao:    tipoAmortizacao,
