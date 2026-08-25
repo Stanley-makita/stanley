@@ -632,8 +632,8 @@ export default function SimuladoresPage() {
       {/* ── Modal: SimuladorCgi ──────────────────────────────────────────── */}
       <Dialog open={modal === 'cgi'} onOpenChange={(o) => !o && fecharSimulador()}>
         <DialogContent
-          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
-          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-0.5rem)] h-[99svh] rounded-xl sm:rounded-lg"
+          style={{ maxWidth: 'min(99vw, 1600px)', maxHeight: 'calc(100vh - 4px)' }}
         >
           <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
