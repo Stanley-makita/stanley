@@ -52,6 +52,7 @@ import { useEnviarParaLiberacaoRecursos } from '@/hooks/processos/useEnviarParaL
 import { AbaTimeline } from '@/components/processos/abas/AbaTimeline'
 import { AbaFinanceiro } from '@/components/processos/abas/AbaFinanceiro'
 import { AbaCustas } from '@/components/processos/abas/AbaCustas'
+import { AbaSimulacoesCgi } from '@/components/simuladorCgi/AbaSimulacoesCgi'
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialog'
 import { ModalConfirmacaoValores } from '@/components/processos/ModalConfirmacaoValores'
@@ -526,6 +527,9 @@ export default function ProcessoDetalhePage() {
               ...(MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])
                 ? [['custas','Custas']] as [string,string][]
                 : []),
+              ...(processo.modalidade === 'CGI'
+                ? [['simulacoes_cgi','Simulações CGI']] as [string,string][]
+                : []),
               ...((mostrarAbaCredito || analisesCreditoProcesso.length > 0) && FINANCIAMENTO_MODALIDADES.has(processo.modalidade)
                 ? [['credito','Crédito']] as [string,string][]
                 : []),
@@ -583,6 +587,13 @@ export default function ProcessoDetalhePage() {
             </TabsContent>
             <TabsContent value="custas" className="m-0">
               <AbaCustas processoId={id} />
+            </TabsContent>
+            <TabsContent value="simulacoes_cgi" className="m-0">
+              <AbaSimulacoesCgi
+                processoId={id}
+                clienteNome={processo.compradores?.find(c => c.principal)?.nome ?? processo.compradores?.[0]?.nome}
+                clienteCpf={(processo.compradores?.find(c => c.principal)?.cpf ?? processo.compradores?.[0]?.cpf) ?? undefined}
+              />
             </TabsContent>
             <TabsContent value="credito" className="m-0">
               <AbaCredito processoId={id} processo={processo} />

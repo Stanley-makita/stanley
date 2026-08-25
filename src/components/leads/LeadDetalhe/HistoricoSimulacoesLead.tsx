@@ -5,24 +5,39 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calculator, Home, Clock, ChevronDown, ChevronUp, Eye, Trash2 } from 'lucide-react'
+import { Calculator, Home, Landmark, Clock, ChevronDown, ChevronUp, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
+import { SimuladorCgi } from '@/components/simuladorCgi/SimuladorCgi'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import type { ResultadoSimulador, EntradaSimulador } from '@/types/simulador'
+import type { ResultadoCgiCompleto } from '@/lib/simuladorCgi/tipos'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 interface SimItem {
   id: string
-  tipo: 'custas' | 'financiamento'
+  tipo: 'custas' | 'financiamento' | 'cgi'
   banco: string | null
   resultado_json: Record<string, unknown> | null
   created_at: string
   origem: 'Lead' | 'Processo' | 'Avulsa'
+}
+
+const TIPO_LABEL: Record<SimItem['tipo'], string> = { custas: 'Custas', financiamento: 'Financiamento', cgi: 'CGI' }
+const TIPO_ICON: Record<SimItem['tipo'], React.ElementType> = { custas: Calculator, financiamento: Home, cgi: Landmark }
+const TIPO_COR: Record<SimItem['tipo'], string> = {
+  custas: 'bg-blue-100 text-blue-600',
+  financiamento: 'bg-fonti-primary/10 text-fonti-primary',
+  cgi: 'bg-purple-100 text-purple-600',
+}
+const TIPO_COR_BADGE: Record<SimItem['tipo'], string> = {
+  custas: 'bg-blue-50 text-blue-700',
+  financiamento: 'bg-fonti-primary/10 text-fonti-primary',
+  cgi: 'bg-purple-50 text-purple-700',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,6 +61,14 @@ function extrairResumo(sim: SimItem): string {
       }
       const input = json.input as { valorImovel?: number } | undefined
       if (typeof input?.valorImovel === 'number') return `Imóvel ${BRL(input.valorImovel)}`
+    }
+    if (sim.tipo === 'cgi') {
+      const bancos = json.bancos as Array<{ bancoId: string; bancoNome: string; elegivel: boolean; prestacaoEstimada: number }> | undefined
+      const menorId = json.bancoMenorPrestacaoId as string | null | undefined
+      const menor = bancos?.find(b => b.bancoId === menorId)
+      if (menor) return `Menor prestação: ${menor.bancoNome} — ${BRL(menor.prestacaoEstimada)}`
+      const input = json.input as { valorImovel?: number } | undefined
+      if (typeof input?.valorImovel === 'number') return `Imóvel (garantia) ${BRL(input.valorImovel)}`
     }
   } catch { /* noop */ }
   return '—'
@@ -141,6 +164,54 @@ function DetalheFinanciamento({ json }: { json: Record<string, unknown> }) {
   )
 }
 
+function DetalheCgi({ json }: { json: Record<string, unknown> }) {
+  const input = json.input as { valorImovel?: number; valorDesejado?: number } | undefined
+  const bancos = json.bancos as Array<{
+    bancoId: string; bancoNome: string; elegivel: boolean; motivoInelegivel?: string
+    valorSimulado: number; prazoConsiderado: number; prestacaoEstimada: number
+  }> | undefined
+  const menorId = json.bancoMenorPrestacaoId as string | null | undefined
+
+  return (
+    <div className="mt-2 space-y-2 text-xs">
+      {input && (
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-gray-500">
+          {typeof input.valorImovel === 'number' && <span>Imóvel (garantia): <strong className="text-gray-700">{BRL(input.valorImovel)}</strong></span>}
+          {typeof input.valorDesejado === 'number' && <span>Crédito solicitado: <strong className="text-gray-700">{BRL(input.valorDesejado)}</strong></span>}
+        </div>
+      )}
+      {bancos && bancos.length > 0 && (
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="text-gray-400">
+              <th className="pb-0.5 text-left font-medium">Banco</th>
+              <th className="pb-0.5 text-right font-medium">Prestação</th>
+              <th className="pb-0.5 text-right font-medium">Prazo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bancos.map((b, i) => (
+              <tr key={i} className="border-t border-gray-100">
+                <td className="py-0.5 font-medium text-fonti-primary">
+                  {b.bancoNome}{b.bancoId === menorId && <span className="ml-1 text-[10px] text-green-700">(menor)</span>}
+                </td>
+                {b.elegivel ? (
+                  <>
+                    <td className="py-0.5 text-right text-gray-800">{BRL(b.prestacaoEstimada)}</td>
+                    <td className="py-0.5 text-right text-gray-500">{b.prazoConsiderado}m</td>
+                  </>
+                ) : (
+                  <td colSpan={2} className="py-0.5 text-right text-red-600">{b.motivoInelegivel ?? 'Não elegível'}</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 
 interface Props { leadId: string }
@@ -155,7 +226,7 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
   const { data: simulacoes = [], isLoading } = useQuery({
     queryKey: ['simulacoes-lead', leadId],
     queryFn: async (): Promise<SimItem[]> => {
-      const [custasRes, financRes] = await Promise.all([
+      const [custasRes, financRes, cgiRes] = await Promise.all([
         // Custas: tabela processo_custas_simulacoes
         supabase
           .from('processo_custas_simulacoes')
@@ -172,10 +243,20 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
           .eq('tipo', 'financiamento')
           .order('created_at', { ascending: false })
           .limit(30),
+
+        // CGI: tabela simulacoes_central
+        supabase
+          .from('simulacoes_central')
+          .select('id, banco, resultado_json, created_at, lead_id, processo_id')
+          .eq('lead_id', leadId)
+          .eq('tipo', 'cgi')
+          .order('created_at', { ascending: false })
+          .limit(30),
       ])
 
       if (custasRes.error) throw custasRes.error
       if (financRes.error) throw financRes.error
+      if (cgiRes.error) throw cgiRes.error
 
       const custas: SimItem[] = (custasRes.data ?? []).map(r => ({
         id: r.id,
@@ -195,7 +276,16 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
         origem: r.processo_id ? 'Processo' : r.lead_id ? 'Lead' : 'Avulsa',
       }))
 
-      return [...custas, ...financ].sort(
+      const cgi: SimItem[] = (cgiRes.data ?? []).map(r => ({
+        id: r.id,
+        tipo: 'cgi',
+        banco: r.banco ?? null,
+        resultado_json: r.resultado_json as Record<string, unknown> | null,
+        created_at: r.created_at,
+        origem: r.processo_id ? 'Processo' : r.lead_id ? 'Lead' : 'Avulsa',
+      }))
+
+      return [...custas, ...financ, ...cgi].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )
     },
@@ -238,7 +328,7 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
   return (
     <div className="divide-y divide-gray-100">
       {simulacoes.map((sim) => {
-        const isCustas = sim.tipo === 'custas'
+        const IconTipo = TIPO_ICON[sim.tipo]
         const aberto = expandido === sim.id
         const { data, hora } = fmtData(sim.created_at)
 
@@ -249,18 +339,14 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
               className="w-full flex items-start gap-3 px-4 py-3 text-left"
               onClick={() => setExpandido(aberto ? null : sim.id)}
             >
-              <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-                isCustas ? 'bg-blue-100 text-blue-600' : 'bg-fonti-primary/10 text-fonti-primary'
-              }`}>
-                {isCustas ? <Calculator className="w-3.5 h-3.5" /> : <Home className="w-3.5 h-3.5" />}
+              <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${TIPO_COR[sim.tipo]}`}>
+                <IconTipo className="w-3.5 h-3.5" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    isCustas ? 'bg-blue-50 text-blue-700' : 'bg-fonti-primary/10 text-fonti-primary'
-                  }`}>
-                    {isCustas ? 'Custas' : 'Financiamento'}
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${TIPO_COR_BADGE[sim.tipo]}`}>
+                    {TIPO_LABEL[sim.tipo]}
                   </span>
                   <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
                     {sim.origem}
@@ -282,9 +368,11 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
             {aberto && sim.resultado_json && (
               <div className="px-4 pb-4 pl-14">
                 <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
-                  {isCustas
+                  {sim.tipo === 'custas'
                     ? <DetalheCustas json={sim.resultado_json} />
-                    : <DetalheFinanciamento json={sim.resultado_json} />}
+                    : sim.tipo === 'cgi'
+                      ? <DetalheCgi json={sim.resultado_json} />
+                      : <DetalheFinanciamento json={sim.resultado_json} />}
                 </div>
                 <div className="flex gap-2 mt-2.5">
                   <Button
@@ -321,10 +409,10 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
         >
           <DialogHeader className="px-4 py-2 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-              {verSim?.tipo === 'custas'
-                ? <Calculator className="w-4 h-4 text-blue-500" />
-                : <Home className="w-4 h-4 text-fonti-primary" />}
-              Simulação de {verSim?.tipo === 'custas' ? 'Custas' : 'Financiamento'}
+              {verSim?.tipo === 'custas' && <Calculator className="w-4 h-4 text-blue-500" />}
+              {verSim?.tipo === 'cgi' && <Landmark className="w-4 h-4 text-purple-500" />}
+              {verSim?.tipo === 'financiamento' && <Home className="w-4 h-4 text-fonti-primary" />}
+              Simulação de {verSim ? TIPO_LABEL[verSim.tipo] : ''}
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto min-h-0">
@@ -343,6 +431,14 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
                 simulacaoExistenteId={verSim.id}
                 leadId={leadId}
                 entradaInicial={(verSim.resultado_json as unknown as ResultadoSimulador).entrada as EntradaSimulador}
+              />
+            )}
+            {verSim?.tipo === 'cgi' && verSim.resultado_json && (
+              <SimuladorCgi
+                key={verSim.id}
+                resultadoInicial={verSim.resultado_json as unknown as ResultadoCgiCompleto}
+                simulacaoExistenteId={verSim.id}
+                leadId={leadId}
               />
             )}
           </div>

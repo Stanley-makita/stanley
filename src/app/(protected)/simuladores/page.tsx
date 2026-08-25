@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Calculator, Plus, Building2, TrendingUp, Landmark, CheckCircle2, Clock, AlertTriangle, Eye, Save } from 'lucide-react'
+import { Calculator, Plus, Building2, TrendingUp, Landmark, Home, CheckCircle2, Clock, AlertTriangle, Eye, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,16 +13,19 @@ import { toast } from 'sonner'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
 import { SimuladorConsorcio } from '@/components/simuladorConsorcio/SimuladorConsorcio'
+import { SimuladorCgi } from '@/components/simuladorCgi/SimuladorCgi'
 import { useSimulacoesCentral, useEstatisticasSimulacoesCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
 import { useSalvarCustasCentral } from '@/hooks/simulacoes/useSalvarCustasCentral'
 import { useSalvarConsorcioCentral } from '@/hooks/simulacoes/useSalvarConsorcioCentral'
+import { useSalvarCgiCentral } from '@/hooks/simulacoes/useSalvarCgiCentral'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
 import type { ResultadoSimulador, EntradaSimulador } from '@/types/simulador'
 import type { ResultadoConsorcio } from '@/lib/simuladorConsorcio/tipos'
+import type { ResultadoCgiCompleto } from '@/lib/simuladorCgi/tipos'
 import type { SimulacaoCentral } from '@/hooks/simulacoes/useSimulacoesCentral'
 
-type TipoModal = null | 'escolha' | 'custas' | 'consorcio'
+type TipoModal = null | 'escolha' | 'custas' | 'consorcio' | 'cgi'
 
 function fmtData(iso: string) {
   try {
@@ -32,11 +35,12 @@ function fmtData(iso: string) {
   }
 }
 
-function BadgeTipo({ tipo }: { tipo: 'custas' | 'financiamento' | 'consorcio' }) {
+function BadgeTipo({ tipo }: { tipo: 'custas' | 'financiamento' | 'consorcio' | 'cgi' }) {
   const cfg = {
     custas:        { cor: 'bg-blue-50 text-blue-700 border border-blue-200',     icone: <Building2 className="w-3 h-3" />,  label: 'Custas' },
     financiamento: { cor: 'bg-green-50 text-green-700 border border-green-200',  icone: <TrendingUp className="w-3 h-3" />, label: 'Financiamento' },
     consorcio:     { cor: 'bg-amber-50 text-amber-700 border border-amber-200',  icone: <Landmark className="w-3 h-3" />,   label: 'Consórcio' },
+    cgi:           { cor: 'bg-purple-50 text-purple-700 border border-purple-200', icone: <Home className="w-3 h-3" />,     label: 'CGI' },
   }[tipo]
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', cfg.cor)}>
@@ -87,8 +91,10 @@ function VerSimulacaoDialog({
           <DialogTitle className="flex items-center gap-2">
             {simulacao.tipo === 'custas'
               ? <Building2 className="w-4 h-4 text-blue-500" />
-              : <TrendingUp className="w-4 h-4 text-green-500" />}
-            Simulação de {simulacao.tipo === 'custas' ? 'Custas' : 'Financiamento'}
+              : simulacao.tipo === 'cgi'
+                ? <Home className="w-4 h-4 text-purple-500" />
+                : <TrendingUp className="w-4 h-4 text-green-500" />}
+            Simulação de {simulacao.tipo === 'custas' ? 'Custas' : simulacao.tipo === 'cgi' ? 'CGI' : 'Financiamento'}
             {simulacao.nome_cliente && (
               <span className="text-sm font-normal text-gray-400 ml-1">— {simulacao.nome_cliente}</span>
             )}
@@ -96,7 +102,16 @@ function VerSimulacaoDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
-          {simulacao.tipo === 'financiamento' && resultado ? (
+          {simulacao.tipo === 'cgi' ? (
+            <SimuladorCgi
+              key={simulacao.id}
+              resultadoInicial={simulacao.resultado_json as unknown as ResultadoCgiCompleto}
+              simulacaoExistenteId={simulacao.id}
+              clienteNome={simulacao.nome_cliente ?? undefined}
+              clienteCpf={simulacao.cpf_cliente ?? undefined}
+              leadId={simulacao.lead_id ?? undefined}
+            />
+          ) : simulacao.tipo === 'financiamento' && resultado ? (
             // resultadoInicial: mostra os números exatos salvos na época, sem
             // recalcular com taxas/calibração atuais — histórico fiel. Print/
             // Compartilhar (já embutidos no SimuladorFinanciamento) operam
@@ -159,12 +174,16 @@ export default function SimuladoresPage() {
   const [consorcioVer, setConsorcioVer]               = useState<SimulacaoCentral | null>(null)
   const [consorcioResultado, setConsorcioResultado]   = useState<ResultadoConsorcio | null>(null)
   const [consorcioVerResultado, setConsorcioVerResultado] = useState<ResultadoConsorcio | null>(null)
+  const [cgiVer, setCgiVer]               = useState<SimulacaoCentral | null>(null)
+  const [cgiResultado, setCgiResultado]   = useState<ResultadoCgiCompleto | null>(null)
+  const [cgiVerResultado, setCgiVerResultado] = useState<ResultadoCgiCompleto | null>(null)
 
   const { data: simulacoes = [], isLoading, error: erroLista, refetch } = useSimulacoesCentral()
   const { data: stats, refetch: refetchStats } = useEstatisticasSimulacoesCentral()
   const salvar      = useSalvarSimulacaoCentral()
   const salvarCustas = useSalvarCustasCentral()
   const salvarConsorcio = useSalvarConsorcioCentral()
+  const salvarCgi = useSalvarCgiCentral()
 
   // Contagem real do banco (não do array limitado a 100 linhas usado só pra
   // listar o histórico) — ver useEstatisticasSimulacoesCentral.
@@ -172,7 +191,7 @@ export default function SimuladoresPage() {
   const aguardando = stats?.aguardando ?? 0
   const concluidas = stats?.concluidas ?? 0
 
-  function abrirTipo(tipo: 'custas' | 'financiamento' | 'consorcio') {
+  function abrirTipo(tipo: 'custas' | 'financiamento' | 'consorcio' | 'cgi') {
     if (tipo === 'financiamento') {
       setModal(null)
       setVisao('financiamento')
@@ -187,6 +206,7 @@ export default function SimuladoresPage() {
     setClienteCpf('')
     setCustasResultado(null)
     setConsorcioResultado(null)
+    setCgiResultado(null)
   }
 
   function fecharFinanciamento() {
@@ -232,6 +252,19 @@ export default function SimuladoresPage() {
       fecharSimulador()
     } catch (err) {
       console.error('[simulacoes-central] erro ao salvar consórcio:', err)
+      toast.error('Erro ao salvar no histórico')
+    }
+  }
+
+  async function handleSalvarCgi() {
+    if (!cgiResultado) return
+    try {
+      await salvarCgi.mutateAsync({ resultado: cgiResultado })
+      toast.success('Simulação de CGI salva no histórico')
+      await Promise.all([refetch(), refetchStats()])
+      fecharSimulador()
+    } catch (err) {
+      console.error('[simulacoes-central] erro ao salvar CGI:', err)
       toast.error('Erro ao salvar no histórico')
     }
   }
@@ -349,6 +382,7 @@ export default function SimuladoresPage() {
                         onClick={() => {
                           if (s.tipo === 'custas') setCustaVer(s)
                           else if (s.tipo === 'consorcio') setConsorcioVer(s)
+                          else if (s.tipo === 'cgi') setCgiVer(s)
                           else setSimulacaoVer(s)
                         }}
                         className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
@@ -398,7 +432,7 @@ export default function SimuladoresPage() {
           </div>
 
           <p className="text-xs text-gray-400 mb-2">Escolha o tipo:</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               type="button"
               onClick={() => abrirTipo('custas')}
@@ -430,6 +464,17 @@ export default function SimuladoresPage() {
               <div className="text-center">
                 <p className="text-sm font-semibold text-gray-800">Consórcio</p>
                 <p className="text-xs text-gray-400 mt-0.5">Consórcio x compra à vista</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => abrirTipo('cgi')}
+              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
+            >
+              <Home className="w-8 h-8 text-purple-500 group-hover:scale-110 transition-transform" />
+              <div className="text-center">
+                <p className="text-sm font-semibold text-gray-800">CGI / Home Equity</p>
+                <p className="text-xs text-gray-400 mt-0.5">Crédito com garantia de imóvel</p>
               </div>
             </button>
           </div>
@@ -579,6 +624,82 @@ export default function SimuladoresPage() {
               clienteNome={consorcioVer?.nome_cliente ?? undefined}
               clienteCpf={consorcioVer?.cpf_cliente ?? undefined}
               onResultadoChange={setConsorcioVerResultado}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: SimuladorCgi ──────────────────────────────────────────── */}
+      <Dialog open={modal === 'cgi'} onOpenChange={(o) => !o && fecharSimulador()}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+        >
+          <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Home className="w-4 h-4 text-purple-500" />
+              Simulador de CGI / Home Equity
+              {clienteNome && (
+                <span className="text-xs font-normal text-gray-400">— {clienteNome}</span>
+              )}
+            </DialogTitle>
+            <Button
+              size="sm"
+              className="ml-auto h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
+              onClick={handleSalvarCgi}
+              disabled={salvarCgi.isPending || !cgiResultado}
+            >
+              <Save className="w-3 h-3" />
+              {salvarCgi.isPending ? 'Salvando...' : 'Salvar no histórico'}
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <SimuladorCgi
+              clienteNome={clienteNome || undefined}
+              clienteCpf={clienteCpf || undefined}
+              onResultadoChange={setCgiResultado}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Re-simular CGI (olho na linha de CGI) ────────────────── */}
+      <Dialog open={!!cgiVer} onOpenChange={(o) => !o && setCgiVer(null)}>
+        <DialogContent
+          className="p-0 flex flex-col overflow-hidden w-[calc(100vw-1rem)] h-[95svh] rounded-xl sm:rounded-lg sm:h-auto"
+          style={{ maxWidth: 'min(90vw, 1100px)', maxHeight: 'calc(100vh - 16px)' }}
+        >
+          <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0 pr-14">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Home className="w-4 h-4 text-purple-500" />
+              Simulador de CGI / Home Equity
+              {cgiVer?.nome_cliente && (
+                <span className="text-xs font-normal text-gray-400">— {cgiVer.nome_cliente}</span>
+              )}
+            </DialogTitle>
+            <Button
+              size="sm"
+              className="ml-auto h-7 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white gap-1.5 shrink-0"
+              onClick={() => {
+                if (!cgiVerResultado) return
+                salvarCgi.mutateAsync({ resultado: cgiVerResultado })
+                  .then(() => { toast.success('Salvo no histórico'); setCgiVer(null); setCgiVerResultado(null) })
+                  .catch(() => toast.error('Erro ao salvar'))
+              }}
+              disabled={salvarCgi.isPending || !cgiVerResultado}
+            >
+              <Save className="w-3 h-3" />
+              {salvarCgi.isPending ? 'Salvando...' : 'Salvar no histórico'}
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <SimuladorCgi
+              key={cgiVer?.id}
+              simulacaoExistenteId={cgiVer?.id}
+              resultadoInicial={(cgiVer?.resultado_json as unknown as ResultadoCgiCompleto) ?? undefined}
+              clienteNome={cgiVer?.nome_cliente ?? undefined}
+              clienteCpf={cgiVer?.cpf_cliente ?? undefined}
+              onResultadoChange={setCgiVerResultado}
             />
           </div>
         </DialogContent>

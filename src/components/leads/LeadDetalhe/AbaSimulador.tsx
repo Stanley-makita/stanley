@@ -1,16 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Calculator, Home, Clock } from 'lucide-react'
+import { Calculator, Home, Landmark, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLead } from '@/hooks/leads/useLeads'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
+import { SimuladorCgi } from '@/components/simuladorCgi/SimuladorCgi'
 import { useSalvarSimulacaoCentral } from '@/hooks/simulacoes/useSalvarSimulacaoCentral'
+import { useSalvarCgiCentral } from '@/hooks/simulacoes/useSalvarCgiCentral'
 import { HistoricoSimulacoesLead } from './HistoricoSimulacoesLead'
 import type { ResultadoCompleto } from '@/lib/simuladorFinanciamento/tipos'
+import type { ResultadoCgiCompleto } from '@/lib/simuladorCgi/tipos'
 
-type SubAba = 'custas' | 'financiamento' | 'historico'
+type SubAba = 'custas' | 'financiamento' | 'cgi' | 'historico'
 
 function fmtMoedaStr(valor: number): string {
   const centavos = Math.round(valor * 100)
@@ -24,6 +27,8 @@ export function AbaSimulador({ leadId }: Props) {
   const { data: lead } = useLead(leadId)
   const [subAba, setSubAba] = useState<SubAba>('custas')
   const salvarFinanc = useSalvarSimulacaoCentral()
+  const salvarCgi = useSalvarCgiCentral()
+  const [cgiResultado, setCgiResultado] = useState<ResultadoCgiCompleto | null>(null)
 
   const rendaTotal = (lead?.renda_formal ?? 0) + (lead?.renda_informal ?? 0)
   const initialFinanc = {
@@ -38,9 +43,16 @@ export function AbaSimulador({ leadId }: Props) {
     setSubAba('historico')
   }
 
+  async function handleSalvarCgi() {
+    if (!cgiResultado) return
+    await salvarCgi.mutateAsync({ resultado: cgiResultado, leadId })
+    setSubAba('historico')
+  }
+
   const tabs: { id: SubAba; label: string; Icon: React.ElementType }[] = [
     { id: 'custas',        label: 'Custas',        Icon: Calculator },
     { id: 'financiamento', label: 'Financiamento', Icon: Home },
+    { id: 'cgi',           label: 'CGI',           Icon: Landmark },
     { id: 'historico',     label: 'Histórico',     Icon: Clock },
   ]
 
@@ -89,6 +101,29 @@ export function AbaSimulador({ leadId }: Props) {
               onSalvar={handleSalvarFinanc}
               salvando={salvarFinanc.isPending}
             />
+          </div>
+        )}
+
+        {subAba === 'cgi' && (
+          <div className="h-full flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <SimuladorCgi
+                clienteNome={lead?.nome}
+                clienteCpf={lead?.cpf ?? undefined}
+                leadId={leadId}
+                onResultadoChange={setCgiResultado}
+              />
+            </div>
+            <div className="flex items-center justify-end px-4 py-2 border-t border-gray-100 bg-white shrink-0">
+              <button
+                type="button"
+                onClick={handleSalvarCgi}
+                disabled={!cgiResultado || salvarCgi.isPending}
+                className="h-7 px-3 text-xs rounded-lg bg-fonti-primary hover:bg-fonti-primary-hover text-white disabled:opacity-50 transition-colors"
+              >
+                {salvarCgi.isPending ? 'Salvando...' : 'Salvar no histórico'}
+              </button>
+            </div>
           </div>
         )}
 
