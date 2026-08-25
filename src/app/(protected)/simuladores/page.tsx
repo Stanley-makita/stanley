@@ -401,7 +401,7 @@ export default function SimuladoresPage() {
 
       {/* ── Modal: escolha de tipo + dados do cliente ─────────────────── */}
       <Dialog open={modal === 'escolha'} onOpenChange={(o) => !o && setModal(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Nova Simulação</DialogTitle>
           </DialogHeader>
@@ -432,49 +432,49 @@ export default function SimuladoresPage() {
           </div>
 
           <p className="text-xs text-gray-400 mb-2">Escolha o tipo:</p>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => abrirTipo('custas')}
-              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
+              className="flex flex-col items-center justify-center text-center gap-2 rounded-xl border-2 border-gray-100 px-4 py-5 min-h-[140px] hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
             >
-              <Building2 className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800">Custas</p>
-                <p className="text-xs text-gray-400 mt-0.5">Cartório, ITBI, escritura</p>
+              <Building2 className="w-7 h-7 text-blue-500 shrink-0 group-hover:scale-110 transition-transform" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-gray-800 leading-snug">Custas</p>
+                <p className="text-xs text-gray-400 leading-snug">Cartório, ITBI, escritura</p>
               </div>
             </button>
             <button
               type="button"
               onClick={() => abrirTipo('financiamento')}
-              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
+              className="flex flex-col items-center justify-center text-center gap-2 rounded-xl border-2 border-gray-100 px-4 py-5 min-h-[140px] hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
             >
-              <TrendingUp className="w-8 h-8 text-green-500 group-hover:scale-110 transition-transform" />
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800">Financiamento</p>
-                <p className="text-xs text-gray-400 mt-0.5">SAC, PRICE, 7 bancos</p>
+              <TrendingUp className="w-7 h-7 text-green-500 shrink-0 group-hover:scale-110 transition-transform" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-gray-800 leading-snug">Financiamento</p>
+                <p className="text-xs text-gray-400 leading-snug">SAC, PRICE, 7 bancos</p>
               </div>
             </button>
             <button
               type="button"
               onClick={() => abrirTipo('consorcio')}
-              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
+              className="flex flex-col items-center justify-center text-center gap-2 rounded-xl border-2 border-gray-100 px-4 py-5 min-h-[140px] hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
             >
-              <Landmark className="w-8 h-8 text-amber-500 group-hover:scale-110 transition-transform" />
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800">Consórcio</p>
-                <p className="text-xs text-gray-400 mt-0.5">Consórcio x compra à vista</p>
+              <Landmark className="w-7 h-7 text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-gray-800 leading-snug">Consórcio</p>
+                <p className="text-xs text-gray-400 leading-snug">Consórcio x compra à vista</p>
               </div>
             </button>
             <button
               type="button"
               onClick={() => abrirTipo('cgi')}
-              className="flex flex-col items-center gap-3 rounded-xl border-2 border-gray-100 p-5 hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
+              className="flex flex-col items-center justify-center text-center gap-2 rounded-xl border-2 border-gray-100 px-4 py-5 min-h-[140px] hover:border-fonti-primary hover:bg-fonti-primary/5 transition-all group"
             >
-              <Home className="w-8 h-8 text-purple-500 group-hover:scale-110 transition-transform" />
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800">CGI / Home Equity</p>
-                <p className="text-xs text-gray-400 mt-0.5">Crédito com garantia de imóvel</p>
+              <Home className="w-7 h-7 text-purple-500 shrink-0 group-hover:scale-110 transition-transform" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-gray-800 leading-snug">CGI / Home Equity</p>
+                <p className="text-xs text-gray-400 leading-snug">Crédito com garantia de imóvel</p>
               </div>
             </button>
           </div>
