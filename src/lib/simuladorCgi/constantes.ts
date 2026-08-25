@@ -21,6 +21,12 @@ export interface BancoCgiConfig {
 
 export const PRAZO_MAXIMO_CGI_MESES = 240
 
+// Regra de negócio confirmada com o usuário: idade do proponente + prazo da operação não
+// pode ultrapassar 80 anos e 3 meses. Não há prazo mínimo operacional de CGI documentado
+// no projeto nem nas fontes bancárias já levantadas — não inventar um piso (diferente do
+// financiamento imobiliário, que tem seu próprio piso de 12 meses por regra distinta).
+export const LIMITE_IDADE_PRAZO_CGI_MESES = 80 * 12 + 3
+
 // Parâmetros comerciais de referência V1 — confirmados com o usuário nesta sessão.
 // Santander: taxa fixa/prefixada, PRICE. Inter/Daycoval/CashMe: taxa + IPCA (pós-fixado),
 // SAC. Bradesco: taxa fixa, SAC.
@@ -69,6 +75,13 @@ export const NOTA_IOF_CGI =
   'limitado a 3% a.a.); não confirmado individualmente para este banco. Forma de cobrança ' +
   '(à parte, descontada do valor liberado ou financiada no saldo) varia por instituição e ' +
   'será confirmada na análise de crédito.'
+
+export const NOTA_IDADE_NAO_INFORMADA_CGI =
+  'Data de nascimento não informada nesta simulação — prazo sujeito à validação pela idade do proponente (idade + prazo não pode ultrapassar 80 anos e 3 meses).'
+
+export function notaLimitadoPelaIdadeCgi(prazoConsiderado: number): string {
+  return `Prazo solicitado ajustado para ${prazoConsiderado} meses em razão do limite de idade de 80 anos e 3 meses ao término da operação.`
+}
 
 export function notaTaxaCgi(cfg: BancoCgiConfig): string {
   const pct = (cfg.taxaAnualBase * 100).toFixed(2).replace('.', ',')

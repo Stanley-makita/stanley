@@ -82,6 +82,11 @@ export async function executarFluxoCgi(
   }
 
   // ── Motor de simulação ───────────────────────────────────────────────────
+  // dataNascimento: já vem preenchida em dados.data_nascimento quando o texto informou,
+  // quando o Lead já tinha a data cadastrada (mesclada via ctx.dados_base em
+  // workflow-captacao.ts antes de chegar aqui), ou de uma sessão pendente — nunca
+  // perguntada de novo nem inventada. Ausente → regra de idade x prazo não se aplica,
+  // resposta traz a ressalva "prazo sujeito à validação pela idade do proponente".
   const input: InputCgi = {
     valorImovel: dados.valor_imovel!,
     valorDesejado: valorDesejado!,
@@ -89,14 +94,12 @@ export async function executarFluxoCgi(
     rendaMensal: dados.renda_formal != null || dados.renda_informal != null
       ? (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
       : undefined,
+    dataNascimento: dados.data_nascimento ?? undefined,
     bancosIds: dados.bancos_cgi_ids ?? [],
   }
   const resultado = executarSimulacaoCgi(input)
 
   // ── Persistência em simulacoes_central ───────────────────────────────────
-  // tipo aceita apenas 'custas' | 'financiamento' | 'consorcio' (CHECK constraint) —
-  // reaproveita 'financiamento' e diferencia via resultado_json.produto, em vez de
-  // migrar o schema para este produto isolado/preliminar.
   const nomeDisplay = dados.nome?.trim() || 'Cliente não identificado'
   const bancoMenorPrestacao = resultado.bancos.find((b) => b.bancoId === resultado.bancoMenorPrestacaoId)?.bancoNome ?? null
 
@@ -104,7 +107,7 @@ export async function executarFluxoCgi(
     .from('simulacoes_central')
     .insert({
       empresa_id,
-      tipo: 'financiamento',
+      tipo: 'cgi',
       status: 'concluida',
       tipo_simulacao: 'consulta',
       origem_canal: 'whatsapp',
@@ -113,11 +116,10 @@ export async function executarFluxoCgi(
       banco: bancoMenorPrestacao,
       responsavel_id: usuario_id,
       resultado_json: {
-        produto: 'CGI',
-        modo: 'CGI_HOME_EQUITY',
         input: resultado.input,
         bancos: resultado.bancos,
         bancoMenorPrestacaoId: resultado.bancoMenorPrestacaoId,
+        dataSimulacao: resultado.dataSimulacao,
         _input_normalizado: dados as unknown as Record<string, unknown>,
       } as unknown as Record<string, unknown>,
       lead_id: ctx.leadIdExistente ?? null,

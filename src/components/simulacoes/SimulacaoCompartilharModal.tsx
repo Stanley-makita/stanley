@@ -12,7 +12,7 @@ interface UsuarioInterno { id: string; nome: string; telefone: string }
 
 interface SimulacaoRef {
   id: string
-  tipo: 'financiamento' | 'custas' | 'consorcio'
+  tipo: 'financiamento' | 'custas' | 'consorcio' | 'cgi'
   nome: string
 }
 

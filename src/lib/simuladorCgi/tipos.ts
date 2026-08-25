@@ -17,10 +17,17 @@ export interface InputCgi {
   prazoMeses?: number
   /** Apenas informativo nesta V1 — não usado na elegibilidade. */
   rendaMensal?: number
-  /** Apenas informativo nesta V1 — não usado na elegibilidade. */
-  idadeAnos?: number
+  /** ISO YYYY-MM-DD. Usada na regra de idade x prazo (ver LIMITE_IDADE_PRAZO_CGI_MESES em
+   * constantes.ts) — idade + prazo não pode ultrapassar 80 anos e 3 meses. Ausente → a
+   * regra não é aplicada (banco sempre elegível por idade), com ressalva na resposta/PDF
+   * de que o prazo está sujeito à validação pela idade do proponente. Nunca inventar. */
+  dataNascimento?: string
   /** Vazio → simula todos os bancos de `TODOS_BANCOS_CGI`. */
   bancosIds: BancoCgiId[]
+  /** Opcional — não usado pelo bot, usado pelos simuladores web para persistência em
+   * simulacoes_central (mesmo padrão de InputConsorcio). */
+  nomeCliente?: string
+  cpfCliente?: string
 }
 
 export interface ResultadoBancoCgi {
@@ -40,14 +47,26 @@ export interface ResultadoBancoCgi {
   taxaAnualReferencia: number
   taxaMensal: number
   prazoSolicitado: number
+  /** null = data de nascimento não informada nesta simulação. */
+  dataNascimentoUsada: string | null
+  /** Teto de prazo do próprio banco (240 nesta V1). */
+  prazoMaximoBanco: number
+  /** LIMITE_IDADE_PRAZO_CGI_MESES - idade em meses. null quando dataNascimentoUsada é null;
+   * pode ser <= 0 (idade já ultrapassa o limite mesmo com prazo curto). */
+  prazoMaximoPorIdade: number | null
+  /** min(prazoSolicitado, prazoMaximoBanco, prazoMaximoPorIdade). 0 quando inelegível por idade. */
   prazoConsiderado: number
-  limitadoPeloPrazo: boolean
+  limitadoPeloPrazoBanco: boolean
+  /** true quando prazoMaximoPorIdade é o fator limitante (e ainda > 0). */
+  limitadoPelaIdade: boolean
   iofEstimado: number
   valorTotalAposIof: number
-  /** 1ª parcela — relevante para SAC (decrescente); para PRICE é a parcela fixa. */
+  /** 1ª parcela — relevante para SAC (decrescente); para PRICE é a parcela fixa. 0 quando inelegível. */
   prestacaoEstimada: number
-  /** Sempre true nesta V1 — o motor nunca rejeita, só limita e explica. */
+  /** false só quando prazoMaximoPorIdade <= 0 (sem prazo possível pela regra de idade). */
   elegivel: boolean
+  /** Preenchido só quando elegivel=false. */
+  motivoInelegivel?: string
 }
 
 export interface ResultadoCgiCompleto {

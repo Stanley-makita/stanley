@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 export interface SimulacaoCentral {
   id: string
   empresa_id: string
-  tipo: 'custas' | 'financiamento' | 'consorcio'
+  tipo: 'custas' | 'financiamento' | 'consorcio' | 'cgi'
   status: 'aguardando' | 'concluida'
   nome_cliente: string | null
   cpf_cliente: string | null

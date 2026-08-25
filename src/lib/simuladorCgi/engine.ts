@@ -8,9 +8,9 @@
  * V1 preliminar e comparativa: nunca rejeita um banco, só limita (LTV/prazo) e explica.
  */
 
-import { taxaAnualParaMensal } from '@/lib/simuladorFinanciamento/engine'
+import { taxaAnualParaMensal, calcularIdadeEmMeses } from '@/lib/simuladorFinanciamento/engine'
 import { calcularIof } from '@/lib/simulador/calcular'
-import { BANCOS_CGI_CONFIG, PRAZO_MAXIMO_CGI_MESES, TODOS_BANCOS_CGI } from './constantes'
+import { BANCOS_CGI_CONFIG, PRAZO_MAXIMO_CGI_MESES, TODOS_BANCOS_CGI, LIMITE_IDADE_PRAZO_CGI_MESES } from './constantes'
 import type { BancoCgiConfig } from './constantes'
 import type { BancoCgiId, InputCgi, ResultadoBancoCgi, ResultadoCgiCompleto } from './tipos'
 
@@ -46,8 +46,31 @@ export function simularBancoCgi(bancoId: BancoCgiId, input: InputCgi, cfg: Banco
   const limitadoPeloLtv = valorSolicitado > valorMaximoPeloImovel
 
   const prazoSolicitado = input.prazoMeses ?? PRAZO_MAXIMO_CGI_MESES
-  const prazoConsiderado = Math.min(prazoSolicitado, cfg.prazoMaximoMeses)
-  const limitadoPeloPrazo = prazoSolicitado > cfg.prazoMaximoMeses
+  const prazoMaximoBanco = cfg.prazoMaximoMeses
+  const limitadoPeloPrazoBanco = prazoSolicitado > prazoMaximoBanco
+
+  const dataNascimentoUsada = input.dataNascimento ?? null
+  const idadeMeses = dataNascimentoUsada ? calcularIdadeEmMeses(dataNascimentoUsada) : null
+  const prazoMaximoPorIdade = idadeMeses != null ? LIMITE_IDADE_PRAZO_CGI_MESES - idadeMeses : null
+
+  // Único critério de inelegibilidade por idade: sem nenhum prazo positivo disponível.
+  // Não há prazo mínimo operacional de CGI documentado — não inventar um piso (diferente
+  // do financiamento imobiliário, que tem seu próprio piso de 12 meses por regra distinta).
+  const semPrazoValidoPorIdade = prazoMaximoPorIdade != null && prazoMaximoPorIdade <= 0
+
+  const prazoAposBanco = Math.min(prazoSolicitado, prazoMaximoBanco)
+  let prazoConsiderado = prazoAposBanco
+  let limitadoPelaIdade = false
+  if (!semPrazoValidoPorIdade && prazoMaximoPorIdade != null && prazoMaximoPorIdade < prazoAposBanco) {
+    prazoConsiderado = prazoMaximoPorIdade
+    limitadoPelaIdade = true
+  }
+  if (semPrazoValidoPorIdade) prazoConsiderado = 0
+
+  const elegivel = !semPrazoValidoPorIdade
+  const motivoInelegivel = semPrazoValidoPorIdade
+    ? 'Sem prazo disponível pela regra etária (idade + prazo não pode ultrapassar 80 anos e 3 meses).'
+    : undefined
 
   const taxaMensal = taxaAnualParaMensal(cfg.taxaAnualBase)
 
@@ -74,12 +97,17 @@ export function simularBancoCgi(bancoId: BancoCgiId, input: InputCgi, cfg: Banco
     taxaAnualReferencia: cfg.taxaAnualBase,
     taxaMensal,
     prazoSolicitado,
+    dataNascimentoUsada,
+    prazoMaximoBanco,
+    prazoMaximoPorIdade,
     prazoConsiderado,
-    limitadoPeloPrazo,
+    limitadoPeloPrazoBanco,
+    limitadoPelaIdade,
     iofEstimado,
     valorTotalAposIof,
     prestacaoEstimada,
-    elegivel: true,
+    elegivel,
+    motivoInelegivel,
   }
 }
 
@@ -102,7 +130,9 @@ export function resolverMenorPrestacaoCgi(bancos: ResultadoBancoCgi[]): BancoCgi
     if (!a.elegivel && b.elegivel) return 1
     return a.prestacaoEstimada - b.prestacaoEstimada
   })
-  return ordenados[0].bancoId
+  // Se nenhum banco é elegível (ex.: todos sem prazo disponível pela idade), não há
+  // "menor prestação" — retornar null em vez de apontar um banco inelegível.
+  return ordenados[0].elegivel ? ordenados[0].bancoId : null
 }
 
 export function executarSimulacaoCgi(input: InputCgi): ResultadoCgiCompleto {
