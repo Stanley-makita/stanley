@@ -189,8 +189,9 @@ null se não mencionado.
 PRODUTO: Produto/modalidade mencionado pelo usuário. Retornar exatamente como escrito ou null.
 Detectar modalidades de aquisição: "SBPE", "MCMV", "Pró Cotista", "Pro Cotista", "Poupança", "IPCA",
   "financiamento", "aquisição", "aquisicao", "imóvel" (como produto).
-Detectar produtos bloqueados (retornar o nome como veio): "CGI", "home equity", "Home Equity",
-  "Construção", "construcao", "Consórcio", "consorcio", "Portabilidade".
+Detectar outros produtos com fluxo próprio (retornar o nome como veio): "CGI", "home equity", "Home Equity",
+  "Crédito com Garantia de Imóvel", "credito com garantia de imovel", "Crédito com imóvel em garantia",
+  "Empréstimo com garantia de imóvel", "Construção", "construcao", "Consórcio", "consorcio", "Portabilidade".
 null se não mencionado.
 
 FGTS_VALOR: Valor do FGTS que o cliente tem disponível. Converter para inteiro.

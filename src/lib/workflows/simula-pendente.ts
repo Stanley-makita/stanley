@@ -141,6 +141,11 @@ export function mergeCapturados(
     result.bancos_ids = novo.bancos_ids
   }
 
+  // bancos_cgi_ids: mesma regra, mapa paralelo para o motor de CGI
+  if (novo.bancos_cgi_ids && novo.bancos_cgi_ids.length > 0) {
+    result.bancos_cgi_ids = novo.bancos_cgi_ids
+  }
+
   // amortizacao_por_banco: substituir apenas se o novo parser encontrou algum mapeamento
   if (novo.amortizacao_por_banco && Object.keys(novo.amortizacao_por_banco).length > 0) {
     result.amortizacao_por_banco = novo.amortizacao_por_banco

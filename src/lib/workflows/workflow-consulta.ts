@@ -105,13 +105,29 @@ export async function executarWorkflowConsulta(
 
   // ── Etapa 2.1: Produto não habilitado no motor ──────────────────────────────
   // Construção via Caixa (construcao_terreno_proprio / terreno_mais_construcao) agora é suportada.
+  // CGI_HOME_EQUITY tem motor próprio isolado (ver Etapa 2.1b) e não está mais bloqueado aqui.
   const PRODUTOS_BLOQUEADOS: Array<typeof dados.produto_normalizado> = [
-    'CGI_HOME_EQUITY', 'CONSORCIO', 'PORTABILIDADE',
+    'CONSORCIO', 'PORTABILIDADE',
   ]
   const ehConstrucaoSuportada = dados.tipo_operacao === 'construcao_terreno_proprio' || dados.tipo_operacao === 'terreno_mais_construcao'
   if (PRODUTOS_BLOQUEADOS.includes(dados.produto_normalizado) ||
       (dados.produto_normalizado === 'CONSTRUCAO' && !ehConstrucaoSuportada)) {
     return 'A simulação automática desse produto ainda não está habilitada. Envie os dados pelo comando *cria cliente para que o comercial responsável analise no lead.'
+  }
+
+  // ── Etapa 2.1b: CGI / Home Equity — motor próprio isolado ───────────────────
+  if (dados.produto_normalizado === 'CGI_HOME_EQUITY') {
+    const { executarFluxoCgi } = await import('./workflow-cgi')
+    return await executarFluxoCgi(textoBruto, dados, {
+      empresa_id, usuario_id, usuario_nome, supabase,
+      instancia_token: ctx.instancia_token,
+      telefone_destino: ctx.telefone_destino,
+      telefone_remetente: ctx.telefone_remetente,
+      telefone_operador: ctx.telefone_operador,
+      tipo_vinculo: ctx.tipo_vinculo,
+      vem_de_pendente: ctx.vem_de_pendente,
+      usouConsulta: true,
+    })
   }
 
   // ── Etapa 2.4: Confirmar valores com formatação numérica ambígua ────────────
