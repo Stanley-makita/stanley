@@ -29,6 +29,54 @@ export function useFechamentoProcessos(fechamento_id: string | null | undefined)
   })
 }
 
+// Preview ao vivo: calcula direto de `processos` emitidos no mês, sem
+// exigir fechamento aberto/aprovado. Usado enquanto o mês não tem
+// fechamento aprovado/pago/travado (ver AbaEmissoes em financeiro/page.tsx
+// e o mesmo padrão em useContasAReceberPreview).
+export function useEmissoesPreview(mes: number, ano: number, enabled = true) {
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['financeiro', 'emissoes_preview', usuario?.empresa_id, mes, ano],
+    queryFn: async (): Promise<FinFechamentoProcesso[]> => {
+      const { data, error } = await supabase.rpc('emissoes_mes_preview', {
+        p_empresa_id: usuario!.empresa_id,
+        p_mes: mes,
+        p_ano: ano,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: {
+        id: string; processo_id: string; cliente_nome: string | null
+        banco_id: string | null; banco_nome: string | null; banco_cor: string | null
+        modalidade: string | null; valor_financiado: number | null; valor_assessoria: number
+        data_emissao: string | null; comercial_id: string | null; comercial_nome: string | null
+        operacional_id: string | null; operacional_nome: string | null
+      }) => ({
+        id: r.id,
+        fechamento_id: '',
+        empresa_id: usuario!.empresa_id,
+        processo_id: r.processo_id,
+        cliente_nome: r.cliente_nome,
+        banco_id: r.banco_id,
+        modalidade: r.modalidade,
+        valor_financiado: r.valor_financiado,
+        valor_assessoria: r.valor_assessoria,
+        data_emissao: r.data_emissao,
+        comercial_id: r.comercial_id,
+        operacional_id: r.operacional_id,
+        status_origem: 'emitido',
+        incluido_manual: false,
+        observacoes: null,
+        created_at: '',
+        banco: r.banco_nome ? { nome: r.banco_nome, cor: r.banco_cor } : undefined,
+        comercial: r.comercial_nome ? { nome: r.comercial_nome } : undefined,
+        operacional: r.operacional_nome ? { nome: r.operacional_nome } : undefined,
+      }))
+    },
+    enabled: !!usuario && enabled,
+  })
+}
+
 export function useAdicionarProcessoManual() {
   const queryClient = useQueryClient()
   const { usuario } = useAuth()

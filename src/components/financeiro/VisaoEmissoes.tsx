@@ -13,17 +13,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Search, UserCheck, UserX } from 'lucide-react'
-import { useFechamentoProcessos } from '@/hooks/financeiro/useFechamentoProcessos'
+import { type FinFechamentoProcesso } from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
 
 interface Props {
-  fechamento_id: string
-  travado: boolean
+  processos: FinFechamentoProcesso[]
+  isLoading: boolean
+  vazioAoVivo?: boolean
 }
 
-export function VisaoEmissoes({ fechamento_id, travado }: Props) {
+export function VisaoEmissoes({ processos, isLoading, vazioAoVivo }: Props) {
   const [busca, setBusca] = useState('')
-  const { data: processos = [], isLoading } = useFechamentoProcessos(fechamento_id)
 
   const filtrados = processos.filter(p =>
     !busca ||
@@ -96,9 +96,11 @@ export function VisaoEmissoes({ fechamento_id, travado }: Props) {
             ) : filtrados.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-gray-400 text-sm">
-                  {processos.length === 0
-                    ? 'Nenhum processo importado. Use "Puxar Emissões" na aba Fechamento.'
-                    : 'Nenhum resultado para a busca.'}
+                  {processos.length !== 0
+                    ? 'Nenhum resultado para a busca.'
+                    : vazioAoVivo
+                    ? 'Nenhum processo emitido neste mês.'
+                    : 'Nenhum processo importado. Use "Puxar Emissões" na aba Fechamento.'}
                 </TableCell>
               </TableRow>
             ) : (
