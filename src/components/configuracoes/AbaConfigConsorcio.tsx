@@ -60,7 +60,7 @@ function novaLinha(): LocalRow {
     data_vigencia_inicio: '',
     data_vigencia_fim: '',
     comissao_total_percentual: '4',
-    comissao_comercial_percentual: '25',
+    comissao_comercial_percentual: '1',
     numero_parcelas_padrao: '13',
     dirty: true,
   }
@@ -139,8 +139,11 @@ export function AbaConfigConsorcio() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        Percentual de comissão que a empresa recebe sobre o valor da carta de consórcio, fatia repassada ao comercial e nº de parcelas do fluxo de comissão gerado ao concluir o processo.
+        Percentual de comissão que a empresa recebe sobre o valor da carta de consórcio e nº de parcelas do fluxo gerado ao concluir o processo.
         Use a linha "Padrão/Geral" como regra de fallback para administradoras sem configuração própria.
+      </p>
+      <p className="text-xs text-gray-400">
+        A coluna "% Comercial (sobre a carta)" só é usada quando o comercial do processo não tem uma regra de comissão individual configurada em RH &gt; Ficha do Funcionário — é um percentual aplicado direto sobre o valor da carta, independente da comissão da empresa (não é uma fatia dela).
       </p>
 
       <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -172,7 +175,7 @@ export function AbaConfigConsorcio() {
                   <th className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">Tipo de parcela</th>
                   <th className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">Vigência (início/fim)</th>
                   <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Comissão Empresa</th>
-                  <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Fatia Comercial</th>
+                  <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Comercial (sobre a carta)</th>
                   <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">Nº Parcelas</th>
                   <th className="px-3 py-2 w-16" />
                 </tr>
