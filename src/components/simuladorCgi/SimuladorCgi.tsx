@@ -7,7 +7,7 @@ import type { InputCgi, ResultadoCgiCompleto } from '@/lib/simuladorCgi/tipos'
 import { useSalvarCgiCentral } from '@/hooks/simulacoes/useSalvarCgiCentral'
 import { SimulacaoCompartilharModal } from '@/components/simulacoes/SimulacaoCompartilharModal'
 import { Button } from '@/components/ui/button'
-import { Printer, Send } from 'lucide-react'
+import { Printer, Send, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 
 function inputParaForm(input: InputCgi): FormStateCgi {
@@ -26,8 +26,9 @@ interface Props {
   onResultadoChange?: (r: ResultadoCgiCompleto | null) => void
   /**
    * ID de uma simulação já salva (ex.: "Ver simulação" no histórico) — quando
-   * presente, Imprimir/Compartilhar não salvam de novo no histórico, só
-   * reaproveitam este ID. Mesmo padrão de SimuladorConsorcio/SimuladorFinanciamento.
+   * presente, Imprimir/Ver na tela/Compartilhar não salvam de novo no
+   * histórico, só reaproveitam este ID. Mesmo padrão de
+   * SimuladorConsorcio/SimuladorFinanciamento, estendido às 3 ações.
    */
   simulacaoExistenteId?: string
   resultadoInicial?: ResultadoCgiCompleto
@@ -52,9 +53,17 @@ export function SimuladorCgi({
     resultadoInicial ? inputParaForm(resultadoInicial.input) : FORM_CGI_VAZIO,
   )
   const [gerandoPDF, setGerandoPDF] = useState(false)
+  const [abrindoPDF, setAbrindoPDF] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [modalCompartilhar, setModalCompartilhar] = useState<{ id: string; nome: string } | null>(null)
   const salvarCgiCentral = useSalvarCgiCentral()
+
+  // ID da simulação já salva nesta sessão do componente — começa com
+  // `simulacaoExistenteId` (reabertura via histórico) e passa a ser
+  // preenchido assim que qualquer uma das 3 ações (Imprimir/Ver na tela/
+  // Compartilhar) salva pela primeira vez. Ações seguintes reaproveitam,
+  // nunca duplicam o registro no histórico.
+  const [simulacaoIdAtual, setSimulacaoIdAtual] = useState<string | undefined>(simulacaoExistenteId)
 
   const resultado = useMemo((): ResultadoCgiCompleto | null => {
     const valorImovel = parseMoedaCgi(form.valorImovel)
@@ -77,10 +86,26 @@ export function SimuladorCgi({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { onResultadoChange?.(resultado) }, [resultado])
 
+  // Garante que a simulação atual está salva no histórico, sem duplicar —
+  // reaproveitada por Imprimir PDF, Ver na tela e Compartilhar.
+  async function garantirSalvo(): Promise<string | null> {
+    if (simulacaoIdAtual) return simulacaoIdAtual
+    if (!resultado) return null
+    try {
+      const salvo = await salvarCgiCentral.mutateAsync({ resultado, leadId, processoId })
+      setSimulacaoIdAtual(salvo.id)
+      return salvo.id
+    } catch {
+      toast.error('Erro ao salvar simulação no histórico.')
+      return null
+    }
+  }
+
   async function baixarPDF() {
     if (!resultado) return
     setGerandoPDF(true)
     try {
+      await garantirSalvo()
       const { baixarPDFCgi } = await import('@/lib/simuladorCgi/gerarPDFBuffer')
       await baixarPDFCgi(resultado, { clienteNome, responsavelNome })
     } finally {
@@ -88,19 +113,26 @@ export function SimuladorCgi({
     }
   }
 
+  async function verNaTela() {
+    if (!resultado) return
+    setAbrindoPDF(true)
+    try {
+      await garantirSalvo()
+      const { abrirPDFCgiNaTela } = await import('@/lib/simuladorCgi/gerarPDFBuffer')
+      await abrirPDFCgiNaTela(resultado, { clienteNome, responsavelNome })
+    } finally {
+      setAbrindoPDF(false)
+    }
+  }
+
   async function compartilharSimulacao() {
     if (!resultado) return
     const nome = `Simulação de CGI${clienteNome ? ` — ${clienteNome}` : ''}`
-    if (simulacaoExistenteId) {
-      setModalCompartilhar({ id: simulacaoExistenteId, nome })
-      return
-    }
     setEnviando(true)
     try {
-      const salvo = await salvarCgiCentral.mutateAsync({ resultado, leadId, processoId })
-      setModalCompartilhar({ id: salvo.id, nome })
-    } catch {
-      toast.error('Erro ao salvar simulação para compartilhamento.')
+      const id = await garantirSalvo()
+      if (!id) { toast.error('Não foi possível salvar a simulação para compartilhar.'); return }
+      setModalCompartilhar({ id, nome })
     } finally {
       setEnviando(false)
     }
@@ -113,6 +145,15 @@ export function SimuladorCgi({
       </div>
 
       <div className="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-gray-100 bg-white shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-gray-300 text-gray-600 hover:bg-gray-50 gap-1"
+          onClick={verNaTela}
+          disabled={!resultado || abrindoPDF}
+        >
+          <Eye className="h-3 w-3" /> {abrindoPDF ? 'Abrindo...' : 'Ver na tela'}
+        </Button>
         <Button
           size="sm"
           variant="outline"
