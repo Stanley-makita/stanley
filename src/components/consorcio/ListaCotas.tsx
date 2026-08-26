@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, X, Check, RefreshCw } from 'lucide-react'
 import { TIPOS_BEM, LABEL_TIPO_PARCELA, type TipoParcela } from '@/types/consorcio'
+import { useAuth } from '@/hooks/auth/useAuth'
 
 const LABEL_STATUS_COTA: Record<StatusCota, string> = {
   ativo: 'Ativo', contemplado: 'Contemplado', cancelado: 'Cancelado', substituido: 'Substituído',
@@ -104,6 +105,8 @@ export function ListaCotas({ processoId }: { processoId: string }) {
   const alterarStatus = useAlterarStatusCota(processoId)
   const excluir = useExcluirCotaEngano(processoId)
   const recalcular = useRecalcularFluxoConsorcio(processoId)
+  const { usuario } = useAuth()
+  const podeRecalcular = usuario?.perfil === 'admin' || usuario?.perfil === 'gestor' || usuario?.perfil === 'gerente'
 
   const [exibirForm, setExibirForm] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
@@ -159,19 +162,21 @@ export function ListaCotas({ processoId }: { processoId: string }) {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-fonti-primary">Lista de Cotas</h3>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 text-xs"
-            disabled={recalcular.isPending}
-            onClick={() => {
-              if (window.confirm('Isso vai apagar e regerar todas as parcelas ainda não recebidas/pagas deste processo, usando a configuração de comissão atual. Continuar?')) {
-                recalcular.mutate()
-              }
-            }}
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Recalcular fluxo financeiro
-          </Button>
+          {podeRecalcular && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs"
+              disabled={recalcular.isPending}
+              onClick={() => {
+                if (window.confirm('Isso vai apagar e regerar todas as parcelas ainda não recebidas/pagas deste processo, usando a configuração de comissão atual. Continuar?')) {
+                  recalcular.mutate()
+                }
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Recalcular fluxo financeiro
+            </Button>
+          )}
           {!exibirForm && (
             <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={iniciarNova}>
               <Plus className="h-3.5 w-3.5" /> Nova cota
