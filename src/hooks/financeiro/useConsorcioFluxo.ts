@@ -9,13 +9,13 @@ import { toast } from 'sonner'
 const SELECT_RECEBER = `
   *,
   processo:processos!processo_id(numero_processo, lead:leads!lead_id(nome)),
-  processo_cota:processo_cotas!processo_cota_id(administradora_nome, grupo, cota)
+  processo_cota:processo_cotas!processo_cota_id(administradora_nome, grupo, cota, valor_carta)
 `
 
 const SELECT_COMERCIAL_PAGAR = `
   *,
   processo:processos!processo_id(numero_processo, lead:leads!lead_id(nome)),
-  processo_cota:processo_cotas!processo_cota_id(administradora_nome, grupo, cota),
+  processo_cota:processo_cotas!processo_cota_id(administradora_nome, grupo, cota, valor_carta),
   usuario:usuarios!usuario_id(nome)
 `
 

@@ -163,8 +163,12 @@ export function ComissoesTab() {
                         {r.ativa ? 'Ativa' : 'Inativa'}
                       </span>
                       <span className={cn('text-xs font-medium rounded-full px-2 py-0.5',
-                        r.tipo_calculo === 'percentual_faixa_producao_mensal' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700')}>
-                        {r.tipo_calculo === 'percentual_faixa_producao_mensal' ? 'Percentual (comercial)' : 'Valor fixo (operacional)'}
+                        r.tipo_calculo !== 'valor_fixo_emissao' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700')}>
+                        {r.tipo_calculo === 'percentual_faixa_producao_mensal'
+                          ? 'Percentual (produção mensal)'
+                          : r.tipo_calculo === 'percentual_por_negocio'
+                            ? 'Percentual (por negócio)'
+                            : 'Valor fixo (operacional)'}
                       </span>
                     </div>
                     {r.descricao && <p className="text-xs text-gray-400 mt-0.5">{r.descricao}</p>}
@@ -200,7 +204,11 @@ export function ComissoesTab() {
                           <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">Produção de</th>
                           <th className="text-left py-2 text-xs font-medium text-gray-500 pr-4">até</th>
                           <th className="text-left py-2 text-xs font-medium text-gray-500">
-                            {r.tipo_calculo === 'percentual_faixa_producao_mensal' ? '% Comercial' : 'Valor Fixo'}
+                            {r.tipo_calculo === 'percentual_faixa_producao_mensal'
+                              ? '% Comercial'
+                              : r.tipo_calculo === 'percentual_por_negocio'
+                                ? '% sobre o valor do negócio'
+                                : 'Valor Fixo'}
                           </th>
                         </tr>
                       </thead>
@@ -210,7 +218,7 @@ export function ComissoesTab() {
                             <td className="py-2 text-xs text-gray-700 pr-4">{fmtMoeda(f.valor_minimo)}</td>
                             <td className="py-2 text-xs text-gray-700 pr-4">{f.valor_maximo === 0 ? 'sem limite' : fmtMoeda(f.valor_maximo)}</td>
                             <td className="py-2 text-xs text-gray-700 font-medium">
-                              {r.tipo_calculo === 'percentual_faixa_producao_mensal'
+                              {r.tipo_calculo !== 'valor_fixo_emissao'
                                 ? (f.pct_comercial ? fmtPercentual(f.pct_comercial) : '—')
                                 : (f.valor_fixo ? fmtMoeda(f.valor_fixo) : '—')}
                             </td>
@@ -263,7 +271,9 @@ export function ComissoesTab() {
               <p className="text-[11px] text-gray-400">
                 {form.tipo_calculo === 'percentual_faixa_producao_mensal'
                   ? 'A faixa é aplicada sobre a produção mensal ACUMULADA do funcionário (financiamento + contrato + assessoria), não sobre um processo isolado.'
-                  : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
+                  : form.tipo_calculo === 'percentual_por_negocio'
+                    ? 'A faixa é escolhida pelo valor do negócio (ex.: valor da carta de consórcio) e aplicada direto sobre esse valor — não é uma fatia da comissão que a empresa recebe. Uma única faixa "0 até sem limite" funciona como taxa fixa por pessoa.'
+                    : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
               </p>
             </div>
 
@@ -285,7 +295,9 @@ export function ComissoesTab() {
                 <Label className="text-xs">
                   {form.tipo_calculo === 'percentual_faixa_producao_mensal'
                     ? 'Faixas de Produção Mensal (percentual sobre o total acumulado)'
-                    : 'Faixas de Produção (valor fixo por faixa atingida)'}
+                    : form.tipo_calculo === 'percentual_por_negocio'
+                      ? 'Faixas por Valor do Negócio (percentual sobre o valor da carta)'
+                      : 'Faixas de Produção (valor fixo por faixa atingida)'}
                 </Label>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setFaixas(fs => [...fs, VAZIO_FAIXA()])}>
                   <Plus className="h-3 w-3" /> Adicionar Faixa
@@ -304,9 +316,11 @@ export function ComissoesTab() {
                         <Input type="number" min={0} value={f.valor_maximo} onChange={e => setFaixa(i, 'valor_maximo', Number(e.target.value))} className="h-8 text-xs" />
                       </div>
                       <div className="flex items-end gap-1">
-                        {form.tipo_calculo === 'percentual_faixa_producao_mensal' ? (
+                        {form.tipo_calculo !== 'valor_fixo_emissao' ? (
                           <div className="flex-1 space-y-1">
-                            <Label className="text-[10px] text-gray-500">% Comercial</Label>
+                            <Label className="text-[10px] text-gray-500">
+                              {form.tipo_calculo === 'percentual_por_negocio' ? '% sobre o valor do negócio' : '% Comercial'}
+                            </Label>
                             <Input type="number" min={0} step={0.01} value={f.pct_comercial ?? ''} onChange={e => setFaixa(i, 'pct_comercial', e.target.value === '' ? null : Number(e.target.value))} className="h-8 text-xs" />
                           </div>
                         ) : (

@@ -90,11 +90,12 @@ export interface RhFaixaComissao {
   created_at: string
 }
 
-export type RhTipoCalculoComissao = 'valor_fixo_emissao' | 'percentual_faixa_producao_mensal'
+export type RhTipoCalculoComissao = 'valor_fixo_emissao' | 'percentual_faixa_producao_mensal' | 'percentual_por_negocio'
 
 export const RH_TIPO_CALCULO_LABELS: Record<RhTipoCalculoComissao, string> = {
   valor_fixo_emissao: 'Valor fixo por emissão (operacional)',
   percentual_faixa_producao_mensal: 'Percentual por faixa de produção mensal (comercial)',
+  percentual_por_negocio: 'Percentual sobre o valor da carta (Consórcio)',
 }
 
 export interface RhRegraComissao {

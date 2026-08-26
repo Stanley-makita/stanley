@@ -38,7 +38,7 @@ const STATUS_PARCELA: Record<FinStatusParcelaConsorcio, { label: string; class: 
   cancelada: { label: 'Cancelada', class: 'bg-gray-100 text-gray-400' },
 }
 
-type SubAba = 'receber' | 'pagar'
+type SubAba = 'receber' | 'pagar' | 'resumo'
 
 export function AbaConsorcio() {
   const [subAba, setSubAba] = useState<SubAba>('receber')
@@ -62,9 +62,17 @@ export function AbaConsorcio() {
         >
           Comercial a Pagar
         </button>
+        <button
+          onClick={() => setSubAba('resumo')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            subAba === 'resumo' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Resumo por Cota
+        </button>
       </div>
 
-      {subAba === 'receber' ? <VisaoConsorcioReceber /> : <VisaoConsorcioComercialPagar />}
+      {subAba === 'receber' ? <VisaoConsorcioReceber /> : subAba === 'pagar' ? <VisaoConsorcioComercialPagar /> : <VisaoConsorcioResumoPorCota />}
     </div>
   )
 }
@@ -317,6 +325,87 @@ function VisaoConsorcioComercialPagar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+interface ResumoCota {
+  cliente: string
+  detalhe: string
+  valorCarta: number
+  comissaoFontinhas: number
+  comissaoComercial: number
+}
+
+function VisaoConsorcioResumoPorCota() {
+  const { data: receber, isLoading: carregandoReceber } = useConsorcioReceber()
+  const { data: pagar, isLoading: carregandoPagar } = useConsorcioComercialPagar()
+  const isLoading = carregandoReceber || carregandoPagar
+
+  const porCota = new Map<string, ResumoCota>()
+
+  for (const p of receber ?? []) {
+    const { cliente, detalhe } = nomeCota(p.processo, p.processo_cota)
+    const atual = porCota.get(p.processo_cota_id) ?? {
+      cliente, detalhe, valorCarta: p.processo_cota?.valor_carta ?? 0, comissaoFontinhas: 0, comissaoComercial: 0,
+    }
+    atual.comissaoFontinhas += p.status !== 'cancelada' ? p.valor_parcela : 0
+    porCota.set(p.processo_cota_id, atual)
+  }
+
+  for (const p of pagar ?? []) {
+    const { cliente, detalhe } = nomeCota(p.processo, p.processo_cota)
+    const atual = porCota.get(p.processo_cota_id) ?? {
+      cliente, detalhe, valorCarta: p.processo_cota?.valor_carta ?? 0, comissaoFontinhas: 0, comissaoComercial: 0,
+    }
+    atual.comissaoComercial += p.status !== 'cancelada' ? p.valor_parcela : 0
+    porCota.set(p.processo_cota_id, atual)
+  }
+
+  const linhas = Array.from(porCota.values())
+
+  return (
+    <div className="rounded-lg border bg-white overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-gray-50">
+            <TableHead className="text-xs">Cliente / Cota</TableHead>
+            <TableHead className="text-xs text-right">Valor da Carta</TableHead>
+            <TableHead className="text-xs text-right">% Fontinhas</TableHead>
+            <TableHead className="text-xs text-right">Comissão Fontinhas</TableHead>
+            <TableHead className="text-xs text-right">% Comercial</TableHead>
+            <TableHead className="text-xs text-right">Comissão Comercial</TableHead>
+            <TableHead className="text-xs text-right">Saldo Empresa</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-400 text-sm">Carregando...</TableCell></TableRow>
+          ) : linhas.length === 0 ? (
+            <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-400 text-sm">Nenhuma cota com fluxo financeiro gerado.</TableCell></TableRow>
+          ) : (
+            linhas.map((r, i) => {
+              const pctFontinhas = r.valorCarta > 0 ? (r.comissaoFontinhas / r.valorCarta) * 100 : 0
+              const pctComercial = r.valorCarta > 0 ? (r.comissaoComercial / r.valorCarta) * 100 : 0
+              const saldo = r.comissaoFontinhas - r.comissaoComercial
+              return (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="text-sm font-medium">{r.cliente}</div>
+                    <div className="text-xs text-gray-500">{r.detalhe}</div>
+                  </TableCell>
+                  <TableCell className="text-right text-sm font-mono">{formatarMoeda(r.valorCarta)}</TableCell>
+                  <TableCell className="text-right text-sm text-gray-500">{pctFontinhas.toFixed(2)}%</TableCell>
+                  <TableCell className="text-right text-sm font-mono">{formatarMoeda(r.comissaoFontinhas)}</TableCell>
+                  <TableCell className="text-right text-sm text-gray-500">{pctComercial.toFixed(2)}%</TableCell>
+                  <TableCell className="text-right text-sm font-mono">{formatarMoeda(r.comissaoComercial)}</TableCell>
+                  <TableCell className="text-right text-sm font-mono font-medium text-fonti-primary">{formatarMoeda(saldo)}</TableCell>
+                </TableRow>
+              )
+            })
+          )}
+        </TableBody>
+      </Table>
     </div>
   )
 }
