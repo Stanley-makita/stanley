@@ -23,7 +23,7 @@ import { VisaoRelatorioEquipe } from '@/components/financeiro/visoes/VisaoRelato
 // Novos componentes
 import { PainelFinanceiro } from '@/components/financeiro/PainelFinanceiro'
 import { VisaoFechamento } from '@/components/financeiro/VisaoFechamento'
-import { VisaoEmissoes } from '@/components/financeiro/VisaoEmissoes'
+import { AbaEmissoes } from '@/components/financeiro/AbaEmissoes'
 import { AbaAReceber } from '@/components/financeiro/AbaAReceber'
 import { AbaComissoesPagar } from '@/components/financeiro/AbaComissoesPagar'
 import { AbaConsorcio } from '@/components/financeiro/AbaConsorcio'
@@ -85,9 +85,10 @@ export default function FinanceiroPage() {
   const travado = fechamento?.status === 'travado'
 
   // Abas que precisam de fechamento para funcionar
-  // A Receber e Comissões a Pagar não exigem fechamento aberto: calculam ao
-  // vivo direto dos processos emitidos (ver AbaAReceber/AbaComissoesPagar).
-  const precisaFechamento: Aba[] = ['fechamento', 'emissoes', 'folha', 'despesas', 'conferencias']
+  // A Receber, Comissões a Pagar e Emissões não exigem fechamento aberto:
+  // calculam ao vivo direto dos processos emitidos até o fechamento do mês
+  // ser aprovado/pago/travado (ver AbaAReceber/AbaComissoesPagar/AbaEmissoes).
+  const precisaFechamento: Aba[] = ['fechamento', 'folha', 'despesas', 'conferencias']
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -197,14 +198,14 @@ export default function FinanceiroPage() {
         {fechamento && (
           <>
             {aba === 'fechamento'      && <VisaoFechamento fechamento={fechamento} />}
-            {aba === 'emissoes'        && <VisaoEmissoes fechamento_id={fechamento.id} travado={travado ?? false} />}
             {aba === 'folha'           && <VisaoFolha fechamento_id={fechamento.id} travado={travado ?? false} />}
             {aba === 'despesas'        && <VisaoDespesas fechamento_id={fechamento.id} travado={travado ?? false} />}
             {aba === 'conferencias'    && <VisaoConferencias fechamento_id={fechamento.id} travado={travado ?? false} />}
           </>
         )}
 
-        {/* A Receber e Comissões a Pagar: ao vivo, não exigem fechamento aberto */}
+        {/* Emissões, A Receber e Comissões a Pagar: ao vivo, não exigem fechamento aberto */}
+        {aba === 'emissoes'        && <AbaEmissoes fechamento={fechamento ?? null} mes={mes} ano={ano} />}
         {aba === 'a_receber'       && <AbaAReceber fechamento={fechamento ?? null} mes={mes} ano={ano} />}
         {aba === 'comissoes_pagar' && <AbaComissoesPagar fechamento={fechamento ?? null} mes={mes} ano={ano} />}
 
