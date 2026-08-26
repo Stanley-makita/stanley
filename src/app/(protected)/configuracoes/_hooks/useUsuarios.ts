@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Usuario, UsuarioPerfil } from '@/types/configuracoes'
+import type { Usuario, UsuarioPerfil, UsuarioTipo } from '@/types/configuracoes'
 
 const supabase = createClient()
 
@@ -35,6 +35,7 @@ export function useCriarUsuario() {
       email: string
       senha: string
       perfil: UsuarioPerfil
+      tipo_usuario: UsuarioTipo
       funcao: string | null
       cargo_id: string | null
       ativo: boolean
@@ -60,6 +61,7 @@ export function useAtualizarUsuario() {
       id: string
       nome?: string
       perfil?: UsuarioPerfil
+      tipo_usuario?: UsuarioTipo
       funcao?: string | null
       cargo_id?: string | null
       ativo?: boolean

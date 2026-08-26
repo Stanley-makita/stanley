@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 import { useCriarUsuario, useAtualizarUsuario, useResetSenha } from '../../_hooks/useUsuarios'
 import { useCargos } from '@/hooks/rh/useCargos'
 import { PERFIS_ATIVOS, PERFIL_LABELS } from '@/types/configuracoes'
-import type { Usuario, UsuarioPerfil } from '@/types/configuracoes'
+import type { Usuario, UsuarioPerfil, UsuarioTipo } from '@/types/configuracoes'
 import { useUsuarioPermissoes, useSalvarPermissoesIndividuais } from '../../_hooks/useUsuarioPermissoesAdmin'
 import {
   booleanoParaEstado, planejarPermissoesIndividuais, type EstadoPermissaoIndividual,
@@ -44,6 +44,7 @@ const schemaCriar = z.object({
   email:    z.string().email('E-mail inválido'),
   senha:    z.string().min(6, 'Senha deve ter ao menos 6 caracteres'),
   perfil:   z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
+  tipo_usuario: z.enum(['interno', 'externo']),
   cargo_id: z.string().optional(),
   ativo:    z.boolean(),
 })
@@ -54,6 +55,7 @@ const schemaEditar = z.object({
   nome:               z.string().min(2, 'Informe o nome completo'),
   email:              z.string().email('E-mail inválido'),
   perfil:             z.string().min(1, 'Selecione um perfil') as z.ZodType<UsuarioPerfil>,
+  tipo_usuario:       z.enum(['interno', 'externo']),
   cargo_id:           z.string().optional(),
   ativo:              z.boolean(),
   telefone_whatsapp:  z.string().optional(),
@@ -87,7 +89,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const [tokenCopiado, setTokenCopiado] = useState(false)
 
   function copiarTokenTelefonia() {
-    const token = (usuario as unknown as { token_telefonia?: string } | undefined)?.token_telefonia
+    const token = usuario?.token_telefonia
     if (!token) return
     navigator.clipboard.writeText(token)
     setTokenCopiado(true)
@@ -101,6 +103,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
       email:    '',
       senha:    '',
       perfil:   'comercial' as UsuarioPerfil,
+      tipo_usuario: 'interno' as UsuarioTipo,
       cargo_id: '',
       ativo:    true,
     },
@@ -113,9 +116,10 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           nome:              usuario.nome,
           email:             usuario.email,
           perfil:            PERFIS_ATIVOS.includes(usuario.perfil) ? usuario.perfil : 'comercial' as UsuarioPerfil,
+          tipo_usuario:      usuario.tipo_usuario ?? 'interno',
           cargo_id:          usuario.cargo_id ?? '',
           ativo:             usuario.ativo,
-          telefone_whatsapp: (usuario as unknown as { telefone_whatsapp?: string }).telefone_whatsapp ?? '',
+          telefone_whatsapp: usuario.telefone_whatsapp ?? '',
           perm_leads_ver_todas:    'herdar',
           perm_leads_redistribuir: 'herdar',
         } as unknown as FormCriar)
@@ -125,6 +129,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           email:    '',
           senha:    '',
           perfil:   'comercial' as UsuarioPerfil,
+          tipo_usuario: 'interno' as UsuarioTipo,
           cargo_id: '',
           ativo:    true,
         })
@@ -160,6 +165,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           nome:             data.nome,
           email:            data.email,
           perfil:           data.perfil,
+          tipo_usuario:     data.tipo_usuario,
           funcao,
           cargo_id:         data.cargo_id || null,
           ativo:            data.ativo,
@@ -190,6 +196,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           email:    data.email,
           senha:    data.senha,
           perfil:   data.perfil,
+          tipo_usuario: data.tipo_usuario,
           funcao,
           cargo_id: data.cargo_id || null,
           ativo:    data.ativo,
@@ -328,6 +335,34 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                 />
               )}
 
+              <FormField control={form.control} name="tipo_usuario" render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={field.value === 'externo'}
+                      onClick={() => field.onChange(field.value === 'externo' ? 'interno' : 'externo')}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        field.value === 'externo' ? 'bg-amber-500' : 'bg-fonti-primary'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                          field.value === 'externo' ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                    <FormLabel className="cursor-pointer" onClick={() => field.onChange(field.value === 'externo' ? 'interno' : 'externo')}>
+                      {field.value === 'externo' ? 'Usuário externo' : 'Usuário interno'}
+                    </FormLabel>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Externo não aparece como opção de responsável/co-responsável em Leads e Processos — só como destinatário ao compartilhar documentos.
+                  </p>
+                </FormItem>
+              )} />
+
               {modoEdicao && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium leading-none">
@@ -336,7 +371,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                   <div className="flex gap-2">
                     <Input
                       readOnly
-                      value={(usuario as unknown as { token_telefonia?: string } | undefined)?.token_telefonia ?? ''}
+                      value={usuario?.token_telefonia ?? ''}
                       className="font-mono text-xs"
                     />
                     <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={copiarTokenTelefonia} title="Copiar token">
@@ -344,7 +379,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                     </Button>
                   </div>
                   <p className="text-xs text-gray-400">
-                    Configure no <code>microsip.ini</code> deste usuário: <code>cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token={(usuario as unknown as { token_telefonia?: string } | undefined)?.token_telefonia ?? '...'}&numero=%s"</code>
+                    Configure no <code>microsip.ini</code> deste usuário: <code>cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token={usuario?.token_telefonia ?? '...'}&numero=%s"</code>
                   </p>
                 </div>
               )}

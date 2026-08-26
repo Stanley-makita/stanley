@@ -17,6 +17,7 @@ export function useUsuariosEmpresa() {
         .select('id, nome, email, perfil, avatar_url')
         .eq('empresa_id', usuario!.empresa_id)
         .eq('ativo', true)
+        .eq('tipo_usuario', 'interno')
         .is('deleted_at', null)
         .order('nome')
       if (error) throw error

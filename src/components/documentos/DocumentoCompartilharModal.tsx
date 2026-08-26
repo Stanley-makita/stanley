@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Send } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/auth/useAuth'
 
 interface OpcaoFixa {
   label: string
@@ -34,6 +35,7 @@ async function getToken(): Promise<string | null> {
 }
 
 export function DocumentoCompartilharModal({ documento, leadId, processoId, onClose, onEnviado }: Props) {
+  const { usuario } = useAuth()
   const [opcoesFixas, setOpcoesFixas] = useState<OpcaoFixa[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioInterno[]>([])
   const [destinatario, setDestinatario] = useState<string>('')
@@ -44,6 +46,8 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
+    if (!usuario?.empresa_id) return
+
     async function carregar() {
       setCarregando(true)
       const fixas: OpcaoFixa[] = []
@@ -112,10 +116,13 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
       setOpcoesFixas(fixas)
       if (fixas.length > 0) setDestinatario(fixas[0].telefone)
 
-      // Usuários internos com telefone preenchido (mesmos para lead e processo)
+      // Usuários da empresa (internos e externos) com telefone preenchido —
+      // externos precisam continuar aparecendo aqui mesmo não sendo opção de
+      // responsável/co-responsável em Leads/Processos.
       const { data: usersData } = await supabase
         .from('usuarios')
         .select('id, nome, telefone_whatsapp, telefone')
+        .eq('empresa_id', usuario!.empresa_id)
         .eq('ativo', true)
         .order('nome')
 
@@ -134,7 +141,7 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
     }
 
     carregar()
-  }, [leadId, processoId])
+  }, [leadId, processoId, usuario?.empresa_id])
 
   const usuarioSelecionado = usuarios.find(u => u.id === usuarioId)
 
@@ -234,7 +241,7 @@ export function DocumentoCompartilharModal({ documento, leadId, processoId, onCl
                         onChange={() => setDestinatario('usuario_interno')}
                         className="accent-fonti-primary"
                       />
-                      <span className="text-sm text-gray-700 group-hover:text-fonti-primary">Usuário interno / Comercial</span>
+                      <span className="text-sm text-gray-700 group-hover:text-fonti-primary">Usuário do sistema</span>
                     </label>
                     {destinatario === 'usuario_interno' && (
                       <select

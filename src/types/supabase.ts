@@ -27,15 +27,30 @@ export type Database = {
           auth_user_id: string | null
           nome: string
           email: string
+          telefone: string | null
+          telefone_whatsapp: string | null
+          avatar_url: string | null
           perfil: Database['public']['Enums']['usuario_perfil']
+          tipo_usuario: Database['public']['Enums']['usuario_tipo']
           funcao: string | null
           cargo_id: string | null
+          token_telefonia: string | null
           ativo: boolean
+          ultimo_acesso: string | null
+          motivo_exclusao: string | null
           deleted_at: string | null
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'created_at' | 'updated_at'>
+        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'created_at' | 'updated_at' | 'telefone' | 'telefone_whatsapp' | 'avatar_url' | 'token_telefonia' | 'ultimo_acesso' | 'motivo_exclusao' | 'deleted_at'> & {
+          telefone?: string | null
+          telefone_whatsapp?: string | null
+          avatar_url?: string | null
+          token_telefonia?: string | null
+          ultimo_acesso?: string | null
+          motivo_exclusao?: string | null
+          deleted_at?: string | null
+        }
         Update: Partial<Database['public']['Tables']['usuarios']['Insert']>
       }
       fases: {
@@ -115,6 +130,7 @@ export type Database = {
     }
     Enums: {
       usuario_perfil: 'admin' | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'assistente' | 'gerente' | 'analista' | 'consultor' | 'cliente'
+      usuario_tipo: 'interno' | 'externo'
     }
   }
 }
