@@ -10,6 +10,7 @@ import { useUsuarios, useAtualizarUsuario } from '../../_hooks/useUsuarios'
 import { UsuarioFormDrawer } from './UsuarioFormDrawer'
 import { ExcluirUsuarioDialog } from './ExcluirUsuarioDialog'
 import { PERFIL_LABELS, PERFIL_CORES, FUNCAO_LABELS } from '@/types/configuracoes'
+import { TIPO_USUARIO_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioFuncao } from '@/types/configuracoes'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -117,6 +118,11 @@ export function UsuariosLista() {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Avatar nome={u.nome} />
                   <span className="text-sm font-medium text-gray-800 truncate">{u.nome}</span>
+                  {u.tipo_usuario === 'externo' && (
+                    <Badge className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                      {TIPO_USUARIO_LABELS.externo}
+                    </Badge>
+                  )}
                 </div>
 
                 {/* E-mail */}

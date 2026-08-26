@@ -7,6 +7,12 @@ export type Usuario = Database['public']['Tables']['usuarios']['Row']
 export type UsuarioInsert = Database['public']['Tables']['usuarios']['Insert']
 export type UsuarioUpdate = Database['public']['Tables']['usuarios']['Update']
 export type UsuarioPerfil = Database['public']['Enums']['usuario_perfil']
+export type UsuarioTipo = Database['public']['Enums']['usuario_tipo']
+
+export const TIPO_USUARIO_LABELS: Record<UsuarioTipo, string> = {
+  interno: 'Interno',
+  externo: 'Externo',
+}
 
 export type Fase = Database['public']['Tables']['fases']['Row']
 export type FaseInsert = Database['public']['Tables']['fases']['Insert']

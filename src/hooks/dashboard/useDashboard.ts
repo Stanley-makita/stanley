@@ -92,6 +92,7 @@ export function useMembrosAtivos() {
         .select('id, nome, ativo')
         .eq('empresa_id', usuario!.empresa_id)
         .eq('ativo', true)
+        .eq('tipo_usuario', 'interno')
         .is('deleted_at', null)
 
       if (error) throw error

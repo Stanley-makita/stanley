@@ -57,7 +57,7 @@ export async function PUT(
     if (!pode) return NextResponse.json({ error: 'Sem permissão para ativar/desativar usuários' }, { status: 403 })
   }
 
-  const { nome, perfil, funcao, cargo_id, ativo, telefone_whatsapp, email } = body
+  const { nome, perfil, tipo_usuario, funcao, cargo_id, ativo, telefone_whatsapp, email } = body
 
   // Busca o usuário alvo para verificar guards de segurança
   const { data: alvo } = await supabase
@@ -138,6 +138,7 @@ export async function PUT(
   const update: Record<string, unknown> = {}
   if (nome               !== undefined) update.nome               = nome?.trim() || undefined
   if (perfil             !== undefined) update.perfil             = perfil
+  if (tipo_usuario       !== undefined) update.tipo_usuario       = tipo_usuario
   if (funcao             !== undefined) update.funcao             = funcao ?? null
   if (cargo_id           !== undefined) update.cargo_id           = cargo_id ?? null
   if (ativo              !== undefined) update.ativo              = ativo
