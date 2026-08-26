@@ -169,15 +169,24 @@ async function montarDocCgi(resultado: ResultadoCgiCompleto, options: PDFCgiOpti
     { label: 'IOF Estimado',  w: usableW * 0.11 },
     { label: 'Prestação',     w: usableW * 0.10 },
   ]
+  const thH = 11
   setFill(doc, COR_VERDE)
-  doc.rect(mL, y, usableW, 8, 'F')
+  doc.rect(mL, y, usableW, thH, 'F')
   let cx = mL
-  doc.setFontSize(6.1); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+  doc.setTextColor(255, 255, 255)
   cols.forEach((col) => {
-    doc.text(col.label, cx + col.w / 2, y + 5, { align: 'center' })
+    if (col.label === 'Taxa a.a.') {
+      doc.setFontSize(4.6); doc.setFont('helvetica', 'normal')
+      doc.text('A partir de', cx + col.w / 2, y + 4, { align: 'center' })
+      doc.setFontSize(6.1); doc.setFont('helvetica', 'bold')
+      doc.text(col.label, cx + col.w / 2, y + 8.5, { align: 'center' })
+    } else {
+      doc.setFontSize(6.1); doc.setFont('helvetica', 'bold')
+      doc.text(col.label, cx + col.w / 2, y + thH / 2 + 1.8, { align: 'center' })
+    }
     cx += col.w
   })
-  y += 8
+  y += thH
 
   resultado.bancos.forEach((b, idx) => {
     const rH = b.elegivel ? 10 : 14
@@ -324,4 +333,14 @@ export async function baixarPDFCgi(
   const doc = await montarDocCgi(resultado, options)
   const nome = options.nomeArquivo ?? `Simulacao CGI${options.clienteNome ? ` - ${options.clienteNome}` : ''}.pdf`
   doc.save(nome)
+}
+
+// "Ver na tela" — abre o PDF numa nova aba do navegador em vez de baixar.
+export async function abrirPDFCgiNaTela(
+  resultado: ResultadoCgiCompleto,
+  options: PDFCgiOptions = {},
+): Promise<void> {
+  const doc = await montarDocCgi(resultado, options)
+  const url = doc.output('bloburl')
+  window.open(url.toString(), '_blank')
 }

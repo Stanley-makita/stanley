@@ -150,7 +150,10 @@ export function PainelCgi({ form, onChange, resultado }: Props) {
                   <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Sistema</th>
                   <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Vlr Simulado</th>
                   <th className="px-4 py-3 text-right font-medium whitespace-nowrap">% Imóvel</th>
-                  <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Taxa a.a.</th>
+                  <th className="px-4 py-3 text-right font-medium whitespace-nowrap">
+                    <span className="block text-[10px] font-normal opacity-75 normal-case">A partir de</span>
+                    Taxa a.a.
+                  </th>
                   <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Prazo Máx.</th>
                   <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Prazo Usado</th>
                   <th className="px-4 py-3 text-right font-medium whitespace-nowrap">IOF</th>
