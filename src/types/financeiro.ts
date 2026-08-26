@@ -399,6 +399,10 @@ export interface FinConfigConsorcio {
   id: string
   empresa_id: string
   administradora_nome: string | null  // null = linha "padrão/geral"
+  tipo_bem: string | null             // null = qualquer tipo de bem
+  tipo_parcela: 'linear' | 'reduzida' | null  // null = ambos
+  data_vigencia_inicio: string | null // null = sem limite inferior
+  data_vigencia_fim: string | null    // null = ainda vigente
   comissao_total_percentual: number
   comissao_comercial_percentual: number
   numero_parcelas_padrao: number

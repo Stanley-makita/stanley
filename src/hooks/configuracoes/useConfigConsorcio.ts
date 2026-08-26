@@ -26,6 +26,10 @@ export function useConfigConsorcio() {
 export interface SalvarConfigConsorcioInput {
   id: string | null
   administradora_nome: string | null
+  tipo_bem: string | null
+  tipo_parcela: 'linear' | 'reduzida' | null
+  data_vigencia_inicio: string | null
+  data_vigencia_fim: string | null
   comissao_total_percentual: number
   comissao_comercial_percentual: number
   numero_parcelas_padrao: number
@@ -45,6 +49,10 @@ export function useSalvarConfigConsorcio() {
           .from('financeiro_config_consorcio')
           .update({
             administradora_nome: input.administradora_nome,
+            tipo_bem: input.tipo_bem,
+            tipo_parcela: input.tipo_parcela,
+            data_vigencia_inicio: input.data_vigencia_inicio,
+            data_vigencia_fim: input.data_vigencia_fim,
             comissao_total_percentual: input.comissao_total_percentual,
             comissao_comercial_percentual: input.comissao_comercial_percentual,
             numero_parcelas_padrao: input.numero_parcelas_padrao,
@@ -57,6 +65,10 @@ export function useSalvarConfigConsorcio() {
           .insert({
             empresa_id: usuario!.empresa_id,
             administradora_nome: input.administradora_nome,
+            tipo_bem: input.tipo_bem,
+            tipo_parcela: input.tipo_parcela,
+            data_vigencia_inicio: input.data_vigencia_inicio,
+            data_vigencia_fim: input.data_vigencia_fim,
             comissao_total_percentual: input.comissao_total_percentual,
             comissao_comercial_percentual: input.comissao_comercial_percentual,
             numero_parcelas_padrao: input.numero_parcelas_padrao,

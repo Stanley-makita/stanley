@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import {
   useProcessoCotas, useAdicionarCota, useEditarCota, useAlterarStatusCota, useExcluirCotaEngano,
+  useRecalcularFluxoConsorcio,
   type ProcessoCota, type StatusCota, type StatusPagamentoCota,
 } from '@/hooks/processos/useProcessoCotas'
 import { Button } from '@/components/ui/button'
@@ -10,9 +11,8 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
-
-const TIPOS_BEM = ['Imóvel', 'Veículo', 'Serviço'] as const
+import { Plus, Pencil, Trash2, X, Check, RefreshCw } from 'lucide-react'
+import { TIPOS_BEM, LABEL_TIPO_PARCELA, type TipoParcela } from '@/types/consorcio'
 
 const LABEL_STATUS_COTA: Record<StatusCota, string> = {
   ativo: 'Ativo', contemplado: 'Contemplado', cancelado: 'Cancelado', substituido: 'Substituído',
@@ -40,6 +40,8 @@ interface FormCotaState {
   cota: string
   administradora_nome: string
   tipo_bem: string
+  tipo_parcela: TipoParcela
+  data_pagamento_boleto: string
   valor_carta: string
   valor_parcela: string
   parcela_reduzida_percentual: string
@@ -53,6 +55,7 @@ interface FormCotaState {
 
 const FORM_VAZIO: FormCotaState = {
   data_adesao: '', grupo: '', cota: '', administradora_nome: '', tipo_bem: '',
+  tipo_parcela: 'linear', data_pagamento_boleto: '',
   valor_carta: '', valor_parcela: '', parcela_reduzida_percentual: '',
   prazo_cota_meses: '', prazo_grupo_meses: '', status_pagamento: 'em_dia',
   data_vencimento: '', proxima_assembleia_em: '', informacao_adicional: '',
@@ -68,8 +71,10 @@ function paraPayload(f: FormCotaState) {
     data_adesao: f.data_adesao || null,
     grupo: f.grupo || null,
     cota: f.cota || null,
-    administradora_nome: f.administradora_nome || null,
+    administradora_nome: f.administradora_nome.trim() || null,
     tipo_bem: f.tipo_bem || null,
+    tipo_parcela: f.tipo_parcela,
+    data_pagamento_boleto: f.data_pagamento_boleto || null,
     valor_carta: paraNumero(f.valor_carta),
     valor_parcela: paraNumero(f.valor_parcela),
     parcela_reduzida_percentual: paraNumero(f.parcela_reduzida_percentual),
@@ -98,6 +103,7 @@ export function ListaCotas({ processoId }: { processoId: string }) {
   const editar = useEditarCota(processoId)
   const alterarStatus = useAlterarStatusCota(processoId)
   const excluir = useExcluirCotaEngano(processoId)
+  const recalcular = useRecalcularFluxoConsorcio(processoId)
 
   const [exibirForm, setExibirForm] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
@@ -116,6 +122,8 @@ export function ListaCotas({ processoId }: { processoId: string }) {
       cota: cota.cota ?? '',
       administradora_nome: cota.administradora_nome ?? '',
       tipo_bem: cota.tipo_bem ?? '',
+      tipo_parcela: cota.tipo_parcela,
+      data_pagamento_boleto: cota.data_pagamento_boleto ?? '',
       valor_carta: cota.valor_carta != null ? String(cota.valor_carta) : '',
       valor_parcela: cota.valor_parcela != null ? String(cota.valor_parcela) : '',
       parcela_reduzida_percentual: cota.parcela_reduzida_percentual != null ? String(cota.parcela_reduzida_percentual) : '',
@@ -150,11 +158,26 @@ export function ListaCotas({ processoId }: { processoId: string }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-fonti-primary">Lista de Cotas</h3>
-        {!exibirForm && (
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={iniciarNova}>
-            <Plus className="h-3.5 w-3.5" /> Nova cota
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs"
+            disabled={recalcular.isPending}
+            onClick={() => {
+              if (window.confirm('Isso vai apagar e regerar todas as parcelas ainda não recebidas/pagas deste processo, usando a configuração de comissão atual. Continuar?')) {
+                recalcular.mutate()
+              }
+            }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Recalcular fluxo financeiro
           </Button>
-        )}
+          {!exibirForm && (
+            <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={iniciarNova}>
+              <Plus className="h-3.5 w-3.5" /> Nova cota
+            </Button>
+          )}
+        </div>
       </div>
 
       {exibirForm && (
@@ -184,6 +207,21 @@ export function ListaCotas({ processoId }: { processoId: string }) {
                   {TIPOS_BEM.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Tipo de parcela</label>
+              <Select value={form.tipo_parcela} onValueChange={(v) => setForm((f) => ({ ...f, tipo_parcela: v as TipoParcela }))}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(LABEL_TIPO_PARCELA) as TipoParcela[]).map((t) => (
+                    <SelectItem key={t} value={t}>{LABEL_TIPO_PARCELA[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Data de pagamento do boleto</label>
+              <Input type="date" className="h-9 text-sm" value={form.data_pagamento_boleto} onChange={(e) => setForm((f) => ({ ...f, data_pagamento_boleto: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Valor da carta</label>

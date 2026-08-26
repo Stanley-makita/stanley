@@ -5,11 +5,15 @@ import { Plus, Save, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
   useConfigConsorcio,
   useSalvarConfigConsorcio,
   useExcluirConfigConsorcio,
 } from '@/hooks/configuracoes/useConfigConsorcio'
 import { type FinConfigConsorcio } from '@/types/financeiro'
+import { TIPOS_BEM, LABEL_TIPO_PARCELA, type TipoParcela } from '@/types/consorcio'
 
 const CONFIG_VAZIO: FinConfigConsorcio[] = []
 
@@ -18,6 +22,10 @@ type LocalRow = {
   id: string | null // null = nova linha não salva
   geral: boolean     // linha "Padrão/Geral" (administradora_nome IS NULL)
   administradora_nome: string
+  tipo_bem: string        // '' = qualquer tipo de bem
+  tipo_parcela: string    // '' = ambos ('linear' | 'reduzida')
+  data_vigencia_inicio: string // '' = sem limite inferior
+  data_vigencia_fim: string    // '' = ainda vigente
   comissao_total_percentual: string
   comissao_comercial_percentual: string
   numero_parcelas_padrao: string
@@ -30,6 +38,10 @@ function fromDB(c: FinConfigConsorcio): LocalRow {
     id: c.id,
     geral: c.administradora_nome === null,
     administradora_nome: c.administradora_nome ?? '',
+    tipo_bem: c.tipo_bem ?? '',
+    tipo_parcela: c.tipo_parcela ?? '',
+    data_vigencia_inicio: c.data_vigencia_inicio ?? '',
+    data_vigencia_fim: c.data_vigencia_fim ?? '',
     comissao_total_percentual: String(c.comissao_total_percentual),
     comissao_comercial_percentual: String(c.comissao_comercial_percentual),
     numero_parcelas_padrao: String(c.numero_parcelas_padrao),
@@ -43,6 +55,10 @@ function novaLinha(): LocalRow {
     id: null,
     geral: false,
     administradora_nome: '',
+    tipo_bem: '',
+    tipo_parcela: '',
+    data_vigencia_inicio: '',
+    data_vigencia_fim: '',
     comissao_total_percentual: '4',
     comissao_comercial_percentual: '25',
     numero_parcelas_padrao: '13',
@@ -101,6 +117,10 @@ export function AbaConfigConsorcio() {
     salvar({
       id: row.id,
       administradora_nome: row.geral ? null : row.administradora_nome.trim(),
+      tipo_bem: row.geral ? null : (row.tipo_bem || null),
+      tipo_parcela: row.geral ? null : ((row.tipo_parcela || null) as 'linear' | 'reduzida' | null),
+      data_vigencia_inicio: row.geral ? null : (row.data_vigencia_inicio || null),
+      data_vigencia_fim: row.geral ? null : (row.data_vigencia_fim || null),
       comissao_total_percentual: parseNum(row.comissao_total_percentual),
       comissao_comercial_percentual: parseNum(row.comissao_comercial_percentual),
       numero_parcelas_padrao: Math.round(parseNum(row.numero_parcelas_padrao)) || 13,
@@ -148,6 +168,9 @@ export function AbaConfigConsorcio() {
               <thead>
                 <tr className="border-b border-gray-100 bg-white">
                   <th className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">Administradora</th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">Tipo de bem</th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">Tipo de parcela</th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">Vigência (início/fim)</th>
                   <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Comissão Empresa</th>
                   <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Fatia Comercial</th>
                   <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">Nº Parcelas</th>
@@ -169,6 +192,55 @@ export function AbaConfigConsorcio() {
                           className="h-7 text-xs w-40"
                           placeholder="Ex: Porto, Embracon..."
                         />
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {row.geral ? (
+                        <span className="text-gray-300">—</span>
+                      ) : (
+                        <Select value={row.tipo_bem || 'qualquer'} onValueChange={(v) => update(row.tempId, 'tipo_bem', v === 'qualquer' ? '' : v)}>
+                          <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="qualquer">Qualquer</SelectItem>
+                            {TIPOS_BEM.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {row.geral ? (
+                        <span className="text-gray-300">—</span>
+                      ) : (
+                        <Select value={row.tipo_parcela || 'ambos'} onValueChange={(v) => update(row.tempId, 'tipo_parcela', v === 'ambos' ? '' : v)}>
+                          <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ambos">Ambos</SelectItem>
+                            {(Object.keys(LABEL_TIPO_PARCELA) as TipoParcela[]).map((t) => (
+                              <SelectItem key={t} value={t}>{LABEL_TIPO_PARCELA[t]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {row.geral ? (
+                        <span className="text-gray-300">—</span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="date"
+                            value={row.data_vigencia_inicio}
+                            onChange={(e) => update(row.tempId, 'data_vigencia_inicio', e.target.value)}
+                            className="h-7 text-xs w-32"
+                          />
+                          <span className="text-gray-400">–</span>
+                          <Input
+                            type="date"
+                            value={row.data_vigencia_fim}
+                            onChange={(e) => update(row.tempId, 'data_vigencia_fim', e.target.value)}
+                            className="h-7 text-xs w-32"
+                          />
+                        </div>
                       )}
                     </td>
                     {(['comissao_total_percentual', 'comissao_comercial_percentual'] as const).map((campo) => (
