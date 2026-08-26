@@ -42,7 +42,7 @@ const SEVERIDADE_CONFIG: Record<FinSeveridadeConferencia, { icon: React.ReactNod
 }
 
 interface Props {
-  fechamento_id: string
+  fechamento_id: string | null
   travado: boolean
 }
 
@@ -57,6 +57,18 @@ export function VisaoConferencias({ fechamento_id, travado }: Props) {
   const pendentes = conferencias.filter(c => c.status === 'pendente')
   const criticos = pendentes.filter(c => c.severidade === 'critico')
   const resolvidas = conferencias.filter(c => c.status !== 'pendente')
+
+  if (!fechamento_id) {
+    return (
+      <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 text-center">
+        <p className="text-gray-500 font-medium">Nenhuma conferência gerada para este mês ainda</p>
+        <p className="text-sm text-gray-400 mt-1">
+          As conferências são geradas ao aprovar o Fechamento do mês. As demais abas (Emissões, A Receber,
+          Comissões a Pagar) continuam funcionando normalmente com dados ao vivo.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
