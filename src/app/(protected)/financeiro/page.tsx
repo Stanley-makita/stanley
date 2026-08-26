@@ -88,7 +88,7 @@ export default function FinanceiroPage() {
   // A Receber, Comissões a Pagar e Emissões não exigem fechamento aberto:
   // calculam ao vivo direto dos processos emitidos até o fechamento do mês
   // ser aprovado/pago/travado (ver AbaAReceber/AbaComissoesPagar/AbaEmissoes).
-  const precisaFechamento: Aba[] = ['fechamento', 'folha', 'despesas', 'conferencias']
+  const precisaFechamento: Aba[] = ['fechamento', 'folha', 'despesas']
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -200,12 +200,14 @@ export default function FinanceiroPage() {
             {aba === 'fechamento'      && <VisaoFechamento fechamento={fechamento} />}
             {aba === 'folha'           && <VisaoFolha fechamento_id={fechamento.id} travado={travado ?? false} />}
             {aba === 'despesas'        && <VisaoDespesas fechamento_id={fechamento.id} travado={travado ?? false} />}
-            {aba === 'conferencias'    && <VisaoConferencias fechamento_id={fechamento.id} travado={travado ?? false} />}
           </>
         )}
 
-        {/* Emissões, A Receber e Comissões a Pagar: ao vivo, não exigem fechamento aberto */}
+        {/* Emissões, A Receber e Comissões a Pagar: ao vivo, não exigem fechamento aberto.
+            Conferências não tem "ao vivo" (só existe a partir da aprovação do fechamento),
+            mas também não bloqueia mais a aba inteira — mostra estado vazio próprio. */}
         {aba === 'emissoes'        && <AbaEmissoes fechamento={fechamento ?? null} mes={mes} ano={ano} />}
+        {aba === 'conferencias'    && <VisaoConferencias fechamento_id={fechamento?.id ?? null} travado={travado ?? false} />}
         {aba === 'a_receber'       && <AbaAReceber fechamento={fechamento ?? null} mes={mes} ano={ano} />}
         {aba === 'comissoes_pagar' && <AbaComissoesPagar fechamento={fechamento ?? null} mes={mes} ano={ano} />}
 
