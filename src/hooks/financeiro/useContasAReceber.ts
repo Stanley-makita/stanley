@@ -11,72 +11,96 @@ import {
 } from '@/types/financeiro'
 import { toast } from 'sonner'
 
-export function useContasAReceber(fechamento_id: string | null | undefined) {
+// A Receber sempre ao vivo: cada linha usa o registro persistido em
+// financeiro_contas_receber quando já existe (de qualquer fechamento,
+// aprovado ou não), ou um valor calculado ao vivo quando o processo ainda
+// não tem registro nenhum. Ver AbaAReceber — substitui o antigo par
+// snapshot/preview: não existe mais estado "travado" por causa de
+// fechamento não aprovado, só quando o fechamento está com status
+// 'travado' de fato.
+export function useContasAReceberVivo(mes: number, ano: number) {
   const { usuario } = useAuth()
 
   return useQuery({
-    queryKey: ['financeiro', 'contas_receber', fechamento_id],
+    queryKey: ['financeiro', 'contas_receber_vivo', usuario?.empresa_id, mes, ano],
     queryFn: async (): Promise<FinContaReceber[]> => {
-      const { data, error } = await supabase
-        .from('financeiro_contas_receber')
-        .select(`
-          *,
-          banco:bancos!banco_id(nome, cor),
-          notas_fiscais:financeiro_notas_fiscais(*),
-          recebimentos:financeiro_recebimentos(*)
-        `)
-        .eq('fechamento_id', fechamento_id!)
-        .order('data_prevista', { ascending: true })
-      if (error) throw error
-      return data
-    },
-    enabled: !!usuario && !!fechamento_id,
-  })
-}
-
-// Preview ao vivo: calcula direto de `processos` emitidos no mês, sem
-// exigir fechamento aberto/puxado. Usado enquanto o mês não tem fechamento
-// aprovado/travado (ver AbaAReceber em financeiro/page.tsx).
-export function useContasAReceberPreview(mes: number, ano: number, enabled = true) {
-  const { usuario } = useAuth()
-
-  return useQuery({
-    queryKey: ['financeiro', 'contas_receber_preview', usuario?.empresa_id, mes, ano],
-    queryFn: async (): Promise<FinContaReceber[]> => {
-      const { data, error } = await supabase.rpc('contas_a_receber_mes_preview', {
+      const { data, error } = await supabase.rpc('contas_a_receber_mes_vivo', {
         p_empresa_id: usuario!.empresa_id,
         p_mes: mes,
         p_ano: ano,
       })
       if (error) throw error
-      return (data ?? []).map((r: {
-        id: string; processo_id: string | null; banco_id: string | null
-        banco_nome: string | null; banco_cor: string | null; cliente_nome: string | null
-        origem: string; valor_base: number; percentual_previsto: number; valor_previsto: number
-      }) => ({
-        id: r.id,
+
+      const linhas = (data ?? []) as Array<{
+        id: string; persistido: boolean; processo_id: string | null
+        banco_id: string | null; banco_nome: string | null; banco_cor: string | null
+        cliente_nome: string | null; origem: string; valor_previsto: number
+        valor_recebido: number; status: string; data_prevista: string | null
+      }>
+
+      const idsPersistidos = linhas.filter(l => l.persistido).map(l => l.id)
+      let notas: Record<string, FinNotaFiscal[]> = {}
+      let recebimentos: Record<string, FinRecebimento[]> = {}
+
+      if (idsPersistidos.length > 0) {
+        const [nfRes, recRes] = await Promise.all([
+          supabase.from('financeiro_notas_fiscais').select('*').in('conta_receber_id', idsPersistidos),
+          supabase.from('financeiro_recebimentos').select('*').in('conta_receber_id', idsPersistidos),
+        ])
+        if (nfRes.error) throw nfRes.error
+        if (recRes.error) throw recRes.error
+        notas = groupBy(nfRes.data as FinNotaFiscal[], 'conta_receber_id')
+        recebimentos = groupBy(recRes.data as FinRecebimento[], 'conta_receber_id')
+      }
+
+      return linhas.map(l => ({
+        id: l.id,
         empresa_id: usuario!.empresa_id,
         fechamento_id: null,
-        processo_id: r.processo_id,
-        banco_id: r.banco_id,
-        cliente_nome: r.cliente_nome,
-        origem: r.origem as FinContaReceber['origem'],
-        valor_base: r.valor_base,
-        percentual_previsto: r.percentual_previsto,
-        valor_previsto: r.valor_previsto,
-        valor_recebido: 0,
-        status: 'a_faturar' as const,
-        data_prevista: null,
+        processo_id: l.processo_id,
+        banco_id: l.banco_id,
+        cliente_nome: l.cliente_nome,
+        origem: l.origem as FinContaReceber['origem'],
+        valor_base: l.valor_previsto,
+        percentual_previsto: 0,
+        valor_previsto: l.valor_previsto,
+        valor_recebido: l.valor_recebido,
+        status: l.status as FinContaReceber['status'],
+        data_prevista: l.data_prevista,
         data_recebimento: null,
         observacoes: null,
         created_at: '',
         updated_at: '',
-        banco: r.banco_nome ? { nome: r.banco_nome, cor: r.banco_cor } : undefined,
-        notas_fiscais: [],
-        recebimentos: [],
+        persistido: l.persistido,
+        banco: l.banco_nome ? { nome: l.banco_nome, cor: l.banco_cor } : undefined,
+        notas_fiscais: notas[l.id] ?? [],
+        recebimentos: recebimentos[l.id] ?? [],
       }))
     },
-    enabled: !!usuario && enabled,
+    enabled: !!usuario,
+  })
+}
+
+function groupBy<T extends { conta_receber_id: string }>(rows: T[], _key: 'conta_receber_id'): Record<string, T[]> {
+  const out: Record<string, T[]> = {}
+  for (const r of rows) {
+    (out[r.conta_receber_id] ??= []).push(r)
+  }
+  return out
+}
+
+// Garante que existe um registro persistido de contas a receber pra um
+// processo (cria sob demanda se ainda não existir) — chamado antes de
+// lançar a primeira NF/Recebimento de uma linha que só existia ao vivo.
+export function useGarantirContaReceber() {
+  return useMutation({
+    mutationFn: async (processo_id: string): Promise<string> => {
+      const { data, error } = await supabase.rpc('garantir_conta_receber_processo', {
+        p_processo_id: processo_id,
+      })
+      if (error) throw error
+      return data as string
+    },
   })
 }
 
@@ -93,6 +117,7 @@ export function useAdicionarContaReceber() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber_vivo'] })
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Conta a receber adicionada.')
     },
@@ -113,6 +138,7 @@ export function useAdicionarNotaFiscal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber_vivo'] })
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Nota fiscal registrada.')
     },
@@ -133,6 +159,7 @@ export function useAdicionarRecebimento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber_vivo'] })
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Recebimento registrado.')
     },
@@ -153,6 +180,7 @@ export function useRemoverRecebimento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber_vivo'] })
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
       toast.success('Recebimento removido.')
     },
@@ -173,6 +201,7 @@ export function useAtualizarStatusConta() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'contas_receber_vivo'] })
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'painel'] })
     },
     onError: () => toast.error('Erro ao atualizar status.'),

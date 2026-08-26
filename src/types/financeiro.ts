@@ -118,7 +118,8 @@ export interface FinContaReceber {
   processo_id: string | null
   banco_id: string | null
   cliente_nome: string | null
-  origem: 'emissao' | 'avulso' | 'assinatura'
+  origem: 'emissao' | 'avulso' | 'assinatura' | 'contrato'
+  persistido?: boolean
   valor_base: number
   percentual_previsto: number
   valor_previsto: number
