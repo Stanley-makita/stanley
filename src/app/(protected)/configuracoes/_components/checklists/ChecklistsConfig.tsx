@@ -183,6 +183,7 @@ function ItemForm({ onSalvar, onCancelar, inicial }: {
             <SelectItem value="processo_conforme">✅ Marcar como Processo Conforme</SelectItem>
             <SelectItem value="processo_inconforme">❌ Marcar como Processo Inconforme</SelectItem>
             <SelectItem value="processo_concluido">🔒 Marcar como Concluído (trava o processo)</SelectItem>
+            <SelectItem value="consorcio_efetivado">💰 Gerar financeiro do Consórcio</SelectItem>
           </SelectContent>
         </Select>
         <Select value={condicaoBanco || 'todos'} onValueChange={(v) => setCondicaoBanco(v === 'todos' ? '' : v)}>
