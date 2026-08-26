@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { FileText, Plus, DollarSign, ChevronDown, ChevronRight } from 'lucide-react'
+import { FileText, Plus, DollarSign, ChevronDown, ChevronRight, Printer, Search } from 'lucide-react'
 import {
   useAdicionarNotaFiscal,
   useAdicionarRecebimento,
@@ -54,6 +54,10 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
   const [formNF, setFormNF] = useState({ numero_nf: '', valor_nf: '', data_emissao: '' })
   const [formRec, setFormRec] = useState({ valor: '', data_recebimento: '', forma_recebimento: 'pix' })
 
+  const [filtroBanco, setFiltroBanco] = useState('todos')
+  const [buscaCliente, setBuscaCliente] = useState('')
+  const [agrupamento, setAgrupamento] = useState<'banco' | 'cliente'>('banco')
+
   const toggleExpandido = (id: string) =>
     setExpandidos(prev => {
       const s = new Set(prev)
@@ -61,8 +65,23 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
       return s
     })
 
-  const totalPrevisto = contas.reduce((s, c) => s + c.valor_previsto, 0)
-  const totalRecebido = contas.reduce((s, c) => s + c.valor_recebido, 0)
+  const bancosDisponiveis = Array.from(
+    new Map(
+      contas
+        .filter(c => c.banco_id && c.banco)
+        .map(c => [c.banco_id as string, c.banco!.nome])
+    ).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]))
+
+  const contasFiltradas = contas.filter(c =>
+    (filtroBanco === 'todos' || c.banco_id === filtroBanco) &&
+    (!buscaCliente || c.cliente_nome?.toLowerCase().includes(buscaCliente.toLowerCase()))
+  )
+
+  const totalPrevisto = contasFiltradas.reduce((s, c) => s + c.valor_previsto, 0)
+  const totalRecebido = contasFiltradas.reduce((s, c) => s + c.valor_recebido, 0)
+
+  const grupos = agruparContas(contasFiltradas, agrupamento)
 
   return (
     <div className="space-y-4">
@@ -84,8 +103,101 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
         </div>
       </div>
 
+      {/* Filtros + Relatório */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+          <select
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm sm:w-56"
+            value={filtroBanco}
+            onChange={e => setFiltroBanco(e.target.value)}
+          >
+            <option value="todos">Todos os bancos</option>
+            {bancosDisponiveis.map(([id, nome]) => (
+              <option key={id} value={id}>{nome}</option>
+            ))}
+          </select>
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+            <Input
+              className="pl-9"
+              placeholder="Buscar por cliente..."
+              value={buscaCliente}
+              onChange={e => setBuscaCliente(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded-md border border-input bg-background px-2 py-2 text-xs"
+            value={agrupamento}
+            onChange={e => setAgrupamento(e.target.value as 'banco' | 'cliente')}
+            title="Agrupar relatório por"
+          >
+            <option value="banco">Agrupar por banco</option>
+            <option value="cliente">Agrupar por cliente</option>
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={() => window.print()}
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Imprimir relatório
+          </Button>
+        </div>
+      </div>
+
+      {/* Relatório (só aparece na impressão / "Salvar como PDF") */}
+      <div className="print-area hidden print:block">
+        <h2 className="text-lg font-bold mb-1">Contas a Receber {agrupamento === 'banco' ? 'por Banco' : 'por Cliente'}</h2>
+        {filtroBanco !== 'todos' && (
+          <p className="text-sm text-gray-600 mb-1">Banco: {bancosDisponiveis.find(([id]) => id === filtroBanco)?.[1]}</p>
+        )}
+        {buscaCliente && <p className="text-sm text-gray-600 mb-1">Cliente: {buscaCliente}</p>}
+        <p className="text-xs text-gray-500 mb-4">Gerado em {new Date().toLocaleString('pt-BR')}</p>
+
+        {grupos.map(grupo => (
+          <div key={grupo.chave} className="mb-4 break-inside-avoid">
+            <h3 className="text-sm font-semibold border-b border-gray-300 pb-1 mb-1">{grupo.titulo}</h3>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-gray-500">
+                  <th className="py-1 pr-2">Cliente</th>
+                  <th className="py-1 pr-2">Banco</th>
+                  <th className="py-1 pr-2">Origem</th>
+                  <th className="py-1 pr-2 text-right">Previsto</th>
+                  <th className="py-1 text-right">Recebido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grupo.contas.map(c => (
+                  <tr key={c.id} className="border-b border-gray-100">
+                    <td className="py-1 pr-2">{c.cliente_nome ?? '—'}</td>
+                    <td className="py-1 pr-2">{c.banco?.nome ?? '—'}</td>
+                    <td className="py-1 pr-2 capitalize">{c.origem}</td>
+                    <td className="py-1 pr-2 text-right font-mono">{formatarMoeda(c.valor_previsto)}</td>
+                    <td className="py-1 text-right font-mono">{formatarMoeda(c.valor_recebido)}</td>
+                  </tr>
+                ))}
+                <tr className="font-semibold">
+                  <td colSpan={3} className="py-1 pr-2 text-right">Subtotal</td>
+                  <td className="py-1 pr-2 text-right font-mono">{formatarMoeda(grupo.previsto)}</td>
+                  <td className="py-1 text-right font-mono">{formatarMoeda(grupo.recebido)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ))}
+
+        <div className="mt-4 pt-2 border-t-2 border-gray-800 flex justify-between text-sm font-bold">
+          <span>Total geral</span>
+          <span>{formatarMoeda(totalPrevisto)} previsto · {formatarMoeda(totalRecebido)} recebido</span>
+        </div>
+      </div>
+
       {/* Tabela */}
-      <div className="rounded-lg border bg-white overflow-x-auto">
+      <div className="print:hidden rounded-lg border bg-white overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50">
@@ -106,14 +218,14 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
                   Carregando...
                 </TableCell>
               </TableRow>
-            ) : contas.length === 0 ? (
+            ) : contasFiltradas.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-gray-400 text-sm">
-                  Nenhuma conta a receber para o período.
+                  {contas.length === 0 ? 'Nenhuma conta a receber para o período.' : 'Nenhum resultado para o filtro.'}
                 </TableCell>
               </TableRow>
             ) : (
-              contas.map(conta => (
+              contasFiltradas.map(conta => (
                 <>
                   <TableRow
                     key={conta.id}
@@ -305,4 +417,29 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
       </Dialog>
     </div>
   )
+}
+
+interface GrupoContas {
+  chave: string
+  titulo: string
+  contas: FinContaReceber[]
+  previsto: number
+  recebido: number
+}
+
+function agruparContas(contas: FinContaReceber[], por: 'banco' | 'cliente'): GrupoContas[] {
+  const mapa = new Map<string, GrupoContas>()
+  for (const c of contas) {
+    const chave = por === 'banco' ? (c.banco_id ?? '__sem_banco__') : (c.cliente_nome ?? '__sem_cliente__')
+    const titulo = por === 'banco' ? (c.banco?.nome ?? 'Sem banco') : (c.cliente_nome ?? 'Sem cliente')
+    let grupo = mapa.get(chave)
+    if (!grupo) {
+      grupo = { chave, titulo, contas: [], previsto: 0, recebido: 0 }
+      mapa.set(chave, grupo)
+    }
+    grupo.contas.push(c)
+    grupo.previsto += c.valor_previsto
+    grupo.recebido += c.valor_recebido
+  }
+  return Array.from(mapa.values()).sort((a, b) => a.titulo.localeCompare(b.titulo))
 }

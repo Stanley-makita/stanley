@@ -99,3 +99,24 @@
     height: calc(100dvh / 0.8);
   }
 }
+
+/* Impressão de relatórios: esconde a UI do app (sidebar, abas, cabeçalho)
+   e mostra só o bloco marcado com .print-area (ex: VisaoAReceber). */
+@media print {
+  html {
+    zoom: 1;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
