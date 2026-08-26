@@ -155,6 +155,24 @@ export function useMarcarChecklistItem(processoId: string) {
         if (errP) throw errP
       }
 
+      // Dispara o financeiro do Consórcio (mesma função chamada quando o
+      // processo avança pra uma fase com e_fase_final_consorcio=true — ver
+      // useProcessoFasesHistorico.moverFaseProcesso). Os dois gatilhos
+      // coexistem; a função é idempotente por cota/parcela (ON CONFLICT DO
+      // NOTHING). Só chama se o processo for de fato Consórcio, pra não
+      // quebrar caso esse item apareça, por engano, em outra modalidade.
+      if (marcado && item.acao_ao_completar === 'consorcio_efetivado') {
+        const { data: proc } = await supabase
+          .from('processos')
+          .select('modalidade')
+          .eq('id', processoId)
+          .single()
+        if (proc?.modalidade === 'Consorcio') {
+          const { error: errRpc } = await supabase.rpc('gerar_fluxo_financeiro_consorcio', { p_processo_id: processoId })
+          if (errRpc) throw errRpc
+        }
+      }
+
       if (marcado && item.acao_ao_completar === 'enviado_conformidade') {
         const { error: errP } = await supabase
           .from('processos')

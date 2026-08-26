@@ -172,6 +172,12 @@ export function FaseChecklistsManager({ faseId }: Props) {
                 {item.acao_ao_completar === 'assinado' && (
                   <span className="text-[10px] text-green-600 font-medium">✍️ Marca como Assinado</span>
                 )}
+                {item.acao_ao_completar === 'processo_concluido' && (
+                  <span className="text-[10px] text-green-600 font-medium">🔒 Marca como Concluído</span>
+                )}
+                {item.acao_ao_completar === 'consorcio_efetivado' && (
+                  <span className="text-[10px] text-green-600 font-medium">💰 Gera financeiro do Consórcio</span>
+                )}
               </div>
             </div>
             <Button
@@ -302,6 +308,11 @@ function ItemForm({ form, onChange, onConfirm, onCancel, isLoading }: ItemFormPr
             <SelectItem value="salvar_vencimento_credito">📅 Salvar validade do Crédito</SelectItem>
             <SelectItem value="salvar_vencimento_matricula">📅 Salvar validade da Matrícula</SelectItem>
             <SelectItem value="salvar_engenharia">📐 Salvar Engenharia (vencimento + valor)</SelectItem>
+            <SelectItem value="enviado_conformidade">📨 Marcar como Enviado para Conformidade</SelectItem>
+            <SelectItem value="processo_conforme">✅ Marcar como Processo Conforme</SelectItem>
+            <SelectItem value="processo_inconforme">❌ Marcar como Processo Inconforme</SelectItem>
+            <SelectItem value="processo_concluido">🔒 Marcar como Concluído (trava o processo)</SelectItem>
+            <SelectItem value="consorcio_efetivado">💰 Gerar financeiro do Consórcio</SelectItem>
           </SelectContent>
         </Select>
       </div>

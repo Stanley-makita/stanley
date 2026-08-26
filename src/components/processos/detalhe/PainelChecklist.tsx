@@ -198,6 +198,9 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
                       {item.acao_ao_completar === 'salvar_engenharia' && (
                         <span className="ml-1.5 text-[10px] text-purple-600 font-medium">📐 salva vencimento + valor engenharia</span>
                       )}
+                      {item.acao_ao_completar === 'consorcio_efetivado' && (
+                        <span className="ml-1.5 text-[10px] text-green-600 font-medium">💰 gera o financeiro do Consórcio</span>
+                      )}
                     </span>
                   </label>
                   {execucao?.usuario && execucao.marcado_em && (
