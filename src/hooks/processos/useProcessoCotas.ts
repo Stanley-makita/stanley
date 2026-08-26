@@ -19,6 +19,8 @@ export interface ProcessoCota {
   grupo: string | null
   cota: string | null
   tipo_bem: string | null
+  tipo_parcela: 'linear' | 'reduzida'
+  data_pagamento_boleto: string | null
   valor_carta: number | null
   valor_parcela: number | null
   parcela_reduzida_percentual: number | null
@@ -136,6 +138,32 @@ export function useAlterarStatusCota(processoId: string) {
       toast.success('Status da cota atualizado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao atualizar status da cota.'),
+  })
+}
+
+// Apaga as parcelas ainda 'prevista' do processo e chama de novo
+// gerar_fluxo_financeiro_consorcio — usado quando a config/dados da cota
+// mudam depois da primeira geração (ON CONFLICT DO NOTHING trava
+// re-geração automática). RPC bloqueia se já existir parcela recebida/paga.
+export function useRecalcularFluxoConsorcio(processoId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('recalcular_fluxo_financeiro_consorcio', { p_processo_id: processoId })
+      if (error) throw error
+      return data as number
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'consorcio_receber'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'consorcio_comercial_pagar'] })
+      toast.success(
+        count > 0
+          ? 'Fluxo financeiro recalculado.'
+          : 'Nenhuma parcela gerada — confira se há cota ativa com valor de carta.'
+      )
+    },
+    onError: (err: Error) => toast.error(err.message || 'Erro ao recalcular fluxo financeiro.'),
   })
 }
 
