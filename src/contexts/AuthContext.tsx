@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { type SessaoUsuario } from '@/types/auth'
+import { ABA_ATIVA_KEY, marcarAbaAtiva } from '@/lib/auth/abaSessao'
 
 interface AuthContextValue {
   usuario: SessaoUsuario | null
@@ -26,7 +27,9 @@ const LIMITE_INATIVIDADE_MS = 12 * 60 * 60 * 1000
 // sobrevive a F5/navegação dentro da mesma aba). Se uma aba nova aparece
 // com uma sessão de cookie mas sem essa marca — e não é um login/recuperação
 // de senha acontecendo agora nela — é sessão sobrando de aba já fechada.
-const ABA_ATIVA_KEY = 'credifon_aba_ativa'
+// A marca em si é setada em LoginForm/RedefinirSenhaPage (ver
+// lib/auth/abaSessao.ts) — o evento SIGNED_IN abaixo é só uma rede de
+// segurança pra qualquer outro fluxo de login que passe a existir.
 
 export function AuthProvider({
   children,
@@ -95,7 +98,7 @@ export function AuthProvider({
             return
           }
 
-          sessionStorage.setItem(ABA_ATIVA_KEY, '1')
+          marcarAbaAtiva()
 
           const isNewUser = authUserIdRef.current !== session.user.id
           authUserIdRef.current = session.user.id

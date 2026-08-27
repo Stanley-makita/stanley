@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { marcarAbaAtiva } from '@/lib/auth/abaSessao'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,6 +36,7 @@ export function LoginForm({ logoUrl }: LoginFormProps) {
       return
     }
 
+    marcarAbaAtiva()
     router.push('/dashboard')
     router.refresh()
   }

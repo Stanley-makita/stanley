@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { marcarAbaAtiva } from '@/lib/auth/abaSessao'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,13 +23,17 @@ export default function RedefinirSenhaPage() {
     // Supabase detecta o hash e dispara PASSWORD_RECOVERY automaticamente
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        marcarAbaAtiva()
         setSessaoOk(true)
       }
     })
 
     // Fallback: se já há sessão ativa (usuário voltou para a página)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessaoOk(true)
+      if (session) {
+        marcarAbaAtiva()
+        setSessaoOk(true)
+      }
     })
 
     return () => subscription.unsubscribe()
