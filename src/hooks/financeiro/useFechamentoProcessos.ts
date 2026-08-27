@@ -31,8 +31,9 @@ export function useFechamentoProcessos(fechamento_id: string | null | undefined)
 
 // Preview ao vivo: calcula direto de `processos` emitidos no mês, sem
 // exigir fechamento aberto/aprovado. Usado enquanto o mês não tem
-// fechamento aprovado/pago/travado (ver AbaEmissoes em financeiro/page.tsx
-// e o mesmo padrão em useContasAReceberPreview).
+// fechamento aprovado/pago/travado (ver AbaEmissoes em financeiro/page.tsx).
+// A Receber foi além disso: é sempre ao vivo, mesmo depois de aprovado —
+// ver useContasAReceberVivo.
 export function useEmissoesPreview(mes: number, ano: number, enabled = true) {
   const { usuario } = useAuth()
 

@@ -15,9 +15,18 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 // Logout automático só depois de muito tempo parado — usuário só deve ser
-// deslogado ao clicar em "Sair", fechar o navegador (cookie de sessão) ou
+// deslogado ao clicar em "Sair", fechar a aba (ver ABA_ATIVA_KEY abaixo) ou
 // ficar 12h sem interagir.
 const LIMITE_INATIVIDADE_MS = 12 * 60 * 60 * 1000
+
+// Cookie de sessão é compartilhado por todo o navegador, não por aba — ele
+// sobrevive ao fechar só esta aba se outras abas/janelas continuarem
+// abertas. Para que "fechar a aba" valha como logout, marcamos cada aba
+// autenticada no sessionStorage (não sobrevive a fechar a aba, mas
+// sobrevive a F5/navegação dentro da mesma aba). Se uma aba nova aparece
+// com uma sessão de cookie mas sem essa marca — e não é um login/recuperação
+// de senha acontecendo agora nela — é sessão sobrando de aba já fechada.
+const ABA_ATIVA_KEY = 'credifon_aba_ativa'
 
 export function AuthProvider({
   children,
@@ -67,10 +76,27 @@ export function AuthProvider({
     let active = true
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         if (!active) return
 
         if (session?.user) {
+          const abaJaAtiva = sessionStorage.getItem(ABA_ATIVA_KEY) === '1'
+          const eventoDeLoginNestaAba = event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY'
+
+          if (!abaJaAtiva && !eventoDeLoginNestaAba) {
+            // Sessão de cookie sobrando de uma aba já fechada — trata como deslogado
+            setSaindo(true)
+            authUserIdRef.current = null
+            serverLoadedRef.current = false
+            setUsuario(null)
+            setCarregando(false)
+            await supabase.auth.signOut()
+            window.location.href = '/login'
+            return
+          }
+
+          sessionStorage.setItem(ABA_ATIVA_KEY, '1')
+
           const isNewUser = authUserIdRef.current !== session.user.id
           authUserIdRef.current = session.user.id
 
@@ -148,6 +174,7 @@ export function AuthProvider({
     authUserIdRef.current = null
     setSaindo(true)
     try {
+      sessionStorage.removeItem(ABA_ATIVA_KEY)
       await supabase.auth.signOut()
     } finally {
       window.location.href = '/login'

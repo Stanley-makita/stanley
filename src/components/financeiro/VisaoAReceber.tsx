@@ -24,6 +24,7 @@ import { FileText, Plus, DollarSign, ChevronDown, ChevronRight, Printer, Search 
 import {
   useAdicionarNotaFiscal,
   useAdicionarRecebimento,
+  useGarantirContaReceber,
 } from '@/hooks/financeiro/useContasAReceber'
 import { type FinContaReceber, type FinStatusContaReceber } from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
@@ -46,6 +47,15 @@ interface Props {
 export function VisaoAReceber({ contas, isLoading, travado }: Props) {
   const adicionarNF = useAdicionarNotaFiscal()
   const adicionarRecebimento = useAdicionarRecebimento()
+  const garantirConta = useGarantirContaReceber()
+
+  // Linhas ainda não persistidas (só calculadas ao vivo) não têm um id
+  // real pra pendurar NF/Recebimento — cria o registro na hora que o
+  // usuário lança o primeiro, e usa o id real dali em diante.
+  async function idContaReal(conta: FinContaReceber): Promise<string> {
+    if (conta.persistido) return conta.id
+    return garantirConta.mutateAsync(conta.processo_id!)
+  }
 
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [modalNF, setModalNF] = useState<FinContaReceber | null>(null)
@@ -341,11 +351,12 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalNF(null)}>Cancelar</Button>
             <Button
-              disabled={!formNF.data_emissao || adicionarNF.isPending}
-              onClick={() => {
+              disabled={!formNF.data_emissao || adicionarNF.isPending || garantirConta.isPending}
+              onClick={async () => {
                 if (!modalNF) return
+                const conta_receber_id = await idContaReal(modalNF)
                 adicionarNF.mutate({
-                  conta_receber_id: modalNF.id,
+                  conta_receber_id,
                   numero_nf: formNF.numero_nf || null,
                   valor_nf: parseFloat(formNF.valor_nf) || null,
                   data_emissao: formNF.data_emissao,
@@ -396,11 +407,12 @@ export function VisaoAReceber({ contas, isLoading, travado }: Props) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalRec(null)}>Cancelar</Button>
             <Button
-              disabled={!formRec.valor || !formRec.data_recebimento || adicionarRecebimento.isPending}
-              onClick={() => {
+              disabled={!formRec.valor || !formRec.data_recebimento || adicionarRecebimento.isPending || garantirConta.isPending}
+              onClick={async () => {
                 if (!modalRec) return
+                const conta_receber_id = await idContaReal(modalRec)
                 adicionarRecebimento.mutate({
-                  conta_receber_id: modalRec.id,
+                  conta_receber_id,
                   valor: parseFloat(formRec.valor),
                   data_recebimento: formRec.data_recebimento,
                   banco_conta_id: null,
