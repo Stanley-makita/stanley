@@ -845,6 +845,12 @@ function AbaResumo({
             {processo.numero_proposta && (
               <Campo label="Nº Proposta" valor={processo.numero_proposta} />
             )}
+            {processo.modalidade !== 'Consorcio' && processo.valor_recursos_proprios != null && (
+              <Campo label="Recursos Próprios" valor={fmtMoeda(processo.valor_recursos_proprios)} />
+            )}
+            {processo.modalidade !== 'Consorcio' && processo.valor_fgts != null && (
+              <Campo label="FGTS" valor={fmtMoeda(processo.valor_fgts)} />
+            )}
           </div>
         </div>
 
