@@ -123,6 +123,15 @@ export interface Lead {
   imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]
   parceiros?: { id: string; parceiro?: { id: string; nome: string } | null }[]
   coparticipantes?: LeadCoparticipante[]
+  vendedores?: LeadVendedor[]
+}
+
+// Vendedor do imóvel vinculado ao Lead — N:N via lead_vendedores (migration 276),
+// permite mais de um (ex: casal vendendo o imóvel juntos).
+export interface LeadVendedor {
+  id: string
+  pessoa_id: string
+  pessoa: { id: string; nome: string; cpf: string | null } | null
 }
 
 // Comprador adicional sem vínculo familiar (não é cônjuge) — ver migration 210.

@@ -150,12 +150,27 @@ async function marcarLeadConvertido(leadId: string) {
   await supabase.rpc('marcar_lead_convertido', { p_lead_id: leadId })
 }
 
-// Espelha o vendedor do Lead (nome/CPF/telefone + pessoa_id, quando já vinculado a uma
-// Pessoa) para processo_vendedores na conversão Lead→Processo — mesmo bug de
-// "esquecer de copiar o dado" já corrigido para processo_compradores.pessoa_id nesta
-// sessão. Sem isso, o vendedor sempre se perdia ao virar Processo, mesmo quando o Lead
-// já tinha vendedor_pessoa_id vinculado.
+// Espelha o(s) vendedor(es) do Lead para processo_vendedores na conversão
+// Lead→Processo — mesmo bug de "esquecer de copiar o dado" já corrigido para
+// processo_compradores.pessoa_id nesta sessão. Sem isso, o vendedor sempre se
+// perdia ao virar Processo. lead.vendedores (lead_vendedores, migration 276)
+// permite mais de um vendedor vinculado — vira uma linha por vendedor. Se a
+// lista vier vazia (query sem o join, ou lead sem vendedor vinculado a uma
+// Pessoa), cai no fallback dos campos avulsos vendedor_nome/cpf/telefone.
 async function criarVendedorDoLead(processoId: string, empresaId: string, lead: Lead | null) {
+  const vendedores = lead?.vendedores ?? []
+  if (vendedores.length > 0) {
+    await supabase.from('processo_vendedores').insert(
+      vendedores.map(v => ({
+        processo_id: processoId,
+        empresa_id:  empresaId,
+        nome:        v.pessoa?.nome?.trim() || '(a definir)',
+        cpf:         v.pessoa?.cpf?.trim() || null,
+        pessoa_id:   v.pessoa_id,
+      })),
+    )
+    return
+  }
   if (!lead?.vendedor_nome?.trim() && !lead?.vendedor_pessoa_id) return
   await supabase.from('processo_vendedores').insert({
     processo_id: processoId,
