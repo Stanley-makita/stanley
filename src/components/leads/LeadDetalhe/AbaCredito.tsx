@@ -172,7 +172,12 @@ export function AbaCredito({ lead }: Props) {
     qc.invalidateQueries({ queryKey: ['leads', lead.id] })
   }
 
-  const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0)
+  const casadoKpi = lead.estado_civil === 'casado' || lead.estado_civil === 'uniao_estavel'
+  const rendaConjugeFormalKpi   = (lead.conjuge_pessoa?.renda_formal   ?? lead.conjuge_renda_formal)   ?? 0
+  const rendaConjugeInformalKpi = (lead.conjuge_pessoa?.renda_informal ?? lead.conjuge_renda_informal) ?? 0
+  const rendaFormalKpi   = (lead.renda_formal   ?? 0) + (casadoKpi ? rendaConjugeFormalKpi   : 0)
+  const rendaInformalKpi = (lead.renda_informal ?? 0) + (casadoKpi ? rendaConjugeInformalKpi : 0)
+  const rendaTotal = rendaFormalKpi + rendaInformalKpi
 
   return (
     <div className="space-y-5">
@@ -197,7 +202,7 @@ export function AbaCredito({ lead }: Props) {
           icone={<Banknote className="h-3.5 w-3.5" />}
           label="Renda Total"
           valor={rendaTotal > 0 ? rendaTotal : null}
-          sub={rendaTotal > 0 ? `F: ${fmtMoeda(lead.renda_formal)} + I: ${fmtMoeda(lead.renda_informal)}` : undefined}
+          sub={rendaTotal > 0 ? `F: ${fmtMoeda(rendaFormalKpi)} + I: ${fmtMoeda(rendaInformalKpi)}` : undefined}
           cor="gray"
         />
       </div>
