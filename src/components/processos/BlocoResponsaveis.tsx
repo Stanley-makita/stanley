@@ -168,16 +168,6 @@ export function BlocoResponsaveis({ processo }: Props) {
               </div>
             )
           })}
-
-          {processo.corretor_nome && (
-            <div>
-              <p className="text-xs text-gray-400">Corretor</p>
-              <p className="text-sm font-medium text-fonti-primary">{processo.corretor_nome}</p>
-              {processo.corretor_creci && (
-                <p className="text-xs text-gray-400">CRECI: {processo.corretor_creci}</p>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>
