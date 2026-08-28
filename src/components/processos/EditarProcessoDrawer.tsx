@@ -216,7 +216,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto max-h-[95svh] sm:max-h-none sm:overflow-visible sm:w-full">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[95svh] overflow-y-auto sm:w-full">
         <DialogHeader>
           <DialogTitle className="text-fonti-primary">Dados do Negócio</DialogTitle>
         </DialogHeader>
