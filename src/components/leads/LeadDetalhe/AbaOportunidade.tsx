@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/client'
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
@@ -15,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
@@ -115,6 +116,22 @@ export function AbaOportunidade({ lead }: Props) {
   const { data: membros = [] } = useMembrosAtivos()
   const { data: checklistItens = [] } = useLeadChecklist(lead.id, lead.fase_id)
   const [avisoCpfAberto, setAvisoCpfAberto] = useState(false)
+
+  // Parceiro (lead.parceiro_id — "indicado por", campo único, distinto dos
+  // vínculos N:N do card Parceiros na aba Crédito). Não existe em lugar
+  // nenhum pra editar/limpar isso, então fica editável direto aqui.
+  const [editandoParceiro, setEditandoParceiro] = useState(false)
+  const [parceirosDisponiveis, setParceirosDisponiveis] = useState<{ id: string; nome: string }[]>([])
+  useEffect(() => {
+    if (!editandoParceiro) return
+    createClient().from('parceiros').select('id, nome').eq('ativo', true).order('nome')
+      .then(({ data }) => setParceirosDisponiveis(data ?? []))
+  }, [editandoParceiro])
+
+  async function salvarParceiro(parceiroId: string | null) {
+    await editarLead.mutateAsync({ id: lead.id, parceiro_id: parceiroId })
+    setEditandoParceiro(false)
+  }
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
@@ -294,18 +311,56 @@ export function AbaOportunidade({ lead }: Props) {
           </div>
         </Secao>
 
-        {/* ── Parceiro (somente leitura — gerenciar em Crédito) ─────────── */}
-        {lead.parceiro && (
-          <Secao titulo="Parceiro">
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800">{lead.parceiro.nome}</p>
-                {lead.parceiro.imobiliaria && (
-                  <p className="text-xs text-gray-500">{lead.parceiro.imobiliaria}</p>
-                )}
+        {/* ── Parceiro ("indicado por") ────────────────────────────────── */}
+        {(lead.parceiro || editandoParceiro) && (
+          <Secao titulo="Parceiro (indicado por)">
+            {editandoParceiro ? (
+              <div className="space-y-2">
+                <Select
+                  value={lead.parceiro_id ?? '__nenhum'}
+                  onValueChange={(v) => salvarParceiro(v === '__nenhum' ? null : v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o parceiro…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__nenhum">— Nenhum —</SelectItem>
+                    {parceirosDisponiveis.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => setEditandoParceiro(false)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Cancelar
+                </button>
               </div>
-              <p className="text-xs text-gray-400 shrink-0">Alterar via aba Crédito</p>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{lead.parceiro?.nome}</p>
+                  {lead.parceiro?.imobiliaria && (
+                    <p className="text-xs text-gray-500">{lead.parceiro.imobiliaria}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditandoParceiro(true)}
+                  className="text-xs text-fonti-primary hover:underline shrink-0"
+                >
+                  Alterar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => salvarParceiro(null)}
+                  className="text-gray-300 hover:text-red-400 shrink-0"
+                  title="Remover"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </Secao>
         )}
 
