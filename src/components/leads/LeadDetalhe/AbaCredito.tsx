@@ -140,7 +140,6 @@ export function AbaCredito({ lead }: Props) {
   const [gatilhoValidade, setGatilhoValidade] = useState(0)
   const [completarPessoaAberto, setCompletarPessoaAberto] = useState(false)
   const [conjugePessoaDrawer, setConjugePessoaDrawer] = useState<string | null>(null)
-  const [vendedorPessoaDrawer, setVendedorPessoaDrawer] = useState<string | null>(null)
   const [conjugeDialogAberto, setConjugeDialogAberto] = useState(false)
 
   async function vincularCriarConjuge() {
@@ -251,10 +250,7 @@ export function AbaCredito({ lead }: Props) {
       {/* 5+6. Imóvel e Vendedor lado a lado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BlocoImovelLead lead={lead} />
-        <BlocoVendedor
-          lead={lead}
-          onAbrirVendedorPessoa={lead.vendedor_pessoa_id ? () => setVendedorPessoaDrawer(lead.vendedor_pessoa_id) : undefined}
-        />
+        <BlocoVendedor lead={lead} />
       </div>
 
       {/* 6. Origem + Parceiros */}
@@ -278,12 +274,6 @@ export function AbaCredito({ lead }: Props) {
         pessoaId={conjugePessoaDrawer}
         open={!!conjugePessoaDrawer}
         onClose={() => setConjugePessoaDrawer(null)}
-        origemAuditoria="leads"
-      />
-      <CompletarDadosPessoaDrawer
-        pessoaId={vendedorPessoaDrawer}
-        open={!!vendedorPessoaDrawer}
-        onClose={() => setVendedorPessoaDrawer(null)}
         origemAuditoria="leads"
       />
 
@@ -1576,28 +1566,28 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
 }
 
 // ── BlocoVendedor ─────────────────────────────────────────────
+// Lista N:N (lead_vendedores, migration 276) — permite vincular mais de um
+// vendedor (ex: casal vendendo o imóvel juntos), mesmo padrão de
+// BlocoCoparticipantes.
 
-function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
-  lead: Lead
-  onAbrirVendedorPessoa?: () => void
-}) {
-  const editar = useEditarLead()
+function BlocoVendedor({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
   const { usuario } = useAuth()
   const supabaseClient = createClient()
 
   const [buscando, setBuscando] = useState(false)
+  const [adicionando, setAdicionando] = useState(false)
   const [termoBusca, setTermoBusca] = useState('')
   const [resultados, setResultados] = useState<PessoaResultado[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [criandoNovo, setCriandoNovo] = useState(false)
   const [novoNome, setNovoNome] = useState('')
   const [novoCpf, setNovoCpf] = useState('')
-  const [vendedorDrawerAberto, setVendedorDrawerAberto] = useState<string | null>(null)
+  const [pessoaDrawer, setPessoaDrawer] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  const vendedorPessoa = lead.vendedor_pessoa
+  const vendedores = lead.vendedores ?? []
+  const jaVinculados = new Set(vendedores.map(v => v.pessoa_id))
 
   useEffect(() => {
     if (termoBusca.length < 2) { setResultados([]); setShowDropdown(false); return }
@@ -1622,14 +1612,21 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
   }, [termoBusca, usuario?.empresa_id])
 
   async function vincularVendedor(pessoaId: string) {
-    await editar.mutateAsync({ id: lead.id, vendedor_pessoa_id: pessoaId })
+    if (!usuario?.empresa_id) return
+    await supabaseClient.from('lead_vendedores').insert({
+      empresa_id: usuario.empresa_id,
+      lead_id: lead.id,
+      pessoa_id: pessoaId,
+    })
     qc.invalidateQueries({ queryKey: ['leads', lead.id] })
     setTermoBusca('')
     setShowDropdown(false)
+    setAdicionando(false)
   }
 
-  async function desvincularVendedor() {
-    editar.mutate({ id: lead.id, vendedor_pessoa_id: null })
+  async function desvincularVendedor(id: string) {
+    await supabaseClient.from('lead_vendedores').delete().eq('id', id)
+    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
   }
 
   async function criarNovoVendedor() {
@@ -1646,62 +1643,49 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
       .select('id')
       .single()
     if (novaPessoa) {
-      await editar.mutateAsync({ id: lead.id, vendedor_pessoa_id: novaPessoa.id })
-      qc.invalidateQueries({ queryKey: ['leads', lead.id] })
-      setVendedorDrawerAberto(novaPessoa.id)
+      await vincularVendedor(novaPessoa.id)
+      setPessoaDrawer(novaPessoa.id)
     }
     setNovoNome('')
     setNovoCpf('')
   }
 
-  // Estado: pessoa vinculada
-  if (vendedorPessoa) {
-    return (
-      <>
-        <div className="bg-white border border-gray-300 rounded-xl shadow p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Vendedor</p>
-            <button onClick={desvincularVendedor} className="text-xs text-gray-300 hover:text-red-400">
-              Desvincular
-            </button>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-white">{iniciais(vendedorPessoa.nome)}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <button
-                onClick={onAbrirVendedorPessoa}
-                className="text-sm font-semibold text-fonti-primary hover:underline flex items-center gap-1 text-left"
-              >
-                {vendedorPessoa.nome}
-                <ExternalLink className="h-3 w-3 opacity-40 shrink-0" />
-              </button>
-              {vendedorPessoa.cpf && <p className="text-xs text-gray-500">{vendedorPessoa.cpf}</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* Drawer cadastro vendedor */}
-        <CompletarDadosPessoaDrawer
-          pessoaId={vendedorDrawerAberto ?? lead.vendedor_pessoa_id ?? null}
-          open={!!vendedorDrawerAberto || (onAbrirVendedorPessoa ? false : false)}
-          onClose={() => setVendedorDrawerAberto(null)}
-          origemAuditoria="leads"
-        />
-      </>
-    )
-  }
-
-  // Estado: sem vendedor — busca
   return (
-    <>
-      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Vendedor</p>
-        </div>
+    <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Vendedor</p>
+        {!adicionando && (
+          <button onClick={() => setAdicionando(true)} className="flex items-center gap-0.5 text-xs text-fonti-primary hover:underline font-medium">
+            <Plus className="h-3 w-3" /> Adicionar
+          </button>
+        )}
+      </div>
 
-        {/* Campo de busca */}
+      {vendedores.length === 0 && !adicionando && (
+        <p className="text-xs text-gray-300 italic">Nenhum vendedor vinculado.</p>
+      )}
+
+      {vendedores.map(v => (
+        <div key={v.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg bg-gray-50">
+          <div className="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold text-white">{iniciais(v.pessoa?.nome)}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <button
+              onClick={() => setPessoaDrawer(v.pessoa_id)}
+              className="text-xs font-semibold text-fonti-primary hover:underline flex items-center gap-1"
+            >
+              {v.pessoa?.nome ?? '—'} <ExternalLink className="h-3 w-3 opacity-40 shrink-0" />
+            </button>
+            {v.pessoa?.cpf && <p className="text-xs text-gray-500">{v.pessoa.cpf}</p>}
+          </div>
+          <button onClick={() => desvincularVendedor(v.id)} className="text-gray-300 hover:text-red-400 shrink-0">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+
+      {adicionando && (
         <div className="relative">
           <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 focus-within:border-fonti-primary transition-colors">
             {buscando
@@ -1709,7 +1693,7 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
               : <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
             }
             <input
-              ref={inputRef}
+              autoFocus
               className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
               placeholder="Buscar vendedor por nome ou CPF..."
               value={termoBusca}
@@ -1717,20 +1701,17 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
               onFocus={() => { if (resultados.length > 0) setShowDropdown(true) }}
               onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
             />
-            {termoBusca && (
-              <button onClick={() => { setTermoBusca(''); setShowDropdown(false) }} className="text-gray-300 hover:text-gray-500">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <button onClick={() => { setAdicionando(false); setTermoBusca(''); setShowDropdown(false) }} className="text-gray-300 hover:text-gray-500 shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
 
-          {/* Dropdown resultados */}
           {showDropdown && (
             <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-              {resultados.length === 0 ? (
+              {resultados.filter(p => !jaVinculados.has(p.id)).length === 0 ? (
                 <div className="px-3 py-2.5 text-xs text-gray-400">Nenhum resultado encontrado</div>
               ) : (
-                resultados.map(p => (
+                resultados.filter(p => !jaVinculados.has(p.id)).map(p => (
                   <button
                     key={p.id}
                     onMouseDown={() => vincularVendedor(p.id)}
@@ -1757,19 +1738,8 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
             </div>
           )}
         </div>
+      )}
 
-        {/* Link direto criar novo se sem termo */}
-        {!termoBusca && (
-          <button
-            onClick={() => setCriandoNovo(true)}
-            className="mt-2 flex items-center gap-1 text-xs text-fonti-primary hover:underline font-medium"
-          >
-            <Plus className="h-3 w-3" /> Criar novo vendedor
-          </button>
-        )}
-      </div>
-
-      {/* Dialog criar novo vendedor */}
       {criandoNovo && (
         <Dialog open onOpenChange={v => { if (!v) setCriandoNovo(false) }}>
           <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm p-6">
@@ -1794,9 +1764,9 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
                 size="sm"
                 className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
                 onClick={criarNovoVendedor}
-                disabled={!novoNome.trim() || editar.isPending}
+                disabled={!novoNome.trim()}
               >
-                {editar.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                <Save className="h-3 w-3 mr-1" />
                 Salvar e completar cadastro
               </Button>
             </div>
@@ -1804,14 +1774,13 @@ function BlocoVendedor({ lead, onAbrirVendedorPessoa }: {
         </Dialog>
       )}
 
-      {/* Drawer para novo vendedor criado */}
       <CompletarDadosPessoaDrawer
-        pessoaId={vendedorDrawerAberto}
-        open={!!vendedorDrawerAberto}
-        onClose={() => setVendedorDrawerAberto(null)}
+        pessoaId={pessoaDrawer}
+        open={!!pessoaDrawer}
+        onClose={() => setPessoaDrawer(null)}
         origemAuditoria="leads"
       />
-    </>
+    </div>
   )
 }
 
