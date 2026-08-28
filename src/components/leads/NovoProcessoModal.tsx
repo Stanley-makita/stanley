@@ -218,6 +218,56 @@ async function copiarParceirosDoLead(processoId: string, leadId: string | null |
   }
 }
 
+// Espelha Cônjuge + Coparticipantes do Lead (aba Crédito, bloco de
+// Participantes) como compradores adicionais (não-principais) em
+// processo_compradores — na conversão Lead→Processo só o comprador
+// principal virava linha lá, cônjuge e coparticipantes se perdiam mesmo
+// já vinculados no Lead. A aba Resumo/Compradores do Processo já lista
+// todo mundo em processo_compradores, sem precisar mudar nada ali.
+async function copiarCompradoresAdicionaisDoLead(processoId: string, empresaId: string, lead: Lead | null) {
+  if (!lead) return
+
+  function renda(f: number | null | undefined, i: number | null | undefined): number | null {
+    const total = (f ?? 0) + (i ?? 0)
+    return total > 0 ? total : null
+  }
+
+  const linhas: { processo_id: string; empresa_id: string; nome: string; cpf: string | null; pessoa_id: string | null; renda_mensal: number | null; principal: boolean }[] = []
+
+  const conjugeNome = lead.conjuge_pessoa?.nome ?? lead.conjuge_nome
+  if (conjugeNome?.trim()) {
+    linhas.push({
+      processo_id: processoId,
+      empresa_id:  empresaId,
+      nome:        conjugeNome.trim(),
+      cpf:         (lead.conjuge_pessoa?.cpf ?? lead.conjuge_cpf) || null,
+      pessoa_id:   lead.conjuge_pessoa_id ?? null,
+      renda_mensal: renda(
+        lead.conjuge_pessoa?.renda_formal   ?? lead.conjuge_renda_formal,
+        lead.conjuge_pessoa?.renda_informal ?? lead.conjuge_renda_informal,
+      ),
+      principal: false,
+    })
+  }
+
+  for (const c of lead.coparticipantes ?? []) {
+    if (!c.pessoa?.nome) continue
+    linhas.push({
+      processo_id: processoId,
+      empresa_id:  empresaId,
+      nome:        c.pessoa.nome,
+      cpf:         c.pessoa.cpf ?? null,
+      pessoa_id:   c.pessoa_id,
+      renda_mensal: renda(c.pessoa.renda_formal, c.pessoa.renda_informal),
+      principal: false,
+    })
+  }
+
+  if (linhas.length > 0) {
+    await supabase.from('processo_compradores').insert(linhas)
+  }
+}
+
 function parseMoeda(v: string): number {
   return Number(v.replace(/[^\d,]/g, '').replace(',', '.')) || 0
 }
@@ -724,6 +774,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
 
     // Vendedor(es) escolhido(s)/confirmado(s) no modal têm prioridade; sem
     // nenhum, mantém o comportamento anterior (copia do Lead).
@@ -1088,6 +1139,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
     await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
@@ -1265,6 +1317,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
     await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
@@ -1435,6 +1488,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
         pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
       })
     }
+    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
     await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     const linhas = [
