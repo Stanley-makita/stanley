@@ -293,6 +293,8 @@ export function AbaPessoa({ lead }: Props) {
         conjuge_nome:            payload.conjuge_nome,
         conjuge_cpf:             payload.conjuge_cpf,
         conjuge_data_nascimento: payload.conjuge_data_nascimento,
+        conjuge_renda_formal:    payload.conjuge_renda_formal,
+        conjuge_renda_informal:  payload.conjuge_renda_informal,
         regime_casamento:        payload.regime_casamento,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
