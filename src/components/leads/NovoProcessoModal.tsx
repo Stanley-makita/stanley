@@ -182,6 +182,42 @@ async function criarVendedorDoLead(processoId: string, empresaId: string, lead: 
   })
 }
 
+// Espelha Corretor/Imobiliária/Parceiro Comercial vinculados ao Lead (aba
+// Crédito, cards de Parceiros) para as tabelas equivalentes do Processo —
+// ficavam vazios na conversão Lead→Processo mesmo quando já vinculados no
+// Lead, porque só lead.parceiro_id (o "indicado por" avulso) era copiado, e
+// lead_corretores/lead_imobiliarias nunca eram lidos.
+async function copiarParceirosDoLead(processoId: string, leadId: string | null | undefined) {
+  if (!leadId) return
+
+  const [{ data: corretores }, { data: imobiliarias }, { data: parceiros }] = await Promise.all([
+    supabase.from('lead_corretores').select('corretor_id').eq('lead_id', leadId),
+    supabase.from('lead_imobiliarias').select('imobiliaria_id, papel').eq('lead_id', leadId),
+    supabase.from('lead_parceiros').select('parceiro_id').eq('lead_id', leadId),
+  ])
+
+  if (corretores?.length) {
+    await supabase.from('processo_corretores').upsert(
+      corretores.map(c => ({ processo_id: processoId, corretor_id: c.corretor_id, papel: 'corretor_comprador' as const })),
+      { onConflict: 'processo_id,corretor_id,papel', ignoreDuplicates: true },
+    )
+  }
+  if (imobiliarias?.length) {
+    await supabase.from('processo_imobiliarias').upsert(
+      imobiliarias.map(i => ({ processo_id: processoId, imobiliaria_id: i.imobiliaria_id, papel: i.papel })),
+      { onConflict: 'processo_id,imobiliaria_id,papel', ignoreDuplicates: true },
+    )
+  }
+  if (parceiros?.length) {
+    // ignoreDuplicates evita conflito com o insert de lead.parceiro_id
+    // ("indicado por") feito à parte, que pode coincidir com um destes.
+    await supabase.from('processo_parceiros').upsert(
+      parceiros.map(p => ({ processo_id: processoId, parceiro_id: p.parceiro_id })),
+      { onConflict: 'processo_id,parceiro_id', ignoreDuplicates: true },
+    )
+  }
+}
+
 function parseMoeda(v: string): number {
   return Number(v.replace(/[^\d,]/g, '').replace(',', '.')) || 0
 }
@@ -674,6 +710,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
     if (lead?.parceiro_id) {
       await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
     }
+    await copiarParceirosDoLead(processo.id, lead?.id)
 
     if (nome.trim()) {
       await supabase.from('processo_compradores').insert({
@@ -1037,6 +1074,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
     if (lead?.parceiro_id) {
       await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
     }
+    await copiarParceirosDoLead(processo.id, lead?.id)
 
     if (clienteNome) {
       await supabase.from('processo_compradores').insert({
@@ -1213,6 +1251,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
     if (lead?.parceiro_id) {
       await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
     }
+    await copiarParceirosDoLead(processo.id, lead?.id)
 
     if (clienteNome) {
       await supabase.from('processo_compradores').insert({
@@ -1382,6 +1421,7 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
     if (lead?.parceiro_id) {
       await supabase.from('processo_parceiros').insert({ processo_id: processo.id, parceiro_id: lead.parceiro_id })
     }
+    await copiarParceirosDoLead(processo.id, lead?.id)
 
     if (clienteNome) {
       await supabase.from('processo_compradores').insert({
