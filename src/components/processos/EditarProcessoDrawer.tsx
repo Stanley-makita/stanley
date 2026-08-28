@@ -216,21 +216,21 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[90svh] overflow-y-auto sm:w-full">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[97svh] overflow-y-auto sm:w-full">
         <DialogHeader>
           <DialogTitle className="text-fonti-primary">Dados do Negócio</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4">
 
           {/* Duas colunas independentes (não pareadas por linha) — cada uma
               empilha seu próprio conteúdo, então a altura total fica perto da
               metade de uma coluna única, sem caixas vazias tentando igualar
               a altura da vizinha. */}
-          <div className="flex flex-col gap-5 sm:flex-row sm:gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
 
             {/* ── Coluna esquerda: identificação + valores ────────────────── */}
-            <div className="flex-1 space-y-5">
+            <div className="flex-1 space-y-4">
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -417,7 +417,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             </div>
 
             {/* ── Coluna direita: FGTS + Condições do Financiamento ───────── */}
-            <div className="flex-1 space-y-5">
+            <div className="flex-1 space-y-4">
 
               {/* ── FGTS ──────────────────────────────────────────────────── */}
               <div className="space-y-3 rounded-lg border border-gray-200 p-4">
@@ -563,7 +563,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col-reverse gap-2 pt-6 sm:flex-row">
+          <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row">
             <Button type="button" variant="outline" className="flex-1" onClick={onFechar}>
               Cancelar
             </Button>
