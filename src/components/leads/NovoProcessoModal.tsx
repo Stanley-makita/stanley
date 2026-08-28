@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye } from 'lucide-react'
+import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Lead, type LeadAnaliseCredito } from '@/types/leads'
 import { type TipoContrato, TIPO_CONTRATO_LABELS } from '@/types/processos'
@@ -528,10 +528,31 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
 
   // Imóvel — mesmo padrão do BlocoImovel usado dentro do Processo (busca ou
   // cadastra um imóvel do módulo Imóveis, disponível pra reuso futuro).
-  const [imovel, setImovel] = useState<ImovelSelecionado | null>(null)
+  // Pré-carrega do imóvel já vinculado ao Lead na aba Crédito (mesmas colunas
+  // escalares em leads.imovel_*), pra não pedir de novo aqui.
+  const [imovel, setImovel] = useState<ImovelSelecionado | null>(() => (
+    lead?.imovel_id ? {
+      imovel_id:              lead.imovel_id,
+      imovel_matricula:       lead.imovel_matricula ?? null,
+      imovel_tipo:            lead.imovel_tipo ?? null,
+      imovel_categoria:       lead.imovel_categoria ?? null,
+      imovel_area_construida: lead.imovel_area_construida ?? null,
+      imovel_area_terreno:    lead.imovel_area_terreno ?? null,
+      imovel_rua:             lead.imovel_rua ?? null,
+      imovel_numero:          lead.imovel_numero ?? null,
+      imovel_complemento:     lead.imovel_complemento ?? null,
+      imovel_bairro:          lead.imovel_bairro ?? null,
+      imovel_cidade:          lead.imovel_cidade ?? null,
+      imovel_uf:              lead.imovel_uf ?? null,
+      imovel_registro_id:     lead.imovel_registro_id ?? null,
+      nome_imovel:            lead.nome_imovel ?? '',
+    } : null
+  ))
 
-  // Vendedor — mesmo padrão de busca/criação de Pessoa usado em AbaVendedores.
-  const [vendedorPessoa, setVendedorPessoa] = useState<PessoaOpcao | null>(null)
+  // Vendedor(es) — mesmo padrão de busca/criação de Pessoa usado em AbaVendedores.
+  // Pré-carrega todos os vendedores já vinculados ao Lead (lead_vendedores,
+  // migration 276) — permite mais de um, ex: casal vendendo o imóvel junto.
+  const [vendedores, setVendedores] = useState<PessoaOpcao[]>([])
   const [novaPessoaVendedorAberta, setNovaPessoaVendedorAberta] = useState(false)
 
   const [erros, setErros] = useState<Record<string, string>>({})
@@ -553,22 +574,26 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
     }
   }, [bancos, comissoesPadrao, fonte?.banco_pretendido])
 
-  // Pré-preenche o vendedor a partir do Lead, quando já vinculado a uma Pessoa
+  // Pré-preenche o(s) vendedor(es) a partir do Lead. lead.vendedores (join
+  // completo, quando disponível) tem prioridade; sem ele, cai no campo
+  // legado vendedor_pessoa_id (1 só) — cobre telas que abrem este modal com
+  // uma versão mais enxuta do Lead, sem o join de lead_vendedores.
   useEffect(() => {
-    if (!lead?.vendedor_pessoa_id) return
+    const idsDaLista = (lead?.vendedores ?? []).map(v => v.pessoa_id)
+    const ids = idsDaLista.length > 0 ? idsDaLista : (lead?.vendedor_pessoa_id ? [lead.vendedor_pessoa_id] : [])
+    if (ids.length === 0) return
     let cancelado = false
     supabase
       .from('pessoas')
       .select('id, nome, cpf, email')
-      .eq('id', lead.vendedor_pessoa_id)
-      .maybeSingle()
+      .in('id', ids)
       .then(({ data }) => {
         if (!cancelado && data) {
-          setVendedorPessoa({ id: data.id, nome: data.nome, cpf: data.cpf, email: data.email, telefone: null })
+          setVendedores(data.map(d => ({ id: d.id, nome: d.nome, cpf: d.cpf, email: d.email, telefone: null })))
         }
       })
     return () => { cancelado = true }
-  }, [lead?.vendedor_pessoa_id])
+  }, [lead?.vendedores, lead?.vendedor_pessoa_id])
 
   function clr(...keys: string[]) {
     setErros(p => { const n = { ...p }; keys.forEach(k => delete n[k]); return n })
@@ -663,22 +688,26 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       })
     }
 
-    // Vendedor escolhido/confirmado no modal tem prioridade; sem escolha,
-    // mantém o comportamento anterior (copia do Lead).
-    if (vendedorPessoa) {
-      await supabase.from('processo_vendedores').insert({
-        processo_id: processo.id,
-        empresa_id:  processo.empresa_id,
-        nome:        vendedorPessoa.nome,
-        cpf:         vendedorPessoa.cpf,
-        pessoa_id:   vendedorPessoa.id,
-      })
+    // Vendedor(es) escolhido(s)/confirmado(s) no modal têm prioridade; sem
+    // nenhum, mantém o comportamento anterior (copia do Lead).
+    if (vendedores.length > 0) {
+      await supabase.from('processo_vendedores').insert(
+        vendedores.map(v => ({
+          processo_id: processo.id,
+          empresa_id:  processo.empresa_id,
+          nome:        v.nome,
+          cpf:         v.cpf,
+          pessoa_id:   v.id,
+        })),
+      )
     } else {
       await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
     }
 
     if (lead) await marcarLeadConvertido(lead.id)
 
+    // Etapa seguinte (vinculação de documentos) ainda trabalha com 1 vendedor
+    // só — usa o primeiro da lista como principal.
     await onProcessoCriado({
       processoId:        processo.id,
       empresaId:         processo.empresa_id,
@@ -686,8 +715,8 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       nomeComprador:     nome.trim(),
       pessoaIdConjuge:   lead?.conjuge_pessoa_id ?? null,
       nomeConjuge:       lead?.conjuge_nome ?? null,
-      pessoaIdVendedor:  vendedorPessoa?.id ?? lead?.vendedor_pessoa_id ?? null,
-      nomeVendedor:      vendedorPessoa?.nome ?? lead?.vendedor_nome ?? null,
+      pessoaIdVendedor:  vendedores[0]?.id ?? lead?.vendedor_pessoa_id ?? null,
+      nomeVendedor:      vendedores[0]?.nome ?? lead?.vendedor_nome ?? null,
     })
   }
 
@@ -838,11 +867,29 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       </Secao>
 
       <Secao titulo="Vendedor">
-        <PessoaBuscaCombobox
-          pessoaSelecionada={vendedorPessoa}
-          onSelect={setVendedorPessoa}
-          onCriarPessoa={() => setNovaPessoaVendedorAberta(true)}
-        />
+        <div className="space-y-2">
+          {vendedores.map(v => (
+            <div key={v.id} className="flex items-center gap-2 bg-fonti-accent-hover/30 border border-fonti-primary/20 rounded-lg px-3 py-2.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-fonti-primary truncate">{v.nome}</p>
+                {v.cpf && <p className="text-xs text-gray-500">CPF: {v.cpf}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setVendedores(prev => prev.filter(p => p.id !== v.id))}
+                className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Remover vendedor"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <PessoaBuscaCombobox
+            pessoaSelecionada={null}
+            onSelect={p => { if (p && !vendedores.some(v => v.id === p.id)) setVendedores(prev => [...prev, p]) }}
+            onCriarPessoa={() => setNovaPessoaVendedorAberta(true)}
+          />
+        </div>
       </Secao>
 
       {/* Assessoria — radio obrigatório */}
@@ -919,7 +966,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       <NovaPessoaModal
         aberto={novaPessoaVendedorAberta}
         onFechar={() => setNovaPessoaVendedorAberta(false)}
-        onSucesso={(p: PessoaCriada) => { setVendedorPessoa(p); setNovaPessoaVendedorAberta(false) }}
+        onSucesso={(p: PessoaCriada) => { setVendedores(prev => [...prev, p]); setNovaPessoaVendedorAberta(false) }}
       />
     </div>
   )
