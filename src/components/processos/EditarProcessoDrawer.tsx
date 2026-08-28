@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { InputMoeda } from '@/components/ui/input-moeda'
 import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -67,8 +68,17 @@ function normNum(v: number | null | undefined): number | null {
 
 function fmtMoeda(v: number) {
   return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
+    style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(v)
+}
+
+// InputMoeda trabalha com string decimal simples ("1000.00"); os campos do
+// form são number (schema zod) — conversão nos dois sentidos pro Controller.
+function numParaStr(v: number | null | undefined): string {
+  return v != null && !isNaN(v) ? String(v) : ''
+}
+function strParaNum(v: string): number {
+  return v ? Number(v) : NaN
 }
 
 function initFgtsOpcao(p: Processo): boolean | null {
@@ -142,6 +152,9 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   const valorFgtsInput = form.watch('valor_fgts') ?? 0
   const valorFgtsEfetivo = fgtsOpcao === true ? (valorFgtsInput || 0) : 0
   const recursosProprios = valorImovel - valorFinanciado - valorFgtsEfetivo
+  // Entrada = Recursos Próprios + FGTS — é o que alimenta processo.valor_entrada
+  // (card Operação no Resumo e as variáveis de contrato {{valor_entrada}}).
+  const valorEntradaTotal = recursosProprios + valorFgtsEfetivo
 
   const temAssessoria = form.watch('tem_assessoria')
   const errors = form.formState.errors
@@ -166,7 +179,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         description:
           `Imóvel: ${fmtMoeda(valorImovel)} | Financiado: ${fmtMoeda(valorFinanciado)} | `
           + `FGTS: ${fmtMoeda(valorFgtsEfetivo)} | Recursos próprios: ${fmtMoeda(recursosProprios)} | `
-          + `Diferença: ${fmtMoeda(diferenca)}`,
+          + `Entrada: ${fmtMoeda(valorEntradaTotal)} | Diferença: ${fmtMoeda(diferenca)}`,
         duration: 8000,
       })
       return
@@ -185,6 +198,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         valor_financiado:               normNum(dados.valor_financiado),
         valor_fgts:                     fgtsOpcao ? normNum(dados.valor_fgts) : 0,
         valor_recursos_proprios:        recursosProprios,
+        valor_entrada:                  valorEntradaTotal,
         comissao_comercial:             comissaoComercial,
         comissao_empresa:               comissaoEmpresa,
         prazo_amortizacao_meses:        dados.prazo_amortizacao_meses ?? null,
@@ -202,12 +216,12 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
-      <DialogContent className="max-h-[92svh] w-[calc(100vw-1rem)] max-w-md overflow-y-auto sm:w-full">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto max-h-[95svh] sm:max-h-none sm:overflow-visible sm:w-full">
         <DialogHeader>
           <DialogTitle className="text-fonti-primary">Dados do Negócio</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-6">
 
           {/* ── Nº da Proposta ────────────────────────────────────────────── */}
           <div className="space-y-1.5">
@@ -294,15 +308,19 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
           </div>
 
           {/* ── Valores do imóvel ─────────────────────────────────────────── */}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Valor do Imóvel (R$) <span className="text-red-500">*</span></Label>
-              <Input
-                type="number"
-                placeholder="0"
-                min="0"
-                className={errors.valor_imovel ? 'border-red-400' : ''}
-                {...form.register('valor_imovel', { valueAsNumber: true })}
+              <Controller
+                control={form.control}
+                name="valor_imovel"
+                render={({ field }) => (
+                  <InputMoeda
+                    value={numParaStr(field.value)}
+                    onChange={(v) => field.onChange(strParaNum(v))}
+                    className={errors.valor_imovel ? 'border-red-400' : ''}
+                  />
+                )}
               />
               {errors.valor_imovel && (
                 <p className="text-xs text-red-500">{errors.valor_imovel.message}</p>
@@ -310,12 +328,16 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>Valor Financiado (R$) <span className="text-red-500">*</span></Label>
-              <Input
-                type="number"
-                placeholder="0"
-                min="0"
-                className={errors.valor_financiado ? 'border-red-400' : ''}
-                {...form.register('valor_financiado', { valueAsNumber: true })}
+              <Controller
+                control={form.control}
+                name="valor_financiado"
+                render={({ field }) => (
+                  <InputMoeda
+                    value={numParaStr(field.value)}
+                    onChange={(v) => field.onChange(strParaNum(v))}
+                    className={errors.valor_financiado ? 'border-red-400' : ''}
+                  />
+                )}
               />
               {errors.valor_financiado && (
                 <p className="text-xs text-red-500">{errors.valor_financiado.message}</p>
@@ -324,7 +346,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
           </div>
 
           {/* ── FGTS ──────────────────────────────────────────────────────── */}
-          <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+          <div className="space-y-3 rounded-lg border border-gray-200 p-4 sm:col-span-2">
             <div>
               <Label>FGTS <span className="text-red-500">*</span></Label>
               <p className="mt-0.5 text-[11px] text-gray-400">
@@ -364,11 +386,15 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             {fgtsOpcao === true && (
               <div className="space-y-1.5">
                 <Label>Valor do FGTS (R$) <span className="text-red-500">*</span></Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  min="1"
-                  {...form.register('valor_fgts', { valueAsNumber: true })}
+                <Controller
+                  control={form.control}
+                  name="valor_fgts"
+                  render={({ field }) => (
+                    <InputMoeda
+                      value={numParaStr(field.value)}
+                      onChange={(v) => field.onChange(v ? strParaNum(v) : null)}
+                    />
+                  )}
                 />
               </div>
             )}
@@ -382,23 +408,38 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             {fgtsErro && <p className="text-xs text-red-500">{fgtsErro}</p>}
           </div>
 
-          {/* ── Recursos Próprios (calculado) ──────────────────────────────── */}
-          <div className="space-y-1.5">
-            <Label className="text-gray-600">Recursos Próprios (calculado automaticamente)</Label>
+          {/* ── Entrada (calculada automaticamente) ────────────────────────── */}
+          <div className="space-y-1.5 rounded-lg border border-gray-200 p-4 sm:col-span-2">
+            <Label className="text-gray-600">Entrada (calculada automaticamente)</Label>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <p className="text-[11px] text-gray-400">Recursos Próprios</p>
+                <p className={`font-medium ${recursosProprios < 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                  {fmtMoeda(recursosProprios)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400">FGTS</p>
+                <p className="font-medium text-gray-700">{fmtMoeda(valorFgtsEfetivo)}</p>
+              </div>
+            </div>
             <div
-              className={`flex h-9 items-center rounded-md border px-3 text-sm font-semibold ${
+              className={`flex h-9 items-center justify-between rounded-md border px-3 text-sm font-semibold ${
                 recursosProprios < 0
                   ? 'border-red-300 bg-red-50 text-red-600'
                   : 'border-gray-200 bg-gray-50 text-fonti-primary'
               }`}
             >
-              {fmtMoeda(recursosProprios)}
-              {recursosProprios < 0 && (
-                <span className="ml-2 text-xs font-normal">⚠ inconsistência</span>
-              )}
+              <span className="font-normal text-gray-500">Valor Total da Entrada</span>
+              <span>
+                {fmtMoeda(valorEntradaTotal)}
+                {recursosProprios < 0 && (
+                  <span className="ml-2 text-xs font-normal">⚠ inconsistência</span>
+                )}
+              </span>
             </div>
             <p className="text-[11px] text-gray-400">
-              {fmtMoeda(valorImovel)} − {fmtMoeda(valorFinanciado)} − {fmtMoeda(valorFgtsEfetivo)} = {fmtMoeda(recursosProprios)}
+              {fmtMoeda(valorImovel)} − {fmtMoeda(valorFinanciado)} − {fmtMoeda(valorFgtsEfetivo)} = {fmtMoeda(recursosProprios)} de recursos próprios; + {fmtMoeda(valorFgtsEfetivo)} de FGTS = {fmtMoeda(valorEntradaTotal)} de entrada
             </p>
           </div>
 
@@ -491,16 +532,22 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
             {temAssessoria && (
               <div className="space-y-1.5">
                 <Label>Valor da Assessoria (R$)</Label>
-                <Input
-                  type="number"
-                  placeholder="Deixe vazio se inclusa"
-                  {...form.register('valor_assessoria', { valueAsNumber: true })}
+                <Controller
+                  control={form.control}
+                  name="valor_assessoria"
+                  render={({ field }) => (
+                    <InputMoeda
+                      value={numParaStr(field.value)}
+                      onChange={(v) => field.onChange(v ? strParaNum(v) : null)}
+                      placeholder="Deixe vazio se inclusa"
+                    />
+                  )}
                 />
               </div>
             )}
           </div>
 
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:col-span-2 sm:flex-row">
             <Button type="button" variant="outline" className="flex-1" onClick={onFechar}>
               Cancelar
             </Button>
