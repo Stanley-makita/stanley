@@ -216,338 +216,354 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => { if (!open) onFechar() }}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[95svh] overflow-y-auto sm:w-full">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[90svh] overflow-y-auto sm:w-full">
         <DialogHeader>
           <DialogTitle className="text-fonti-primary">Dados do Negócio</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6">
 
-          {/* ── Nº da Proposta ────────────────────────────────────────────── */}
-          <div className="space-y-1.5">
-            <Label>Nº da Proposta</Label>
-            <Input
-              placeholder="Nº dado pelo banco"
-              value={form.watch('numero_proposta') ?? ''}
-              onChange={(e) => form.setValue('numero_proposta', e.target.value || null)}
-            />
-          </div>
+          {/* Duas colunas independentes (não pareadas por linha) — cada uma
+              empilha seu próprio conteúdo, então a altura total fica perto da
+              metade de uma coluna única, sem caixas vazias tentando igualar
+              a altura da vizinha. */}
+          <div className="flex flex-col gap-5 sm:flex-row sm:gap-6">
 
-          {/* ── Banco ─────────────────────────────────────────────────────── */}
-          <div className="space-y-1.5">
-            <Label>Banco <span className="text-red-500">*</span></Label>
-            <Select
-              value={form.watch('banco_id') || ''}
-              onValueChange={(v) => {
-                form.setValue('banco_id', v, { shouldValidate: true })
-                const cp = comissoesPadrao.find(c => c.banco_id === v)
-                setComissaoComercial(cp?.comissao_comercial ?? null)
-                setComissaoEmpresa(cp?.comissao_empresa ?? null)
-              }}
-            >
-              <SelectTrigger className={errors.banco_id ? 'border-red-400' : ''}>
-                <SelectValue placeholder="Selecionar banco *" />
-              </SelectTrigger>
-              <SelectContent>
-                {bancos.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.banco_id && (
-              <p className="text-xs text-red-500">{errors.banco_id.message}</p>
-            )}
-          </div>
+            {/* ── Coluna esquerda: identificação + valores ────────────────── */}
+            <div className="flex-1 space-y-5">
 
-          {/* ── Modalidade ────────────────────────────────────────────────── */}
-          <div className="space-y-1.5">
-            <Label>Modalidade <span className="text-red-500">*</span></Label>
-            {emFluxoRegistro ? (
-              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                Em fluxo de Registro
-                {processo.modalidade_origem && <span className="text-gray-400"> (produto original: {processo.modalidade_origem})</span>}
-              </div>
-            ) : (
-              <Select
-                value={form.watch('modalidade')}
-                onValueChange={(v) => form.setValue('modalidade', v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODALIDADES.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {/* ── Taxa de juros ──────────────────────────────────────────────── */}
-          <div className="space-y-1.5">
-            <Label>
-              Taxa de juros (% a.a.) <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="ex: 11.29"
-                className={`pr-8 ${errors.taxa_juros ? 'border-red-400' : ''}`}
-                {...form.register('taxa_juros', { valueAsNumber: true })}
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                %
-              </span>
-            </div>
-            {errors.taxa_juros && (
-              <p className="text-xs text-red-500">{errors.taxa_juros.message}</p>
-            )}
-          </div>
-
-          {/* ── Valores do imóvel ─────────────────────────────────────────── */}
-          <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Valor do Imóvel (R$) <span className="text-red-500">*</span></Label>
-              <Controller
-                control={form.control}
-                name="valor_imovel"
-                render={({ field }) => (
-                  <InputMoeda
-                    value={numParaStr(field.value)}
-                    onChange={(v) => field.onChange(strParaNum(v))}
-                    className={errors.valor_imovel ? 'border-red-400' : ''}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Nº da Proposta</Label>
+                  <Input
+                    placeholder="Nº dado pelo banco"
+                    value={form.watch('numero_proposta') ?? ''}
+                    onChange={(e) => form.setValue('numero_proposta', e.target.value || null)}
                   />
-                )}
-              />
-              {errors.valor_imovel && (
-                <p className="text-xs text-red-500">{errors.valor_imovel.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Valor Financiado (R$) <span className="text-red-500">*</span></Label>
-              <Controller
-                control={form.control}
-                name="valor_financiado"
-                render={({ field }) => (
-                  <InputMoeda
-                    value={numParaStr(field.value)}
-                    onChange={(v) => field.onChange(strParaNum(v))}
-                    className={errors.valor_financiado ? 'border-red-400' : ''}
-                  />
-                )}
-              />
-              {errors.valor_financiado && (
-                <p className="text-xs text-red-500">{errors.valor_financiado.message}</p>
-              )}
-            </div>
-          </div>
+                </div>
 
-          {/* ── FGTS ──────────────────────────────────────────────────────── */}
-          <div className="space-y-3 rounded-lg border border-gray-200 p-4 sm:col-span-2">
-            <div>
-              <Label>FGTS <span className="text-red-500">*</span></Label>
-              <p className="mt-0.5 text-[11px] text-gray-400">
-                Declare obrigatoriamente a intenção de uso do FGTS
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setFgtsOpcao(true); setFgtsErro('') }}
-                className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
-                  fgtsOpcao === true
-                    ? 'border-fonti-primary bg-fonti-primary text-white'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Utilizará FGTS
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFgtsOpcao(false)
-                  setFgtsErro('')
-                  form.setValue('valor_fgts', null)
-                }}
-                className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
-                  fgtsOpcao === false
-                    ? 'border-fonti-primary bg-fonti-primary text-white'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Não utilizará FGTS
-              </button>
-            </div>
-
-            {fgtsOpcao === true && (
-              <div className="space-y-1.5">
-                <Label>Valor do FGTS (R$) <span className="text-red-500">*</span></Label>
-                <Controller
-                  control={form.control}
-                  name="valor_fgts"
-                  render={({ field }) => (
-                    <InputMoeda
-                      value={numParaStr(field.value)}
-                      onChange={(v) => field.onChange(v ? strParaNum(v) : null)}
-                    />
+                <div className="space-y-1.5">
+                  <Label>Banco <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={form.watch('banco_id') || ''}
+                    onValueChange={(v) => {
+                      form.setValue('banco_id', v, { shouldValidate: true })
+                      const cp = comissoesPadrao.find(c => c.banco_id === v)
+                      setComissaoComercial(cp?.comissao_comercial ?? null)
+                      setComissaoEmpresa(cp?.comissao_empresa ?? null)
+                    }}
+                  >
+                    <SelectTrigger className={errors.banco_id ? 'border-red-400' : ''}>
+                      <SelectValue placeholder="Selecionar banco *" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bancos.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.banco_id && (
+                    <p className="text-xs text-red-500">{errors.banco_id.message}</p>
                   )}
-                />
+                </div>
               </div>
-            )}
 
-            {fgtsOpcao === false && (
-              <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                FGTS: <span className="font-medium">R$ 0,00</span> — não será utilizado nesta operação
-              </p>
-            )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Modalidade <span className="text-red-500">*</span></Label>
+                  {emFluxoRegistro ? (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                      Em fluxo de Registro
+                      {processo.modalidade_origem && <span className="text-gray-400"> (produto original: {processo.modalidade_origem})</span>}
+                    </div>
+                  ) : (
+                    <Select
+                      value={form.watch('modalidade')}
+                      onValueChange={(v) => form.setValue('modalidade', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MODALIDADES.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
 
-            {fgtsErro && <p className="text-xs text-red-500">{fgtsErro}</p>}
-          </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Taxa de juros (% a.a.) <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="ex: 11.29"
+                      className={`pr-8 ${errors.taxa_juros ? 'border-red-400' : ''}`}
+                      {...form.register('taxa_juros', { valueAsNumber: true })}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                      %
+                    </span>
+                  </div>
+                  {errors.taxa_juros && (
+                    <p className="text-xs text-red-500">{errors.taxa_juros.message}</p>
+                  )}
+                </div>
+              </div>
 
-          {/* ── Entrada (calculada automaticamente) ────────────────────────── */}
-          <div className="space-y-1.5 rounded-lg border border-gray-200 p-4 sm:col-span-2">
-            <Label className="text-gray-600">Entrada (calculada automaticamente)</Label>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <p className="text-[11px] text-gray-400">Recursos Próprios</p>
-                <p className={`font-medium ${recursosProprios < 0 ? 'text-red-600' : 'text-gray-700'}`}>
-                  {fmtMoeda(recursosProprios)}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Valor do Imóvel (R$) <span className="text-red-500">*</span></Label>
+                  <Controller
+                    control={form.control}
+                    name="valor_imovel"
+                    render={({ field }) => (
+                      <InputMoeda
+                        value={numParaStr(field.value)}
+                        onChange={(v) => field.onChange(strParaNum(v))}
+                        className={errors.valor_imovel ? 'border-red-400' : ''}
+                      />
+                    )}
+                  />
+                  {errors.valor_imovel && (
+                    <p className="text-xs text-red-500">{errors.valor_imovel.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Valor Financiado (R$) <span className="text-red-500">*</span></Label>
+                  <Controller
+                    control={form.control}
+                    name="valor_financiado"
+                    render={({ field }) => (
+                      <InputMoeda
+                        value={numParaStr(field.value)}
+                        onChange={(v) => field.onChange(strParaNum(v))}
+                        className={errors.valor_financiado ? 'border-red-400' : ''}
+                      />
+                    )}
+                  />
+                  {errors.valor_financiado && (
+                    <p className="text-xs text-red-500">{errors.valor_financiado.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Entrada (calculada automaticamente) ──────────────────── */}
+              <div className="space-y-1.5 rounded-lg border border-gray-200 p-4">
+                <Label className="text-gray-600">Entrada (calculada automaticamente)</Label>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-[11px] text-gray-400">Recursos Próprios</p>
+                    <p className={`font-medium ${recursosProprios < 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                      {fmtMoeda(recursosProprios)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-400">FGTS</p>
+                    <p className="font-medium text-gray-700">{fmtMoeda(valorFgtsEfetivo)}</p>
+                  </div>
+                </div>
+                <div
+                  className={`flex h-9 items-center justify-between rounded-md border px-3 text-sm font-semibold ${
+                    recursosProprios < 0
+                      ? 'border-red-300 bg-red-50 text-red-600'
+                      : 'border-gray-200 bg-gray-50 text-fonti-primary'
+                  }`}
+                >
+                  <span className="font-normal text-gray-500">Valor Total da Entrada</span>
+                  <span>
+                    {fmtMoeda(valorEntradaTotal)}
+                    {recursosProprios < 0 && (
+                      <span className="ml-2 text-xs font-normal">⚠ inconsistência</span>
+                    )}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  {fmtMoeda(valorImovel)} − {fmtMoeda(valorFinanciado)} − {fmtMoeda(valorFgtsEfetivo)} = {fmtMoeda(recursosProprios)} de recursos próprios; + {fmtMoeda(valorFgtsEfetivo)} de FGTS = {fmtMoeda(valorEntradaTotal)} de entrada
                 </p>
               </div>
-              <div>
-                <p className="text-[11px] text-gray-400">FGTS</p>
-                <p className="font-medium text-gray-700">{fmtMoeda(valorFgtsEfetivo)}</p>
-              </div>
-            </div>
-            <div
-              className={`flex h-9 items-center justify-between rounded-md border px-3 text-sm font-semibold ${
-                recursosProprios < 0
-                  ? 'border-red-300 bg-red-50 text-red-600'
-                  : 'border-gray-200 bg-gray-50 text-fonti-primary'
-              }`}
-            >
-              <span className="font-normal text-gray-500">Valor Total da Entrada</span>
-              <span>
-                {fmtMoeda(valorEntradaTotal)}
-                {recursosProprios < 0 && (
-                  <span className="ml-2 text-xs font-normal">⚠ inconsistência</span>
-                )}
-              </span>
-            </div>
-            <p className="text-[11px] text-gray-400">
-              {fmtMoeda(valorImovel)} − {fmtMoeda(valorFinanciado)} − {fmtMoeda(valorFgtsEfetivo)} = {fmtMoeda(recursosProprios)} de recursos próprios; + {fmtMoeda(valorFgtsEfetivo)} de FGTS = {fmtMoeda(valorEntradaTotal)} de entrada
-            </p>
-          </div>
 
-          {/* ── Condições do Financiamento ─────────────────────────────────── */}
-          <div className="space-y-4 rounded-lg border border-gray-200 p-4">
-            <p className="text-sm font-medium text-fonti-primary">Condições do Financiamento</p>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Prazo (meses)</Label>
-                <Input
-                  type="number"
-                  placeholder="360"
-                  min={1}
-                  {...form.register('prazo_amortizacao_meses', { valueAsNumber: true })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Dia vencimento (1–28)</Label>
-                <Input
-                  type="number"
-                  placeholder="5"
-                  min={1}
-                  max={28}
-                  {...form.register('dia_vencimento_parcela', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Sistema de Amortização <span className="text-red-500">*</span></Label>
-              <Select
-                value={form.watch('sistema_amortizacao') ?? ''}
-                onValueChange={(v) =>
-                  form.setValue('sistema_amortizacao', v as 'SAC' | 'PRICE', { shouldValidate: true })
-                }
-              >
-                <SelectTrigger className={errors.sistema_amortizacao ? 'border-red-400' : ''}>
-                  <SelectValue placeholder="Selecionar sistema *" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SISTEMAS_AMORTIZACAO.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.sistema_amortizacao && (
-                <p className="text-xs text-red-500">{errors.sistema_amortizacao.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Indexador</Label>
-              <Select
-                value={form.watch('indexador') ?? '__nenhum__'}
-                onValueChange={(v) =>
-                  form.setValue('indexador', v === '__nenhum__' ? null : v as 'TR' | 'IPCA')
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Não definido" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__nenhum__">Não definido</SelectItem>
-                  {INDEXADORES.map((idx) => (
-                    <SelectItem key={idx.value} value={idx.value}>{idx.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <Label>Financiar despesas cartorárias</Label>
-              <Switch
-                checked={form.watch('financiar_despesas_cartorariais')}
-                onCheckedChange={(v) => form.setValue('financiar_despesas_cartorariais', v)}
-              />
-            </div>
-          </div>
-
-          {/* ── Assessoria ────────────────────────────────────────────────── */}
-          <div className="space-y-3 rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <Label>Com Assessoria</Label>
-              <Switch
-                checked={temAssessoria}
-                onCheckedChange={(v) => form.setValue('tem_assessoria', v)}
-              />
-            </div>
-            {temAssessoria && (
-              <div className="space-y-1.5">
-                <Label>Valor da Assessoria (R$)</Label>
-                <Controller
-                  control={form.control}
-                  name="valor_assessoria"
-                  render={({ field }) => (
-                    <InputMoeda
-                      value={numParaStr(field.value)}
-                      onChange={(v) => field.onChange(v ? strParaNum(v) : null)}
-                      placeholder="Deixe vazio se inclusa"
+              {/* ── Assessoria ────────────────────────────────────────────── */}
+              <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Com Assessoria</Label>
+                  <Switch
+                    checked={temAssessoria}
+                    onCheckedChange={(v) => form.setValue('tem_assessoria', v)}
+                  />
+                </div>
+                {temAssessoria && (
+                  <div className="space-y-1.5">
+                    <Label>Valor da Assessoria (R$)</Label>
+                    <Controller
+                      control={form.control}
+                      name="valor_assessoria"
+                      render={({ field }) => (
+                        <InputMoeda
+                          value={numParaStr(field.value)}
+                          onChange={(v) => field.onChange(v ? strParaNum(v) : null)}
+                          placeholder="Deixe vazio se inclusa"
+                        />
+                      )}
                     />
-                  )}
-                />
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* ── Coluna direita: FGTS + Condições do Financiamento ───────── */}
+            <div className="flex-1 space-y-5">
+
+              {/* ── FGTS ──────────────────────────────────────────────────── */}
+              <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+                <div>
+                  <Label>FGTS <span className="text-red-500">*</span></Label>
+                  <p className="mt-0.5 text-[11px] text-gray-400">
+                    Declare obrigatoriamente a intenção de uso do FGTS
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setFgtsOpcao(true); setFgtsErro('') }}
+                    className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                      fgtsOpcao === true
+                        ? 'border-fonti-primary bg-fonti-primary text-white'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Utilizará FGTS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFgtsOpcao(false)
+                      setFgtsErro('')
+                      form.setValue('valor_fgts', null)
+                    }}
+                    className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                      fgtsOpcao === false
+                        ? 'border-fonti-primary bg-fonti-primary text-white'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Não utilizará FGTS
+                  </button>
+                </div>
+
+                {fgtsOpcao === true && (
+                  <div className="space-y-1.5">
+                    <Label>Valor do FGTS (R$) <span className="text-red-500">*</span></Label>
+                    <Controller
+                      control={form.control}
+                      name="valor_fgts"
+                      render={({ field }) => (
+                        <InputMoeda
+                          value={numParaStr(field.value)}
+                          onChange={(v) => field.onChange(v ? strParaNum(v) : null)}
+                        />
+                      )}
+                    />
+                  </div>
+                )}
+
+                {fgtsOpcao === false && (
+                  <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                    FGTS: <span className="font-medium">R$ 0,00</span> — não será utilizado nesta operação
+                  </p>
+                )}
+
+                {fgtsErro && <p className="text-xs text-red-500">{fgtsErro}</p>}
+              </div>
+
+              {/* ── Condições do Financiamento ────────────────────────────── */}
+              <div className="space-y-4 rounded-lg border border-gray-200 p-4">
+                <p className="text-sm font-medium text-fonti-primary">Condições do Financiamento</p>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Prazo (meses)</Label>
+                    <Input
+                      type="number"
+                      placeholder="360"
+                      min={1}
+                      {...form.register('prazo_amortizacao_meses', { valueAsNumber: true })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Dia vencimento (1–28)</Label>
+                    <Input
+                      type="number"
+                      placeholder="5"
+                      min={1}
+                      max={28}
+                      {...form.register('dia_vencimento_parcela', { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Sistema de Amortização <span className="text-red-500">*</span></Label>
+                    <Select
+                      value={form.watch('sistema_amortizacao') ?? ''}
+                      onValueChange={(v) =>
+                        form.setValue('sistema_amortizacao', v as 'SAC' | 'PRICE', { shouldValidate: true })
+                      }
+                    >
+                      <SelectTrigger className={errors.sistema_amortizacao ? 'border-red-400' : ''}>
+                        <SelectValue placeholder="Selecionar sistema *" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SISTEMAS_AMORTIZACAO.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.sistema_amortizacao && (
+                      <p className="text-xs text-red-500">{errors.sistema_amortizacao.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Indexador</Label>
+                    <Select
+                      value={form.watch('indexador') ?? '__nenhum__'}
+                      onValueChange={(v) =>
+                        form.setValue('indexador', v === '__nenhum__' ? null : v as 'TR' | 'IPCA')
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Não definido" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__nenhum__">Não definido</SelectItem>
+                        {INDEXADORES.map((idx) => (
+                          <SelectItem key={idx.value} value={idx.value}>{idx.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Financiar despesas cartorárias</Label>
+                  <Switch
+                    checked={form.watch('financiar_despesas_cartorariais')}
+                    onCheckedChange={(v) => form.setValue('financiar_despesas_cartorariais', v)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:col-span-2 sm:flex-row">
+          <div className="flex flex-col-reverse gap-2 pt-6 sm:flex-row">
             <Button type="button" variant="outline" className="flex-1" onClick={onFechar}>
               Cancelar
             </Button>
