@@ -53,7 +53,7 @@ export function FasesLista() {
     if (confirmandoExclusao === id) {
       excluir.mutate(id, {
         onSuccess: () => toast.success('Fase excluída.'),
-        onError: () => toast.error('Não foi possível excluir a fase.'),
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Não foi possível excluir a fase.'),
       })
       setConfirmandoExclusao(null)
     } else {

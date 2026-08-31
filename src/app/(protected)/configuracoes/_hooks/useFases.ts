@@ -121,6 +121,23 @@ export function useExcluirFase() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      // Desativar uma fase que ainda tem leads nela deixaria esses leads com
+      // um fase_id órfão — a fase some de Configurações/Kanban/abas (que
+      // filtram ativo=true), mas o registro antigo continua existindo e
+      // outras telas que leem o nome via join (sem esse filtro) voltam a
+      // mostrar o nome desativado. Bloquear até o usuário mover os leads.
+      const { count, error: countError } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('fase_id', id)
+        .is('deleted_at', null)
+      if (countError) throw countError
+      if (count && count > 0) {
+        throw new Error(
+          `Não é possível excluir esta fase: ${count} captação${count > 1 ? 'ões' : ''} ainda ${count > 1 ? 'estão' : 'está'} nela. Mova para outra fase antes de excluir.`
+        )
+      }
+
       const { error } = await supabase.from('fases').update({ ativo: false }).eq('id', id)
       if (error) throw error
     },
