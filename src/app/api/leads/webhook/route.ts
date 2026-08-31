@@ -57,11 +57,12 @@ export async function POST(request: NextRequest) {
   const origens = ['whatsapp', 'instagram', 'facebook', 'site', 'indicacao', 'outros']
   const origem = origens.includes(source) ? source : 'outros'
 
-  // Buscar primeira fase (Prospecção) da empresa
+  // Buscar primeira fase (Novo) do módulo leads da empresa
   const { data: primeiraFase, error: faseError } = await supabase
     .from('fases')
     .select('id')
     .eq('empresa_id', empresa_id)
+    .eq('modulo', 'leads')
     .eq('ativo', true)
     .order('ordem', { ascending: true })
     .limit(1)
