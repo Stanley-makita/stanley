@@ -67,11 +67,21 @@ function fmtValor(v: number | null) {
   }).format(v)
 }
 
-function getColValue(lead: Lead, col: ColKey): string {
+type FaseAtiva = { id: string; nome: string; cor: string | null }
+
+// Nunca usar lead.fase?.nome (join sem filtro de ativo) — uma fase pode ter
+// sido desativada/renomeada em Configurações > Fases e o lead ainda aponta
+// pro fase_id antigo. Cruzar sempre com a lista de fases ativas, mesmo
+// padrão de PainelDireito.tsx/PipelineBarLead.
+function resolveFaseAtiva(fases: FaseAtiva[], faseId: string): FaseAtiva | null {
+  return fases.find(f => f.id === faseId) ?? null
+}
+
+function getColValue(lead: Lead, col: ColKey, fases: FaseAtiva[]): string {
   switch (col) {
     case 'nome':         return lead.nome.toLowerCase()
     case 'cpf':          return lead.cpf ?? ''
-    case 'fase':         return lead.fase?.nome ?? ''
+    case 'fase':         return resolveFaseAtiva(fases, lead.fase_id)?.nome ?? ''
     case 'status':       return lead.perdido_em ? 'Perdido' : (lead.status?.nome ?? '')
     case 'origem':       return lead.origem ?? ''
     case 'produto':      return produtoLabel(lead.produto_interesse)
@@ -88,10 +98,10 @@ function getColValue(lead: Lead, col: ColKey): string {
   }
 }
 
-function sortLeads(leads: Lead[], col: ColKey, dir: SortDir): Lead[] {
+function sortLeads(leads: Lead[], col: ColKey, dir: SortDir, fases: FaseAtiva[]): Lead[] {
   return [...leads].sort((a, b) => {
-    const va = getColValue(a, col)
-    const vb = getColValue(b, col)
+    const va = getColValue(a, col, fases)
+    const vb = getColValue(b, col, fases)
     if (col === 'valor') {
       const na = Number(va)
       const nb = Number(vb)
@@ -103,20 +113,20 @@ function sortLeads(leads: Lead[], col: ColKey, dir: SortDir): Lead[] {
   })
 }
 
-function getUniqueValues(leads: Lead[], col: ColKey): string[] {
+function getUniqueValues(leads: Lead[], col: ColKey, fases: FaseAtiva[]): string[] {
   const values = new Set<string>()
   for (const lead of leads) {
-    const val = getColValue(lead, col)
+    const val = getColValue(lead, col, fases)
     if (val) values.add(val)
   }
   return Array.from(values).sort()
 }
 
-function applyFilters(leads: Lead[], colFilters: Record<string, string>): Lead[] {
+function applyFilters(leads: Lead[], colFilters: Record<string, string>, fases: FaseAtiva[]): Lead[] {
   return leads.filter(lead =>
     Object.entries(colFilters).every(([col, val]) => {
       if (!val) return true
-      return getColValue(lead, col as ColKey) === val
+      return getColValue(lead, col as ColKey, fases) === val
     })
   )
 }
@@ -145,8 +155,8 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     ? leadsInativos.filter(l => !busca || l.nome.toLowerCase().includes(busca.toLowerCase()) || l.telefone?.includes(busca))
     : faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
 
-  const leadsFiltrados = applyFilters(leadsBase, colFilters)
-  const leads = sortLeads(leadsFiltrados, sortCol, sortDir)
+  const leadsFiltrados = applyFilters(leadsBase, colFilters, fases)
+  const leads = sortLeads(leadsFiltrados, sortCol, sortDir, fases)
 
   const totalPorFase = todosLeads.reduce<Record<string, number>>((acc, l) => {
     acc[l.fase_id] = (acc[l.fase_id] ?? 0) + 1
@@ -252,6 +262,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 <LeadMobileCard
                   key={lead.id}
                   lead={lead}
+                  fases={fases}
                   podeExcluir={podeExcluir}
                   onClick={() => onAbrirLead(lead.id)}
                   onExcluir={() => setLeadParaExcluir({ id: lead.id, faseId: lead.fase_id, nome: lead.nome })}
@@ -269,7 +280,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       filterable colFilters={colFilters} setColFilters={setColFilters}
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
-                      allLeads={leadsBase} />
+                      allLeads={leadsBase} fases={fases} />
                     <ColHeader label="Status"           col="status"      active={sortCol} dir={sortDir} onSort={handleSort}
                       filterable colFilters={colFilters} setColFilters={setColFilters}
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
@@ -322,6 +333,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                     <LeadRow
                       key={lead.id}
                       lead={lead}
+                      fases={fases}
                       podeExcluir={podeExcluir}
                       onClick={() => onAbrirLead(lead.id)}
                       onExcluir={() => setLeadParaExcluir({ id: lead.id, faseId: lead.fase_id, nome: lead.nome })}
@@ -350,16 +362,19 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
 
 function LeadMobileCard({
   lead,
+  fases,
   podeExcluir,
   onClick,
   onExcluir,
 }: {
   lead: Lead
+  fases: FaseAtiva[]
   podeExcluir: boolean
   onClick: () => void
   onExcluir: () => void
 }) {
   const responsavelOp = (lead as any).responsavel_operacional as { nome: string } | null | undefined
+  const faseAtiva = resolveFaseAtiva(fases, lead.fase_id)
 
   return (
     <div
@@ -388,10 +403,10 @@ function LeadMobileCard({
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {lead.fase && (
+            {faseAtiva && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: lead.fase.cor ?? '#94a3b8' }} />
-                {lead.fase.nome}
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: faseAtiva.cor ?? '#94a3b8' }} />
+                {faseAtiva.nome}
               </span>
             )}
             {lead.perdido_em ? (
@@ -489,6 +504,7 @@ function ColHeader({
   openFilter, setOpenFilter,
   dropdownPos, setDropdownPos,
   allLeads = [],
+  fases = [],
 }: {
   label: string
   col: ColKey
@@ -504,10 +520,11 @@ function ColHeader({
   dropdownPos?: DropdownPos | null
   setDropdownPos?: (pos: DropdownPos | null) => void
   allLeads?: Lead[]
+  fases?: FaseAtiva[]
 }) {
   const isActive = active === col
   const btnRef = useRef<HTMLButtonElement>(null)
-  const unique = useMemo(() => getUniqueValues(allLeads, col), [allLeads, col])
+  const unique = useMemo(() => getUniqueValues(allLeads, col, fases), [allLeads, col, fases])
 
   const activeVal = colFilters?.[col] ?? ''
   const isFiltered = !!activeVal
@@ -622,16 +639,19 @@ function ColHeader({
 
 function LeadRow({
   lead,
+  fases,
   podeExcluir,
   onClick,
   onExcluir,
 }: {
   lead: Lead
+  fases: FaseAtiva[]
   podeExcluir: boolean
   onClick: () => void
   onExcluir: () => void
 }) {
   const responsavelOp = (lead as any).responsavel_operacional as { nome: string } | null | undefined
+  const faseAtiva = resolveFaseAtiva(fases, lead.fase_id)
 
   return (
     <tr
@@ -657,10 +677,10 @@ function LeadRow({
 
       {/* Fase */}
       <td className="px-3 py-1.5">
-        {lead.fase ? (
+        {faseAtiva ? (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lead.fase.cor ?? '#94a3b8' }} />
-            {lead.fase.nome}
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: faseAtiva.cor ?? '#94a3b8' }} />
+            {faseAtiva.nome}
           </span>
         ) : '—'}
       </td>
