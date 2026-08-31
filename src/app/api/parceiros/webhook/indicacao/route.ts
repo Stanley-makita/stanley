@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
       .from('fases')
       .select('id')
       .eq('empresa_id', empresa_id)
+      .eq('modulo', 'leads')
       .eq('ativo', true)
       .order('ordem', { ascending: true })
       .limit(1)
