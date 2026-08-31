@@ -133,10 +133,16 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
   const completarItem = useCompletarChecklistItem()
 
-  // Ao abrir um lead na fase "Novo", avança automaticamente para "Atendimento
-  // Iniciado" e abre a aba Oportunidade para o atendente completar os dados —
-  // fluxo pedido pelo usuário 2026-07-13. `disparadoParaLeadRef` evita repetir
-  // o efeito em re-renders do mesmo lead (só dispara uma vez por leadId).
+  // Ao abrir um lead na fase "Novo", avança automaticamente para a próxima
+  // fase do pipeline (a de ordem seguinte) e abre a aba Oportunidade para o
+  // atendente completar os dados — fluxo pedido pelo usuário 2026-07-13.
+  // `disparadoParaLeadRef` evita repetir o efeito em re-renders do mesmo lead
+  // (só dispara uma vez por leadId).
+  //
+  // Usa a posição na lista ordenada por `ordem` (ex.: fase seguinte a "Novo"),
+  // não um nome de fase fixo — um nome hardcoded ("Atendimento Iniciado")
+  // quebrou silenciosamente quando essa fase foi recriada como "Iniciado" em
+  // Configurações > Fases, deixando os leads presos em "Novo" pra sempre.
   const disparadoParaLeadRef = useRef<string | null>(null)
   useEffect(() => {
     if (!lead || fases.length === 0) return
@@ -145,11 +151,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
     // Não usar lead.fase?.nome (join) — segue o mesmo padrão já comprovado em
     // PipelineBarLead/handleConfirmar, que sempre cruza fases (lista, sempre
     // populada) com lead.fase_id (coluna crua), nunca o objeto do join.
-    // Comparação tolerante a acento/maiúscula (nome livre em Configurações).
-    const faseAtualNome = fases.find(f => f.id === lead.fase_id)?.nome
-    if (normalizarTexto(faseAtualNome) !== normalizarTexto('Novo')) return
+    const faseAtualIndex = fases.findIndex(f => f.id === lead.fase_id)
+    if (faseAtualIndex === -1 || normalizarTexto(fases[faseAtualIndex].nome) !== normalizarTexto('Novo')) return
 
-    const faseAtendimento = fases.find(f => normalizarTexto(f.nome) === normalizarTexto('Atendimento Iniciado'))
+    const faseAtendimento = fases[faseAtualIndex + 1]
     if (!faseAtendimento) return
 
     disparadoParaLeadRef.current = lead.id

@@ -303,9 +303,6 @@ function SecaoChecklist({ leadId, faseId, onAbrirDocumentos }: { leadId: string;
   const completar = useCompletarChecklistItem()
   const { data: fases = [] } = useFases('leads')
   const editarLead = useEditarLead()
-  // Não usar lead.fase?.nome (join) — cruza a lista de fases (sempre
-  // populada) com o faseId cru, mesmo padrão de PipelineBarLead.
-  const faseAtualNome = fases.find(f => f.id === faseId)?.nome
   const [modalItem, setModalItem] = useState<ChecklistItemComStatus | null>(null)
   const [modalResultado, setModalResultado] = useState('')
   const [modalObs, setModalObs] = useState('')
@@ -323,12 +320,19 @@ function SecaoChecklist({ leadId, faseId, onAbrirDocumentos }: { leadId: string;
       })
       toast.success(concluido ? 'Item concluído.' : 'Item desmarcado.')
 
-      // Avanço automático: item "Consulta CPF" concluído na fase "Atendimento
-      // Iniciado" leva direto para "Documentação" — pedido do usuário
-      // 2026-07-13. Casamento por texto (não há um tipo/slug dedicado para
-      // este item hoje), mesma convenção já usada em outros pontos do app
-      // (ex.: PipelineBarLead compara fase.nome === 'Concluído').
-      if (concluido && normalizarTexto(faseAtualNome) === normalizarTexto('Atendimento Iniciado') && item.descricao.toLowerCase().includes('cpf')) {
+      // Avanço automático: item "Consulta CPF" concluído na fase seguinte a
+      // "Novo" (hoje "Iniciado") leva direto para "Documentação" — pedido do
+      // usuário 2026-07-13. Casamento por texto (não há um tipo/slug dedicado
+      // para este item hoje), mesma convenção já usada em outros pontos do
+      // app (ex.: PipelineBarLead compara fase.nome === 'Concluído').
+      // Não usa mais o nome fixo "Atendimento Iniciado": essa fase foi
+      // recriada como "Iniciado" em Configurações > Fases e o nome antigo
+      // parou de bater, deixando este avanço automático silenciosamente
+      // inativo — mesma causa raiz do bug corrigido em LeadDetalheModal.tsx.
+      const faseAtualIndex = fases.findIndex(f => f.id === faseId)
+      const faseNovoIndex = fases.findIndex(f => normalizarTexto(f.nome) === normalizarTexto('Novo'))
+      const estaNaFaseSeguinteANovo = faseAtualIndex !== -1 && faseAtualIndex === faseNovoIndex + 1
+      if (concluido && estaNaFaseSeguinteANovo && item.descricao.toLowerCase().includes('cpf')) {
         const faseDocumentacao = fases.find(f => normalizarTexto(f.nome) === normalizarTexto('Documentação'))
         if (faseDocumentacao) {
           editarLead.mutate(
