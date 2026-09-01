@@ -65,6 +65,23 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Kill switch em Configurações > Canais de Captação
+  const { data: canaisConfig } = await supabase
+    .from('canais_leads_config')
+    .select('indicacao_ativo')
+    .eq('empresa_id', empresa_id)
+    .maybeSingle()
+  if (canaisConfig?.indicacao_ativo === false) {
+    await supabase.from('webhook_logs').insert({
+      empresa_id,
+      endpoint: '/api/parceiros/webhook/indicacao',
+      payload:  body,
+      status:   'ignorado',
+      erro_mensagem: 'Canal de indicação desativado em Configurações',
+    })
+    return NextResponse.json({ success: true, ignored: true }, { status: 200 })
+  }
+
   // Registra log inicial — atualizado ao final com resultado
   const { data: logEntry } = await supabase
     .from('webhook_logs')

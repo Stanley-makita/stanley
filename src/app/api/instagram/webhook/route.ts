@@ -79,6 +79,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
+  // Kill switch em Configurações > Canais de Captação — se desativado, não
+  // cria conversa nem lead nenhum (evita poluir a tela em caso de spam).
+  const { data: canaisConfig } = await supabase
+    .from('canais_leads_config')
+    .select('instagram_ativo')
+    .eq('empresa_id', empresa_id)
+    .maybeSingle()
+  if (canaisConfig?.instagram_ativo === false) {
+    return NextResponse.json({ success: true, ignored: true }, { status: 200 })
+  }
+
   for (const entry of body.entry ?? []) {
     for (const evento of entry.messaging ?? []) {
       const texto = evento.message?.text

@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import {
   Settings, Building2, Users, Layers, Smartphone, Calculator,
   Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target,
-  Package, ChevronRight, ArrowLeft, ShieldCheck, Handshake, CalendarClock,
+  Package, ChevronRight, ArrowLeft, ShieldCheck, Handshake, CalendarClock, Radio,
 } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
@@ -24,6 +24,7 @@ import { IdentidadeVisualConfig } from './_components/identidade/IdentidadeVisua
 import { PerfisPermissoesConfig } from './_components/perfis/PerfisPermissoesConfig'
 import { ParceirosComerciaisConfig } from './_components/parceiros-comerciais/ParceirosComerciaisConfig'
 import { RecepcaoConfig } from './_components/agenda/RecepcaoConfig'
+import { CanaisCaptacaoConfig } from './_components/canais-captacao/CanaisCaptacaoConfig'
 
 interface ConfigItem {
   key: string
@@ -83,6 +84,7 @@ const GRUPOS: ConfigGrupo[] = [
       { key: 'instancias',   label: 'Instâncias WhatsApp', descricao: 'Números e instâncias conectadas ao sistema',            icon: Smartphone },
       { key: 'agente-fonti', label: 'Agente Fonti',        descricao: 'Comportamento do assistente virtual no WhatsApp',       icon: Bot },
       { key: 'recepcao',     label: 'Agenda & Recepção',   descricao: 'Usuário avisado quando um compromisso é na Sede',       icon: CalendarClock },
+      { key: 'canais-captacao', label: 'Canais de Captação', descricao: 'Ative ou desative o recebimento de leads por site, Instagram e indicação', icon: Radio },
     ],
   },
 ]
@@ -116,6 +118,7 @@ function renderConteudo(key: string) {
     case 'metas':            return wrap('Metas da Equipe', 'Metas mensais de valor financiado e número de contratos.', <AbaMetas />)
     case 'identidade':       return wrap('Logo & Marca', 'Logo exibida no sidebar e na tela de login. Documentos e PDFs gerados pelo sistema mantêm sua própria identidade visual.', <IdentidadeVisualConfig />)
     case 'recepcao':         return wrap('Agenda & Recepção', 'Defina quem recebe o aviso de compromissos agendados na Sede Fontinhas.', <RecepcaoConfig />)
+    case 'canais-captacao':  return wrap('Canais de Captação', 'Ligue ou desligue o recebimento automático de leads por canal.', <CanaisCaptacaoConfig />)
     default:                 return null
   }
 }
