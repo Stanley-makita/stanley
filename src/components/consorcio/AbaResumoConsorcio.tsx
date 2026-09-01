@@ -4,7 +4,7 @@ import { type Processo } from '@/types/processos'
 import { useProcessoCotas } from '@/hooks/processos/useProcessoCotas'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { ListaCotas } from '@/components/consorcio/ListaCotas'
-import { Building2, Calendar, Wallet, Clock } from 'lucide-react'
+import { Building2, Calendar, Wallet, Clock, MessageSquareText } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 
 function fmtMoeda(v: number | null | undefined) {
@@ -45,7 +45,7 @@ export function AbaResumoConsorcio({ processo }: Props) {
   return (
     <div className="space-y-5">
       {/* Cards de referência */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
@@ -93,6 +93,18 @@ export function AbaResumoConsorcio({ processo }: Props) {
           <div>
             <p className="text-xs text-gray-500">Prazo da cota / do grupo</p>
             <p className="text-sm font-bold text-fonti-primary">{textoPrazoCota} · {textoPrazoGrupo}</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+          <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+            <MessageSquareText className="h-4 w-4 text-fonti-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500">Justificativa da Carta</p>
+            <p className="text-sm font-bold text-fonti-primary line-clamp-2" title={processo.justificativa_carta ?? undefined}>
+              {processo.justificativa_carta || '—'}
+            </p>
           </div>
         </div>
       </div>
