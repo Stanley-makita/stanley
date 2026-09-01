@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PeriodoRelatorio } from '@/types/relatorios'
 
-type TipoPeriodo = 'mes' | 'trimestre' | 'semestre' | 'ano' | 'customizado'
+export type TipoPeriodo = 'mes' | 'trimestre' | 'semestre' | 'ano' | 'customizado'
 
 interface SeletorPeriodoProps {
   value: PeriodoRelatorio
   onChange: (periodo: PeriodoRelatorio) => void
 }
 
-function calcularPeriodo(tipo: TipoPeriodo): PeriodoRelatorio {
+export function calcularPeriodo(tipo: TipoPeriodo): PeriodoRelatorio {
   const hoje = new Date()
   switch (tipo) {
     case 'mes':

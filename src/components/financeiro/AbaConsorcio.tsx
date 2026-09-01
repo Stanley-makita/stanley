@@ -29,6 +29,7 @@ import {
 } from '@/hooks/financeiro/useConsorcioFluxo'
 import { type FinConsorcioReceber, type FinConsorcioComercialPagar, type FinStatusParcelaConsorcio } from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
+import { calcularPeriodo, type TipoPeriodo } from '@/components/relatorios/SeletorPeriodo'
 
 const STATUS_PARCELA: Record<FinStatusParcelaConsorcio, { label: string; class: string }> = {
   prevista:  { label: 'Prevista',  class: 'bg-gray-100 text-gray-600' },
@@ -38,7 +39,7 @@ const STATUS_PARCELA: Record<FinStatusParcelaConsorcio, { label: string; class: 
   cancelada: { label: 'Cancelada', class: 'bg-gray-100 text-gray-400' },
 }
 
-type SubAba = 'receber' | 'pagar' | 'resumo'
+type SubAba = 'receber' | 'pagar' | 'resumo' | 'dre'
 
 export function AbaConsorcio() {
   const [subAba, setSubAba] = useState<SubAba>('receber')
@@ -70,9 +71,20 @@ export function AbaConsorcio() {
         >
           Resumo por Cota
         </button>
+        <button
+          onClick={() => setSubAba('dre')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            subAba === 'dre' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Prévia Financeira / DRE
+        </button>
       </div>
 
-      {subAba === 'receber' ? <VisaoConsorcioReceber /> : subAba === 'pagar' ? <VisaoConsorcioComercialPagar /> : <VisaoConsorcioResumoPorCota />}
+      {subAba === 'receber' ? <VisaoConsorcioReceber />
+        : subAba === 'pagar' ? <VisaoConsorcioComercialPagar />
+        : subAba === 'resumo' ? <VisaoConsorcioResumoPorCota />
+        : <VisaoConsorcioDRE />}
     </div>
   )
 }
@@ -406,6 +418,123 @@ function VisaoConsorcioResumoPorCota() {
           )}
         </TableBody>
       </Table>
+    </div>
+  )
+}
+
+interface ResumoPeriodo {
+  label: string
+  dataInicio: string
+  dataFim: string
+  receitaPrevista: number
+  receitaRealizada: number
+  despesaPrevista: number
+  despesaRealizada: number
+}
+
+const PERIODOS_DRE: { tipo: TipoPeriodo; label: string }[] = [
+  { tipo: 'mes',       label: 'Mês Vigente' },
+  { tipo: 'trimestre', label: 'Trimestre Vigente' },
+  { tipo: 'semestre',  label: 'Semestre Vigente' },
+  { tipo: 'ano',       label: 'Ano Vigente' },
+]
+
+// Compara só a parte AAAA-MM-DD (datas do banco vêm como DATE puro) —
+// inclusive nas duas pontas do período.
+function dentroPeriodo(data: string | null | undefined, inicio: string, fim: string): boolean {
+  if (!data) return false
+  const dataOnly = data.slice(0, 10)
+  return dataOnly >= inicio && dataOnly <= fim
+}
+
+function fmtPeriodoBR(inicio: string, fim: string): string {
+  const f = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR')
+  return `${f(inicio)} – ${f(fim)}`
+}
+
+function VisaoConsorcioDRE() {
+  const { data: receber, isLoading: carregandoReceber } = useConsorcioReceber()
+  const { data: pagar, isLoading: carregandoPagar } = useConsorcioComercialPagar()
+  const isLoading = carregandoReceber || carregandoPagar
+
+  const resumos: ResumoPeriodo[] = PERIODOS_DRE.map(({ tipo, label }) => {
+    const { dataInicio, dataFim } = calcularPeriodo(tipo)
+
+    const receitaPrevista = (receber ?? [])
+      .filter(p => p.status !== 'cancelada' && dentroPeriodo(p.data_vencimento, dataInicio, dataFim))
+      .reduce((s, p) => s + p.valor_parcela, 0)
+
+    const receitaRealizada = (receber ?? [])
+      .filter(p => dentroPeriodo(p.data_recebimento, dataInicio, dataFim))
+      .reduce((s, p) => s + (p.valor_recebido ?? 0), 0)
+
+    const despesaPrevista = (pagar ?? [])
+      .filter(p => p.status !== 'cancelada' && dentroPeriodo(p.data_vencimento, dataInicio, dataFim))
+      .reduce((s, p) => s + p.valor_parcela, 0)
+
+    const despesaRealizada = (pagar ?? [])
+      .filter(p => dentroPeriodo(p.data_pagamento, dataInicio, dataFim))
+      .reduce((s, p) => s + (p.valor_pago ?? 0), 0)
+
+    return { label, dataInicio, dataFim, receitaPrevista, receitaRealizada, despesaPrevista, despesaRealizada }
+  })
+
+  if (isLoading) {
+    return <p className="text-sm text-gray-400 py-8 text-center">Carregando prévia financeira...</p>
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-500">
+        Comissão de Consórcio acumulada por período — <strong>Previsto</strong> soma pelo vencimento (regime de
+        competência), <strong>Realizado</strong> soma pelo que já foi efetivamente recebido/pago (regime de caixa).
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {resumos.map((r) => {
+          const resultadoPrevisto = r.receitaPrevista - r.despesaPrevista
+          const resultadoRealizado = r.receitaRealizada - r.despesaRealizada
+          return (
+            <div key={r.label} className="rounded-lg border bg-white p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-fonti-primary">{r.label}</p>
+                <p className="text-[11px] text-gray-400">{fmtPeriodoBR(r.dataInicio, r.dataFim)}</p>
+              </div>
+
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-gray-400">
+                    <th className="text-left font-normal pb-1"></th>
+                    <th className="text-right font-normal pb-1">Previsto</th>
+                    <th className="text-right font-normal pb-1">Realizado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-gray-100">
+                    <td className="py-1.5 text-gray-600">Receita</td>
+                    <td className="py-1.5 text-right font-mono text-gray-700">{formatarMoeda(r.receitaPrevista)}</td>
+                    <td className="py-1.5 text-right font-mono text-green-700">{formatarMoeda(r.receitaRealizada)}</td>
+                  </tr>
+                  <tr className="border-t border-gray-100">
+                    <td className="py-1.5 text-gray-600">Despesa</td>
+                    <td className="py-1.5 text-right font-mono text-gray-700">{formatarMoeda(r.despesaPrevista)}</td>
+                    <td className="py-1.5 text-right font-mono text-red-600">{formatarMoeda(r.despesaRealizada)}</td>
+                  </tr>
+                  <tr className="border-t border-gray-200">
+                    <td className="py-1.5 font-medium text-gray-800">Resultado</td>
+                    <td className={`py-1.5 text-right font-mono font-semibold ${resultadoPrevisto < 0 ? 'text-red-600' : 'text-fonti-primary'}`}>
+                      {formatarMoeda(resultadoPrevisto)}
+                    </td>
+                    <td className={`py-1.5 text-right font-mono font-semibold ${resultadoRealizado < 0 ? 'text-red-600' : 'text-fonti-primary'}`}>
+                      {formatarMoeda(resultadoRealizado)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
