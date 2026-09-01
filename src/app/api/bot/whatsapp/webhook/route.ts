@@ -843,11 +843,30 @@ export async function POST(request: NextRequest) {
   // ── Operadores internos: bloquear antes de chegar ao bot de cliente ──────────
   // Mensagens sem '*' de usuários internos são sempre contexto de workflow pendente
   // ou mensagens informais. NUNCA devem ser processadas pelo bot de atendimento.
+  //
+  // Exceção: se já existe uma conversa "humano" aberta pra este número — ou seja,
+  // alguém de dentro do Fonti (tela de Conversas) mandou mensagem PRA esse
+  // telefone tratando-o como um contato normal, não como canal de comando *fonti —
+  // a resposta dele tem que aparecer na conversa normalmente, não ser engolida
+  // aqui. Sem essa checagem, o comercial cujo próprio celular está cadastrado
+  // como usuário interno nunca via a resposta dele mesmo quando a conversa foi
+  // aberta manualmente pela secretária/operador.
   if (!textoParaFonti.startsWith('*')) {
     const { verificarUsuarioInterno, processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
     const usuarioInterno = await verificarUsuarioInterno(supabase, empresa_id, telefone)
 
-    if (usuarioInterno) {
+    const { data: conversaHumanoExistente } = usuarioInterno
+      ? await supabase
+          .from('conversas')
+          .select('id')
+          .eq('empresa_id', empresa_id)
+          .eq('canal', 'whatsapp')
+          .eq('contato_telefone', telefone)
+          .eq('status', 'humano')
+          .maybeSingle()
+      : { data: null }
+
+    if (usuarioInterno && !conversaHumanoExistente) {
       // Verifica resposta de follow-up (1/2/3) antes do simula pendente
       const { processarRespostaFollowup } = await import('@/lib/leads/followup')
       const respostaFollowup = await processarRespostaFollowup(
