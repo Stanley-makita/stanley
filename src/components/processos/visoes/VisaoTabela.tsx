@@ -264,6 +264,105 @@ function StaticHead({ children }: { children: React.ReactNode }) {
   )
 }
 
+type DateRange = { de: string; ate: string }
+
+// Data (string ISO, com ou sem horário) cai dentro do range se a parte
+// AAAA-MM-DD estiver entre "de" e "ate" (inclusive). Range vazio = sem filtro.
+function dentroDoRange(dataIso: string | null | undefined, range: DateRange): boolean {
+  if (!range.de && !range.ate) return true
+  if (!dataIso) return false
+  const dataOnly = dataIso.slice(0, 10)
+  if (range.de && dataOnly < range.de) return false
+  if (range.ate && dataOnly > range.ate) return false
+  return true
+}
+
+function DateRangeHead({
+  col, label, range, setRange, openFilter, setOpenFilter, dropdownPos, setDropdownPos,
+}: {
+  col: string
+  label: string
+  range: DateRange
+  setRange: (r: DateRange) => void
+  openFilter: string | null
+  setOpenFilter: (col: string | null) => void
+  dropdownPos: DropdownPos | null
+  setDropdownPos: (pos: DropdownPos | null) => void
+}) {
+  const isActive = !!(range.de || range.ate)
+  const isOpen = openFilter === col
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [localDe, setLocalDe] = useState(range.de)
+  const [localAte, setLocalAte] = useState(range.ate)
+
+  useEffect(() => { setLocalDe(range.de); setLocalAte(range.ate) }, [range.de, range.ate])
+
+  function handleOpen(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (isOpen) {
+      setOpenFilter(null)
+      setDropdownPos(null)
+    } else {
+      const rect = btnRef.current?.getBoundingClientRect()
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      setOpenFilter(col)
+    }
+  }
+
+  function aplicar() {
+    setRange({ de: localDe, ate: localAte })
+    setOpenFilter(null)
+    setDropdownPos(null)
+  }
+
+  function limpar(e: React.MouseEvent) {
+    e.stopPropagation()
+    setLocalDe('')
+    setLocalAte('')
+    setRange({ de: '', ate: '' })
+  }
+
+  return (
+    <TableHead style={{ color: 'white' }} className="text-xs font-medium whitespace-nowrap">
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        className={`flex items-center gap-1 transition-colors ${isActive ? 'text-fonti-accent' : 'text-white hover:text-fonti-accent'}`}
+      >
+        {isActive && <Filter className="h-3 w-3 shrink-0" />}
+        <span className="max-w-[120px] truncate">{label}</span>
+        {isActive
+          ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={limpar} />
+          : <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+        }
+      </button>
+
+      {/* Dropdown renderizado via portal para não afetar o layout da tabela */}
+      {isOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+          className="w-56 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-3 space-y-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-1">
+            <label className="text-[11px] text-gray-400">De</label>
+            <Input type="date" className="h-7 text-xs" value={localDe} onChange={(e) => setLocalDe(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] text-gray-400">Até</label>
+            <Input type="date" className="h-7 text-xs" value={localAte} onChange={(e) => setLocalAte(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <button onClick={limpar} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Limpar</button>
+            <button onClick={aplicar} className="text-xs px-2.5 py-1 rounded-lg bg-fonti-primary text-white hover:bg-fonti-primary-hover transition-colors">Aplicar</button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </TableHead>
+  )
+}
+
 interface Props {
   produtoFixo?: ProdutoFiltro
   responsavelId?: string
@@ -301,6 +400,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const [openFilter, setOpenFilter] = useState<string | null>(null)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
   const [pagina, setPagina] = useState(1)
+  const [entradaRange, setEntradaRange] = useState<DateRange>({ de: '', ate: '' })
+  const [contratadoRange, setContratadoRange] = useState<DateRange>({ de: '', ate: '' })
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -352,16 +453,18 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
       if (mostrarFiltroProduto && produtoQuickFiltro !== 'todos' && produtoQuickDoProcesso(p.modalidade) !== produtoQuickFiltro) {
         return false
       }
+      if (isConsorcio && !dentroDoRange(p.data_inicio, entradaRange)) return false
+      if (isConsorcio && !dentroDoRange(p.data_emissao, contratadoRange)) return false
       return Object.entries(colFilters).every(([col, val]) => {
         if (!val) return true
         const ext = EXTRACTORS[col]
         return ext ? ext(p) === val : true
       })
     })
-  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro])
+  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro, isConsorcio, entradaRange, contratadoRange])
 
   // Reset página ao mudar filtros
-  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters])
+  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters, entradaRange, contratadoRange])
 
   const totalValorFinanciado = useMemo(
     () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
@@ -384,6 +487,22 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   }, {} as Record<string, number>)
 
   const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
+
+  function formatarRange(range: DateRange): string {
+    if (range.de && range.ate) return `${fmtData(range.de)} — ${fmtData(range.ate)}`
+    if (range.de) return `a partir de ${fmtData(range.de)}`
+    return `até ${fmtData(range.ate)}`
+  }
+
+  const dateChips: Array<{ key: string; label: string; texto: string; clear: () => void }> = []
+  if (entradaRange.de || entradaRange.ate) {
+    dateChips.push({ key: 'entrada', label: 'Entrada', texto: formatarRange(entradaRange), clear: () => setEntradaRange({ de: '', ate: '' }) })
+  }
+  if (contratadoRange.de || contratadoRange.ate) {
+    dateChips.push({ key: 'contratado', label: 'Contratado em', texto: formatarRange(contratadoRange), clear: () => setContratadoRange({ de: '', ate: '' }) })
+  }
+  const totalFiltrosAtivos = activeFilters.length + dateChips.length
+
   const totalColunas = isContrato
     ? (12 + (isGestor ? 3 : 0))
     : isConsorcio
@@ -465,8 +584,20 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
           </span>
         ))}
 
-        {activeFilters.length > 1 && (
-          <button onClick={() => setColFilters({})} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1">
+        {dateChips.map((chip) => (
+          <span key={chip.key} className="flex items-center gap-1 px-2 py-0.5 bg-fonti-accent-hover text-fonti-primary text-xs rounded-full border border-fonti-accent">
+            <span className="opacity-60">{chip.label}:</span> {chip.texto}
+            <button onClick={chip.clear} className="ml-0.5 hover:text-red-500">
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+
+        {totalFiltrosAtivos > 1 && (
+          <button
+            onClick={() => { setColFilters({}); setEntradaRange({ de: '', ate: '' }); setContratadoRange({ de: '', ate: '' }) }}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
+          >
             Limpar tudo
           </button>
         )}
@@ -477,7 +608,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
         </Button>
       </div>
 
-      {activeFilters.length > 0 && (
+      {totalFiltrosAtivos > 0 && (
         <p className="text-xs text-gray-500">
           Mostrando <strong>{filteredProcessos.length}</strong> de {processos.length} processos
         </p>
@@ -519,10 +650,16 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                     <StaticHead>Valor do Crédito</StaticHead>
                     <FilterHead col="Banco"       {...filterProps}>Administradora</FilterHead>
                     <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
-                    <StaticHead>Entrada</StaticHead>
+                    <DateRangeHead
+                      col="Entrada" label="Entrada" range={entradaRange} setRange={setEntradaRange}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                    />
                     <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
                     <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
-                    <StaticHead>Contratado em</StaticHead>
+                    <DateRangeHead
+                      col="ContratadoEm" label="Contratado em" range={contratadoRange} setRange={setContratadoRange}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                    />
                     {isGestor && (
                       <>
                         <StaticHead>Comissão Comercial</StaticHead>
@@ -751,7 +888,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                   colSpan={isConsorcio ? 4 : 7}
                   className="px-2.5 py-2 text-right text-xs font-semibold text-gray-500 whitespace-nowrap"
                 >
-                  {activeFilters.length > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
+                  {totalFiltrosAtivos > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
                 </td>
                 <td className="px-2.5 py-2 text-xs font-bold text-fonti-primary whitespace-nowrap">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(isContrato ? totalValorContrato : totalValorFinanciado)}
