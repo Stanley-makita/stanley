@@ -204,9 +204,16 @@ async function vincularDocumentosRecentesPorTelefone(
   marcaAt?: Date,
   processo_id?: string,
 ): Promise<{ count: number; ids: string[] }> {
-  // pessoa_id pode não ter sido resolvido pelo chamador (ex: processo sem comprador
-  // com pessoa vinculada) — cai pra pessoa já associada à conversa (webhook garante
-  // que toda conversa tem pessoa_id assim que a primeira mídia/mensagem chega).
+  // Os documentos recém-enviados nesta conversa foram salvos (pelo webhook, fora
+  // do *fonti) com o pessoa_id resolvido pelo TELEFONE da conversa
+  // (buscarOuCriarPessoa) — não pelo pessoa_id do alvo que o operador só informa
+  // depois, via nome, no *fonti salva [nome]. Quando o alvo é um cliente já
+  // existente encontrado por nome (não pelo telefone desta conversa), o
+  // pessoa_id do documento quase nunca bate com o pessoa_id do alvo — buscar
+  // direto por `pessoa_id = pessoaIdEfetiva` (como antes) sempre dava zero
+  // resultado nesse caso. A busca tem que ser pela Pessoa REAL da conversa;
+  // o pessoa_id do alvo (parâmetro `pessoa_id`) só entra depois, pra corrigir
+  // o dono do documento quando for diferente.
   const { data: conversa } = await supabase
     .from('conversas')
     .select('pessoa_id')
@@ -216,8 +223,9 @@ async function vincularDocumentosRecentesPorTelefone(
     .limit(1)
     .maybeSingle()
 
-  const pessoaIdEfetiva = pessoa_id ?? conversa?.pessoa_id ?? null
-  if (!pessoaIdEfetiva) return { count: 0, ids: [] }
+  const pessoaDaConversa = conversa?.pessoa_id ?? null
+  const pessoaAlvo = pessoa_id ?? pessoaDaConversa
+  if (!pessoaDaConversa) return { count: 0, ids: [] }
 
   const entidadeTipo: 'lead' | 'processo' = processo_id ? 'processo' : 'lead'
   const entidadeId = processo_id ?? lead_id
@@ -234,7 +242,7 @@ async function vincularDocumentosRecentesPorTelefone(
     .select('id')
     .eq('empresa_id', empresa_id)
     .eq('dominio', 'acervo_documental')
-    .eq('pessoa_id', pessoaIdEfetiva)
+    .eq('pessoa_id', pessoaDaConversa)
     .is('deleted_at', null)
     .gte('recebido_em', limite.toISOString())
 
@@ -250,6 +258,14 @@ async function vincularDocumentosRecentesPorTelefone(
   const idsParaVincular = idsCandidatos.filter((id) => !idsComVinculo.has(id))
 
   if (idsParaVincular.length === 0) return { count: 0, ids: [] }
+
+  // Corrige o dono do documento quando o alvo (achado por nome) é uma Pessoa
+  // diferente da Pessoa provisória criada pelo telefone da conversa — sem isso
+  // o documento fica com o vínculo certo mas continua "pertencendo" à pessoa
+  // errada no resto do sistema (aba Documentos do cliente, etc.).
+  if (pessoaAlvo && pessoaAlvo !== pessoaDaConversa) {
+    await supabase.from('documentos').update({ pessoa_id: pessoaAlvo }).in('id', idsParaVincular)
+  }
 
   const { error } = await supabase
     .from('documento_vinculos')
