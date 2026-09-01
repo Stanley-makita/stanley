@@ -57,6 +57,26 @@ export async function POST(request: NextRequest) {
   const origens = ['whatsapp', 'instagram', 'facebook', 'site', 'indicacao', 'outros']
   const origem = origens.includes(source) ? source : 'outros'
 
+  // Canais que o usuário pode desligar em Configurações > Canais de Captação
+  // (whatsapp fica de fora — é o canal principal, tem seu próprio kill switch
+  // via bot_config.agente_ativo). Canal desativado: responde 200 sem criar
+  // lead, pra remetentes automáticos (site, Meta) não ficarem re-tentando.
+  const COLUNA_CANAL: Record<string, string> = {
+    site: 'site_ativo',
+    instagram: 'instagram_ativo',
+  }
+  const colunaCanal = COLUNA_CANAL[origem]
+  if (colunaCanal) {
+    const { data: canaisConfig } = await supabase
+      .from('canais_leads_config')
+      .select('site_ativo, instagram_ativo')
+      .eq('empresa_id', empresa_id)
+      .maybeSingle<Record<string, boolean>>()
+    if (canaisConfig && canaisConfig[colunaCanal] === false) {
+      return NextResponse.json({ success: true, ignored: true, motivo: 'canal_desativado' }, { status: 200 })
+    }
+  }
+
   // Buscar primeira fase (Novo) do módulo leads da empresa
   const { data: primeiraFase, error: faseError } = await supabase
     .from('fases')
