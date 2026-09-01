@@ -382,6 +382,10 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const isFinanciamento = produtoFixo === 'financiamento'
   const isContrato = produtoFixo === 'contrato'
   const isConsorcio = produtoFixo === 'consorcio'
+  // Rótulo da 2ª coluna de data ("data_emissao") varia por produto — o campo
+  // é o mesmo, mas o significado de negócio muda (contrato assinado x
+  // proposta de consórcio contratada x financiamento emitido).
+  const labelEmissao = isContrato ? 'Emitido em' : isConsorcio ? 'Contratado em' : 'Emitido em'
   const fasesFiltroAtivo = isRegistro
     ? FASES_REGISTRO_FILTROS
     : isFinanciamento
@@ -401,7 +405,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
   const [pagina, setPagina] = useState(1)
   const [entradaRange, setEntradaRange] = useState<DateRange>({ de: '', ate: '' })
-  const [contratadoRange, setContratadoRange] = useState<DateRange>({ de: '', ate: '' })
+  const [emissaoRange, setEmissaoRange] = useState<DateRange>({ de: '', ate: '' })
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -453,18 +457,18 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
       if (mostrarFiltroProduto && produtoQuickFiltro !== 'todos' && produtoQuickDoProcesso(p.modalidade) !== produtoQuickFiltro) {
         return false
       }
-      if (isConsorcio && !dentroDoRange(p.data_inicio, entradaRange)) return false
-      if (isConsorcio && !dentroDoRange(p.data_emissao, contratadoRange)) return false
+      if (!dentroDoRange(p.data_inicio, entradaRange)) return false
+      if (!dentroDoRange(p.data_emissao, emissaoRange)) return false
       return Object.entries(colFilters).every(([col, val]) => {
         if (!val) return true
         const ext = EXTRACTORS[col]
         return ext ? ext(p) === val : true
       })
     })
-  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro, isConsorcio, entradaRange, contratadoRange])
+  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro, entradaRange, emissaoRange])
 
   // Reset página ao mudar filtros
-  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters, entradaRange, contratadoRange])
+  useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters, entradaRange, emissaoRange])
 
   const totalValorFinanciado = useMemo(
     () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
@@ -498,8 +502,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   if (entradaRange.de || entradaRange.ate) {
     dateChips.push({ key: 'entrada', label: 'Entrada', texto: formatarRange(entradaRange), clear: () => setEntradaRange({ de: '', ate: '' }) })
   }
-  if (contratadoRange.de || contratadoRange.ate) {
-    dateChips.push({ key: 'contratado', label: 'Contratado em', texto: formatarRange(contratadoRange), clear: () => setContratadoRange({ de: '', ate: '' }) })
+  if (emissaoRange.de || emissaoRange.ate) {
+    dateChips.push({ key: 'emissao', label: labelEmissao, texto: formatarRange(emissaoRange), clear: () => setEmissaoRange({ de: '', ate: '' }) })
   }
   const totalFiltrosAtivos = activeFilters.length + dateChips.length
 
@@ -595,7 +599,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
 
         {totalFiltrosAtivos > 1 && (
           <button
-            onClick={() => { setColFilters({}); setEntradaRange({ de: '', ate: '' }); setContratadoRange({ de: '', ate: '' }) }}
+            onClick={() => { setColFilters({}); setEntradaRange({ de: '', ate: '' }); setEmissaoRange({ de: '', ate: '' }) }}
             className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
           >
             Limpar tudo
@@ -657,7 +661,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                     <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
                     <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
                     <DateRangeHead
-                      col="ContratadoEm" label="Contratado em" range={contratadoRange} setRange={setContratadoRange}
+                      col="ContratadoEm" label="Contratado em" range={emissaoRange} setRange={setEmissaoRange}
                       openFilter={openFilter} setOpenFilter={setOpenFilter} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                     />
                     {isGestor && (
@@ -679,7 +683,10 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                     <StaticHead>Valor Financiado</StaticHead>
                     <FilterHead col="Banco"       {...filterProps}>Banco</FilterHead>
                     <FilterHead col="Comercial"   {...filterProps}>Comercial</FilterHead>
-                    <StaticHead>Entrada</StaticHead>
+                    <DateRangeHead
+                      col="Entrada" label="Entrada" range={entradaRange} setRange={setEntradaRange}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                    />
                     <FilterHead col="Status"      {...filterProps}>Status</FilterHead>
                     <FilterHead col="Chance"      {...filterProps}>Chance</FilterHead>
                     <FilterHead col="Assessoria"  {...filterProps}>Assessoria</FilterHead>
@@ -688,7 +695,10 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                     <FilterHead col="Corretor"    {...filterProps}>Corretor</FilterHead>
                     <FilterHead col="Imobiliaria" {...filterProps}>Imobiliária/Construtora</FilterHead>
                     <FilterHead col="Parceiro"    {...filterProps}>Parceiro</FilterHead>
-                    <StaticHead>Emitido em</StaticHead>
+                    <DateRangeHead
+                      col="EmitidoEm" label={labelEmissao} range={emissaoRange} setRange={setEmissaoRange}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                    />
                     {isGestor && (
                       <>
                         <StaticHead>Comissão Comercial</StaticHead>
