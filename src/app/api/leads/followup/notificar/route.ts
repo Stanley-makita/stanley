@@ -25,7 +25,19 @@ async function buscarInstanciaToken(empresaId: string): Promise<string> {
   return data?.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
 }
 
+// Vercel Cron chama via GET (com o header Authorization: Bearer $CRON_SECRET
+// preenchido automaticamente) — o handler só existia como POST, então o
+// agendamento automático do vercel.json vinha recebendo 405 e nunca
+// executava de verdade. POST continua disponível pra chamada manual/teste.
+export async function GET(req: NextRequest) {
+  return processar(req)
+}
+
 export async function POST(req: NextRequest) {
+  return processar(req)
+}
+
+async function processar(req: NextRequest) {
   // Protege com CRON_SECRET para evitar chamadas externas
   const authHeader = req.headers.get('authorization') ?? ''
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
