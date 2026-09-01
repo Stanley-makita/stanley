@@ -51,6 +51,7 @@ interface FormCotaState {
   status_pagamento: StatusPagamentoCota
   data_vencimento: string
   proxima_assembleia_em: string
+  alerta_em: string
   informacao_adicional: string
 }
 
@@ -59,7 +60,7 @@ const FORM_VAZIO: FormCotaState = {
   tipo_parcela: 'linear', data_pagamento_boleto: '',
   valor_carta: '', valor_parcela: '', parcela_reduzida_percentual: '',
   prazo_cota_meses: '', prazo_grupo_meses: '', status_pagamento: 'em_dia',
-  data_vencimento: '', proxima_assembleia_em: '', informacao_adicional: '',
+  data_vencimento: '', proxima_assembleia_em: '', alerta_em: '', informacao_adicional: '',
 }
 
 function paraNumero(v: string): number | null {
@@ -84,6 +85,11 @@ function paraPayload(f: FormCotaState) {
     status_pagamento: f.status_pagamento,
     data_vencimento: f.data_vencimento || null,
     proxima_assembleia_em: f.proxima_assembleia_em || null,
+    // Sempre reseta a flag de "já alertado" ao salvar — se o usuário mudou a
+    // data de alerta (inclusive depois de já ter disparado uma vez), o cron
+    // deve avaliar de novo pra nova data.
+    alerta_em: f.alerta_em || null,
+    alerta_enviado_em: null,
     informacao_adicional: f.informacao_adicional || null,
   }
 }
@@ -135,6 +141,7 @@ export function ListaCotas({ processoId }: { processoId: string }) {
       status_pagamento: cota.status_pagamento,
       data_vencimento: cota.data_vencimento ?? '',
       proxima_assembleia_em: cota.proxima_assembleia_em ?? '',
+      alerta_em: cota.alerta_em ?? '',
       informacao_adicional: cota.informacao_adicional ?? '',
     })
     setEditandoId(cota.id)
@@ -267,6 +274,11 @@ export function ListaCotas({ processoId }: { processoId: string }) {
               <label className="text-xs text-gray-500">Próxima assembleia</label>
               <Input type="date" className="h-9 text-sm" value={form.proxima_assembleia_em} onChange={(e) => setForm((f) => ({ ...f, proxima_assembleia_em: e.target.value }))} />
             </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Alerta em</label>
+              <Input type="date" className="h-9 text-sm" value={form.alerta_em} onChange={(e) => setForm((f) => ({ ...f, alerta_em: e.target.value }))} />
+              <p className="text-[11px] text-gray-400">Estimativa de contemplação — avisa o comercial (sistema + WhatsApp) nessa data.</p>
+            </div>
             <div className="space-y-1 col-span-2 sm:col-span-4">
               <label className="text-xs text-gray-500">Informação adicional</label>
               <Input className="h-9 text-sm" value={form.informacao_adicional} onChange={(e) => setForm((f) => ({ ...f, informacao_adicional: e.target.value }))} />
@@ -295,15 +307,16 @@ export function ListaCotas({ processoId }: { processoId: string }) {
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Informação</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Status pagto</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Data venc.</th>
+              <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Alerta em</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Ação</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {isLoading && (
-              <tr><td colSpan={9} className="px-3 py-6 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400">Carregando...</td></tr>
             )}
             {!isLoading && cotas.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-6 text-center text-gray-300 italic">Nenhuma cota cadastrada ainda.</td></tr>
+              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-300 italic">Nenhuma cota cadastrada ainda.</td></tr>
             )}
             {cotas.map((c) => (
               <tr key={c.id} className="hover:bg-gray-50">
@@ -327,6 +340,13 @@ export function ListaCotas({ processoId }: { processoId: string }) {
                   </span>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtData(c.data_vencimento)}</td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {c.alerta_em ? (
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${c.alerta_enviado_em ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                      {fmtData(c.alerta_em)}{c.alerta_enviado_em ? ' · enviado' : ''}
+                    </span>
+                  ) : '—'}
+                </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <button

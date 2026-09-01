@@ -3,6 +3,10 @@
     {
       "path": "/api/leads/followup/notificar",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cotas/alerta-contemplacao",
+      "schedule": "5 9 * * *"
     }
   ]
 }
