@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { type Processo } from '@/types/processos'
 import { useProcessoCotas } from '@/hooks/processos/useProcessoCotas'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { ListaCotas } from '@/components/consorcio/ListaCotas'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Building2, Calendar, Wallet, Clock, MessageSquareText } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 
@@ -19,6 +21,7 @@ interface Props {
 
 export function AbaResumoConsorcio({ processo }: Props) {
   const { data: cotas = [] } = useProcessoCotas(processo.id)
+  const [justificativaAberta, setJustificativaAberta] = useState(false)
 
   const cotasValidas = cotas.filter((c) => c.status_cota === 'ativo' || c.status_cota === 'contemplado')
   const contratadoEmCotas = cotasValidas.reduce((soma, c) => soma + (c.valor_carta ?? 0), 0)
@@ -96,18 +99,33 @@ export function AbaResumoConsorcio({ processo }: Props) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => processo.justificativa_carta && setJustificativaAberta(true)}
+          disabled={!processo.justificativa_carta}
+          className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3 text-left transition-colors enabled:hover:border-fonti-primary/40 enabled:hover:bg-fonti-primary/[0.02] disabled:cursor-default"
+        >
           <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
             <MessageSquareText className="h-4 w-4 text-fonti-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-gray-500">Justificativa da Carta</p>
-            <p className="text-sm font-bold text-fonti-primary line-clamp-2" title={processo.justificativa_carta ?? undefined}>
+            <p className="text-sm font-bold text-fonti-primary line-clamp-2">
               {processo.justificativa_carta || '—'}
             </p>
           </div>
-        </div>
+        </button>
       </div>
+
+      {/* Modal com o texto completo — o card trunca em 2 linhas */}
+      <Dialog open={justificativaAberta} onOpenChange={setJustificativaAberta}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Justificativa da Carta</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{processo.justificativa_carta}</p>
+        </DialogContent>
+      </Dialog>
 
       {/* Lista de Cotas — centro operacional da tela */}
       <ListaCotas processoId={processo.id} />
