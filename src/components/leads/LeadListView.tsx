@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -132,6 +132,18 @@ function applyFilters(leads: Lead[], colFilters: Record<string, string>, fases: 
 }
 
 type DropdownPos = { top: number; left: number }
+type DateRange = { de: string; ate: string }
+
+// Data (string ISO, com ou sem horário) cai dentro do range se a parte
+// AAAA-MM-DD estiver entre "de" e "ate" (inclusive). Range vazio = sem filtro.
+function dentroDoRange(dataIso: string | null | undefined, range: DateRange): boolean {
+  if (!range.de && !range.ate) return true
+  if (!dataIso) return false
+  const dataOnly = dataIso.slice(0, 10)
+  if (range.de && dataOnly < range.de) return false
+  if (range.ate && dataOnly > range.ate) return false
+  return true
+}
 
 export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroEspecial }: Props) {
   const { pode } = usePermissao()
@@ -142,6 +154,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
   const [colFilters, setColFilters] = useState<Record<string, string>>({})
   const [openFilter, setOpenFilter] = useState<ColKey | null>(null)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
+  const [criadoEmRange, setCriadoEmRange] = useState<DateRange>({ de: '', ate: '' })
 
   const isInativos = filtroEspecial === 'inativos'
 
@@ -156,6 +169,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     : faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
 
   const leadsFiltrados = applyFilters(leadsBase, colFilters, fases)
+    .filter(l => dentroDoRange(l.created_at, criadoEmRange))
   const leads = sortLeads(leadsFiltrados, sortCol, sortDir, fases)
 
   const totalPorFase = todosLeads.reduce<Record<string, number>>((acc, l) => {
@@ -163,7 +177,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     return acc
   }, {})
 
-  const hasFilters = Object.values(colFilters).some(v => !!v)
+  const hasFilters = Object.values(colFilters).some(v => !!v) || !!(criadoEmRange.de || criadoEmRange.ate)
 
   function handleSort(col: ColKey) {
     if (sortCol === col) {
@@ -176,6 +190,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
 
   function clearAllFilters() {
     setColFilters({})
+    setCriadoEmRange({ de: '', ate: '' })
   }
 
   return (
@@ -324,7 +339,12 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
                     <ColHeader label="Proposta"         col="proposta"    active={sortCol} dir={sortDir} onSort={handleSort} />
-                    <ColHeader label="Criado em"        col="criado_em"   active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <DateRangeColHeader
+                      label="Criado em" col="criado_em" active={sortCol} dir={sortDir} onSort={handleSort}
+                      range={criadoEmRange} setRange={setCriadoEmRange}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                    />
                     {podeExcluir && <th className="w-10 px-2 py-3" />}
                   </tr>
                 </thead>
@@ -631,6 +651,128 @@ function ColHeader({
           : <ArrowUpDown className="h-3 w-3 opacity-40" />
         }
       </button>
+    </th>
+  )
+}
+
+// ─── DateRangeColHeader ─────────────────────────────────────────────────────
+// "Criado em" precisa continuar ordenável (clique no rótulo) e ganhar um
+// filtro por período — por isso não reaproveita o ColHeader genérico (que só
+// suporta um OU outro), é um header dedicado combinando os dois.
+
+function DateRangeColHeader({
+  label, col, active, dir, onSort,
+  range, setRange, openFilter, setOpenFilter, dropdownPos, setDropdownPos,
+}: {
+  label: string
+  col: ColKey
+  active: ColKey
+  dir: SortDir
+  onSort: (col: ColKey) => void
+  range: DateRange
+  setRange: (r: DateRange) => void
+  openFilter: ColKey | null
+  setOpenFilter: (col: ColKey | null) => void
+  dropdownPos: DropdownPos | null
+  setDropdownPos: (pos: DropdownPos | null) => void
+}) {
+  const isActive = active === col
+  const isFiltered = !!(range.de || range.ate)
+  const isOpen = openFilter === col
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [localDe, setLocalDe] = useState(range.de)
+  const [localAte, setLocalAte] = useState(range.ate)
+
+  useEffect(() => { setLocalDe(range.de); setLocalAte(range.ate) }, [range.de, range.ate])
+
+  function handleOpen(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (isOpen) {
+      setOpenFilter(null)
+      setDropdownPos(null)
+    } else {
+      const rect = btnRef.current?.getBoundingClientRect()
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      setOpenFilter(col)
+    }
+  }
+
+  function aplicar() {
+    setRange({ de: localDe, ate: localAte })
+    setOpenFilter(null)
+    setDropdownPos(null)
+  }
+
+  function limpar(e: React.MouseEvent) {
+    e.stopPropagation()
+    setLocalDe('')
+    setLocalAte('')
+    setRange({ de: '', ate: '' })
+  }
+
+  return (
+    <th className="px-3 py-2 whitespace-nowrap text-left">
+      <div className="inline-flex items-center gap-1">
+        <button
+          onClick={() => onSort(col)}
+          className={cn(
+            'inline-flex items-center gap-1 text-xs font-medium transition-colors select-none',
+            isActive ? 'text-white' : 'text-white/80 hover:text-white',
+          )}
+        >
+          {label}
+          {isActive
+            ? dir === 'asc'
+              ? <ArrowUp className="h-3 w-3" />
+              : <ArrowDown className="h-3 w-3" />
+            : <ArrowUpDown className="h-3 w-3 opacity-40" />
+          }
+        </button>
+        <button
+          ref={btnRef}
+          onClick={handleOpen}
+          className={cn('inline-flex items-center transition-colors', isFiltered ? 'text-white' : 'text-white/60 hover:text-white')}
+        >
+          <Filter className="h-3 w-3" />
+        </button>
+        {isFiltered && (
+          <button onClick={limpar} className="text-white/70 hover:text-red-200 transition-colors">
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+
+      {isOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+          className="w-56 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-3 space-y-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-1">
+            <label className="text-[11px] text-gray-400">De</label>
+            <input
+              type="date"
+              className="w-full h-7 text-xs border border-gray-200 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-fonti-primary"
+              value={localDe}
+              onChange={(e) => setLocalDe(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] text-gray-400">Até</label>
+            <input
+              type="date"
+              className="w-full h-7 text-xs border border-gray-200 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-fonti-primary"
+              value={localAte}
+              onChange={(e) => setLocalAte(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <button onClick={limpar} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Limpar</button>
+            <button onClick={aplicar} className="text-xs px-2.5 py-1 rounded-lg bg-fonti-primary text-white hover:bg-fonti-primary-hover transition-colors">Aplicar</button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </th>
   )
 }
