@@ -169,6 +169,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
           const active = pathname === href || pathname.startsWith(href + '/')
           const isAgenda = href === '/agenda'
           const isConversas = href === '/conversas'
+          const isOperacional = href === '/operacional'
           return (
             <div key={href} className={cn('relative', mobileHidden && 'hidden lg:block')}>
               <Link href={href} onClick={onNavigate} className={linkCls(active)} title={collapsed ? label : undefined}>
@@ -183,6 +184,11 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
               {isConversas && conversasBadge > 0 && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-[16px] rounded-full bg-fonti-accent text-fonti-primary text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none">
                   {conversasBadge > 99 ? '99+' : conversasBadge}
+                </span>
+              )}
+              {isOperacional && operacionalBadge > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] rounded-full bg-fonti-accent text-fonti-primary text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none">
+                  {operacionalBadge > 99 ? '99+' : operacionalBadge}
                 </span>
               )}
             </div>

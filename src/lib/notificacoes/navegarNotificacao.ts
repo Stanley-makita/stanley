@@ -25,8 +25,11 @@ export function resolverRotaNotificacao(
       // Compromisso não tem deep-link próprio (é autocontido, sem modal de
       // detalhe) — só leva pra Agenda, onde ele já aparece na lista/calendário.
       return '/agenda'
+    case 'solicitacao':
+      // Sem deep-link por item ainda — leva pra Fila Operacional, onde a
+      // solicitação já aparece na coluna "Novo" (mesmo padrão de 'compromisso').
+      return '/operacional'
     default:
-      // 'solicitacao' ainda não tem deep-link próprio na UI — sem rota até existir.
       return null
   }
 }
