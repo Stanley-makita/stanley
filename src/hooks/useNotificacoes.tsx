@@ -89,10 +89,11 @@ export function useNotificacoesRealtimeSync() {
           const keys = INVALIDACOES_POR_TIPO[nova.tipo] ?? []
           keys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }))
 
-          // chamada_recebida usa o card flutuante persistente (ChamadasFlutuantes), não
-          // o toast — toast some sozinho em alguns segundos e não reaparece se o
-          // atendente estiver longe da tela no momento da ligação.
+          // chamada_recebida e solicitação nova/devolvida usam card flutuante persistente
+          // (ChamadasFlutuantes / SolicitacoesFlutuantes), não o toast — toast some sozinho
+          // em alguns segundos e não reaparece se o destinatário estiver longe da tela.
           if (nova.tipo === 'chamada_recebida') return
+          if (nova.tipo === 'solicitacao_atribuida' || nova.tipo === 'solicitacao_retorno') return
 
           const meta = NOTIFICACAO_META[nova.tipo]
           const severidade = nova.severidade ?? meta.severidadePadrao

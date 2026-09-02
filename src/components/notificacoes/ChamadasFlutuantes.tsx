@@ -23,8 +23,10 @@ export function ChamadasFlutuantes() {
 
   if (chamadas.length === 0) return null
 
+  // Sem wrapper `fixed` próprio — empilhado junto com SolicitacoesFlutuantes num
+  // único container posicionado em ProtectedShell (ver FlutuantesContainer).
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-[320px] max-w-[calc(100vw-2rem)]">
+    <>
       {chamadas.map((chamada) => (
         <div
           key={chamada.id}
@@ -65,6 +67,6 @@ export function ChamadasFlutuantes() {
           </button>
         </div>
       ))}
-    </div>
+    </>
   )
 }

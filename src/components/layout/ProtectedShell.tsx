@@ -6,6 +6,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import { RouteGuard } from '@/components/layout/RouteGuard'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { ChamadasFlutuantes } from '@/components/notificacoes/ChamadasFlutuantes'
+import { SolicitacoesFlutuantes } from '@/components/notificacoes/SolicitacoesFlutuantes'
 import { useNotificacoesRealtimeSync } from '@/hooks/useNotificacoes'
 
 export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNode; initialLogoUrl?: string | null }) {
@@ -53,7 +54,13 @@ export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNo
         </main>
       </div>
 
-      <ChamadasFlutuantes />
+      {/* Container único das notificações flutuantes (chamada + solicitação) — cada
+          componente só renderiza seus próprios cards, o empilhamento/posição fica
+          aqui pra eles nunca se sobreporem quando os dois aparecem ao mesmo tempo. */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-[320px] max-w-[calc(100vw-2rem)]">
+        <ChamadasFlutuantes />
+        <SolicitacoesFlutuantes />
+      </div>
     </div>
   )
 }
