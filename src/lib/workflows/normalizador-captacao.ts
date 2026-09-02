@@ -35,6 +35,10 @@ export interface DadosCaptacaoNormalizados {
   // Campos do Workflow de Consulta Comercial (*simula)
   prazo_meses:           number | null   // 120–420; null = usar máximo do banco
   tipo_amortizacao:      'SAC' | 'PRICE' // padrão: 'SAC' — usado quando o banco não tem entrada em amortizacao_por_banco
+  // true quando "SAC e PRICE" foi pedido sem amarrar a um banco específico — motor-simulacao.ts
+  // simula AMBAS as tabelas em cada banco sem entrada em amortizacao_por_banco (ver tipos.ts,
+  // InputFinanciamento.tipoAmortizacaoAmbas).
+  tipo_amortizacao_ambas: boolean
   // Amortização específica por banco, só preenchido quando o usuário pediu amortizações
   // diferentes por banco na mesma mensagem (ex.: "Itaú sac, Caixa sac e price"). Bancos
   // ausentes do mapa usam `tipo_amortizacao` (o padrão/global) como fallback. A Caixa já
@@ -478,10 +482,19 @@ export function normalizarDadosCaptacao(
     prazoMeses = p >= 120 && p <= 420 ? p : null
   }
 
-  // Amortização: SAC por padrão
+  // Amortização: SAC por padrão. Quando o texto pede "SAC e PRICE" sem amarrar a um banco
+  // específico (não existe entrada em amortizacao_por_banco_raw), o pedido é ambíguo demais
+  // pra escolher uma tabela só — sinaliza tipo_amortizacao_ambas pro motor simular AMBAS em
+  // cada banco pedido, em vez de descartar silenciosamente uma delas (bug real: "Bradesco,
+  // Santander, tabela sac e price" devolvia só PRICE, e o Santander — que não tem PRICE —
+  // saía inelegível inteiro, mesmo tendo SAC disponível).
   const tipoAmortizacaoRaw = (raw.tipo_amortizacao_raw ?? '').toUpperCase()
-  const tipoAmortizacao: 'SAC' | 'PRICE' =
-    tipoAmortizacaoRaw.includes('PRICE') ? 'PRICE' : 'SAC'
+  const semAmortizacaoPorBanco = !raw.amortizacao_por_banco_raw || raw.amortizacao_por_banco_raw.length === 0
+  const tipoAmortizacaoAmbas =
+    tipoAmortizacaoRaw.includes('SAC') && tipoAmortizacaoRaw.includes('PRICE') && semAmortizacaoPorBanco
+  const tipoAmortizacao: 'SAC' | 'PRICE' = tipoAmortizacaoAmbas
+    ? 'SAC'
+    : tipoAmortizacaoRaw.includes('PRICE') ? 'PRICE' : 'SAC'
 
   // Correntista: qualquer relacionamento bancário ativa a flag
   const correntista = !!raw.relacionamento_bancario
@@ -544,6 +557,7 @@ export function normalizarDadosCaptacao(
     solicitar_simulacao: raw.solicitar_simulacao === true,
     prazo_meses:         prazoMeses,
     tipo_amortizacao:    tipoAmortizacao,
+    tipo_amortizacao_ambas: tipoAmortizacaoAmbas,
     amortizacao_por_banco: amortizacaoPorBanco,
     correntista,
     produto:             raw.produto?.trim() ?? null,

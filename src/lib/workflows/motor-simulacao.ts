@@ -126,8 +126,10 @@ export function resolverBancos(dados: DadosCaptacaoNormalizados): BancoId[] {
       ? (TODOS_BANCOS as BancoId[])
       : (dados.bancos_ids as BancoId[])
 
-  // PRICE sem banco específico → usar apenas bancos habilitados para PRICE
-  if (dados.tipo_amortizacao === 'PRICE' && (dados.todos_bancos || dados.bancos_ids.length === 0)) {
+  // PRICE sem banco específico → usar apenas bancos habilitados para PRICE. Não se aplica
+  // quando tipo_amortizacao_ambas (SAC+PRICE pedidos juntos, sem banco) — aí todos os bancos
+  // entram, cada um simulado nas tabelas que suportar (ver simularTodosBancos).
+  if (dados.tipo_amortizacao === 'PRICE' && !dados.tipo_amortizacao_ambas && (dados.todos_bancos || dados.bancos_ids.length === 0)) {
     bancosIds = BANCOS_PRICE as BancoId[]
   }
   return bancosIds
@@ -254,6 +256,7 @@ export async function executarSimulacao(
     rendaInformada: !semRenda,
     idadeEstimada: dados.usou_idade_aproximada || dados.idade_assumida_prazo_maximo,
     tipoAmortizacao: dados.tipo_amortizacao,
+    tipoAmortizacaoAmbas: dados.tipo_amortizacao_ambas || undefined,
     amortizacaoPorBanco: Object.keys(dados.amortizacao_por_banco).length > 0
       ? dados.amortizacao_por_banco
       : undefined,
