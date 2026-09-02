@@ -1139,6 +1139,7 @@ export function simularTodosBancos(
 
     // Amortização específica deste banco (ex.: "Itaú sac, Caixa sac e price") — a Caixa
     // ignora isso porque `simularCaixaDuplo` já sempre gera SAC+PRICE independentemente.
+    const temOverridePorBanco = inputNorm.amortizacaoPorBanco?.[id] != null
     const amortizacaoDoBanco = inputNorm.amortizacaoPorBanco?.[id] ?? inputNorm.tipoAmortizacao
     const inputBanco = amortizacaoDoBanco === inputNorm.tipoAmortizacao
       ? inputNorm
@@ -1152,6 +1153,17 @@ export function simularTodosBancos(
         ...r,
         observacao: [r.observacao, observacao].filter(Boolean).join(' ') || undefined,
       })))
+    } else if (inputNorm.tipoAmortizacaoAmbas && !temOverridePorBanco) {
+      // SAC e PRICE pedidos juntos, sem banco específico (ex.: "Bradesco, Santander, tabela
+      // sac e price") — roda as duas tabelas pra este banco em vez de escolher uma só. Um
+      // banco sem PRICE parametrizado (ex.: Santander) sai inelegível SÓ nessa combinação —
+      // o SAC dele continua elegível normalmente, em vez do banco inteiro sumir da resposta.
+      const resultadoSac   = simularBanco(id, { ...inputNorm, tipoAmortizacao: 'SAC' }, ov)
+      const resultadoPrice = simularBanco(id, { ...inputNorm, tipoAmortizacao: 'PRICE' }, ov)
+      todos.push(
+        { ...resultadoSac,   resultadoId: `${resultadoSac.resultadoId}-sac`,   observacao },
+        { ...resultadoPrice, resultadoId: `${resultadoPrice.resultadoId}-price`, observacao },
+      )
     } else {
       todos.push({ ...simularBanco(id, inputBanco, ov), observacao })
     }

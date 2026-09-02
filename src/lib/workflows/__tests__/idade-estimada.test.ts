@@ -27,6 +27,7 @@ function baseDados(overrides: Partial<DadosCaptacaoNormalizados>): DadosCaptacao
     solicitar_simulacao: true,
     prazo_meses: null,
     tipo_amortizacao: 'SAC',
+    tipo_amortizacao_ambas: false,
     amortizacao_por_banco: {},
     correntista: false,
     produto: null,

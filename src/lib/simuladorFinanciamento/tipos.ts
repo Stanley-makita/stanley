@@ -46,6 +46,12 @@ export interface InputFinanciamento {
   // diferentes por banco (ex.: "Itaú sac, Caixa sac e price"). Um banco ausente do mapa
   // usa `tipoAmortizacao` (o padrão/global) como fallback. Lido só em simularTodosBancos.
   amortizacaoPorBanco?: Partial<Record<BancoId, TipoAmortizacao>>
+  // true quando o pedido menciona SAC e PRICE juntos sem amarrar a nenhum banco específico
+  // (ex.: "Tabela sac e price" solto, com Bradesco e Santander pedidos) — simularTodosBancos
+  // roda CADA banco sem entrada em `amortizacaoPorBanco` nas duas tabelas (2 resultados por
+  // banco), em vez de escolher uma só. Um banco que não suportar PRICE aparece inelegível
+  // só nessa combinação, sem descartar o SAC dele (que continua elegível normalmente).
+  tipoAmortizacaoAmbas?: boolean
   correntista: boolean
   bancosIds: BancoId[]
   nomeCliente?: string
