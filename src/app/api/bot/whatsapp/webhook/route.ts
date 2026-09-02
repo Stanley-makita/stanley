@@ -267,7 +267,23 @@ export async function POST(request: NextRequest) {
       .eq('ativo', true)
       .maybeSingle()
 
-    if (!instanciaCall || !instanciaCall.atendente_id) {
+    // Roteia pro atendente que está de fato na conversa deste cliente (conversas.atendente_id
+    // — atribuído ao "Assumir"/"Transferir", ver ConversasPage), não sempre pro atendente
+    // padrão da instância. Vários operacionais atendendo pelo mesmo número de WhatsApp
+    // recebem, cada um, só as ligações dos clientes que eles mesmos estão atendendo; sem
+    // conversa (ou sem atendente atribuído ainda) cai no padrão da instância, como antes.
+    const { data: conversaCall } = instanciaCall
+      ? await supabase
+          .from('conversas')
+          .select('atendente_id')
+          .eq('empresa_id', instanciaCall.empresa_id)
+          .eq('canal', 'whatsapp')
+          .eq('contato_telefone', callerPhone)
+          .maybeSingle()
+      : { data: null }
+    const usuarioDestinoCall = conversaCall?.atendente_id ?? instanciaCall?.atendente_id ?? null
+
+    if (!instanciaCall || !usuarioDestinoCall) {
       console.warn('[whatsapp-webhook] chamada recebida mas instância/atendente não resolvidos, ignorando. token:', callToken)
       return NextResponse.json({ ok: true })
     }
@@ -295,7 +311,7 @@ export async function POST(request: NextRequest) {
       const { data: sessaoAberta } = await supabase
         .from('notificacoes')
         .select('id, dados_json')
-        .eq('usuario_id', instanciaCall.atendente_id)
+        .eq('usuario_id', usuarioDestinoCall)
         .eq('tipo', 'chamada_recebida')
         .eq('origem', 'whatsapp_call')
         .eq('mensagem', callerPhone)
@@ -337,7 +353,7 @@ export async function POST(request: NextRequest) {
 
         const { error: erroNotifCall } = await supabase.from('notificacoes').insert({
           empresa_id: instanciaCall.empresa_id,
-          usuario_id: instanciaCall.atendente_id,
+          usuario_id: usuarioDestinoCall,
           tipo: 'chamada_recebida',
           titulo: nomeClienteCall ? `📞 Ligação (WhatsApp) de ${nomeClienteCall}` : '📞 Ligação recebida (WhatsApp)',
           mensagem: callerPhone,

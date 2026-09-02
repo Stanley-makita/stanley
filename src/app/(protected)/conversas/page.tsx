@@ -694,16 +694,26 @@ export default function ConversasPage() {
 
   const assumir = useMutation({
     mutationFn: async (id: string) => {
+      // Grava atendente_id só quando ainda estava vazio — nunca sobrescreve uma
+      // transferência/atribuição já feita. Sem isso, "Assumir" desligava o bot mas
+      // não registrava quem passou a responder, e a ligação de voz do WhatsApp
+      // (chamada_recebida) não tinha como saber pra quem rotear o aviso.
+      const patch: { bot_ativo: boolean; status: 'humano'; atendente_id?: string } =
+        { bot_ativo: false, status: 'humano' }
+      if (usuario?.id && !conversaSelecionada?.atendente_id) {
+        patch.atendente_id = usuario.id
+      }
       const { error } = await supabase
         .from('conversas')
-        .update({ bot_ativo: false, status: 'humano' })
+        .update(patch)
         .eq('id', id)
       if (error) throw error
+      return patch
     },
-    onSuccess: () => {
+    onSuccess: (patch) => {
       qc.invalidateQueries({ queryKey: ['conversas'] })
       if (conversaSelecionada) {
-        setConversaSelecionada({ ...conversaSelecionada, bot_ativo: false, status: 'humano' })
+        setConversaSelecionada({ ...conversaSelecionada, ...patch })
       }
       toast.success('Você assumiu a conversa. Bot desativado.')
     },
