@@ -340,6 +340,7 @@ export default function ConversasPage() {
         .select('*')
         .eq('conversa_id', conversaSelecionada!.id)
         .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
       if (error) throw error
       return data as Mensagem[]
     },
@@ -1336,7 +1337,7 @@ export default function ConversasPage() {
                   <div
                     onClick={() => modoSelecao && alternarSelecionada(m.id)}
                     className={cn(
-                      'relative max-w-[65%] rounded-2xl text-sm leading-snug overflow-hidden transition-shadow',
+                      'relative max-w-[65%] shrink-0 rounded-2xl text-sm leading-snug overflow-hidden transition-shadow',
                       modoSelecao && 'cursor-pointer',
                       selecionada && 'ring-2 ring-fonti-primary',
                       mensagemDestacada === m.id && 'ring-2 ring-amber-400',
@@ -1464,7 +1465,7 @@ export default function ConversasPage() {
 
                     {/* Texto (inclui captions de mídia; oculta placeholders [xxx]) */}
                     {m.conteudo && !m.conteudo.match(/^\[.+\]$/) && (
-                      <p className="px-3 py-2 whitespace-pre-wrap">{m.conteudo}</p>
+                      <p className="px-3 py-2 whitespace-pre-wrap break-words">{m.conteudo}</p>
                     )}
 
                     <p className="text-[10px] opacity-60 text-right px-3 pb-1.5">
