@@ -1325,8 +1325,12 @@ export default function ConversasPage() {
                   )}
 
                   {/* Wrapper sem overflow-hidden — os badges (seleção, reação) ficam
-                      parcialmente fora da bolha e não podem ser cortados por ela */}
-                  <div className="relative">
+                      parcialmente fora da bolha e não podem ser cortados por ela.
+                      max-w-[65%]/shrink-0 ficam aqui (o item flex de fato da linha),
+                      não na bolha — uma % de largura na bolha resolveria contra a
+                      largura deste wrapper, que é indefinida (baseada em conteúdo),
+                      e isso é o que colapsava o texto letra-por-letra. */}
+                  <div className="relative shrink-0 max-w-[65%]">
                     {/* Checkbox de seleção (bolhas próprias, do lado direito) */}
                     {modoSelecao && !ehCliente && (
                       <div className="absolute -left-6 top-1/2 -translate-y-1/2 text-fonti-primary">
@@ -1337,7 +1341,7 @@ export default function ConversasPage() {
                   <div
                     onClick={() => modoSelecao && alternarSelecionada(m.id)}
                     className={cn(
-                      'relative max-w-[65%] shrink-0 rounded-2xl text-sm leading-snug overflow-hidden transition-shadow',
+                      'relative rounded-2xl text-sm leading-snug overflow-hidden transition-shadow',
                       modoSelecao && 'cursor-pointer',
                       selecionada && 'ring-2 ring-fonti-primary',
                       mensagemDestacada === m.id && 'ring-2 ring-amber-400',
