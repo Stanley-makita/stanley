@@ -83,3 +83,34 @@ export function planejarSalvamento(
 
   return { upserts, deletes }
 }
+
+export interface PlanoDeSalvamentoCustomizado {
+  upserts: { acao: Acao; permitido: boolean }[]
+  deletes: Acao[]
+}
+
+/**
+ * Equivalente a planejarSalvamento, mas para perfil customizado — sem
+ * PERMISSOES_PADRAO como referência de "padrão", porque perfil customizado
+ * não tem padrão do sistema (nasce sempre em branco). Regra: true sempre
+ * upsert; false só gera delete se já existia uma linha no banco (evita
+ * escrever uma linha redundante quando nunca existiu override).
+ */
+export function planejarSalvamentoCustomizado(
+  pendentes: Partial<Record<Acao, boolean>>,
+  acoesComLinhaNoBanco: Set<Acao>,
+): PlanoDeSalvamentoCustomizado {
+  const upserts: { acao: Acao; permitido: boolean }[] = []
+  const deletes: Acao[] = []
+
+  for (const [acaoStr, permitido] of Object.entries(pendentes)) {
+    const acao = acaoStr as Acao
+    if (permitido) {
+      upserts.push({ acao, permitido: true })
+    } else if (acoesComLinhaNoBanco.has(acao)) {
+      deletes.push(acao)
+    }
+  }
+
+  return { upserts, deletes }
+}
