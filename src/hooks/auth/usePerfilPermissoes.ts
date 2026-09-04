@@ -14,7 +14,10 @@ export { resolverPermissao, construirMapaOverrides, construirMapaOverridesUsuari
 
 export function usePerfilPermissoes() {
   const { usuario } = useAuth()
+  const ehCustomizado = usuario?.perfil === 'customizado'
 
+  // Perfis fixos: overrides de perfil_permissoes (só roda quando NÃO é
+  // customizado — evita ir a uma tabela que não tem nada útil pra esse caso).
   const query = useQuery({
     queryKey: ['perfil-permissoes', usuario?.empresa_id],
     queryFn: async (): Promise<OverrideRow[]> => {
@@ -25,7 +28,28 @@ export function usePerfilPermissoes() {
       if (error) throw error
       return data ?? []
     },
-    enabled: !!usuario,
+    enabled: !!usuario && !ehCustomizado,
+    staleTime: 60_000,
+  })
+
+  // Perfil customizado: overrides de perfil_customizado_permissoes, remapeados
+  // para o mesmo formato de chave `customizado:${id}:${acao}` que
+  // resolverPermissao espera (ver permissaoResolver.ts).
+  const queryCustomizado = useQuery({
+    queryKey: ['perfil-customizado-permissoes', usuario?.perfil_customizado_id],
+    queryFn: async (): Promise<OverrideRow[]> => {
+      const { data, error } = await supabase
+        .from('perfil_customizado_permissoes')
+        .select('acao, permitido')
+        .eq('perfil_customizado_id', usuario!.perfil_customizado_id!)
+      if (error) throw error
+      return (data ?? []).map((row) => ({
+        perfil: `customizado:${usuario!.perfil_customizado_id}`,
+        acao: row.acao,
+        permitido: row.permitido,
+      }))
+    },
+    enabled: !!usuario && ehCustomizado && !!usuario.perfil_customizado_id,
     staleTime: 60_000,
   })
 
@@ -46,17 +70,17 @@ export function usePerfilPermissoes() {
     staleTime: 60_000,
   })
 
-  const overrides = construirMapaOverrides(query.data ?? [])
+  const overrides = construirMapaOverrides(ehCustomizado ? (queryCustomizado.data ?? []) : (query.data ?? []))
   const overridesUsuario = construirMapaOverridesUsuario(queryIndividual.data ?? [])
 
   function pode(acao: Acao): boolean {
     if (!usuario) return false
-    return resolverPermissao(usuario.perfil, acao, overrides, overridesUsuario)
+    return resolverPermissao(usuario.perfil, acao, overrides, overridesUsuario, usuario.perfil_customizado_id)
   }
 
   return {
     pode,
-    carregando: query.isLoading || queryIndividual.isLoading,
-    erro: query.error ?? queryIndividual.error,
+    carregando: query.isLoading || queryCustomizado.isLoading || queryIndividual.isLoading,
+    erro: query.error ?? queryCustomizado.error ?? queryIndividual.error,
   }
 }
