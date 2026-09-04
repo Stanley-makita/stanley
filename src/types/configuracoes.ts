@@ -41,6 +41,9 @@ export const PERFIL_LABELS: Record<UsuarioPerfil, string> = {
   analista:    'Analista',
   consultor:   'Consultor',
   cliente:     'Cliente',
+  // perfil customizado — o nome real vem de perfis_acesso.nome; este label só
+  // aparece se, por algum motivo, o nome customizado não puder ser resolvido
+  customizado: 'Personalizado',
 }
 
 export const PERFIL_CORES: Record<UsuarioPerfil, string> = {
@@ -56,6 +59,9 @@ export const PERFIL_CORES: Record<UsuarioPerfil, string> = {
   analista:    'bg-blue-100 text-blue-800',
   consultor:   'bg-purple-100 text-purple-800',
   cliente:     'bg-gray-100 text-gray-700',
+  // perfil customizado — cor neutra fixa (não há como prever quantos perfis
+  // customizados vão existir para dar uma cor própria a cada um)
+  customizado: 'bg-slate-100 text-slate-700',
 }
 
 /**

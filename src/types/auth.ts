@@ -1,6 +1,18 @@
 export type UsuarioPerfil =
   | 'admin' | 'gerente' | 'analista' | 'consultor' | 'cliente'
   | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'assistente'
+  | 'customizado'
+
+/** Perfil de acesso criado pelo admin pela tela (além dos 7 fixos). */
+export interface PerfilAcesso {
+  id: string
+  empresa_id: string
+  nome: string
+  ativo: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface Usuario {
   id: string
@@ -9,6 +21,7 @@ export interface Usuario {
   nome: string
   email: string
   perfil: UsuarioPerfil
+  perfil_customizado_id: string | null
   cargo_id: string | null
   ativo: boolean
   notificar_leads_aprovados_pendentes: boolean
@@ -22,6 +35,7 @@ export interface Convite {
   empresa_id: string
   email: string
   perfil: UsuarioPerfil
+  perfil_customizado_id: string | null
   token: string
   criado_por: string
   aceito_em: string | null
@@ -33,6 +47,7 @@ export interface SessaoUsuario {
   id: string
   empresa_id: string
   perfil: UsuarioPerfil
+  perfil_customizado_id: string | null
   nome: string
   email: string
   ativo: boolean

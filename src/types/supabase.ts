@@ -31,6 +31,7 @@ export type Database = {
           telefone_whatsapp: string | null
           avatar_url: string | null
           perfil: Database['public']['Enums']['usuario_perfil']
+          perfil_customizado_id: string | null
           tipo_usuario: Database['public']['Enums']['usuario_tipo']
           funcao: string | null
           cargo_id: string | null
@@ -42,7 +43,7 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'created_at' | 'updated_at' | 'telefone' | 'telefone_whatsapp' | 'avatar_url' | 'token_telefonia' | 'ultimo_acesso' | 'motivo_exclusao' | 'deleted_at'> & {
+        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'created_at' | 'updated_at' | 'telefone' | 'telefone_whatsapp' | 'avatar_url' | 'token_telefonia' | 'ultimo_acesso' | 'motivo_exclusao' | 'deleted_at' | 'perfil_customizado_id'> & {
           telefone?: string | null
           telefone_whatsapp?: string | null
           avatar_url?: string | null
@@ -50,6 +51,7 @@ export type Database = {
           ultimo_acesso?: string | null
           motivo_exclusao?: string | null
           deleted_at?: string | null
+          perfil_customizado_id?: string | null
         }
         Update: Partial<Database['public']['Tables']['usuarios']['Insert']>
       }
@@ -129,7 +131,7 @@ export type Database = {
       }
     }
     Enums: {
-      usuario_perfil: 'admin' | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'assistente' | 'gerente' | 'analista' | 'consultor' | 'cliente'
+      usuario_perfil: 'admin' | 'gestor' | 'comercial' | 'operacional' | 'juridico' | 'apoio' | 'assistente' | 'gerente' | 'analista' | 'consultor' | 'cliente' | 'customizado'
       usuario_tipo: 'interno' | 'externo'
     }
   }
