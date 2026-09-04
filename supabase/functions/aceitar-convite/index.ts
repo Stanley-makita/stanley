@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
         nome: nome,
         email: convite.email,
         perfil: convite.perfil,
+        perfil_customizado_id: convite.perfil_customizado_id,
         ativo: true,
       })
 

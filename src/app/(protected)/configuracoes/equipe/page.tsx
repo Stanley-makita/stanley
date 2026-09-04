@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { type Usuario } from '@/types/auth'
 import { ConviteFormDrawer } from '@/components/auth/ConviteFormDrawer'
 import { UsuarioPerfilBadge } from '@/components/auth/UsuarioPerfilBadge'
+import { usePerfisCustomizados } from '@/app/(protected)/configuracoes/_hooks/usePerfisCustomizados'
 import { useConvites, useCancelarConvite } from '@/hooks/auth/useConvites'
 import { usePermissao } from '@/lib/auth/guards'
 import {
@@ -89,6 +90,8 @@ export default function EquipePage() {
   const { pode } = usePermissao()
   const { data: usuarios, isLoading: loadingUsuarios } = useUsuariosEquipe()
   const { data: convites, isLoading: loadingConvites } = useConvites()
+  const { data: perfisCustomizados = [] } = usePerfisCustomizados()
+  const nomePerfilCustomizado = (id: string | null) => perfisCustomizados.find((p) => p.id === id)?.nome ?? null
   const alternarAtivo = useAlternarAtivo()
   const alternarNotificarLeadsAprovados = useAlternarNotificarLeadsAprovados()
   const cancelarConvite = useCancelarConvite()
@@ -153,7 +156,7 @@ export default function EquipePage() {
                       <TableCell className="font-medium text-fonti-primary">{u.nome}</TableCell>
                       <TableCell className="text-gray-600">{u.email}</TableCell>
                       <TableCell>
-                        <UsuarioPerfilBadge perfil={u.perfil} />
+                        <UsuarioPerfilBadge perfil={u.perfil} nomeCustomizado={nomePerfilCustomizado(u.perfil_customizado_id)} />
                       </TableCell>
                       <TableCell className="text-gray-500 text-sm">
                         {u.ultimo_acesso
@@ -219,7 +222,7 @@ export default function EquipePage() {
                       <TableRow key={c.id}>
                         <TableCell className="text-fonti-primary">{c.email}</TableCell>
                         <TableCell>
-                          <UsuarioPerfilBadge perfil={c.perfil} />
+                          <UsuarioPerfilBadge perfil={c.perfil} nomeCustomizado={nomePerfilCustomizado(c.perfil_customizado_id)} />
                         </TableCell>
                         <TableCell>
                           {expirado ? (

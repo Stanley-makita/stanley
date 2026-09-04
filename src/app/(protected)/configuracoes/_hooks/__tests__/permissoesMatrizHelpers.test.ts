@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { aplicarToggle, planejarSalvamento } from '../permissoesMatrizHelpers'
+import { aplicarToggle, planejarSalvamento, planejarSalvamentoCustomizado } from '../permissoesMatrizHelpers'
 import { MODULOS } from '@/lib/auth/modulos'
 import { construirMapaOverrides } from '@/hooks/auth/permissaoResolver'
+import { type Acao } from '@/types/auth'
 
 const moduloLeads = MODULOS.find((m) => m.key === 'leads')!
 const moduloDashboard = MODULOS.find((m) => m.key === 'dashboard')!
@@ -128,5 +129,30 @@ describe('planejarSalvamento', () => {
     )
     expect(plano.deletes).toEqual(['leads.ver'])
     expect(plano.upserts).toEqual([{ acao: 'biblioteca.ver', permitido: true }])
+  })
+})
+
+describe('planejarSalvamentoCustomizado', () => {
+  it('marcar uma ação como true gera upsert', () => {
+    const plano = planejarSalvamentoCustomizado({ 'leads.ver': true }, new Set())
+    expect(plano.upserts).toEqual([{ acao: 'leads.ver', permitido: true }])
+    expect(plano.deletes).toEqual([])
+  })
+
+  it('desmarcar uma ação que não tinha linha no banco não gera nem upsert nem delete', () => {
+    const plano = planejarSalvamentoCustomizado({ 'leads.ver': false }, new Set())
+    expect(plano.upserts).toEqual([])
+    expect(plano.deletes).toEqual([])
+  })
+
+  it('desmarcar uma ação que JÁ tinha linha no banco gera delete (evita linha redundante false)', () => {
+    const plano = planejarSalvamentoCustomizado({ 'leads.ver': false }, new Set<Acao>(['leads.ver']))
+    expect(plano.upserts).toEqual([])
+    expect(plano.deletes).toEqual(['leads.ver'])
+  })
+
+  it('marcar de novo uma ação que já tinha linha true gera upsert (idempotente)', () => {
+    const plano = planejarSalvamentoCustomizado({ 'leads.ver': true }, new Set<Acao>(['leads.ver']))
+    expect(plano.upserts).toEqual([{ acao: 'leads.ver', permitido: true }])
   })
 })

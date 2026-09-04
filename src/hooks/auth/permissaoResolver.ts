@@ -63,18 +63,32 @@ export function construirMapaOverridesUsuario(rows: UsuarioOverrideRow[]): Map<s
  * própria permissão do usuário logado (passa o mapa dele); a tela de admin
  * que edita a exceção de outra pessoa monta esse mapa à parte, sem depender
  * desta função.
+ *
+ * Caso especial `perfil === 'customizado'`: a chave de override muda de
+ * `${perfil}:${acao}` para `customizado:${perfilCustomizadoId}:${acao}` —
+ * necessário porque todo perfil customizado compartilha o mesmo valor de
+ * enum ('customizado'), então a chave simples colidiria entre dois perfis
+ * customizados diferentes. Sem perfilCustomizadoId, ou sem override
+ * encontrado, o resultado é sempre false — não existe "padrão do sistema"
+ * para perfil customizado (PERMISSOES_PADRAO.customizado é sempre []).
  */
 export function resolverPermissao(
   perfil: UsuarioPerfil,
   acao: Acao,
   overrides: Map<string, boolean>,
   overridesUsuario?: Map<string, boolean>,
+  perfilCustomizadoId?: string | null,
 ): boolean {
   if (perfil === 'admin') return true
   if (acao === 'dashboard.ver') return true
   if (ACOES_NAO_CONFIGURAVEIS.has(acao)) return podeExecutarPadrao(perfil, acao)
 
   if (overridesUsuario?.has(acao)) return overridesUsuario.get(acao)!
+
+  if (perfil === 'customizado') {
+    if (!perfilCustomizadoId) return false
+    return overrides.get(`customizado:${perfilCustomizadoId}:${acao}`) ?? false
+  }
 
   const chave = `${perfil}:${acao}`
   if (overrides.has(chave)) return overrides.get(chave)!

@@ -13,6 +13,7 @@ const CORES: Record<UsuarioPerfil, string> = {
   assistente:  'bg-amber-100 text-amber-800',
   consultor:   'bg-gray-100 text-gray-700',
   cliente:     'bg-purple-100 text-purple-800',
+  customizado: 'bg-slate-100 text-slate-700',
 }
 
 const LABELS: Record<UsuarioPerfil, string> = {
@@ -27,16 +28,20 @@ const LABELS: Record<UsuarioPerfil, string> = {
   assistente:  'Assistente',
   consultor:   'Consultor',
   cliente:     'Cliente',
+  customizado: 'Personalizado',
 }
 
 interface Props {
   perfil: UsuarioPerfil
+  /** Nome real do perfil customizado — obrigatório para exibir corretamente quando perfil === 'customizado'; sem ele, cai no label genérico "Personalizado". */
+  nomeCustomizado?: string | null
 }
 
-export function UsuarioPerfilBadge({ perfil }: Props) {
+export function UsuarioPerfilBadge({ perfil, nomeCustomizado }: Props) {
+  const label = perfil === 'customizado' && nomeCustomizado ? nomeCustomizado : LABELS[perfil]
   return (
     <Badge className={`text-xs font-medium ${CORES[perfil]}`}>
-      {LABELS[perfil]}
+      {label}
     </Badge>
   )
 }

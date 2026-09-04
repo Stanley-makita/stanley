@@ -106,6 +106,13 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
   // [] preserva essa garantia e não muda nada observável (a ação já fica
   // inerte sem leads.ver de qualquer forma).
   cliente: [],
+
+  // Perfil customizado: nasce sempre em branco. Nunca é consultado de fato
+  // por podeExecutarPadrao/resolverPermissao — perfil==='customizado' é
+  // interceptado antes e resolvido via perfil_customizado_permissoes (ver
+  // resolverPermissao em permissaoResolver.ts) — esta entrada existe só para
+  // satisfazer o tipo Record<UsuarioPerfil, Acao[]>.
+  customizado: [],
 }
 
 /**

@@ -102,7 +102,10 @@ export default function DashboardPage() {
 
   if (perfil === 'operacional') return <DashboardOperacional nome={usuario?.nome} />
   if (perfil === 'juridico') return <DashboardJuridico nome={usuario?.nome} />
-  if (perfil === 'comercial' || perfil === 'analista' || perfil === 'consultor' || perfil === 'apoio') {
+  if (perfil === 'comercial' || perfil === 'analista' || perfil === 'consultor' || perfil === 'apoio' || perfil === 'customizado') {
+    // 'customizado' cai aqui, no dashboard mais mínimo/menos privilegiado —
+    // um perfil customizado em branco (ex.: parceiro externo) não deve
+    // herdar o dashboard de gestão da empresa como default.
     return <DashboardComercial nome={usuario?.nome} />
   }
 

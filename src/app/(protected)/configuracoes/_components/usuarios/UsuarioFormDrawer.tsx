@@ -11,13 +11,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator,
 } from '@/components/ui/select'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useCriarUsuario, useAtualizarUsuario, useResetSenha } from '../../_hooks/useUsuarios'
+import { usePerfisCustomizados } from '../../_hooks/usePerfisCustomizados'
 import { useCargos } from '@/hooks/rh/useCargos'
 import { PERFIS_ATIVOS, PERFIL_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioPerfil, UsuarioTipo } from '@/types/configuracoes'
@@ -79,6 +80,8 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const atualizarUsuario = useAtualizarUsuario()
   const resetSenha      = useResetSenha()
   const { data: cargos = [] } = useCargos()
+  const { data: perfisCustomizados = [] } = usePerfisCustomizados()
+  const perfisCustomizadosAtivos = perfisCustomizados.filter((p) => p.ativo)
   const { data: permissoesIndividuais = [] } = useUsuarioPermissoes(usuario?.id)
   const salvarPermissoesIndividuais = useSalvarPermissoesIndividuais()
 
@@ -115,7 +118,9 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
         form.reset({
           nome:              usuario.nome,
           email:             usuario.email,
-          perfil:            PERFIS_ATIVOS.includes(usuario.perfil) ? usuario.perfil : 'comercial' as UsuarioPerfil,
+          perfil: usuario.perfil === 'customizado'
+            ? (usuario.perfil_customizado_id ?? 'comercial')
+            : (PERFIS_ATIVOS.includes(usuario.perfil) ? usuario.perfil : 'comercial' as UsuarioPerfil),
           tipo_usuario:      usuario.tipo_usuario ?? 'interno',
           cargo_id:          usuario.cargo_id ?? '',
           ativo:             usuario.ativo,
@@ -158,13 +163,17 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   async function onSubmit(data: FormCriar) {
     const cargoSelecionado = cargos.find((c) => c.id === data.cargo_id)
     const funcao = cargoSelecionado?.nome ?? null
+    const perfilCustomizadoEscolhido = perfisCustomizados.find((p) => p.id === data.perfil)
+    const perfilFinal: UsuarioPerfil = perfilCustomizadoEscolhido ? 'customizado' : data.perfil
+    const perfilCustomizadoIdFinal = perfilCustomizadoEscolhido ? perfilCustomizadoEscolhido.id : null
     try {
       if (modoEdicao) {
         await atualizarUsuario.mutateAsync({
           id:               usuario!.id,
           nome:             data.nome,
           email:            data.email,
-          perfil:           data.perfil,
+          perfil:           perfilFinal,
+          perfil_customizado_id: perfilCustomizadoIdFinal,
           tipo_usuario:     data.tipo_usuario,
           funcao,
           cargo_id:         data.cargo_id || null,
@@ -195,7 +204,8 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           nome:     data.nome,
           email:    data.email,
           senha:    data.senha,
-          perfil:   data.perfil,
+          perfil:   perfilFinal,
+          perfil_customizado_id: perfilCustomizadoIdFinal,
           tipo_usuario: data.tipo_usuario,
           funcao,
           cargo_id: data.cargo_id || null,
@@ -285,9 +295,22 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {PERFIS_ATIVOS.map((p) => (
-                          <SelectItem key={p} value={p}>{PERFIL_LABELS[p]}</SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {PERFIS_ATIVOS.map((p) => (
+                            <SelectItem key={p} value={p}>{PERFIL_LABELS[p]}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                        {perfisCustomizadosAtivos.length > 0 && (
+                          <>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Perfis customizados</SelectLabel>
+                              {perfisCustomizadosAtivos.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

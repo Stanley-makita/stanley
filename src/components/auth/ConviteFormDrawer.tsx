@@ -13,20 +13,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator,
 } from '@/components/ui/select'
 import { useCriarConvite } from '@/hooks/auth/useConvites'
+import { usePerfisCustomizados } from '@/app/(protected)/configuracoes/_hooks/usePerfisCustomizados'
+import { type UsuarioPerfil } from '@/types/auth'
 import { UserPlus } from 'lucide-react'
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
-  // Perfis ativos (oferecidos no formulário) + legados (gerente/analista/
-  // consultor/cliente mantidos aceitos no schema por compatibilidade —
-  // não aparecem mais como opção para novos convites, ver SelectItem abaixo).
-  perfil: z.enum(
-    ['admin', 'gestor', 'comercial', 'operacional', 'juridico', 'apoio', 'gerente', 'analista', 'consultor', 'cliente'],
-    { error: 'Selecione um perfil' },
-  ),
+  perfil: z.string().min(1, 'Selecione um perfil'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -34,6 +30,8 @@ type FormData = z.infer<typeof schema>
 export function ConviteFormDrawer() {
   const [aberto, setAberto] = useState(false)
   const criarConvite = useCriarConvite()
+  const { data: perfisCustomizados = [] } = usePerfisCustomizados()
+  const perfisCustomizadosAtivos = perfisCustomizados.filter((p) => p.ativo)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -41,7 +39,12 @@ export function ConviteFormDrawer() {
   })
 
   async function onSubmit(data: FormData) {
-    await criarConvite.mutateAsync(data)
+    const perfilCustomizadoEscolhido = perfisCustomizados.find((p) => p.id === data.perfil)
+    await criarConvite.mutateAsync({
+      email: data.email,
+      perfil: perfilCustomizadoEscolhido ? 'customizado' : (data.perfil as UsuarioPerfil),
+      perfil_customizado_id: perfilCustomizadoEscolhido ? perfilCustomizadoEscolhido.id : null,
+    })
     form.reset()
     setAberto(false)
   }
@@ -89,12 +92,25 @@ export function ConviteFormDrawer() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="gestor">Gestor</SelectItem>
-                      <SelectItem value="comercial">Comercial</SelectItem>
-                      <SelectItem value="operacional">Operacional</SelectItem>
-                      <SelectItem value="juridico">Jurídico</SelectItem>
-                      <SelectItem value="apoio">Apoio</SelectItem>
+                      <SelectGroup>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="gestor">Gestor</SelectItem>
+                        <SelectItem value="comercial">Comercial</SelectItem>
+                        <SelectItem value="operacional">Operacional</SelectItem>
+                        <SelectItem value="juridico">Jurídico</SelectItem>
+                        <SelectItem value="apoio">Apoio</SelectItem>
+                      </SelectGroup>
+                      {perfisCustomizadosAtivos.length > 0 && (
+                        <>
+                          <SelectSeparator />
+                          <SelectGroup>
+                            <SelectLabel>Perfis customizados</SelectLabel>
+                            {perfisCustomizadosAtivos.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

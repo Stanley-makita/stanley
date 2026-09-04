@@ -16,6 +16,14 @@ import type { Acao, UsuarioPerfil } from '@/types/auth'
  * biblioteca.publicar/excluir, usuarios.desativar. Ações com RLS/trigger
  * dedicados (leads.ver_todas, processos.*, rh.editar etc.) já são
  * protegidas pelo banco — não precisam desta checagem na rota.
+ *
+ * perfil === 'customizado': resolve o perfil_customizado_id do usuário e
+ * consulta perfil_customizado_permissoes em vez de perfil_permissoes —
+ * mesma regra de usuario_atual_pode() (migration 283) e de resolverPermissao
+ * (client-side, src/hooks/auth/permissaoResolver.ts). Nunca cai em
+ * podeExecutarPadrao, que para 'customizado' é sempre [] (sem "padrão do
+ * sistema" pra perfil customizado). Ausência de perfil_customizado_id ou de
+ * linha correspondente = false, sempre.
  */
 export async function podeServidor(
   usuarioId: string,
@@ -33,6 +41,23 @@ export async function podeServidor(
     .eq('acao', acao)
     .maybeSingle()
   if (overrideUsuario) return overrideUsuario.permitido
+
+  if (perfil === 'customizado') {
+    const { data: usuarioRow } = await supabaseAdmin
+      .from('usuarios')
+      .select('perfil_customizado_id')
+      .eq('id', usuarioId)
+      .maybeSingle()
+    if (!usuarioRow?.perfil_customizado_id) return false
+
+    const { data: overrideCustomizado } = await supabaseAdmin
+      .from('perfil_customizado_permissoes')
+      .select('permitido')
+      .eq('perfil_customizado_id', usuarioRow.perfil_customizado_id)
+      .eq('acao', acao)
+      .maybeSingle()
+    return overrideCustomizado?.permitido ?? false
+  }
 
   const { data: overridePerfil } = await supabaseAdmin
     .from('perfil_permissoes')

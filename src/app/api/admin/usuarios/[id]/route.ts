@@ -57,7 +57,7 @@ export async function PUT(
     if (!pode) return NextResponse.json({ error: 'Sem permissão para ativar/desativar usuários' }, { status: 403 })
   }
 
-  const { nome, perfil, tipo_usuario, funcao, cargo_id, ativo, telefone_whatsapp, email } = body
+  const { nome, perfil, tipo_usuario, funcao, cargo_id, ativo, telefone_whatsapp, email, perfil_customizado_id } = body
 
   // Busca o usuário alvo para verificar guards de segurança
   const { data: alvo } = await supabase
@@ -135,6 +135,21 @@ export async function PUT(
     }
   }
 
+  // Tenant isolation: perfil_customizado_id precisa pertencer à mesma
+  // empresa do admin logado (mesma checagem do POST em
+  // src/app/api/admin/usuarios/route.ts) — supabaseAdmin bypassa RLS aqui.
+  if (perfil_customizado_id !== undefined && perfil_customizado_id !== null) {
+    const { data: perfilAcesso } = await supabase
+      .from('perfis_acesso')
+      .select('id')
+      .eq('id', perfil_customizado_id)
+      .eq('empresa_id', admin.empresa_id)
+      .maybeSingle()
+    if (!perfilAcesso) {
+      return NextResponse.json({ error: 'Perfil de acesso customizado inválido' }, { status: 400 })
+    }
+  }
+
   const update: Record<string, unknown> = {}
   if (nome               !== undefined) update.nome               = nome?.trim() || undefined
   if (perfil             !== undefined) update.perfil             = perfil
@@ -144,6 +159,7 @@ export async function PUT(
   if (ativo              !== undefined) update.ativo              = ativo
   if (telefone_whatsapp  !== undefined) update.telefone_whatsapp  = telefone_whatsapp?.trim() || null
   if (emailNormalizado   !== undefined && emailNormalizado !== alvo.email) update.email = emailNormalizado
+  if (perfil_customizado_id !== undefined) update.perfil_customizado_id = perfil_customizado_id ?? null
 
   const { data, error } = await supabase
     .from('usuarios')
