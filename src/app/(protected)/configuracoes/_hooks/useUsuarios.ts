@@ -35,6 +35,7 @@ export function useCriarUsuario() {
       email: string
       senha: string
       perfil: UsuarioPerfil
+      perfil_customizado_id: string | null
       tipo_usuario: UsuarioTipo
       funcao: string | null
       cargo_id: string | null
@@ -61,6 +62,7 @@ export function useAtualizarUsuario() {
       id: string
       nome?: string
       perfil?: UsuarioPerfil
+      perfil_customizado_id?: string | null
       tipo_usuario?: UsuarioTipo
       funcao?: string | null
       cargo_id?: string | null
