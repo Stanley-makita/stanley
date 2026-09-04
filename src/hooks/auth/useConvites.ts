@@ -25,6 +25,7 @@ export function useConvites() {
 interface CriarConviteInput {
   email: string
   perfil: UsuarioPerfil
+  perfil_customizado_id: string | null
 }
 
 export function useCriarConvite() {
@@ -44,6 +45,7 @@ export function useCriarConvite() {
         .insert({
           email: input.email,
           perfil: input.perfil,
+          perfil_customizado_id: input.perfil_customizado_id,
           empresa_id: usuario.empresa_id,
           criado_por: usuario.id,
         })
