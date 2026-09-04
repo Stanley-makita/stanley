@@ -9,6 +9,7 @@ import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseStatuses'
 import { useFases } from '@/hooks/configuracoes/useFases'
+import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import type { Lead, LeadAnaliseCredito, StatusAnaliseCredito } from '@/types/leads'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -74,19 +75,6 @@ export const FINALIDADES = [
   { value: 'comercial',    label: 'Comercial' },
   { value: 'investimento', label: 'Investimento' },
   { value: 'reforma',      label: 'Reforma' },
-]
-const ORIGENS = [
-  { value: 'direto',             label: 'Direto' },
-  { value: 'whatsapp',           label: 'WhatsApp' },
-  { value: 'indicacao',          label: 'Indicação' },
-  { value: 'corretor',           label: 'Corretor' },
-  { value: 'imobiliaria',        label: 'Imobiliária' },
-  { value: 'construtora',        label: 'Construtora' },
-  { value: 'parceiro_comercial', label: 'Parceiro Comercial' },
-  { value: 'site',               label: 'Site' },
-  { value: 'instagram',          label: 'Instagram' },
-  { value: 'facebook',           label: 'Facebook' },
-  { value: 'outros',             label: 'Outros' },
 ]
 const ESTADO_CIVIL_LABEL: Record<string, string> = {
   solteiro: 'Solteiro(a)', casado: 'Casado(a)', uniao_estavel: 'União Estável',
@@ -1789,13 +1777,14 @@ function BlocoVendedor({ lead }: { lead: Lead }) {
 function BlocoOrigem({ origem, onChange, saving }: {
   origem: Lead['origem']; onChange: (o: string) => void; saving: boolean
 }) {
+  const { data: origens = [] } = useOrigensLead()
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2 mb-1">Origem</p>
       <Select value={origem} onValueChange={onChange} disabled={saving}>
         <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
         <SelectContent>
-          {ORIGENS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          {origens.map(o => <SelectItem key={o.id} value={o.codigo}>{o.nome}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>
