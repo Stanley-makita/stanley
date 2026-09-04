@@ -53,7 +53,7 @@ export function AuthProvider({
   const carregarPerfil = useCallback(async (uid: string) => {
     const { data } = await supabase
       .from('usuarios')
-      .select('id, empresa_id, perfil, nome, email, ativo')
+      .select('id, empresa_id, perfil, perfil_customizado_id, nome, email, ativo')
       .eq('auth_user_id', uid)
       .single()
 

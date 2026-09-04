@@ -12,7 +12,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   const { data: perfil } = await supabase
     .from('usuarios')
-    .select('id, empresa_id, perfil, nome, email, ativo')
+    .select('id, empresa_id, perfil, perfil_customizado_id, nome, email, ativo')
     .eq('auth_user_id', user.id)
     .single()
 
