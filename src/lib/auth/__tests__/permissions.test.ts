@@ -106,3 +106,14 @@ describe('podeExecutarPadrao / podeExecutar (alias legado, usado por rotas de AP
     expect(podeExecutarPadrao('operacional', 'leads.editar')).toBe(false)
   })
 })
+
+describe('PERMISSOES_PADRAO.customizado', () => {
+  it('é sempre vazio — perfil customizado nunca herda nada da matriz oficial', () => {
+    expect(PERMISSOES_PADRAO.customizado).toEqual([])
+  })
+
+  it('podeExecutarPadrao nunca libera nada para customizado, mesmo ações públicas de outros perfis', () => {
+    expect(podeExecutarPadrao('customizado', 'dashboard.ver')).toBe(false)
+    expect(podeExecutarPadrao('customizado', 'leads.ver')).toBe(false)
+  })
+})
