@@ -7,6 +7,12 @@
 -- perfis fixos), então nunca herda leads.ver_todas/leads.redistribuir por
 -- acidente. A checagem de exceção individual (usuario_permissoes) continua
 -- rodando antes deste branch, prioridade inalterada.
+--
+-- CREATE OR REPLACE substitui a função inteira, então o CASE de fallback
+-- final abaixo é copiado verbatim da versão atualmente viva da função
+-- (migration 20260817_257_processo_reabrir.sql, 18 braços) — não pode ser
+-- truncado, senão todo usuário não-admin perde de uma vez as 16 permissões
+-- default que não sejam leads.ver_todas/leads.redistribuir.
 
 CREATE OR REPLACE FUNCTION usuario_atual_pode(p_acao text) RETURNS boolean AS $$
 DECLARE
@@ -51,6 +57,20 @@ BEGIN
   RETURN CASE p_acao
     WHEN 'leads.ver_todas'    THEN v_perfil <> 'comercial'
     WHEN 'leads.redistribuir' THEN v_perfil IN ('gestor', 'gerente', 'apoio', 'comercial')
+    WHEN 'processos.criar'    THEN v_perfil IN ('analista', 'consultor', 'gerente', 'gestor', 'comercial', 'admin')
+    WHEN 'processos.editar'   THEN v_perfil IN ('gerente', 'gestor', 'admin')
+    WHEN 'processos.retroceder_fase' THEN v_perfil IN ('gerente', 'gestor', 'admin')
+    WHEN 'processos.reabrir'  THEN v_perfil IN ('gerente', 'gestor', 'admin')
+    WHEN 'usuarios.convidar'  THEN v_perfil IN ('admin', 'gerente', 'gestor')
+    WHEN 'financeiro.editar'  THEN v_perfil IN ('gerente', 'gestor', 'admin')
+    WHEN 'rh.ver'             THEN v_perfil IN ('admin', 'gestor')
+    WHEN 'rh.editar'          THEN v_perfil = 'admin'
+    WHEN 'pessoas.ver'        THEN v_perfil IN ('admin', 'gestor', 'comercial', 'operacional', 'juridico', 'gerente', 'analista', 'consultor')
+    WHEN 'pessoas.editar'     THEN v_perfil IN ('admin', 'gestor', 'comercial', 'operacional', 'gerente', 'analista')
+    WHEN 'pessoas.merge'      THEN v_perfil IN ('admin', 'gerente', 'gestor')
+    WHEN 'pessoas.excluir'    THEN v_perfil IN ('admin', 'gestor', 'gerente')
+    WHEN 'biblioteca.publicar' THEN v_perfil IN ('admin', 'gerente', 'gestor')
+    WHEN 'biblioteca.excluir'  THEN v_perfil IN ('admin', 'gerente', 'gestor')
     ELSE false
   END;
 END;

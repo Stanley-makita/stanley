@@ -7,6 +7,7 @@ export interface UsuarioAtual {
   nome: string
   email: string
   perfil: UsuarioPerfil
+  perfil_customizado_id: string | null
   empresa_id: string
   ativo: boolean
   avatar_url: string | null
@@ -23,7 +24,7 @@ export function useUsuarioAtual() {
 
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nome, email, perfil, empresa_id, ativo, avatar_url')
+        .select('id, nome, email, perfil, perfil_customizado_id, empresa_id, ativo, avatar_url')
         .eq('auth_user_id', user.id)
         .single()
 

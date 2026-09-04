@@ -38,4 +38,40 @@ describe('migration 283 — usuario_atual_pode resolve perfil customizado', () =
     expect(conteudo).toMatch(/WHEN 'leads\.ver_todas'\s+THEN v_perfil <> 'comercial'/)
     expect(conteudo).toMatch(/WHEN 'leads\.redistribuir' THEN v_perfil IN \('gestor', 'gerente', 'apoio', 'comercial'\)/)
   })
+
+  it('preserva os 18 braços do CASE de fallback herdados da migration 257 (usuario_atual_pode não pode ser truncado por CREATE OR REPLACE)', () => {
+    const acoesEsperadas = [
+      'leads.ver_todas',
+      'leads.redistribuir',
+      'processos.criar',
+      'processos.editar',
+      'processos.retroceder_fase',
+      'processos.reabrir',
+      'usuarios.convidar',
+      'financeiro.editar',
+      'rh.ver',
+      'rh.editar',
+      'pessoas.ver',
+      'pessoas.editar',
+      'pessoas.merge',
+      'pessoas.excluir',
+      'biblioteca.publicar',
+      'biblioteca.excluir',
+    ]
+
+    const inicioCase = conteudo.indexOf('RETURN CASE p_acao')
+    const fimCase = conteudo.indexOf('END;', inicioCase)
+    const trechoCase = conteudo.slice(inicioCase, fimCase)
+
+    for (const acao of acoesEsperadas) {
+      expect(trechoCase).toMatch(new RegExp(`WHEN '${acao.replace('.', '\\.')}'`))
+    }
+
+    // Amostra representativa citada na revisão final: cobre os 4 arms que
+    // não são leads.* e confirma que não foram silenciosamente removidos.
+    expect(trechoCase).toMatch(/WHEN 'processos\.criar'\s+THEN v_perfil IN \('analista', 'consultor', 'gerente', 'gestor', 'comercial', 'admin'\)/)
+    expect(trechoCase).toMatch(/WHEN 'pessoas\.merge'\s+THEN v_perfil IN \('admin', 'gerente', 'gestor'\)/)
+    expect(trechoCase).toMatch(/WHEN 'biblioteca\.publicar' THEN v_perfil IN \('admin', 'gerente', 'gestor'\)/)
+    expect(trechoCase).toMatch(/WHEN 'rh\.editar'\s+THEN v_perfil = 'admin'/)
+  })
 })

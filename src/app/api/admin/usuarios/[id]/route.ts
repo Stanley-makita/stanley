@@ -135,6 +135,21 @@ export async function PUT(
     }
   }
 
+  // Tenant isolation: perfil_customizado_id precisa pertencer à mesma
+  // empresa do admin logado (mesma checagem do POST em
+  // src/app/api/admin/usuarios/route.ts) — supabaseAdmin bypassa RLS aqui.
+  if (perfil_customizado_id !== undefined && perfil_customizado_id !== null) {
+    const { data: perfilAcesso } = await supabase
+      .from('perfis_acesso')
+      .select('id')
+      .eq('id', perfil_customizado_id)
+      .eq('empresa_id', admin.empresa_id)
+      .maybeSingle()
+    if (!perfilAcesso) {
+      return NextResponse.json({ error: 'Perfil de acesso customizado inválido' }, { status: 400 })
+    }
+  }
+
   const update: Record<string, unknown> = {}
   if (nome               !== undefined) update.nome               = nome?.trim() || undefined
   if (perfil             !== undefined) update.perfil             = perfil

@@ -35,7 +35,23 @@ import { useAgendaBadge } from '@/hooks/useAgendaBadge'
 import { useLeadsBadge } from '@/hooks/leads/useLeadsBadge'
 import { useSolicitacoesBadge } from '@/hooks/solicitacoes/useSolicitacoesBadge'
 import { useConversasBadge } from '@/hooks/conversas/useConversasBadge'
+import { usePerfisCustomizados } from '@/app/(protected)/configuracoes/_hooks/usePerfisCustomizados'
 import { type Acao } from '@/types/auth'
+
+const PERFIL_LABELS: Record<string, string> = {
+  admin: 'admin',
+  gerente: 'gerente',
+  gestor: 'gestor',
+  analista: 'analista',
+  comercial: 'comercial',
+  operacional: 'operacional',
+  juridico: 'jurídico',
+  apoio: 'apoio',
+  assistente: 'assistente',
+  consultor: 'consultor',
+  cliente: 'cliente',
+  customizado: 'personalizado',
+}
 
 const navItemsTop = [
   { href: '/dashboard',         label: 'Dashboard',    icon: LayoutDashboard, mobileHidden: true, acaoVer: 'dashboard.ver' as Acao },
@@ -69,6 +85,12 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
   const { data: usuario } = useUsuarioAtual()
   const { sair } = useAuth()
   const { pode } = usePermissao()
+  const { data: perfisCustomizados = [] } = usePerfisCustomizados()
+  const perfilLabel = usuario
+    ? (usuario.perfil === 'customizado'
+        ? perfisCustomizados.find((p) => p.id === usuario.perfil_customizado_id)?.nome ?? PERFIL_LABELS.customizado
+        : PERFIL_LABELS[usuario.perfil] ?? usuario.perfil)
+    : ''
   const { data: agendaBadge = 0 } = useAgendaBadge()
   const { data: leadsBadge = 0 } = useLeadsBadge()
   const { data: operacionalBadge = 0 } = useSolicitacoesBadge()
@@ -286,7 +308,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-white truncate">{usuario.nome}</p>
-              <p className="text-xs text-white/40 truncate capitalize">{usuario.perfil}</p>
+              <p className="text-xs text-white/40 truncate capitalize">{perfilLabel}</p>
             </div>
           </div>
         )}
