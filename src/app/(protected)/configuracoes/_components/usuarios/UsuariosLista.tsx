@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useUsuarios, useAtualizarUsuario } from '../../_hooks/useUsuarios'
+import { usePerfisCustomizados } from '../../_hooks/usePerfisCustomizados'
 import { UsuarioFormDrawer } from './UsuarioFormDrawer'
 import { ExcluirUsuarioDialog } from './ExcluirUsuarioDialog'
-import { PERFIL_LABELS, PERFIL_CORES, FUNCAO_LABELS } from '@/types/configuracoes'
+import { UsuarioPerfilBadge } from '@/components/auth/UsuarioPerfilBadge'
+import { FUNCAO_LABELS } from '@/types/configuracoes'
 import { TIPO_USUARIO_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioFuncao } from '@/types/configuracoes'
 import { cn } from '@/lib/utils'
@@ -27,6 +29,7 @@ export function UsuariosLista() {
   const { data: usuarios, isLoading, error } = useUsuarios()
   const atualizar = useAtualizarUsuario()
   const { usuario: usuarioLogado } = useAuth()
+  const { data: perfisCustomizados = [] } = usePerfisCustomizados()
 
   const [drawerAberto, setDrawerAberto] = useState(false)
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
@@ -132,9 +135,10 @@ export function UsuariosLista() {
 
                 {/* Perfil */}
                 <div className="min-w-0">
-                  <Badge className={cn('text-[11px] font-medium', PERFIL_CORES[u.perfil] ?? 'bg-gray-100 text-gray-600')}>
-                    {PERFIL_LABELS[u.perfil] ?? u.perfil}
-                  </Badge>
+                  <UsuarioPerfilBadge
+                    perfil={u.perfil}
+                    nomeCustomizado={perfisCustomizados.find((p) => p.id === u.perfil_customizado_id)?.nome}
+                  />
                 </div>
 
                 {/* Função */}
