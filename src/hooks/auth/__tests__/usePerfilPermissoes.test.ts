@@ -164,3 +164,35 @@ describe('construirMapaOverrides', () => {
     expect(construirMapaOverrides([]).size).toBe(0)
   })
 })
+
+describe('resolverPermissao — perfil customizado', () => {
+  it('sem override, qualquer ação é false (nasce em branco, sem fallback de padrão)', () => {
+    const overrides = construirMapaOverrides([])
+    expect(resolverPermissao('customizado', 'leads.ver', overrides, undefined, 'perfil-a')).toBe(false)
+    expect(resolverPermissao('customizado', 'dashboard.ver', overrides, undefined, 'perfil-a')).toBe(true) // dashboard.ver é sempre true, ver resolverPermissao
+  })
+
+  it('sem perfilCustomizadoId, qualquer ação é false (não há como resolver a matriz)', () => {
+    const overrides = construirMapaOverrides([
+      { perfil: 'customizado', acao: 'leads.ver', permitido: true } as never,
+    ])
+    expect(resolverPermissao('customizado', 'leads.ver', overrides, undefined, undefined)).toBe(false)
+    expect(resolverPermissao('customizado', 'leads.ver', overrides, undefined, null)).toBe(false)
+  })
+
+  it('override do perfil customizado específico é respeitado', () => {
+    const overrides = new Map<string, boolean>([['customizado:perfil-a:leads.ver', true]])
+    expect(resolverPermissao('customizado', 'leads.ver', overrides, undefined, 'perfil-a')).toBe(true)
+  })
+
+  it('override de um perfil customizado não vaza para outro perfil customizado diferente', () => {
+    const overrides = new Map<string, boolean>([['customizado:perfil-a:leads.ver', true]])
+    expect(resolverPermissao('customizado', 'leads.ver', overrides, undefined, 'perfil-b')).toBe(false)
+  })
+
+  it('exceção individual do usuário ainda tem prioridade sobre o override do perfil customizado', () => {
+    const overrides = new Map<string, boolean>([['customizado:perfil-a:leads.ver', true]])
+    const overridesUsuario = new Map<string, boolean>([['leads.ver', false]])
+    expect(resolverPermissao('customizado', 'leads.ver', overrides, overridesUsuario, 'perfil-a')).toBe(false)
+  })
+})
