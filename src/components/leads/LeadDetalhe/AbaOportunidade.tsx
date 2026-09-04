@@ -22,6 +22,7 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
+import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { type Lead } from '@/types/leads'
 import { Loader2 } from 'lucide-react'
 
@@ -31,10 +32,7 @@ const schema = z.object({
   fase_id: z.string().uuid('Selecione uma fase'),
   responsavel_id:             z.string().optional(),
   responsavel_operacional_id: z.string().optional(),
-  origem: z.enum([
-    'indicacao', 'site', 'whatsapp', 'instagram', 'facebook',
-    'outros', 'direto', 'corretor', 'imobiliaria', 'construtora', 'parceiro_comercial',
-  ]),
+  origem: z.string().min(1, 'Selecione uma origem'),
   produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato']).optional(),
   produto_subtipo:   z.string().optional(),
   valor_imovel:      z.coerce.number().min(0).optional(),
@@ -43,20 +41,6 @@ const schema = z.object({
 })
 
 type FormData = z.infer<typeof schema>
-
-const ORIGENS: { value: string; label: string }[] = [
-  { value: 'indicacao',          label: 'Indicação' },
-  { value: 'whatsapp',           label: 'WhatsApp' },
-  { value: 'instagram',          label: 'Instagram' },
-  { value: 'facebook',           label: 'Facebook' },
-  { value: 'site',               label: 'Site' },
-  { value: 'direto',             label: 'Direto' },
-  { value: 'corretor',           label: 'Corretor' },
-  { value: 'imobiliaria',        label: 'Imobiliária' },
-  { value: 'construtora',        label: 'Construtora' },
-  { value: 'parceiro_comercial', label: 'Parceiro Comercial' },
-  { value: 'outros',             label: 'Outros' },
-]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,6 +99,7 @@ export function AbaOportunidade({ lead }: Props) {
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
   const { data: checklistItens = [] } = useLeadChecklist(lead.id, lead.fase_id)
+  const { data: origens = [] } = useOrigensLead()
   const [avisoCpfAberto, setAvisoCpfAberto] = useState(false)
 
   // Parceiro (lead.parceiro_id — "indicado por", campo único, distinto dos
@@ -203,8 +188,8 @@ export function AbaOportunidade({ lead }: Props) {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {ORIGENS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    {origens.map(o => (
+                      <SelectItem key={o.id} value={o.codigo}>{o.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
