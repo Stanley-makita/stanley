@@ -171,6 +171,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
   const leadsFiltrados = applyFilters(leadsBase, colFilters, fases)
     .filter(l => dentroDoRange(l.created_at, criadoEmRange))
   const leads = sortLeads(leadsFiltrados, sortCol, sortDir, fases)
+  const totalValorPretendido = leads.reduce((soma, l) => soma + (l.valor_pretendido ?? 0), 0)
 
   const totalPorFase = todosLeads.reduce<Record<string, number>>((acc, l) => {
     acc[l.fase_id] = (acc[l.fase_id] ?? 0) + 1
@@ -360,6 +361,17 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                     />
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t border-fonti-accent bg-fonti-accent/30">
+                    <td colSpan={8} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                      Total{hasFilters || faseId ? ' (filtrado)' : ''} · {leads.length} captaç{leads.length === 1 ? 'ão' : 'ões'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs font-bold text-fonti-primary">
+                      {fmtValor(totalValorPretendido)}
+                    </td>
+                    <td colSpan={podeExcluir ? 7 : 6} />
+                  </tr>
+                </tfoot>
               </table>
             </TableShell>
           </>
