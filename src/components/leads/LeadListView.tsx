@@ -14,6 +14,7 @@ import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { TableShell } from '@/components/ui/table-shell'
 import { type Lead, type ProdutoInteresse } from '@/types/leads'
+import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
 import { fmtCpf } from '@/lib/formularios/helpers'
 
 interface Props {
@@ -31,6 +32,7 @@ type ColKey =
   | 'status'
   | 'origem'
   | 'produto'
+  | 'modalidade'
   | 'comercial'
   | 'operacional'
   | 'valor'
@@ -43,7 +45,7 @@ type ColKey =
 
 type SortDir = 'asc' | 'desc'
 
-const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'comercial', 'operacional', 'corretor', 'imobiliaria', 'parceiro'])
+const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'modalidade', 'comercial', 'operacional', 'corretor', 'imobiliaria', 'parceiro'])
 
 const PRODUTO_LABELS: Record<ProdutoInteresse, string> = {
   financiamento: 'Financiamento',
@@ -51,11 +53,17 @@ const PRODUTO_LABELS: Record<ProdutoInteresse, string> = {
   cgi: 'CGI',
   portabilidade: 'Portabilidade',
   contrato: 'Contrato',
+  registro: 'Registro',
 }
 
 function produtoLabel(v: ProdutoInteresse | null): string {
   if (!v) return ''
   return PRODUTO_LABELS[v] ?? v
+}
+
+function modalidadeLabel(v: string | null): string {
+  if (!v) return ''
+  return MODALIDADE_LABELS[v as ModalidadeProcesso] ?? v
 }
 
 function fmtValor(v: number | null) {
@@ -85,6 +93,7 @@ function getColValue(lead: Lead, col: ColKey, fases: FaseAtiva[]): string {
     case 'status':       return lead.perdido_em ? 'Perdido' : (lead.status?.nome ?? '')
     case 'origem':       return lead.origem ?? ''
     case 'produto':      return produtoLabel(lead.produto_interesse)
+    case 'modalidade':   return modalidadeLabel(lead.modalidade)
     case 'comercial':    return lead.responsavel?.nome ?? ''
     case 'operacional':  return (lead as any).responsavel_operacional?.nome ?? ''
     case 'valor':        return String(lead.valor_pretendido ?? 0)
@@ -312,6 +321,11 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
+                    <ColHeader label="Modalidade"       col="modalidade"  active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
                     <ColHeader label="Comercial"        col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
                       filterable colFilters={colFilters} setColFilters={setColFilters}
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
@@ -363,7 +377,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-fonti-accent bg-fonti-accent/30">
-                    <td colSpan={8} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                    <td colSpan={9} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
                       Total{hasFilters || faseId ? ' (filtrado)' : ''} · {leads.length} captaç{leads.length === 1 ? 'ão' : 'ões'}
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-bold text-fonti-primary">
@@ -870,6 +884,13 @@ function LeadRow({
       <td className="px-3 py-1.5">
         <span className="text-xs text-gray-600">
           {lead.produto_interesse ? produtoLabel(lead.produto_interesse) : <span className="text-gray-300">—</span>}
+        </span>
+      </td>
+
+      {/* Modalidade */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">
+          {lead.modalidade ? modalidadeLabel(lead.modalidade) : <span className="text-gray-300">—</span>}
         </span>
       </td>
 

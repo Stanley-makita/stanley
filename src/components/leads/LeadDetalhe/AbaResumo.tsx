@@ -20,6 +20,8 @@ const PRODUTO_LABELS: Record<string, string> = {
   consorcio:     'Consórcio',
   cgi:           'CGI',
   portabilidade: 'Portabilidade',
+  contrato:      'Contrato',
+  registro:      'Registro',
 }
 
 const ESTADO_CIVIL_LABELS: Record<string, string> = {

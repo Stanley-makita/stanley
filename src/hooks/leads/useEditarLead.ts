@@ -30,6 +30,7 @@ interface EditarLeadInput {
   vendedor_telefone?: string | null
   vendedor_pessoa_id?: string | null
   produto_interesse?: Lead['produto_interesse'] | null
+  modalidade?: Lead['modalidade'] | null
   responsavel_id?: string
   responsavel_operacional_id?: string | null
   fase_id?: string
