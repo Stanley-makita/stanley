@@ -17,6 +17,7 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { ApuracaoRendaCard } from '@/components/leads/ApuracaoRendaCard'
 import { type Lead } from '@/types/leads'
+import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { getCamposContatoPendentes } from './leadContactValidation'
@@ -40,7 +41,8 @@ const schema = z.object({
   renda_formal:      z.coerce.number().min(0).optional(),
   renda_informal:    z.coerce.number().min(0).optional(),
   valor_pretendido:  z.coerce.number().min(0).optional(),
-  produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato']).optional(),
+  produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato', 'registro']).optional(),
+  modalidade:        z.enum(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio', 'Registro']).optional(),
   // CRM
   fase_id:        z.string().uuid(),
   responsavel_id: z.string().uuid().optional(),
@@ -115,6 +117,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
         ...(data.renda_formal   ? { renda_formal: data.renda_formal }      : {}),
         ...(data.renda_informal ? { renda_informal: data.renda_informal }  : {}),
         ...(data.produto_interesse ? { produto_interesse: data.produto_interesse } : {}),
+        ...(data.modalidade        ? { modalidade: data.modalidade }               : {}),
         ...(temConjuge && data.conjuge_nome            ? { conjuge_nome: data.conjuge_nome }                       : {}),
         ...(temConjuge && data.conjuge_cpf             ? { conjuge_cpf: data.conjuge_cpf }                         : {}),
         ...(temConjuge && data.conjuge_data_nascimento ? { conjuge_data_nascimento: data.conjuge_data_nascimento } : {}),
@@ -356,6 +359,24 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                         <SelectItem value="cgi">CGI</SelectItem>
                         <SelectItem value="portabilidade">Portabilidade</SelectItem>
                         <SelectItem value="contrato">Contrato</SelectItem>
+                        <SelectItem value="registro">Registro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="modalidade" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modalidade <Opcional /></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(Object.keys(MODALIDADE_LABELS) as ModalidadeProcesso[]).map(m => (
+                          <SelectItem key={m} value={m}>{MODALIDADE_LABELS[m]}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -497,7 +518,14 @@ function normalizarProduto(v: string | null | undefined): FormData['produto_inte
   if (k.includes('cons'))    return 'consorcio'
   if (k.includes('port'))    return 'portabilidade'
   if (k.includes('contrat')) return 'contrato'
+  if (k.includes('regist'))  return 'registro'
   return undefined
+}
+
+function normalizarModalidade(v: string | null | undefined): FormData['modalidade'] {
+  if (!v) return undefined
+  return (['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio', 'Registro'] as const)
+    .includes(v as ModalidadeProcesso) ? v as FormData['modalidade'] : undefined
 }
 
 function leadToForm(lead: Lead): FormData {
@@ -518,6 +546,7 @@ function leadToForm(lead: Lead): FormData {
     renda_informal:   lead.renda_informal ?? undefined,
     valor_pretendido: lead.valor_pretendido ?? undefined,
     produto_interesse: normalizarProduto(lead.produto_interesse),
+    modalidade:        normalizarModalidade(lead.modalidade),
     fase_id:                    lead.fase_id,
     responsavel_id:             lead.responsavel_id ?? undefined,
     responsavel_operacional_id: lead.responsavel_operacional_id ?? undefined,

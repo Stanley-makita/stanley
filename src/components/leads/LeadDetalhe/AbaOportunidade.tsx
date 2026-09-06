@@ -24,6 +24,7 @@ import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { type Lead } from '@/types/leads'
+import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
 import { Loader2 } from 'lucide-react'
 
 // ── schema ────────────────────────────────────────────────────────────────────
@@ -33,7 +34,8 @@ const schema = z.object({
   responsavel_id:             z.string().optional(),
   responsavel_operacional_id: z.string().optional(),
   origem: z.string().min(1, 'Selecione uma origem'),
-  produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato']).optional(),
+  produto_interesse: z.enum(['financiamento', 'consorcio', 'cgi', 'portabilidade', 'contrato', 'registro']).optional(),
+  modalidade:        z.enum(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio', 'Registro']).optional(),
   produto_subtipo:   z.string().optional(),
   valor_imovel:      z.coerce.number().min(0).optional(),
   valor_pretendido:  z.coerce.number().min(0).optional(),
@@ -52,7 +54,14 @@ function normalizarProduto(v: string | null | undefined): FormData['produto_inte
   if (k.includes('cons'))    return 'consorcio'
   if (k.includes('port'))    return 'portabilidade'
   if (k.includes('contrat')) return 'contrato'
+  if (k.includes('regist'))  return 'registro'
   return undefined
+}
+
+function normalizarModalidade(v: string | null | undefined): FormData['modalidade'] {
+  if (!v) return undefined
+  return (['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio', 'Registro'] as const)
+    .includes(v as ModalidadeProcesso) ? v as FormData['modalidade'] : undefined
 }
 
 function leadParaForm(lead: Lead): FormData {
@@ -62,6 +71,7 @@ function leadParaForm(lead: Lead): FormData {
     responsavel_operacional_id: lead.responsavel_operacional_id ?? undefined,
     origem:                     lead.origem,
     produto_interesse:          normalizarProduto(lead.produto_interesse),
+    modalidade:                 normalizarModalidade(lead.modalidade),
     produto_subtipo:            lead.produto_subtipo ?? undefined,
     valor_imovel:               lead.valor_imovel ?? undefined,
     valor_pretendido:           lead.valor_pretendido ?? undefined,
@@ -135,6 +145,7 @@ export function AbaOportunidade({ lead }: Props) {
       responsavel_operacional_id: data.responsavel_operacional_id || null,
       origem:                     data.origem,
       produto_interesse:          data.produto_interesse ?? null,
+      modalidade:                 data.modalidade ?? null,
       produto_subtipo:            data.produto_subtipo || null,
       valor_imovel:               data.valor_imovel ?? null,
       valor_pretendido:           data.valor_pretendido ?? null,
@@ -252,6 +263,24 @@ export function AbaOportunidade({ lead }: Props) {
                     <SelectItem value="cgi">CGI</SelectItem>
                     <SelectItem value="portabilidade">Portabilidade</SelectItem>
                     <SelectItem value="contrato">Contrato</SelectItem>
+                    <SelectItem value="registro">Registro</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="modalidade" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Modalidade <Opc /></FormLabel>
+                <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {(Object.keys(MODALIDADE_LABELS) as ModalidadeProcesso[]).map(m => (
+                      <SelectItem key={m} value={m}>{MODALIDADE_LABELS[m]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />

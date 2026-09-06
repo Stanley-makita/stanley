@@ -1,6 +1,17 @@
 export type ModalidadeProcesso =
   | 'SFI' | 'SBPE' | 'PMCMV' | 'Pro_Cotista' | 'CGI' | 'Contrato' | 'Consorcio' | 'Registro'
 
+export const MODALIDADE_LABELS: Record<ModalidadeProcesso, string> = {
+  SFI:         'SFI',
+  SBPE:        'SBPE',
+  PMCMV:       'PMCMV - Minha Casa Minha Vida',
+  Pro_Cotista: 'Pró-Cotista FGTS',
+  CGI:         'CGI',
+  Contrato:    'Contrato',
+  Consorcio:   'Consórcio',
+  Registro:    'Registro',
+}
+
 export type StatusEmissao = 'emitido' | 'nao_emitido'
 export type ChanceEmissao = 'certeza' | 'incerteza'
 export type StatusProcesso = 'em_analise' | 'aprovado' | 'pendente' | 'reprovado' | 'cancelado'

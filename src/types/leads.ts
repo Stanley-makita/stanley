@@ -1,3 +1,5 @@
+import type { ModalidadeProcesso } from '@/types/processos'
+
 /**
  * Deixou de ser união fechada — leads.origem virou TEXT (migration 286),
  * com o catálogo de valores válidos vivendo em origens_lead (empresa a
@@ -24,7 +26,15 @@ export type EstadoCivil =
   | 'divorciado'
   | 'viuvo'
 
-export type ProdutoInteresse = 'financiamento' | 'consorcio' | 'cgi' | 'portabilidade' | 'contrato'
+export type ProdutoInteresse = 'financiamento' | 'consorcio' | 'cgi' | 'portabilidade' | 'contrato' | 'registro'
+
+/**
+ * Mesmo conceito de ModalidadeProcesso (types/processos.ts) — a modalidade
+ * do Lead é uma pré-classificação do que o Processo vai assumir quando o
+ * negócio for criado a partir dele, por isso reaproveita o tipo em vez de
+ * duplicar os literais.
+ */
+export type Modalidade = ModalidadeProcesso
 
 export interface Lead {
   id: string
@@ -51,6 +61,7 @@ export interface Lead {
   vendedor_telefone: string | null
   vendedor_pessoa_id: string | null
   produto_interesse: ProdutoInteresse | null
+  modalidade: Modalidade | null
   fase_id: string
   responsavel_id: string | null
   responsavel_operacional_id: string | null

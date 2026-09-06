@@ -885,6 +885,7 @@ function BlocoProduto({ lead }: { lead: Lead }) {
           <SelectItem value="cgi">CGI</SelectItem>
           <SelectItem value="portabilidade">Portabilidade</SelectItem>
           <SelectItem value="contrato">Contrato</SelectItem>
+          <SelectItem value="registro">Registro</SelectItem>
         </SelectContent>
       </Select>
     </div>
