@@ -1,15 +1,11 @@
-export type LeadOrigem =
-  | 'indicacao'
-  | 'site'
-  | 'whatsapp'
-  | 'instagram'
-  | 'facebook'
-  | 'outros'
-  | 'direto'
-  | 'corretor'
-  | 'imobiliaria'
-  | 'construtora'
-  | 'parceiro_comercial'
+/**
+ * Deixou de ser união fechada — leads.origem virou TEXT (migration 286),
+ * com o catálogo de valores válidos vivendo em origens_lead (empresa a
+ * empresa, editável pela tela Configurações > Origens de Leads). O tipo
+ * continua existindo só por compatibilidade de nome nos call sites
+ * existentes (Lead['origem'], LeadOrigemBadge, etc.).
+ */
+export type LeadOrigem = string
 
 export type StatusAnalise =
   | 'aguardando_documentos'

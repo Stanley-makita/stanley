@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
+import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { ApuracaoRendaCard } from '@/components/leads/ApuracaoRendaCard'
@@ -44,7 +45,7 @@ const schema = z.object({
   fase_id:        z.string().uuid(),
   responsavel_id: z.string().uuid().optional(),
   responsavel_operacional_id: z.string().uuid().optional(),
-  origem:         z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros', 'direto', 'corretor', 'imobiliaria', 'construtora', 'parceiro_comercial']),
+  origem:         z.string().min(1, 'Selecione uma origem'),
   observacoes:    z.string().optional(),
 })
 
@@ -73,6 +74,7 @@ interface Props {
 
 export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
   const editarLead = useEditarLead()
+  const { data: origens = [] } = useOrigensLead()
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
 
@@ -397,12 +399,9 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                         <SelectTrigger><SelectValue /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="indicacao">Indicação</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                        <SelectItem value="instagram">Instagram</SelectItem>
-                        <SelectItem value="facebook">Facebook</SelectItem>
-                        <SelectItem value="site">Site</SelectItem>
-                        <SelectItem value="outros">Outros</SelectItem>
+                        {origens.map((o) => (
+                          <SelectItem key={o.id} value={o.codigo}>{o.nome}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

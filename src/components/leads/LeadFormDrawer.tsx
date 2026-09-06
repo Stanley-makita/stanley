@@ -23,6 +23,7 @@ import {
 import { useCriarLead } from '@/hooks/leads/useCriarLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
+import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { type Lead } from '@/types/leads'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -35,7 +36,7 @@ const schema = z.object({
   cpf: z.string().optional(),
   fase_id: z.string().uuid('Selecione uma fase'),
   responsavel_id: z.string().uuid().optional(),
-  origem: z.enum(['indicacao', 'site', 'whatsapp', 'instagram', 'facebook', 'outros', 'direto', 'corretor', 'imobiliaria', 'construtora', 'parceiro_comercial']),
+  origem: z.string().min(1, 'Selecione uma origem'),
   valor_pretendido: z.coerce.number().positive().optional(),
   observacoes: z.string().optional(),
 })
@@ -60,6 +61,7 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
   const criarLead = useCriarLead()
   const { data: fases = [] } = useFases('leads')
   const { data: membros = [] } = useMembrosAtivos()
+  const { data: origens = [] } = useOrigensLead()
 
   const [pessoaEncontrada, setPessoaEncontrada] = useState<{ id: string; nome: string } | null>(null)
   const [dialogCpfAberto, setDialogCpfAberto] = useState(false)
@@ -240,12 +242,9 @@ export function LeadFormDrawer({ aberto, onFechar, faseIdInicial, onCriado, init
                         <SelectTrigger><SelectValue /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="indicacao">Indicação</SelectItem>
-                        <SelectItem value="site">Site</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                        <SelectItem value="instagram">Instagram</SelectItem>
-                        <SelectItem value="facebook">Facebook</SelectItem>
-                        <SelectItem value="outros">Outros</SelectItem>
+                        {origens.map((o) => (
+                          <SelectItem key={o.id} value={o.codigo}>{o.nome}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
