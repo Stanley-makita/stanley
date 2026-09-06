@@ -17,6 +17,7 @@ import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
 import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
+import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -104,13 +105,13 @@ function fmtMoeda(v: number | null | undefined) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
 
-function fmtOrigem(origem: string) {
-  const map: Record<string, string> = { whatsapp: 'WhatsApp', indicacao: 'Indicação', site: 'Site', instagram: 'Instagram', facebook: 'Facebook', outros: 'Outros' }
-  return map[origem] ?? origem
+function fmtOrigem(origem: string, origens: { codigo: string; nome: string }[]) {
+  return origens.find((o) => o.codigo === origem)?.nome ?? origem
 }
 
 /** Bloco informativo mostrando os dados de parceiro/origem herdados do Lead. */
 function ParceiroBadge({ lead }: { lead: Lead | null }) {
+  const { data: origens = [] } = useOrigensLead()
   if (!lead?.parceiro && !lead?.origem && !lead?.campanha) return null
   return (
     <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm space-y-0.5">
@@ -133,7 +134,7 @@ function ParceiroBadge({ lead }: { lead: Lead | null }) {
       {lead.origem && (
         <p className="text-blue-800">
           <span className="text-blue-500">Origem:</span>{' '}
-          <span className="font-medium">{fmtOrigem(lead.origem)}</span>
+          <span className="font-medium">{fmtOrigem(lead.origem, origens)}</span>
         </p>
       )}
       {lead.campanha && (
@@ -424,6 +425,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
   onSelecionar: (t: TipoProcesso) => void
   onFechar: () => void
 }) {
+  const { data: origens = [] } = useOrigensLead()
   const clienteNome = lead?.nome ?? pessoa?.nome ?? '—'
   const clienteCpf  = lead?.cpf  ?? pessoa?.cpf  ?? null
 
@@ -439,7 +441,7 @@ function SeletorTipo({ lead, pessoa, onSelecionar, onFechar }: {
           {lead ? (
             <span className="flex items-center gap-1 text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
               {lead.origem === 'whatsapp' && <MessageCircle className="h-3 w-3 text-green-500" />}
-              {fmtOrigem(lead.origem)}
+              {fmtOrigem(lead.origem, origens)}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
