@@ -159,6 +159,7 @@ export interface DadosProcessoUpdate {
   taxa_juros?: number | null
   tem_assessoria: boolean
   valor_assessoria: number | null
+  responsavel_registro: string
   valor_financiado: number | null
   valor_entrada?: number | null
   valor_imovel: number | null

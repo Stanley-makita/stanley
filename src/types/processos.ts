@@ -12,6 +12,14 @@ export const MODALIDADE_LABELS: Record<ModalidadeProcesso, string> = {
   Registro:    'Registro',
 }
 
+export type ResponsavelRegistro = 'fontinhas' | 'cliente' | 'corretor'
+
+export const RESPONSAVEL_REGISTRO_LABELS: Record<ResponsavelRegistro, string> = {
+  fontinhas: 'Fontinhas',
+  cliente:   'Cliente',
+  corretor:  'Corretor',
+}
+
 export type StatusEmissao = 'emitido' | 'nao_emitido'
 export type ChanceEmissao = 'certeza' | 'incerteza'
 export type StatusProcesso = 'em_analise' | 'aprovado' | 'pendente' | 'reprovado' | 'cancelado'
@@ -69,6 +77,9 @@ export interface Processo {
   // Assessoria
   tem_assessoria: boolean
   valor_assessoria?: number | null
+  // Quem cuida do registro deste processo — independente de ter ou não
+  // assessoria, usado pra apuração de pagamento por processo (ver migration 288)
+  responsavel_registro?: ResponsavelRegistro | null
   comissao_comercial: number | null
   comissao_empresa: number | null
   comissao_juridico?: number | null
