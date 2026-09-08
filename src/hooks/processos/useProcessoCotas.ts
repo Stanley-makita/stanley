@@ -146,7 +146,9 @@ export function useAlterarStatusCota(processoId: string) {
 // Apaga as parcelas ainda 'prevista' do processo e chama de novo
 // gerar_fluxo_financeiro_consorcio — usado quando a config/dados da cota
 // mudam depois da primeira geração (ON CONFLICT DO NOTHING trava
-// re-geração automática). RPC bloqueia se já existir parcela recebida/paga.
+// re-geração automática). A trava de "já existe parcela recebida/paga" é
+// por COTA (migration 290) — cotas com histórico financeiro real ficam
+// intocadas, as demais do mesmo processo são recalculadas normalmente.
 export function useRecalcularFluxoConsorcio(processoId: string) {
   const queryClient = useQueryClient()
 
