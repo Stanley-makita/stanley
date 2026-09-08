@@ -852,10 +852,16 @@ function LeadRow({
   const responsavelOp = (lead as any).responsavel_operacional as { nome: string } | null | undefined
   const faseAtiva = resolveFaseAtiva(fases, lead.fase_id)
 
+  const corChance = lead.chance_emissao === 'incerteza'
+    ? 'bg-amber-50 hover:bg-amber-100/70'
+    : lead.chance_emissao === 'certeza'
+      ? 'bg-sky-50 hover:bg-sky-100/70'
+      : 'odd:bg-white even:bg-gray-50/50 hover:bg-fonti-primary/[0.04]'
+
   return (
     <tr
       onClick={onClick}
-      className="border-b border-gray-200 last:border-0 odd:bg-white even:bg-gray-50/50 hover:bg-fonti-primary/[0.04] cursor-pointer transition-colors"
+      className={cn('border-b border-gray-200 last:border-0 cursor-pointer transition-colors', corChance)}
     >
       {/* Nome */}
       <td className="px-3 py-1.5">
