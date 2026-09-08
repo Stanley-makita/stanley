@@ -626,6 +626,47 @@ export async function POST(request: NextRequest) {
                 }
               }
             }
+          } else if (/^\d+$/.test(textoFromMe.trim())) {
+            // Resposta numérica solta pra ambiguidade pendente de "*fonti salva [nome]"
+            // (ex.: "Encontrei 2 clientes com Fabricio... Responda com o número: *fonti
+            // salva 1") — comercial na rua digita só "2", sem repetir o comando inteiro.
+            // telefoneConversaSalva em fonti-comandos.ts é sempre ctx.telefone_cliente
+            // (nmClientPhone aqui) quando presente, então a marca fica sob esse telefone.
+            const telefoneConversaAmb = nmClientPhone || pendOwnerPhone
+            const { data: marcaAmbigua } = await supabase
+              .from('fonti_marcas')
+              .select('candidatos_pendentes')
+              .eq('empresa_id', pendEmpresaId)
+              .eq('telefone_conversa', telefoneConversaAmb)
+              .not('candidatos_pendentes', 'is', null)
+              .maybeSingle()
+
+            if (marcaAmbigua?.candidatos_pendentes) {
+              const { processarComandoFonti } = await import('@/lib/bot/fonti-comandos')
+              const respostaAmb = await processarComandoFonti(`*fonti salva ${textoFromMe.trim()}`, {
+                empresa_id: pendEmpresaId,
+                telefone_remetente: pendOwnerPhone,
+                telefone_cliente: nmClientPhone || undefined,
+                atendente_id_override: pendInst.atendente_id,
+                supabase,
+                arquivos: [],
+                instancia_token: pendToken,
+                telefone_destino: telefoneConversaAmb,
+              })
+
+              if (respostaAmb !== null) {
+                await enviarMensagemUazapi(telefoneConversaAmb, respostaAmb, pendToken)
+                if (nmClientPhone) {
+                  const { data: convAmb } = await supabase
+                    .from('conversas').select('id')
+                    .eq('empresa_id', pendEmpresaId).eq('canal', 'whatsapp')
+                    .eq('contato_telefone', nmClientPhone).maybeSingle()
+                  if (convAmb) {
+                    await supabase.from('mensagens').insert({ conversa_id: convAmb.id, origem: 'sistema', conteudo: respostaAmb })
+                  }
+                }
+              }
+            }
           }
         }
       }
