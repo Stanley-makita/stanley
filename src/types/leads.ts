@@ -1,4 +1,4 @@
-import type { ModalidadeProcesso } from '@/types/processos'
+import type { ModalidadeProcesso, ChanceEmissao } from '@/types/processos'
 
 /**
  * Deixou de ser união fechada — leads.origem virou TEXT (migration 286),
@@ -88,6 +88,10 @@ export interface Lead {
   status_analise: StatusAnalise
   data_credito: string | null
   validade_credito: string | null
+  // Confiança de que o crédito vai emitir — mesmo conceito de
+  // processos.chance_emissao (types/processos.ts), só existe quando o lead
+  // já chegou na aba Crédito (ver `creditoLiberado` em LeadDetalheModal.tsx)
+  chance_emissao: ChanceEmissao | null
   // Espelho da análise de crédito marcada banco_definido — ver
   // lead_analises_credito.numero_proposta e migration 20260725_191.
   numero_proposta: string | null

@@ -15,6 +15,7 @@ import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { TableShell } from '@/components/ui/table-shell'
 import { type Lead, type ProdutoInteresse } from '@/types/leads'
 import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
+import { ChanceBadge } from '@/components/processos/ChanceBadge'
 import { fmtCpf } from '@/lib/formularios/helpers'
 
 interface Props {
@@ -32,6 +33,7 @@ type ColKey =
   | 'status'
   | 'origem'
   | 'produto'
+  | 'chance'
   | 'modalidade'
   | 'comercial'
   | 'operacional'
@@ -45,7 +47,17 @@ type ColKey =
 
 type SortDir = 'asc' | 'desc'
 
-const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'modalidade', 'comercial', 'operacional', 'corretor', 'imobiliaria', 'parceiro'])
+const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'chance', 'modalidade', 'comercial', 'operacional', 'corretor', 'imobiliaria', 'parceiro'])
+
+const CHANCE_LABELS: Record<'certeza' | 'incerteza', string> = {
+  certeza: 'Certeza',
+  incerteza: 'Incerteza',
+}
+
+function chanceLabel(v: Lead['chance_emissao']): string {
+  if (!v) return ''
+  return CHANCE_LABELS[v] ?? v
+}
 
 const PRODUTO_LABELS: Record<ProdutoInteresse, string> = {
   financiamento: 'Financiamento',
@@ -93,6 +105,7 @@ function getColValue(lead: Lead, col: ColKey, fases: FaseAtiva[]): string {
     case 'status':       return lead.perdido_em ? 'Perdido' : (lead.status?.nome ?? '')
     case 'origem':       return lead.origem ?? ''
     case 'produto':      return produtoLabel(lead.produto_interesse)
+    case 'chance':       return chanceLabel(lead.chance_emissao)
     case 'modalidade':   return modalidadeLabel(lead.modalidade)
     case 'comercial':    return lead.responsavel?.nome ?? ''
     case 'operacional':  return (lead as any).responsavel_operacional?.nome ?? ''
@@ -321,6 +334,11 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
+                    <ColHeader label="Chance"           col="chance"      active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
                     <ColHeader label="Modalidade"       col="modalidade"  active={sortCol} dir={sortDir} onSort={handleSort}
                       filterable colFilters={colFilters} setColFilters={setColFilters}
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
@@ -377,7 +395,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-fonti-accent bg-fonti-accent/30">
-                    <td colSpan={9} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                    <td colSpan={10} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
                       Total{hasFilters || faseId ? ' (filtrado)' : ''} · {leads.length} captaç{leads.length === 1 ? 'ão' : 'ões'}
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-bold text-fonti-primary">
@@ -885,6 +903,13 @@ function LeadRow({
         <span className="text-xs text-gray-600">
           {lead.produto_interesse ? produtoLabel(lead.produto_interesse) : <span className="text-gray-300">—</span>}
         </span>
+      </td>
+
+      {/* Chance */}
+      <td className="px-3 py-1.5">
+        {lead.chance_emissao
+          ? <ChanceBadge chance={lead.chance_emissao} />
+          : <span className="text-xs text-gray-300">—</span>}
       </td>
 
       {/* Modalidade */}

@@ -43,6 +43,7 @@ import { ptBR } from 'date-fns/locale'
 import {
   Plus, MessageCircle, Loader2, Trash2,
   Phone, Mail, CreditCard, DollarSign, Calendar, ClipboardList, ArrowLeft, Send,
+  CheckCircle2, AlertCircle,
 } from 'lucide-react'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
@@ -763,6 +764,31 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               >
                 {lead.status.nome}
               </span>
+            )}
+            {lead && creditoLiberado && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={editarLead.isPending}
+                onClick={() =>
+                  editarLead.mutate({
+                    id: lead.id,
+                    chance_emissao: lead.chance_emissao === 'certeza' ? 'incerteza' : 'certeza',
+                  })
+                }
+                className={
+                  lead.chance_emissao === 'certeza'
+                    ? 'h-7 shrink-0 gap-1.5 text-xs border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
+                    : 'h-7 shrink-0 gap-1.5 text-xs border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100'
+                }
+              >
+                {lead.chance_emissao === 'certeza' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                {lead.chance_emissao === 'certeza' ? 'Certeza' : 'Incerteza'}
+              </Button>
             )}
             {lead && !lead.perdido_em && (
               <Button
