@@ -49,6 +49,7 @@ interface EditarLeadInput {
   status_analise?: Lead['status_analise']
   data_credito?: string | null
   validade_credito?: string | null
+  chance_emissao?: Lead['chance_emissao']
   // Imóvel vinculado
   imovel_id?: string | null
   imovel_matricula?: string | null
