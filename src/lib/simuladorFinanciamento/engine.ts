@@ -713,12 +713,25 @@ export function simularBanco(
   // que também não trocava o MIP para Pró-Cotista/MCMV neste caminho — só em
   // `simularCaixaDuplo`, ver abaixo).
   if (bancoId === 'caixa') {
-    const criteriaBase = resolverCriterios('caixa', overrides)
+    const criteriaBaseResolvido = resolverCriterios('caixa', overrides)
+    // Imóvel comercial: cota fixa em 70% (SAC e PRICE) e prazo máximo de 240 meses (SAC e
+    // PRICE), novo ou usado — nunca acessa Pró-Cotista/MCMV (bloqueados por `finalidade`
+    // abaixo em `simularCaixaDuplo`; aqui, no caminho de banco único, comercial nunca bate
+    // nos ifs de Pró-Cotista/MCMV porque eles exigem imóvel residencial dentro de teto de
+    // valor — mesmo critério de `simularCaixaDuplo`, ver comentário lá).
+    const criteriaBase: SimulationCriteria = input.finalidade === 'comercial'
+      ? {
+          ...criteriaBaseResolvido,
+          ltv: { ...criteriaBaseResolvido.ltv, sac: 0.70, price: 0.70 },
+          prazoMaximoMeses: 240,
+          prazoMaximoMesesPrice: 240,
+        }
+      : criteriaBaseResolvido
     let criteria: SimulationCriteria = criteriaBase
     // Pró-Cotista Caixa: restrito a imóvel novo — estratégia comercial da Caixa (não é
     // regra do programa Pró-Cotista em si, que só exige FGTS ativo/10% saldo; confirmado
     // testando o simulador oficial, jul/2026 — ver mesma checagem em `simularCaixaDuplo`).
-    if (input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false && input.tipoImovel === 'novo') {
+    if (input.finalidade !== 'comercial' && input.valorImovel <= CAIXA_PRO_COTISTA.maxValorImovel && input.usaFgts !== false && input.tipoImovel === 'novo') {
       criteria = {
         ...criteriaBase,
         taxaAnualBase: CAIXA_PRO_COTISTA.taxaAnual,
@@ -730,7 +743,8 @@ export function simularBanco(
     }
     // Sem renda informada, `rendaMensal` fica em 0 só por ausência de dado — isso nunca
     // pode "qualificar" o cliente para a faixa MCMV mais subsidiada (0 <= qualquer teto).
-    const faixaMcmv = input.rendaInformada === false ? [] : MCMV_FAIXAS.filter(
+    // Comercial nunca acessa MCMV (mesma exclusão de `podeMcmvProcotista` em `simularCaixaDuplo`).
+    const faixaMcmv = (input.finalidade === 'comercial' || input.rendaInformada === false) ? [] : MCMV_FAIXAS.filter(
       (f) => input.rendaMensal <= f.rendaMax && input.valorImovel <= f.tetoImovel
     )
     if (faixaMcmv.length > 0) {
@@ -942,6 +956,20 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   const criteriaBase = resolverCriterios('caixa', overrides)
   const results: ResultadoBanco[] = []
 
+  // Imóvel comercial: cota de financiamento fixa em 70% (SAC e PRICE, sem distinção
+  // novo/usado) e prazo máximo de 240 meses (SAC e PRICE) — diferente do teto residencial
+  // (LTV SAC 80%, prazo 420/360, MO30769 v032). Aplicado direto sobre o critério base:
+  // comercial nunca acessa Pró-Cotista/MCMV (bloqueado abaixo por `podeMcmvProcotista`),
+  // então só afeta o SBPE, calculado a partir desta variável (não de `criteriaBase`).
+  const criteriaBaseAjustado: SimulationCriteria = input.finalidade === 'comercial'
+    ? {
+        ...criteriaBase,
+        ltv: { ...criteriaBase.ltv, sac: 0.70, price: 0.70 },
+        prazoMaximoMeses: 240,
+        prazoMaximoMesesPrice: 240,
+      }
+    : criteriaBase
+
   // Entrada ajustada para PRICE: corrigido jul/2026 para ser calculada POR PROGRAMA (era
   // uma única lista computada a partir do LTV do SBPE e reaproveitada pros 3 programas —
   // isso ficou errado desde que Pró-Cotista/MCMV passaram a ter seu próprio LTV, abaixo:
@@ -949,7 +977,7 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   // Pró-Cotista/Classe Média-usado, por exemplo). `construirCenariosCaixa` já é genérica o
   // bastante (só olha pro `criteria.ltv.price` recebido) — só precisava ser chamada uma
   // vez por critério, não uma vez só com o critério base.
-  const cenariosSbpe = construirCenariosCaixa(input, criteriaBase)
+  const cenariosSbpe = construirCenariosCaixa(input, criteriaBaseAjustado)
 
   // Lote urbanizado: apenas SBPE (MO43000271 §3.1.2 — MCMV/Pró-Cotista não contemplam lote isolado)
   // Comercial: finalidade='comercial' já bloqueia MCMV/Pró-Cotista via podeAcessarMcmv
@@ -1004,8 +1032,8 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   // existia para gatilhar essa troca, não para bloquear). LTV/prazo continuam os mesmos do
   // SFH (confirmado: cota máxima 80% no simulador oficial, mesmo acima do teto).
   const criteriaSbpe: SimulationCriteria = input.valorImovel > cfg.maxValorImovel
-    ? { ...criteriaBase, taxaAnualBase: CAIXA_SFI_TAXAS.taxaAnualBase, taxaAnualCorrentista: CAIXA_SFI_TAXAS.taxaAnualCorrentista, maxValorImovel: 0 }
-    : criteriaBase
+    ? { ...criteriaBaseAjustado, taxaAnualBase: CAIXA_SFI_TAXAS.taxaAnualBase, taxaAnualCorrentista: CAIXA_SFI_TAXAS.taxaAnualCorrentista, maxValorImovel: 0 }
+    : criteriaBaseAjustado
   gerarCenariosComparativos(results, cfg, criteriaSbpe, input, 'caixa-sbpe', cenariosSbpe)
 
   // `gerarCenariosComparativos` só inclui cenários elegíveis (decisão de produto

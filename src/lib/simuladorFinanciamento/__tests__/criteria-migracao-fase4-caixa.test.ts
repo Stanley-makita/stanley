@@ -158,7 +158,9 @@ describe('Fase 4 — Caixa: simularTodosBancos / simularCaixaDuplo (equivalênci
     { nome: 'MCMV + SBPE (sem Pró-Cotista, imóvel > 350k)', input: { ...BASE_INPUT_EQUIV, valorImovel: 550_000, valorEntrada: 100_000, rendaMensal: 12_000 } },
     { nome: 'Pró-Cotista + MCMV + SBPE (imóvel ≤ 350k e dentro de faixa MCMV)', input: { ...BASE_INPUT_EQUIV, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000 } },
     { nome: 'lote_urbanizado — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT_EQUIV, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'lote_urbanizado', tipoImovel: undefined } },
-    { nome: 'comercial — só SBPE (MCMV/Pró-Cotista bloqueados)', input: { ...BASE_INPUT_EQUIV, valorImovel: 300_000, valorEntrada: 60_000, rendaMensal: 3_000, tipoOperacao: 'comercial', finalidade: 'comercial' } },
+    // 'comercial — só SBPE' movido para o describe dedicado "parametrização de imóvel
+    // comercial" abaixo — desde a parametrização de cota 70%/prazo 240 meses (set/2026),
+    // diverge de propósito do baseline (que herdava cota/prazo do SBPE residencial).
     { nome: 'jaRecebeuSubsidio=true — bloqueia MCMV/Pró-Cotista', input: { ...BASE_INPUT_EQUIV, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, jaRecebeuSubsidio: true } },
     { nome: 'usaFgts=false — bloqueia só Pró-Cotista', input: { ...BASE_INPUT_EQUIV, valorImovel: 260_000, valorEntrada: 40_000, rendaMensal: 3_000, usaFgts: false } },
     // 'PRICE + Pró-Cotista + SBPE' movido para o describe "teto de prazo PRICE" abaixo
@@ -260,6 +262,67 @@ describe('Fase 4 — Caixa: teto de prazo PRICE (360 meses — MO30769 v032)', (
     const porId = new Map(resultados.map((r) => [r.resultadoId, r]))
     expect(porId.get('caixa-procotista-price')?.parcelas).toBe(420)
     expect(porId.get('caixa-sbpe-price')?.parcelas).toBe(360)
+  })
+})
+
+// Imóvel comercial: cota de financiamento fixa em 70% (SAC e PRICE) e prazo máximo de
+// 240 meses (SAC e PRICE), independente de novo/usado — simulador comercial oficial da
+// Caixa (08/09/2026, imóvel R$1.500.000, entrada R$913.449,53, cota 70%, prazo 240).
+// Testado diretamente (não é mais equivalência contra o baseline, que herdava cota 80%/
+// prazo 420 do SBPE residencial pro comercial — ver cenário removido do describe de
+// equivalência acima pelo mesmo motivo).
+describe('Fase 4 — Caixa: parametrização de imóvel comercial (cota 70%, prazo 240 meses)', () => {
+  const BASE_COMERCIAL: InputFinanciamento = {
+    ...BASE_INPUT_EQUIV,
+    valorImovel: 1_500_000,
+    tipoOperacao: 'comercial',
+    finalidade: 'comercial',
+  }
+
+  it('SAC: cota máxima é 70% do imóvel (não os 80% do residencial)', () => {
+    const dentro70 = simularBancoNovo('caixa', { ...BASE_COMERCIAL, valorEntrada: 450_000 }) // financia 70%
+    const acima70 = simularBancoNovo('caixa', { ...BASE_COMERCIAL, valorEntrada: 400_000 }) // financiaria 73,3%
+    expect(dentro70.elegivel).toBe(true)
+    expect(acima70.elegivel).toBe(false)
+    expect(acima70.motivoInelegivel).toMatch(/excede.*imóvel/i)
+  })
+
+  it('PRICE: cota máxima também é 70% (mesmo teto do residencial, sem mudança)', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_COMERCIAL, tipoAmortizacao: 'PRICE', valorEntrada: 450_000 })
+    expect(resultado.elegivel).toBe(true)
+  })
+
+  it('SAC: prazo máximo é 240 meses (não os 420 do residencial)', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_COMERCIAL, valorEntrada: 450_000 })
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.parcelas).toBe(240)
+  })
+
+  it('PRICE: prazo máximo também é 240 meses (não os 360 do residencial)', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_COMERCIAL, tipoAmortizacao: 'PRICE', valorEntrada: 450_000 })
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.parcelas).toBe(240)
+  })
+
+  it('teto de 240 meses vale igual para imóvel usado', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_COMERCIAL, tipoImovel: 'usado', valorEntrada: 450_000 })
+    expect(resultado.elegivel).toBe(true)
+    expect(resultado.parcelas).toBe(240)
+  })
+
+  it('override de prazoMaximoMeses do banco de dados não estende o comercial além de 240', () => {
+    const resultado = simularBancoNovo('caixa', { ...BASE_COMERCIAL, valorEntrada: 450_000 }, { prazoMaximoMeses: 420 })
+    expect(resultado.parcelas).toBe(240)
+  })
+
+  it('idade+prazo continua na regra geral (80 anos e 6 meses) — não ganhou regra própria pro comercial', () => {
+    // Cliente jovem o bastante pra 966 meses (80a6m) não binder antes dos 240 do produto.
+    const jovem = simularBancoNovo('caixa', { ...BASE_COMERCIAL, valorEntrada: 450_000, dataNascimento: '1995-06-15' })
+    expect(jovem.parcelas).toBe(240)
+    // Cliente mais velho: idade+prazo (966) já reduz o teto abaixo de 240 antes de bater
+    // no teto do produto — prova que a regra geral continua ativa, sem exceção nova.
+    const idoso = simularBancoNovo('caixa', { ...BASE_COMERCIAL, valorEntrada: 450_000, dataNascimento: '1950-06-15' })
+    expect(idoso.parcelas).toBeLessThan(240)
   })
 })
 
