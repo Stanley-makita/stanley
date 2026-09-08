@@ -19,7 +19,8 @@ import { toast } from 'sonner'
 import { useBancos } from '@/hooks/useBancos'
 import { useAtualizarDadosProcesso } from '@/hooks/processos/useProcessos'
 import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
-import type { Processo } from '@/types/processos'
+import type { Processo, ResponsavelRegistro } from '@/types/processos'
+import { RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
 
 const MODALIDADES = [
   'SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio',
@@ -129,6 +130,10 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   // null = não declarado | true = usará FGTS | false = não usará FGTS
   const [fgtsOpcao, setFgtsOpcao] = useState<boolean | null>(initFgtsOpcao(processo))
   const [fgtsErro,  setFgtsErro]  = useState('')
+  const [responsavelRegistro, setResponsavelRegistro] = useState<ResponsavelRegistro | null>(
+    (processo as any).responsavel_registro ?? null,
+  )
+  const [responsavelRegistroErro, setResponsavelRegistroErro] = useState('')
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -142,6 +147,8 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       setComissaoEmpresa(pa.comissao_empresa ?? null)
       setFgtsOpcao(initFgtsOpcao(processo))
       setFgtsErro('')
+      setResponsavelRegistro((processo as any).responsavel_registro ?? null)
+      setResponsavelRegistroErro('')
       form.reset(buildDefaults(processo))
     }
   }, [aberto, processo, form])
@@ -172,6 +179,12 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
     }
     setFgtsErro('')
 
+    if (responsavelRegistro === null) {
+      setResponsavelRegistroErro('Declare quem fará o registro deste processo')
+      return
+    }
+    setResponsavelRegistroErro('')
+
     // Consistência financeira: Imóvel = Financiado + FGTS + Recursos Próprios
     if (recursosProprios < 0) {
       const diferenca = Math.abs(recursosProprios)
@@ -194,6 +207,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         taxa_juros:                     dados.taxa_juros,
         tem_assessoria:                 dados.tem_assessoria,
         valor_assessoria:               dados.tem_assessoria ? normNum(dados.valor_assessoria) : null,
+        responsavel_registro:           responsavelRegistro,
         valor_imovel:                   normNum(dados.valor_imovel),
         valor_financiado:               normNum(dados.valor_financiado),
         valor_fgts:                     fgtsOpcao ? normNum(dados.valor_fgts) : 0,
@@ -413,6 +427,28 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* ── Registro ──────────────────────────────────────────────── */}
+              <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+                <Label>Quem vai fazer o registro <span className="text-red-500">*</span></Label>
+                <div className="flex gap-2">
+                  {(Object.keys(RESPONSAVEL_REGISTRO_LABELS) as ResponsavelRegistro[]).map((opcao) => (
+                    <button
+                      key={opcao}
+                      type="button"
+                      onClick={() => { setResponsavelRegistro(opcao); setResponsavelRegistroErro('') }}
+                      className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                        responsavelRegistro === opcao
+                          ? 'border-fonti-primary bg-fonti-primary text-white'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {RESPONSAVEL_REGISTRO_LABELS[opcao]}
+                    </button>
+                  ))}
+                </div>
+                {responsavelRegistroErro && <p className="text-xs text-red-500">{responsavelRegistroErro}</p>}
               </div>
             </div>
 

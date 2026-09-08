@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 import { differenceInDays } from 'date-fns'
 import { useState, useMemo, useEffect } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
+import { RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
@@ -950,6 +951,14 @@ function AbaResumo({
             {processo.tem_assessoria && processo.valor_assessoria == null && (
               <span className="text-xs text-fonti-primary font-medium">Inclusa</span>
             )}
+          </div>
+          <div className="flex items-center justify-between px-1 text-sm">
+            <span className="text-gray-500">Registro por</span>
+            <span className="font-medium text-fonti-primary">
+              {processo.responsavel_registro
+                ? RESPONSAVEL_REGISTRO_LABELS[processo.responsavel_registro]
+                : '—'}
+            </span>
           </div>
           {(processo.comissao_comercial || processo.comissao_empresa) && (
             <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
