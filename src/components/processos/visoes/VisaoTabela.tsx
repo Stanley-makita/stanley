@@ -20,7 +20,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { TableShell } from '@/components/ui/table-shell'
 import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
-import { fmtData, normalizarTexto } from '@/lib/utils'
+import { cn, fmtData, normalizarTexto } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
 
 // Registro e Financiamento seguem um fluxo por fase (não por status_processo
@@ -101,6 +101,15 @@ function statusFinanciamento(p: Processo): { label: string; variant: 'success' |
   if (reprovada && (!aprovada || reprovada > aprovada))   return { label: 'Processo Inconforme',      variant: 'danger'  }
   if (p.enviado_conformidade_em)                          return { label: 'Enviado p/ Conformidade',  variant: 'brand'   }
   return { label: 'Não Emitido', variant: 'neutral' }
+}
+
+// Destaque visual da linha na Tabela de Financiamento — Emitido sobrepõe a
+// Chance (mesma prioridade de statusFinanciamento acima: é o desfecho final).
+function corLinhaFinanciamento(p: Processo): string {
+  if (p.status_emissao === 'emitido') return 'bg-emerald-100 hover:bg-emerald-200/70'
+  if (p.chance_emissao === 'incerteza') return 'bg-amber-50 hover:bg-amber-100/70'
+  if (p.chance_emissao === 'certeza')   return 'bg-sky-50 hover:bg-sky-100/70'
+  return ''
 }
 
 const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
@@ -730,7 +739,10 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                   return (
                     <TableRow
                       key={p.id}
-                      className="cursor-pointer hover:bg-fonti-accent-hover/30 transition-colors"
+                      className={cn(
+                        'cursor-pointer transition-colors',
+                        !isContrato && !isConsorcio ? corLinhaFinanciamento(p) : 'hover:bg-fonti-accent-hover/30',
+                      )}
                       onClick={() => router.push(
                         p.modalidade === 'Consorcio' ? `/negocios/consorcio/${p.id}` : `/processos/${p.id}`
                       )}
