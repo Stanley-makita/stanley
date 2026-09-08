@@ -176,7 +176,7 @@ export function ListaCotas({ processoId }: { processoId: string }) {
               className="gap-1.5 text-xs"
               disabled={recalcular.isPending}
               onClick={() => {
-                if (window.confirm('Isso vai apagar e regerar todas as parcelas ainda não recebidas/pagas deste processo, usando a configuração de comissão atual. Continuar?')) {
+                if (window.confirm('Isso vai apagar e regerar as parcelas ainda não recebidas/pagas, usando a configuração de comissão atual. Cotas com alguma parcela já recebida/paga não são mexidas. Continuar?')) {
                   recalcular.mutate()
                 }
               }}
