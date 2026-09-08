@@ -38,6 +38,7 @@ type ColKey =
   | 'comercial'
   | 'operacional'
   | 'valor'
+  | 'banco'
   | 'vendedor'
   | 'corretor'
   | 'imobiliaria'
@@ -47,7 +48,7 @@ type ColKey =
 
 type SortDir = 'asc' | 'desc'
 
-const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'chance', 'modalidade', 'comercial', 'operacional', 'corretor', 'imobiliaria', 'parceiro'])
+const FILTERABLE_COLS = new Set<ColKey>(['fase', 'status', 'origem', 'produto', 'chance', 'modalidade', 'comercial', 'operacional', 'banco', 'corretor', 'imobiliaria', 'parceiro'])
 
 const CHANCE_LABELS: Record<'certeza' | 'incerteza', string> = {
   certeza: 'Certeza',
@@ -76,6 +77,12 @@ function produtoLabel(v: ProdutoInteresse | null): string {
 function modalidadeLabel(v: string | null): string {
   if (!v) return ''
   return MODALIDADE_LABELS[v as ModalidadeProcesso] ?? v
+}
+
+function bancoDefinido(lead: Lead): string {
+  const analise = lead.analises_credito?.find(a => a.banco_definido)
+  if (!analise) return ''
+  return analise.banco_pretendido ?? analise.nome ?? ''
 }
 
 function fmtValor(v: number | null) {
@@ -110,6 +117,7 @@ function getColValue(lead: Lead, col: ColKey, fases: FaseAtiva[]): string {
     case 'comercial':    return lead.responsavel?.nome ?? ''
     case 'operacional':  return (lead as any).responsavel_operacional?.nome ?? ''
     case 'valor':        return String(lead.valor_pretendido ?? 0)
+    case 'banco':        return bancoDefinido(lead)
     case 'vendedor':     return lead.vendedor_nome ?? ''
     case 'corretor':     return lead.corretores?.[0]?.corretor?.nome ?? ''
     case 'imobiliaria':  return lead.imobiliarias?.[0]?.imobiliaria?.nome ?? ''
@@ -314,6 +322,33 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                   <tr className="border-b border-fonti-accent" style={{ backgroundColor: 'var(--fonti-accent)' }}>
                     <ColHeader label="Nome"             col="nome"        active={sortCol} dir={sortDir} onSort={handleSort} />
                     <ColHeader label="CPF"              col="cpf"         active={sortCol} dir={sortDir} onSort={handleSort} />
+                    <ColHeader label="Modalidade"       col="modalidade"  active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Valor pretendido" col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <ColHeader label="Banco"            col="banco"       active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Comercial"        col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <ColHeader label="Operacional"      col="operacional" active={sortCol} dir={sortDir} onSort={handleSort}
+                      filterable colFilters={colFilters} setColFilters={setColFilters}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                      allLeads={leadsBase} />
+                    <DateRangeColHeader
+                      label="Criado em" col="criado_em" active={sortCol} dir={sortDir} onSort={handleSort}
+                      range={criadoEmRange} setRange={setCriadoEmRange}
+                      openFilter={openFilter} setOpenFilter={setOpenFilter}
+                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
+                    />
                     <ColHeader label="Fase"             col="fase"        active={sortCol} dir={sortDir} onSort={handleSort}
                       filterable colFilters={colFilters} setColFilters={setColFilters}
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
@@ -339,22 +374,6 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       openFilter={openFilter} setOpenFilter={setOpenFilter}
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
-                    <ColHeader label="Modalidade"       col="modalidade"  active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable colFilters={colFilters} setColFilters={setColFilters}
-                      openFilter={openFilter} setOpenFilter={setOpenFilter}
-                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
-                      allLeads={leadsBase} />
-                    <ColHeader label="Comercial"        col="comercial"   active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable colFilters={colFilters} setColFilters={setColFilters}
-                      openFilter={openFilter} setOpenFilter={setOpenFilter}
-                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
-                      allLeads={leadsBase} />
-                    <ColHeader label="Operacional"      col="operacional" active={sortCol} dir={sortDir} onSort={handleSort}
-                      filterable colFilters={colFilters} setColFilters={setColFilters}
-                      openFilter={openFilter} setOpenFilter={setOpenFilter}
-                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
-                      allLeads={leadsBase} />
-                    <ColHeader label="Valor pretendido" col="valor"       active={sortCol} dir={sortDir} onSort={handleSort} align="right" />
                     <ColHeader label="Vendedor"         col="vendedor"    active={sortCol} dir={sortDir} onSort={handleSort} />
                     <ColHeader label="Corretor"         col="corretor"    active={sortCol} dir={sortDir} onSort={handleSort}
                       filterable colFilters={colFilters} setColFilters={setColFilters}
@@ -372,12 +391,6 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                       dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
                       allLeads={leadsBase} />
                     <ColHeader label="Proposta"         col="proposta"    active={sortCol} dir={sortDir} onSort={handleSort} />
-                    <DateRangeColHeader
-                      label="Criado em" col="criado_em" active={sortCol} dir={sortDir} onSort={handleSort}
-                      range={criadoEmRange} setRange={setCriadoEmRange}
-                      openFilter={openFilter} setOpenFilter={setOpenFilter}
-                      dropdownPos={dropdownPos} setDropdownPos={setDropdownPos}
-                    />
                     {podeExcluir && <th className="w-10 px-2 py-3" />}
                   </tr>
                 </thead>
@@ -395,13 +408,13 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-fonti-accent bg-fonti-accent/30">
-                    <td colSpan={10} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                    <td colSpan={3} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
                       Total{hasFilters || faseId ? ' (filtrado)' : ''} · {leads.length} captaç{leads.length === 1 ? 'ão' : 'ões'}
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-bold text-fonti-primary">
                       {fmtValor(totalValorPretendido)}
                     </td>
-                    <td colSpan={podeExcluir ? 7 : 6} />
+                    <td colSpan={podeExcluir ? 15 : 14} />
                   </tr>
                 </tfoot>
               </table>
@@ -861,6 +874,38 @@ function LeadRow({
         <p className="text-xs text-gray-700 whitespace-nowrap">{lead.cpf ? fmtCpf(lead.cpf) : '—'}</p>
       </td>
 
+      {/* Modalidade */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600">
+          {lead.modalidade ? modalidadeLabel(lead.modalidade) : <span className="text-gray-300">—</span>}
+        </span>
+      </td>
+
+      {/* Valor */}
+      <td className="px-3 py-1.5 text-right text-xs font-medium text-fonti-primary">
+        {fmtValor(lead.valor_pretendido)}
+      </td>
+
+      {/* Banco */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{bancoDefinido(lead) || '—'}</span>
+      </td>
+
+      {/* Comercial */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.responsavel?.nome ?? '—'}</span>
+      </td>
+
+      {/* Operacional */}
+      <td className="px-3 py-1.5">
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{responsavelOp?.nome ?? '—'}</span>
+      </td>
+
+      {/* Data */}
+      <td className="px-3 py-1.5 text-xs text-gray-400 whitespace-nowrap">
+        {format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}
+      </td>
+
       {/* Fase */}
       <td className="px-3 py-1.5">
         {faseAtiva ? (
@@ -912,28 +957,6 @@ function LeadRow({
           : <span className="text-xs text-gray-300">—</span>}
       </td>
 
-      {/* Modalidade */}
-      <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600">
-          {lead.modalidade ? modalidadeLabel(lead.modalidade) : <span className="text-gray-300">—</span>}
-        </span>
-      </td>
-
-      {/* Comercial */}
-      <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.responsavel?.nome ?? '—'}</span>
-      </td>
-
-      {/* Operacional */}
-      <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{responsavelOp?.nome ?? '—'}</span>
-      </td>
-
-      {/* Valor */}
-      <td className="px-3 py-1.5 text-right text-xs font-medium text-fonti-primary">
-        {fmtValor(lead.valor_pretendido)}
-      </td>
-
       {/* Vendedor */}
       <td className="px-3 py-1.5">
         <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.vendedor_nome ?? '—'}</span>
@@ -957,11 +980,6 @@ function LeadRow({
       {/* Proposta */}
       <td className="px-3 py-1.5">
         <span className="text-xs text-gray-600 whitespace-nowrap">{lead.numero_proposta ?? '—'}</span>
-      </td>
-
-      {/* Data */}
-      <td className="px-3 py-1.5 text-xs text-gray-400 whitespace-nowrap">
-        {format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}
       </td>
 
       {/* Excluir */}

@@ -224,7 +224,8 @@ export function useLeadsInativos() {
           status:fase_statuses!status_id(id, nome, cor),
           corretores:lead_corretores(id, corretor:corretores(id, nome)),
           imobiliarias:lead_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
-          parceiros:lead_parceiros(id, parceiro:parceiros(id, nome))
+          parceiros:lead_parceiros(id, parceiro:parceiros(id, nome)),
+          analises_credito:lead_analises_credito(id, banco_definido, banco_pretendido, nome)
         `)
         .eq('empresa_id', eid)
         .is('deleted_at', null)

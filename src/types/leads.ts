@@ -133,6 +133,7 @@ export interface Lead {
   corretores?: { id: string; corretor?: { id: string; nome: string } | null }[]
   imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]
   parceiros?: { id: string; parceiro?: { id: string; nome: string } | null }[]
+  analises_credito?: { id: string; banco_definido: boolean; banco_pretendido: string | null; nome: string }[]
   coparticipantes?: LeadCoparticipante[]
   vendedores?: LeadVendedor[]
 }
