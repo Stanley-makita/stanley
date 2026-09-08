@@ -68,10 +68,16 @@ function makeChain(overrides: Partial<Record<string, unknown>> = {}): any {
   return chain
 }
 
-function criarSupabaseMockCaptacao(): any {
+function criarSupabaseMockCaptacao(updatesLeadsCapturados?: Record<string, unknown>[]): any {
   const generic = makeChain()
   const fasesChain = makeChain({ maybeSingle: () => Promise.resolve({ data: { id: 'fase-1' }, error: null }) })
-  const leadsChain = makeChain({ single: () => Promise.resolve({ data: { id: 'lead-1' }, error: null }) })
+  const leadsChain = makeChain({
+    single: () => Promise.resolve({ data: { id: 'lead-1' }, error: null }),
+    update: (campos: Record<string, unknown>) => {
+      updatesLeadsCapturados?.push(campos)
+      return leadsChain
+    },
+  })
 
   return {
     from: (table: string) => {
@@ -113,11 +119,12 @@ describe('*cria cliente — dado faltante + complemento posterior', () => {
     const dados1 = await normalizarPedidoSimulacao(TEXTO_INICIAL)
     expect(dados1.data_nascimento).toBeNull() // pré-condição
 
+    const updatesLeadsCapturados: Record<string, unknown>[] = []
     const resposta = await executarWorkflowCaptacao(TEXTO_COMPLEMENTO, {
       empresa_id: 'empresa-1',
       usuario_id: 'u1',
       usuario_nome: 'Operador Teste',
-      supabase: criarSupabaseMockCaptacao(),
+      supabase: criarSupabaseMockCaptacao(updatesLeadsCapturados),
       telefone_operador: 'op-1',
       telefone_remetente: 'op-1',
       vem_de_pendente: true,
@@ -136,5 +143,12 @@ describe('*cria cliente — dado faltante + complemento posterior', () => {
     const mesclado = mergeCapturados(dados1, complemento)
     expect(mesclado.data_nascimento).toBe('1990-05-10')
     expect(mesclado.valor_imovel).toBe(400_000)
+
+    // Bug real: data_nascimento é salva em `pessoas` (via camposPessoa) mas nunca era
+    // propagada para o próprio Lead — a tela de Captação lê `lead.data_nascimento`
+    // (sidebar "Faltando" e gate de crédito), não a Pessoa vinculada, então o dado
+    // informado via *fonti nunca aparecia lá mesmo já preenchido na aba Pessoa.
+    const updateComData = updatesLeadsCapturados.find((c) => 'data_nascimento' in c)
+    expect(updateComData?.data_nascimento).toBe('1990-05-10')
   })
 })

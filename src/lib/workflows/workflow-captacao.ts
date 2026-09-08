@@ -376,6 +376,7 @@ export async function executarWorkflowCaptacao(
           origem:           'whatsapp',
           ordem_kanban:     ordemTopo,
           pessoa_id,
+          data_nascimento:  dados.data_nascimento    ?? null,
           // Se quem disparou o *cria cliente é um comercial, a captação já
           // nasce na própria carteira. Se for recepção/gestor/admin criando
           // em nome de terceiros, fica sem dono até ser distribuída.
@@ -423,6 +424,7 @@ export async function executarWorkflowCaptacao(
     if (dados.valor_entrada)  { camposLead.entrada          = dados.valor_entrada; camposAtualizados.push('entrada') }
     if (dados.cidade_imovel)  { camposLead.cidade_imovel   = dados.cidade_imovel }
     if (dados.tipo_imovel)    { camposLead.tipo_imovel     = mapTipoImovelLead(dados.tipo_imovel) }
+    if (dados.data_nascimento) { camposLead.data_nascimento = dados.data_nascimento; camposAtualizados.push('nascimento') }
     const rendaNova = dados.renda_formal ?? dados.renda_informal
     if (rendaNova)            { camposLead.renda_considerada = rendaNova;          camposAtualizados.push('renda') }
     if (dados.bancos_ids[0])  { camposLead.banco_pretendido = dados.bancos_ids[0]; camposAtualizados.push('bancos') }
