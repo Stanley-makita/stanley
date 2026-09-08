@@ -912,6 +912,45 @@ export async function POST(request: NextRequest) {
     const { verificarUsuarioInterno, processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
     const usuarioInterno = await verificarUsuarioInterno(supabase, empresa_id, telefone)
 
+    // Resolução de ambiguidade pendente de "*fonti salva [nome]" (ex.: "Encontrei 2
+    // clientes... Responda com o número") tem prioridade sobre a exceção de conversa
+    // "humano" aberta logo abaixo — decisão consciente de 2026-09-08: um comercial cujo
+    // número está numa conversa humana normal (ex.: falando com um operacional pela tela
+    // de Conversas) ainda precisa poder responder só "1"/"2" a um *salva ambíguo. Risco
+    // aceito: se sobrar uma ambiguidade pendente sem resposta e, depois, o mesmo número
+    // mandar um número solto numa conversa humana sem relação nenhuma, esse número seria
+    // capturado aqui em vez de aparecer como mensagem normal na conversa. Se isso causar
+    // confusão na prática, mover esta checagem de volta pra dentro do
+    // `if (usuarioInterno && !conversaHumanoExistente)` abaixo (era assim antes).
+    if (usuarioInterno && /^\d+$/.test(texto.trim())) {
+      const { data: marcaAmbigua } = await supabase
+        .from('fonti_marcas')
+        .select('candidatos_pendentes')
+        .eq('empresa_id', empresa_id)
+        .eq('telefone_conversa', telefone)
+        .not('candidatos_pendentes', 'is', null)
+        .maybeSingle()
+
+      if (marcaAmbigua?.candidatos_pendentes) {
+        const { processarComandoFonti } = await import('@/lib/bot/fonti-comandos')
+        const respostaAmb = await processarComandoFonti(`*fonti salva ${texto.trim()}`, {
+          empresa_id,
+          telefone_remetente: telefone,
+          atendente_id_override: usuarioInterno.id,
+          supabase,
+          arquivos: fileUrl
+            ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
+            : [],
+          instancia_token: instanciaToken,
+          telefone_destino: telefone,
+        })
+        if (respostaAmb !== null) {
+          await enviarMensagemUazapi(telefone, respostaAmb)
+        }
+        return NextResponse.json({ ok: true })
+      }
+    }
+
     const { data: conversaHumanoExistente } = usuarioInterno
       ? await supabase
           .from('conversas')
@@ -983,41 +1022,6 @@ export async function POST(request: NextRequest) {
           telefone_operador: telefone,
         })
         await enviarMensagemUazapi(telefone, resposta)
-      } else if (/^\d+$/.test(texto.trim())) {
-        // Resposta numérica solta pra ambiguidade pendente de "*fonti salva [nome]" —
-        // só chega aqui quando NÃO há conversa "humano" aberta pra este número (guard do
-        // if acima): de propósito não damos prioridade sobre essa exceção, senão um
-        // comercial cujo número está registrado E que está numa conversa humana normal
-        // (ex.: falando com um operacional pela tela de Conversas) teria uma resposta
-        // numérica banal ("2 documentos", "responda 1") sequestrada por uma ambiguidade
-        // de *salva que ele tenha deixado pendente em outro momento, sem relação nenhuma
-        // com essa conversa. Se o operador estiver numa conversa humana, ele precisa usar
-        // o comando completo (*fonti salva N) mesmo.
-        const { data: marcaAmbigua } = await supabase
-          .from('fonti_marcas')
-          .select('candidatos_pendentes')
-          .eq('empresa_id', empresa_id)
-          .eq('telefone_conversa', telefone)
-          .not('candidatos_pendentes', 'is', null)
-          .maybeSingle()
-
-        if (marcaAmbigua?.candidatos_pendentes) {
-          const { processarComandoFonti } = await import('@/lib/bot/fonti-comandos')
-          const respostaAmb = await processarComandoFonti(`*fonti salva ${texto.trim()}`, {
-            empresa_id,
-            telefone_remetente: telefone,
-            atendente_id_override: usuarioInterno.id,
-            supabase,
-            arquivos: fileUrl
-              ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
-              : [],
-            instancia_token: instanciaToken,
-            telefone_destino: telefone,
-          })
-          if (respostaAmb !== null) {
-            await enviarMensagemUazapi(telefone, respostaAmb)
-          }
-        }
       } else if (isMidia && fileUrl) {
         // Mídia solta, sem pendência de simulação ativa: só persiste se houver uma sessão
         // *fonti inicio* aberta pra este telefone (fonti_marcas) — é o sinal explícito de
