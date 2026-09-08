@@ -18,18 +18,24 @@ export interface SimulacaoCentral {
   created_at: string
 }
 
-export function useSimulacoesCentral() {
+// Histórico por tipo (Central de Simulações, visão por aba) — cada tipo tem
+// seu próprio limite de 100 linhas, em vez de uma lista única misturando os
+// 4 tipos, que deixava um tipo pouco usado sumir da lista se os outros 3
+// lotassem o limite compartilhado.
+export function useSimulacoesCentralPorTipo(tipo: SimulacaoCentral['tipo'], enabled = true) {
   return useQuery({
-    queryKey: ['simulacoes-central'],
+    queryKey: ['simulacoes-central', 'por-tipo', tipo],
     queryFn: async (): Promise<SimulacaoCentral[]> => {
       const { data, error } = await supabase
         .from('simulacoes_central')
         .select('*')
+        .eq('tipo', tipo)
         .order('created_at', { ascending: false })
         .limit(100)
       if (error) throw error
       return (data ?? []) as SimulacaoCentral[]
     },
+    enabled,
   })
 }
 
@@ -57,27 +63,31 @@ export interface EstatisticasSimulacoesCentral {
   concluidas: number
 }
 
-// Contagem real via COUNT do banco — os cards de resumo (Total/Aguardando/
-// Concluídas) não podem derivar do array de useSimulacoesCentral, que é
-// limitado a 100 linhas (só pra listar o histórico); acima de 100
-// simulações o "Total" ficava travado em 100 (bug real, 2026-07-29).
-export function useEstatisticasSimulacoesCentral() {
+const TIPOS: SimulacaoCentral['tipo'][] = ['financiamento', 'custas', 'consorcio', 'cgi']
+
+export type EstatisticasPorTipo = Record<SimulacaoCentral['tipo'], EstatisticasSimulacoesCentral>
+
+// Contagem por tipo — alimenta os 4 cards do dashboard da Central de
+// Simulações. Mesma lógica de count via head:true da função acima, só que
+// quebrada por tipo em vez de global.
+export function useEstatisticasSimulacoesCentralPorTipo() {
   return useQuery({
-    queryKey: ['simulacoes-central-stats'],
-    queryFn: async (): Promise<EstatisticasSimulacoesCentral> => {
-      const [totalRes, aguardandoRes, concluidasRes] = await Promise.all([
-        supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }),
-        supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }).eq('status', 'aguardando'),
-        supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }).eq('status', 'concluida'),
-      ])
-      if (totalRes.error) throw totalRes.error
-      if (aguardandoRes.error) throw aguardandoRes.error
-      if (concluidasRes.error) throw concluidasRes.error
-      return {
-        total: totalRes.count ?? 0,
-        aguardando: aguardandoRes.count ?? 0,
-        concluidas: concluidasRes.count ?? 0,
-      }
+    queryKey: ['simulacoes-central-stats', 'por-tipo'],
+    queryFn: async (): Promise<EstatisticasPorTipo> => {
+      const resultados = await Promise.all(
+        TIPOS.map(async (tipo) => {
+          const [totalRes, aguardandoRes] = await Promise.all([
+            supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }).eq('tipo', tipo),
+            supabase.from('simulacoes_central').select('id', { count: 'exact', head: true }).eq('tipo', tipo).eq('status', 'aguardando'),
+          ])
+          if (totalRes.error) throw totalRes.error
+          if (aguardandoRes.error) throw aguardandoRes.error
+          const total = totalRes.count ?? 0
+          const aguardando = aguardandoRes.count ?? 0
+          return [tipo, { total, aguardando, concluidas: total - aguardando }] as const
+        })
+      )
+      return Object.fromEntries(resultados) as EstatisticasPorTipo
     },
   })
 }
