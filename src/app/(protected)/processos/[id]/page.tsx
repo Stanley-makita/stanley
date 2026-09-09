@@ -415,11 +415,6 @@ export default function ProcessoDetalhePage() {
               </Button>
             </div>
 
-          {!isContrato && !processo.imovel_id && processo.nome_imovel && (
-            <p className="ml-10 text-sm font-medium text-fonti-primary sm:ml-11">
-              {processo.nome_imovel}
-            </p>
-          )}
           {!isContrato && (
           <p className="ml-10 text-xs text-gray-400 sm:ml-11">
             {processo.numero_processo}
