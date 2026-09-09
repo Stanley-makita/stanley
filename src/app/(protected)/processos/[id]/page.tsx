@@ -40,6 +40,7 @@ import { BlocoImovel } from '@/components/imoveis/BlocoImovel'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { ContratoConstrutor } from '@/components/processos/ContratoConstrutor'
 import { AbaCompradores } from '@/components/processos/abas/AbaCompradores'
+import { AbaRegistro } from '@/components/processos/abas/AbaRegistro'
 import { AbaVendedores } from '@/components/processos/abas/AbaVendedores'
 import { AbaCredito } from '@/components/processos/abas/AbaCredito'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
@@ -518,6 +519,9 @@ export default function ProcessoDetalhePage() {
           <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex h-9 min-w-max bg-gray-100">
             {([
+              ...(processo.modalidade === 'Registro'
+                ? [['registro','Registro']] as [string,string][]
+                : []),
               ['resumo','Resumo'],['compradores','Compradores'],['vendedores','Vendedores'],
               ['documentos','Documentos'],['financeiro','Financeiro'],
               ...(MODALIDADES_COM_CUSTAS.includes(processo.modalidade as typeof MODALIDADES_COM_CUSTAS[number])
@@ -543,6 +547,11 @@ export default function ProcessoDetalhePage() {
           </div>
 
           <div className={cn('mt-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5', lockClass)}>
+            {processo.modalidade === 'Registro' && (
+              <TabsContent value="registro" className="m-0">
+                <AbaRegistro processo={processo} />
+              </TabsContent>
+            )}
             <TabsContent value="resumo" className="m-0">
               <AbaResumo
                 processo={processo}

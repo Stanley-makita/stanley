@@ -20,6 +20,14 @@ export const RESPONSAVEL_REGISTRO_LABELS: Record<ResponsavelRegistro, string> = 
   corretor:  'Corretor',
 }
 
+export type StatusProtocolo = 'protocolado' | 'em_transito' | 'registrado'
+
+export const STATUS_PROTOCOLO_LABELS: Record<StatusProtocolo, string> = {
+  protocolado: 'Protocolado',
+  em_transito: 'Em trânsito (motoboy)',
+  registrado:  'Registrado',
+}
+
 export type StatusEmissao = 'emitido' | 'nao_emitido'
 export type ChanceEmissao = 'certeza' | 'incerteza'
 export type StatusProcesso = 'em_analise' | 'aprovado' | 'pendente' | 'reprovado' | 'cancelado'
@@ -136,6 +144,15 @@ export interface Processo {
   // useEnviarParaFluxoRegistro/useEnviarParaLiberacaoRecursos)
   modalidade_origem?: ModalidadeProcesso | null
   assinado_em?: string | null
+  // Aba Registro — só relevante quando modalidade='Registro' (ver AbaRegistro.tsx).
+  // registro_status_protocolo='protocolado' dispara avanço automático pra fase
+  // "Protocolado" quando a fase atual é "Preparação" (ver useAtualizarRegistro).
+  registro_status_protocolo?: StatusProtocolo | null
+  registro_numero_protocolo?: string | null
+  registro_cri?: string | null
+  registro_data_protocolado?: string | null
+  registro_data_prevista_entrega?: string | null
+  registro_diligencia?: boolean | null
   // Checklist item com acao_ao_completar='processo_concluido' marcado — trava
   // o processo (só leitura) e exibe o status "Processo Concluído".
   concluido_em?: string | null
