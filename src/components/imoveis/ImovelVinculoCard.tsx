@@ -38,7 +38,10 @@ export function ImovelVinculoCard({
   const [cadastrarAberto, setCadastrarAberto] = useState(false)
   const [editando, setEditando] = useState(false)
 
-  const temImovel = !!(snapshot.imovel_id || snapshot.imovel_rua || snapshot.nome_imovel)
+  // nome_imovel é reaproveitado como "Título do negócio" em Processo/Lead (preenchido
+  // já na criação, sem imóvel real vinculado) — não conta sozinho como "tem imóvel"
+  // aqui, senão o card mostra o nome do cliente no lugar do endereço.
+  const temImovel = !!(snapshot.imovel_id || snapshot.imovel_rua)
 
   const [form, setForm] = useState(() => snapshotParaForm(snapshot))
 
