@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Pencil, Check, X, FileCheck2 } from 'lucide-react'
 import { useAtualizarRegistro, type DadosRegistroForm } from '@/hooks/processos/useAtualizarRegistro'
+import { useRegistrosImoveis } from '@/hooks/configuracoes/useRegistrosImoveis'
 import { STATUS_PROTOCOLO_LABELS, type Processo, type StatusProtocolo } from '@/types/processos'
 
 interface Props {
@@ -26,6 +27,7 @@ function formularioInicial(processo: Processo): DadosRegistroForm {
 
 export function AbaRegistro({ processo }: Props) {
   const atualizar = useAtualizarRegistro(processo)
+  const { data: registros = [] } = useRegistrosImoveis()
   const [editando, setEditando] = useState(false)
   const [form, setForm] = useState<DadosRegistroForm>(() => formularioInicial(processo))
 
@@ -106,12 +108,18 @@ export function AbaRegistro({ processo }: Props) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">CRI</Label>
-              <Input
-                className="h-9 text-sm"
-                placeholder="Ex: 2º RI Apucarana"
-                value={form.registro_cri ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, registro_cri: e.target.value || null }))}
-              />
+              <Select
+                value={form.registro_cri ?? '__'}
+                onValueChange={(v) => setForm((f) => ({ ...f, registro_cri: v === '__' ? null : v }))}
+              >
+                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__">— Não informado</SelectItem>
+                  {registros.map((r) => (
+                    <SelectItem key={r.id} value={r.nome}>{r.nome}{r.cidade ? ` — ${r.cidade}` : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Data que foi protocolado</Label>
