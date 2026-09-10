@@ -563,7 +563,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Valor do Serviço — cobrado pela Fontinhas, não o valor do imóvel/negociação</label>
+            <label className="text-xs text-gray-500">Valor do Serviço</label>
             <Input
               type="number"
               inputMode="decimal"
@@ -573,6 +573,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
               onBlur={() => salvarTipoValor({})}
               className="h-9 text-sm"
             />
+            <p className="text-[11px] text-gray-400">Cobrado pela Fontinhas, não o valor do imóvel/negociação</p>
           </div>
         </section>
         </div>
