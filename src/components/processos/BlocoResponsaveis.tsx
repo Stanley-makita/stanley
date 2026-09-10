@@ -100,8 +100,9 @@ export function BlocoResponsaveis({ processo }: Props) {
 
       {editando ? (
         <div className="space-y-3">
+          <div className="flex flex-wrap gap-3">
           {papeis.map((papel) => (
-            <div key={papel.field}>
+            <div key={papel.field} className="min-w-[160px] flex-1">
               <p className="text-xs text-gray-400 mb-1">
                 {papel.label}
                 {papel.obrigatorio
@@ -129,6 +130,7 @@ export function BlocoResponsaveis({ processo }: Props) {
               </Select>
             </div>
           ))}
+          </div>
 
           <div className="flex gap-2 pt-1">
             <Button
@@ -152,11 +154,11 @@ export function BlocoResponsaveis({ processo }: Props) {
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-wrap gap-4">
           {papeis.map((papel) => {
             const membro = processo[papel.joinKey]
             return (
-              <div key={papel.field}>
+              <div key={papel.field} className="min-w-[160px] flex-1">
                 <p className="text-xs text-gray-400">{papel.label}</p>
                 {membro ? (
                   <>
