@@ -158,13 +158,10 @@ export function BlocoResponsaveis({ processo }: Props) {
           {papeis.map((papel) => {
             const membro = processo[papel.joinKey]
             return (
-              <div key={papel.field} className="min-w-[160px] flex-1">
+              <div key={papel.field} className="min-w-[140px] flex-1">
                 <p className="text-xs text-gray-400">{papel.label}</p>
                 {membro ? (
-                  <>
-                    <p className="text-sm font-medium text-fonti-primary">{membro.nome}</p>
-                    <p className="text-xs text-gray-400">{membro.email}</p>
-                  </>
+                  <p className="text-sm font-medium text-fonti-primary truncate" title={membro.email}>{membro.nome}</p>
                 ) : (
                   <p className="text-sm text-gray-300 italic">Não definido</p>
                 )}
