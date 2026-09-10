@@ -544,12 +544,12 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
       )}
 
       <div className="flex flex-col gap-4">
-        {/* Responsáveis */}
+        {/* Responsáveis + ① Modelo + Valor — dividem a mesma linha em telas largas */}
+        <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <BlocoResponsaveis processo={processo} />
         </section>
 
-        {/* ① Modelo + Valor */}
         <section className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="text-xs text-gray-500">Modelo de contrato</label>
@@ -575,6 +575,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
             />
           </div>
         </section>
+        </div>
 
         {/* ② Documentos — comprador / vendedor / imóvel */}
         <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
