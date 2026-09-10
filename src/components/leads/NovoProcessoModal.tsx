@@ -1262,6 +1262,7 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   const [tipoContrato, setTipoContrato] = useState<TipoContrato | ''>('')
   const [valorContrato, setValorContrato] = useState('')
   const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? '')
+  const [operacionalId, setOperacionalId] = useState('')
   const [juridicoId, setJuridicoId] = useState(claudia?.id ?? '')
 
   const claudiaId = claudia?.id ?? ''
@@ -1289,8 +1290,9 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       tem_assessoria:   true,
       comissao_comercial: null,
       comissao_empresa:   null,
-      operacional_id:   (() => { const v = juridicoId || claudiaId; return v && v !== '__nenhum' ? v : null })(),
+      operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
       comercial_id:     comercialId && comercialId !== '__nenhum' ? comercialId : null,
+      juridico_id:      (() => { const v = juridicoId || claudiaId; return v && v !== '__nenhum' ? v : null })(),
       corretor_nome:    lead?.parceiro?.tipo_parceiro === 'corretor' ? lead.parceiro!.nome : null,
       corretor_creci:   null,
       parceiro_id:      lead?.parceiro_id ?? null,
@@ -1377,6 +1379,15 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
             <Select value={comercialId} onValueChange={setComercialId}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
+                {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo label="Operacional">
+            <Select value={operacionalId || '__nenhum'} onValueChange={setOperacionalId}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Opcional" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__nenhum">Nenhum</SelectItem>
                 {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
               </SelectContent>
             </Select>
