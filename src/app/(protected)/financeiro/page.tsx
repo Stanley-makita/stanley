@@ -24,6 +24,7 @@ import { VisaoRelatorioEquipe } from '@/components/financeiro/visoes/VisaoRelato
 import { PainelFinanceiro } from '@/components/financeiro/PainelFinanceiro'
 import { VisaoFechamento } from '@/components/financeiro/VisaoFechamento'
 import { AbaEmissoes } from '@/components/financeiro/AbaEmissoes'
+import { AbaAnaliseComissoes } from '@/components/financeiro/AbaAnaliseComissoes'
 import { AbaAReceber } from '@/components/financeiro/AbaAReceber'
 import { AbaComissoesPagar } from '@/components/financeiro/AbaComissoesPagar'
 import { AbaConsorcio } from '@/components/financeiro/AbaConsorcio'
@@ -36,6 +37,7 @@ type Aba =
   | 'painel'
   | 'fechamento'
   | 'emissoes'
+  | 'analise_comissoes'
   | 'a_receber'
   | 'comissoes_pagar'
   | 'consorcio'
@@ -51,6 +53,7 @@ const ABAS: { key: Aba; label: string; novo?: boolean }[] = [
   { key: 'painel',          label: 'Painel' },
   { key: 'fechamento',      label: 'Fechamento',        novo: true },
   { key: 'emissoes',        label: 'Emissões',          novo: true },
+  { key: 'analise_comissoes', label: 'Análise de Comissões', novo: true },
   { key: 'a_receber',       label: 'A Receber',         novo: true },
   { key: 'comissoes_pagar', label: 'Comissões a Pagar', novo: true },
   { key: 'consorcio',       label: 'Consórcio',         novo: true },
@@ -210,6 +213,7 @@ export default function FinanceiroPage() {
             Conferências não tem "ao vivo" (só existe a partir da aprovação do fechamento),
             mas também não bloqueia mais a aba inteira — mostra estado vazio próprio. */}
         {aba === 'emissoes'        && <AbaEmissoes fechamento={fechamento ?? null} mes={mes} ano={ano} />}
+        {aba === 'analise_comissoes' && <AbaAnaliseComissoes mes={mes} ano={ano} />}
         {aba === 'conferencias'    && <VisaoConferencias fechamento_id={fechamento?.id ?? null} travado={travado ?? false} />}
         {aba === 'a_receber'       && <AbaAReceber fechamento={fechamento ?? null} mes={mes} ano={ano} />}
         {aba === 'comissoes_pagar' && <AbaComissoesPagar fechamento={fechamento ?? null} mes={mes} ano={ano} />}
