@@ -111,6 +111,26 @@ export interface FinFechamentoProcesso {
   operacional?: { nome: string }
 }
 
+export type FinResponsavelRegistro = 'fontinhas' | 'cliente' | 'corretor'
+
+export interface FinAnaliseComissaoLinha {
+  id: string
+  processo_id: string
+  cliente_nome: string
+  cliente_cpf: string
+  banco_nome: string | null
+  banco_cor: string | null
+  modalidade: string | null
+  valor_financiado: number | null
+  comercial_nome: string | null
+  valor_assessoria: number
+  percentual_comissao: number
+  comissao: number
+  responsavel_registro: FinResponsavelRegistro | null
+  cgi_manual: number | null
+  data_emissao: string | null
+}
+
 export interface FinContaReceber {
   id: string
   empresa_id: string
