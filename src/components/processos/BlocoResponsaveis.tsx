@@ -20,8 +20,9 @@ interface PapelConfig {
 
 function getPapeis(modalidade: ModalidadeProcesso): PapelConfig[] {
   if (modalidade === 'Contrato') return [
-    { field: 'comercial_id',  joinKey: 'comercial',  label: 'Comercial', obrigatorio: true },
-    { field: 'juridico_id',   joinKey: 'juridico',   label: 'Jurídico',  obrigatorio: true },
+    { field: 'comercial_id',   joinKey: 'comercial',   label: 'Comercial',   obrigatorio: true },
+    { field: 'operacional_id', joinKey: 'operacional', label: 'Operacional', obrigatorio: false },
+    { field: 'juridico_id',    joinKey: 'juridico',    label: 'Jurídico',    obrigatorio: true },
   ]
   if (modalidade === 'Consorcio') return [
     { field: 'comercial_id',  joinKey: 'comercial',  label: 'Comercial',  obrigatorio: true },

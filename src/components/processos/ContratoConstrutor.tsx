@@ -49,6 +49,7 @@ import { selecionarTemplate } from '@/lib/contratos/selecionarTemplate'
 import { substituirVariaveis } from '@/lib/contratos/substituirVariaveis'
 import { construirDadosTemplate } from '@/lib/contratos/resumoParaTemplate'
 import { AbaContrato } from '@/components/processos/abas/AbaContrato'
+import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 
 const PASTAS_FIXAS = [
   { codigo: 'comprador' as const, titulo: 'Documentos do Comprador', descricao: 'RG, CPF, CNH, certidão de casamento, comprovante de endereço.' },
@@ -543,6 +544,11 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
       )}
 
       <div className="flex flex-col gap-4">
+        {/* Responsáveis */}
+        <section className="rounded-lg border border-gray-200 bg-white p-4">
+          <BlocoResponsaveis processo={processo} />
+        </section>
+
         {/* ① Modelo + Valor */}
         <section className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
           <div className="space-y-1">
