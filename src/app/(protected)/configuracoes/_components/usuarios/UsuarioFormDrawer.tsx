@@ -478,10 +478,14 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                     </FormItem>
                   )} />
 
+                </div>
+
+                {/* ── Coluna direita: blocos condicionais/avançados ────── */}
+                <div className="space-y-4">
                   {modoEdicao && (
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium leading-none">
-                        Token de telefonia <span className="text-gray-400 font-normal text-xs">(pra identificação de chamada no MicroSIP)</span>
+                        Token de telefonia <span className="text-gray-400 font-normal text-xs">(MicroSIP)</span>
                       </label>
                       <div className="flex gap-2">
                         <Input
@@ -493,15 +497,12 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                           {tokenCopiado ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                         </Button>
                       </div>
-                      <p className="text-xs text-gray-400">
-                        Configure no <code>microsip.ini</code> deste usuário: <code>cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token={usuario?.token_telefonia ?? '...'}&numero=%s"</code>
+                      <p className="text-xs text-gray-400 truncate" title={`cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token=${usuario?.token_telefonia ?? '...'}&numero=%s"`}>
+                        Configure no <code>microsip.ini</code>: <code>cmdIncomingCall=curl "...token={usuario?.token_telefonia ?? '...'}&numero=%s"</code>
                       </p>
                     </div>
                   )}
-                </div>
 
-                {/* ── Coluna direita: blocos condicionais/avançados ────── */}
-                <div className="space-y-4">
                   {precisaComissao && (
                     <div className="rounded-lg border border-gray-200 p-3 space-y-3">
                       <p className="text-xs font-medium text-gray-500">
