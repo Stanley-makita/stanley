@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
-import { type FinAnaliseComissaoLinha } from '@/types/financeiro'
+import { type FinAnaliseComissaoLinha, type FinAnaliseComissaoContratoLinha } from '@/types/financeiro'
 import { toast } from 'sonner'
 
 // Ao vivo, sempre — mesmo padrão de useEmissoesPreview/useContasAReceberVivo:
@@ -44,5 +44,23 @@ export function useAtualizarCgiManual() {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes'] })
     },
     onError: () => toast.error('Erro ao salvar o valor de CGI 1%.'),
+  })
+}
+
+export function useAnaliseComissoesContratosMes(mes: number, ano: number) {
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['financeiro', 'analise_comissoes_contratos', usuario?.empresa_id, mes, ano],
+    queryFn: async (): Promise<FinAnaliseComissaoContratoLinha[]> => {
+      const { data, error } = await supabase.rpc('analise_comissoes_contratos_mes', {
+        p_empresa_id: usuario!.empresa_id,
+        p_mes: mes,
+        p_ano: ano,
+      })
+      if (error) throw error
+      return data ?? []
+    },
+    enabled: !!usuario,
   })
 }

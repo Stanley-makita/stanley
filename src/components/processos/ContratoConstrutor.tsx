@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Loader2, CheckCircle2, AlertTriangle, Import,
   Upload, ChevronDown, ChevronUp, RotateCcw, Trash2, Eye, FileText, Clock,
+  DollarSign, Pencil, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -237,6 +238,46 @@ function useAtualizarTipoValorContrato(processoId: string) {
   })
 }
 
+function useAtualizarFinanciouProspectado(processoId: string) {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { financiou?: boolean | null; prospectado_por?: 'fontinhas' | 'direto' | null }) => {
+      const { error } = await supabase
+        .from('processos')
+        .update(payload)
+        .eq('id', processoId)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes_contratos'] })
+    },
+    onError: () => toast.error('Erro ao salvar os dados de pagamento.'),
+  })
+}
+
+function useConfirmarPagamentoContrato(processoId: string) {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data_pagamento_contrato: string | null) => {
+      const { error } = await supabase
+        .from('processos')
+        .update({ data_pagamento_contrato })
+        .eq('id', processoId)
+        .eq('empresa_id', usuario!.empresa_id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes_contratos'] })
+    },
+    onError: () => toast.error('Erro ao confirmar o pagamento.'),
+  })
+}
+
 function CaixaUploadPasta({ processoId, pastaCodigo, titulo, descricao, arquivos }: {
   processoId: string
   pastaCodigo: 'comprador' | 'vendedor' | 'imovel' | 'terceiros' | 'certidoes'
@@ -418,6 +459,10 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const { data: contratosExistentes, isLoading: carregandoContratos } = useProcessoContratos(processo.id)
   const importarDocumentos = useImportarDocumentosNegocio(processo.id)
   const atualizar = useAtualizarTipoValorContrato(processo.id)
+  const atualizarFinanciouProspectado = useAtualizarFinanciouProspectado(processo.id)
+  const confirmarPagamento = useConfirmarPagamentoContrato(processo.id)
+  const [confirmandoPagamento, setConfirmandoPagamento] = useState(false)
+  const [dataPagamentoInput, setDataPagamentoInput] = useState('')
   const entenderNegociacao = useEntenderNegociacao(processo.id)
   const confirmarEntendimento = useConfirmarEntendimento(processo.id)
   const gerarPlano = useGerarPlanoContrato(processo.id)
@@ -545,7 +590,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
 
       <div className="flex flex-col gap-4">
         {/* Responsáveis + ① Modelo + Valor — dividem a mesma linha em telas largas */}
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <BlocoResponsaveis processo={processo} />
         </section>
@@ -575,6 +620,92 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
             />
             <p className="text-[11px] text-gray-400">Cobrado pela Fontinhas, não o valor do imóvel/negociação</p>
           </div>
+        </section>
+
+        <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pagamento</h4>
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-[120px] flex-1">
+              <label className="text-xs text-gray-500 mb-1 block">Financiou</label>
+              <Select
+                value={processo.financiou === true ? 'sim' : processo.financiou === false ? 'nao' : '__indefinido'}
+                onValueChange={(v) => atualizarFinanciouProspectado.mutate({ financiou: v === 'sim' ? true : v === 'nao' ? false : null })}
+              >
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__indefinido">—</SelectItem>
+                  <SelectItem value="sim">Sim</SelectItem>
+                  <SelectItem value="nao">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[120px] flex-1">
+              <label className="text-xs text-gray-500 mb-1 block">Prospectado por</label>
+              <Select
+                value={processo.prospectado_por ?? '__indefinido'}
+                onValueChange={(v) => atualizarFinanciouProspectado.mutate({ prospectado_por: v === '__indefinido' ? null : (v as 'fontinhas' | 'direto') })}
+              >
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__indefinido">—</SelectItem>
+                  <SelectItem value="fontinhas">Fontinhas</SelectItem>
+                  <SelectItem value="direto">Direto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {processo.data_pagamento_contrato && !confirmandoPagamento ? (
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-fonti-primary">
+                Pago em {new Date(processo.data_pagamento_contrato).toLocaleDateString('pt-BR')}
+              </p>
+              <button
+                onClick={() => { setDataPagamentoInput(processo.data_pagamento_contrato!); setConfirmandoPagamento(true) }}
+                className="p-1 rounded text-gray-300 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
+                title="Corrigir data"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => confirmarPagamento.mutate(null)}
+                className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-gray-100 transition-colors"
+                title="Desfazer confirmação de pagamento"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : confirmandoPagamento ? (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={dataPagamentoInput}
+                onChange={(e) => setDataPagamentoInput(e.target.value)}
+                className="h-8 w-40 text-sm"
+              />
+              <Button
+                size="sm"
+                className="h-8 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+                disabled={!dataPagamentoInput || confirmarPagamento.isPending}
+                onClick={() => confirmarPagamento.mutate(dataPagamentoInput, { onSuccess: () => setConfirmandoPagamento(false) })}
+              >
+                Salvar
+              </Button>
+              <Button size="sm" variant="outline" className="h-8" onClick={() => setConfirmandoPagamento(false)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => { setDataPagamentoInput(new Date().toISOString().slice(0, 10)); setConfirmandoPagamento(true) }}
+            >
+              <DollarSign className="h-3.5 w-3.5" />
+              Confirmar Pagamento
+            </Button>
+          )}
         </section>
         </div>
 

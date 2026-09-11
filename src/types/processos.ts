@@ -82,6 +82,12 @@ export interface Processo {
   valor_contrato?: number | null
   numero_contrato?: string | null
   data_contrato?: string | null
+  // Pagamento do contrato particular (ver aba Financeiro > Análise de
+  // Comissões > Contratos) — data_pagamento_contrato é o gatilho de mês:
+  // presença dela = pagamento confirmado.
+  financiou?: boolean | null
+  prospectado_por?: 'fontinhas' | 'direto' | null
+  data_pagamento_contrato?: string | null
   // Assessoria
   tem_assessoria: boolean
   valor_assessoria?: number | null
