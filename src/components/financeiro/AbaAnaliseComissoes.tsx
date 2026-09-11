@@ -104,7 +104,7 @@ function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-gray-500">Contratos</p>
+          <p className="text-xs text-gray-500">Financiamentos (emitidos no mês)</p>
           <p className="text-lg font-semibold text-fonti-primary">{filtradas.length}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
@@ -327,7 +327,7 @@ function VisaoComissaoApurada({ mes, ano }: Props) {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-lg border bg-white p-3">
-            <p className="text-xs text-gray-500">Processos Financiamento</p>
+            <p className="text-xs text-gray-500">Financiamentos (emitidos no mês)</p>
             <p className="text-lg font-semibold text-fonti-primary">{data.qtd_processos_financiamento}</p>
           </div>
           <div className="rounded-lg border bg-white p-3">
