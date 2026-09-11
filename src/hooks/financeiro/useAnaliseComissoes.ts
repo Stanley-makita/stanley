@@ -1,16 +1,15 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type FinAnaliseComissaoLinha, type FinAnaliseComissaoContratoLinha, type FinComissaoApurada } from '@/types/financeiro'
-import { toast } from 'sonner'
 
 // Ao vivo, sempre — mesmo padrão de useEmissoesPreview/useContasAReceberVivo:
 // uma linha por processo de financiamento emitido no mês (mesmo filtro de
-// emissoes_mes_preview), com a comissão cheia calculada pela mesma tabela
-// comissoes_padrao usada em "A Receber". cgi_manual e responsavel_registro
-// vêm direto da coluna em `processos` (edição grava lá, sem tabela extra).
+// emissoes_mes_preview), com a comissão da empresa (comissoes_padrao) e a
+// comissão do comercial (comissao_comercial_calculada, já com o CGI
+// especial embutido quando aplicável — migration 298/299).
 export function useAnaliseComissoesMes(mes: number, ano: number) {
   const { usuario } = useAuth()
 
@@ -26,25 +25,6 @@ export function useAnaliseComissoesMes(mes: number, ano: number) {
       return data ?? []
     },
     enabled: !!usuario,
-  })
-}
-
-export function useAtualizarCgiManual() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ processo_id, cgi_manual }: { processo_id: string; cgi_manual: number | null }) => {
-      const { error } = await supabase
-        .from('processos')
-        .update({ cgi_manual })
-        .eq('id', processo_id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes'] })
-      queryClient.invalidateQueries({ queryKey: ['financeiro', 'comissao_apurada'] })
-    },
-    onError: () => toast.error('Erro ao salvar o valor de CGI 1%.'),
   })
 }
 

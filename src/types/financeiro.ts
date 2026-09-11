@@ -127,7 +127,12 @@ export interface FinAnaliseComissaoLinha {
   percentual_comissao: number
   comissao: number
   responsavel_registro: FinResponsavelRegistro | null
-  cgi_manual: number | null
+  // Comissão do comercial pra este processo — já inclui o 1% de CGI
+  // especial quando cgi_especial=true (ver comissao_comercial_calculada,
+  // migration 298). Distinta de `comissao`, que é a comissão da empresa.
+  // Nula quando o processo não tem comercial vinculado.
+  comissao_comercial: number | null
+  cgi_especial: boolean
   data_emissao: string | null
 }
 
@@ -154,8 +159,11 @@ export interface FinComissaoApurada {
   valor_contratos: number
   subtotal: number
   pct_aplicado: number
+  // Só a parte por faixa (sem o CGI especial) — ver migration 299.
   comissao_calculada: number
-  cgi_manual_total: number
+  // Soma automática da regra especial de CGI (não é mais um valor
+  // digitado). comissao_apurada = comissao_calculada + cgi_1_total.
+  cgi_1_total: number
   comissao_apurada: number
 }
 

@@ -21,7 +21,6 @@ import {
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import {
   useAnaliseComissoesMes,
-  useAtualizarCgiManual,
   useAnaliseComissoesContratosMes,
   useComissaoApuradaMes,
 } from '@/hooks/financeiro/useAnaliseComissoes'
@@ -85,7 +84,6 @@ const REGISTRO_LABEL: Record<FinResponsavelRegistro, string> = {
 
 function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
   const { data, isLoading } = useAnaliseComissoesMes(mes, ano)
-  const atualizarCgi = useAtualizarCgiManual()
   const linhas = data ?? []
 
   const [busca, setBusca] = useState('')
@@ -97,8 +95,8 @@ function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
     l.banco_nome?.toLowerCase().includes(busca.toLowerCase())
   )
 
-  const totalComissao = filtradas.reduce((s, l) => s + l.comissao, 0)
-  const totalFinal = filtradas.reduce((s, l) => s + (l.comissao - (l.cgi_manual ?? 0)), 0)
+  const totalComissaoEmpresa = filtradas.reduce((s, l) => s + l.comissao, 0)
+  const totalComissaoComercial = filtradas.reduce((s, l) => s + (l.comissao_comercial ?? 0), 0)
 
   return (
     <div className="space-y-4">
@@ -108,12 +106,12 @@ function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
           <p className="text-lg font-semibold text-fonti-primary">{filtradas.length}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-gray-500">Comissão (cheia)</p>
-          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalComissao)}</p>
+          <p className="text-xs text-gray-500">Comissão Empresa (total)</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalComissaoEmpresa)}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-gray-500">Comissão final</p>
-          <p className="text-lg font-semibold text-green-700">{formatarMoeda(totalFinal)}</p>
+          <p className="text-xs text-gray-500">Comissão Comercial (financiamentos)</p>
+          <p className="text-lg font-semibold text-green-700">{formatarMoeda(totalComissaoComercial)}</p>
         </div>
       </div>
 
@@ -139,20 +137,19 @@ function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
               <TableHead className="text-xs">Comercial</TableHead>
               <TableHead className="text-xs text-right">Assessoria</TableHead>
               <TableHead className="text-xs">Registro</TableHead>
-              <TableHead className="text-xs text-right">Comissão</TableHead>
+              <TableHead className="text-xs text-right">Comissão Empresa</TableHead>
               <TableHead className="text-xs text-right">Checagem</TableHead>
-              <TableHead className="text-xs text-right">CGI 1%</TableHead>
-              <TableHead className="text-xs text-right">Comissão Final</TableHead>
+              <TableHead className="text-xs text-right">Comissão Comercial</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={12} className="text-center py-8 text-gray-400 text-sm">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-8 text-gray-400 text-sm">Carregando...</TableCell></TableRow>
             ) : filtradas.length === 0 ? (
-              <TableRow><TableCell colSpan={12} className="text-center py-8 text-gray-400 text-sm">Nenhum contrato emitido neste mês.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-8 text-gray-400 text-sm">Nenhum contrato emitido neste mês.</TableCell></TableRow>
             ) : (
               filtradas.map(l => (
-                <LinhaAnaliseComissao key={l.id} linha={l} onSalvarCgi={v => atualizarCgi.mutate({ processo_id: l.processo_id, cgi_manual: v })} />
+                <LinhaAnaliseComissao key={l.id} linha={l} />
               ))
             )}
           </TableBody>
@@ -162,11 +159,7 @@ function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
   )
 }
 
-function LinhaAnaliseComissao({ linha, onSalvarCgi }: { linha: FinAnaliseComissaoLinha; onSalvarCgi: (v: number | null) => void }) {
-  const [cgiInput, setCgiInput] = useState(linha.cgi_manual != null ? String(linha.cgi_manual) : '')
-  const cgiAtual = linha.cgi_manual ?? 0
-  const comissaoFinal = linha.comissao - cgiAtual
-
+function LinhaAnaliseComissao({ linha }: { linha: FinAnaliseComissaoLinha }) {
   return (
     <TableRow className="hover:bg-gray-50">
       <TableCell className="text-sm font-medium">{linha.cliente_nome || '—'}</TableCell>
@@ -190,21 +183,12 @@ function LinhaAnaliseComissao({ linha, onSalvarCgi }: { linha: FinAnaliseComissa
       </TableCell>
       <TableCell className="text-right text-sm font-mono">{formatarMoeda(linha.comissao)}</TableCell>
       <TableCell className="text-right text-sm text-gray-500">{linha.percentual_comissao.toFixed(2)}%</TableCell>
-      <TableCell className="text-right">
-        <Input
-          type="number"
-          step="0.01"
-          value={cgiInput}
-          onChange={e => setCgiInput(e.target.value)}
-          onBlur={() => {
-            const v = cgiInput === '' ? null : parseFloat(cgiInput)
-            if (v !== (linha.cgi_manual ?? null)) onSalvarCgi(v)
-          }}
-          className="h-8 w-28 text-right text-sm font-mono ml-auto"
-          placeholder="0,00"
-        />
+      <TableCell
+        className={`text-right text-sm font-mono ${linha.cgi_especial ? 'font-bold text-fonti-primary' : 'font-medium text-fonti-primary'}`}
+        title={linha.cgi_especial ? 'CGI acima do limite — comissão especial de 1% aplicada' : undefined}
+      >
+        {formatarMoeda(linha.comissao_comercial)}
       </TableCell>
-      <TableCell className="text-right text-sm font-mono font-medium text-fonti-primary">{formatarMoeda(comissaoFinal)}</TableCell>
     </TableRow>
   )
 }
@@ -364,7 +348,7 @@ function VisaoComissaoApurada({ mes, ano }: Props) {
           </div>
           <div className="rounded-lg border bg-white p-3">
             <p className="text-xs text-gray-500">CGI 1%</p>
-            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.cgi_manual_total)}</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.cgi_1_total)}</p>
           </div>
           <div className="rounded-lg border bg-fonti-accent-hover p-3 sm:col-span-2">
             <p className="text-xs text-gray-500">Comissão Apurada</p>
