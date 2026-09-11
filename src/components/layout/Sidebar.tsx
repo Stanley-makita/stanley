@@ -120,14 +120,14 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
     'flex items-center rounded-lg text-sm font-medium transition-colors',
     collapsed ? 'justify-center px-0 py-3 w-full' : 'gap-3 px-3 py-3',
     active
-      ? 'bg-fonti-accent/15 text-white'
+      ? 'bg-fonti-accent/20 text-white shadow-[inset_3px_0_0_var(--fonti-accent)]'
       : 'text-white/80 hover:bg-white/10 hover:text-white'
   )
 
   return (
     <aside
       className={cn('flex h-screen flex-col text-white transition-[width] duration-200 ease-in-out', className)}
-      style={{ width: collapsed ? '56px' : 'clamp(192px, 14vw, 240px)', backgroundColor: '#031E13' }}
+      style={{ width: collapsed ? '56px' : 'clamp(192px, 14vw, 240px)', backgroundColor: 'var(--sidebar-background)' }}
     >
       {/* Logo */}
       <div className={cn('flex items-center justify-center border-b border-white/10 shrink-0', collapsed ? 'px-2 py-3' : 'px-4 pt-5 pb-4')}>
@@ -238,7 +238,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
                   isGestaoAtivo
-                    ? 'bg-fonti-accent/15 text-white'
+                    ? 'bg-fonti-accent/20 text-white shadow-[inset_3px_0_0_var(--fonti-accent)]'
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                 )}
               >
@@ -289,7 +289,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
             onClick={onToggleCollapse}
             title={collapsed ? 'Expandir menu' : 'Recolher menu'}
             className={cn(
-              'hidden lg:flex w-full items-center rounded-lg text-sm text-white/50 hover:bg-white/10 hover:text-white transition-colors py-2',
+              'hidden lg:flex w-full items-center rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors py-2',
               collapsed ? 'justify-center px-0' : 'gap-3 px-3'
             )}
           >
@@ -308,7 +308,7 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-white truncate">{usuario.nome}</p>
-              <p className="text-xs text-white/40 truncate capitalize">{perfilLabel}</p>
+              <p className="text-xs text-white/70 truncate capitalize">{perfilLabel}</p>
             </div>
           </div>
         )}

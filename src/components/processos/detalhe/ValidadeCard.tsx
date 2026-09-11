@@ -100,7 +100,7 @@ export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPendin
               {format(parseISO(localData), 'dd/MM/yyyy', { locale: ptBR })}
             </p>
           ) : (
-            <p className="text-sm text-gray-400 italic">Não informado</p>
+            <p className="text-sm text-text-muted italic">Não informado</p>
           )}
           {badge && (
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${badge.cor}`}>

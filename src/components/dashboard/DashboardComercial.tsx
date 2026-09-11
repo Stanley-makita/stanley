@@ -75,7 +75,7 @@ export function DashboardComercial({ nome }: Props) {
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-fonti-primary mb-1">Taxa de certeza</h2>
           <p className="text-3xl font-bold text-fonti-primary">{taxaCerteza}%</p>
-          <p className="text-xs text-gray-400 mt-1">dos seus processos são de certeza de emissão</p>
+          <p className="text-xs text-text-muted mt-1">dos seus processos são de certeza de emissão</p>
           <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-fonti-primary rounded-full transition-all"

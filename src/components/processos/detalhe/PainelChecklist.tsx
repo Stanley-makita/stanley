@@ -113,7 +113,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
             ))}
           </div>
         ) : !faseId || itens.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-3">
+          <p className="text-xs text-text-muted text-center py-3">
             {!faseId
               ? 'Processo sem fase definida.'
               : 'Nenhum item configurado para esta fase.'}
@@ -172,7 +172,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
                       disabled={marcar.isPending}
                       className="mt-0.5 h-3.5 w-3.5 rounded accent-fonti-primary shrink-0 cursor-pointer"
                     />
-                    <span className={`text-xs leading-relaxed flex-1 ${checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                    <span className={`text-xs leading-relaxed flex-1 ${checked ? 'line-through text-text-muted' : 'text-gray-700'}`}>
                       {item.descricao}
                       {item.obrigatorio && (
                         <span className="ml-1 text-red-500 font-bold" title="Obrigatório">*</span>
@@ -204,7 +204,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
                     </span>
                   </label>
                   {execucao?.usuario && execucao.marcado_em && (
-                    <p className="text-[10px] text-gray-400 ml-6 mt-0.5 flex items-center gap-1">
+                    <p className="text-[10px] text-text-muted ml-6 mt-0.5 flex items-center gap-1">
                       <User className="h-2.5 w-2.5 shrink-0" />
                       {(execucao.usuario as any).nome} ·{' '}
                       {format(new Date(execucao.marcado_em), "dd/MM 'às' HH:mm", { locale: ptBR })}
@@ -213,7 +213,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
                 </div>
               )
             })}
-            <p className="text-[10px] text-gray-400 pt-1">
+            <p className="text-[10px] text-text-muted pt-1">
               <span className="text-red-500">*</span> Obrigatórios para avançar de fase
             </p>
           </div>
@@ -257,7 +257,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
               className="text-sm"
               autoFocus
             />
-            <p className="text-xs text-gray-400">Deixe em branco para marcar o item sem registrar data.</p>
+            <p className="text-xs text-text-muted">Deixe em branco para marcar o item sem registrar data.</p>
           </div>
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
             <Button variant="outline" size="sm" onClick={() => { setItemPendente(null); setDataValidade('') }} className="w-full sm:w-auto">

@@ -55,7 +55,7 @@ function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }
                   <Bell className="h-3 w-3 text-fonti-accent" />
                 )}
               </div>
-              <span className="text-xs text-gray-400 shrink-0">
+              <span className="text-xs text-text-muted shrink-0">
                 {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR })}
               </span>
             </div>
@@ -168,7 +168,7 @@ function FormComentario({
             type="button"
             title="Anexar arquivo"
             onClick={() => fileInputRef.current?.click()}
-            className="shrink-0 text-gray-400 hover:text-fonti-primary"
+            className="shrink-0 text-text-muted hover:text-fonti-primary"
           >
             <Paperclip className="h-4 w-4" />
           </button>
@@ -191,7 +191,7 @@ function FormComentario({
             className={`flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${
               notificar
                 ? 'bg-fonti-accent-hover border-fonti-accent text-fonti-primary'
-                : 'border-gray-200 text-gray-400'
+                : 'border-gray-200 text-text-muted'
             }`}
           >
             <Bell className="h-3 w-3" />

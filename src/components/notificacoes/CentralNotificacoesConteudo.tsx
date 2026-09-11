@@ -93,7 +93,7 @@ export function CentralNotificacoesConteudo({ variante = 'pagina', onFechar }: C
           {naoLidasCount > 0 && (
             <button
               onClick={() => marcarTodas()}
-              className="text-xs text-fonti-primary hover:text-fonti-accent-hover transition-colors font-medium"
+              className="text-xs text-fonti-primary hover:text-fonti-primary-hover transition-colors font-medium"
             >
               Marcar todas como lidas
             </button>
@@ -185,7 +185,7 @@ export function CentralNotificacoesConteudo({ variante = 'pagina', onFechar }: C
         <div className="shrink-0 border-t bg-gray-50 px-4 py-2">
           <button
             onClick={() => { router.push('/notificacoes'); onFechar?.() }}
-            className="w-full text-center text-xs font-medium text-fonti-primary transition-colors hover:text-fonti-accent"
+            className="w-full text-center text-xs font-medium text-fonti-primary transition-colors hover:text-fonti-primary-hover"
           >
             Ver todas em tela cheia →
           </button>

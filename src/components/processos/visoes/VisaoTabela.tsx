@@ -244,7 +244,7 @@ function FilterHead({
               Todos
             </button>
             {unique.length === 0
-              ? <p className="px-3 py-2 text-xs text-gray-400">Sem opções</p>
+              ? <p className="px-3 py-2 text-xs text-text-muted">Sem opções</p>
               : unique.map(val => (
                 <button
                   key={val}
@@ -354,15 +354,15 @@ function DateRangeHead({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="space-y-1">
-            <label className="text-[11px] text-gray-400">De</label>
+            <label className="text-[11px] text-text-muted">De</label>
             <Input type="date" className="h-7 text-xs" value={localDe} onChange={(e) => setLocalDe(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] text-gray-400">Até</label>
+            <label className="text-[11px] text-text-muted">Até</label>
             <Input type="date" className="h-7 text-xs" value={localAte} onChange={(e) => setLocalAte(e.target.value)} />
           </div>
           <div className="flex items-center justify-between pt-1">
-            <button onClick={limpar} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Limpar</button>
+            <button onClick={limpar} className="text-xs text-text-muted hover:text-red-500 transition-colors">Limpar</button>
             <button onClick={aplicar} className="text-xs px-2.5 py-1 rounded-lg bg-fonti-primary text-white hover:bg-fonti-primary-hover transition-colors">Aplicar</button>
           </div>
         </div>,
@@ -579,7 +579,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
         <span className="h-4 w-px bg-gray-300 mx-0.5 shrink-0" />
 
         <div className="relative min-w-[160px] max-w-[260px]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
           <Input
             placeholder="Buscar por cliente, CPF..."
             className="pl-8 h-7 text-xs"
@@ -609,7 +609,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
         {totalFiltrosAtivos > 1 && (
           <button
             onClick={() => { setColFilters({}); setEntradaRange({ de: '', ate: '' }); setEmissaoRange({ de: '', ate: '' }) }}
-            className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
+            className="text-xs text-text-muted hover:text-red-500 transition-colors px-1"
           >
             Limpar tudo
           </button>
@@ -721,7 +721,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={totalColunas} className="text-center py-8 text-gray-400">Carregando...</TableCell>
+                  <TableCell colSpan={totalColunas} className="text-center py-8 text-text-muted">Carregando...</TableCell>
                 </TableRow>
               ) : filteredProcessos.length === 0 ? (
                 <TableRow>
@@ -755,7 +755,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           <TableCell>
                             {p.fase_atual
                               ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
-                              : <span className="text-gray-400 text-xs">—</span>}
+                              : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
                           <TableCell>
@@ -778,17 +778,17 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_comercial_calculada != null
                                   ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_empresa_calculada != null
-                                  ? <span className="text-fonti-accent font-medium">{formatarMoeda(p.comissao_empresa_calculada)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  ? <span className="text-fonti-primary font-semibold">{formatarMoeda(p.comissao_empresa_calculada)}</span>
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_juridico != null
                                   ? <span className="font-medium">{formatarComissaoRS(p.valor_contrato ?? null, p.comissao_juridico)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                             </>
                           )}
@@ -801,13 +801,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           <TableCell>
                             {p.fase_atual
                               ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
-                              : <span className="text-gray-400 text-xs">—</span>}
+                              : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
                           <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
                           <TableCell>
                             {p.banco
                               ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
-                              : <span className="text-gray-400 text-xs">—</span>}
+                              : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
@@ -825,12 +825,12 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_comercial_calculada != null
                                   ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_empresa_calculada != null
-                                  ? <span className="text-fonti-accent font-medium">{formatarMoeda(p.comissao_empresa_calculada)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  ? <span className="text-fonti-primary font-semibold">{formatarMoeda(p.comissao_empresa_calculada)}</span>
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                             </>
                           )}
@@ -846,13 +846,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           <TableCell>
                             {p.fase_atual
                               ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
-                              : <span className="text-gray-400 text-xs">—</span>}
+                              : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
                           <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
                           <TableCell>
                             {p.banco
                               ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
-                              : <span className="text-gray-400 text-xs">—</span>}
+                              : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.data_inicio ? fmtData(p.data_inicio) : '—'}</TableCell>
@@ -888,12 +888,12 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_comercial_calculada != null
                                   ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
                                 {p.comissao_empresa_calculada != null
-                                  ? <span className="text-fonti-accent font-medium">{formatarMoeda(p.comissao_empresa_calculada)}</span>
-                                  : <span className="text-gray-400">—</span>}
+                                  ? <span className="text-fonti-primary font-semibold">{formatarMoeda(p.comissao_empresa_calculada)}</span>
+                                  : <span className="text-text-muted">—</span>}
                               </TableCell>
                             </>
                           )}
@@ -924,7 +924,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
       {/* Paginação */}
       {totalPaginas > 1 && (
         <div className="flex items-center justify-between px-1 pt-1">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-text-muted">
             {((pagina - 1) * ROWS_PER_PAGE) + 1}–{Math.min(pagina * ROWS_PER_PAGE, filteredProcessos.length)} de {filteredProcessos.length} processos
           </p>
           <div className="flex items-center gap-1">

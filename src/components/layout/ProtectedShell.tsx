@@ -41,7 +41,7 @@ export function ProtectedShell({ children, initialLogoUrl }: { children: ReactNo
       />
 
       <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
-        <SheetContent side="left" className="w-72 max-w-[85vw] overflow-hidden border-0 bg-fonti-primary p-0 text-white">
+        <SheetContent side="left" className="w-72 max-w-[85vw] overflow-hidden border-0 bg-sidebar-background p-0 text-white">
           <SheetTitle className="sr-only">Menu principal</SheetTitle>
           <Sidebar className="h-full w-full" onNavigate={() => setMenuAberto(false)} initialLogoUrl={initialLogoUrl} />
         </SheetContent>

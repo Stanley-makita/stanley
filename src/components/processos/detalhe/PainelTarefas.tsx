@@ -86,7 +86,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
       {/* Lista */}
       <div className="space-y-2">
         {tarefasFiltradas.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4">Nenhuma tarefa.</p>
+          <p className="text-xs text-text-muted text-center py-4">Nenhuma tarefa.</p>
         ) : (
           tarefasFiltradas.map((t) => {
             const { icone: Icone, className } = PRIORIDADE_CONFIG[t.prioridade]
@@ -119,7 +119,7 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium leading-snug ${t.status === 'concluida' ? 'line-through text-gray-400' : 'text-fonti-primary'}`}>
+                  <p className={`text-xs font-medium leading-snug ${t.status === 'concluida' ? 'line-through text-text-muted' : 'text-fonti-primary'}`}>
                     {t.titulo}
                   </p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -127,10 +127,10 @@ export function PainelTarefas({ processoId, onNovaTarefa }: Props) {
                       {PRIORIDADE_CONFIG[t.prioridade].label}
                     </Badge>
                     {t.responsavel && (
-                      <span className="text-xs text-gray-400">{t.responsavel.nome.split(' ')[0]}</span>
+                      <span className="text-xs text-text-muted">{t.responsavel.nome.split(' ')[0]}</span>
                     )}
                     {t.data_prazo && (
-                      <span className={`text-xs ${atrasada ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                      <span className={`text-xs ${atrasada ? 'text-red-500 font-medium' : 'text-text-muted'}`}>
                         {fmtData(t.data_prazo)}
                       </span>
                     )}

@@ -17,7 +17,7 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
   }
 
   if (relatorio.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-8">Nenhum dado de equipe no período.</p>
+    return <p className="text-sm text-text-muted text-center py-8">Nenhum dado de equipe no período.</p>
   }
 
   const maxValor = Math.max(...relatorio.map((r) => r.valor_emitido), 1)
@@ -38,7 +38,7 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
               <div className="flex items-center gap-3">
                 {/* Posição */}
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                  idx === 0 ? 'bg-fonti-accent text-white'
+                  idx === 0 ? 'bg-fonti-accent text-fonti-primary'
                   : idx === 1 ? 'bg-gray-300 text-gray-700'
                   : idx === 2 ? 'bg-amber-700 text-white'
                   : 'bg-gray-100 text-gray-500'
@@ -47,12 +47,12 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-fonti-primary">{r.comercial_nome}</p>
-                  <p className="text-xs text-gray-400">{r.num_contratos} contrato{r.num_contratos !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-text-muted">{r.num_contratos} contrato{r.num_contratos !== 1 ? 's' : ''}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold text-fonti-primary">{fmtMoeda(r.valor_emitido)}</p>
-                <p className="text-xs text-gray-400">emitido</p>
+                <p className="text-xs text-text-muted">emitido</p>
               </div>
             </div>
 
@@ -67,11 +67,11 @@ export function VisaoRelatorioEquipe({ mes, ano }: Props) {
             {/* Linha de comissões */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-amber-50 rounded-lg p-2">
-                <p className="text-xs text-gray-400">Comissão gerada</p>
+                <p className="text-xs text-text-muted">Comissão gerada</p>
                 <p className="text-sm font-medium text-amber-700">{fmtMoeda(r.comissao_gerada)}</p>
               </div>
               <div className="bg-green-50 rounded-lg p-2">
-                <p className="text-xs text-gray-400">Comissão recebida</p>
+                <p className="text-xs text-text-muted">Comissão recebida</p>
                 <p className="text-sm font-medium text-green-700">{fmtMoeda(r.comissao_recebida)}</p>
               </div>
             </div>

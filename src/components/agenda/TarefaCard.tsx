@@ -82,7 +82,7 @@ export function TarefaCard({ tarefa, onToggle, onDetalhes }: TarefaCardProps) {
         ) : (
           <button
             onClick={() => tarefa.processo_id && router.push(`/processos/${tarefa.processo_id}`)}
-            className="text-xs text-fonti-primary hover:text-fonti-accent hover:underline truncate block mt-0.5 text-left"
+            className="text-xs text-fonti-primary hover:text-fonti-primary-hover hover:underline truncate block mt-0.5 text-left"
           >
             #{tarefa.processo_numero} · {tarefa.processo_nome_imovel}
           </button>

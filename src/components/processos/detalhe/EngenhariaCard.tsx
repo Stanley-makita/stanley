@@ -86,7 +86,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
               {format(parseISO(localValidade), 'dd/MM/yyyy', { locale: ptBR })}
             </p>
           ) : (
-            <p className="text-sm text-gray-400 italic">Não informado</p>
+            <p className="text-sm text-text-muted italic">Não informado</p>
           )}
           {localValor ? (
             <p className="text-xs text-gray-500 mt-0.5">{formatarMoeda(localValor)}</p>

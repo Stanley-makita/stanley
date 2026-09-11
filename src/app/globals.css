@@ -36,9 +36,9 @@
 
     --text-primary: #253B29;
     --text-secondary: #4b5563;
-    --text-muted: #9ca3af;
+    --text-muted: #596273;
 
-    --sidebar-background: #253B29;
+    --sidebar-background: #031E13;
     --sidebar-text: #ffffff;
 
     --table-header: #f9fafb;
@@ -74,9 +74,7 @@
 
 @layer base {
   html {
-    zoom: 0.8;
-    /* Compensate: zooming to 80% leaves 20% empty — need 1/0.8 = 125% height to fill screen */
-    min-height: calc(100dvh / 0.8);
+    min-height: 100dvh;
   }
   * {
     @apply border-border;
@@ -85,18 +83,18 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* body must fill the compensated html height */
+    /* Keep the interface at the user's browser scale. */
     min-height: 100%;
   }
 }
 
 @layer utilities {
-  /* compensate zoom 0.8 — 100vh appears as 80vh visually */
+  /* Follow the visible viewport, including mobile browser controls. */
   .min-h-screen {
-    min-height: calc(100dvh / 0.8);
+    min-height: 100dvh;
   }
   .h-screen {
-    height: calc(100dvh / 0.8);
+    height: 100dvh;
   }
 }
 

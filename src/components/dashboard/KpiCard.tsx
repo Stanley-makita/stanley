@@ -30,7 +30,7 @@ export function KpiCard({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={`min-w-0 truncate text-[11px] font-semibold uppercase tracking-wide ${destaque ? 'text-fonti-accent' : 'text-gray-400'}`}>
+        <span className={`min-w-0 truncate text-xs font-semibold uppercase tracking-wide ${destaque ? 'text-fonti-accent' : 'text-text-muted'}`}>
           {titulo}
         </span>
         <div
@@ -51,24 +51,24 @@ export function KpiCard({
 
       <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
         {variacaoNeutra ? (
-          <Minus className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          <Minus className={`h-3.5 w-3.5 shrink-0 ${destaque ? 'text-white/80' : 'text-text-muted'}`} />
         ) : variacaoPositiva ? (
-          <TrendingUp className="h-3.5 w-3.5 shrink-0 text-green-500" />
+          <TrendingUp className={`h-3.5 w-3.5 shrink-0 ${destaque ? 'text-green-300' : 'text-green-700'}`} />
         ) : (
-          <TrendingDown className="h-3.5 w-3.5 shrink-0 text-red-500" />
+          <TrendingDown className={`h-3.5 w-3.5 shrink-0 ${destaque ? 'text-red-300' : 'text-red-700'}`} />
         )}
         <span
           className={`shrink-0 text-xs font-medium ${
             variacaoNeutra
-              ? 'text-gray-400'
+              ? destaque ? 'text-white/80' : 'text-text-muted'
               : variacaoPositiva
-              ? 'text-green-600'
-              : 'text-red-500'
+              ? destaque ? 'text-green-300' : 'text-green-700'
+              : destaque ? 'text-red-300' : 'text-red-700'
           }`}
         >
           {variacaoNeutra ? 'Sem variação' : `${variacao > 0 ? '+' : ''}${variacao}%`}
         </span>
-        <span className={`min-w-0 text-xs ${destaque ? 'text-gray-400' : 'text-gray-400'}`}>
+        <span className={`min-w-0 text-xs ${destaque ? 'text-white/80' : 'text-text-muted'}`}>
           {descricaoVariacao}
         </span>
       </div>

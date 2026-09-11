@@ -42,7 +42,7 @@ export function AtividadeRecente() {
       ) : (
         <div className="space-y-3">
           {atividades?.length === 0 && (
-            <p className="text-xs text-gray-400 text-center py-4">Nenhuma atividade recente</p>
+            <p className="text-xs text-text-muted text-center py-4">Nenhuma atividade recente</p>
           )}
           {atividades?.map((item) => {
             const Icone = ICONES[item.tipo] ?? RefreshCw
@@ -54,7 +54,7 @@ export function AtividadeRecente() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-fonti-primary leading-snug">{item.descricao}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-text-muted mt-0.5">
                     {item.usuario} ·{' '}
                     {formatDistanceToNow(new Date(item.criadoEm), {
                       addSuffix: true,

@@ -182,13 +182,13 @@ export default function ProcessoDetalhePage() {
     return (
       <div className="p-6 text-center py-16">
         <p className="text-red-500 text-sm font-medium">Erro ao carregar processo</p>
-        <p className="text-gray-400 text-xs mt-1">{(error as any)?.message}</p>
+        <p className="text-text-muted text-xs mt-1">{(error as any)?.message}</p>
       </div>
     )
   }
 
   if (!processo) {
-    return <div className="p-6 text-center py-16 text-gray-400">Processo não encontrado.</div>
+    return <div className="p-6 text-center py-16 text-text-muted">Processo não encontrado.</div>
   }
 
   // Contrato reaproveita o mesmo header/fases/painel lateral do Negócio
@@ -214,7 +214,7 @@ export default function ProcessoDetalhePage() {
         <div>
           {/* Row 1: voltar + nome + badges */}
           <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-gray-400" onClick={() => router.push('/processos')}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-text-muted" onClick={() => router.push('/processos')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
@@ -417,7 +417,7 @@ export default function ProcessoDetalhePage() {
             </div>
 
           {!isContrato && (
-          <p className="ml-10 text-xs text-gray-400 sm:ml-11">
+          <p className="ml-10 text-xs text-text-muted sm:ml-11">
             {processo.numero_processo}
             {processo.banco && ` • ${processo.banco.nome}`}
             {` • ${diasEmAndamento} dias em andamento`}
@@ -678,7 +678,7 @@ export default function ProcessoDetalhePage() {
             Confirma o preenchimento automático dos formulários do{' '}
             <span className="font-semibold text-fonti-primary">{processo.banco?.nome}</span>?
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-text-muted">
             Os PDFs serão gerados com os dados do processo e salvos na aba <strong>Documentos</strong>.
           </p>
           <DialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">
@@ -722,7 +722,7 @@ export default function ProcessoDetalhePage() {
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400">Os PDFs foram salvos na aba Documentos.</p>
+          <p className="text-xs text-text-muted">Os PDFs foram salvos na aba Documentos.</p>
           <DialogFooter>
             <Button size="sm" className="bg-fonti-primary hover:bg-fonti-primary-hover text-white" onClick={() => setResultadoFormularios(null)}>
               Fechar
@@ -877,9 +877,9 @@ function AbaResumo({
             <div className="space-y-1.5">
               {processo.compradores!.map((c) => (
                 <div key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
-                  <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
                   <span className="text-fonti-primary font-medium">{c.nome}</span>
-                  {c.cpf && <span className="text-xs text-gray-400">{c.cpf}</span>}
+                  {c.cpf && <span className="text-xs text-text-muted">{c.cpf}</span>}
                   {c.principal && (
                     <span className="text-[10px] bg-fonti-primary text-white px-1.5 py-0.5 rounded-full">Principal</span>
                   )}
@@ -887,7 +887,7 @@ function AbaResumo({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-300 italic">Nenhum comprador cadastrado</p>
+            <p className="text-sm text-text-muted italic">Nenhum comprador cadastrado</p>
           )}
         </div>
       </div>
@@ -919,14 +919,14 @@ function AbaResumo({
             <div className="space-y-1.5">
               {processo.vendedores!.map((v) => (
                 <div key={v.id} className="flex flex-wrap items-center gap-2 text-sm">
-                  <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
                   <span className="text-fonti-primary font-medium">{v.nome}</span>
-                  {v.cpf && <span className="text-xs text-gray-400">{v.cpf}</span>}
+                  {v.cpf && <span className="text-xs text-text-muted">{v.cpf}</span>}
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-300 italic">Nenhum vendedor cadastrado</p>
+            <p className="text-sm text-text-muted italic">Nenhum vendedor cadastrado</p>
           )}
         </div>
       </div>
@@ -983,7 +983,7 @@ function AbaResumo({
       {/* Barra de progresso fina */}
       {processo.fase_atual && (
         <div>
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <div className="flex justify-between text-xs text-text-muted mb-1">
             <span>Fase atual: {processo.fase_atual.nome}</span>
           </div>
           <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -1001,7 +1001,7 @@ function AbaResumo({
 function Campo({ label, valor }: { label: string; valor: string }) {
   return (
     <div>
-      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-xs text-text-muted">{label}</p>
       <p className="text-sm font-medium text-fonti-primary">{valor}</p>
     </div>
   )
