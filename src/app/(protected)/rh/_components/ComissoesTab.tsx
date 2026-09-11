@@ -286,7 +286,7 @@ export function ComissoesTab() {
               </select>
               <p className="text-[11px] text-gray-400">
                 {form.tipo_calculo === 'percentual_faixa_producao_mensal'
-                  ? 'A faixa é aplicada sobre a produção mensal ACUMULADA do funcionário (financiamento + contrato + assessoria), não sobre um processo isolado.'
+                  ? 'A faixa é escolhida pelo valor BRUTO financiado no mês (soma de valor_financiado, sem contrato/assessoria e sem aplicar %% do banco). O percentual da faixa escolhida é aplicado sobre a produção ponderada total (financiamento + contrato + assessoria).'
                   : form.tipo_calculo === 'percentual_por_negocio'
                     ? 'A faixa é escolhida pelo valor do negócio (ex.: valor da carta de consórcio) e aplicada direto sobre esse valor — não é uma fatia da comissão que a empresa recebe. Uma única faixa "0 até sem limite" funciona como taxa fixa por pessoa.'
                     : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
