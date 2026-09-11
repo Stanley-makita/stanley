@@ -250,7 +250,11 @@ function useAtualizarFinanciouProspectado(processoId: string) {
         .eq('empresa_id', usuario!.empresa_id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['processos', processoId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes_contratos'] })
+    },
+    onError: () => toast.error('Erro ao salvar os dados de pagamento.'),
   })
 }
 
@@ -266,7 +270,11 @@ function useConfirmarPagamentoContrato(processoId: string) {
         .eq('empresa_id', usuario!.empresa_id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['processos', processoId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos', processoId] })
+      qc.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes_contratos'] })
+    },
+    onError: () => toast.error('Erro ao confirmar o pagamento.'),
   })
 }
 
