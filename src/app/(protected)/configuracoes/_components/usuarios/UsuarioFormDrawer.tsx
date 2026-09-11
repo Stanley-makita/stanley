@@ -292,7 +292,12 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
 
   const isPending = criarUsuario.isPending || atualizarUsuario.isPending
   const perfilAtual = form.watch('perfil')
+  // Perfis customizados (perfis_acesso) são identificados pelo próprio id,
+  // não por um valor fixo de UsuarioPerfil — não dá pra saber de antemão se
+  // vão atuar como comercial/operacional/jurídico, então a seção de RH
+  // também aparece pra eles (fica em branco se não se aplicar).
   const precisaComissao = PAPEIS_COM_COMISSAO.includes(perfilAtual as UsuarioPerfil)
+    || perfisCustomizados.some((p) => p.id === perfilAtual)
 
   return (
     <>

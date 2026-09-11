@@ -11,15 +11,23 @@
 -- desta migration — precisa de modelo de múltiplas regras por produto).
 --
 -- Esta migration:
---   1. Adiciona usuarios.funcionario_id (FK real).
+--   1. Adiciona usuarios.funcionario_id (FK real) + índice único parcial
+--      (garante 1 funcionário <-> no máximo 1 usuário ativo, fecha a
+--      janela de corrida da checagem "já vinculado" feita em
+--      /api/admin/usuarios).
 --   2. Faz backfill idempotente pros pares que já batem por e-mail hoje
---      (preserva casos já corretos, ex.: Andresa).
+--      (preserva casos já corretos, ex.: Andresa; usa lower() porque a
+--      resolução por e-mail nova é o ponto de corte — daqui pra frente
+--      o vínculo é por FK, não mais por string, então não há motivo pra
+--      manter a divergência de case como uma comissão zerada a mais).
 --   3. Repor as 3 funções ao vivo que faziam o match por e-mail pra usar
 --      a FK: calcular_producao_comercial_mes, gerar_comissoes_a_pagar
---      (ambas migration 240) e gerar_fluxo_financeiro_consorcio
---      (migration 269). comissao_comercial_calculada (240) e
---      comissao_apurada_mes (294) não mudam — só chamam
---      calcular_producao_comercial_mes.
+--      (ambas com base na migration 248 — a versão que corrigiu o crash
+--      "record is not assigned yet" de piso/teto de faixa; NÃO a 240,
+--      que já estava superada) e gerar_fluxo_financeiro_consorcio
+--      (migration 269, não afetada pelo bug do 248). comissao_comercial_
+--      calculada (240) e comissao_apurada_mes (294) não mudam — só
+--      chamam calcular_producao_comercial_mes.
 --
 -- A escrita de funcionario_id daqui pra frente acontece via
 -- /api/admin/usuarios (fluxo único de criação/edição de usuário +
@@ -29,19 +37,27 @@
 ALTER TABLE usuarios
   ADD COLUMN IF NOT EXISTS funcionario_id UUID REFERENCES rh_funcionarios(id) ON DELETE SET NULL;
 
+CREATE UNIQUE INDEX IF NOT EXISTS usuarios_funcionario_id_unico
+  ON usuarios(funcionario_id)
+  WHERE funcionario_id IS NOT NULL AND deleted_at IS NULL;
+
 -- Backfill idempotente: só preenche onde ainda está NULL, nunca sobrescreve
 -- um vínculo já estabelecido (manual ou de uma rodada anterior desta mesma
--- migration).
+-- migration). Restrito a usuarios não-excluídos pra não colidir com o
+-- índice único acima (um soft-deletado e um ativo com o mesmo e-mail não
+-- podem apontar pro mesmo funcionário).
 UPDATE usuarios u
 SET funcionario_id = f.id
 FROM rh_funcionarios f
 WHERE u.funcionario_id IS NULL
+  AND u.deleted_at IS NULL
   AND f.empresa_id = u.empresa_id
   AND lower(f.email) = lower(u.email)
   AND f.status = 'ativo';
 
 -- ============================================================
--- 1. calcular_producao_comercial_mes — corpo idêntico à migration 240,
+-- 1. calcular_producao_comercial_mes — corpo idêntico à migration 248
+--    (versão que já corrige o crash de piso/teto de faixa — NÃO a 240),
 --    só o bloco de resolução do funcionário passa a usar a FK.
 -- ============================================================
 CREATE OR REPLACE FUNCTION calcular_producao_comercial_mes(
@@ -72,6 +88,8 @@ DECLARE
   v_faixa                  RECORD;
   v_faixa_found            BOOLEAN;
   v_pct                    NUMERIC := 0;
+  v_piso                   NUMERIC := 0;
+  v_teto                   NUMERIC := 0;
   v_valor                  NUMERIC := 0;
 BEGIN
   IF NOT EXISTS (
@@ -139,19 +157,17 @@ BEGIN
 
       v_faixa_found := FOUND;
       IF v_faixa_found THEN
-        v_pct := COALESCE(v_faixa.pct_comercial, v_faixa.percentual, 0);
+        v_pct  := COALESCE(v_faixa.pct_comercial, v_faixa.percentual, 0);
+        v_piso := COALESCE(v_faixa.piso_valor, 0);
+        v_teto := COALESCE(v_faixa.teto_valor, 0);
       END IF;
     END IF;
   END IF;
 
   v_valor := v_producao_total * v_pct / 100;
 
-  IF v_faixa_found AND v_faixa.piso_valor > 0 THEN
-    v_valor := GREATEST(v_valor, v_faixa.piso_valor);
-  END IF;
-  IF v_faixa_found AND v_faixa.teto_valor > 0 THEN
-    v_valor := LEAST(v_valor, v_faixa.teto_valor);
-  END IF;
+  IF v_piso > 0 THEN v_valor := GREATEST(v_valor, v_piso); END IF;
+  IF v_teto > 0 THEN v_valor := LEAST(v_valor, v_teto); END IF;
 
   RETURN QUERY SELECT
     v_producao_total,
@@ -165,9 +181,10 @@ $$;
 GRANT EXECUTE ON FUNCTION calcular_producao_comercial_mes(UUID, UUID, INTEGER, INTEGER) TO authenticated;
 
 -- ============================================================
--- 2. gerar_comissoes_a_pagar — corpo idêntico à migration 240, só o
---    bloco de resolução do funcionário (dentro do LOOP por comercial)
---    passa a usar a FK.
+-- 2. gerar_comissoes_a_pagar — corpo idêntico à migration 248 (versão
+--    que já corrige o crash de piso/teto — NÃO a 240), só o bloco de
+--    resolução do funcionário (dentro do LOOP por comercial) passa a
+--    usar a FK.
 -- ============================================================
 CREATE OR REPLACE FUNCTION gerar_comissoes_a_pagar(
   p_fechamento_id UUID
@@ -182,6 +199,8 @@ DECLARE
   v_regra          RECORD;
   v_regra_id       UUID;
   v_pct            NUMERIC;
+  v_piso           NUMERIC;
+  v_teto           NUMERIC;
   v_valor          NUMERIC;
   v_producao_total NUMERIC;
   v_count          INTEGER := 0;
@@ -231,6 +250,8 @@ BEGIN
     v_faixa_found := false;
     v_regra_id    := NULL;
     v_pct         := 0;
+    v_piso        := 0;
+    v_teto        := 0;
 
     SELECT f.*, f.regra_comissao_id AS regra_funcionario, c.regra_comissao_id AS regra_cargo
     INTO v_func
@@ -264,19 +285,17 @@ BEGIN
         v_faixa_found := FOUND;
 
         IF v_faixa_found THEN
-          v_pct := COALESCE(v_faixa.pct_comercial, v_faixa.percentual, 0);
+          v_pct  := COALESCE(v_faixa.pct_comercial, v_faixa.percentual, 0);
+          v_piso := COALESCE(v_faixa.piso_valor, 0);
+          v_teto := COALESCE(v_faixa.teto_valor, 0);
         END IF;
       END IF;
     END IF;
 
     v_valor := v_producao_total * v_pct / 100;
 
-    IF v_faixa_found AND v_faixa.piso_valor > 0 THEN
-      v_valor := GREATEST(v_valor, v_faixa.piso_valor);
-    END IF;
-    IF v_faixa_found AND v_faixa.teto_valor > 0 THEN
-      v_valor := LEAST(v_valor, v_faixa.teto_valor);
-    END IF;
+    IF v_piso > 0 THEN v_valor := GREATEST(v_valor, v_piso); END IF;
+    IF v_teto > 0 THEN v_valor := LEAST(v_valor, v_teto); END IF;
 
     IF v_valor > 0 THEN
       INSERT INTO financeiro_comissoes_pagar (

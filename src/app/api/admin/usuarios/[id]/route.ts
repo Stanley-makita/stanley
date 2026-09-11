@@ -46,6 +46,16 @@ async function resolverVinculoRh(
   if (!vinculoRh.funcionario.data_admissao) {
     return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 400, error: 'Informe a data de admissão do funcionário' } }
   }
+  // Tenant isolation: mesma checagem do POST em
+  // src/app/api/admin/usuarios/route.ts — supabaseAdmin bypassa RLS aqui.
+  if (cargoId) {
+    const { data: cargo } = await supabase.from('rh_cargos').select('id').eq('id', cargoId).eq('empresa_id', empresaId).maybeSingle()
+    if (!cargo) return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 400, error: 'Cargo inválido' } }
+  }
+  if (vinculoRh.funcionario.regra_comissao_id) {
+    const { data: regra } = await supabase.from('rh_regras_comissao').select('id').eq('id', vinculoRh.funcionario.regra_comissao_id).eq('empresa_id', empresaId).maybeSingle()
+    if (!regra) return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 400, error: 'Regra de comissão inválida' } }
+  }
   const { data: novoFuncionario, error: erroFuncionario } = await supabase
     .from('rh_funcionarios')
     .insert({

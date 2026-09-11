@@ -44,6 +44,18 @@ async function resolverVinculoRh(
   if (!vinculoRh.funcionario.data_admissao) {
     return { funcionarioId: null, funcionarioCriadoId: null, erro: { status: 400, error: 'Informe a data de admissão do funcionário' } }
   }
+  // Tenant isolation: cargo_id e regra_comissao_id precisam pertencer à
+  // mesma empresa — supabaseAdmin bypassa RLS aqui, então sem essa checagem
+  // um request malicioso/com bug conseguiria vincular o novo funcionário à
+  // regra de comissão (ou cargo) de outra empresa.
+  if (cargoId) {
+    const { data: cargo } = await supabase.from('rh_cargos').select('id').eq('id', cargoId).eq('empresa_id', empresaId).maybeSingle()
+    if (!cargo) return { funcionarioId: null, funcionarioCriadoId: null, erro: { status: 400, error: 'Cargo inválido' } }
+  }
+  if (vinculoRh.funcionario.regra_comissao_id) {
+    const { data: regra } = await supabase.from('rh_regras_comissao').select('id').eq('id', vinculoRh.funcionario.regra_comissao_id).eq('empresa_id', empresaId).maybeSingle()
+    if (!regra) return { funcionarioId: null, funcionarioCriadoId: null, erro: { status: 400, error: 'Regra de comissão inválida' } }
+  }
   const { data: novoFuncionario, error: erroFuncionario } = await supabase
     .from('rh_funcionarios')
     .insert({

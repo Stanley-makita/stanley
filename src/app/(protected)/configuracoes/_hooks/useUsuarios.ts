@@ -56,7 +56,10 @@ export function useCriarUsuario() {
       if (!res.ok) throw new Error(json.error ?? 'Erro ao criar usuário')
       return json as Usuario
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['usuarios'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      queryClient.invalidateQueries({ queryKey: ['rh'] })
+    },
   })
 }
 
@@ -87,7 +90,10 @@ export function useAtualizarUsuario() {
       if (!res.ok) throw new Error(json.error ?? 'Erro ao atualizar usuário')
       return json as Usuario
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['usuarios'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      queryClient.invalidateQueries({ queryKey: ['rh'] })
+    },
   })
 }
 
