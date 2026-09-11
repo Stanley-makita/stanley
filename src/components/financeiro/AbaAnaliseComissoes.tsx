@@ -12,9 +12,18 @@ import {
 } from '@/components/ui/table'
 import { Search } from 'lucide-react'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
+import {
   useAnaliseComissoesMes,
   useAtualizarCgiManual,
   useAnaliseComissoesContratosMes,
+  useComissaoApuradaMes,
 } from '@/hooks/financeiro/useAnaliseComissoes'
 import {
   type FinAnaliseComissaoLinha,
@@ -25,7 +34,7 @@ import { formatarMoeda } from '@/lib/utils'
 
 interface Props { mes: number; ano: number }
 
-type SubAba = 'financiamento' | 'contratos'
+type SubAba = 'financiamento' | 'contratos' | 'comissao_apurada'
 
 export function AbaAnaliseComissoes({ mes, ano }: Props) {
   const [subAba, setSubAba] = useState<SubAba>('financiamento')
@@ -49,11 +58,21 @@ export function AbaAnaliseComissoes({ mes, ano }: Props) {
         >
           Contratos
         </button>
+        <button
+          onClick={() => setSubAba('comissao_apurada')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            subAba === 'comissao_apurada' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Comissão Apurada
+        </button>
       </div>
 
       {subAba === 'financiamento'
         ? <VisaoAnaliseComissoesFinanciamento mes={mes} ano={ano} />
-        : <VisaoAnaliseComissoesContratos mes={mes} ano={ano} />}
+        : subAba === 'contratos'
+        ? <VisaoAnaliseComissoesContratos mes={mes} ano={ano} />
+        : <VisaoComissaoApurada mes={mes} ano={ano} />}
     </div>
   )
 }
@@ -278,6 +297,81 @@ function VisaoAnaliseComissoesContratos({ mes, ano }: Props) {
           </TableBody>
         </Table>
       </div>
+    </div>
+  )
+}
+
+function VisaoComissaoApurada({ mes, ano }: Props) {
+  const { data: membros = [] } = useMembrosAtivos()
+  const [comercialId, setComercialId] = useState<string>('')
+  const { data, isLoading } = useComissaoApuradaMes(comercialId || null, mes, ano)
+
+  return (
+    <div className="space-y-4">
+      <div className="max-w-xs">
+        <label className="text-xs text-gray-500 mb-1 block">Comercial</label>
+        <Select value={comercialId} onValueChange={setComercialId}>
+          <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione um comercial" /></SelectTrigger>
+          <SelectContent>
+            {membros.map(m => <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {!comercialId ? (
+        <p className="text-sm text-gray-400">Selecione um comercial para ver o fechamento apurado.</p>
+      ) : isLoading ? (
+        <p className="text-sm text-gray-400">Carregando...</p>
+      ) : !data ? (
+        <p className="text-sm text-gray-400">Nenhum dado encontrado para este comercial no período.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Processos Financiamento</p>
+            <p className="text-lg font-semibold text-fonti-primary">{data.qtd_processos_financiamento}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Contratos</p>
+            <p className="text-lg font-semibold text-fonti-primary">{data.qtd_contratos}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Valor Financiamento</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.valor_financiamento)}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Comissão</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.comissao_financiamento)}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Assessoria</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.valor_assessoria)}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Valor Contratos</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.valor_contratos)}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Subtotal</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.subtotal)}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">% Aplicado</p>
+            <p className="text-lg font-semibold text-fonti-primary">{data.pct_aplicado.toFixed(2)}%</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">Cálculo de Comissões</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.comissao_calculada)}</p>
+          </div>
+          <div className="rounded-lg border bg-white p-3">
+            <p className="text-xs text-gray-500">CGI 1%</p>
+            <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(data.cgi_manual_total)}</p>
+          </div>
+          <div className="rounded-lg border bg-fonti-accent-hover p-3 sm:col-span-2">
+            <p className="text-xs text-gray-500">Comissão Apurada</p>
+            <p className="text-xl font-bold text-green-700">{formatarMoeda(data.comissao_apurada)}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
