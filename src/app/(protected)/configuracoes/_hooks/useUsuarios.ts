@@ -6,6 +6,10 @@ import type { Usuario, UsuarioPerfil, UsuarioTipo } from '@/types/configuracoes'
 
 const supabase = createClient()
 
+export type VinculoRhPayload =
+  | { modo: 'existente'; funcionario_id: string }
+  | { modo: 'novo'; funcionario: { tipo_contrato?: string; data_admissao: string; regra_comissao_id?: string | null } }
+
 async function getToken() {
   const { data } = await supabase.auth.getSession()
   return data.session?.access_token ?? ''
@@ -40,6 +44,7 @@ export function useCriarUsuario() {
       funcao: string | null
       cargo_id: string | null
       ativo: boolean
+      vinculo_rh?: VinculoRhPayload
     }) => {
       const token = await getToken()
       const res = await fetch('/api/admin/usuarios', {
@@ -69,6 +74,7 @@ export function useAtualizarUsuario() {
       ativo?: boolean
       telefone_whatsapp?: string | null
       email?: string
+      vinculo_rh?: VinculoRhPayload | null
     }) => {
       const { id, ...rest } = payload
       const token = await getToken()

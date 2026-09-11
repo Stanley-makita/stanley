@@ -3,6 +3,69 @@ import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import type { UsuarioPerfil } from '@/types/auth'
 
+type VinculoRh =
+  | { modo: 'existente'; funcionario_id: string }
+  | { modo: 'novo'; funcionario: { tipo_contrato?: string; data_admissao: string; regra_comissao_id?: string | null } }
+
+// Mesma resolução usada em POST /api/admin/usuarios — valida o vínculo e,
+// quando modo==='novo', cria o rh_funcionarios antes do UPDATE em usuarios.
+async function resolverVinculoRh(
+  vinculoRh: VinculoRh | null | undefined,
+  empresaId: string,
+  usuarioAlvoId: string,
+  nome: string,
+  email: string,
+  cargoId: string | null,
+): Promise<{ funcionarioId: string | null | undefined; funcionarioCriadoId: string | null; erro?: { status: number; error: string } }> {
+  if (vinculoRh === undefined) return { funcionarioId: undefined, funcionarioCriadoId: null }
+  if (vinculoRh === null) return { funcionarioId: null, funcionarioCriadoId: null }
+
+  if (vinculoRh.modo === 'existente') {
+    const { data: func } = await supabase
+      .from('rh_funcionarios')
+      .select('id')
+      .eq('id', vinculoRh.funcionario_id)
+      .eq('empresa_id', empresaId)
+      .maybeSingle()
+    if (!func) {
+      return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 400, error: 'Funcionário inválido' } }
+    }
+    const { data: jaVinculado } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('funcionario_id', vinculoRh.funcionario_id)
+      .neq('id', usuarioAlvoId)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (jaVinculado) {
+      return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 409, error: 'Este funcionário já está vinculado a outro usuário' } }
+    }
+    return { funcionarioId: vinculoRh.funcionario_id, funcionarioCriadoId: null }
+  }
+
+  if (!vinculoRh.funcionario.data_admissao) {
+    return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 400, error: 'Informe a data de admissão do funcionário' } }
+  }
+  const { data: novoFuncionario, error: erroFuncionario } = await supabase
+    .from('rh_funcionarios')
+    .insert({
+      empresa_id: empresaId,
+      nome,
+      email,
+      cargo_id: cargoId,
+      tipo_contrato: vinculoRh.funcionario.tipo_contrato ?? 'clt',
+      data_admissao: vinculoRh.funcionario.data_admissao,
+      regra_comissao_id: vinculoRh.funcionario.regra_comissao_id ?? null,
+      status: 'ativo',
+    })
+    .select('id')
+    .single()
+  if (erroFuncionario || !novoFuncionario) {
+    return { funcionarioId: undefined, funcionarioCriadoId: null, erro: { status: 500, error: erroFuncionario?.message ?? 'Erro ao criar funcionário' } }
+  }
+  return { funcionarioId: novoFuncionario.id, funcionarioCriadoId: novoFuncionario.id }
+}
+
 async function resolveAdmin(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
@@ -58,11 +121,12 @@ export async function PUT(
   }
 
   const { nome, perfil, tipo_usuario, funcao, cargo_id, ativo, telefone_whatsapp, email, perfil_customizado_id } = body
+  const vinculo_rh = (Object.prototype.hasOwnProperty.call(body, 'vinculo_rh') ? body.vinculo_rh : undefined) as VinculoRh | null | undefined
 
   // Busca o usuário alvo para verificar guards de segurança
   const { data: alvo } = await supabase
     .from('usuarios')
-    .select('id, perfil, ativo, email, auth_user_id')
+    .select('id, nome, perfil, ativo, email, auth_user_id')
     .eq('id', params.id)
     .eq('empresa_id', admin.empresa_id)
     .single()
@@ -150,6 +214,16 @@ export async function PUT(
     }
   }
 
+  const vinculo = await resolverVinculoRh(
+    vinculo_rh,
+    admin.empresa_id,
+    params.id,
+    (typeof nome === 'string' ? nome.trim() : '') || alvo.nome,
+    emailNormalizado ?? alvo.email,
+    cargo_id ?? null,
+  )
+  if (vinculo.erro) return NextResponse.json({ error: vinculo.erro.error }, { status: vinculo.erro.status })
+
   const update: Record<string, unknown> = {}
   if (nome               !== undefined) update.nome               = nome?.trim() || undefined
   if (perfil             !== undefined) update.perfil             = perfil
@@ -160,6 +234,7 @@ export async function PUT(
   if (telefone_whatsapp  !== undefined) update.telefone_whatsapp  = telefone_whatsapp?.trim() || null
   if (emailNormalizado   !== undefined && emailNormalizado !== alvo.email) update.email = emailNormalizado
   if (perfil_customizado_id !== undefined) update.perfil_customizado_id = perfil_customizado_id ?? null
+  if (vinculo.funcionarioId !== undefined) update.funcionario_id = vinculo.funcionarioId
 
   const { data, error } = await supabase
     .from('usuarios')
@@ -168,6 +243,10 @@ export async function PUT(
     .eq('empresa_id', admin.empresa_id)
     .select()
     .single()
+
+  if (error && vinculo.funcionarioCriadoId) {
+    await supabase.from('rh_funcionarios').delete().eq('id', vinculo.funcionarioCriadoId)
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
