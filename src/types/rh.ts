@@ -115,6 +115,14 @@ export interface RhRegraComissao {
   tipo_calculo: RhTipoCalculoComissao
   valor_fixo_emissao: number | null
   valor_fixo_assessoria: number | null
+  // Regra especial CGI — só relevante quando tipo_calculo =
+  // 'percentual_faixa_producao_mensal'. Quando ambos preenchidos: todo
+  // processo modalidade CGI com valor_financiado > cgi_valor_limite sai da
+  // produção que decide a faixa e passa a ter comissão própria de
+  // cgi_percentual_acima % sobre o valor financiado, somada por fora do
+  // percentual de faixa (ver calcular_producao_comercial_mes).
+  cgi_valor_limite: number | null
+  cgi_percentual_acima: number | null
   created_at: string
   updated_at: string
   faixas?: RhFaixaComissao[]

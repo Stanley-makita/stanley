@@ -30,6 +30,7 @@ const VAZIO_REGRA = {
   nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true,
   tipo_calculo: 'valor_fixo_emissao' as RhTipoCalculoComissao,
   valor_fixo_emissao: 0, valor_fixo_assessoria: 0,
+  cgiAtiva: false, cgiValorLimite: 250000, cgiPercentualAcima: 1,
 }
 // pct_comercial é usado quando tipo_calculo = percentual_faixa_producao_mensal;
 // valor_fixo quando tipo_calculo = valor_fixo_emissao. Os demais campos
@@ -77,6 +78,9 @@ export function ComissoesTab() {
         tipo_calculo: regra.tipo_calculo,
         valor_fixo_emissao: regra.valor_fixo_emissao ?? 0,
         valor_fixo_assessoria: regra.valor_fixo_assessoria ?? 0,
+        cgiAtiva: regra.cgi_valor_limite != null && regra.cgi_percentual_acima != null,
+        cgiValorLimite: regra.cgi_valor_limite ?? 250000,
+        cgiPercentualAcima: regra.cgi_percentual_acima ?? 1,
       })
       setFaixas(regra.faixas?.length ? regra.faixas.map(f => ({
         valor_minimo: f.valor_minimo,
@@ -104,6 +108,11 @@ export function ComissoesTab() {
   async function handleSalvar() {
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return }
     if (!form.data_inicio) { toast.error('Data de início é obrigatória'); return }
+    const cgiHabilitada = form.tipo_calculo === 'percentual_faixa_producao_mensal' && form.cgiAtiva
+    if (cgiHabilitada && (!(form.cgiValorLimite > 0) || !(form.cgiPercentualAcima > 0))) {
+      toast.error('Informe o valor limite e o percentual da regra especial de CGI')
+      return
+    }
     try {
       const base = {
         nome: form.nome,
@@ -114,6 +123,8 @@ export function ComissoesTab() {
         tipo_calculo: form.tipo_calculo,
         valor_fixo_emissao: form.valor_fixo_emissao || null,
         valor_fixo_assessoria: form.valor_fixo_assessoria || null,
+        cgi_valor_limite: cgiHabilitada ? form.cgiValorLimite : null,
+        cgi_percentual_acima: cgiHabilitada ? form.cgiPercentualAcima : null,
       }
       if (editando) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -180,6 +191,11 @@ export function ComissoesTab() {
                       <p className="text-xs text-gray-500 mt-1 flex gap-3">
                         {!!r.valor_fixo_emissao && <span>Por emissão: <strong>{fmtMoeda(r.valor_fixo_emissao)}</strong></span>}
                         {!!r.valor_fixo_assessoria && <span>Por assessoria: <strong>{fmtMoeda(r.valor_fixo_assessoria)}</strong></span>}
+                      </p>
+                    )}
+                    {r.cgi_valor_limite != null && r.cgi_percentual_acima != null && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        CGI acima de {fmtMoeda(r.cgi_valor_limite)}: {fmtPercentual(r.cgi_percentual_acima)} direto sobre o valor financiado
                       </p>
                     )}
                   </div>
@@ -276,6 +292,30 @@ export function ComissoesTab() {
                     : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
               </p>
             </div>
+
+            {form.tipo_calculo === 'percentual_faixa_producao_mensal' && (
+              <div className="rounded-lg border border-gray-200 p-2.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.cgiAtiva} onCheckedChange={v => setForm(f => ({ ...f, cgiAtiva: v }))} />
+                  <Label className="text-xs">Regra especial para CGI acima de um valor</Label>
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Processo CGI com valor financiado acima do limite sai da produção que decide a faixa e passa a ter comissão própria (% direto sobre o valor financiado dele), somada por fora do valor da faixa.
+                </p>
+                {form.cgiAtiva && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-gray-500">Valor financiado acima de (R$)</Label>
+                      <Input type="number" min={0} step={0.01} value={form.cgiValorLimite} onChange={e => setForm(f => ({ ...f, cgiValorLimite: Number(e.target.value) }))} className="h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-gray-500">% sobre o valor financiado</Label>
+                      <Input type="number" min={0} step={0.01} value={form.cgiPercentualAcima} onChange={e => setForm(f => ({ ...f, cgiPercentualAcima: Number(e.target.value) }))} className="h-8 text-xs" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {form.tipo_calculo === 'valor_fixo_emissao' && (
               <div className="grid grid-cols-2 gap-3">
