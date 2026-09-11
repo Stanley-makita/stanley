@@ -17,11 +17,21 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { useCriarUsuario, useAtualizarUsuario, useResetSenha } from '../../_hooks/useUsuarios'
+import { useCriarUsuario, useAtualizarUsuario, useResetSenha, type VinculoRhPayload } from '../../_hooks/useUsuarios'
 import { usePerfisCustomizados } from '../../_hooks/usePerfisCustomizados'
 import { useCargos } from '@/hooks/rh/useCargos'
+import { useFuncionariosDisponiveis } from '@/hooks/rh/useFuncionarios'
+import { useRegrasComissao } from '@/hooks/rh/useComissoes'
+import { RH_TIPO_CONTRATO_LABELS } from '@/types/rh'
+import type { RhTipoContrato } from '@/types/rh'
 import { PERFIS_ATIVOS, PERFIL_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioPerfil, UsuarioTipo } from '@/types/configuracoes'
+
+// Perfis cujo processo (comercial_id/operacional_id/juridico_id, ver
+// BlocoResponsaveis.tsx::getPapeis) participa do motor de comissão do RH —
+// só pra esses o formulário de usuário pede o vínculo com rh_funcionarios.
+const PAPEIS_COM_COMISSAO: UsuarioPerfil[] = ['comercial', 'operacional', 'juridico']
+const NENHUM = '__nenhum__'
 import { useUsuarioPermissoes, useSalvarPermissoesIndividuais } from '../../_hooks/useUsuarioPermissoesAdmin'
 import {
   booleanoParaEstado, planejarPermissoesIndividuais, type EstadoPermissaoIndividual,
@@ -84,6 +94,17 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   const perfisCustomizadosAtivos = perfisCustomizados.filter((p) => p.ativo)
   const { data: permissoesIndividuais = [] } = useUsuarioPermissoes(usuario?.id)
   const salvarPermissoesIndividuais = useSalvarPermissoesIndividuais()
+  const { data: funcionariosDisponiveis = [] } = useFuncionariosDisponiveis(usuario?.funcionario_id)
+  const { data: regrasComissao = [] } = useRegrasComissao()
+  const regrasComissaoAtivas = regrasComissao.filter((r) => r.ativa)
+
+  // Vínculo com RH — estado local (não faz parte do schema zod, já que só
+  // é relevante condicionalmente conforme o perfil selecionado).
+  const [vinculoModo, setVinculoModo] = useState<'existente' | 'novo'>('existente')
+  const [funcionarioExistenteId, setFuncionarioExistenteId] = useState<string>(NENHUM)
+  const [novoTipoContrato, setNovoTipoContrato] = useState<RhTipoContrato>('clt')
+  const [novoDataAdmissao, setNovoDataAdmissao] = useState<string>('')
+  const [novoRegraComissaoId, setNovoRegraComissaoId] = useState<string>(NENHUM)
 
   const [mostrarSenha, setMostrarSenha]   = useState(false)
   const [modalReset, setModalReset]       = useState(false)
@@ -140,6 +161,19 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
         })
       }
       setMostrarSenha(false)
+
+      // Vínculo com RH: em edição, pré-seleciona o funcionário já vinculado
+      // (se houver); em criação, começa em branco.
+      if (usuario?.funcionario_id) {
+        setVinculoModo('existente')
+        setFuncionarioExistenteId(usuario.funcionario_id)
+      } else {
+        setVinculoModo('existente')
+        setFuncionarioExistenteId(NENHUM)
+      }
+      setNovoTipoContrato('clt')
+      setNovoDataAdmissao('')
+      setNovoRegraComissaoId(NENHUM)
     }
   }, [aberto]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -166,6 +200,30 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
     const perfilCustomizadoEscolhido = perfisCustomizados.find((p) => p.id === data.perfil)
     const perfilFinal: UsuarioPerfil = perfilCustomizadoEscolhido ? 'customizado' : data.perfil
     const perfilCustomizadoIdFinal = perfilCustomizadoEscolhido ? perfilCustomizadoEscolhido.id : null
+
+    let vinculoRh: VinculoRhPayload | null | undefined
+    if (precisaComissao) {
+      if (vinculoModo === 'novo') {
+        if (!novoDataAdmissao) {
+          toast.error('Informe a data de admissão do novo funcionário')
+          return
+        }
+        vinculoRh = {
+          modo: 'novo',
+          funcionario: {
+            tipo_contrato: novoTipoContrato,
+            data_admissao: novoDataAdmissao,
+            regra_comissao_id: novoRegraComissaoId === NENHUM ? null : novoRegraComissaoId,
+          },
+        }
+      } else if (funcionarioExistenteId !== NENHUM) {
+        vinculoRh = { modo: 'existente', funcionario_id: funcionarioExistenteId }
+      } else if (modoEdicao && usuario?.funcionario_id) {
+        // Campo foi limpo explicitamente — desvincula.
+        vinculoRh = null
+      }
+    }
+
     try {
       if (modoEdicao) {
         await atualizarUsuario.mutateAsync({
@@ -179,6 +237,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           cargo_id:         data.cargo_id || null,
           ativo:            data.ativo,
           telefone_whatsapp: (data as unknown as { telefone_whatsapp?: string }).telefone_whatsapp?.trim() || null,
+          vinculo_rh:       vinculoRh,
         })
 
         const dataEditar = data as unknown as FormEditar
@@ -210,6 +269,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           funcao,
           cargo_id: data.cargo_id || null,
           ativo:    data.ativo,
+          vinculo_rh: vinculoRh ?? undefined,
         })
         toast.success('Usuário criado com sucesso')
       }
@@ -231,6 +291,13 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   }
 
   const isPending = criarUsuario.isPending || atualizarUsuario.isPending
+  const perfilAtual = form.watch('perfil')
+  // Perfis customizados (perfis_acesso) são identificados pelo próprio id,
+  // não por um valor fixo de UsuarioPerfil — não dá pra saber de antemão se
+  // vão atuar como comercial/operacional/jurídico, então a seção de RH
+  // também aparece pra eles (fica em branco se não se aplicar).
+  const precisaComissao = PAPEIS_COM_COMISSAO.includes(perfilAtual as UsuarioPerfil)
+    || perfisCustomizados.some((p) => p.id === perfilAtual)
 
   return (
     <>
@@ -385,6 +452,92 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
                   </p>
                 </FormItem>
               )} />
+
+              {precisaComissao && (
+                <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                  <p className="text-xs font-medium text-gray-500">
+                    Vínculo com RH
+                    <span className="block font-normal text-gray-400 mt-0.5">
+                      Perfis comercial/operacional/jurídico entram no motor de comissão do RH — vincule a um funcionário existente ou crie um novo.
+                    </span>
+                  </p>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVinculoModo('existente')}
+                      className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
+                        vinculoModo === 'existente'
+                          ? 'border-fonti-primary bg-fonti-primary text-white'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      Vincular funcionário existente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVinculoModo('novo')}
+                      className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
+                        vinculoModo === 'novo'
+                          ? 'border-fonti-primary bg-fonti-primary text-white'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      Criar novo funcionário
+                    </button>
+                  </div>
+
+                  {vinculoModo === 'existente' ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-gray-500">Funcionário</label>
+                      <Select value={funcionarioExistenteId} onValueChange={setFuncionarioExistenteId}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione um funcionário" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NENHUM}>— Nenhum —</SelectItem>
+                          {funcionariosDisponiveis.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>{f.nome}{f.cargo?.nome ? ` — ${f.cargo.nome}` : ''}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-gray-500">Tipo de contrato</label>
+                        <Select value={novoTipoContrato} onValueChange={(v) => setNovoTipoContrato(v as RhTipoContrato)}>
+                          <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(RH_TIPO_CONTRATO_LABELS) as RhTipoContrato[]).map((tc) => (
+                              <SelectItem key={tc} value={tc}>{RH_TIPO_CONTRATO_LABELS[tc]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-400">PJ = comercial externo (autônomo/pessoa jurídica).</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-gray-500">Data de admissão</label>
+                        <Input
+                          type="date"
+                          value={novoDataAdmissao}
+                          onChange={(e) => setNovoDataAdmissao(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-gray-500">Regra de comissão (opcional)</label>
+                        <Select value={novoRegraComissaoId} onValueChange={setNovoRegraComissaoId}>
+                          <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NENHUM}>Sem override — usa a regra do cargo</SelectItem>
+                            {regrasComissaoAtivas.map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {modoEdicao && (
                 <div className="space-y-1.5">

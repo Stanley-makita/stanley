@@ -25,6 +25,40 @@ export function useFuncionarios(filtros: { status?: RhStatusFuncionario } = {}) 
   })
 }
 
+// Funcionários ativos que ainda não estão vinculados a nenhum usuário de
+// login (usuarios.funcionario_id) — usado no dropdown "vincular funcionário
+// existente" do formulário de Usuário, pra não oferecer quem já tem login.
+export function useFuncionariosDisponiveis(funcionarioIdAtual?: string | null) {
+  const { usuario } = useAuth()
+  return useQuery({
+    queryKey: ['rh', 'funcionarios', 'disponiveis', usuario?.empresa_id, funcionarioIdAtual],
+    enabled: !!usuario,
+    queryFn: async (): Promise<RhFuncionario[]> => {
+      const { data: vinculados, error: erroVinculados } = await supabase
+        .from('usuarios')
+        .select('funcionario_id')
+        .eq('empresa_id', usuario!.empresa_id)
+        .is('deleted_at', null)
+        .not('funcionario_id', 'is', null)
+      if (erroVinculados) throw erroVinculados
+
+      const idsVinculados = (vinculados ?? [])
+        .map((u) => u.funcionario_id as string)
+        .filter((id) => id !== funcionarioIdAtual)
+
+      let q = supabase.from('rh_funcionarios')
+        .select(JOINS)
+        .eq('empresa_id', usuario!.empresa_id)
+        .eq('status', 'ativo')
+        .order('nome')
+      if (idsVinculados.length > 0) q = q.not('id', 'in', `(${idsVinculados.join(',')})`)
+      const { data, error } = await q
+      if (error) throw error
+      return (data ?? []) as unknown as RhFuncionario[]
+    },
+  })
+}
+
 export function useCriarFuncionario() {
   const { usuario } = useAuth()
   const qc = useQueryClient()

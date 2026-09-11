@@ -35,6 +35,7 @@ export type Database = {
           tipo_usuario: Database['public']['Enums']['usuario_tipo']
           funcao: string | null
           cargo_id: string | null
+          funcionario_id: string | null
           token_telefonia: string | null
           ativo: boolean
           ultimo_acesso: string | null
@@ -43,7 +44,7 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'created_at' | 'updated_at' | 'telefone' | 'telefone_whatsapp' | 'avatar_url' | 'token_telefonia' | 'ultimo_acesso' | 'motivo_exclusao' | 'deleted_at' | 'perfil_customizado_id'> & {
+        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'created_at' | 'updated_at' | 'telefone' | 'telefone_whatsapp' | 'avatar_url' | 'token_telefonia' | 'ultimo_acesso' | 'motivo_exclusao' | 'deleted_at' | 'perfil_customizado_id' | 'funcionario_id'> & {
           telefone?: string | null
           telefone_whatsapp?: string | null
           avatar_url?: string | null
@@ -52,6 +53,7 @@ export type Database = {
           motivo_exclusao?: string | null
           deleted_at?: string | null
           perfil_customizado_id?: string | null
+          funcionario_id?: string | null
         }
         Update: Partial<Database['public']['Tables']['usuarios']['Insert']>
       }
