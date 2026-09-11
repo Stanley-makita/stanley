@@ -964,16 +964,6 @@ function AbaResumo({
                 : '—'}
             </span>
           </div>
-          {(processo.comissao_comercial || processo.comissao_empresa) && (
-            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-              {processo.comissao_comercial != null && (
-                <Campo label="Comissão Comercial" valor={`${processo.comissao_comercial}%`} />
-              )}
-              {processo.comissao_empresa != null && (
-                <Campo label="Comissão Empresa" valor={`${processo.comissao_empresa}%`} />
-              )}
-            </div>
-          )}
         </div>
 
         {/* Responsáveis */}

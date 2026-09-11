@@ -18,7 +18,6 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { useBancos } from '@/hooks/useBancos'
 import { useAtualizarDadosProcesso } from '@/hooks/processos/useProcessos'
-import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
 import type { Processo, ResponsavelRegistro } from '@/types/processos'
 import { RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
 
@@ -116,7 +115,6 @@ interface Props {
 
 export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   const { data: bancos = [] } = useBancos()
-  const { data: comissoesPadrao = [] } = useComissoesPadrao()
   const { mutateAsync, isPending } = useAtualizarDadosProcesso()
   const p = processo as any
   // Modalidade tambem controla o fluxo do processo (Financiamento <-> Registro).
@@ -125,8 +123,6 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
   // save de dados financeiros derruba o processo de volta pro fluxo errado.
   const emFluxoRegistro = processo.modalidade === 'Registro'
 
-  const [comissaoComercial, setComissaoComercial] = useState<number | null>(p.comissao_comercial ?? null)
-  const [comissaoEmpresa,   setComissaoEmpresa]   = useState<number | null>(p.comissao_empresa ?? null)
   // null = não declarado | true = usará FGTS | false = não usará FGTS
   const [fgtsOpcao, setFgtsOpcao] = useState<boolean | null>(initFgtsOpcao(processo))
   const [fgtsErro,  setFgtsErro]  = useState('')
@@ -142,9 +138,6 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
 
   useEffect(() => {
     if (aberto) {
-      const pa = processo as any
-      setComissaoComercial(pa.comissao_comercial ?? null)
-      setComissaoEmpresa(pa.comissao_empresa ?? null)
       setFgtsOpcao(initFgtsOpcao(processo))
       setFgtsErro('')
       setResponsavelRegistro((processo as any).responsavel_registro ?? null)
@@ -213,8 +206,6 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         valor_fgts:                     fgtsOpcao ? normNum(dados.valor_fgts) : 0,
         valor_recursos_proprios:        recursosProprios,
         valor_entrada:                  valorEntradaTotal,
-        comissao_comercial:             comissaoComercial,
-        comissao_empresa:               comissaoEmpresa,
         prazo_amortizacao_meses:        dados.prazo_amortizacao_meses ?? null,
         dia_vencimento_parcela:         dados.dia_vencimento_parcela ?? null,
         sistema_amortizacao:            dados.sistema_amortizacao,
@@ -260,12 +251,7 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
                   <Label>Banco <span className="text-red-500">*</span></Label>
                   <Select
                     value={form.watch('banco_id') || ''}
-                    onValueChange={(v) => {
-                      form.setValue('banco_id', v, { shouldValidate: true })
-                      const cp = comissoesPadrao.find(c => c.banco_id === v)
-                      setComissaoComercial(cp?.comissao_comercial ?? null)
-                      setComissaoEmpresa(cp?.comissao_empresa ?? null)
-                    }}
+                    onValueChange={(v) => form.setValue('banco_id', v, { shouldValidate: true })}
                   >
                     <SelectTrigger className={errors.banco_id ? 'border-red-400' : ''}>
                       <SelectValue placeholder="Selecionar banco *" />
