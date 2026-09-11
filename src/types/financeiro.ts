@@ -131,6 +131,20 @@ export interface FinAnaliseComissaoLinha {
   data_emissao: string | null
 }
 
+export interface FinAnaliseComissaoContratoLinha {
+  id: string
+  processo_id: string
+  cliente_nome: string
+  cliente_cpf: string
+  comercial_nome: string | null
+  corretor_nome: string | null
+  imobiliaria_nome: string | null
+  prospectado_por: 'fontinhas' | 'direto' | null
+  financiou: boolean | null
+  valor_contrato: number | null
+  data_pagamento_contrato: string | null
+}
+
 export interface FinContaReceber {
   id: string
   empresa_id: string
