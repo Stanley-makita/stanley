@@ -42,6 +42,7 @@ export function useAtualizarCgiManual() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financeiro', 'analise_comissoes'] })
+      queryClient.invalidateQueries({ queryKey: ['financeiro', 'comissao_apurada'] })
     },
     onError: () => toast.error('Erro ao salvar o valor de CGI 1%.'),
   })

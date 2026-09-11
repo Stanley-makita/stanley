@@ -232,7 +232,7 @@ function VisaoAnaliseComissoesContratos({ mes, ano }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-gray-500">Contratos</p>
+          <p className="text-xs text-gray-500">Contratos (pagos no mês)</p>
           <p className="text-lg font-semibold text-fonti-primary">{filtradas.length}</p>
         </div>
         <div className="rounded-lg border bg-white p-3">
@@ -331,7 +331,7 @@ function VisaoComissaoApurada({ mes, ano }: Props) {
             <p className="text-lg font-semibold text-fonti-primary">{data.qtd_processos_financiamento}</p>
           </div>
           <div className="rounded-lg border bg-white p-3">
-            <p className="text-xs text-gray-500">Contratos</p>
+            <p className="text-xs text-gray-500">Contratos (emitidos no mês)</p>
             <p className="text-lg font-semibold text-fonti-primary">{data.qtd_contratos}</p>
           </div>
           <div className="rounded-lg border bg-white p-3">
@@ -368,7 +368,9 @@ function VisaoComissaoApurada({ mes, ano }: Props) {
           </div>
           <div className="rounded-lg border bg-fonti-accent-hover p-3 sm:col-span-2">
             <p className="text-xs text-gray-500">Comissão Apurada</p>
-            <p className="text-xl font-bold text-green-700">{formatarMoeda(data.comissao_apurada)}</p>
+            <p className={`text-xl font-bold ${data.comissao_apurada < 0 ? 'text-red-600' : 'text-green-700'}`}>
+              {formatarMoeda(data.comissao_apurada)}
+            </p>
           </div>
         </div>
       )}

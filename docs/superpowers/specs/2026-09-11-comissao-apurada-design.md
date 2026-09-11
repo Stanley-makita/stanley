@@ -120,9 +120,13 @@ Terceiro botão "Comissão Apurada" ao lado de "Financiamento"/"Contratos".
 - Selecionar um comercial com produção só de financiamento — conferir que
   `comissao_financiamento` bate com `valor_financiado × comissoes_padrao.comissao_comercial`
   somado manualmente para os processos do mês.
-- Selecionar um comercial com contratos pagos no mês (aba Contratos) —
-  conferir que `valor_contratos`/`qtd_contratos` batem com o que aparece
-  na aba Contratos para o mesmo comercial/mês.
+- Selecionar um comercial com contratos emitidos no mês — conferir que
+  `valor_contratos`/`qtd_contratos` batem com a soma manual de
+  `processos.valor_contrato` para modalidade Contrato, status emitido e
+  `data_emissao` no mês. **Nota:** essa base (data de emissão) é
+  diferente da usada na aba Contratos (data de pagamento), então os
+  números das duas abas não precisam — e em geral não vão — coincidir
+  para o mesmo mês.
 - Comparar `pct_aplicado`/`comissao_calculada` com o que já aparece hoje
   em RH → Comissões / Comissões a Pagar para o mesmo comercial/mês — devem
   bater exatamente, pois vêm da mesma função.

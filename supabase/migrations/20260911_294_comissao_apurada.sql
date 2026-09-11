@@ -34,7 +34,6 @@ DECLARE
   v_comissao_financiamento NUMERIC;
   v_valor_assessoria       NUMERIC;
   v_valor_contratos        NUMERIC;
-  v_subtotal               NUMERIC;
   v_cgi_manual_total       NUMERIC;
   v_producao               RECORD;
 BEGIN
@@ -77,8 +76,6 @@ BEGIN
     AND EXTRACT(MONTH FROM p.data_emissao) = p_mes
     AND EXTRACT(YEAR  FROM p.data_emissao) = p_ano;
 
-  v_subtotal := v_comissao_financiamento + v_valor_assessoria + v_valor_contratos;
-
   SELECT * INTO v_producao
   FROM calcular_producao_comercial_mes(p_empresa_id, p_comercial_usuario_id, p_mes, p_ano);
 
@@ -89,7 +86,7 @@ BEGIN
     v_comissao_financiamento,
     v_valor_assessoria,
     v_valor_contratos,
-    v_subtotal,
+    v_producao.producao_total,
     v_producao.pct_aplicado,
     v_producao.comissao_total,
     v_cgi_manual_total,
