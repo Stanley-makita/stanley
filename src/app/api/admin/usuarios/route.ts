@@ -41,9 +41,61 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const emailNormalizado = email.trim().toLowerCase()
+
+  // Verifica ANTES de criar no Auth se já existe registro na tabela usuarios
+  // com esse e-mail (ativo ou excluído). Excluir um usuário só faz
+  // soft-delete (deleted_at) — a conta no Auth nunca é removida — então,
+  // sem essa checagem, tentar recriar alguém que já foi excluído sempre
+  // falhava com "e-mail já em uso" (o createUser abaixo rejeitava),
+  // mesmo a pessoa não aparecendo em lugar nenhum da lista de usuários.
+  const { data: existente } = await supabase
+    .from('usuarios')
+    .select('id, auth_user_id, deleted_at')
+    .eq('empresa_id', admin.empresa_id)
+    .eq('email', emailNormalizado)
+    .maybeSingle()
+
+  if (existente && !existente.deleted_at) {
+    return NextResponse.json({ error: 'Já existe um usuário ativo com esse e-mail' }, { status: 409 })
+  }
+
+  if (existente && existente.deleted_at) {
+    // Reativa a linha excluída em vez de criar do zero — preserva o mesmo
+    // id/auth_user_id, então qualquer vínculo histórico (processos,
+    // comissões etc.) continua íntegro. Também reseta a senha no Auth,
+    // já que o admin está efetivamente recriando o acesso dessa pessoa.
+    if (existente.auth_user_id) {
+      const { error: authUpdateError } = await supabase.auth.admin.updateUserById(existente.auth_user_id, {
+        password: senha,
+        email_confirm: true,
+      })
+      if (authUpdateError) return NextResponse.json({ error: authUpdateError.message }, { status: 400 })
+    }
+    const { data, error } = await supabase
+      .from('usuarios')
+      .update({
+        auth_user_id: existente.auth_user_id,
+        nome: nome.trim(),
+        perfil,
+        tipo_usuario,
+        funcao: funcao ?? null,
+        cargo_id: cargo_id ?? null,
+        ativo,
+        deleted_at: null,
+        motivo_exclusao: null,
+        perfil_customizado_id: perfil_customizado_id ?? null,
+      })
+      .eq('id', existente.id)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(data, { status: 200 })
+  }
+
   // Cria no Auth
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: email.trim().toLowerCase(),
+    email: emailNormalizado,
     password: senha,
     email_confirm: true,
   })
@@ -54,35 +106,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: authError.message }, { status: 400 })
   }
 
-  // Verifica se já existe registro na tabela usuarios com esse email
-  const { data: existente } = await supabase
-    .from('usuarios')
-    .select('id')
-    .eq('empresa_id', admin.empresa_id)
-    .eq('email', email.trim().toLowerCase())
-    .maybeSingle()
-
-  if (existente) {
-    // Atualiza o registro existente vinculando o novo auth_user_id
-    const { data, error } = await supabase
-      .from('usuarios')
-      .update({
-        auth_user_id: authData.user.id,
-        nome: nome.trim(),
-        perfil,
-        tipo_usuario,
-        funcao: funcao ?? null,
-        cargo_id: cargo_id ?? null,
-        ativo,
-        perfil_customizado_id: perfil_customizado_id ?? null,
-      })
-      .eq('id', existente.id)
-      .select()
-      .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data, { status: 200 })
-  }
-
   // Cria registro na tabela usuarios (id = auth_user_id, sem DEFAULT na coluna)
   const { data, error: insertError } = await supabase
     .from('usuarios')
@@ -91,7 +114,7 @@ export async function POST(request: NextRequest) {
       empresa_id: admin.empresa_id,
       auth_user_id: authData.user.id,
       nome: nome.trim(),
-      email: email.trim().toLowerCase(),
+      email: emailNormalizado,
       perfil,
       tipo_usuario,
       funcao: funcao ?? null,
