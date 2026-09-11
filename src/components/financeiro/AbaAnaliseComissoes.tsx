@@ -11,11 +11,52 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Search } from 'lucide-react'
-import { useAnaliseComissoesMes, useAtualizarCgiManual } from '@/hooks/financeiro/useAnaliseComissoes'
-import { type FinAnaliseComissaoLinha, type FinResponsavelRegistro } from '@/types/financeiro'
+import {
+  useAnaliseComissoesMes,
+  useAtualizarCgiManual,
+  useAnaliseComissoesContratosMes,
+} from '@/hooks/financeiro/useAnaliseComissoes'
+import {
+  type FinAnaliseComissaoLinha,
+  type FinAnaliseComissaoContratoLinha,
+  type FinResponsavelRegistro,
+} from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
 
 interface Props { mes: number; ano: number }
+
+type SubAba = 'financiamento' | 'contratos'
+
+export function AbaAnaliseComissoes({ mes, ano }: Props) {
+  const [subAba, setSubAba] = useState<SubAba>('financiamento')
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 w-fit">
+        <button
+          onClick={() => setSubAba('financiamento')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            subAba === 'financiamento' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Financiamento
+        </button>
+        <button
+          onClick={() => setSubAba('contratos')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            subAba === 'contratos' ? 'bg-white text-fonti-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Contratos
+        </button>
+      </div>
+
+      {subAba === 'financiamento'
+        ? <VisaoAnaliseComissoesFinanciamento mes={mes} ano={ano} />
+        : <VisaoAnaliseComissoesContratos mes={mes} ano={ano} />}
+    </div>
+  )
+}
 
 const REGISTRO_LABEL: Record<FinResponsavelRegistro, string> = {
   fontinhas: 'Fontinhas',
@@ -23,7 +64,7 @@ const REGISTRO_LABEL: Record<FinResponsavelRegistro, string> = {
   corretor: 'Corretor',
 }
 
-export function AbaAnaliseComissoes({ mes, ano }: Props) {
+function VisaoAnaliseComissoesFinanciamento({ mes, ano }: Props) {
   const { data, isLoading } = useAnaliseComissoesMes(mes, ano)
   const atualizarCgi = useAtualizarCgiManual()
   const linhas = data ?? []
@@ -146,5 +187,97 @@ function LinhaAnaliseComissao({ linha, onSalvarCgi }: { linha: FinAnaliseComissa
       </TableCell>
       <TableCell className="text-right text-sm font-mono font-medium text-fonti-primary">{formatarMoeda(comissaoFinal)}</TableCell>
     </TableRow>
+  )
+}
+
+const PROSPECTADO_POR_LABEL: Record<'fontinhas' | 'direto', string> = {
+  fontinhas: 'Fontinhas',
+  direto: 'Direto',
+}
+
+function VisaoAnaliseComissoesContratos({ mes, ano }: Props) {
+  const { data, isLoading } = useAnaliseComissoesContratosMes(mes, ano)
+  const linhas = data ?? []
+
+  const [busca, setBusca] = useState('')
+
+  const filtradas = linhas.filter(l =>
+    !busca ||
+    l.cliente_nome?.toLowerCase().includes(busca.toLowerCase()) ||
+    l.cliente_cpf?.includes(busca)
+  )
+
+  const totalValor = filtradas.reduce((s, l) => s + (l.valor_contrato ?? 0), 0)
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border bg-white p-3">
+          <p className="text-xs text-gray-500">Contratos</p>
+          <p className="text-lg font-semibold text-fonti-primary">{filtradas.length}</p>
+        </div>
+        <div className="rounded-lg border bg-white p-3">
+          <p className="text-xs text-gray-500">Valor total</p>
+          <p className="text-lg font-semibold text-fonti-primary">{formatarMoeda(totalValor)}</p>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+        <Input
+          className="pl-9"
+          placeholder="Buscar por cliente ou CPF..."
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+        />
+      </div>
+
+      <div className="rounded-lg border bg-white overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead className="text-xs">Cliente</TableHead>
+              <TableHead className="text-xs">CPF</TableHead>
+              <TableHead className="text-xs">Comercial</TableHead>
+              <TableHead className="text-xs">Corretor</TableHead>
+              <TableHead className="text-xs">Imobiliária</TableHead>
+              <TableHead className="text-xs">Prospectado por</TableHead>
+              <TableHead className="text-xs">Financiou</TableHead>
+              <TableHead className="text-xs text-right">Valor</TableHead>
+              <TableHead className="text-xs">Data de Recebimento</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-gray-400 text-sm">Carregando...</TableCell></TableRow>
+            ) : filtradas.length === 0 ? (
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-gray-400 text-sm">Nenhum contrato pago neste mês.</TableCell></TableRow>
+            ) : (
+              filtradas.map(l => (
+                <TableRow key={l.id} className="hover:bg-gray-50">
+                  <TableCell className="text-sm font-medium">{l.cliente_nome || '—'}</TableCell>
+                  <TableCell className="text-sm text-gray-500">{l.cliente_cpf || '—'}</TableCell>
+                  <TableCell className="text-sm text-gray-600">{l.comercial_nome ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-gray-600">{l.corretor_nome ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-gray-600">{l.imobiliaria_nome ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {l.prospectado_por ? PROSPECTADO_POR_LABEL[l.prospectado_por] : '—'}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {l.financiou == null ? '—' : l.financiou ? 'Sim' : 'Não'}
+                  </TableCell>
+                  <TableCell className="text-right text-sm font-mono">
+                    {l.valor_contrato != null ? formatarMoeda(l.valor_contrato) : '—'}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-500">
+                    {l.data_pagamento_contrato ? new Date(l.data_pagamento_contrato).toLocaleDateString('pt-BR') : '—'}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   )
 }
