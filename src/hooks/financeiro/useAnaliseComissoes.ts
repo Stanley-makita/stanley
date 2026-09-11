@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
-import { type FinAnaliseComissaoLinha, type FinAnaliseComissaoContratoLinha } from '@/types/financeiro'
+import { type FinAnaliseComissaoLinha, type FinAnaliseComissaoContratoLinha, type FinComissaoApurada } from '@/types/financeiro'
 import { toast } from 'sonner'
 
 // Ao vivo, sempre — mesmo padrão de useEmissoesPreview/useContasAReceberVivo:
@@ -62,5 +62,24 @@ export function useAnaliseComissoesContratosMes(mes: number, ano: number) {
       return data ?? []
     },
     enabled: !!usuario,
+  })
+}
+
+export function useComissaoApuradaMes(comercialId: string | null, mes: number, ano: number) {
+  const { usuario } = useAuth()
+
+  return useQuery({
+    queryKey: ['financeiro', 'comissao_apurada', usuario?.empresa_id, comercialId, mes, ano],
+    queryFn: async (): Promise<FinComissaoApurada | null> => {
+      const { data, error } = await supabase.rpc('comissao_apurada_mes', {
+        p_empresa_id: usuario!.empresa_id,
+        p_comercial_usuario_id: comercialId,
+        p_mes: mes,
+        p_ano: ano,
+      })
+      if (error) throw error
+      return data?.[0] ?? null
+    },
+    enabled: !!usuario && !!comercialId,
   })
 }
