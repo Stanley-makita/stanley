@@ -27,10 +27,6 @@ import type { RhTipoContrato } from '@/types/rh'
 import { PERFIS_ATIVOS, PERFIL_LABELS } from '@/types/configuracoes'
 import type { Usuario, UsuarioPerfil, UsuarioTipo } from '@/types/configuracoes'
 
-// Perfis cujo processo (comercial_id/operacional_id/juridico_id, ver
-// BlocoResponsaveis.tsx::getPapeis) participa do motor de comissão do RH —
-// só pra esses o formulário de usuário pede o vínculo com rh_funcionarios.
-const PAPEIS_COM_COMISSAO: UsuarioPerfil[] = ['comercial', 'operacional', 'juridico']
 const NENHUM = '__nenhum__'
 import { useUsuarioPermissoes, useSalvarPermissoesIndividuais } from '../../_hooks/useUsuarioPermissoesAdmin'
 import {
@@ -291,13 +287,14 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   }
 
   const isPending = criarUsuario.isPending || atualizarUsuario.isPending
-  const perfilAtual = form.watch('perfil')
-  // Perfis customizados (perfis_acesso) são identificados pelo próprio id,
-  // não por um valor fixo de UsuarioPerfil — não dá pra saber de antemão se
-  // vão atuar como comercial/operacional/jurídico, então a seção de RH
-  // também aparece pra eles (fica em branco se não se aplicar).
-  const precisaComissao = PAPEIS_COM_COMISSAO.includes(perfilAtual as UsuarioPerfil)
-    || perfisCustomizados.some((p) => p.id === perfilAtual)
+  const tipoUsuarioAtual = form.watch('tipo_usuario')
+  // O dropdown de Comercial/Operacional/Jurídico em Negócios (useMembrosAtivos)
+  // aceita QUALQUER usuário interno ativo, sem filtrar por perfil — então o
+  // vínculo com RH não pode depender do perfil (ex.: alguém com perfil
+  // "Assistente" pode estar de fato atuando como comercial num processo).
+  // O único corte real que já existe no sistema é tipo_usuario: externo nunca
+  // aparece como opção de responsável, interno sempre pode.
+  const precisaComissao = tipoUsuarioAtual === 'interno'
 
   return (
     <>
