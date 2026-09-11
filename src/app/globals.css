@@ -74,7 +74,9 @@
 
 @layer base {
   html {
-    min-height: 100dvh;
+    zoom: 0.8;
+    /* Compensate for the 80% scale so the interface fills the viewport. */
+    min-height: calc(100dvh / 0.8);
   }
   * {
     @apply border-border;
@@ -83,18 +85,18 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Keep the interface at the user's browser scale. */
+    /* Fill the height compensated for the 80% scale. */
     min-height: 100%;
   }
 }
 
 @layer utilities {
-  /* Follow the visible viewport, including mobile browser controls. */
+  /* Compensate full-screen layouts for the 80% scale. */
   .min-h-screen {
-    min-height: 100dvh;
+    min-height: calc(100dvh / 0.8);
   }
   .h-screen {
-    height: 100dvh;
+    height: calc(100dvh / 0.8);
   }
 }
 
