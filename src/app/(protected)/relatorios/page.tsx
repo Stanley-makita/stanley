@@ -8,6 +8,7 @@ import { AbaProducaoGeral } from '@/components/relatorios/abas/AbaProducaoGeral'
 import { AbaRelPorBanco } from '@/components/relatorios/abas/AbaRelPorBanco'
 import { AbaRelPorModalidade } from '@/components/relatorios/abas/AbaRelPorModalidade'
 import { AbaRelPorEquipe } from '@/components/relatorios/abas/AbaRelPorEquipe'
+import { AbaRelPorRelacionamento } from '@/components/relatorios/abas/AbaRelPorRelacionamento'
 import { PeriodoRelatorio } from '@/types/relatorios'
 
 function periodoInicial(): PeriodoRelatorio {
@@ -37,12 +38,15 @@ export default function RelatoriosPage() {
 
       {/* Abas */}
       <Tabs defaultValue="producao">
-        <TabsList className="bg-gray-100">
+        <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1 bg-gray-100">
           {[
             { value: 'producao', label: 'Produção Geral' },
             { value: 'banco', label: 'Por Banco' },
             { value: 'modalidade', label: 'Por Modalidade' },
             { value: 'equipe', label: 'Por Equipe' },
+            { value: 'corretor', label: 'Por Corretor' },
+            { value: 'parceiro', label: 'Por Parceiro' },
+            { value: 'imobiliaria', label: 'Por Imobiliária' },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -69,6 +73,11 @@ export default function RelatoriosPage() {
         <TabsContent value="equipe" className="mt-4">
           <AbaRelPorEquipe periodo={periodo} />
         </TabsContent>
+        {(['corretor', 'parceiro', 'imobiliaria'] as const).map((tipo) => (
+          <TabsContent key={tipo} value={tipo} className="mt-4">
+            <AbaRelPorRelacionamento periodo={periodo} tipo={tipo} />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   )
