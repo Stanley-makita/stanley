@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
   // mesmo a pessoa não aparecendo em lugar nenhum da lista de usuários.
   const { data: existente } = await supabase
     .from('usuarios')
-    .select('id, auth_user_id, deleted_at')
+    .select('id, auth_user_id, deleted_at, funcionario_id')
     .eq('empresa_id', admin.empresa_id)
     .eq('email', emailNormalizado)
     .maybeSingle()
@@ -151,7 +151,10 @@ export async function POST(request: NextRequest) {
         tipo_usuario,
         funcao: funcao ?? null,
         cargo_id: cargo_id ?? null,
-        funcionario_id: vinculo.funcionarioId,
+        // Se vinculo_rh não veio no request, preserva o funcionario_id que
+        // o usuário já tinha antes do soft-delete — não é possível
+        // reativar sem tocar no vínculo e acabar apagando ele sem querer.
+        funcionario_id: vinculo_rh !== undefined ? vinculo.funcionarioId : existente.funcionario_id,
         ativo,
         deleted_at: null,
         motivo_exclusao: null,
