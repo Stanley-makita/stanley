@@ -299,7 +299,7 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
   return (
     <>
       <Dialog open={aberto} onOpenChange={onFechar}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[92vh] overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-fonti-primary">
               {modoEdicao ? 'Editar usuário' : 'Novo usuário'}
@@ -307,313 +307,323 @@ export function UsuarioFormDrawer({ aberto, onFechar, usuario }: Props) {
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-2 space-y-4">
-              <FormField control={form.control} name="nome" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome completo</FormLabel>
-                  <FormControl><Input placeholder="Maria da Silva" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl><Input type="email" placeholder="usuario@empresa.com" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {!modoEdicao && (
-                <FormField control={form.control} name="senha" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha provisória</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={mostrarSenha ? 'text' : 'password'}
-                          placeholder="Mínimo 6 caracteres"
-                          {...field}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setMostrarSenha((v) => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          tabIndex={-1}
-                        >
-                          {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="perfil" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Perfil de acesso</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectGroup>
-                          {PERFIS_ATIVOS.map((p) => (
-                            <SelectItem key={p} value={p}>{PERFIL_LABELS[p]}</SelectItem>
-                          ))}
-                        </SelectGroup>
-                        {perfisCustomizadosAtivos.length > 0 && (
-                          <>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Perfis customizados</SelectLabel>
-                              {perfisCustomizadosAtivos.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name={'cargo_id' as 'perfil'} render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Função <span className="text-gray-400 font-normal text-xs">(cargo do RH)</span></FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value as string}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {cargos.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {cargos.length === 0 && (
-                      <p className="text-xs text-gray-400">Nenhum cargo cadastrado em RH &gt; Cargos ainda.</p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-
-              {modoEdicao && (
-                <FormField
-                  control={form.control}
-                  name={'telefone_whatsapp' as 'nome'}
-                  render={({ field }) => (
+            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-2">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                {/* ── Coluna esquerda: identidade e acesso ─────────────── */}
+                <div className="space-y-4">
+                  <FormField control={form.control} name="nome" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>WhatsApp pessoal <span className="text-gray-400 font-normal text-xs">(para comandos *Fonti)</span></FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="5544999990000 (com DDI)"
-                          {...field}
-                          value={(field.value as string) ?? ''}
-                        />
-                      </FormControl>
+                      <FormLabel>Nome completo</FormLabel>
+                      <FormControl><Input placeholder="Maria da Silva" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-mail</FormLabel>
+                      <FormControl><Input type="email" placeholder="usuario@empresa.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  {!modoEdicao && (
+                    <FormField control={form.control} name="senha" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Senha provisória</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={mostrarSenha ? 'text' : 'password'}
+                              placeholder="Mínimo 6 caracteres"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setMostrarSenha((v) => !v)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              tabIndex={-1}
+                            >
+                              {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   )}
-                />
-              )}
 
-              <FormField control={form.control} name="tipo_usuario" render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={field.value === 'externo'}
-                      onClick={() => field.onChange(field.value === 'externo' ? 'interno' : 'externo')}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        field.value === 'externo' ? 'bg-amber-500' : 'bg-fonti-primary'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                          field.value === 'externo' ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                    <FormLabel className="cursor-pointer" onClick={() => field.onChange(field.value === 'externo' ? 'interno' : 'externo')}>
-                      {field.value === 'externo' ? 'Usuário externo' : 'Usuário interno'}
-                    </FormLabel>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    Externo não aparece como opção de responsável/co-responsável em Leads e Processos — só como destinatário ao compartilhar documentos.
-                  </p>
-                </FormItem>
-              )} />
-
-              {precisaComissao && (
-                <div className="rounded-lg border border-gray-200 p-3 space-y-3">
-                  <p className="text-xs font-medium text-gray-500">
-                    Vínculo com RH
-                    <span className="block font-normal text-gray-400 mt-0.5">
-                      Perfis comercial/operacional/jurídico entram no motor de comissão do RH — vincule a um funcionário existente ou crie um novo.
-                    </span>
-                  </p>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setVinculoModo('existente')}
-                      className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
-                        vinculoModo === 'existente'
-                          ? 'border-fonti-primary bg-fonti-primary text-white'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      Vincular funcionário existente
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVinculoModo('novo')}
-                      className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
-                        vinculoModo === 'novo'
-                          ? 'border-fonti-primary bg-fonti-primary text-white'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}
-                    >
-                      Criar novo funcionário
-                    </button>
-                  </div>
-
-                  {vinculoModo === 'existente' ? (
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-gray-500">Funcionário</label>
-                      <Select value={funcionarioExistenteId} onValueChange={setFuncionarioExistenteId}>
-                        <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione um funcionário" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NENHUM}>— Nenhum —</SelectItem>
-                          {funcionariosDisponiveis.map((f) => (
-                            <SelectItem key={f.id} value={f.id}>{f.nome}{f.cargo?.nome ? ` — ${f.cargo.nome}` : ''}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-gray-500">Tipo de contrato</label>
-                        <Select value={novoTipoContrato} onValueChange={(v) => setNovoTipoContrato(v as RhTipoContrato)}>
-                          <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={form.control} name="perfil" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Perfil de acesso</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          </FormControl>
                           <SelectContent>
-                            {(Object.keys(RH_TIPO_CONTRATO_LABELS) as RhTipoContrato[]).map((tc) => (
-                              <SelectItem key={tc} value={tc}>{RH_TIPO_CONTRATO_LABELS[tc]}</SelectItem>
+                            <SelectGroup>
+                              {PERFIS_ATIVOS.map((p) => (
+                                <SelectItem key={p} value={p}>{PERFIL_LABELS[p]}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                            {perfisCustomizadosAtivos.length > 0 && (
+                              <>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Perfis customizados</SelectLabel>
+                                  {perfisCustomizadosAtivos.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name={'cargo_id' as 'perfil'} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Função <span className="text-gray-400 font-normal text-xs">(cargo do RH)</span></FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value as string}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {cargos.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-gray-400">PJ = comercial externo (autônomo/pessoa jurídica).</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-gray-500">Data de admissão</label>
-                        <Input
-                          type="date"
-                          value={novoDataAdmissao}
-                          onChange={(e) => setNovoDataAdmissao(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-gray-500">Regra de comissão (opcional)</label>
-                        <Select value={novoRegraComissaoId} onValueChange={setNovoRegraComissaoId}>
-                          <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={NENHUM}>Sem override — usa a regra do cargo</SelectItem>
-                            {regrasComissaoAtivas.map((r) => (
-                              <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {modoEdicao && (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium leading-none">
-                    Token de telefonia <span className="text-gray-400 font-normal text-xs">(pra identificação de chamada no MicroSIP)</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      readOnly
-                      value={usuario?.token_telefonia ?? ''}
-                      className="font-mono text-xs"
-                    />
-                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={copiarTokenTelefonia} title="Copiar token">
-                      {tokenCopiado ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                    </Button>
+                        {cargos.length === 0 && (
+                          <p className="text-xs text-gray-400">Nenhum cargo cadastrado em RH &gt; Cargos ainda.</p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   </div>
-                  <p className="text-xs text-gray-400">
-                    Configure no <code>microsip.ini</code> deste usuário: <code>cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token={usuario?.token_telefonia ?? '...'}&numero=%s"</code>
-                  </p>
-                </div>
-              )}
 
-              <FormField control={form.control} name="ativo" render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={field.value}
-                      onClick={() => field.onChange(!field.value)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        field.value ? 'bg-fonti-primary' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                          field.value ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                    <FormLabel className="cursor-pointer" onClick={() => field.onChange(!field.value)}>
-                      {field.value ? 'Usuário ativo' : 'Usuário inativo'}
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )} />
-
-              {modoEdicao && (
-                <div className="rounded-lg border border-gray-200 p-3 space-y-3">
-                  <p className="text-xs font-medium text-gray-500">
-                    Permissões individuais
-                    <span className="block font-normal text-gray-400 mt-0.5">
-                      Exceção só para esta pessoa — prevalece sobre o perfil dela.
-                    </span>
-                  </p>
-                  {PERMISSOES_INDIVIDUAIS_CONFIGURAVEIS.map(({ acao, label }) => {
-                    const nomeCampo = (
-                      acao === 'leads.ver_todas' ? 'perm_leads_ver_todas' : 'perm_leads_redistribuir'
-                    ) as 'perfil'
-                    return (
-                      <FormField key={acao} control={form.control} name={nomeCampo} render={({ field }) => (
+                  {modoEdicao && (
+                    <FormField
+                      control={form.control}
+                      name={'telefone_whatsapp' as 'nome'}
+                      render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs font-normal text-gray-600">{label}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                            </FormControl>
+                          <FormLabel>WhatsApp pessoal <span className="text-gray-400 font-normal text-xs">(para comandos *Fonti)</span></FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="5544999990000 (com DDI)"
+                              {...field}
+                              value={(field.value as string) ?? ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField control={form.control} name="tipo_usuario" render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={field.value === 'externo'}
+                          onClick={() => field.onChange(field.value === 'externo' ? 'interno' : 'externo')}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                            field.value === 'externo' ? 'bg-amber-500' : 'bg-fonti-primary'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                              field.value === 'externo' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <FormLabel className="cursor-pointer" onClick={() => field.onChange(field.value === 'externo' ? 'interno' : 'externo')}>
+                          {field.value === 'externo' ? 'Usuário externo' : 'Usuário interno'}
+                        </FormLabel>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Externo não aparece como opção de responsável/co-responsável em Leads e Processos — só como destinatário ao compartilhar documentos.
+                      </p>
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="ativo" render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={field.value}
+                          onClick={() => field.onChange(!field.value)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                            field.value ? 'bg-fonti-primary' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                              field.value ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <FormLabel className="cursor-pointer" onClick={() => field.onChange(!field.value)}>
+                          {field.value ? 'Usuário ativo' : 'Usuário inativo'}
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )} />
+
+                  {modoEdicao && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium leading-none">
+                        Token de telefonia <span className="text-gray-400 font-normal text-xs">(pra identificação de chamada no MicroSIP)</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          readOnly
+                          value={usuario?.token_telefonia ?? ''}
+                          className="font-mono text-xs"
+                        />
+                        <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={copiarTokenTelefonia} title="Copiar token">
+                          {tokenCopiado ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Configure no <code>microsip.ini</code> deste usuário: <code>cmdIncomingCall=curl "SEU_DOMINIO/api/telefonia/chamada-recebida?token={usuario?.token_telefonia ?? '...'}&numero=%s"</code>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Coluna direita: blocos condicionais/avançados ────── */}
+                <div className="space-y-4">
+                  {precisaComissao && (
+                    <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                      <p className="text-xs font-medium text-gray-500">
+                        Vínculo com RH
+                        <span className="block font-normal text-gray-400 mt-0.5">
+                          Perfis comercial/operacional/jurídico entram no motor de comissão do RH — vincule a um funcionário existente ou crie um novo.
+                        </span>
+                      </p>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVinculoModo('existente')}
+                          className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
+                            vinculoModo === 'existente'
+                              ? 'border-fonti-primary bg-fonti-primary text-white'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          Vincular funcionário existente
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVinculoModo('novo')}
+                          className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
+                            vinculoModo === 'novo'
+                              ? 'border-fonti-primary bg-fonti-primary text-white'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          Criar novo funcionário
+                        </button>
+                      </div>
+
+                      {vinculoModo === 'existente' ? (
+                        <div className="space-y-1.5">
+                          <label className="text-xs text-gray-500">Funcionário</label>
+                          <Select value={funcionarioExistenteId} onValueChange={setFuncionarioExistenteId}>
+                            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione um funcionário" /></SelectTrigger>
                             <SelectContent>
-                              {OPCOES_PERMISSAO_INDIVIDUAL.map((o) => (
-                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                              <SelectItem value={NENHUM}>— Nenhum —</SelectItem>
+                              {funcionariosDisponiveis.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>{f.nome}{f.cargo?.nome ? ` — ${f.cargo.nome}` : ''}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </FormItem>
-                      )} />
-                    )
-                  })}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs text-gray-500">Tipo de contrato</label>
+                              <Select value={novoTipoContrato} onValueChange={(v) => setNovoTipoContrato(v as RhTipoContrato)}>
+                                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {(Object.keys(RH_TIPO_CONTRATO_LABELS) as RhTipoContrato[]).map((tc) => (
+                                    <SelectItem key={tc} value={tc}>{RH_TIPO_CONTRATO_LABELS[tc]}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs text-gray-500">Data de admissão</label>
+                              <Input
+                                type="date"
+                                value={novoDataAdmissao}
+                                onChange={(e) => setNovoDataAdmissao(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-400 -mt-1.5">PJ = comercial externo (autônomo/pessoa jurídica).</p>
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-gray-500">Regra de comissão (opcional)</label>
+                            <Select value={novoRegraComissaoId} onValueChange={setNovoRegraComissaoId}>
+                              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NENHUM}>Sem override — usa a regra do cargo</SelectItem>
+                                {regrasComissaoAtivas.map((r) => (
+                                  <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {modoEdicao && (
+                    <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                      <p className="text-xs font-medium text-gray-500">
+                        Permissões individuais
+                        <span className="block font-normal text-gray-400 mt-0.5">
+                          Exceção só para esta pessoa — prevalece sobre o perfil dela.
+                        </span>
+                      </p>
+                      {PERMISSOES_INDIVIDUAIS_CONFIGURAVEIS.map(({ acao, label }) => {
+                        const nomeCampo = (
+                          acao === 'leads.ver_todas' ? 'perm_leads_ver_todas' : 'perm_leads_redistribuir'
+                        ) as 'perfil'
+                        return (
+                          <FormField key={acao} control={form.control} name={nomeCampo} render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-normal text-gray-600">{label}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {OPCOES_PERMISSAO_INDIVIDUAL.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )} />
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               <div className="flex justify-between items-center pt-4">
                 {modoEdicao ? (
