@@ -145,6 +145,20 @@ export interface FinAnaliseComissaoContratoLinha {
   data_pagamento_contrato: string | null
 }
 
+export interface FinComissaoApurada {
+  qtd_processos_financiamento: number
+  qtd_contratos: number
+  valor_financiamento: number
+  comissao_financiamento: number
+  valor_assessoria: number
+  valor_contratos: number
+  subtotal: number
+  pct_aplicado: number
+  comissao_calculada: number
+  cgi_manual_total: number
+  comissao_apurada: number
+}
+
 export interface FinContaReceber {
   id: string
   empresa_id: string
