@@ -110,8 +110,11 @@ export interface RhRegraComissao {
   // automático em Financeiro > Fechamento (gerar_comissoes_a_pagar):
   // 'valor_fixo_emissao' usa valor_fixo_emissao/valor_fixo_assessoria +
   // faixas.valor_fixo (modelo operacional). 'percentual_faixa_producao_mensal'
-  // usa faixas.pct_comercial avaliado contra a produção mensal ACUMULADA
-  // do funcionário (modelo comercial).
+  // escolhe a faixa (e o faixas.pct_comercial correspondente) pelo valor
+  // BRUTO financiado no mês (sem contrato/assessoria, sem %% do banco —
+  // ver calcular_producao_comercial_mes, migration 300); o percentual
+  // escolhido é então aplicado sobre a produção ponderada total
+  // (financiamento + contrato + assessoria) — modelo comercial.
   tipo_calculo: RhTipoCalculoComissao
   valor_fixo_emissao: number | null
   valor_fixo_assessoria: number | null
