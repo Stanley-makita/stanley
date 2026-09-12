@@ -18,8 +18,9 @@ export interface ComissaoPadrao {
   comissao_comercial: number
   comissao_operacional: number
   comissao_parceiro: number
-  piso_valor: number
-  teto_valor: number
+  piso_valor: number            // a partir de que valor financiado esta linha vale
+  teto_valor: number            // até que valor financiado (0 = sem limite superior)
+  valor_maximo_comissao: number // teto em R$ sobre o resultado calculado (0 = sem teto)
   banco?: { nome: string; cor: string | null }
 }
 

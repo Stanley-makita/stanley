@@ -16,6 +16,7 @@ export function useComissoesPadrao() {
         .select('*, banco:bancos(nome, cor)')
         .eq('empresa_id', usuario!.empresa_id)
         .order('nome', { referencedTable: 'banco' })
+        .order('piso_valor')
       if (error) throw error
       return (data as ComissaoPadrao[]) ?? []
     },
