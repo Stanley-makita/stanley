@@ -38,6 +38,7 @@ type LocalRow = {
   comissao_parceiro: string
   piso_valor: string
   teto_valor: string
+  valor_maximo_comissao: string
   dirty: boolean
 }
 
@@ -53,6 +54,7 @@ function fromDB(c: ComissaoPadrao): LocalRow {
     comissao_parceiro: String(c.comissao_parceiro ?? ''),
     piso_valor: String(c.piso_valor ?? ''),
     teto_valor: String(c.teto_valor ?? ''),
+    valor_maximo_comissao: String(c.valor_maximo_comissao ?? ''),
     dirty: false,
   }
 }
@@ -69,6 +71,7 @@ function novaLinha(banco_id: string): LocalRow {
     comissao_parceiro: '',
     piso_valor: '',
     teto_valor: '',
+    valor_maximo_comissao: '',
     dirty: true,
   }
 }
@@ -125,6 +128,7 @@ export function AbaComissoesPadrao() {
 
   function salvarLinha(row: LocalRow, bancoNome: string) {
     salvar({
+      id: row.id,
       bancoId: row.banco_id,
       modalidade: row.modalidade,
       comissaoEmpresa: parseNum(row.comissao_empresa),
@@ -133,8 +137,16 @@ export function AbaComissoesPadrao() {
       comissaoParceiro: parseNum(row.comissao_parceiro),
       pisoValor: parseNum(row.piso_valor),
       tetoValor: parseNum(row.teto_valor),
+      valorMaximoComissao: parseNum(row.valor_maximo_comissao),
     }, {
-      onSuccess: () => {
+      onSuccess: (novoId) => {
+        // Marca a linha como salva (id + dirty:false) — sem isso, uma
+        // linha nova recém-inserida continuava com id:null e o refetch
+        // preservava as duas cópias, permitindo reinserir a mesma linha
+        // ao clicar Salvar de novo.
+        setLinhas((prev) =>
+          prev.map((r) => r.tempId === row.tempId ? { ...r, id: novoId, dirty: false } : r)
+        )
         toast({ description: `Comissão de ${bancoNome} salva.` })
       },
     })
@@ -143,8 +155,11 @@ export function AbaComissoesPadrao() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        Defina a comissão que a empresa recebe de cada banco, por modalidade.
-        Use "Todas" para uma regra geral e adicione linhas por modalidade para regras específicas (ex: SBPE com teto diferente de MCMV).
+        Defina a comissão que a empresa e o comercial recebem de cada banco, por modalidade.
+        Use "Todas" para uma regra geral e adicione linhas por modalidade para regras específicas.
+        <strong> Piso/Teto</strong> definem a partir de que valor financiado e até que valor (0 = sem limite) aquele percentual vale —
+        cadastre várias linhas do mesmo banco/modalidade para criar faixas de valor diferentes.
+        <strong> Valor Máximo de Comissão</strong> trava em R$ o resultado calculado daquela linha (0 = sem teto).
       </p>
 
       {bancos.map((banco) => {
@@ -180,8 +195,9 @@ export function AbaComissoesPadrao() {
                       <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Comercial</th>
                       <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Operacional</th>
                       <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">% Parceiro</th>
-                      <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">Piso R$</th>
-                      <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap">Teto R$</th>
+                      <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap" title="A partir de que valor financiado esta linha vale">Piso R$</th>
+                      <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap" title="Até que valor financiado esta linha vale (0 = sem limite)">Teto R$</th>
+                      <th className="px-3 py-2 text-right text-gray-500 font-medium whitespace-nowrap" title="Trava em R$ o valor de comissão calculado (0 = sem teto)">Valor Máx. Comissão</th>
                       <th className="px-3 py-2 w-16" />
                     </tr>
                   </thead>
@@ -213,7 +229,7 @@ export function AbaComissoesPadrao() {
                             </div>
                           </td>
                         ))}
-                        {(['piso_valor', 'teto_valor'] as const).map((campo) => (
+                        {(['piso_valor', 'teto_valor', 'valor_maximo_comissao'] as const).map((campo) => (
                           <td key={campo} className="px-2 py-1.5">
                             <Input
                               type="number" min={0} step={100}
