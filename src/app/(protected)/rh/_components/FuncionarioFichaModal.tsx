@@ -10,14 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCargos } from '@/hooks/rh/useCargos'
 import { useRegrasComissao } from '@/hooks/rh/useComissoes'
 import { useCriarFuncionario, useAtualizarFuncionario } from '@/hooks/rh/useFuncionarios'
+import { useSalvarFuncionarioRegra, useRemoverFuncionarioRegra } from '@/hooks/rh/useRegrasComissaoVinculo'
 import { useFerias } from '@/hooks/rh/useFerias'
 import { useAssiduidadeFuncionario } from '@/hooks/rh/useAssiduidade'
 import { proximaOcorrenciaAnual, formatarTempoDeEmpresa } from '@/lib/rh/datasFuncionario'
 import {
   RH_TIPO_CONTRATO_LABELS, RH_STATUS_FUNCIONARIO_LABELS, RH_STATUS_FUNCIONARIO_CORES,
-  RH_TIPO_CONTA_BANCARIA_LABELS,
+  RH_TIPO_CONTA_BANCARIA_LABELS, RH_CATEGORIA_LABELS,
 } from '@/types/rh'
-import type { RhFuncionario, RhTipoContrato, RhStatusFuncionario, RhTipoContaBancaria } from '@/types/rh'
+import type { RhFuncionario, RhTipoContrato, RhStatusFuncionario, RhTipoContaBancaria, RhCategoriaComissao } from '@/types/rh'
+
+// Um funcionário pode ter até 1 regra por categoria (até 5 no total) — a
+// categoria amarra automaticamente a regra à modalidade do processo no
+// cálculo (ver resolver_regra_comissao no banco, migration 307).
+const CATEGORIAS: RhCategoriaComissao[] = ['financiamento', 'cgi', 'consorcio', 'contrato', 'outra']
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Cake, Building2, Plane, PlaneLanding, Percent } from 'lucide-react'
@@ -39,7 +45,6 @@ const VAZIO = {
   data_admissao: '',
   tipo_contrato: 'clt' as RhTipoContrato,
   cargo_id: null as string | null,
-  regra_comissao_id: null as string | null,
   status: 'ativo' as RhStatusFuncionario,
   salario_base: 0,
   observacoes: '',
@@ -65,6 +70,8 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
   const { data: regrasComissao = [] } = useRegrasComissao()
   const criar = useCriarFuncionario()
   const atualizar = useAtualizarFuncionario()
+  const salvarRegraCategoria = useSalvarFuncionarioRegra()
+  const removerRegraCategoria = useRemoverFuncionarioRegra()
 
   const isEdicao = !!funcionario
   const isPending = criar.isPending || atualizar.isPending
@@ -83,7 +90,6 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
         data_admissao: funcionario.data_admissao,
         tipo_contrato: funcionario.tipo_contrato,
         cargo_id: funcionario.cargo_id,
-        regra_comissao_id: funcionario.regra_comissao_id,
         status: funcionario.status,
         salario_base: funcionario.salario_base,
         observacoes: funcionario.observacoes ?? '',
@@ -107,6 +113,20 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
     setForm(f => ({ ...f, [key]: val }))
   }
 
+  async function handleRegraCategoria(categoria: RhCategoriaComissao, regraId: string) {
+    if (!funcionario) return
+    try {
+      if (regraId === '__cargo') {
+        await removerRegraCategoria.mutateAsync({ funcionarioId: funcionario.id, categoria })
+      } else {
+        await salvarRegraCategoria.mutateAsync({ funcionarioId: funcionario.id, categoria, regraId })
+      }
+      toast.success(`Regra de ${RH_CATEGORIA_LABELS[categoria]} atualizada.`)
+    } catch {
+      toast.error(`Erro ao atualizar a regra de ${RH_CATEGORIA_LABELS[categoria]}.`)
+    }
+  }
+
   async function handleSalvar() {
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return }
     if (!form.email.trim()) { toast.error('E-mail é obrigatório'); return }
@@ -122,7 +142,6 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
       data_admissao: form.data_admissao,
       tipo_contrato: form.tipo_contrato,
       cargo_id: form.cargo_id || null,
-      regra_comissao_id: form.regra_comissao_id || null,
       status: form.status,
       salario_base: form.salario_base,
       observacoes: form.observacoes || null,
@@ -284,21 +303,6 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Regra de Comissão (override individual)</Label>
-                <Select value={form.regra_comissao_id ?? '__cargo'} onValueChange={v => set('regra_comissao_id', v === '__cargo' ? null : v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__cargo">— Usar a regra do cargo —</SelectItem>
-                    {regrasComissao.filter(r => r.ativa).map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-gray-400">
-                  {form.regra_comissao_id
-                    ? 'Sobrescreve a regra do cargo só para este funcionário.'
-                    : 'Sem override — usa a regra vinculada ao cargo selecionado acima, se houver.'}
-                </p>
-              </div>
-              <div className="space-y-1">
                 <Label className="text-xs">Status</Label>
                 <Select value={form.status} onValueChange={v => set('status', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -319,6 +323,47 @@ export function FuncionarioFichaModal({ aberto, onFechar, funcionario }: Props) 
               <Textarea rows={2} value={form.observacoes} onChange={e => set('observacoes', e.target.value)} />
             </div>
           </div>
+
+          {/* Regras de Comissão por Categoria — até 1 regra ativa por
+              categoria (até 5 no total). A categoria da regra já amarra
+              automaticamente qual processo ela cobre (Financiamento/CGI/
+              Consórcio/Contrato/Outra) — sem override aqui, usa a regra
+              vinculada ao mesmo slot no cargo, se houver. Só disponível
+              depois de salvar o funcionário pela 1ª vez (precisa do id). */}
+          {isEdicao && (
+            <div className="space-y-3">
+              <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest border-b border-gray-100 pb-2">
+                Regras de Comissão por Categoria
+              </p>
+              <p className="text-xs text-gray-400">
+                Até 1 regra por categoria. Sem override aqui, o cálculo usa a regra vinculada ao cargo na mesma categoria, se houver.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {CATEGORIAS.map(categoria => {
+                  const vinculo = funcionario!.regras?.find(r => r.categoria === categoria)
+                  const regrasDaCategoria = regrasComissao.filter(r => r.ativa && r.categoria === categoria)
+                  return (
+                    <div key={categoria} className="space-y-1">
+                      <Label className="text-xs">{RH_CATEGORIA_LABELS[categoria]}</Label>
+                      <Select
+                        value={vinculo?.regra_id ?? '__cargo'}
+                        onValueChange={v => handleRegraCategoria(categoria, v)}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__cargo">— Usar a regra do cargo —</SelectItem>
+                          {regrasDaCategoria.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {regrasDaCategoria.length === 0 && (
+                        <p className="text-[11px] text-gray-400">Nenhuma regra cadastrada nesta categoria ainda.</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Dados Bancários */}
           <div className="space-y-3">
