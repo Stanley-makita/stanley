@@ -1,4 +1,3 @@
-import { substituirVariaveis } from '@/lib/comunicacao/substituirVariaveis'
 import { type Interessado, type ResultadoEnvio } from '@/types/comunicacao'
 
 export function chaveInteressado(i: Interessado): string {
@@ -14,11 +13,14 @@ interface EnviarParaInteressadosParams {
   accessToken: string | undefined
 }
 
-// Envia a mesma mensagem-base pra vários destinatários, um de cada vez -- sequencial de
-// propósito (não Promise.all/endpoint de lote): progresso previsível, sem disparar N
-// requisições simultâneas contra a Uazapi. Cada destinatário resolve seu próprio placeholder
-// (comprador_nome = nome daquele interessado específico) e gera seu próprio envio_id/histórico
-// via a rota — esta função só orquestra o loop e coleta o resultado individual de cada um.
+// Envia a mesma mensagem-base (ainda com os placeholders {{...}} intactos) pra vários
+// destinatários, um de cada vez -- sequencial de propósito (não Promise.all/endpoint de lote):
+// progresso previsível, sem disparar N requisições simultâneas contra a Uazapi. A substituição
+// de variáveis roda inteiramente no servidor (ver substituirVariaveis em cada rota
+// atualizar-cliente) — só lá dá pra resolver fase_atual/responsavel_nome com dado autoritativo
+// (o client não tem acesso à fase do Negócio nem precisa: o servidor já busca usuário e
+// destinatário do banco de qualquer forma). Esta função só orquestra o loop e coleta o
+// resultado individual de cada um.
 //
 // Extraída do componente de UI de propósito: qualquer reuso futuro fora de um modal React (ex:
 // ação em lote a partir de uma tela de lista, ou uma automação) só precisa chamar esta função,
@@ -32,7 +34,6 @@ export async function enviarParaInteressados({
   const resultados: ResultadoEnvio[] = []
 
   for (const alvo of interessados) {
-    const textoResolvido = substituirVariaveis(texto, { comprador_nome: alvo.nome }).trim()
     const envio_id = crypto.randomUUID()
 
     try {
@@ -45,7 +46,7 @@ export async function enviarParaInteressados({
         body: JSON.stringify({
           tipo_interessado: alvo.tipo_interessado,
           interessado_id:   alvo.interessado_id,
-          texto:             textoResolvido,
+          texto,
           envio_id,
         }),
       })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolverOuCriarConversa } from '@/lib/conversas/resolverOuCriarConversa'
 import { enviarMensagemHumano } from '@/lib/comunicacao/enviarMensagemHumano'
+import { substituirVariaveis } from '@/lib/comunicacao/substituirVariaveis'
 import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
 
 export type TipoInteressado = 'comprador' | 'corretor' | 'parceiro' | 'imobiliaria' | 'construtora'
@@ -67,12 +68,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: lead } = await supabaseService
     .from('leads')
-    .select('id, empresa_id, nome, telefone, pessoa_id')
+    .select('id, empresa_id, nome, telefone, pessoa_id, banco_pretendido, valor_pretendido, fase:fases!fase_id(nome)')
     .eq('id', leadId)
     .eq('empresa_id', usuario.empresa_id)
     .is('deleted_at', null)
     .single()
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+
+  const faseLead = Array.isArray(lead.fase) ? lead.fase[0] : lead.fase
 
   // Resolução do destinatário — feita inteiramente aqui, nunca a partir de dados do client.
   let destinatario: Destinatario
@@ -199,6 +202,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     console.error('[leads/atualizar-cliente] Relacionamento não encontrado/criado:', err)
   }
 
+  // Substitui {{comprador_nome}}/{{fase_atual}}/{{responsavel_nome}}/etc. com dado
+  // autoritativo do servidor — mesmo motivo de src/app/api/processos/[id]/atualizar-cliente.
+  const textoResolvido = substituirVariaveis(texto, {
+    comprador_nome:      destinatario.nome,
+    banco:               lead.banco_pretendido,
+    valor_financiamento: lead.valor_pretendido,
+    fase_atual:          faseLead?.nome ?? null,
+    responsavel_nome:    usuario.nome,
+  }).trim()
+
   // Reivindicação atômica: INSERT com `envio_id UNIQUE` antes de qualquer efeito colateral —
   // protege contra duplo clique / retry de rede. Mesmo mecanismo de mensagens_processos.
   const { data: vinculoEnvio, error: vinculoError } = await supabaseService
@@ -242,7 +255,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     conversaId,
     telefone:    destinatario.telefone,
     tipo:        'text',
-    texto:       texto.trim(),
+    texto:       textoResolvido,
     usuarioId:   usuario.id,
     usuarioNome: usuario.nome,
   })
@@ -268,7 +281,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     empresa_id: usuario.empresa_id,
     usuario_id: usuario.id,
     tipo:       'comunicacao',
-    descricao:  `${cabecalhoHistorico}\n${texto.trim()}`,
+    descricao:  `${cabecalhoHistorico}\n${textoResolvido}`,
   })
 
   return NextResponse.json({
