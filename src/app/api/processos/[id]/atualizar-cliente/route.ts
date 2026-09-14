@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolverOuCriarConversa } from '@/lib/conversas/resolverOuCriarConversa'
 import { enviarMensagemHumano } from '@/lib/comunicacao/enviarMensagemHumano'
+import { substituirVariaveis } from '@/lib/comunicacao/substituirVariaveis'
 import { type TipoInteressado } from '@/types/comunicacao'
 import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
 
@@ -71,11 +72,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: processo } = await supabaseService
     .from('processos')
-    .select('id, empresa_id, lead_id')
+    .select('id, empresa_id, lead_id, banco:bancos!banco_id(nome), valor_financiado, fase_atual:fases!fase_atual_id(nome)')
     .eq('id', processoId)
     .eq('empresa_id', usuario.empresa_id)
     .single()
   if (!processo) return NextResponse.json({ error: 'Negócio não encontrado' }, { status: 404 })
+
+  const faseAtual = Array.isArray(processo.fase_atual) ? processo.fase_atual[0] : processo.fase_atual
+  const bancoProcesso = Array.isArray(processo.banco) ? processo.banco[0] : processo.banco
 
   // Resolução do destinatário — feita inteiramente aqui, nunca a partir de dados do client.
   let destinatario: Destinatario
@@ -207,6 +211,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     console.error('[processos/atualizar-cliente] Relacionamento não encontrado/criado:', err)
   }
 
+  // Substitui {{comprador_nome}}/{{fase_atual}}/{{responsavel_nome}}/etc. com dado
+  // autoritativo do servidor — o client manda o corpo bruto do template, nunca resolve isso
+  // sozinho (não tem acesso à fase do Negócio, e comprador_nome/responsavel_nome já são
+  // conhecidos aqui de qualquer forma).
+  const textoResolvido = substituirVariaveis(texto, {
+    comprador_nome:      destinatario.nome,
+    banco:               bancoProcesso?.nome ?? null,
+    valor_financiamento: processo.valor_financiado,
+    fase_atual:          faseAtual?.nome ?? null,
+    responsavel_nome:    usuario.nome,
+  }).trim()
+
   // Reivindicação atômica: INSERT com `envio_id UNIQUE` antes de qualquer efeito colateral.
   const { data: vinculoEnvio, error: vinculoError } = await supabaseService
     .from('mensagens_processos')
@@ -249,7 +265,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     conversaId,
     telefone:    destinatario.telefone,
     tipo:        'text',
-    texto:       texto.trim(),
+    texto:       textoResolvido,
     usuarioId:   usuario.id,
     usuarioNome: usuario.nome,
   })
@@ -274,7 +290,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     processo_id:       processoId,
     usuario_id:        usuario.id,
     tipo:              'comunicacao_cliente',
-    texto:             `${cabecalhoHistorico}\n${texto.trim()}`,
+    texto:             `${cabecalhoHistorico}\n${textoResolvido}`,
     notificar_cliente: tipo_interessado === 'comprador',
   })
 
