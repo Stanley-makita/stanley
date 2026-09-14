@@ -74,7 +74,7 @@ export function useEditarVendedor(processoId: string) {
   const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ id, pessoa_id, ...input }: Partial<ProcessoVendedor> & { id: string; pessoa_id?: string | null }) => {
+    mutationFn: async ({ id, pessoa_id, telefone, ...input }: Partial<ProcessoVendedor> & { id: string; pessoa_id?: string | null }) => {
       // Se não tem pessoa_id mas tem CPF, tentar resolver agora
       let resolvedPessoaId = pessoa_id ?? null
       if (!resolvedPessoaId && input.cpf?.trim() && usuario?.empresa_id) {
@@ -92,6 +92,28 @@ export function useEditarVendedor(processoId: string) {
         .update(input)
         .eq('id', id)
       if (error) throw error
+
+      // Telefone vai por RPC própria (qualquer usuário ativo pode corrigir,
+      // não só analista/gerente/gestor/admin — mesma lógica de
+      // useEditarComprador). Sem pessoa_id vinculado, cai no fallback de
+      // sempre (sujeito à restrição de perfil da policy desta tabela).
+      if (telefone !== undefined) {
+        const telefoneVal = telefone?.trim() || ''
+        if (resolvedPessoaId && telefoneVal) {
+          const { error: errTel } = await supabase.rpc('atualizar_telefone_pessoa', {
+            p_pessoa_id: resolvedPessoaId,
+            p_telefone: telefoneVal,
+            p_origem: 'processos',
+          })
+          if (errTel) throw errTel
+        } else {
+          const { error: errTelFallback } = await supabase
+            .from('processo_vendedores')
+            .update({ telefone: telefoneVal || null })
+            .eq('id', id)
+          if (errTelFallback) throw errTelFallback
+        }
+      }
 
       // Sincronizar campos compartilhados com pessoas
       if (resolvedPessoaId) {
