@@ -260,25 +260,20 @@ export function CompletarDadosPessoaDrawer({
         conta_bancaria_digito:   form.conta_bancaria_digito.trim() || null,
       }
 
-      // 0. Atualizar telefone principal
+      // 0. Atualizar telefone principal — via RPC (SECURITY DEFINER) pra
+      // qualquer usuário ativo poder corrigir o número (não só
+      // analista/gerente/gestor/admin, que é quem a policy de UPDATE de
+      // processo_compradores/processo_vendedores libera). A RPC também
+      // propaga pra compradores/vendedores/leads vinculados e grava o log
+      // de auditoria em pessoas_alteracoes.
       const telefoneVal = form.telefone.trim()
       if (telefoneVal) {
-        const tels = (pessoa as any)?.pessoa_telefones ?? []
-        const telAtivos = tels.filter((t: any) => t.ativo)
-        const telPrincipal = telAtivos.find((t: any) => t.principal) ?? telAtivos[0]
-        if (telPrincipal) {
-          if (telPrincipal.telefone !== telefoneVal) {
-            await supabase.from('pessoa_telefones').update({ telefone: telefoneVal }).eq('id', telPrincipal.id)
-          }
-        } else {
-          await supabase.from('pessoa_telefones').insert({
-            pessoa_id: pessoaId, empresa_id: usuario.empresa_id,
-            telefone: telefoneVal, principal: true, whatsapp: true, ativo: true,
-          })
-        }
-        // Propagar telefone para compradores e leads vinculados
-        await supabase.from('processo_compradores').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-        await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
+        const { error: errTel } = await supabase.rpc('atualizar_telefone_pessoa', {
+          p_pessoa_id: pessoaId,
+          p_telefone: telefoneVal,
+          p_origem: origemAuditoria,
+        })
+        if (errTel) throw errTel
       }
 
       // 1. Atualizar pessoas — CPF separado para não bloquear em caso de conflito UNIQUE
