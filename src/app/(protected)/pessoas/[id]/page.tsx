@@ -416,23 +416,18 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         regime_casamento:        eCasadoForm ? (dados.regime_casamento || null) : null,
       }
 
-      // Atualizar telefone principal
+      // Atualizar telefone principal — via RPC (SECURITY DEFINER) pra
+      // qualquer usuário ativo poder corrigir o número e propagar de
+      // verdade pra compradores/vendedores/leads vinculados (ver
+      // atualizar_telefone_pessoa, migration 303).
       const telefoneVal = dados.telefone.trim()
-      const telAtivos = (pessoa?.pessoa_telefones ?? []).filter((t) => t.ativo)
-      const telPrincipal = telAtivos.find((t) => t.principal) ?? telAtivos[0]
       if (telefoneVal) {
-        if (telPrincipal) {
-          if (telPrincipal.telefone !== telefoneVal) {
-            await supabase.from('pessoa_telefones').update({ telefone: telefoneVal }).eq('id', telPrincipal.id)
-          }
-        } else {
-          await supabase.from('pessoa_telefones').insert({
-            pessoa_id: params.id, empresa_id: usuario!.empresa_id,
-            telefone: telefoneVal, principal: true, whatsapp: true, ativo: true,
-          })
-        }
-        await supabase.from('processo_compradores').update({ telefone: telefoneVal }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
-        await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
+        const { error: errTel } = await supabase.rpc('atualizar_telefone_pessoa', {
+          p_pessoa_id: params.id,
+          p_telefone: telefoneVal,
+          p_origem: 'pessoas',
+        })
+        if (errTel) throw errTel
       }
 
       const { error } = await supabase
@@ -534,6 +529,16 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         if (error.code === '23505') throw new Error('Telefone já cadastrado')
         throw error
       }
+      // Marcado como principal: propaga pra compradores/vendedores/leads
+      // vinculados (via RPC — só assim reflete em Negócios/Financiamento).
+      if (novoTelefone.principal) {
+        const { error: errTel } = await supabase.rpc('atualizar_telefone_pessoa', {
+          p_pessoa_id: params.id,
+          p_telefone: novoTelefone.telefone.trim(),
+          p_origem: 'pessoas',
+        })
+        if (errTel) throw errTel
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pessoa', params.id] })
@@ -548,12 +553,28 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
     mutationFn: async (telefoneId: string) => {
       const ativos = (pessoa?.pessoa_telefones ?? []).filter((t) => t.ativo)
       if (ativos.length <= 1) throw new Error('Não é possível remover o único telefone ativo')
+      const removido = ativos.find((t) => t.id === telefoneId)
       const { error } = await supabase
         .from('pessoa_telefones')
         .update({ ativo: false })
         .eq('id', telefoneId)
         .eq('pessoa_id', params.id)
       if (error) throw error
+
+      // Se o removido era o principal, promove o próximo ativo e propaga
+      // pra compradores/vendedores/leads vinculados (via RPC).
+      if (removido?.principal) {
+        const proximo = ativos.find((t) => t.id !== telefoneId)
+        if (proximo) {
+          await supabase.from('pessoa_telefones').update({ principal: true }).eq('id', proximo.id)
+          const { error: errTel } = await supabase.rpc('atualizar_telefone_pessoa', {
+            p_pessoa_id: params.id,
+            p_telefone: proximo.telefone,
+            p_origem: 'pessoas',
+          })
+          if (errTel) throw errTel
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pessoa', params.id] })
