@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import type { RhFuncionario, RhStatusFuncionario } from '@/types/rh'
 
-const JOINS = `*, cargo:rh_cargos(id, nome, nivel_comissao, departamento:rh_departamentos(id, nome)), regra_comissao:rh_regras_comissao(id, nome, tipo_calculo)`
+const JOINS = `*, cargo:rh_cargos(id, nome, nivel_comissao, departamento:rh_departamentos(id, nome)), regra_comissao:rh_regras_comissao(id, nome, tipo_calculo), regras:rh_funcionario_regras(id, funcionario_id, regra_id, categoria, regra:rh_regras_comissao(id, nome, categoria, tipo_calculo))`
 
 export function useFuncionarios(filtros: { status?: RhStatusFuncionario } = {}) {
   const { usuario } = useAuth()
@@ -63,7 +63,7 @@ export function useCriarFuncionario() {
   const { usuario } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (dados: Omit<RhFuncionario, 'id' | 'empresa_id' | 'created_at' | 'updated_at' | 'cargo' | 'regra_comissao'>) => {
+    mutationFn: async (dados: Omit<RhFuncionario, 'id' | 'empresa_id' | 'created_at' | 'updated_at' | 'cargo' | 'regra_comissao' | 'regra_comissao_id' | 'regras'>) => {
       const { data, error } = await supabase.from('rh_funcionarios')
         .insert({ ...dados, empresa_id: usuario!.empresa_id })
         .select().single()

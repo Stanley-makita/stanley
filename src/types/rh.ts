@@ -90,12 +90,28 @@ export interface RhFaixaComissao {
   created_at: string
 }
 
-export type RhTipoCalculoComissao = 'valor_fixo_emissao' | 'percentual_faixa_producao_mensal' | 'percentual_por_negocio'
+export type RhTipoCalculoComissao = 'valor_fixo_emissao' | 'percentual_faixa_producao_mensal' | 'percentual_por_negocio' | 'cgi_limite_percentual'
 
 export const RH_TIPO_CALCULO_LABELS: Record<RhTipoCalculoComissao, string> = {
   valor_fixo_emissao: 'Valor fixo por emissão (operacional)',
   percentual_faixa_producao_mensal: 'Percentual por faixa de produção mensal (comercial)',
   percentual_por_negocio: 'Percentual sobre o valor da carta (Consórcio)',
+  cgi_limite_percentual: 'Percentual acima de um limite (CGI)',
+}
+
+// Categoria decide QUAL regra de um funcionário/cargo se aplica a um
+// processo — pela modalidade dele (Financiamento/CGI/Consórcio/Contrato)
+// via resolver_regra_comissao(). Um funcionário pode ter até 1 regra ativa
+// por categoria (ver rh_funcionario_regras) — no máximo 5 regras
+// simultâneas, uma por categoria.
+export type RhCategoriaComissao = 'financiamento' | 'cgi' | 'consorcio' | 'contrato' | 'outra'
+
+export const RH_CATEGORIA_LABELS: Record<RhCategoriaComissao, string> = {
+  financiamento: 'Financiamento',
+  cgi: 'CGI',
+  consorcio: 'Consórcio',
+  contrato: 'Contrato',
+  outra: 'Outra',
 }
 
 export interface RhRegraComissao {
@@ -106,6 +122,10 @@ export interface RhRegraComissao {
   data_inicio: string
   data_termino: string | null
   ativa: boolean
+  // categoria decide em qual dos até-5 "slots" de rh_funcionario_regras/
+  // rh_cargo_regras esta regra pode ser encaixada, e qual modalidade de
+  // processo ela resolve (ver resolver_regra_comissao).
+  categoria: RhCategoriaComissao
   // tipo_calculo define qual conjunto de campos é usado pelo cálculo
   // automático em Financeiro > Fechamento (gerar_comissoes_a_pagar):
   // 'valor_fixo_emissao' usa valor_fixo_emissao/valor_fixo_assessoria +
@@ -115,20 +135,44 @@ export interface RhRegraComissao {
   // ver calcular_producao_comercial_mes, migration 300); o percentual
   // escolhido é então aplicado sobre a produção ponderada total
   // (financiamento + contrato + assessoria) — modelo comercial.
+  // 'cgi_limite_percentual' é exclusivo de categoria='cgi' — só usa
+  // cgi_valor_limite/cgi_percentual_acima, sem faixas.
   tipo_calculo: RhTipoCalculoComissao
   valor_fixo_emissao: number | null
   valor_fixo_assessoria: number | null
-  // Regra especial CGI — só relevante quando tipo_calculo =
-  // 'percentual_faixa_producao_mensal'. Quando ambos preenchidos: todo
-  // processo modalidade CGI com valor_financiado > cgi_valor_limite sai da
-  // produção que decide a faixa e passa a ter comissão própria de
-  // cgi_percentual_acima % sobre o valor financiado, somada por fora do
-  // percentual de faixa (ver calcular_producao_comercial_mes).
+  // Só relevante quando categoria = 'cgi' (tipo_calculo =
+  // 'cgi_limite_percentual'): todo processo modalidade CGI com
+  // valor_financiado > cgi_valor_limite sai da produção que decide a faixa
+  // de Financiamento e passa a ter comissão própria de cgi_percentual_acima
+  // % sobre o valor financiado, somada por fora (ver
+  // calcular_producao_comercial_mes).
   cgi_valor_limite: number | null
   cgi_percentual_acima: number | null
   created_at: string
   updated_at: string
   faixas?: RhFaixaComissao[]
+}
+
+// Vínculo funcionário/cargo ↔ regra por categoria (até 1 regra ativa por
+// categoria, até 5 categorias). categoria é uma cópia da regra vinculada,
+// mantida em sincronia por trigger — existe pra permitir a constraint
+// UNIQUE(entidade_id, categoria) sem subquery.
+export interface RhFuncionarioRegra {
+  id: string
+  funcionario_id: string
+  regra_id: string
+  categoria: RhCategoriaComissao
+  created_at: string
+  regra?: RhRegraComissao | null
+}
+
+export interface RhCargoRegra {
+  id: string
+  cargo_id: string
+  regra_id: string
+  categoria: RhCategoriaComissao
+  created_at: string
+  regra?: RhRegraComissao | null
 }
 
 export interface RhCargo {
@@ -138,12 +182,14 @@ export interface RhCargo {
   descricao: string | null
   departamento_id: string | null
   nivel_comissao: RhNivelComissao
+  /** @deprecated substituído por rh_cargo_regras (múltiplas regras por categoria) — mantido só pra compatibilidade/rollback, não usado no cálculo. */
   regra_comissao_id: string | null
   ativo: boolean
   created_at: string
   updated_at: string
   departamento?: RhDepartamento | null
   regra_comissao?: RhRegraComissao | null
+  regras?: RhCargoRegra[]
 }
 
 export interface RhFuncionario {
@@ -157,9 +203,12 @@ export interface RhFuncionario {
   data_admissao: string
   tipo_contrato: RhTipoContrato
   cargo_id: string | null
-  // Override individual da regra de comissão do cargo — quando null, o
-  // cálculo automático usa a regra do cargo (rh_cargos.regra_comissao_id).
+  /** @deprecated substituído por rh_funcionario_regras (múltiplas regras por categoria) — mantido só pra compatibilidade/rollback, não usado no cálculo. */
   regra_comissao_id: string | null
+  // Overrides individuais por categoria — quando uma categoria não tem
+  // linha aqui, o cálculo automático cai pra regra do cargo daquela
+  // mesma categoria (rh_cargo_regras).
+  regras?: RhFuncionarioRegra[]
   status: RhStatusFuncionario
   salario_base: number
   observacoes: string | null

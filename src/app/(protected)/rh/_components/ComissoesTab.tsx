@@ -9,8 +9,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useRegrasComissao, useCriarRegraComissao, useAtualizarRegraComissao, useExcluirRegraComissao } from '@/hooks/rh/useComissoes'
-import type { RhRegraComissao, RhFaixaComissao, RhTipoCalculoComissao } from '@/types/rh'
-import { RH_TIPO_CALCULO_LABELS } from '@/types/rh'
+import type { RhRegraComissao, RhFaixaComissao, RhTipoCalculoComissao, RhCategoriaComissao } from '@/types/rh'
+import { RH_TIPO_CALCULO_LABELS, RH_CATEGORIA_LABELS } from '@/types/rh'
+
+// Tipos de cálculo disponíveis por categoria — Consórcio e CGI têm o
+// tipo_calculo travado (é o que a categoria significa); Financiamento/
+// Contrato/Outra escolhem entre faixa mensal e valor fixo.
+const TIPOS_POR_CATEGORIA: Record<RhCategoriaComissao, RhTipoCalculoComissao[]> = {
+  financiamento: ['percentual_faixa_producao_mensal', 'valor_fixo_emissao'],
+  contrato:      ['percentual_faixa_producao_mensal', 'valor_fixo_emissao'],
+  outra:         ['percentual_faixa_producao_mensal', 'valor_fixo_emissao'],
+  consorcio:     ['percentual_por_negocio'],
+  cgi:           ['cgi_limite_percentual'],
+}
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -28,9 +39,10 @@ type FaixaForm = Omit<RhFaixaComissao, 'id' | 'regra_id' | 'created_at'>
 
 const VAZIO_REGRA = {
   nome: '', descricao: '', data_inicio: '', data_termino: '', ativa: true,
+  categoria: 'financiamento' as RhCategoriaComissao,
   tipo_calculo: 'valor_fixo_emissao' as RhTipoCalculoComissao,
   valor_fixo_emissao: 0, valor_fixo_assessoria: 0,
-  cgiAtiva: false, cgiValorLimite: 250000, cgiPercentualAcima: 1,
+  cgiValorLimite: 250000, cgiPercentualAcima: 1,
 }
 // pct_comercial é usado quando tipo_calculo = percentual_faixa_producao_mensal;
 // valor_fixo quando tipo_calculo = valor_fixo_emissao. Os demais campos
@@ -75,10 +87,10 @@ export function ComissoesTab() {
         data_inicio: regra.data_inicio,
         data_termino: regra.data_termino ?? '',
         ativa: regra.ativa,
+        categoria: regra.categoria,
         tipo_calculo: regra.tipo_calculo,
         valor_fixo_emissao: regra.valor_fixo_emissao ?? 0,
         valor_fixo_assessoria: regra.valor_fixo_assessoria ?? 0,
-        cgiAtiva: regra.cgi_valor_limite != null && regra.cgi_percentual_acima != null,
         cgiValorLimite: regra.cgi_valor_limite ?? 250000,
         cgiPercentualAcima: regra.cgi_percentual_acima ?? 1,
       })
@@ -105,12 +117,23 @@ export function ComissoesTab() {
     setFaixas(fs => fs.map((f, i) => i === idx ? { ...f, [key]: val } : f))
   }
 
+  function mudarCategoria(categoria: RhCategoriaComissao) {
+    // Consórcio e CGI têm o tipo_calculo travado (é o que a categoria
+    // significa); ao trocar pra uma delas, força o valor certo. Ao trocar
+    // pra Financiamento/Contrato/Outra vindo de uma categoria travada,
+    // volta pro default (valor fixo).
+    const tipos = TIPOS_POR_CATEGORIA[categoria]
+    const tipoAtual = tipos.includes(form.tipo_calculo) ? form.tipo_calculo : tipos[0]
+    setForm(f => ({ ...f, categoria, tipo_calculo: tipoAtual }))
+  }
+
+  const eCgi = form.categoria === 'cgi'
+
   async function handleSalvar() {
     if (!form.nome.trim()) { toast.error('Nome é obrigatório'); return }
     if (!form.data_inicio) { toast.error('Data de início é obrigatória'); return }
-    const cgiHabilitada = form.tipo_calculo === 'percentual_faixa_producao_mensal' && form.cgiAtiva
-    if (cgiHabilitada && (!(form.cgiValorLimite > 0) || !(form.cgiPercentualAcima > 0))) {
-      toast.error('Informe o valor limite e o percentual da regra especial de CGI')
+    if (eCgi && (!(form.cgiValorLimite > 0) || !(form.cgiPercentualAcima > 0))) {
+      toast.error('Informe o valor limite e o percentual da regra de CGI')
       return
     }
     try {
@@ -120,19 +143,21 @@ export function ComissoesTab() {
         data_inicio: form.data_inicio,
         data_termino: form.data_termino || null,
         ativa: form.ativa,
+        categoria: form.categoria,
         tipo_calculo: form.tipo_calculo,
-        valor_fixo_emissao: form.valor_fixo_emissao || null,
-        valor_fixo_assessoria: form.valor_fixo_assessoria || null,
-        cgi_valor_limite: cgiHabilitada ? form.cgiValorLimite : null,
-        cgi_percentual_acima: cgiHabilitada ? form.cgiPercentualAcima : null,
+        valor_fixo_emissao: eCgi ? null : (form.valor_fixo_emissao || null),
+        valor_fixo_assessoria: eCgi ? null : (form.valor_fixo_assessoria || null),
+        cgi_valor_limite: eCgi ? form.cgiValorLimite : null,
+        cgi_percentual_acima: eCgi ? form.cgiPercentualAcima : null,
       }
+      const faixasParaSalvar = eCgi ? [] : faixas
       if (editando) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await atualizar.mutateAsync({ id: editando.id, ...base, faixas } as any)
+        await atualizar.mutateAsync({ id: editando.id, ...base, faixas: faixasParaSalvar } as any)
         toast.success('Regra atualizada.')
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await criar.mutateAsync({ ...base, faixas } as any)
+        await criar.mutateAsync({ ...base, faixas: faixasParaSalvar } as any)
         toast.success('Regra criada.')
       }
       setModal(false)
@@ -170,6 +195,9 @@ export function ComissoesTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-gray-800">{r.nome}</p>
+                      <span className="text-xs font-medium rounded-full px-2 py-0.5 bg-purple-100 text-purple-700">
+                        {RH_CATEGORIA_LABELS[r.categoria]}
+                      </span>
                       <span className={cn('text-xs font-medium rounded-full px-2 py-0.5', r.ativa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
                         {r.ativa ? 'Ativa' : 'Inativa'}
                       </span>
@@ -179,7 +207,9 @@ export function ComissoesTab() {
                           ? 'Percentual (produção mensal)'
                           : r.tipo_calculo === 'percentual_por_negocio'
                             ? 'Percentual (por negócio)'
-                            : 'Valor fixo (operacional)'}
+                            : r.tipo_calculo === 'cgi_limite_percentual'
+                              ? 'Percentual acima do limite'
+                              : 'Valor fixo (operacional)'}
                       </span>
                     </div>
                     {r.descricao && <p className="text-xs text-gray-400 mt-0.5">{r.descricao}</p>}
@@ -274,46 +304,59 @@ export function ComissoesTab() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Tipo de Cálculo *</Label>
+              <Label className="text-xs">Categoria *</Label>
               <select
                 className="w-full h-9 rounded-md border border-gray-200 px-2 text-sm"
-                value={form.tipo_calculo}
-                onChange={e => setForm(f => ({ ...f, tipo_calculo: e.target.value as RhTipoCalculoComissao }))}
+                value={form.categoria}
+                onChange={e => mudarCategoria(e.target.value as RhCategoriaComissao)}
               >
-                {Object.entries(RH_TIPO_CALCULO_LABELS).map(([valor, label]) => (
+                {Object.entries(RH_CATEGORIA_LABELS).map(([valor, label]) => (
                   <option key={valor} value={valor}>{label}</option>
                 ))}
               </select>
               <p className="text-[11px] text-gray-400">
-                {form.tipo_calculo === 'percentual_faixa_producao_mensal'
-                  ? 'A faixa é escolhida pelo valor BRUTO financiado no mês (soma de valor_financiado, sem contrato/assessoria e sem aplicar %% do banco). O percentual da faixa escolhida é aplicado sobre a produção ponderada total (financiamento + contrato + assessoria).'
-                  : form.tipo_calculo === 'percentual_por_negocio'
-                    ? 'A faixa é escolhida pelo valor do negócio (ex.: valor da carta de consórcio) e aplicada direto sobre esse valor — não é uma fatia da comissão que a empresa recebe. Uma única faixa "0 até sem limite" funciona como taxa fixa por pessoa.'
-                    : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
+                Decide a qual modalidade de processo esta regra se aplica automaticamente — um funcionário pode ter até 1 regra ativa por categoria (Ficha do Funcionário &gt; Regras de Comissão por Categoria).
               </p>
             </div>
 
-            {form.tipo_calculo === 'percentual_faixa_producao_mensal' && (
-              <div className="rounded-lg border border-gray-200 p-2.5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Switch checked={form.cgiAtiva} onCheckedChange={v => setForm(f => ({ ...f, cgiAtiva: v }))} />
-                  <Label className="text-xs">Regra especial para CGI acima de um valor</Label>
-                </div>
+            {!eCgi && (
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo de Cálculo *</Label>
+                <select
+                  className="w-full h-9 rounded-md border border-gray-200 px-2 text-sm"
+                  value={form.tipo_calculo}
+                  onChange={e => setForm(f => ({ ...f, tipo_calculo: e.target.value as RhTipoCalculoComissao }))}
+                  disabled={TIPOS_POR_CATEGORIA[form.categoria].length === 1}
+                >
+                  {TIPOS_POR_CATEGORIA[form.categoria].map(valor => (
+                    <option key={valor} value={valor}>{RH_TIPO_CALCULO_LABELS[valor]}</option>
+                  ))}
+                </select>
                 <p className="text-[11px] text-gray-400">
-                  Processo CGI com valor financiado acima do limite sai da produção que decide a faixa e passa a ter comissão própria (% direto sobre o valor financiado dele), somada por fora do valor da faixa.
+                  {form.tipo_calculo === 'percentual_faixa_producao_mensal'
+                    ? 'A faixa é escolhida pelo valor BRUTO financiado no mês (soma de valor_financiado, sem contrato/assessoria e sem aplicar %% do banco). O percentual da faixa escolhida é aplicado sobre a produção ponderada total (financiamento + contrato + assessoria).'
+                    : form.tipo_calculo === 'percentual_por_negocio'
+                      ? 'A faixa é escolhida pelo valor do negócio (ex.: valor da carta de consórcio) e aplicada direto sobre esse valor — não é uma fatia da comissão que a empresa recebe. Uma única faixa "0 até sem limite" funciona como taxa fixa por pessoa.'
+                      : 'Valor fixo pago por processo emitido/com assessoria — modelo atual do time operacional.'}
                 </p>
-                {form.cgiAtiva && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-gray-500">Valor financiado acima de (R$)</Label>
-                      <Input type="number" min={0} step={0.01} value={form.cgiValorLimite} onChange={e => setForm(f => ({ ...f, cgiValorLimite: Number(e.target.value) }))} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-gray-500">% sobre o valor financiado</Label>
-                      <Input type="number" min={0} step={0.01} value={form.cgiPercentualAcima} onChange={e => setForm(f => ({ ...f, cgiPercentualAcima: Number(e.target.value) }))} className="h-8 text-xs" />
-                    </div>
+              </div>
+            )}
+
+            {eCgi && (
+              <div className="rounded-lg border border-gray-200 p-2.5 space-y-2">
+                <p className="text-[11px] text-gray-400">
+                  Processo CGI com valor financiado acima do limite sai da produção que decide a faixa de Financiamento do comercial e passa a ter comissão própria (% direto sobre o valor financiado dele), somada por fora do valor da faixa.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-gray-500">Valor financiado acima de (R$) *</Label>
+                    <Input type="number" min={0} step={0.01} value={form.cgiValorLimite} onChange={e => setForm(f => ({ ...f, cgiValorLimite: Number(e.target.value) }))} className="h-8 text-xs" />
                   </div>
-                )}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-gray-500">% sobre o valor financiado *</Label>
+                    <Input type="number" min={0} step={0.01} value={form.cgiPercentualAcima} onChange={e => setForm(f => ({ ...f, cgiPercentualAcima: Number(e.target.value) }))} className="h-8 text-xs" />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -330,6 +373,7 @@ export function ComissoesTab() {
               </div>
             )}
 
+            {!eCgi && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-xs">
@@ -380,6 +424,7 @@ export function ComissoesTab() {
                 ))}
               </div>
             </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Switch checked={form.ativa} onCheckedChange={v => setForm(f => ({ ...f, ativa: v }))} />
