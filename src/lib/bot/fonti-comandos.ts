@@ -985,16 +985,34 @@ export async function processarComandoFonti(
 
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)
 
-    let vinculados = 0
-    if (entidade.tipo === 'pessoa') {
+    const tentarVincularDocumentos = async (): Promise<number> => {
+      if (entidade!.tipo !== 'pessoa') return 0
       const res = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversaSalva,
-        entidade.id, entidade.lead_id ?? null,
+        entidade!.id, entidade!.lead_id ?? null,
         15, marcaAtSalva ?? undefined,
       )
-      vinculados = res.count
       // Vincula também docs da conversa do próprio cliente (bot, 90 dias)
-      vinculados += await vincularDocumentosConversa(supabase, empresa_id, entidade.id, entidade.lead_id ?? null)
+      const viaConversa = await vincularDocumentosConversa(supabase, empresa_id, entidade!.id, entidade!.lead_id ?? null)
+      return res.count + viaConversa
+    }
+
+    let vinculados = await tentarVincularDocumentos()
+
+    // Retry com backoff: documentos enviados logo antes do *fonti salva às vezes
+    // ainda não terminaram de ser processados (download + insert em `documentos`
+    // é assíncrono, um webhook por mensagem) — sob carga (vários comerciais
+    // enviando documentos ao mesmo tempo) isso demora mais que o esperado. Achado
+    // real na apresentação pra equipe comercial (2026-09-15): *salva "às vezes
+    // salvava, às vezes não", sem erro nenhum, mesmo comando, mesma sessão — só
+    // reentra aqui quando havia uma sessão *fonti inicio ativa (sinal de que
+    // documentos são esperados) e a primeira tentativa não achou nada.
+    if (vinculados === 0 && marcaAtSalva) {
+      for (const esperaMs of [1500, 3000]) {
+        await new Promise((r) => setTimeout(r, esperaMs))
+        vinculados = await tentarVincularDocumentos()
+        if (vinculados > 0) break
+      }
     }
 
     if (marcaAtSalva) await limparMarca(supabase, empresa_id, telefoneConversaSalva)
