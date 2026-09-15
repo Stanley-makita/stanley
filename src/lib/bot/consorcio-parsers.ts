@@ -50,6 +50,30 @@ const POSITIVOS = new Set([
 ])
 
 /**
+ * Extrai a escolha do indexador ("1"=Fixo / "2"=Variável) — passo logo após
+ * o Índice de correção. Aceita o número ou a palavra (fixo/variavel), pra
+ * não travar quem digitar por extenso em vez do número.
+ */
+export function parseIndexadorFixo(texto: string): boolean | null {
+  const n = normalizarTexto(texto)
+  if (n === '1' || /\bfix[oa]\b/.test(n)) return true
+  if (n === '2' || /\bvari[aá]ve?l\b/.test(n)) return false
+  return null
+}
+
+/**
+ * Extrai o tipo de bem ("1"=Imóvel / "2"=Auto) — primeiro passo do
+ * *consorcio, decide o título da Versão Proposta. Aceita o número ou a
+ * palavra por extenso.
+ */
+export function parseTipoBem(texto: string): 'imovel' | 'auto' | null {
+  const n = normalizarTexto(texto)
+  if (n === '1' || /\b(imovel|imoveis|casa|apartamento|apto|terreno)\b/.test(n)) return 'imovel'
+  if (n === '2' || /\b(auto|automovel|carro|veiculo|moto|caminhao)\b/.test(n)) return 'auto'
+  return null
+}
+
+/**
  * Resolve uma resposta a uma pergunta com valor sugerido: texto vazio ou uma
  * confirmação ("sim"/"ok"/etc.) aceita a sugestão; qualquer outra coisa tenta
  * parsear como um valor novo via `parser`. Usado nos passos que mostram

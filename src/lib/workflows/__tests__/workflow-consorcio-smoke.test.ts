@@ -41,21 +41,25 @@ const ctx: WorkflowConsorcioContexto = {
 }
 
 describe('workflow-consorcio — fluxo completo (smoke)', () => {
-  it('percorre as 8 perguntas, aceita as duas sugestões e finaliza com resumo', async () => {
+  it('percorre as 10 perguntas, aceita as duas sugestões e finaliza com resumo', async () => {
     const inicio = await iniciarFluxoConsorcio(ctx)
     expect(inicio).toContain('Simulador de Consórcio')
-    expect(inicio).toContain('valor do bem')
+    expect(inicio).toContain('Imóvel')
 
-    let pendente: ConsorcioPendente = { passo: 'valor_bem', dados: {} }
+    let pendente: ConsorcioPendente = { passo: 'tipo_bem', dados: {} }
+
+    const r0 = await processarRespostaConsorcio('1', pendente, ctx) // Imóvel
+    expect(r0).toContain('valor do bem')
+    pendente = { passo: 'valor_bem', dados: { tipoBem: 'imovel' } }
 
     const r1 = await processarRespostaConsorcio('900000', pendente, ctx)
     expect(r1).toContain('valor da carta')
     expect(r1).toContain('Sugestão')
-    pendente = { passo: 'valor_carta', dados: { valorBem: 900000 } }
+    pendente = { ...pendente, passo: 'valor_carta', dados: { ...pendente.dados, valorBem: 900000 } }
 
     const r2 = await processarRespostaConsorcio('sim', pendente, ctx) // aceita a sugestão
     expect(r2).toContain('mês')
-    pendente = { passo: 'mes_contemplacao', dados: { valorBem: 900000, valorCarta: 900000 / 0.7 } }
+    pendente = { ...pendente, passo: 'mes_contemplacao', dados: { ...pendente.dados, valorCarta: 900000 / 0.7 } }
 
     const r3 = await processarRespostaConsorcio('14', pendente, ctx)
     expect(r3).toContain('prazo em meses')
@@ -70,12 +74,16 @@ describe('workflow-consorcio — fluxo completo (smoke)', () => {
     pendente = { ...pendente, passo: 'indice_correcao', dados: { ...pendente.dados, taxaAdmPercentual: 0.20 } }
 
     const r6 = await processarRespostaConsorcio('3', pendente, ctx)
-    expect(r6).toContain('parcela reduzida')
-    expect(r6).toContain('Sugestão')
-    pendente = { ...pendente, passo: 'parcela_reduzida', dados: { ...pendente.dados, indiceCorrecaoAnual: 0.03 } }
+    expect(r6).toContain('Indexador')
+    pendente = { ...pendente, passo: 'indexador_fixo', dados: { ...pendente.dados, indiceCorrecaoAnual: 0.03 } }
 
-    const r7 = await processarRespostaConsorcio('sim', pendente, ctx) // aceita a sugestão (70%)
-    expect(r7).toContain('Fundo de reserva')
+    const r7 = await processarRespostaConsorcio('1', pendente, ctx) // Fixo
+    expect(r7).toContain('parcela reduzida')
+    expect(r7).toContain('Sugestão')
+    pendente = { ...pendente, passo: 'parcela_reduzida', dados: { ...pendente.dados, indexadorFixo: true } }
+
+    const r8 = await processarRespostaConsorcio('sim', pendente, ctx) // aceita a sugestão (70%)
+    expect(r8).toContain('Fundo de reserva')
     pendente = { ...pendente, passo: 'fundo_reserva', dados: { ...pendente.dados, percentualParcelaReduzida: 0.70 } }
 
     const final = await processarRespostaConsorcio('3', pendente, ctx)
