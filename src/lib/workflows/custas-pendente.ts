@@ -4,6 +4,11 @@
  * Armazenamento: colunas custas_pendente + custas_pendente_expira na tabela
  * conversas, keyed por empresa_id + contato_telefone do operador (mesmo padrão
  * de simula-pendente.ts). TTL: 30 minutos.
+ *
+ * Leitura e escrita resolvem o id da conversa pelo mesmo caminho canônico
+ * (garantirConversaOperador) — ver comentário equivalente em
+ * consorcio-pendente.ts pro bug real que isso corrige (linha errada lida
+ * quando existem duas linhas de `conversas` pro mesmo telefone).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -32,10 +37,6 @@ export interface CustasPendente {
 
 const TTL_MS = 30 * 60 * 1000  // 30 minutos
 
-function buildSufixoQuery(telefone: string) {
-  return telefone.replace(/\D/g, '').slice(-11)
-}
-
 export async function salvarCustasPendente(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -54,15 +55,11 @@ export async function buscarCustasPendente(
   empresa_id: string,
   telefone: string,
 ): Promise<CustasPendente | null> {
-  const sufixo = buildSufixoQuery(telefone)
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   const { data } = await supabase
     .from('conversas')
     .select('id, custas_pendente, custas_pendente_expira')
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
-    .order('updated_at', { ascending: false })
-    .limit(1)
+    .eq('id', conversaId)
     .maybeSingle()
 
   if (!data?.custas_pendente) return null
@@ -82,10 +79,8 @@ export async function limparCustasPendente(
   empresa_id: string,
   telefone: string,
 ): Promise<void> {
-  const sufixo = buildSufixoQuery(telefone)
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   await supabase.from('conversas')
     .update({ custas_pendente: null, custas_pendente_expira: null })
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
+    .eq('id', conversaId)
 }

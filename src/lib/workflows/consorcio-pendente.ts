@@ -5,6 +5,16 @@
  * Armazenamento: colunas consorcio_pendente + consorcio_pendente_expira na
  * tabela conversas, keyed por empresa_id + contato_telefone do operador.
  * TTL: 30 minutos.
+ *
+ * Leitura e escrita SEMPRE resolvem o id da conversa pelo mesmo caminho
+ * canônico (garantirConversaOperador → RPC obter_ou_criar_conversa, que
+ * normaliza o telefone e é a fonte da verdade). Antes, a leitura fazia uma
+ * busca solta por sufixo de telefone (ILIKE + ORDER BY updated_at) — se
+ * existisse mais de uma linha de `conversas` pro mesmo número (ex.: uma
+ * canônica "5544..." e uma crua "44..." criada por outro caminho que não
+ * canonicaliza), a leitura podia pegar a linha errada e o fluxo "travava"
+ * silenciosamente na resposta seguinte, sem erro nenhum. Achado real em
+ * produção durante teste com múltiplos comerciais simultâneos (2026-09-15).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -28,10 +38,6 @@ export interface ConsorcioPendente {
 
 const TTL_MS = 30 * 60 * 1000  // 30 minutos
 
-function buildSufixoQuery(telefone: string) {
-  return telefone.replace(/\D/g, '').slice(-11)
-}
-
 export async function salvarConsorcioPendente(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -50,15 +56,11 @@ export async function buscarConsorcioPendente(
   empresa_id: string,
   telefone: string,
 ): Promise<ConsorcioPendente | null> {
-  const sufixo = buildSufixoQuery(telefone)
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   const { data } = await supabase
     .from('conversas')
     .select('id, consorcio_pendente, consorcio_pendente_expira')
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
-    .order('updated_at', { ascending: false })
-    .limit(1)
+    .eq('id', conversaId)
     .maybeSingle()
 
   if (!data?.consorcio_pendente) return null
@@ -78,10 +80,8 @@ export async function limparConsorcioPendente(
   empresa_id: string,
   telefone: string,
 ): Promise<void> {
-  const sufixo = buildSufixoQuery(telefone)
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   await supabase.from('conversas')
     .update({ consorcio_pendente: null, consorcio_pendente_expira: null })
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
+    .eq('id', conversaId)
 }
