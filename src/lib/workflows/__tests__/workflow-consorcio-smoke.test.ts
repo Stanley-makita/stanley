@@ -7,9 +7,15 @@ import type { ConsorcioPendente } from '../consorcio-pendente'
 // sem bater em rede nenhuma. Sem instancia_token/telefone_destino no ctx, o
 // envio de PDF é pulado (mesmo comportamento de produção quando ausente), então
 // este teste não depende de credenciais reais do Uazapi.
+//
+// leitura/escrita do pendente resolvem a conversa via RPC obter_ou_criar_conversa
+// (garantirConversaOperador) — .rpc() aqui devolve sempre o mesmo id fixo, e o
+// .select() encadeado depois devolve o pendente salvo por último no `estado`
+// (mutável, simula a persistência real entre chamadas dentro do mesmo teste).
 function criarSupabaseStub() {
+  const estado: Record<string, unknown> = {}
   const chain: any = {
-    update: () => chain,
+    update: (valores: Record<string, unknown>) => { Object.assign(estado, valores); return chain },
     insert: () => chain,
     eq: () => chain,
     in: () => chain,
@@ -17,10 +23,13 @@ function criarSupabaseStub() {
     select: () => chain,
     order: () => chain,
     limit: () => chain,
-    maybeSingle: async () => ({ data: null }),
+    maybeSingle: async () => ({ data: { id: 'conversa-teste', ...estado } }),
     single: async () => ({ data: { id: 'conversa-teste' }, error: null }),
   }
-  return { from: () => chain } as any
+  return {
+    from: () => chain,
+    rpc: async () => ({ data: 'conversa-teste', error: null }),
+  } as any
 }
 
 const ctx: WorkflowConsorcioContexto = {
