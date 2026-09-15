@@ -290,11 +290,17 @@ async function obterMarcaInicio(
 ): Promise<Date | null> {
   const { data } = await supabase
     .from('fonti_marcas')
-    .select('iniciado_at')
+    .select('iniciado_at, sessao_real')
     .eq('empresa_id', empresa_id)
     .eq('telefone_conversa', telefoneConversa)
     .maybeSingle()
-  return data?.iniciado_at ? new Date(data.iniciado_at) : null
+  // sessao_real=false: linha existe só pra guardar candidatos_pendentes de uma
+  // ambiguidade de *fonti salva sem *fonti inicio aberto — iniciado_at aqui é
+  // o momento em que o *fonti salva foi digitado, não um início de sessão real,
+  // e não deve virar o começo da janela de busca de documentos (excluiria os
+  // documentos enviados antes do comando, que é o caso normal).
+  if (!data?.iniciado_at || data.sessao_real === false) return null
+  return new Date(data.iniciado_at)
 }
 
 async function limparMarca(
@@ -332,7 +338,11 @@ async function gravarSessaoProcesso(
   pessoa_id: string | null,
 ): Promise<void> {
   await supabase.from('fonti_marcas').upsert(
-    { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: new Date().toISOString(), processo_id, pessoa_id },
+    {
+      empresa_id, telefone_conversa: telefoneConversa, iniciado_at: new Date().toISOString(), processo_id, pessoa_id,
+      // Sessão real — ver comentário equivalente no *fonti inicio.
+      sessao_real: true,
+    },
     { onConflict: 'empresa_id,telefone_conversa' },
   )
 }
@@ -898,6 +908,10 @@ export async function processarComandoFonti(
         empresa_id, telefone_conversa: telefoneConversa,
         iniciado_at: new Date().toISOString(),
         pessoa_id: null, candidatos_pendentes: null,
+        // Sessão real — sobrescreve explicitamente caso a linha existente
+        // tivesse ficado marcada sessao_real=false por uma ambiguidade
+        // anterior sem *fonti inicio (ver obterMarcaInicio()).
+        sessao_real: true,
       },
       { onConflict: 'empresa_id,telefone_conversa' },
     )
@@ -977,6 +991,9 @@ export async function processarComandoFonti(
           empresa_id, telefone_conversa: telefoneConversaSalva,
           iniciado_at: new Date().toISOString(),
           candidatos_pendentes: entidade.candidatos,
+          // Não é uma sessão real de *fonti inicio — só guarda a ambiguidade
+          // pendente. Ver obterMarcaInicio() e migration 308.
+          sessao_real: false,
         })
       }
       const linhas = entidade.candidatos.map((c, i) => `${i + 1}. ${c.nome}`).join('\n')
