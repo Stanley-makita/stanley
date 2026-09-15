@@ -962,17 +962,19 @@ export async function POST(request: NextRequest) {
           .maybeSingle()
       : { data: null }
 
-    if (usuarioInterno && !conversaHumanoExistente) {
-      // Verifica resposta de follow-up (1/2/3) antes do simula pendente
-      const { processarRespostaFollowup } = await import('@/lib/leads/followup')
-      const respostaFollowup = await processarRespostaFollowup(
-        texto.trim(), usuarioInterno.id, usuarioInterno.nome, empresa_id, supabase
-      )
-      if (respostaFollowup !== null) {
-        await enviarMensagemUazapi(telefone, respostaFollowup, instanciaToken)
-        return NextResponse.json({ ok: true })
-      }
-
+    if (usuarioInterno) {
+      // Pendências de workflow interno (*simula/*custas/*consorcio) sempre têm
+      // prioridade sobre o portão "conversa humano" abaixo, MESMO se a própria
+      // conversa do operador estiver com status='humano' — isso acontece sem
+      // relação nenhuma com atendimento humano real: *fonti inicio grava
+      // documentos nessa mesma linha (por telefone canônico) já marcando
+      // status: 'humano' (ver mais abaixo, no bloco isMidia). Sem este bypass,
+      // um operador que rodou *inicio antes ficava com a própria conversa
+      // "presa" em humano pra sempre, e a resposta dele a qualquer pergunta de
+      // *consorcio/*custas/*simula que ELE MESMO iniciou era engolida em
+      // silêncio — sem erro nenhum, só parava de responder.
+      // Bug real: 3 comerciais travados em *consorcio na apresentação de
+      // 2026-09-15, todos após terem testado *inicio antes.
       const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
       const pendente = await buscarSimulaPendente(supabase, empresa_id, telefone)
 
@@ -998,6 +1000,7 @@ export async function POST(request: NextRequest) {
         if (resposta !== null) {
           await enviarMensagemUazapi(telefone, resposta)
         }
+        return NextResponse.json({ ok: true })
       } else if (pendenteCustas) {
         const { processarRespostaCustas } = await import('@/lib/workflows/workflow-custas')
         const resposta = await processarRespostaCustas(texto.trim(), pendenteCustas, {
@@ -1010,6 +1013,7 @@ export async function POST(request: NextRequest) {
           telefone_operador: telefone,
         })
         await enviarMensagemUazapi(telefone, resposta)
+        return NextResponse.json({ ok: true })
       } else if (pendenteConsorcio) {
         const { processarRespostaConsorcio } = await import('@/lib/workflows/workflow-consorcio')
         const resposta = await processarRespostaConsorcio(texto.trim(), pendenteConsorcio, {
@@ -1022,7 +1026,23 @@ export async function POST(request: NextRequest) {
           telefone_operador: telefone,
         })
         await enviarMensagemUazapi(telefone, resposta)
-      } else if (isMidia && fileUrl) {
+        return NextResponse.json({ ok: true })
+      }
+    }
+
+    if (usuarioInterno && !conversaHumanoExistente) {
+      // Verifica resposta de follow-up (1/2/3) — nenhuma pendência interna
+      // ativa (checado acima), segue pro resto do fluxo de operador.
+      const { processarRespostaFollowup } = await import('@/lib/leads/followup')
+      const respostaFollowup = await processarRespostaFollowup(
+        texto.trim(), usuarioInterno.id, usuarioInterno.nome, empresa_id, supabase
+      )
+      if (respostaFollowup !== null) {
+        await enviarMensagemUazapi(telefone, respostaFollowup, instanciaToken)
+        return NextResponse.json({ ok: true })
+      }
+
+      if (isMidia && fileUrl) {
         // Mídia solta, sem pendência de simulação ativa: só persiste se houver uma sessão
         // *fonti inicio* aberta pra este telefone (fonti_marcas) — é o sinal explícito de
         // "documentos do cliente virão a seguir, feche depois com *cria cliente". Sem essa
