@@ -999,20 +999,25 @@ export async function processarComandoFonti(
 
     let vinculados = await tentarVincularDocumentos()
 
-    // Retry com backoff: documentos enviados logo antes do *fonti salva às vezes
-    // ainda não terminaram de ser processados (download + insert em `documentos`
-    // é assíncrono, um webhook por mensagem) — sob carga (vários comerciais
-    // enviando documentos ao mesmo tempo) isso demora mais que o esperado. Achado
-    // real na apresentação pra equipe comercial (2026-09-15): *salva "às vezes
-    // salvava, às vezes não", sem erro nenhum, mesmo comando, mesma sessão — só
-    // reentra aqui quando havia uma sessão *fonti inicio ativa (sinal de que
-    // documentos são esperados) e a primeira tentativa não achou nada.
-    if (vinculados === 0 && marcaAtSalva) {
-      for (const esperaMs of [1500, 3000]) {
-        await new Promise((r) => setTimeout(r, esperaMs))
-        vinculados = await tentarVincularDocumentos()
-        if (vinculados > 0) break
-      }
+    // Retry com backoff, incondicional (não só quando dá zero): documentos
+    // enviados logo antes do *fonti salva às vezes ainda não terminaram de ser
+    // processados (download + insert em `documentos` é assíncrono, um webhook
+    // por mensagem) — sob carga (vários comerciais enviando documentos ao
+    // mesmo tempo) isso demora mais que o esperado, e o atraso é variável: às
+    // vezes falta 1 de 3, às vezes faltam todos. Continua tentando enquanto
+    // CADA rodada ainda encontra documento novo (tentarVincularDocumentos só
+    // conta os ainda não vinculados); para assim que uma rodada não acha nada
+    // de novo — sinal de que já achou tudo que existia (ou que não tinha
+    // mesmo). Achado real na apresentação pra equipe comercial (2026-09-15):
+    // 1ª tentativa achou 1 de 3 documentos; outra, no mesmo fluxo, achou 0 de
+    // 3 mesmo com retry — porque a versão anterior deste fix só reentrava
+    // quando o resultado era exatamente zero E havia sessão *fonti inicio
+    // ativa (o que nem sempre é o caso).
+    for (const esperaMs of [1200, 1500, 2000, 3000]) {
+      await new Promise((r) => setTimeout(r, esperaMs))
+      const novos = await tentarVincularDocumentos()
+      vinculados += novos
+      if (novos === 0) break
     }
 
     if (marcaAtSalva) await limparMarca(supabase, empresa_id, telefoneConversaSalva)
