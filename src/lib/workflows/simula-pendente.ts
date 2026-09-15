@@ -5,6 +5,11 @@
  * Armazenamento: colunas simula_pendente + simula_pendente_expira na tabela
  * conversas, keyed por empresa_id + contato_telefone do operador.
  * TTL: 30 minutos.
+ *
+ * Leitura e escrita resolvem o id da conversa pelo mesmo caminho canônico
+ * (garantirConversaOperador) — ver comentário equivalente em
+ * consorcio-pendente.ts pro bug real que isso corrige (linha errada lida
+ * quando existem duas linhas de `conversas` pro mesmo telefone).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -28,12 +33,6 @@ export interface WorkflowPendente {
 
 const TTL_MS = 30 * 60 * 1000  // 30 minutos
 
-// ── Helpers internos ──────────────────────────────────────────────────────────
-
-function buildSufixoQuery(telefone: string) {
-  return telefone.replace(/\D/g, '').slice(-11)
-}
-
 // ── API pública ───────────────────────────────────────────────────────────────
 
 export async function salvarSimulaPendente(
@@ -54,15 +53,11 @@ export async function buscarSimulaPendente(
   empresa_id: string,
   telefone: string,
 ): Promise<WorkflowPendente | null> {
-  const sufixo = buildSufixoQuery(telefone)
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   const { data } = await supabase
     .from('conversas')
     .select('id, simula_pendente, simula_pendente_expira')
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
-    .order('updated_at', { ascending: false })
-    .limit(1)
+    .eq('id', conversaId)
     .maybeSingle()
 
   if (!data?.simula_pendente) return null
@@ -82,12 +77,10 @@ export async function limparSimulaPendente(
   empresa_id: string,
   telefone: string,
 ): Promise<void> {
-  const sufixo = buildSufixoQuery(telefone)
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
   await supabase.from('conversas')
     .update({ simula_pendente: null, simula_pendente_expira: null })
-    .eq('empresa_id', empresa_id)
-    .eq('canal', 'whatsapp')
-    .ilike('contato_telefone', `%${sufixo}`)
+    .eq('id', conversaId)
 }
 
 /**
