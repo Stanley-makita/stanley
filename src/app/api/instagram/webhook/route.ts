@@ -48,12 +48,20 @@ function assinaturaValida(rawBody: string, assinaturaHeader: string | null): boo
 async function buscarNomePerfil(senderId: string): Promise<string | null> {
   if (!INSTAGRAM_PAGE_ACCESS_TOKEN) return null
   try {
-    const url = `https://graph.facebook.com/v21.0/${senderId}?fields=name,username&access_token=${INSTAGRAM_PAGE_ACCESS_TOKEN}`
+    // App usa o produto "API do Instagram com login do Instagram" — API própria
+    // em graph.instagram.com, não graph.facebook.com (mesmo host usado no envio,
+    // ver enviarMensagemInstagram.ts). O token gerado nesse fluxo não é
+    // reconhecido em graph.facebook.com.
+    const url = `https://graph.instagram.com/v21.0/${senderId}?fields=name,username&access_token=${INSTAGRAM_PAGE_ACCESS_TOKEN}`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error('[instagram-webhook] Falha ao buscar perfil:', res.status, await res.text())
+      return null
+    }
     const data = (await res.json()) as { name?: string; username?: string }
     return data.name ?? data.username ?? null
-  } catch {
+  } catch (err) {
+    console.error('[instagram-webhook] Erro ao buscar perfil:', err)
     return null
   }
 }
