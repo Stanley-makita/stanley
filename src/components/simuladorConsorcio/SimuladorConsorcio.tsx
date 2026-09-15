@@ -26,6 +26,8 @@ function parseInt10(v: string): number {
 function inputParaForm(input: InputConsorcio): FormStateConsorcio {
   const pct = (v: number) => (v * 100).toString()
   return {
+    tipoBem: input.tipoBem,
+    indexadorFixo: input.indexadorFixo,
     valorDisponivelLiquido: String(input.valorDisponivelLiquido || ''),
     valorBem: String(input.valorBem || ''),
     valorCarta: String(input.valorCarta || ''),
@@ -91,6 +93,8 @@ export function SimuladorConsorcio({
     if (form.aluguelAtivo && (form.valorAluguelSaidaMensal === '' || form.valorAluguelEntradaMensal === '')) return null
 
     const input: InputConsorcio = {
+      tipoBem: form.tipoBem,
+      indexadorFixo: form.indexadorFixo,
       valorDisponivelLiquido: parseMoeda(form.valorDisponivelLiquido),
       valorBem: parseMoeda(form.valorBem),
       valorCarta: parseMoeda(form.valorCarta),

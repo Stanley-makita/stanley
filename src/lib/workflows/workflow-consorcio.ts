@@ -2,8 +2,9 @@
  * Workflow de Consórcio — acionado por *consorcio / *fonti consorcio.
  *
  * Q&A fixo e determinístico (mesmo padrão do *custas, ver workflow-custas.ts)
- * — 8 perguntas, duas delas (valor da carta, % da parcela reduzida) com
- * sugestão editável. Ao final, calcula (mesmo motor puro da tela/PDF,
+ * — 10 perguntas, duas delas (valor da carta, % da parcela reduzida) com
+ * sugestão editável e duas delas (tipo de bem, indexador) de escolha numérica
+ * (1/2). Ao final, calcula (mesmo motor puro da tela/PDF,
  * src/lib/simuladorConsorcio/engine.ts) e envia as duas versões da Versão
  * Proposta (Detalhada + Resumida) via WhatsApp. Nenhuma regra de negócio
  * vive aqui, só orquestração do canal.
@@ -19,7 +20,7 @@ import {
   type ConsorcioPendente, type PassoConsorcio,
 } from './consorcio-pendente'
 import { parseValorReais } from '@/lib/bot/custas-parsers'
-import { parseInteiro, parsePercentual, parseComSugestao } from '@/lib/bot/consorcio-parsers'
+import { parseInteiro, parsePercentual, parseComSugestao, parseIndexadorFixo, parseTipoBem } from '@/lib/bot/consorcio-parsers'
 
 export interface WorkflowConsorcioContexto {
   empresa_id: string
@@ -57,6 +58,8 @@ const DICA_SAIR = '_Digite *sair* para cancelar e recomeçar._'
 function perguntaDoPasso(passo: PassoConsorcio, dados: Partial<InputConsorcio>): string {
   const pergunta = (() => {
     switch (passo) {
+      case 'tipo_bem':
+        return 'O consórcio é para:\n*1* — Imóvel\n*2* — Auto'
       case 'valor_bem':
         return 'Qual o *valor do bem*? (R$)'
       case 'valor_carta': {
@@ -71,6 +74,8 @@ function perguntaDoPasso(passo: PassoConsorcio, dados: Partial<InputConsorcio>):
         return 'Qual a *Taxa de Adm*? (%)'
       case 'indice_correcao':
         return 'Qual o *Índice de correção* anual? (%)'
+      case 'indexador_fixo':
+        return 'Indexador:\n*1* — Fixo\n*2* — Variável'
       case 'parcela_reduzida':
         return `Qual o *% da parcela reduzida*?\n💡 Sugestão: ${PCT(SUGESTAO_PARCELA_REDUZIDA)}\nResponda *sim* pra aceitar ou informe outro valor.`
       case 'fundo_reserva':
@@ -81,9 +86,9 @@ function perguntaDoPasso(passo: PassoConsorcio, dados: Partial<InputConsorcio>):
 }
 
 export async function iniciarFluxoConsorcio(ctx: WorkflowConsorcioContexto): Promise<string> {
-  const pendente: ConsorcioPendente = { passo: 'valor_bem', dados: {} }
+  const pendente: ConsorcioPendente = { passo: 'tipo_bem', dados: {} }
   await salvarConsorcioPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador, pendente)
-  return `🏠 *Simulador de Consórcio*\n\n${perguntaDoPasso('valor_bem', {})}`
+  return `🏠 *Simulador de Consórcio*\n\n${perguntaDoPasso('tipo_bem', {})}`
 }
 
 async function avancarPara(
@@ -109,6 +114,8 @@ async function finalizarSimulacao(
   ctx: WorkflowConsorcioContexto,
 ): Promise<string> {
   const input: InputConsorcio = {
+    tipoBem: dados.tipoBem!,
+    indexadorFixo: dados.indexadorFixo!,
     valorDisponivelLiquido: DEFAULT_VALOR_DISPONIVEL_LIQUIDO,
     valorBem: dados.valorBem!,
     valorCarta: dados.valorCarta!,
@@ -193,6 +200,13 @@ export async function processarRespostaConsorcio(
   }
 
   switch (pendente.passo) {
+    case 'tipo_bem': {
+      const v = parseTipoBem(texto)
+      if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi — responda *1* (Imóvel) ou *2* (Auto).')
+      dados.tipoBem = v
+      return avancarPara('valor_bem', dados, ctx)
+    }
+
     case 'valor_bem': {
       const v = parseValorReais(texto)
       if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
@@ -233,6 +247,13 @@ export async function processarRespostaConsorcio(
       const v = parsePercentual(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi o percentual.')
       dados.indiceCorrecaoAnual = v
+      return avancarPara('indexador_fixo', dados, ctx)
+    }
+
+    case 'indexador_fixo': {
+      const v = parseIndexadorFixo(texto)
+      if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi — responda *1* (Fixo) ou *2* (Variável).')
+      dados.indexadorFixo = v
       return avancarPara('parcela_reduzida', dados, ctx)
     }
 

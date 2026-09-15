@@ -2,6 +2,10 @@
 // ver squads/credifon-crm/Modelo simulador consorcio/Modelo Simulador Consorcio itau.xlsx
 
 export interface InputConsorcio {
+  /** Determina o título da Versão Proposta ("... de Imóvel"/"... de Auto"). */
+  tipoBem: 'imovel' | 'auto'
+  /** Rótulo do Índice de Correção na Versão Proposta ("Fixo"/"Variável") — não afeta o cálculo. */
+  indexadorFixo: boolean
   valorDisponivelLiquido: number
   valorBem: number
   valorCarta: number

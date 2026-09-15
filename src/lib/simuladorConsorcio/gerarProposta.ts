@@ -178,7 +178,7 @@ function itensLance(resultado: ResultadoConsorcio): [string, string][] {
   const { input, resumo } = resultado
   return [
     ['Taxa adm', PCT(input.taxaAdmPercentual)],
-    ['Índice Correção', `${PCT(input.indiceCorrecaoAnual)} Fixo`],
+    ['Índice Correção', `${PCT(input.indiceCorrecaoAnual)} ${input.indexadorFixo ? 'Fixo' : 'Variável'}`],
     ['Lance Total', BRL.format(resumo.valorDoLance)],
     ['Lance Embutido', BRL.format(resumo.lanceEmbutido)],
     ['Lance próprio', BRL.format(resumo.lanceProprio)],

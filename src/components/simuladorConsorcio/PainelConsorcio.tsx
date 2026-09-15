@@ -11,6 +11,8 @@ import { Home, Landmark } from 'lucide-react'
 // no Patrimônio à vista / verde claro no Patrimônio consórcio).
 
 export interface FormStateConsorcio {
+  tipoBem: 'imovel' | 'auto'
+  indexadorFixo: boolean
   valorDisponivelLiquido: string
   valorBem: string
   valorCarta: string
@@ -31,6 +33,10 @@ export interface FormStateConsorcio {
 }
 
 export const FORM_CONSORCIO_VAZIO: FormStateConsorcio = {
+  tipoBem: 'imovel',
+  // Mantém o comportamento de sempre ("Fixo" impresso na proposta) como
+  // default — usuário decide explicitamente se quer marcar como variável.
+  indexadorFixo: true,
   valorDisponivelLiquido: '',
   valorBem: '',
   valorCarta: '',
@@ -130,6 +136,31 @@ function CampoInt({ value, onChange }: { value: string; onChange: (v: string) =>
       placeholder="0"
       className={cn(inputBaseClass(), 'w-16')}
     />
+  )
+}
+
+function ToggleTipoBem({ value, onChange }: { value: 'imovel' | 'auto'; onChange: (v: 'imovel' | 'auto') => void }) {
+  const opcoes: Array<{ v: 'imovel' | 'auto'; label: string }> = [
+    { v: 'imovel', label: 'Imóvel' },
+    { v: 'auto', label: 'Auto' },
+  ]
+  return (
+    <div className="flex rounded-md overflow-hidden border border-gray-300">
+      {opcoes.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={cn(
+            'px-2.5 py-0.5 text-xs font-semibold transition-colors',
+            value === o.v ? 'text-white' : 'bg-white text-gray-400 hover:text-gray-600',
+          )}
+          style={value === o.v ? { backgroundColor: COR_VERDE } : undefined}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -236,6 +267,9 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
 
         {/* Bloco G/I */}
         <BlocoVerde>
+          <LinhaCampo label="Tipo de bem">
+            <ToggleTipoBem value={form.tipoBem} onChange={(v) => set('tipoBem', v)} />
+          </LinhaCampo>
           <LinhaCampo label="Valor disponível líquido"><CampoMoeda value={form.valorDisponivelLiquido} onChange={(v) => set('valorDisponivelLiquido', v)} /></LinhaCampo>
           <LinhaCampo label="Valor do bem"><CampoMoeda value={form.valorBem} onChange={(v) => set('valorBem', v)} /></LinhaCampo>
           <LinhaCampo label="Valor da carta"><CampoMoeda value={form.valorCarta} onChange={(v) => set('valorCarta', v)} /></LinhaCampo>
@@ -255,6 +289,9 @@ export function PainelConsorcio({ form, onChange, resultado }: Props) {
           <LinhaCampo label="Prazo em meses"><CampoInt value={form.prazoMeses} onChange={(v) => set('prazoMeses', v)} /></LinhaCampo>
           <LinhaCampo label="Tx Adm"><CampoPercent value={form.taxaAdmPercentual} onChange={(v) => set('taxaAdmPercentual', v)} /></LinhaCampo>
           <LinhaCampo label="Índice de correção (a.a.)"><CampoPercent value={form.indiceCorrecaoAnual} onChange={(v) => set('indiceCorrecaoAnual', v)} /></LinhaCampo>
+          <LinhaCampo label="Indexador fixo">
+            <Switch checked={form.indexadorFixo} onCheckedChange={(v) => set('indexadorFixo', v)} />
+          </LinhaCampo>
           <LinhaCampo label="Valorização do bem (a.a.)"><CampoPercent value={form.valorizacaoBemAnual} onChange={(v) => set('valorizacaoBemAnual', v)} /></LinhaCampo>
           <LinhaCampo label="Valorização do bem (a.m)"><ValorComputado>{form.valorizacaoBemAnual !== '' ? PCT(valorizacaoBemMensalLocal) : dash}</ValorComputado></LinhaCampo>
           <LinhaCampo label="% da parcela reduzida"><CampoPercent value={form.percentualParcelaReduzida} onChange={(v) => set('percentualParcelaReduzida', v)} /></LinhaCampo>

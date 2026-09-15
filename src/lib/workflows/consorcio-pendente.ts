@@ -22,12 +22,14 @@ import type { InputConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
 
 export type PassoConsorcio =
+  | 'tipo_bem'              // primeiro passo — Imóvel ou Auto
   | 'valor_bem'
   | 'valor_carta'
   | 'mes_contemplacao'
   | 'prazo_meses'
   | 'taxa_adm'
   | 'indice_correcao'
+  | 'indexador_fixo'        // logo após índice de correção — fixo ou variável
   | 'parcela_reduzida'
   | 'fundo_reserva'         // último passo — gatilho do cálculo
 

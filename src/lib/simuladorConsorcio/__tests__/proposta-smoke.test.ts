@@ -4,6 +4,8 @@ import { gerarPropostaConsorcioBuffer } from '../gerarPropostaBuffer'
 import type { InputConsorcio } from '../tipos'
 
 const input: InputConsorcio = {
+  tipoBem: 'auto',
+  indexadorFixo: false,
   valorDisponivelLiquido: 1000000,
   valorBem: 900000,
   valorCarta: 900000,

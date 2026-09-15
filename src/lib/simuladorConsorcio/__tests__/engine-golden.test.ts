@@ -6,6 +6,8 @@ import type { InputConsorcio } from '../tipos'
 // vista" (Itaú Consórcio) via openpyxl — prova de que o port em TS bate com
 // o modelo original célula a célula.
 const inputOuro: InputConsorcio = {
+  tipoBem: 'imovel',
+  indexadorFixo: true,
   valorDisponivelLiquido: 1000000,
   valorBem: 900000,
   valorCarta: 900000,

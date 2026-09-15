@@ -140,11 +140,15 @@ function itensLance(resultado: ResultadoConsorcio): [string, string][] {
   const { input, resumo } = resultado
   return [
     ['Taxa adm', PCT(input.taxaAdmPercentual)],
-    ['Indice Correcao', `${PCT(input.indiceCorrecaoAnual)} Fixo`],
+    ['Indice Correcao', `${PCT(input.indiceCorrecaoAnual)} ${input.indexadorFixo ? 'Fixo' : 'Variavel'}`],
     ['Lance Total', BRL.format(resumo.valorDoLance)],
     ['Lance Embutido', BRL.format(resumo.lanceEmbutido)],
     ['Lance proprio', BRL.format(resumo.lanceProprio)],
   ]
+}
+
+function labelTipoBem(tipoBem: ResultadoConsorcio['input']['tipoBem']): string {
+  return tipoBem === 'auto' ? 'Auto' : 'Imovel'
 }
 
 const INFO_IMPORTANTES = [
@@ -194,7 +198,7 @@ function desenharDetalhada(doc: Doc, resultado: ResultadoConsorcio) {
   const usableW = pageW - mL - mR
   let y = mTop
 
-  y = desenharCabecalho(doc, mL, y, usableW, 'PROPOSTA DE CONSORCIO', 'CONSORCIO ITAU')
+  y = desenharCabecalho(doc, mL, y, usableW, `PROPOSTA DE CONSORCIO - ${labelTipoBem(resultado.input.tipoBem).toUpperCase()}`, 'CONSORCIO ITAU')
 
   const colW = usableW / 3 - 2
   const h1 = desenharCaixaItens(doc, mL, y, colW, itensPrincipais(resultado, true))
@@ -274,7 +278,7 @@ function desenharResumida(doc: Doc, resultado: ResultadoConsorcio) {
   const usableW = pageW - mL - mR
   let y = mTop
 
-  y = desenharCabecalho(doc, mL, y, usableW, 'Proposta de Consorcio de Imovel - Itau', 'Fontinhas Assessoria - Representante Autorizado')
+  y = desenharCabecalho(doc, mL, y, usableW, `Proposta de Consorcio de ${labelTipoBem(resultado.input.tipoBem)} - Itau`, 'Fontinhas Assessoria - Representante Autorizado')
 
   if (resultado.input.nomeCliente) {
     doc.setFontSize(9); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
