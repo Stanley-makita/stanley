@@ -45,6 +45,8 @@ interface RespondendoA {
 interface PainelComposicaoProps {
   conversaId: string
   telefone: string
+  /** Canal da conversa (whatsapp/site/instagram/...) — decide a rota de envio. Default: whatsapp. */
+  canal?: string
   disabled?: boolean
   onEnviado?: () => void
   respondendoA?: RespondendoA | null
@@ -60,8 +62,11 @@ function detectarTipo(mime: string): TipoMidia {
   return 'document'
 }
 
-export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, respondendoA, onCancelarResposta }: PainelComposicaoProps) {
+export function PainelComposicao({ conversaId, telefone, canal, disabled, onEnviado, respondendoA, onCancelarResposta }: PainelComposicaoProps) {
   const { usuario } = useAuth()
+  // Instagram: só texto por enquanto (mesma limitação do webhook de recebimento,
+  // que só trata message.text) — sem anexo, áudio ou citação de resposta.
+  const somenteTexto = canal === 'instagram'
   const [texto, setTexto] = useState('')
   const [anexo, setAnexo] = useState<AnexoPendente | null>(null)
   const [subindoAnexo, setSubindoAnexo] = useState(false)
@@ -109,6 +114,22 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token ?? ''
+
+      if (somenteTexto) {
+        const res = await fetch('/api/instagram/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ conversa_id: conversaId, destinatario_id: telefone, texto: texto.trim() }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error ?? 'Erro ao enviar')
+        }
+        setTexto('')
+        textareaRef.current?.focus()
+        onEnviado?.()
+        return
+      }
 
       // URL assinada (7 dias) — a Uazapi busca o arquivo direto por essa URL
       // (o conteúdo nunca passa pela nossa API), e a mesma URL fica guardada
@@ -351,21 +372,25 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
             <Smile className="w-4.5 h-4.5" />
           </button>
 
-          {/* Anexar arquivo */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
-            title="Anexar imagem, vídeo ou documento"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*,audio/*,.pdf,.docx,.xlsx,.zip"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) processarArquivo(f); e.target.value = '' }}
-          />
+          {/* Anexar arquivo — Instagram ainda não suporta mídia (mesma limitação do recebimento) */}
+          {!somenteTexto && (
+            <>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+                title="Anexar imagem, vídeo ou documento"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*,audio/*,.pdf,.docx,.xlsx,.zip"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) processarArquivo(f); e.target.value = '' }}
+              />
+            </>
+          )}
 
           {/* Textarea */}
           <div className="flex-1 relative">
@@ -388,7 +413,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
           </div>
 
           {/* Gravar áudio ou Enviar */}
-          {!texto.trim() && !anexo ? (
+          {!texto.trim() && !anexo && !somenteTexto ? (
             <button
               onMouseDown={iniciarGravacao}
               onTouchStart={(e) => { e.preventDefault(); iniciarGravacao() }}
@@ -402,7 +427,7 @@ export function PainelComposicao({ conversaId, telefone, disabled, onEnviado, re
           ) : (
             <button
               onClick={() => enviar()}
-              disabled={enviando || subindoAnexo}
+              disabled={enviando || subindoAnexo || (somenteTexto && !texto.trim())}
               className="w-9 h-9 rounded-full bg-fonti-primary flex items-center justify-center text-white hover:bg-fonti-primary-hover disabled:opacity-50 transition-colors shrink-0"
               title="Enviar (Enter)"
             >
