@@ -51,7 +51,7 @@ async function carregarOverridesBancos(
 ): Promise<Partial<Record<string, BancoSimOverrides>>> {
   const { data } = await supabase
     .from('bancos')
-    .select('simulador_key, taxa_anual, ltv_maximo, seguro_mip, seguro_dfi, taxa_admin, indexador')
+    .select('simulador_key, taxa_anual, ltv_maximo, seguro_mip, seguro_dfi, taxa_admin, indexador, taxa_anual_comercial, mip_comercial, dfi_comercial')
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
 
@@ -67,6 +67,15 @@ async function carregarOverridesBancos(
       dfiRate:    b.seguro_dfi  != null ? b.seguro_dfi  / 100 : undefined,
       taxaAdmin:  b.taxa_admin  != null ? b.taxa_admin        : undefined,
       indexador:  b.indexador   ?? undefined,
+    }
+    // Bradesco Comercial PF: chave separada do residencial (mesmo banco, taxa/MIP/DFI
+    // diferentes) — ver simularBradescoComercial em engine.ts.
+    if (b.simulador_key === 'bradesco') {
+      map['bradesco_comercial'] = {
+        taxaAnual: b.taxa_anual_comercial != null ? b.taxa_anual_comercial / 100 : undefined,
+        mipRate:   b.mip_comercial        != null ? b.mip_comercial        / 100 : undefined,
+        dfiRate:   b.dfi_comercial        != null ? b.dfi_comercial        / 100 : undefined,
+      }
     }
   }
   return map
