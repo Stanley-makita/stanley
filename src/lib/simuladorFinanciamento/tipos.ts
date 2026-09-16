@@ -86,6 +86,9 @@ export interface ResultadoBanco {
   bancoNome: string
   corBanco: string
   programa: string
+  // Indexador de correção do saldo devedor — só informativo (destaque no PDF/WhatsApp
+  // pra não confundir bancos com indexadores diferentes). Vem de SimulationCriteria.
+  indexador?: 'TR' | 'IPCA'
   valorFinanciado: number
   maxFinanciavel30: number
   parcelas: number

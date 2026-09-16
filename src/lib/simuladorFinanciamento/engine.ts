@@ -506,34 +506,36 @@ export function simularComCriterios(
   // ── Verificações de elegibilidade — mesma ordem e mensagens de simularBancoComTaxa ──
   if (input.tipoAmortizacao === 'PRICE' && !suportaPrice) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      'Não oferece financiamento na modalidade PRICE')
+      'Não oferece financiamento na modalidade PRICE', criteria.indexador)
   }
   if (criteria.idadeMaximaAbsoluta != null && idadeAnos >= criteria.idadeMaximaAbsoluta) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      `Idade máxima de ${criteria.idadeMaximaAbsoluta} anos atingida`)
+      `Idade máxima de ${criteria.idadeMaximaAbsoluta} anos atingida`, criteria.indexador)
   }
   if (input.tipoAmortizacao === 'SAC' && criteria.idadeMaximaAbsolutaSac != null && idadeAnos > criteria.idadeMaximaAbsolutaSac) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      `Idade do proponente supera o limite do programa para SAC (máx. ${criteria.idadeMaximaAbsolutaSac} anos)`)
+      `Idade do proponente supera o limite do programa para SAC (máx. ${criteria.idadeMaximaAbsolutaSac} anos)`, criteria.indexador)
   }
   if (prazo < 12) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      'Prazo insuficiente — mutuário muito próximo dos 80 anos')
+      'Prazo insuficiente — mutuário muito próximo dos 80 anos', criteria.indexador)
   }
   if (valorFinanciado <= 0) {
     return inelegivel(cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      'Valor de entrada maior ou igual ao valor do imóvel')
+      'Valor de entrada maior ou igual ao valor do imóvel', criteria.indexador)
   }
   if (valorFinanciado > maxLtvValue) {
     return inelegivel(
       cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      `Financiamento (${fmtMoeda(valorFinanciado)}) excede ${Math.round(maxLtv * 100)}% do imóvel`
+      `Financiamento (${fmtMoeda(valorFinanciado)}) excede ${Math.round(maxLtv * 100)}% do imóvel`,
+      criteria.indexador,
     )
   }
   if (criteria.maxValorImovel > 0 && input.valorImovel > criteria.maxValorImovel) {
     return inelegivel(
       cfg, valorFinanciado, input, taxaAnual, criteria.programa, prazo, resultadoId,
-      `Imóvel acima do teto ${cfg.nome}: ${fmtMoeda(criteria.maxValorImovel)}`
+      `Imóvel acima do teto ${cfg.nome}: ${fmtMoeda(criteria.maxValorImovel)}`,
+      criteria.indexador,
     )
   }
 
@@ -582,7 +584,7 @@ export function simularComCriterios(
     && calc.primeiraParcela > input.rendaMensal * comprometimentoMax
 
   return {
-    ...baseResult(cfg, valorFinanciadoEfetivo, input, criteria.programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId),
+    ...baseResult(cfg, valorFinanciadoEfetivo, input, criteria.programa, taxaAnual, taxaMensal, prazo, maxFinanciavel30, calc, resultadoId, criteria.indexador),
     elegivel: true,
     avisoRenda,
   }
@@ -1060,6 +1062,7 @@ function baseResult(
   maxFinanciavel30: number,
   calc: ResultadoCalculo,
   resultadoId: string,
+  indexador?: 'TR' | 'IPCA',
 ): ResultadoBanco {
   return {
     resultadoId,
@@ -1067,6 +1070,7 @@ function baseResult(
     bancoNome: cfg.nome,
     corBanco: cfg.cor,
     programa,
+    indexador,
     valorFinanciado,
     maxFinanciavel30,
     parcelas: prazo,
@@ -1090,7 +1094,8 @@ function inelegivel(
   programa: string,
   prazo: number,
   resultadoId: string,
-  motivoInelegivel: string
+  motivoInelegivel: string,
+  indexador?: 'TR' | 'IPCA',
 ): ResultadoBanco {
   return {
     resultadoId,
@@ -1098,6 +1103,7 @@ function inelegivel(
     bancoNome: cfg.nome,
     corBanco: cfg.cor,
     programa,
+    indexador,
     valorFinanciado,
     maxFinanciavel30: 0,
     parcelas: prazo,

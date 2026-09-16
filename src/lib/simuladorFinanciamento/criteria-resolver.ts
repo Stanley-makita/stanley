@@ -188,6 +188,7 @@ export function resolverCriterios(
   return {
     bancoId,
     programa: cfg.programa,
+    indexador: overrides?.indexador ?? cfg.indexador,
     taxaAnualBase: overrides?.taxaAnual ?? cfg.taxaAnualBase,
     taxaAnualCorrentista: overrides?.taxaAnual ?? cfg.taxaAnualCorrentista,
     // Override do banco de dados, quando presente, vale pros dois sistemas de amortização

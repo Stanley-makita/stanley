@@ -68,6 +68,7 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
         mipRate:           b.seguro_mip   != null ? b.seguro_mip / 100   : undefined,
         dfiRate:           b.seguro_dfi   != null ? b.seguro_dfi / 100   : undefined,
         taxaAdmin:         b.taxa_admin   != null ? b.taxa_admin          : undefined,
+        indexador:         b.indexador    ?? undefined,
       }
     }
     return map

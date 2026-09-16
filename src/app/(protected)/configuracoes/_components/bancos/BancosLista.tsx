@@ -33,6 +33,7 @@ type FormState = {
   comprometimento: string
   seguro_mip: string
   seguro_dfi: string
+  indexador: string
   ativo: boolean
 }
 
@@ -42,6 +43,7 @@ const FORM_VAZIO: FormState = {
   prazo_maximo: '420', ltv_maximo: '80',
   idade_max_quit: '80', comprometimento: '30',
   seguro_mip: '', seguro_dfi: '',
+  indexador: '',
   ativo: true,
 }
 
@@ -58,6 +60,7 @@ function bancoParaForm(b: Banco): FormState {
     comprometimento: (b as any).comprometimento != null ? String((b as any).comprometimento) : '30',
     seguro_mip:      (b as any).seguro_mip != null ? String((b as any).seguro_mip) : '',
     seguro_dfi:      (b as any).seguro_dfi != null ? String((b as any).seguro_dfi) : '',
+    indexador:       (b as any).indexador ?? '',
     ativo:           b.ativo ?? true,
   }
 }
@@ -75,6 +78,7 @@ function formParaPayload(f: FormState) {
     comprometimento: f.comprometimento !== '' ? parseFloat(f.comprometimento) : 30,
     seguro_mip:      f.seguro_mip !== '' ? parseFloat(f.seguro_mip) : null,
     seguro_dfi:      f.seguro_dfi !== '' ? parseFloat(f.seguro_dfi) : null,
+    indexador:       f.indexador || null,
     ativo:           f.ativo,
   }
 }
@@ -152,6 +156,7 @@ export function BancosLista() {
                 <tr>
                   <th className="px-4 py-2.5 text-left font-medium">Banco</th>
                   <th className="px-3 py-2.5 text-right font-medium">Taxa Anual</th>
+                  <th className="px-3 py-2.5 text-center font-medium">Indexador</th>
                   <th className="px-3 py-2.5 text-right font-medium">Prazo Máx.</th>
                   <th className="px-3 py-2.5 text-right font-medium">LTV Máx.</th>
                   <th className="px-3 py-2.5 text-center font-medium">Status</th>
@@ -177,6 +182,9 @@ export function BancosLista() {
                     </td>
                     <td className="px-3 py-3 text-right text-gray-600">
                       {banco.taxa_anual != null ? `${Number(banco.taxa_anual).toFixed(2)}%` : '—'}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-600">
+                      {banco.indexador ?? '—'}
                     </td>
                     <td className="px-3 py-3 text-right text-gray-600">
                       {banco.prazo_maximo != null ? `${banco.prazo_maximo} meses` : '—'}
@@ -283,6 +291,22 @@ export function BancosLista() {
                       onChange={e => set('prazo_maximo', e.target.value)}
                       className="h-8 text-sm"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Indexador</Label>
+                    <select
+                      value={form.indexador}
+                      onChange={e => set('indexador', e.target.value)}
+                      className="w-full h-8 text-sm border border-gray-200 rounded-md px-2 bg-white"
+                    >
+                      <option value="">— usar padrão do sistema —</option>
+                      <option value="TR">TR</option>
+                      <option value="IPCA">IPCA</option>
+                    </select>
+                    <p className="text-[10px] text-gray-400">Só informativo — destacado na simulação pro cliente não confundir bancos.</p>
                   </div>
                 </div>
 

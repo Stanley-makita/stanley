@@ -8,6 +8,10 @@ export interface BancoConfig {
   taxaAnualBase: number        // % a.a. sem relacionamento bancário
   taxaAnualCorrentista: number // % a.a. com relacionamento/conta ativa
   programa: string
+  // Indexador de correção do saldo devedor — só informativo, exibido no PDF/WhatsApp
+  // (não afeta o cálculo). Configurável em Configurações > Bancos (sobrescreve este
+  // default) — ver BancoSimOverrides.indexador.
+  indexador?: 'TR' | 'IPCA'
   maxLtv: number               // LTV máximo SAC (% do valor do imóvel)
   maxLtvCorrentista: number    // LTV com relacionamento (alguns bancos diferem)
   maxLtvPrice?: number         // LTV máximo PRICE — Caixa = 70% (doc seção 3.1), Bradesco = 80%
@@ -37,6 +41,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     // não modelado como campo de input separado (hoje o flag `correntista` é único).
     taxaAnualCorrentista: 0.1129,
     programa: 'SBPE',
+    indexador: 'TR',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
     maxLtvPrice: 0.70,            // PRICE: cota máxima 70% (doc seção 3.1)
@@ -54,6 +59,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     taxaAnualBase:        0.1190, // 11,90% a.a. (mínimo praticado jun/2026 — fonte: simulador Itaú + site oficial)
     taxaAnualCorrentista: 0.1190, // taxa varia por rating/CPF (11,90%–13,99%), não por correntista
     programa: 'SBPE',
+    indexador: 'TR',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
     // Desativado 2026-08-08: confirmado com o usuário que o Itaú não oferece
@@ -89,6 +95,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     comprometimentoMaxPrice: 0.15,
     suportaPrice: true,
     programa: 'SBPE',
+    indexador: 'TR',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
     maxValorImovel: 0,
@@ -106,6 +113,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     taxaAnualBase:        0.1169, // 11,69% a.a. — piso assumido (taxa real varia por CPF/rating)
     taxaAnualCorrentista: 0.1169,
     programa: 'SBPE',
+    indexador: 'TR',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
     maxValorImovel: 0,
@@ -136,6 +144,7 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     maxLtvPrice: 0.80,
     suportaPrice: true,
     programa: 'SBPE',
+    indexador: 'TR',
     maxLtv: 0.80,
     maxLtvCorrentista: 0.80,
     maxValorImovel: 5_000_000,
@@ -159,6 +168,9 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     taxaAnualBase:        0.0950, // 9,50% a.a. SFH — confirmado real, sem necessidade de atualização
     taxaAnualCorrentista: 0.0950, // exige conta Inter para contratar
     programa: 'SBPE',
+    // Único IPCA entre os bancos padrão (pedido do usuário, 2026-09-16) — confirmar
+    // se Inter migrar pra TR ou outro banco passar a oferecer IPCA.
+    indexador: 'IPCA',
     maxLtv: 0.80,                 // 1.340.000 / 1.690.000 = 79,3% → confirmado simulador
     maxLtvCorrentista: 0.80,
     maxValorImovel: 0,

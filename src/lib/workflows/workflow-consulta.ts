@@ -51,7 +51,7 @@ async function carregarOverridesBancos(
 ): Promise<Partial<Record<string, BancoSimOverrides>>> {
   const { data } = await supabase
     .from('bancos')
-    .select('simulador_key, taxa_anual, ltv_maximo, seguro_mip, seguro_dfi, taxa_admin')
+    .select('simulador_key, taxa_anual, ltv_maximo, seguro_mip, seguro_dfi, taxa_admin, indexador')
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
 
@@ -66,6 +66,7 @@ async function carregarOverridesBancos(
       mipRate:    b.seguro_mip  != null ? b.seguro_mip  / 100 : undefined,
       dfiRate:    b.seguro_dfi  != null ? b.seguro_dfi  / 100 : undefined,
       taxaAdmin:  b.taxa_admin  != null ? b.taxa_admin        : undefined,
+      indexador:  b.indexador   ?? undefined,
     }
   }
   return map
