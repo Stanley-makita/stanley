@@ -75,6 +75,15 @@ function drawSectionTitle(doc: Doc, title: string, y: number, mL: number, usable
   return y + h + 1
 }
 
+// Rótulo leve (sem barra preenchida) usado pra subdividir "Detalhes por Banco"
+// por tipo de amortização — uma barra cheia por subgrupo ficaria repetitivo
+// logo abaixo da barra do título principal da seção.
+function drawSubLabel(doc: Doc, title: string, y: number, mL: number): number {
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); setTxt(doc, COR_VERDE)
+  doc.text(title, mL, y + 4)
+  return y + 7
+}
+
 export interface PDFBufferOptions {
   clienteNome?: string
   responsavelNome?: string
@@ -332,13 +341,19 @@ export async function gerarPDFFinanciamentoBuffer(
   y = drawSectionTitle(doc, 'Comparativo de Bancos Elegíveis', y, mL, usableW)
 
   if (elegiveis.length > 0) {
-    const colBanco    = 30
-    const colPrograma = 42
-    const colParcela  = 26
-    const colUltima   = 24
-    const colParcelas = 16
-    const colTaxa     = 22
-    const colTotal    = usableW - colBanco - colPrograma - colParcela - colUltima - colParcelas - colTaxa
+    // Sem coluna "Total Pago" — pedido do usuário (2026-09-16): a soma total do
+    // financiamento assusta o cliente na apresentação da simulação, passa
+    // impressão de "caro" mesmo quando a parcela está dentro do orçamento.
+    // Larguras das colunas restantes escaladas pra preencher o espaço que
+    // sobrou (proporcional às larguras originais, sem coluna nova/vazia).
+    const somaColunasBase = 30 + 42 + 26 + 24 + 16 + 22
+    const escala      = usableW / somaColunasBase
+    const colBanco    = 30 * escala
+    const colPrograma = 42 * escala
+    const colParcela  = 26 * escala
+    const colUltima   = 24 * escala
+    const colParcelas = 16 * escala
+    const colTaxa     = usableW - colBanco - colPrograma - colParcela - colUltima - colParcelas
 
     const thH = 8
     setFill(doc, COR_VERDE)
@@ -351,8 +366,7 @@ export async function gerarPDFFinanciamentoBuffer(
     doc.text('1ª Parcela', cx + colParcela / 2,  y + thH / 2 + 2.5, { align: 'center' }); cx += colParcela
     doc.text('Última',     cx + colUltima / 2,   y + thH / 2 + 2.5, { align: 'center' }); cx += colUltima
     doc.text('Parcelas',   cx + colParcelas / 2, y + thH / 2 + 2.5, { align: 'center' }); cx += colParcelas
-    doc.text('Taxa a.a.',  cx + colTaxa / 2,     y + thH / 2 + 2.5, { align: 'center' }); cx += colTaxa
-    doc.text('Total Pago', cx + colTotal / 2,    y + thH / 2 + 2.5, { align: 'center' })
+    doc.text('Taxa a.a.',  cx + colTaxa / 2,     y + thH / 2 + 2.5, { align: 'center' })
     y += thH
 
     elegiveis.forEach((r, idx) => {
@@ -392,8 +406,7 @@ export async function gerarPDFFinanciamentoBuffer(
       doc.setFontSize(7); doc.setFont('helvetica', 'normal'); setTxt(doc, '#555555')
       doc.text(BRL.format(r.ultimaParcela),        cx + colUltima / 2,   midY, { align: 'center' }); cx += colUltima
       doc.text(`${r.parcelas}`,                    cx + colParcelas / 2, midY, { align: 'center' }); cx += colParcelas
-      doc.text(`${(r.taxaAnual * 100).toFixed(2)}%`, cx + colTaxa / 2,  midY, { align: 'center' }); cx += colTaxa
-      doc.text(BRL.format(r.totalPago),            cx + colTotal / 2,    midY, { align: 'center' })
+      doc.text(`${(r.taxaAnual * 100).toFixed(2)}%`, cx + colTaxa / 2,  midY, { align: 'center' })
 
       y += rH
     })
@@ -405,71 +418,99 @@ export async function gerarPDFFinanciamentoBuffer(
   }
 
   // ── SEÇÃO 3 — Detalhes por banco ──────────────────────────────────────────
+  // Card individual (Banco - Programa, métricas) — extraído em função porque agora
+  // é desenhado tanto em lista simples (1 banco/poucos cenários) quanto em subgrupos
+  // por amortização (múltiplos bancos, ver `agruparPorAmortizacao` abaixo). `lista`
+  // é o array de referência pra decidir esquerda/direita e fechar a linha — quando
+  // agrupado, cada subgrupo é sua própria lista (recomeça na coluna esquerda).
+  function desenharCardBanco(r: ResultadoBanco, idx: number, lista: ResultadoBanco[]) {
+    const cardH = 44
+    const col2W = usableW / 2
+    if (y + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
+
+    const isLeft = idx % 2 === 0
+    const x      = mL + (isLeft ? 0 : col2W)
+    const cardW  = col2W - 1
+
+    const [br, bg, bb] = hexToRgb(r.corBanco?.startsWith('#') ? r.corBanco : COR_VERDE)
+    doc.setFillColor(br, bg, bb)
+    doc.rect(x, y, cardW, 8, 'F')
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
+    // Comparação de Cenários: quando o grupo banco+programa tem mais de 1 resultado
+    // elegível (hoje só a Caixa, via SAC/PRICE), o título do card fica ambíguo sem o
+    // cenário — dois cards "Caixa Econômica Federal - SBPE" ficariam indistinguíveis.
+    const grupoTemMultiplosCenarios = elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1
+    const cenarioSufixo = grupoTemMultiplosCenarios ? ` (${r.tipoAmortizacao})` : ''
+    doc.text(pdf(`${r.bancoNome} - ${r.programa}${cenarioSufixo}`), x + 3, y + 5.5)
+
+    setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
+    doc.setLineWidth(0.2)
+    doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
+
+    const metricas: [string, string][] = [
+      ['1ª Parcela',     BRL.format(r.primeiraParcela)],
+      ['Última Parcela', BRL.format(r.ultimaParcela)],
+      ['Parcelas',       `${r.parcelas} meses`],
+      ['Amortização',    r.tipoAmortizacao],
+      ['Taxa mensal',    `${(r.taxaMensal * 100).toFixed(4)}%`],
+      ['Taxa anual',     `${(r.taxaAnual * 100).toFixed(2)}%`],
+      ['Total Juros',    BRL.format(r.totalJuros)],
+      ['Total Seguros',  BRL.format(r.totalSeguros)],
+      ['Vlr Financiado', BRL.format(r.valorFinanciado)],
+      ['Total Pago',     BRL.format(r.totalPago)],
+    ]
+
+    const metC1 = metricas.slice(0, 5)
+    const metC2 = metricas.slice(5)
+    const metW  = cardW / 2 - 3
+
+    metC1.forEach(([label, val], mi) => {
+      const my = y + 13 + mi * 5.5
+      doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+      doc.text(pdf(label), x + 3, my)
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
+      doc.text(pdf(val), x + metW - 2, my, { align: 'right' })
+    })
+    metC2.forEach(([label, val], mi) => {
+      const my = y + 13 + mi * 5.5
+      const mx = x + cardW / 2 + 2
+      doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
+      doc.text(pdf(label), mx, my)
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
+      doc.text(pdf(val), x + cardW - 3, my, { align: 'right' })
+    })
+
+    setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
+    doc.line(x + cardW / 2, y + 8, x + cardW / 2, y + cardH)
+
+    if (!isLeft || idx === lista.length - 1) y += cardH + 3
+  }
+
   if (elegiveis.length > 0) {
     y = drawSectionTitle(doc, 'Detalhes por Banco', y, mL, usableW)
-    const col2W = usableW / 2
 
-    elegiveis.forEach((r, idx) => {
-      const cardH = 44
-      if (y + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
+    // Simulação sem banco específico (pedido do usuário, 2026-09-16): quando o
+    // resultado traz bancos DIFERENTES elegíveis (não é só o mesmo banco em
+    // cenários SAC/PRICE), agrupa os cards por tipo de amortização (SAC, PRICE,
+    // IPCA — o que aparecer no resultado, detectado dinamicamente, nenhum tipo
+    // fixo no código) em vez de listar todos em sequência misturada. Com um só
+    // banco elegível, o agrupamento não ajuda em nada — mantém a lista simples.
+    const bancosDistintos = new Set(elegiveis.map((r) => r.bancoId))
+    const agruparPorAmortizacao = bancosDistintos.size > 1
 
-      const isLeft = idx % 2 === 0
-      const x      = mL + (isLeft ? 0 : col2W)
-      const cardW  = col2W - 1
-
-      const [br, bg, bb] = hexToRgb(r.corBanco?.startsWith('#') ? r.corBanco : COR_VERDE)
-      doc.setFillColor(br, bg, bb)
-      doc.rect(x, y, cardW, 8, 'F')
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-      // Comparação de Cenários: quando o grupo banco+programa tem mais de 1 resultado
-      // elegível (hoje só a Caixa, via SAC/PRICE), o título do card fica ambíguo sem o
-      // cenário — dois cards "Caixa Econômica Federal - SBPE" ficariam indistinguíveis.
-      const grupoTemMultiplosCenarios = elegiveis.filter((x) => x.bancoId === r.bancoId && x.programa === r.programa).length > 1
-      const cenarioSufixo = grupoTemMultiplosCenarios ? ` (${r.tipoAmortizacao})` : ''
-      doc.text(pdf(`${r.bancoNome} - ${r.programa}${cenarioSufixo}`), x + 3, y + 5.5)
-
-      setFill(doc, '#F8FAF8'); setDraw(doc, '#E0E0DC')
-      doc.setLineWidth(0.2)
-      doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
-
-      const metricas: [string, string][] = [
-        ['1ª Parcela',     BRL.format(r.primeiraParcela)],
-        ['Última Parcela', BRL.format(r.ultimaParcela)],
-        ['Parcelas',       `${r.parcelas} meses`],
-        ['Amortização',    r.tipoAmortizacao],
-        ['Taxa mensal',    `${(r.taxaMensal * 100).toFixed(4)}%`],
-        ['Taxa anual',     `${(r.taxaAnual * 100).toFixed(2)}%`],
-        ['Total Juros',    BRL.format(r.totalJuros)],
-        ['Total Seguros',  BRL.format(r.totalSeguros)],
-        ['Vlr Financiado', BRL.format(r.valorFinanciado)],
-        ['Total Pago',     BRL.format(r.totalPago)],
-      ]
-
-      const metC1 = metricas.slice(0, 5)
-      const metC2 = metricas.slice(5)
-      const metW  = cardW / 2 - 3
-
-      metC1.forEach(([label, val], mi) => {
-        const my = y + 13 + mi * 5.5
-        doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-        doc.text(pdf(label), x + 3, my)
-        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
-        doc.text(pdf(val), x + metW - 2, my, { align: 'right' })
+    if (agruparPorAmortizacao) {
+      const grupos = new Map<string, ResultadoBanco[]>()
+      for (const r of elegiveis) {
+        grupos.set(r.tipoAmortizacao, [...(grupos.get(r.tipoAmortizacao) ?? []), r])
+      }
+      Array.from(grupos.entries()).forEach(([tipoAmort, lista]) => {
+        if (y + 15 > pageH - mBot - 10) { doc.addPage(); y = mTop }
+        y = drawSubLabel(doc, `Amortização ${tipoAmort}`, y, mL)
+        lista.forEach((r, idx) => desenharCardBanco(r, idx, lista))
       })
-      metC2.forEach(([label, val], mi) => {
-        const my = y + 13 + mi * 5.5
-        const mx = x + cardW / 2 + 2
-        doc.setFontSize(6);   doc.setFont('helvetica', 'normal'); setTxt(doc, '#888888')
-        doc.text(pdf(label), mx, my)
-        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');   setTxt(doc, COR_VERDE)
-        doc.text(pdf(val), x + cardW - 3, my, { align: 'right' })
-      })
-
-      setDraw(doc, '#DDDDDD'); doc.setLineWidth(0.2)
-      doc.line(x + cardW / 2, y + 8, x + cardW / 2, y + cardH)
-
-      if (!isLeft || idx === elegiveis.length - 1) y += cardH + 3
-    })
+    } else {
+      elegiveis.forEach((r, idx) => desenharCardBanco(r, idx, elegiveis))
+    }
     y += 3
   }
 
