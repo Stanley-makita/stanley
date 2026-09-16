@@ -527,6 +527,17 @@ export const TODOS_BANCOS: BancoId[] = [
   'caixa', 'itau', 'bradesco', 'santander', 'bb', 'inter', 'daycoval',
 ]
 
+// TODOS_BANCOS sem os bancos cujo produto é CGI (hoje só Daycoval) — usado como
+// default quando o pedido de simulação não menciona banco nem CGI explicitamente.
+// CGI (Crédito com Garantia de Imóvel/Home Equity) não é financiamento pra
+// aquisição — usa um imóvel JÁ QUITADO como garantia, não financia a compra dele
+// — e tem simulador próprio (src/lib/simuladorCgi/), com seu próprio TODOS_BANCOS_CGI.
+// Pedido do usuário (2026-09-16): Daycoval CGI aparecendo por padrão numa
+// simulação de aquisição sem pedido de CGI confundia a comparação.
+export const BANCOS_AQUISICAO_DEFAULT: BancoId[] = TODOS_BANCOS.filter(
+  (id) => BANCOS_CONFIG[id].programa !== 'CGI',
+)
+
 /** Bancos que oferecem financiamento na modalidade PRICE */
 export const BANCOS_PRICE: BancoId[] = TODOS_BANCOS.filter(
   (id) => BANCOS_CONFIG[id].suportaPrice,

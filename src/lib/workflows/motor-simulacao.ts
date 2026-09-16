@@ -17,7 +17,7 @@ import {
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '@/lib/simuladorFinanciamento/tipos'
-import { TODOS_BANCOS, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS } from '@/lib/simuladorFinanciamento/constantes'
+import { BANCOS_AQUISICAO_DEFAULT, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS } from '@/lib/simuladorFinanciamento/constantes'
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -121,9 +121,12 @@ export function deveDispararSimulacao(
 // ── Resolução de bancos ────────────────────────────────────────────────────────
 
 export function resolverBancos(dados: DadosCaptacaoNormalizados): BancoId[] {
+  // Default (nenhum banco pedido, ou "todos os bancos" dito explicitamente) exclui
+  // bancos de produto CGI (hoje só Daycoval) — CGI não é financiamento de aquisição,
+  // só entra quando pedido explicitamente (ver BANCOS_AQUISICAO_DEFAULT).
   let bancosIds: BancoId[] =
     dados.todos_bancos || dados.bancos_ids.length === 0
-      ? (TODOS_BANCOS as BancoId[])
+      ? (BANCOS_AQUISICAO_DEFAULT as BancoId[])
       : (dados.bancos_ids as BancoId[])
 
   // PRICE sem banco específico → usar apenas bancos habilitados para PRICE. Não se aplica
