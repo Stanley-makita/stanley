@@ -87,14 +87,15 @@ describe('Bradesco Comercial PF', () => {
     expect(comOverride.primeiraParcela).toBeGreaterThan(semOverride.primeiraParcela)
   })
 
-  it('sem overrides de MIP/DFI comercial, usa a tabela residencial como proxy e avisa isso na observação', () => {
+  it('sem overrides comerciais (taxa/MIP/DFI), avisa que taxa e MIP/DFI usam a tabela residencial como proxy', () => {
     const r = simularBanco('bradesco', BASE_COMERCIAL)
-    expect(r.observacao).toMatch(/residencial do Bradesco/i)
+    expect(r.observacao).toMatch(/taxa comercial ainda não configurada/i)
+    expect(r.observacao).toMatch(/mip\/dfi.*residencial do bradesco/i)
   })
 
-  it('com overrides de MIP/DFI comercial, não exibe o aviso de proxy', () => {
-    const r = simularBanco('bradesco', BASE_COMERCIAL, { mipRate: 0.0002, dfiRate: 0.00007 })
-    expect(r.observacao ?? '').not.toMatch(/residencial do Bradesco/i)
+  it('com todos os overrides comerciais configurados, não exibe nenhum aviso de proxy', () => {
+    const r = simularBanco('bradesco', BASE_COMERCIAL, { taxaAnual: 0.135, mipRate: 0.0002, dfiRate: 0.00007 })
+    expect(r.observacao ?? '').not.toMatch(/residencial do bradesco/i)
   })
 
   it('FGTS: aviso só aparece quando usaFgts=true (comercial não aceita FGTS)', () => {

@@ -719,7 +719,8 @@ function simularBradescoComercial(
 ): ResultadoBanco {
   const cfg = BANCOS_CONFIG.bradesco
   const criteriaResidencial = resolverCriterios('bradesco')
-  const usouProxyResidencial = overridesComercial?.mipRate == null && overridesComercial?.dfiRate == null
+  const usouTaxaResidencialComoProxy = overridesComercial?.taxaAnual == null
+  const usouMipDfiResidencialComoProxy = overridesComercial?.mipRate == null && overridesComercial?.dfiRate == null
 
   const criteria: SimulationCriteria = {
     ...criteriaResidencial,
@@ -757,7 +758,10 @@ function simularBradescoComercial(
   }
 
   const avisos: string[] = []
-  if (usouProxyResidencial) {
+  if (usouTaxaResidencialComoProxy) {
+    avisos.push(`Taxa comercial ainda não configurada — usando a taxa residencial do Bradesco (${(criteria.taxaAnualBase * 100).toFixed(2)}% a.a.) como provisória. Configure a taxa negociada em Configurações > Bancos.`)
+  }
+  if (usouMipDfiResidencialComoProxy) {
     avisos.push('MIP/DFI estimados com base na tabela residencial do Bradesco — ainda sem tabela comercial própria calibrada.')
   }
   // FGTS não é aceito nesta linha (imóvel comercial não é uso habitacional) — o motor não
