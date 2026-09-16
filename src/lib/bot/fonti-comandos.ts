@@ -547,13 +547,35 @@ async function buscarEntidade(
     }
   }
 
-  // Busca por nome de pessoa (ilike)
-  const { data: pessoas } = await supabase
+  // Busca por nome de pessoa (ilike). Nomes comuns (ex.: "joao") batem em
+  // dezenas de clientes — um limit(3) sem ORDER BY já cortou o cliente certo
+  // da lista de candidatos (achado real em produção, 2026-09-16: 11 pessoas
+  // batendo "joao" no banco, o "*salva joao" mostrava 3 arbitrárias e nunca a
+  // "JOAO" que o comercial queria). Busca um teto mais generoso ordenado por
+  // mais recente (proxy razoável de relevância — cliente ativo agora), depois
+  // reordena em memória pra colocar match EXATO do nome (case-insensitive)
+  // primeiro — cobre o caso comum de "*salva joao" quando existe uma pessoa
+  // chamada exatamente "Joao" entre várias outras com "joao" no meio do nome.
+  const LIMITE_CANDIDATOS_PESSOA = 8
+  const { data: pessoasBrutas } = await supabase
     .from('pessoas')
     .select('id, nome')
     .eq('empresa_id', empresa_id)
     .ilike('nome', `%${ref}%`)
-    .limit(3)
+    .order('created_at', { ascending: false })
+    .limit(30)
+
+  const refNormalizado = ref.toLowerCase()
+  const pessoas = pessoasBrutas
+    ? [...pessoasBrutas]
+        .sort((a, b) => {
+          const aExato = a.nome.trim().toLowerCase() === refNormalizado
+          const bExato = b.nome.trim().toLowerCase() === refNormalizado
+          if (aExato === bExato) return 0
+          return aExato ? -1 : 1
+        })
+        .slice(0, LIMITE_CANDIDATOS_PESSOA)
+    : null
 
   if (pessoas && pessoas.length >= 1) {
     // Ambiguidade: múltiplos clientes com o mesmo nome parcial
@@ -1380,19 +1402,28 @@ export async function processarComandoFonti(
       return `✅ Sessão ativa para ${processo.numero_processo} — ${processo.banco || 'banco não informado'}${nomeComprador}.\n\nEnvie os documentos agora.\n\nFinalize com: *fonti salva`
     }
 
-    // Tenta como nome de pessoa
-    const { data: pessoas } = await supabase
+    // Tenta como nome de pessoa. Mesmo cuidado de buscarEntidade() acima: nomes
+    // comuns batem em dezenas de clientes — teto generoso ordenado por mais
+    // recente, com match exato do nome priorizado na escolha automática abaixo
+    // (aqui não há confirmação de ambiguidade, então a ordem importa ainda mais).
+    const { data: pessoasBrutasProc } = await supabase
       .from('pessoas')
       .select('id, nome')
       .eq('empresa_id', empresa_id)
       .ilike('nome', `%${ref}%`)
-      .limit(3)
+      .order('created_at', { ascending: false })
+      .limit(30)
 
-    if (!pessoas?.length) return `❌ Não encontrei "${ref}" no sistema. Verifique o nome.`
+    if (!pessoasBrutasProc?.length) return `❌ Não encontrei "${ref}" no sistema. Verifique o nome.`
+
+    const refNormalizadoProc = ref.toLowerCase()
+    const pessoas = pessoasBrutasProc.slice(0, 8)
 
     const escolhida = pessoas.length === 1
       ? pessoas[0]
-      : (pessoas.find((p) => p.nome.toLowerCase().startsWith(ref.toLowerCase())) ?? pessoas[0])
+      : (pessoas.find((p) => p.nome.trim().toLowerCase() === refNormalizadoProc)
+          ?? pessoas.find((p) => p.nome.toLowerCase().startsWith(refNormalizadoProc))
+          ?? pessoas[0])
 
     const processos = await buscarProcessosAtivos(supabase, empresa_id, escolhida.id)
 
