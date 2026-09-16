@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { processarMensagem, gerarSaudacaoReativacao } from '@/lib/bot/agente'
 import type { MensagemHistorico } from '@/lib/bot/agente'
 import { processarEstado } from '@/lib/bot/state-machine'
@@ -11,6 +12,13 @@ import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { variantesTelefoneBR, telefoneCanonico } from '@/lib/telefone'
+
+// Margem extra pro trabalho em segundo plano (waitUntil) de download+upload de
+// documento terminar mesmo sob carga (vários comerciais mandando documentos ao
+// mesmo tempo) — sem isso a função fica no teto padrão da Vercel, que já foi
+// curto demais pra esse fluxo em produção. 60s é o teto do plano Hobby pra
+// funções Node; se o plano mudar, pode subir.
+export const maxDuration = 60
 
 // Payload format sent by Uazapi
 interface UazapiMediaContent {
@@ -1062,70 +1070,83 @@ export async function POST(request: NextRequest) {
           .maybeSingle()
 
         if (marcaAtiva) {
-          try {
-            // Pessoa da sessão: a RPC reaproveita se já existe (documento anterior
-            // nesta mesma sessão já criou uma) ou cria uma nova e ancora na sessão
-            // (fonti_marcas.pessoa_id). NUNCA busca/cria pelo telefone do comercial
-            // (buscarOuCriarPessoa) — isso faria uma segunda sessão do mesmo
-            // comercial, pra outro cliente, reaproveitar por engano a Pessoa
-            // provisória do cliente anterior.
-            //
-            // Resolvido via RPC (obter_ou_criar_pessoa_sessao_fonti), não um
-            // SELECT+INSERT+UPDATE manual aqui: vários documentos mandados quase
-            // juntos disparam o webhook quase em paralelo, e duas invocações
-            // concorrentes liam pessoa_id=null antes de qualquer uma escrever,
-            // cada uma criando sua própria Pessoa — documentos ficavam divididos
-            // entre elas. A função Postgres trava a linha (FOR UPDATE) e resolve
-            // a corrida de forma atômica.
-            const { data: pessoaIdDoc, error: erroPessoaSessao } = await supabase.rpc(
-              'obter_ou_criar_pessoa_sessao_fonti',
-              { p_empresa_id: empresa_id, p_telefone_conversa: telefone, p_nome: nomeContato ?? 'Cliente' },
-            )
-            if (erroPessoaSessao || !pessoaIdDoc) throw erroPessoaSessao ?? new Error('RPC não retornou pessoa_id')
+          // Download do arquivo real + upload pro Storage (dentro de
+          // salvarDocumentoCliente) são as duas chamadas de rede caras desse
+          // fluxo — rodar em segundo plano (waitUntil) evita que a resposta ao
+          // webhook fique refém delas. Sob carga (vários comerciais mandando
+          // documentos ao mesmo tempo) isso já estourou o teto de duração da
+          // função em produção, derrubando documentos sem erro nenhum pro
+          // comercial (achado real, apresentação de 2026-09-15/16). A resposta
+          // ao Uazapi sai rápido; o *fonti salva (com o retry já implementado
+          // hoje) espera os documentos aparecerem.
+          const fileUrlCapturado = fileUrl
+          const mediaContentCapturado = mediaContent
+          waitUntil((async () => {
+            try {
+              // Pessoa da sessão: a RPC reaproveita se já existe (documento anterior
+              // nesta mesma sessão já criou uma) ou cria uma nova e ancora na sessão
+              // (fonti_marcas.pessoa_id). NUNCA busca/cria pelo telefone do comercial
+              // (buscarOuCriarPessoa) — isso faria uma segunda sessão do mesmo
+              // comercial, pra outro cliente, reaproveitar por engano a Pessoa
+              // provisória do cliente anterior.
+              //
+              // Resolvido via RPC (obter_ou_criar_pessoa_sessao_fonti), não um
+              // SELECT+INSERT+UPDATE manual aqui: vários documentos mandados quase
+              // juntos disparam o webhook quase em paralelo, e duas invocações
+              // concorrentes liam pessoa_id=null antes de qualquer uma escrever,
+              // cada uma criando sua própria Pessoa — documentos ficavam divididos
+              // entre elas. A função Postgres trava a linha (FOR UPDATE) e resolve
+              // a corrida de forma atômica.
+              const { data: pessoaIdDoc, error: erroPessoaSessao } = await supabase.rpc(
+                'obter_ou_criar_pessoa_sessao_fonti',
+                { p_empresa_id: empresa_id, p_telefone_conversa: telefone, p_nome: nomeContato ?? 'Cliente' },
+              )
+              if (erroPessoaSessao || !pessoaIdDoc) throw erroPessoaSessao ?? new Error('RPC não retornou pessoa_id')
 
-            const { data: convExistente } = await supabase
-              .from('conversas')
-              .select('id')
-              .eq('empresa_id', empresa_id)
-              .eq('canal', 'whatsapp')
-              .eq('contato_telefone', telefone)
-              .maybeSingle()
-
-            let conversaIdDoc = convExistente?.id as string | undefined
-            if (!conversaIdDoc) {
-              const { data: novaConv, error: erroNovaConv } = await supabase
+              const { data: convExistente } = await supabase
                 .from('conversas')
-                .insert({
-                  empresa_id,
-                  canal: 'whatsapp',
-                  contato_telefone: telefone,
-                  contato_nome: nomeContato ?? null,
-                  pessoa_id: pessoaIdDoc,
-                  status: 'humano',
-                  bot_ativo: false,
-                  instancia_id: instancia_id ?? undefined,
-                })
                 .select('id')
-                .single()
-              if (erroNovaConv) console.error('[whatsapp-webhook] Erro ao criar conversa pra documento:', erroNovaConv.message)
-              conversaIdDoc = novaConv?.id
-            } else {
-              await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
-            }
+                .eq('empresa_id', empresa_id)
+                .eq('canal', 'whatsapp')
+                .eq('contato_telefone', telefone)
+                .maybeSingle()
 
-            if (conversaIdDoc) {
-              await salvarDocumentoCliente({
-                empresa_id,
-                pessoa_id: pessoaIdDoc,
-                conversa_id: conversaIdDoc,
-                fileUrl,
-                fileName: mediaContent?.fileName ?? null,
-                mimeType: mediaContent?.mimetype ?? null,
-              })
+              let conversaIdDoc = convExistente?.id as string | undefined
+              if (!conversaIdDoc) {
+                const { data: novaConv, error: erroNovaConv } = await supabase
+                  .from('conversas')
+                  .insert({
+                    empresa_id,
+                    canal: 'whatsapp',
+                    contato_telefone: telefone,
+                    contato_nome: nomeContato ?? null,
+                    pessoa_id: pessoaIdDoc,
+                    status: 'humano',
+                    bot_ativo: false,
+                    instancia_id: instancia_id ?? undefined,
+                  })
+                  .select('id')
+                  .single()
+                if (erroNovaConv) console.error('[whatsapp-webhook] Erro ao criar conversa pra documento:', erroNovaConv.message)
+                conversaIdDoc = novaConv?.id
+              } else {
+                await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
+              }
+
+              if (conversaIdDoc && fileUrlCapturado) {
+                await salvarDocumentoCliente({
+                  empresa_id,
+                  pessoa_id: pessoaIdDoc,
+                  conversa_id: conversaIdDoc,
+                  fileUrl: fileUrlCapturado,
+                  fileName: mediaContentCapturado?.fileName ?? null,
+                  mimeType: mediaContentCapturado?.mimetype ?? null,
+                })
+              }
+            } catch (err) {
+              console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
             }
-          } catch (err) {
-            console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
-          }
+          })())
         }
       } else {
         // Sem pendência ativa — antes de descartar, verifica se a mensagem tem "cara"
