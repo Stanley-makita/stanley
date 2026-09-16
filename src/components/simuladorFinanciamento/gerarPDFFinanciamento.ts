@@ -513,6 +513,7 @@ export async function gerarPDFFinanciamento(
     doc.setLineWidth(0.2)
     doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
 
+    // Sem "Total Pago" aqui também — mesmo motivo da tabela Comparativo acima.
     const metricas: [string, string][] = [
       ['1ª Parcela',     BRL.format(r.primeiraParcela)],
       ['Última Parcela', BRL.format(r.ultimaParcela)],
@@ -523,7 +524,6 @@ export async function gerarPDFFinanciamento(
       ['Total Juros',    BRL.format(r.totalJuros)],
       ['Total Seguros',  BRL.format(r.totalSeguros)],
       ['Vlr Financiado', BRL.format(r.valorFinanciado)],
-      ['Total Pago',     BRL.format(r.totalPago)],
     ]
 
     const metC1 = metricas.slice(0, 5)
