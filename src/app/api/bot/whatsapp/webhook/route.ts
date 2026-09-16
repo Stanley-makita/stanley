@@ -994,46 +994,67 @@ export async function POST(request: NextRequest) {
         ? await buscarConsorcioPendente(supabase, empresa_id, telefone)
         : null
 
+      // Rede de segurança: qualquer exceção não prevista num desses três workflows
+      // (ex.: enviarPDFUazapi pendurado sem timeout — achado real em produção,
+      // 2026-09-16, corrigido em uazapi-helpers.ts, mas mais camadas de defesa não
+      // fazem mal) não pode deixar o operador sem resposta nenhuma — antes disso,
+      // uma exceção aqui subia até o catch genérico do topo da função, que só
+      // relança (`throw err`), sem nunca chamar enviarMensagemUazapi.
       if (pendente) {
-        const resposta = await processarRespostaPendente(texto.trim(), pendente, {
-          empresa_id,
-          telefone_remetente: telefone,
-          supabase,
-          arquivos: fileUrl
-            ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
-            : [],
-          instancia_token: instanciaToken,
-          telefone_destino: telefone,
-        }, usuarioInterno)
-        if (resposta !== null) {
-          await enviarMensagemUazapi(telefone, resposta)
+        try {
+          const resposta = await processarRespostaPendente(texto.trim(), pendente, {
+            empresa_id,
+            telefone_remetente: telefone,
+            supabase,
+            arquivos: fileUrl
+              ? [{ fileUrl, fileName: mediaContent?.fileName ?? null, mimeType: mediaContent?.mimetype ?? null }]
+              : [],
+            instancia_token: instanciaToken,
+            telefone_destino: telefone,
+          }, usuarioInterno)
+          if (resposta !== null) {
+            await enviarMensagemUazapi(telefone, resposta)
+          }
+        } catch (err) {
+          console.error('[whatsapp-webhook] Erro processando pendente (simula):', err)
+          await enviarMensagemUazapi(telefone, '⚠️ Algo deu errado ao processar sua resposta. Tente novamente ou digite *sair* para recomeçar.')
         }
         return NextResponse.json({ ok: true })
       } else if (pendenteCustas) {
-        const { processarRespostaCustas } = await import('@/lib/workflows/workflow-custas')
-        const resposta = await processarRespostaCustas(texto.trim(), pendenteCustas, {
-          empresa_id,
-          usuario_id: usuarioInterno.id,
-          usuario_nome: usuarioInterno.nome,
-          supabase,
-          instancia_token: instanciaToken,
-          telefone_destino: telefone,
-          telefone_operador: telefone,
-        })
-        await enviarMensagemUazapi(telefone, resposta)
+        try {
+          const { processarRespostaCustas } = await import('@/lib/workflows/workflow-custas')
+          const resposta = await processarRespostaCustas(texto.trim(), pendenteCustas, {
+            empresa_id,
+            usuario_id: usuarioInterno.id,
+            usuario_nome: usuarioInterno.nome,
+            supabase,
+            instancia_token: instanciaToken,
+            telefone_destino: telefone,
+            telefone_operador: telefone,
+          })
+          await enviarMensagemUazapi(telefone, resposta)
+        } catch (err) {
+          console.error('[whatsapp-webhook] Erro processando pendente (custas):', err)
+          await enviarMensagemUazapi(telefone, '⚠️ Algo deu errado ao processar sua resposta. Tente novamente ou digite *sair* para recomeçar.')
+        }
         return NextResponse.json({ ok: true })
       } else if (pendenteConsorcio) {
-        const { processarRespostaConsorcio } = await import('@/lib/workflows/workflow-consorcio')
-        const resposta = await processarRespostaConsorcio(texto.trim(), pendenteConsorcio, {
-          empresa_id,
-          usuario_id: usuarioInterno.id,
-          usuario_nome: usuarioInterno.nome,
-          supabase,
-          instancia_token: instanciaToken,
-          telefone_destino: telefone,
-          telefone_operador: telefone,
-        })
-        await enviarMensagemUazapi(telefone, resposta)
+        try {
+          const { processarRespostaConsorcio } = await import('@/lib/workflows/workflow-consorcio')
+          const resposta = await processarRespostaConsorcio(texto.trim(), pendenteConsorcio, {
+            empresa_id,
+            usuario_id: usuarioInterno.id,
+            usuario_nome: usuarioInterno.nome,
+            supabase,
+            instancia_token: instanciaToken,
+            telefone_destino: telefone,
+            telefone_operador: telefone,
+          })
+          await enviarMensagemUazapi(telefone, resposta)
+        } catch (err) {
+          console.error('[whatsapp-webhook] Erro processando pendente (consorcio):', err)
+          await enviarMensagemUazapi(telefone, '⚠️ Algo deu errado ao processar sua resposta. Tente novamente ou digite *sair* para recomeçar.')
+        }
         return NextResponse.json({ ok: true })
       }
     }
