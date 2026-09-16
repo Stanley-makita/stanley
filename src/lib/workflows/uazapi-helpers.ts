@@ -47,6 +47,12 @@ export async function enviarPDFUazapi(
   const telRaw  = telefone.replace(/\D/g, '')
   const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
 
+  // Timeout explícito — achado real em produção (2026-09-16): sem isso, se a Uazapi não
+  // responder, o fetch fica pendurado até a função inteira ser morta pelo teto de duração
+  // da Vercel (60s) — o try/catch de quem chama esta função (finalizarSimulacao em
+  // workflow-custas.ts/workflow-consorcio.ts) nunca chega a capturar nada porque a promise
+  // não rejeita, só trava. Resultado: *custas/*consorcio paravam de responder sem erro
+  // nenhum, mesmo com o resto do cálculo já pronto.
   const res = await fetch(`${process.env.UAZAPI_API_URL}/send/media`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'token': token },
@@ -57,6 +63,7 @@ export async function enviarPDFUazapi(
       docName:      nomeArquivo,
       track_source: 'fonti-crm',
     }),
+    signal: AbortSignal.timeout(30000),
   })
 
   if (!res.ok) {
@@ -79,6 +86,7 @@ export async function enviarTextoUazapi(
   const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
 
   try {
+    // Timeout explícito — mesmo motivo de enviarPDFUazapi acima.
     const res = await fetch(`${process.env.UAZAPI_API_URL}/send/text`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'token': token },
@@ -88,6 +96,7 @@ export async function enviarTextoUazapi(
         track_source: 'fonti-crm',
         delay:        1200,
       }),
+      signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) {
       console.error('[uazapi-helpers] enviarTextoUazapi falhou:', res.status, await res.text())
