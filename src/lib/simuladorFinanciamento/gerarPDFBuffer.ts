@@ -448,11 +448,14 @@ export async function gerarPDFFinanciamentoBuffer(
     doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
 
     // Sem "Total Pago" aqui também — mesmo motivo da tabela Comparativo acima.
+    // "Indexador" (TR/IPCA) — pedido do usuário (2026-09-16): destacar por banco pra
+    // não confundir o cliente (ex.: Inter é IPCA, os demais SBPE padrão são TR).
     const metricas: [string, string][] = [
       ['1ª Parcela',     BRL.format(r.primeiraParcela)],
       ['Última Parcela', BRL.format(r.ultimaParcela)],
       ['Parcelas',       `${r.parcelas} meses`],
       ['Amortização',    r.tipoAmortizacao],
+      ['Indexador',      r.indexador ?? '—'],
       ['Taxa mensal',    `${(r.taxaMensal * 100).toFixed(4)}%`],
       ['Taxa anual',     `${(r.taxaAnual * 100).toFixed(2)}%`],
       ['Total Juros',    BRL.format(r.totalJuros)],

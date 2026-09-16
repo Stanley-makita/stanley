@@ -98,6 +98,12 @@ export interface CenarioComparativo {
 export interface SimulationCriteria {
   bancoId: BancoId
   programa: string
+  // Indexador de correção do saldo devedor — só informativo (exibido no PDF/WhatsApp
+  // pro cliente não confundir bancos com indexadores diferentes), não afeta o cálculo
+  // da parcela em si. Pedido do usuário (2026-09-16): Inter é hoje o único IPCA entre
+  // os bancos padrão, o resto é TR — mas configurável por banco (Configurações >
+  // Bancos) porque um banco pode trocar de indexador no futuro.
+  indexador?: 'TR' | 'IPCA'
   taxaAnualBase: number
   taxaAnualCorrentista: number
   /**
@@ -177,4 +183,5 @@ export interface BancoSimOverrides {
   mipRate?: number
   dfiRate?: number
   taxaAdmin?: number
+  indexador?: 'TR' | 'IPCA'
 }
