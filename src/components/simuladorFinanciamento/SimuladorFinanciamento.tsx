@@ -70,6 +70,14 @@ export function SimuladorFinanciamento({ nomeCliente, cpfCliente, onSalvar, salv
         taxaAdmin:         b.taxa_admin   != null ? b.taxa_admin          : undefined,
         indexador:         b.indexador    ?? undefined,
       }
+      // Bradesco Comercial PF: chave separada do residencial — ver simularBradescoComercial (engine.ts).
+      if (b.simulador_key === 'bradesco') {
+        map['bradesco_comercial'] = {
+          taxaAnual: b.taxa_anual_comercial != null ? b.taxa_anual_comercial / 100 : undefined,
+          mipRate:   b.mip_comercial        != null ? b.mip_comercial        / 100 : undefined,
+          dfiRate:   b.dfi_comercial        != null ? b.dfi_comercial        / 100 : undefined,
+        }
+      }
     }
     return map
   }, [bancosDB])

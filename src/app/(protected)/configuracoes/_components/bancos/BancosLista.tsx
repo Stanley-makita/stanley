@@ -34,6 +34,9 @@ type FormState = {
   seguro_mip: string
   seguro_dfi: string
   indexador: string
+  taxa_anual_comercial: string
+  mip_comercial: string
+  dfi_comercial: string
   ativo: boolean
 }
 
@@ -44,6 +47,7 @@ const FORM_VAZIO: FormState = {
   idade_max_quit: '80', comprometimento: '30',
   seguro_mip: '', seguro_dfi: '',
   indexador: '',
+  taxa_anual_comercial: '', mip_comercial: '', dfi_comercial: '',
   ativo: true,
 }
 
@@ -61,6 +65,9 @@ function bancoParaForm(b: Banco): FormState {
     seguro_mip:      (b as any).seguro_mip != null ? String((b as any).seguro_mip) : '',
     seguro_dfi:      (b as any).seguro_dfi != null ? String((b as any).seguro_dfi) : '',
     indexador:       (b as any).indexador ?? '',
+    taxa_anual_comercial: (b as any).taxa_anual_comercial != null ? String((b as any).taxa_anual_comercial) : '',
+    mip_comercial:        (b as any).mip_comercial != null ? String((b as any).mip_comercial) : '',
+    dfi_comercial:        (b as any).dfi_comercial != null ? String((b as any).dfi_comercial) : '',
     ativo:           b.ativo ?? true,
   }
 }
@@ -79,6 +86,9 @@ function formParaPayload(f: FormState) {
     seguro_mip:      f.seguro_mip !== '' ? parseFloat(f.seguro_mip) : null,
     seguro_dfi:      f.seguro_dfi !== '' ? parseFloat(f.seguro_dfi) : null,
     indexador:       f.indexador || null,
+    taxa_anual_comercial: f.taxa_anual_comercial !== '' ? parseFloat(f.taxa_anual_comercial) : null,
+    mip_comercial:        f.mip_comercial !== '' ? parseFloat(f.mip_comercial) : null,
+    dfi_comercial:        f.dfi_comercial !== '' ? parseFloat(f.dfi_comercial) : null,
     ativo:           f.ativo,
   }
 }
@@ -365,6 +375,50 @@ export function BancosLista() {
                   </div>
                 </div>
               </div>
+
+              {/* Comercial PF — hoje só o Bradesco opera imóvel comercial no motor */}
+              {form.simulador_key === 'bradesco' && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Comercial PF (imóvel comercial)</p>
+                  <p className="text-[10px] text-gray-400 -mt-2">
+                    LTV (70%), prazo máx. (240 meses) e comprometimento de renda (30%/15%) são regra fixa do produto —
+                    só taxa/MIP/DFI são configuráveis aqui. Deixe MIP/DFI vazios para usar a tabela residencial do
+                    Bradesco como aproximação (sem tabela comercial própria calibrada ainda).
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Taxa de Juros Anual (%)</Label>
+                      <Input
+                        type="number" step="0.01" min="0" max="30"
+                        value={form.taxa_anual_comercial}
+                        onChange={e => set('taxa_anual_comercial', e.target.value)}
+                        className="h-8 text-sm"
+                        placeholder="ex: 13.99"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Seguro MIP (%)</Label>
+                      <Input
+                        type="number" step="0.0001" min="0"
+                        value={form.mip_comercial}
+                        onChange={e => set('mip_comercial', e.target.value)}
+                        className="h-8 text-sm"
+                        placeholder="ex: 0.0230"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Seguro DFI (%)</Label>
+                      <Input
+                        type="number" step="0.0001" min="0"
+                        value={form.dfi_comercial}
+                        onChange={e => set('dfi_comercial', e.target.value)}
+                        className="h-8 text-sm"
+                        placeholder="ex: 0.0066"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Ativo */}
               <div className="flex items-center gap-2">

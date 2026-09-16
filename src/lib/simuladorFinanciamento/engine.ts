@@ -1,5 +1,6 @@
 import type { BancoId, TipoOperacao, TipoImovel, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, CAIXA_SFI_TAXAS, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, CAIXA_SFI_TAXAS, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES, BRADESCO_COMERCIAL_PF } from './constantes'
+import { calcularIof } from '../simulador/calcular'
 import type { BancoConfig } from './constantes'
 import { resolverCriterios } from './criteria-resolver'
 import type { SimulationCriteria, EstrategiaSeguroMip, MetodoConversaoTaxa, BancoSimOverrides, PeriodoMip, CenarioComparativo, CriteriosLtv } from './criteria'
@@ -700,12 +701,95 @@ export function resolverLtvEfetivoCaixa(input: {
   }
 }
 
+// Bradesco Comercial PF — financiamento de imóvel comercial, pessoa física. LTV 70%,
+// prazo máx. 240 meses e comprometimento de renda 30% SAC/15% PRICE são regra publicada
+// pelo banco (BRADESCO_COMERCIAL_PF, constantes.ts) — fixos em código, não calibráveis
+// por banco de dados, mesmo padrão da cota fixa de 70%/240 meses do comercial da Caixa
+// logo acima em `simularBanco`. Taxa/MIP/DFI SÃO parametrizáveis: `overridesComercial` é
+// resolvido pelo chamador (`simularTodosBancos`) a partir de uma chave SEPARADA do mapa
+// de overrides ('bradesco_comercial', colunas taxa_anual_comercial/mip_comercial/
+// dfi_comercial da tabela `bancos`) — nunca a chave 'bradesco' residencial, que tem outra
+// taxa/MIP/DFI. Pedido explícito do usuário (2026-09-16): não copiar cegamente o MIP/DFI
+// do residencial sem deixar isso visível — na ausência de mip_comercial/dfi_comercial
+// configurados, usamos a tabela residencial do Bradesco como PROXY (aproximação, não uma
+// tabela comercial real) e sinalizamos isso na observação do resultado.
+function simularBradescoComercial(
+  input: InputFinanciamento,
+  overridesComercial?: BancoSimOverrides,
+): ResultadoBanco {
+  const cfg = BANCOS_CONFIG.bradesco
+  const criteriaResidencial = resolverCriterios('bradesco')
+  const usouProxyResidencial = overridesComercial?.mipRate == null && overridesComercial?.dfiRate == null
+
+  const criteria: SimulationCriteria = {
+    ...criteriaResidencial,
+    programa: 'Comercial PF',
+    taxaAnualBase: overridesComercial?.taxaAnual ?? criteriaResidencial.taxaAnualBase,
+    taxaAnualCorrentista: overridesComercial?.taxaAnual ?? criteriaResidencial.taxaAnualCorrentista,
+    taxaAnualPrice: overridesComercial?.taxaAnual ?? criteriaResidencial.taxaAnualPrice,
+    ltv: { sac: BRADESCO_COMERCIAL_PF.ltvMax, price: BRADESCO_COMERCIAL_PF.ltvMax },
+    prazoMaximoMeses: BRADESCO_COMERCIAL_PF.prazoMaximoMeses,
+    prazoMaximoMesesPrice: BRADESCO_COMERCIAL_PF.prazoMaximoMeses,
+    comprometimentoRenda: BRADESCO_COMERCIAL_PF.comprometimentoRenda,
+    modalidadesSuportadas: ['comercial'],
+    seguro: {
+      ...criteriaResidencial.seguro,
+      mip: overridesComercial?.mipRate != null
+        ? { tipo: 'flat', taxa: overridesComercial.mipRate }
+        : criteriaResidencial.seguro.mip,
+      dfi: { ...criteriaResidencial.seguro.dfi, taxaMensal: overridesComercial?.dfiRate ?? criteriaResidencial.seguro.dfi.taxaMensal },
+    },
+  }
+
+  const resultado = simularComCriterios(cfg, criteria, input, 'bradesco-comercial')
+  if (!resultado.elegivel) return resultado
+
+  // Parcela mínima R$200 — regra publicada, não uma faixa de renda: rejeita mesmo que o
+  // cliente tenha renda de sobra, porque abaixo disso o próprio Bradesco não opera a linha.
+  if (resultado.primeiraParcela < BRADESCO_COMERCIAL_PF.parcelaMinima) {
+    return {
+      ...makeInelegivelModalidade(
+        cfg.id, input,
+        `Parcela calculada (${fmtMoeda(resultado.primeiraParcela)}) abaixo da parcela mínima do Bradesco Comercial PF (${fmtMoeda(BRADESCO_COMERCIAL_PF.parcelaMinima)})`,
+      ),
+      resultadoId: 'bradesco-comercial',
+    }
+  }
+
+  const avisos: string[] = []
+  if (usouProxyResidencial) {
+    avisos.push('MIP/DFI estimados com base na tabela residencial do Bradesco — ainda sem tabela comercial própria calibrada.')
+  }
+  // FGTS não é aceito nesta linha (imóvel comercial não é uso habitacional) — o motor não
+  // usa usaFgts em nenhum cálculo do Bradesco hoje, então isto é só um aviso informativo
+  // pro operador não oferecer FGTS como recurso complementar por engano.
+  if (input.usaFgts) {
+    avisos.push('FGTS não é aceito como recurso complementar em financiamento de imóvel comercial (linha Comercial PF do Bradesco).')
+  }
+  const valorIof = calcularIof(resultado.valorFinanciado)
+  avisos.push(`IOF aplicável (imóvel comercial): ${fmtMoeda(valorIof)}, já considerado à parte do valor financiado — não incluso nas parcelas.`)
+
+  return {
+    ...resultado,
+    observacao: [resultado.observacao, ...avisos].filter(Boolean).join(' ') || undefined,
+    iofAplicavel: true,
+    valorIof,
+  }
+}
+
 export function simularBanco(
   bancoId: BancoId,
   input: InputFinanciamento,
   overrides?: BancoSimOverrides,
 ): ResultadoBanco {
   const cfg = BANCOS_CONFIG[bancoId]
+
+  // Bradesco Comercial PF — caminho totalmente separado do residencial do mesmo banco
+  // (ver simularBradescoComercial acima). Só entra aqui quando finalidade==='comercial';
+  // o Bradesco residencial segue intocado no caminho genérico mais abaixo.
+  if (bancoId === 'bradesco' && input.finalidade === 'comercial') {
+    return simularBradescoComercial(input, overrides)
+  }
 
   // Caixa (Fase 4): programa único (Pró-Cotista ou MCMV, senão SBPE) — mesma precedência
   // de sempre (MCMV vence sobre Pró-Cotista se ambos se aplicarem: o `if` de baixo executa
@@ -1162,8 +1246,8 @@ export function simularTodosBancos(
       })
       continue
     }
-    // Comercial: apenas Caixa opera — outros bancos sempre inelegíveis
-    if (id !== 'caixa' && op === 'comercial') {
+    // Comercial: Caixa e Bradesco (Comercial PF) operam — demais bancos sempre inelegíveis
+    if (id !== 'caixa' && id !== 'bradesco' && op === 'comercial') {
       todos.push({
         ...makeInelegivelModalidade(id, inputNorm, 'Imóvel comercial: banco não parametrizado para esta modalidade. Consulte nossa equipe para verificar condições.'),
         observacao,
@@ -1179,6 +1263,10 @@ export function simularTodosBancos(
       ? inputNorm
       : { ...inputNorm, tipoAmortizacao: amortizacaoDoBanco }
 
+    // Bradesco Comercial PF: taxa/MIP/DFI vêm de uma chave de overrides SEPARADA da do
+    // Bradesco residencial (colunas *_comercial da tabela bancos) — ver simularBradescoComercial.
+    const ovEfetivo = (id === 'bradesco' && op === 'comercial') ? overridesMap?.['bradesco_comercial'] : ov
+
     if (id === 'caixa') {
       // Não sobrescrever: cada cenário da Caixa pode já ter sua própria observação (ex.:
       // aviso de entrada ajustada para PRICE, ver construirCenariosCaixa) — combina com a
@@ -1192,14 +1280,19 @@ export function simularTodosBancos(
       // sac e price") — roda as duas tabelas pra este banco em vez de escolher uma só. Um
       // banco sem PRICE parametrizado (ex.: Santander) sai inelegível SÓ nessa combinação —
       // o SAC dele continua elegível normalmente, em vez do banco inteiro sumir da resposta.
-      const resultadoSac   = simularBanco(id, { ...inputNorm, tipoAmortizacao: 'SAC' }, ov)
-      const resultadoPrice = simularBanco(id, { ...inputNorm, tipoAmortizacao: 'PRICE' }, ov)
+      const resultadoSac   = simularBanco(id, { ...inputNorm, tipoAmortizacao: 'SAC' }, ovEfetivo)
+      const resultadoPrice = simularBanco(id, { ...inputNorm, tipoAmortizacao: 'PRICE' }, ovEfetivo)
       todos.push(
-        { ...resultadoSac,   resultadoId: `${resultadoSac.resultadoId}-sac`,   observacao },
-        { ...resultadoPrice, resultadoId: `${resultadoPrice.resultadoId}-price`, observacao },
+        { ...resultadoSac,   resultadoId: `${resultadoSac.resultadoId}-sac`,   observacao: [resultadoSac.observacao, observacao].filter(Boolean).join(' ') || undefined },
+        { ...resultadoPrice, resultadoId: `${resultadoPrice.resultadoId}-price`, observacao: [resultadoPrice.observacao, observacao].filter(Boolean).join(' ') || undefined },
       )
     } else {
-      todos.push({ ...simularBanco(id, inputBanco, ov), observacao })
+      // Combina (não sobrescreve) — necessário pro Bradesco Comercial PF, que já pode ter
+      // avisos próprios (proxy de MIP/DFI, FGTS bloqueado, ver simularBradescoComercial).
+      // Sem efeito nos demais bancos: eles nunca setam `observacao` própria, então isto é
+      // idêntico ao `{ ...simularBanco(...), observacao }` de antes.
+      const resultado = simularBanco(id, inputBanco, ovEfetivo)
+      todos.push({ ...resultado, observacao: [resultado.observacao, observacao].filter(Boolean).join(' ') || undefined })
     }
   }
 

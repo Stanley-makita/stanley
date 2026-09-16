@@ -104,6 +104,10 @@ export interface ResultadoBanco {
   motivoInelegivel?: string
   avisoRenda?: boolean
   observacao?: string              // nota contextual por modalidade (lote, construção, comercial)
+  // IOF-crédito — aplicável hoje só em imóvel comercial (ver calcIofVisivel em
+  // src/lib/simulador/calcular.ts, mesma regra). Ausente/false = não exibir no PDF.
+  iofAplicavel?: boolean
+  valorIof?: number
 }
 
 export interface AnalisePredicativa {

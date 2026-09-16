@@ -602,11 +602,24 @@ export const TERMOS_TERRENO = [
 // Teto Caixa SBPE para lote urbanizado (mesmo teto do SFH geral)
 export const LOTE_URBANIZADO_MAX_VALOR = 2_250_000
 
+// ─── Bradesco Comercial PF — regras regulatórias fixas (não são taxa de mercado) ──
+// Publicadas pelo próprio Bradesco para a linha de financiamento de imóvel comercial
+// pessoa física — diferente do LTV/prazo/comprometimento do residencial do mesmo
+// banco (esses continuam em BANCOS_CONFIG.bradesco, intocados). Taxa/MIP/DFI comerciais
+// SÃO parametrizáveis (colunas taxa_anual_comercial/mip_comercial/dfi_comercial em
+// `bancos`, resolvidas via override) — só o que segue aqui é regra fixa do produto.
+export const BRADESCO_COMERCIAL_PF = {
+  ltvMax: 0.70,
+  prazoMaximoMeses: 240,
+  parcelaMinima: 200,
+  comprometimentoRenda: { sac: 0.30, price: 0.15 },
+} as const
+
 // Observações contextuais por modalidade — exibidas no resultado e no PDF
 export const OBSERVACOES_MODALIDADE: Record<TipoOperacao, string> = {
   aquisicao: '',
   comercial:
-    'Imóvel comercial não se enquadra em MCMV ou Pró-Cotista. Simulação gerada via Carta de Crédito SBPE/SFI da Caixa. Para outros bancos, nossa equipe verifica condições específicas.',
+    'Imóvel comercial não se enquadra em MCMV ou Pró-Cotista. Simulação gerada via Carta de Crédito SBPE/SFI da Caixa e/ou linha Comercial PF do Bradesco (LTV até 70%, prazo até 240 meses, sujeita a análise de crédito). Para outros bancos, nossa equipe verifica condições específicas.',
   lote_urbanizado:
     'Para terreno/lote urbanizado, a Caixa é a principal referência operacional. Em Maringá e região, os termos terreno, lote, data, gleba e greba referem-se ao mesmo tipo de operação. Simulação sujeita à análise documental e de engenharia.',
   construcao_terreno_proprio:
