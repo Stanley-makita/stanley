@@ -1,5 +1,5 @@
 import type { BancoId, TipoOperacao, TipoImovel, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from './tipos'
-import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, CAIXA_SFI_TAXAS, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES, BRADESCO_COMERCIAL_PF } from './constantes'
+import { BANCOS_CONFIG, MIP_RATES, MIP_RATE_MCMV, DFI_RATE_MENSAL, MCMV_FAIXAS, CAIXA_PRO_COTISTA, CAIXA_SFI_TAXAS, OBSERVACOES_MODALIDADE, LIMITE_IDADE_PRAZO_MESES, BRADESCO_COMERCIAL_PF, CAIXA_COMERCIAL_TAXA_ANUAL } from './constantes'
 import { calcularIof } from '../simulador/calcular'
 import type { BancoConfig } from './constantes'
 import { resolverCriterios } from './criteria-resolver'
@@ -809,12 +809,20 @@ export function simularBanco(
     // abaixo em `simularCaixaDuplo`; aqui, no caminho de banco único, comercial nunca bate
     // nos ifs de Pró-Cotista/MCMV porque eles exigem imóvel residencial dentro de teto de
     // valor — mesmo critério de `simularCaixaDuplo`, ver comentário lá).
+    // Taxa e tarifa de administração comercial confirmadas via simulador oficial
+    // (2026-09-16, ver CAIXA_COMERCIAL_TAXA_ANUAL) — bem mais alta que o residencial (13,50%
+    // vs 11,49% efetivo) e SEM a tarifa de R$25/mês do residencial. `overrides?.taxaAnual`
+    // continua tendo precedência (permite recalibrar via Configurações > Bancos no futuro,
+    // mesmo padrão do resto do motor), só o fallback muda de residencial pra comercial.
     const criteriaBase: SimulationCriteria = input.finalidade === 'comercial'
       ? {
           ...criteriaBaseResolvido,
+          taxaAnualBase:        overrides?.taxaAnual ?? CAIXA_COMERCIAL_TAXA_ANUAL,
+          taxaAnualCorrentista: overrides?.taxaAnual ?? CAIXA_COMERCIAL_TAXA_ANUAL,
           ltv: { ...criteriaBaseResolvido.ltv, sac: 0.70, price: 0.70 },
           prazoMaximoMeses: 240,
           prazoMaximoMesesPrice: 240,
+          tarifaAdministracaoMensal: 0,
         }
       : criteriaBaseResolvido
     let criteria: SimulationCriteria = criteriaBase
@@ -1051,12 +1059,19 @@ function simularCaixaDuplo(input: InputFinanciamento, overrides?: BancoSimOverri
   // (LTV SAC 80%, prazo 420/360, MO30769 v032). Aplicado direto sobre o critério base:
   // comercial nunca acessa Pró-Cotista/MCMV (bloqueado abaixo por `podeMcmvProcotista`),
   // então só afeta o SBPE, calculado a partir desta variável (não de `criteriaBase`).
+  // Taxa e tarifa de administração comercial confirmadas via simulador oficial (2026-09-16,
+  // ver CAIXA_COMERCIAL_TAXA_ANUAL em constantes.ts) — mesmo ajuste de `simularBanco` acima,
+  // duplicado aqui porque este é o caminho REAL usado pelo bot (`simularTodosBancos` →
+  // `simularCaixaDuplo`), não `simularBanco` diretamente.
   const criteriaBaseAjustado: SimulationCriteria = input.finalidade === 'comercial'
     ? {
         ...criteriaBase,
+        taxaAnualBase:        overrides?.taxaAnual ?? CAIXA_COMERCIAL_TAXA_ANUAL,
+        taxaAnualCorrentista: overrides?.taxaAnual ?? CAIXA_COMERCIAL_TAXA_ANUAL,
         ltv: { ...criteriaBase.ltv, sac: 0.70, price: 0.70 },
         prazoMaximoMeses: 240,
         prazoMaximoMesesPrice: 240,
+        tarifaAdministracaoMensal: 0,
       }
     : criteriaBase
 

@@ -275,11 +275,32 @@ export const CAIXA_MIP_RATES: Array<{ maxAge: number; taxa: number }> = [
 ]
 
 // DFI Caixa — verificado: R$33,00 em R$500k = 0,0066%/mês sobre valor do imóvel
+// (2026-09-16: simulador oficial comercial mostrou R$33,40/mês pro mesmo valor — diferença
+// pequena, ~1,2% — mas mexer nesse valor GLOBAL quebrou calibração residencial já
+// confirmada em outros casos-âncora reais, ver criteria-migracao-fase4-caixa.test.ts e
+// mensagem-imovel-acima-teto.test.ts. Mantido como está; se o DFI realmente for diferente
+// entre residencial/comercial, precisa virar um campo separado tipo CAIXA_COMERCIAL_TAXA_ANUAL
+// em vez de sobrescrever a constante global.)
 export const CAIXA_DFI_RATE  = 0.000066
 
 // TA Caixa — Tarifa de Administração SFH, devida mensalmente (MO43000269 seção 3.18.3.5)
-// Verificado no breakdown da parcela do simulador oficial: R$25,00/mês (fixo)
+// Verificado no breakdown da parcela do simulador oficial: R$25,00/mês (fixo). Só se aplica
+// ao SBPE RESIDENCIAL — confirmado via simulador oficial comercial (2026-09-16, imóvel
+// R$500k Maringá-PR) que mostra "Taxa de administração: R$0,00" em toda a tabela de 240
+// parcelas. Ver CAIXA_COMERCIAL_TAXA_ANUAL logo abaixo — o comercial não herda essa tarifa.
 export const CAIXA_TA_MENSAL = 25.00
+
+// Taxa comercial da Caixa (SBPE, "Taxa Balcão") — confirmada via simulador oficial
+// (2026-09-16, imóvel R$500.000 Maringá-PR, SAC 240 meses, sem correntista/relacionamento):
+// "Juros efetivos: 13,50%" bate com a taxa EFETIVA anual (mesma convenção que
+// `taxaAnualBase` usa em todo o motor — `taxaAnualParaMensal` já compõe o mensal a partir
+// do anual efetivo, não do nominal). Confirmado batendo com a 1ª parcela real: taxa mensal
+// derivada de 13,50% efetivo = 1,0609%/mês × R$350.000 = R$3.713 de juros no mês 1,
+// exatamente o valor do simulador oficial. Bem acima dos 11,49% do residencial (SBPE
+// balcão) — o motor tratava comercial como se usasse a mesma taxa do residencial até este
+// ajuste (só LTV/prazo eram trocados, taxa não). Sem dado ainda pra taxa correntista
+// comercial — usa a mesma taxa base até haver confirmação em contrário.
+export const CAIXA_COMERCIAL_TAXA_ANUAL = 0.1350
 
 // TAC Itaú — Tarifa de Administração de Crédito, devida mensalmente do mês 1 até o
 // último inclusive (bug encontrado 2026-07-13: nunca era aplicada para o Itaú, mascarado
