@@ -425,11 +425,27 @@ export async function executarWorkflowCaptacao(
         .single()
 
       if (leadErr || !novoLead) {
-        console.error('[workflow-captacao] Erro ao criar lead:', leadErr)
-        return '❌ Erro ao criar o Lead. Tente novamente.'
+        // 23505 (unique_violation) no índice leads_pessoa_aberto_unico (migration 311) —
+        // duas mensagens *cria cliente quase simultâneas pra mesma Pessoa correram o
+        // check-then-insert em paralelo; a que perdeu a corrida cai aqui em vez de
+        // duplicar o Lead. Reaproveita o Lead que a outra invocação acabou de criar, em
+        // vez de falhar — mesmo efeito prático de leadExistente ter sido encontrado.
+        if (leadErr?.code === '23505' && pessoa_id) {
+          const leadDaCorrida = await buscarLeadAbertoPorPessoa(supabase, empresa_id, pessoa_id)
+          if (leadDaCorrida) {
+            lead_id = leadDaCorrida
+            leadAtualizado = true
+          } else {
+            console.error('[workflow-captacao] Conflito de Lead duplicado sem lead aberto encontrado:', leadErr)
+            return '❌ Erro ao criar o Lead. Tente novamente.'
+          }
+        } else {
+          console.error('[workflow-captacao] Erro ao criar lead:', leadErr)
+          return '❌ Erro ao criar o Lead. Tente novamente.'
+        }
+      } else {
+        lead_id = novoLead.id
       }
-
-      lead_id = novoLead.id
       await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'lead_criado',
         `Lead ${lead_id} criado para ${dados.nome}`)
 

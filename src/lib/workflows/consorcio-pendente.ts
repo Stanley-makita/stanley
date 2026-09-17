@@ -40,17 +40,36 @@ export interface ConsorcioPendente {
 
 const TTL_MS = 30 * 60 * 1000  // 30 minutos
 
+/**
+ * `pendenteAnterior`: guard de concorrência otimista — achado real de auditoria: sem
+ * isso, duas respostas do operador quase simultâneas ao mesmo passo (mensagens
+ * encaminhadas rapidamente) podiam processar o MESMO estado em paralelo, e a escrita
+ * mais lenta sobrescrevia o avanço da mais rápida, perdendo um passo do fluxo sem erro
+ * nenhum. Passando o estado lido no início do processamento, o UPDATE só aplica se
+ * `consorcio_pendente` na linha ainda for exatamente esse snapshot — retorna `false`
+ * (sem escrever nada) se outra invocação já avançou o passo nesse meio-tempo.
+ */
 export async function salvarConsorcioPendente(
   supabase: SupabaseClient,
   empresa_id: string,
   telefone: string,
   pendente: ConsorcioPendente,
-): Promise<void> {
+  pendenteAnterior?: ConsorcioPendente,
+): Promise<boolean> {
   const expira = new Date(Date.now() + TTL_MS).toISOString()
   const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
-  await supabase.from('conversas')
+  let query = supabase.from('conversas')
     .update({ consorcio_pendente: pendente, consorcio_pendente_expira: expira })
     .eq('id', conversaId)
+  if (pendenteAnterior) {
+    query = query.eq('consorcio_pendente', pendenteAnterior as unknown as Record<string, unknown>)
+  }
+  const { data, error } = await query.select('id')
+  if (error) {
+    console.error('[consorcio-pendente] salvarConsorcioPendente falhou:', error)
+    return false
+  }
+  return (data?.length ?? 0) > 0
 }
 
 export async function buscarConsorcioPendente(

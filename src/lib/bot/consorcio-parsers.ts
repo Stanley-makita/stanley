@@ -23,12 +23,17 @@ function normalizarTexto(texto: string): string {
  * servem: extrairNumero (state-machine.ts) rejeita qualquer valor abaixo de
  * 100, pensado pra valores em reais, não pra "36 meses".
  */
+// Teto de 999 — achado real de auditoria: sem limite superior, um fat-finger tipo
+// "99999999" (meses) passava direto pro simulador/PDF sem nenhum alerta. 999 meses (83
+// anos) já é folgado o suficiente pra nunca rejeitar um prazo/mês real de consórcio.
+const TETO_INTEIRO = 999
+
 export function parseInteiro(texto: string): number | null {
   const n = normalizarTexto(texto)
   const match = n.match(/\d+/)
   if (!match) return null
   const valor = parseInt(match[0], 10)
-  return isNaN(valor) || valor <= 0 ? null : valor
+  return isNaN(valor) || valor <= 0 || valor > TETO_INTEIRO ? null : valor
 }
 
 /**
@@ -36,12 +41,17 @@ export function parseInteiro(texto: string): number | null {
  * retorna como fração 0-1 (23% → 0.23). Aceita 0 (ex.: fundo de reserva sem
  * cobrança) mas não negativo.
  */
+// Teto de 100% — achado real de auditoria: sem limite superior, "500" digitado achando
+// que era 5% virava 500% direto em taxa_adm/indice_correcao/fundo_reserva/
+// parcela_reduzida, sem nenhum alerta, indo parar no PDF do cliente.
+const TETO_PERCENTUAL = 100
+
 export function parsePercentual(texto: string): number | null {
   const n = normalizarTexto(texto).replace('%', '').replace(',', '.')
   const match = n.match(/-?\d+(\.\d+)?/)
   if (!match) return null
   const valor = parseFloat(match[0])
-  return isNaN(valor) || valor < 0 ? null : valor / 100
+  return isNaN(valor) || valor < 0 || valor > TETO_PERCENTUAL ? null : valor / 100
 }
 
 const POSITIVOS = new Set([

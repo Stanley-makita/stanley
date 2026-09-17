@@ -16,7 +16,7 @@ import { gerarPropostaConsorcioBuffer } from '@/lib/simuladorConsorcio/gerarProp
 import type { InputConsorcio } from '@/lib/simuladorConsorcio/tipos'
 import { enviarPDFUazapi } from './uazapi-helpers'
 import {
-  salvarConsorcioPendente, limparConsorcioPendente,
+  salvarConsorcioPendente, buscarConsorcioPendente, limparConsorcioPendente,
   type ConsorcioPendente, type PassoConsorcio,
 } from './consorcio-pendente'
 import { parseValorReais } from '@/lib/bot/custas-parsers'
@@ -95,8 +95,16 @@ async function avancarPara(
   passo: PassoConsorcio,
   dados: Partial<InputConsorcio>,
   ctx: WorkflowConsorcioContexto,
+  pendenteAnterior?: ConsorcioPendente,
 ): Promise<string> {
-  await salvarConsorcioPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador, { passo, dados })
+  const gravado = await salvarConsorcioPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador, { passo, dados }, pendenteAnterior)
+  if (!gravado) {
+    // Perdeu a corrida (ver comentário em salvarConsorcioPendente) — outra invocação já
+    // avançou o passo nesse meio-tempo. Resincroniza com o estado real em vez de
+    // sobrescrevê-lo ou responder com uma pergunta que não corresponde mais ao passo atual.
+    const atual = await buscarConsorcioPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador)
+    if (atual) return perguntaDoPasso(atual.passo, atual.dados)
+  }
   return perguntaDoPasso(passo, dados)
 }
 
@@ -210,14 +218,14 @@ export async function processarRespostaConsorcio(
       const v = parseTipoBem(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi — responda *1* (Imóvel) ou *2* (Auto).')
       dados.tipoBem = v
-      return avancarPara('valor_bem', dados, ctx)
+      return avancarPara('valor_bem', dados, ctx, pendente)
     }
 
     case 'valor_bem': {
       const v = parseValorReais(texto)
       if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.valorBem = v
-      return avancarPara('valor_carta', dados, ctx)
+      return avancarPara('valor_carta', dados, ctx, pendente)
     }
 
     case 'valor_carta': {
@@ -225,49 +233,49 @@ export async function processarRespostaConsorcio(
       const v = parseComSugestao(texto, sugestao, parseValorReais)
       if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.valorCarta = v
-      return avancarPara('mes_contemplacao', dados, ctx)
+      return avancarPara('mes_contemplacao', dados, ctx, pendente)
     }
 
     case 'mes_contemplacao': {
       const v = parseInteiro(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi o mês.')
       dados.mesLanceContemplacao = v
-      return avancarPara('prazo_meses', dados, ctx)
+      return avancarPara('prazo_meses', dados, ctx, pendente)
     }
 
     case 'prazo_meses': {
       const v = parseInteiro(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi o prazo.')
       dados.prazoMeses = v
-      return avancarPara('taxa_adm', dados, ctx)
+      return avancarPara('taxa_adm', dados, ctx, pendente)
     }
 
     case 'taxa_adm': {
       const v = parsePercentual(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi o percentual.')
       dados.taxaAdmPercentual = v
-      return avancarPara('indice_correcao', dados, ctx)
+      return avancarPara('indice_correcao', dados, ctx, pendente)
     }
 
     case 'indice_correcao': {
       const v = parsePercentual(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi o percentual.')
       dados.indiceCorrecaoAnual = v
-      return avancarPara('indexador_fixo', dados, ctx)
+      return avancarPara('indexador_fixo', dados, ctx, pendente)
     }
 
     case 'indexador_fixo': {
       const v = parseIndexadorFixo(texto)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi — responda *1* (Fixo) ou *2* (Variável).')
       dados.indexadorFixo = v
-      return avancarPara('parcela_reduzida', dados, ctx)
+      return avancarPara('parcela_reduzida', dados, ctx, pendente)
     }
 
     case 'parcela_reduzida': {
       const v = parseComSugestao(texto, SUGESTAO_PARCELA_REDUZIDA, parsePercentual)
       if (v == null) return repetirPergunta(pendente, ctx, 'Não entendi o percentual.')
       dados.percentualParcelaReduzida = v
-      return avancarPara('fundo_reserva', dados, ctx)
+      return avancarPara('fundo_reserva', dados, ctx, pendente)
     }
 
     case 'fundo_reserva': {

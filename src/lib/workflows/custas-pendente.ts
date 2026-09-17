@@ -37,17 +37,35 @@ export interface CustasPendente {
 
 const TTL_MS = 30 * 60 * 1000  // 30 minutos
 
+/**
+ * `pendenteAnterior`: guard de concorrência otimista — mesmo achado/fix de
+ * consorcio-pendente.ts: sem isso, duas respostas quase simultâneas ao mesmo passo
+ * podiam processar o mesmo estado em paralelo e a escrita mais lenta sobrescrevia o
+ * avanço da mais rápida. Passando o estado lido no início do processamento, o UPDATE só
+ * aplica se `custas_pendente` na linha ainda for exatamente esse snapshot — retorna
+ * `false` (sem escrever) se outra invocação já avançou o passo nesse meio-tempo.
+ */
 export async function salvarCustasPendente(
   supabase: SupabaseClient,
   empresa_id: string,
   telefone: string,
   pendente: CustasPendente,
-): Promise<void> {
+  pendenteAnterior?: CustasPendente,
+): Promise<boolean> {
   const expira = new Date(Date.now() + TTL_MS).toISOString()
   const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
-  await supabase.from('conversas')
+  let query = supabase.from('conversas')
     .update({ custas_pendente: pendente, custas_pendente_expira: expira })
     .eq('id', conversaId)
+  if (pendenteAnterior) {
+    query = query.eq('custas_pendente', pendenteAnterior as unknown as Record<string, unknown>)
+  }
+  const { data, error } = await query.select('id')
+  if (error) {
+    console.error('[custas-pendente] salvarCustasPendente falhou:', error)
+    return false
+  }
+  return (data?.length ?? 0) > 0
 }
 
 export async function buscarCustasPendente(
