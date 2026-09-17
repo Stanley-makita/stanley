@@ -25,6 +25,11 @@ export const PRAZO_MAXIMO_CGI_MESES = 240
 // pode ultrapassar 80 anos e 3 meses. Não há prazo mínimo operacional de CGI documentado
 // no projeto nem nas fontes bancárias já levantadas — não inventar um piso (diferente do
 // financiamento imobiliário, que tem seu próprio piso de 12 meses por regra distinta).
+// Nota de auditoria: intencionalmente DIFERENTE de LIMITE_IDADE_PRAZO_MESES (80 anos e 6
+// meses, simuladorFinanciamento/constantes.ts) — CGI é produto próprio com regra própria,
+// não herda do motor de financiamento. Se a regra de idade do financiamento imobiliário for
+// recalibrada no futuro, confirmar separadamente se o CGI também deveria mudar (não
+// duplicar a mudança aqui sem confirmar com o usuário).
 export const LIMITE_IDADE_PRAZO_CGI_MESES = 80 * 12 + 3
 
 // Parâmetros comerciais de referência V1 — confirmados com o usuário nesta sessão.

@@ -72,6 +72,41 @@ export async function buscarSimulaPendente(
   return data.simula_pendente as WorkflowPendente
 }
 
+/**
+ * Acumula `novoTexto` em `texto_acumulado` da pendência de forma atômica — usada pelo
+ * debounce de mensagens encaminhadas simultâneas (processarRespostaPendente,
+ * fonti-comandos.ts). Achado real de auditoria: o padrão anterior (SELECT texto atual +
+ * concatenar em JS + UPDATE) não era atômico — duas requisições concorrentes liam o mesmo
+ * estado antigo antes de qualquer uma escrever, e a mensagem de uma delas era perdida do
+ * parser. A função Postgres `acumular_texto_simula_pendente` (migration 312) faz
+ * leitura+concatenação+escrita num único UPDATE, atômico por linha.
+ * Retorna o `simula_pendente` já atualizado (equivalente a um buscarSimulaPendente logo
+ * após salvar, sem round-trip extra).
+ */
+export async function acumularTextoSimulaPendente(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefone: string,
+  novoTexto: string,
+  ultimaMsgEm: string,
+  fallbackPendente: WorkflowPendente,
+): Promise<WorkflowPendente | null> {
+  const expira = new Date(Date.now() + TTL_MS).toISOString()
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefone)
+  const { data, error } = await supabase.rpc('acumular_texto_simula_pendente', {
+    p_conversa_id: conversaId,
+    p_novo_texto: novoTexto,
+    p_ultima_msg_em: ultimaMsgEm,
+    p_expira: expira,
+    p_fallback_pendente: fallbackPendente,
+  })
+  if (error) {
+    console.error('[simula-pendente] acumularTextoSimulaPendente falhou:', error)
+    return null
+  }
+  return (data as WorkflowPendente | null) ?? null
+}
+
 export async function limparSimulaPendente(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -90,6 +125,19 @@ export async function limparSimulaPendente(
  * corrigir/complementar qualquer campo na nova mensagem.
  * Exceção: tipo_operacao='aquisicao' é apenas o default do classificador e não
  * sobrescreve um tipo mais específico já resolvido (construcao, comercial, etc.).
+ *
+ * Nota de auditoria: campos DERIVADOS pelo Motor de Simulação (não pelo parser) —
+ * `renda_necessaria_para_maximo`, `idade_assumida_prazo_maximo`,
+ * `idade_assumida_valor_financiado`, `usou_idade_aproximada` — não estão em nenhuma
+ * das duas listas abaixo (camposEscalares/camposBooleanos) e por isso NÃO são
+ * mesclados. Hoje isso é inofensivo porque `salvarSimulaPendente` é sempre chamado
+ * ANTES de `executarSimulacao` rodar (Etapas 3/3.5 de workflow-consulta.ts, antes da
+ * Etapa 4) — esses campos nunca chegam a fazer parte do `dadosCapturados` persistido.
+ * Se algum código futuro passar a salvar pendência com `dados` já pós-`executarSimulacao`
+ * (ex.: um fluxo de confirmação após simulação parcial), esses campos ficariam
+ * congelados no primeiro valor calculado e nunca seriam re-derivados na resimulação
+ * seguinte — adicionar à lista de campos escalares (mesma regra de `conflito_valores`
+ * acima) se isso vier a acontecer.
  */
 export function mergeCapturados(
   anterior: Partial<DadosCaptacaoNormalizados>,
@@ -121,8 +169,14 @@ export function mergeCapturados(
   // reprocessar texto vazio (resposta "sim" a uma confirmação) resetava prazo_maximo=true
   // para false, fazendo a validação voltar a exigir data de nascimento indevidamente.
   // Uma vez capturada como true, a flag permanece até a pendência ser resolvida.
+  // `tipo_amortizacao_ambas` — achado real de auditoria: faltava aqui, diferente dos
+  // outros booleanos. Cenário real: "*simula imóvel 500 mil, Itaú" (falta nascimento) →
+  // pendência → operador completa com "nascimento 10/05/1985, sac e price" — sem o campo
+  // na lista, o pedido explícito de comparar SAC e PRICE era descartado silenciosamente e
+  // a simulação rodava só em SAC.
   const camposBooleanos: (keyof DadosCaptacaoNormalizados)[] = [
     'correntista', 'usa_fgts', 'todos_bancos', 'solicitar_simulacao', 'prazo_maximo', 'mcmv_mencionado',
+    'tipo_amortizacao_ambas',
   ]
   for (const campo of camposBooleanos) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

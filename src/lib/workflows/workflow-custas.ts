@@ -16,7 +16,7 @@ import { calcularCustas, ajustarParaExibicaoCliente, calcIofVisivel, calcularIof
 import { gerarPDFCustasBuffer } from '@/lib/simulador/gerarPDFBuffer'
 import { enviarPDFUazapi } from './uazapi-helpers'
 import {
-  salvarCustasPendente, limparCustasPendente,
+  salvarCustasPendente, buscarCustasPendente, limparCustasPendente,
   type CustasPendente, type PassoCustas,
 } from './custas-pendente'
 import { parseSimNao, parseMenuOpcao, parseValorReais, parseValorOuZero } from '@/lib/bot/custas-parsers'
@@ -62,35 +62,44 @@ function menu(opcoes: string[]): string {
   return opcoes.map((o, i) => `${i + 1} - ${o}`).join('\n')
 }
 
+// Rodapé fixo em toda pergunta — achado real de auditoria: *consorcio já tem essa dica
+// (DICA_SAIR, workflow-consorcio.ts) mas *custas não, então o operador nunca era
+// informado de como sair do fluxo, só descobria se soubesse de antemão uma das palavras
+// aceitas pela regex de cancelamento acima.
+const DICA_SAIR = '_Digite *sair* para cancelar e recomeçar._'
+
 function perguntaDoPasso(passo: PassoCustas): string {
-  switch (passo) {
-    case 'tipo_imovel':
-      return `Qual o *tipo de imóvel*?\n${menu(TIPO_IMOVEL_OPCOES.map((o) => o.label))}`
-    case 'cidade':
-      return 'Qual a *cidade do imóvel*?'
-    case 'valor_cv':
-      return 'Qual o *valor de compra e venda*? (R$)'
-    case 'valor_financiado':
-      return 'Qual o *valor financiado*? (R$)'
-    case 'modalidade':
-      return `Qual a *modalidade*?\n${menu(MODALIDADE_OPCOES.map((o) => o.label))}`
-    case 'valor_terreno':
-      return 'Informe o *valor do terreno*: (R$)'
-    case 'servico_registro':
-      return 'Qual o valor do *serviço de registro*? (R$, ou 0 se não houver)'
-    case 'valor_certidoes':
-      return 'Qual o *valor das certidões*? (R$, ou 0 se não houver)'
-    case 'contrato_particular':
-      return 'Qual o valor do *contrato particular*? (R$, ou 0 se não houver)'
-    case 'primeira_aquisicao':
-      return 'É *Primeira Aquisição*?\n1 - Sim\n2 - Não'
-    case 'isento_funrejus':
-      return 'É *isento FunRejus*?\n1 - Sim\n2 - Não'
-    case 'produto':
-      return `Qual o *produto*?\n${menu(PRODUTO_OPCOES.map((o) => o.label))}`
-    case 'banco':
-      return `Qual o *banco*?\n${menu(BANCO_OPCOES)}`
-  }
+  const pergunta = (() => {
+    switch (passo) {
+      case 'tipo_imovel':
+        return `Qual o *tipo de imóvel*?\n${menu(TIPO_IMOVEL_OPCOES.map((o) => o.label))}`
+      case 'cidade':
+        return 'Qual a *cidade do imóvel*?'
+      case 'valor_cv':
+        return 'Qual o *valor de compra e venda*? (R$)'
+      case 'valor_financiado':
+        return 'Qual o *valor financiado*? (R$)'
+      case 'modalidade':
+        return `Qual a *modalidade*?\n${menu(MODALIDADE_OPCOES.map((o) => o.label))}`
+      case 'valor_terreno':
+        return 'Informe o *valor do terreno*: (R$)'
+      case 'servico_registro':
+        return 'Qual o valor do *serviço de registro*? (R$, ou 0 se não houver)'
+      case 'valor_certidoes':
+        return 'Qual o *valor das certidões*? (R$, ou 0 se não houver)'
+      case 'contrato_particular':
+        return 'Qual o valor do *contrato particular*? (R$, ou 0 se não houver)'
+      case 'primeira_aquisicao':
+        return 'É *Primeira Aquisição*?\n1 - Sim\n2 - Não'
+      case 'isento_funrejus':
+        return 'É *isento FunRejus*?\n1 - Sim\n2 - Não'
+      case 'produto':
+        return `Qual o *produto*?\n${menu(PRODUTO_OPCOES.map((o) => o.label))}`
+      case 'banco':
+        return `Qual o *banco*?\n${menu(BANCO_OPCOES)}`
+    }
+  })()
+  return `${pergunta}\n\n${DICA_SAIR}`
 }
 
 export async function iniciarFluxoCustas(ctx: WorkflowCustasContexto): Promise<string> {
@@ -103,9 +112,17 @@ async function avancarPara(
   passo: PassoCustas,
   dados: Partial<EntradaSimulador>,
   ctx: WorkflowCustasContexto,
+  pendenteAnterior?: CustasPendente,
   prefixo?: string,
 ): Promise<string> {
-  await salvarCustasPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador, { passo, dados })
+  const gravado = await salvarCustasPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador, { passo, dados }, pendenteAnterior)
+  if (!gravado) {
+    // Perdeu a corrida (ver comentário em salvarCustasPendente) — outra invocação já
+    // avançou o passo nesse meio-tempo. Resincroniza com o estado real em vez de
+    // sobrescrevê-lo ou responder com uma pergunta que não corresponde mais ao passo atual.
+    const atual = await buscarCustasPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador)
+    if (atual) return perguntaDoPasso(atual.passo)
+  }
   const pergunta = perguntaDoPasso(passo)
   return prefixo ? `${prefixo}\n\n${pergunta}` : pergunta
 }
@@ -275,7 +292,7 @@ export async function processarRespostaCustas(
   const dados = { ...pendente.dados }
   const textoLower = texto.toLowerCase().trim()
 
-  if (/^(cancela|cancelar|desisti|encerra)/.test(textoLower)) {
+  if (/^(cancela|cancelar|desisti|encerra|sair)/.test(textoLower)) {
     await limparCustasPendente(ctx.supabase, ctx.empresa_id, ctx.telefone_operador)
     return 'Simulação de custas cancelada. Quando quiser iniciar novamente, envie *custas.'
   }
@@ -285,21 +302,21 @@ export async function processarRespostaCustas(
       const idx = parseMenuOpcao(texto, TIPO_IMOVEL_OPCOES.map((o) => o.label))
       if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
       dados.tipoImovel = TIPO_IMOVEL_OPCOES[idx].valor
-      return avancarPara('cidade', dados, ctx)
+      return avancarPara('cidade', dados, ctx, pendente)
     }
 
     case 'cidade': {
       const cidade = texto.trim()
       if (!cidade) return repetirPergunta(pendente, ctx, 'Informe o nome da cidade.')
       dados.cidade = cidade
-      return avancarPara('valor_cv', dados, ctx)
+      return avancarPara('valor_cv', dados, ctx, pendente)
     }
 
     case 'valor_cv': {
       const v = parseValorReais(texto)
       if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.valorCV = v
-      return avancarPara('valor_financiado', dados, ctx)
+      return avancarPara('valor_financiado', dados, ctx, pendente)
     }
 
     case 'valor_financiado': {
@@ -308,7 +325,7 @@ export async function processarRespostaCustas(
       dados.valorFinanciado = v
       const recursosProprios = Math.max(0, (dados.valorCV ?? 0) - v)
       return avancarPara(
-        'servico_registro', dados, ctx,
+        'servico_registro', dados, ctx, pendente,
         `💰 Recursos próprios (calculado): ${BRL.format(recursosProprios)}`,
       )
     }
@@ -317,42 +334,42 @@ export async function processarRespostaCustas(
       const v = parseValorOuZero(texto)
       if (v == null || v < 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.servicoRegistro = v
-      return avancarPara('valor_certidoes', dados, ctx)
+      return avancarPara('valor_certidoes', dados, ctx, pendente)
     }
 
     case 'valor_certidoes': {
       const v = parseValorOuZero(texto)
       if (v == null || v < 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.valorCertidoes = v
-      return avancarPara('contrato_particular', dados, ctx)
+      return avancarPara('contrato_particular', dados, ctx, pendente)
     }
 
     case 'contrato_particular': {
       const v = parseValorOuZero(texto)
       if (v == null || v < 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.contratoParticular = v
-      return avancarPara('primeira_aquisicao', dados, ctx)
+      return avancarPara('primeira_aquisicao', dados, ctx, pendente)
     }
 
     case 'primeira_aquisicao': {
       const r = parseSimNao(texto)
       if (r === null) return repetirPergunta(pendente, ctx, 'Responda *sim* ou *não*.')
       dados.primeiraAquisicao = r
-      return avancarPara('isento_funrejus', dados, ctx)
+      return avancarPara('isento_funrejus', dados, ctx, pendente)
     }
 
     case 'isento_funrejus': {
       const r = parseSimNao(texto)
       if (r === null) return repetirPergunta(pendente, ctx, 'Responda *sim* ou *não*.')
       dados.isentoFunRejus = r
-      return avancarPara('banco', dados, ctx)
+      return avancarPara('banco', dados, ctx, pendente)
     }
 
     case 'banco': {
       const idx = parseMenuOpcao(texto, BANCO_OPCOES)
       if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
       dados.banco = BANCO_OPCOES[idx]
-      return avancarPara('modalidade', dados, ctx)
+      return avancarPara('modalidade', dados, ctx, pendente)
     }
 
     case 'modalidade': {
@@ -360,17 +377,17 @@ export async function processarRespostaCustas(
       if (idx === null) return repetirPergunta(pendente, ctx, 'Não entendi a opção.')
       dados.modalidade = MODALIDADE_OPCOES[idx].valor
       if (dados.modalidade === 'terreno_construcao') {
-        return avancarPara('valor_terreno', dados, ctx)
+        return avancarPara('valor_terreno', dados, ctx, pendente)
       }
       dados.valorTerreno = 0
-      return avancarPara('produto', dados, ctx)
+      return avancarPara('produto', dados, ctx, pendente)
     }
 
     case 'valor_terreno': {
       const v = parseValorReais(texto)
       if (v == null || v <= 0) return repetirPergunta(pendente, ctx, 'Não entendi o valor.')
       dados.valorTerreno = v
-      return avancarPara('produto', dados, ctx)
+      return avancarPara('produto', dados, ctx, pendente)
     }
 
     case 'produto': {

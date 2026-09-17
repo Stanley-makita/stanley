@@ -436,10 +436,15 @@ export async function POST(request: NextRequest) {
       // 2ª tentativa: fallback pelo número do owner (token pode diferir em formato)
       if (!fmInst && ownerPhone.length >= 8) {
         const ownerSuffix = ownerPhone.slice(-10)
+        // .limit(1) antes de .maybeSingle() — achado real de auditoria: sem isso, duas
+        // instâncias ativas compartilhando os últimos 10 dígitos do telefone fazem
+        // .maybeSingle() retornar erro (mais de uma linha), que era descartado (só `data`
+        // era lido) e a instância ficava "não resolvida" sem log da causa real.
         const { data: instByPhone } = await supabase
           .from('instancias').select('id, empresa_id, atendente_id, numero_telefone')
           .eq('ativo', true)
           .like('numero_telefone', `%${ownerSuffix}`)
+          .limit(1)
           .maybeSingle()
         if (instByPhone) {
           fmInst = instByPhone
@@ -558,9 +563,11 @@ export async function POST(request: NextRequest) {
       nmEmpresaId = nmInst?.empresa_id
 
       if (!nmEmpresaId && nmOwnerPhone.length >= 8) {
+        // .limit(1) — mesmo achado de auditoria do ponto acima (evita erro descartado de
+        // .maybeSingle() quando duas instâncias compartilham o sufixo de telefone).
         const { data: nmInstByPhone } = await supabase
           .from('instancias').select('empresa_id')
-          .eq('ativo', true).like('numero_telefone', `%${nmOwnerPhone.slice(-10)}`).maybeSingle()
+          .eq('ativo', true).like('numero_telefone', `%${nmOwnerPhone.slice(-10)}`).limit(1).maybeSingle()
         nmEmpresaId = nmInstByPhone?.empresa_id
       }
       nmEmpresaId = nmEmpresaId ?? process.env.UAZAPI_EMPRESA_ID
@@ -616,9 +623,10 @@ export async function POST(request: NextRequest) {
         .from('instancias').select('id, empresa_id, atendente_id')
         .eq('token', pendToken).eq('ativo', true).maybeSingle()
       if (!pendInst && pendOwnerPhone.length >= 8) {
+        // .limit(1) — mesmo achado de auditoria dos outros dois pontos.
         const { data: instByPhone } = await supabase
           .from('instancias').select('id, empresa_id, atendente_id')
-          .eq('ativo', true).like('numero_telefone', `%${pendOwnerPhone.slice(-10)}`).maybeSingle()
+          .eq('ativo', true).like('numero_telefone', `%${pendOwnerPhone.slice(-10)}`).limit(1).maybeSingle()
         pendInst = instByPhone
       }
       const pendEmpresaId = pendInst?.empresa_id ?? process.env.UAZAPI_EMPRESA_ID
@@ -1524,6 +1532,12 @@ export async function POST(request: NextRequest) {
     resultado = await processarMensagem(texto.trim(), historico, telefone, contextoCliente, transicao, extraidoComSucesso, botConfig)
   } catch (err) {
     console.error('[whatsapp] Erro no agente:', err)
+    // Achado real de auditoria: diferente de todos os outros catches de pendência deste
+    // arquivo (que mandam um fallback via enviarMensagemUazapi), este catch do fluxo
+    // principal de atendimento ao cliente só logava e retornava — o cliente nunca
+    // recebia resposta nem ficava sabendo que algo falhou. Mesma classe de "silêncio sem
+    // erro" que motivou o PR #297, só que não coberta até agora.
+    await enviarMensagemUazapi(telefone, '⚠️ Desculpe, tive um problema ao processar sua mensagem. Pode tentar novamente?')
     return NextResponse.json({ ok: true })
   }
 

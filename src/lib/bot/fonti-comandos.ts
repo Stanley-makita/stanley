@@ -1621,7 +1621,7 @@ export async function processarRespostaPendente(
   const { empresa_id, supabase } = ctx
   const telefoneOp = ctx.telefone_remetente
 
-  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente, buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+  const { mergeCapturados, salvarSimulaPendente, limparSimulaPendente, buscarSimulaPendente, acumularTextoSimulaPendente } = await import('@/lib/workflows/simula-pendente')
 
   // ── Pendência de confirmação ─────────────────────────────────────────────────
   // Fonti mostrou o resumo e perguntou "Está tudo certo?".
@@ -1653,18 +1653,25 @@ export async function processarRespostaPendente(
   // Quando o operador encaminha várias mensagens de uma vez, cada uma chega como
   // um webhook separado quase ao mesmo tempo. Acumulamos os textos e só o último
   // call (last-writer-wins) efetivamente processa — os demais retornam null (silêncio).
+  // Acumulação atômica (migration 312, acumularTextoSimulaPendente) — achado real de
+  // auditoria: o padrão anterior (SELECT + concatenar em JS + UPDATE) não era atômico;
+  // duas requisições concorrentes liam o mesmo estado antigo antes de qualquer uma
+  // escrever, perdendo o texto de uma delas. Agora leitura+concatenação+escrita acontecem
+  // num único UPDATE no Postgres, que serializa via lock de linha.
   const agora = new Date().toISOString()
-  const pendenteAtual = await buscarSimulaPendente(supabase, empresa_id, telefoneOp) ?? pendente
-  const textoAcumulado = [pendenteAtual.texto_acumulado, texto].filter(Boolean).join('\n')
-  await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
-    ...pendenteAtual,
-    texto_acumulado: textoAcumulado,
-    ultima_msg_em: agora,
-  })
+  const acumulado = await acumularTextoSimulaPendente(supabase, empresa_id, telefoneOp, texto, agora, pendente)
+  if (!acumulado) return 'Sessão expirou. Envie *simula para reiniciar.'
   await new Promise((r) => setTimeout(r, 1800))
   const pendenteRelido = await buscarSimulaPendente(supabase, empresa_id, telefoneOp)
   if (!pendenteRelido) return 'Sessão expirou. Envie *simula para reiniciar.'
   if (pendenteRelido.ultima_msg_em && pendenteRelido.ultima_msg_em !== agora) return null
+  // Achado real de auditoria: todo `salvarSimulaPendente`/`_confirmarConstricao` daqui em
+  // diante usava `pendente` (o parâmetro original, capturado ANTES do debounce) em vez de
+  // `pendenteRelido` (com texto_acumulado/ultima_msg_em atualizados) — cada rodada em que a
+  // pendência continuava aberta revertia o texto acumulado ao estado pré-debounce desta
+  // mensagem. Reatribuir aqui propaga pendenteRelido pra todo o resto da função sem precisar
+  // trocar cada `...pendente` individualmente.
+  pendente = pendenteRelido
   // ────────────────────────────────────────────────────────────────────────────────
 
   const { dadosCapturados } = pendenteRelido

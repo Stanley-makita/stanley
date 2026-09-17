@@ -386,12 +386,27 @@ function autoDerivarEntradaFinanciado(
   let maxByRenda = valorImovel
   if (!opts?.ignorarRenda && rendaTotal > 0 && dados.data_nascimento) {
     const idadeCalc = calcularIdadeEmAnos(dados.data_nascimento)
-    const mipCalc   = getMipRate(idadeCalc)
+    let mipCalc   = getMipRate(idadeCalc)
     const prazoCalc = dados.prazo_meses ?? 360
     const bancoRef  = bancosIds[0]
-    const taxaRef   = bancoRef
+    let taxaRef   = bancoRef
       ? (dados.correntista ? BANCOS_CONFIG[bancoRef].taxaAnualCorrentista : BANCOS_CONFIG[bancoRef].taxaAnualBase)
       : 0.10
+
+    // MCMV mencionado — achado real de auditoria: esta estimativa (usada tanto pra
+    // "financiando valor máximo" quanto pro diagnóstico de renda necessária) ainda usava a
+    // taxa SBPE genérica da Caixa (~11,49% a.a.), sempre maior que a taxa real da faixa
+    // MCMV (4,00%-10,47%) — subestimava a capacidade de renda mesmo com o LTV já corrigido
+    // (ltvMin acima já usa resolverLtvEfetivoCaixa corretamente desde jul/2026).
+    if (bancoRef === 'caixa' && dados.mcmv_mencionado) {
+      const faixaMcmv = MCMV_FAIXAS.filter((f) => rendaTotal <= f.rendaMax && valorImovel <= f.tetoImovel)
+      if (faixaMcmv.length > 0) {
+        const f = faixaMcmv[0]
+        taxaRef = f.taxaAnual
+        mipCalc = f.mipSubsidizado ? MIP_RATE_MCMV : mipCalc
+      }
+    }
+
     maxByRenda = calcularMaxFinanciavel(rendaTotal, valorImovel, taxaAnualParaMensal(taxaRef), prazoCalc, mipCalc)
 
     // Renda foi o fator limitante (não o teto de LTV) — informa quanto de renda seria
@@ -513,6 +528,24 @@ function montarRespostaComparativaPrazos(resultado: ResultadoSimulacaoUnificado)
   ))
 
   if (bancosNomes.length === 0) {
+    // MCMV mencionado — achado real de auditoria: cada chamada de executarSimulacao dentro
+    // do loop de prazos já filtra corretamente pra só MCMV (mesmo mcmvSemEnquadramento do
+    // modo NORMAL), mas esse flag não era propagado pro modo COMPARACAO_PRAZOS — um cliente
+    // fora de todas as faixas (renda/imóvel acima do teto) caía nesta mensagem genérica sem
+    // nenhuma relação com o motivo real. Mesma lógica de montarRespostaNormal, adaptada.
+    if (dados.mcmv_mencionado) {
+      const tetoMax = MCMV_FAIXAS[MCMV_FAIXAS.length - 1]
+      const rendaMensal = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+      const acimaDoTetoImovel = dados.valor_imovel != null && dados.valor_imovel > tetoMax.tetoImovel
+      const acimaDaRenda = !acimaDoTetoImovel && rendaMensal > 0 && rendaMensal > tetoMax.rendaMax
+      linhas.push('', `⚠️ *Cliente não se enquadra no MCMV.*`,
+        acimaDoTetoImovel
+          ? `O valor do imóvel (${fmt.format(dados.valor_imovel!)}) está acima do teto máximo do programa (${fmt.format(tetoMax.tetoImovel)}, ${tetoMax.programa}).`
+          : acimaDaRenda
+            ? `A renda informada (${fmt.format(rendaMensal)}) está acima do teto máximo do programa (${fmt.format(tetoMax.rendaMax)}, ${tetoMax.programa}).`
+            : `Pela combinação de renda e valor do imóvel informados, o cliente não se enquadra em nenhuma faixa vigente do MCMV.`)
+      return linhas.join('\n')
+    }
     linhas.push('', 'Não encontrei banco elegível para os prazos informados.')
     return linhas.join('\n')
   }
