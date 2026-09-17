@@ -810,6 +810,35 @@ export async function executarWorkflowCaptacao(
   }
   const compararPrazos = prazosNum.length > 1
 
+  // ── Etapa 6.2d: MCMV mencionado exige renda para verificar enquadramento ───
+  // Mesmo critério do *simula (workflow-consulta.ts, Etapa 3.5): renda nunca bloqueia o
+  // Motor em geral, mas o MCMV restringe a simulação só à Caixa/MCMV (resolverBancos/
+  // executarSimulacao, motor-simulacao.ts) e sem renda não dá pra saber em qual faixa o
+  // cliente cairia — pedir aqui evita simular vazio ("não se enquadra" por falta de dado).
+  const rendaTotalMcmv = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+  if (dados.mcmv_mencionado && rendaTotalMcmv === 0) {
+    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'completar_dados_simulacao',
+        dadosCapturados: dados,
+        usouConsulta: false,
+        leadIdExistente: lead_id,
+        pessoaIdExistente: pessoa_id ?? undefined,
+      })
+    }
+    const acaoMcmv = leadAtualizado ? 'Lead atualizado' : 'Cliente e Lead criados'
+    return [
+      `✅ ${acaoMcmv}.`,
+      '',
+      '⚠️ *MCMV — falta a renda.*',
+      '',
+      'Para verificar o enquadramento nas faixas do Minha Casa Minha Vida (Caixa), preciso da renda mensal do cliente.',
+      '',
+      'Responda com a renda para continuar.',
+    ].join('\n')
+  }
+
   await registrarEvento(supabase, lead_id, empresa_id, usuario_id, 'validacao_aprovada',
     `Bancos: ${dados.bancos_ids.join(', ')}`)
 

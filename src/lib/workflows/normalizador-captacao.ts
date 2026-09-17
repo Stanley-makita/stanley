@@ -79,6 +79,26 @@ export interface DadosCaptacaoNormalizados {
   // Trechos do texto bruto com formatação numérica ambígua (ex.: "4500.000") — quando
   // presente, o workflow deve confirmar com o operador antes de simular.
   valores_ambiguos_brutos: string[] | null
+  // true quando o texto do operador cita MCMV/Minha Casa Minha Vida explicitamente (sigla,
+  // variações comuns de digitação ou a frase por extenso — ver detectarMcmvMencionado).
+  // Detecção determinística por regex sobre o texto bruto, não vem do parser LLM (produto
+  // normalizado não distingue MCMV do resto de AQUISICAO — ver normalizarProduto). Motor de
+  // Simulação usa esta flag para restringir a simulação só à Caixa/MCMV (workflow-consulta.ts,
+  // motor-simulacao.ts) — outros bancos não operam MCMV hoje.
+  // Opcional (ausente = false) para não quebrar literais de DadosCaptacaoNormalizados
+  // escritos antes deste campo existir (testes) — mesmo critério de `bancos_cgi_ids`.
+  mcmv_mencionado?: boolean
+}
+
+// Detecta menção a MCMV/Minha Casa Minha Vida no texto bruto do pedido, incluindo variações
+// comuns de digitação (PMCMV, MCMVV, MDMV) e a frase abreviada "minha casa mv". Determinístico
+// (não depende do parser LLM) para não deixar de restringir a simulação à Caixa/MCMV por causa
+// de uma extração inconsistente do produto.
+export function detectarMcmvMencionado(textoOriginal: string): boolean {
+  const t = norm(textoOriginal)
+  if (/\b(p?mcmvv?|mdmv)\b/.test(t)) return true
+  if (/minha\s+casa\s+(minha\s+vida|mv)\b/.test(t)) return true
+  return false
 }
 
 // ── Classificador determinístico de tipo de operação ──────────────────────────
@@ -380,13 +400,14 @@ export async function normalizarPedidoSimulacao(texto: string): Promise<DadosCap
     parsearTextoCaptacao(texto),
     Promise.resolve(classificarIntencaoOperacao(texto)),
   ])
-  return normalizarDadosCaptacao(raw, classificacao, detectarValoresAmbiguos(texto))
+  return normalizarDadosCaptacao(raw, classificacao, detectarValoresAmbiguos(texto), texto)
 }
 
 export function normalizarDadosCaptacao(
   raw: DadosCaptacaoRaw,
   classificacao?: ClassificacaoOperacao,
   valoresAmbiguosBrutos?: string[] | null,
+  textoOriginal?: string,
 ): DadosCaptacaoNormalizados {
   // Calculado cedo (antes da derivação de valores abaixo) porque CGI usa uma semântica
   // diferente de valor_imovel/valor_financiado (não há "entrada" — ver guarda abaixo).
@@ -582,5 +603,6 @@ export function normalizarDadosCaptacao(
     pedir_esclarecimento_operacao: cls.pedirEsclarecimento,
     pergunta_esclarecimento:      cls.pergunta,
     valores_ambiguos_brutos:      valoresAmbiguosBrutos ?? null,
+    mcmv_mencionado:              textoOriginal != null && detectarMcmvMencionado(textoOriginal),
   }
 }

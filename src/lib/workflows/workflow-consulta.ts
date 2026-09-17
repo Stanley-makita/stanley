@@ -224,6 +224,29 @@ export async function executarWorkflowConsulta(
     ].join('\n')
   }
 
+  // ── Etapa 3.5: MCMV mencionado exige renda para verificar enquadramento ─────
+  // Renda nunca bloqueia o Motor em geral (ver validarParaSimulacao), mas o MCMV restringe
+  // a simulação só à Caixa/MCMV (resolverBancos/executarSimulacao, motor-simulacao.ts) e sem
+  // renda não dá pra saber em qual faixa o cliente cairia — pedir aqui evita simular vazio.
+  const rendaTotalMcmv = (dados.renda_formal ?? 0) + (dados.renda_informal ?? 0)
+  if (dados.mcmv_mencionado && rendaTotalMcmv === 0) {
+    if (!ctx.vem_de_pendente && ctx.telefone_operador) {
+      const { salvarSimulaPendente } = await import('./simula-pendente')
+      await salvarSimulaPendente(supabase, empresa_id, ctx.telefone_operador, {
+        motivo: 'completar_dados_simulacao',
+        dadosCapturados: dados,
+        usouConsulta: true,
+      })
+    }
+    return [
+      '⚠️ *MCMV — falta a renda.*',
+      '',
+      'Para verificar o enquadramento nas faixas do Minha Casa Minha Vida (Caixa), preciso da renda mensal do cliente.',
+      '',
+      'Responda com a renda para continuar.',
+    ].join('\n')
+  }
+
   // ── Etapa 4: Motor de Simulação ──────────────────────────────────────────
   const dbOverrides = await carregarOverridesBancos(supabase, empresa_id)
 

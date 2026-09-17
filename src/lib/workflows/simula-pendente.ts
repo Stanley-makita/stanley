@@ -122,7 +122,7 @@ export function mergeCapturados(
   // para false, fazendo a validação voltar a exigir data de nascimento indevidamente.
   // Uma vez capturada como true, a flag permanece até a pendência ser resolvida.
   const camposBooleanos: (keyof DadosCaptacaoNormalizados)[] = [
-    'correntista', 'usa_fgts', 'todos_bancos', 'solicitar_simulacao', 'prazo_maximo',
+    'correntista', 'usa_fgts', 'todos_bancos', 'solicitar_simulacao', 'prazo_maximo', 'mcmv_mencionado',
   ]
   for (const campo of camposBooleanos) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

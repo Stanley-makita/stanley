@@ -17,7 +17,7 @@ import {
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '@/lib/simuladorFinanciamento/tipos'
-import { BANCOS_AQUISICAO_DEFAULT, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS } from '@/lib/simuladorFinanciamento/constantes'
+import { BANCOS_AQUISICAO_DEFAULT, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS, MCMV_FAIXAS } from '@/lib/simuladorFinanciamento/constantes'
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -121,6 +121,14 @@ export function deveDispararSimulacao(
 // ── Resolução de bancos ────────────────────────────────────────────────────────
 
 export function resolverBancos(dados: DadosCaptacaoNormalizados): BancoId[] {
+  // MCMV mencionado explicitamente → só a Caixa opera MCMV hoje (ver mcmv_mencionado,
+  // normalizador-captacao.ts). Ignora banco(s) pedido(s) na mensagem: se o cliente pediu
+  // "Itaú, Bradesco, MCMV", a menção ao MCMV restringe a operação à Caixa mesmo assim —
+  // é o produto, não o banco, que dita quem pode simular.
+  if (dados.mcmv_mencionado) {
+    return ['caixa']
+  }
+
   // Default (nenhum banco pedido, ou "todos os bancos" dito explicitamente) exclui
   // bancos de produto CGI (hoje só Daycoval) — CGI não é financiamento de aquisição,
   // só entra quando pedido explicitamente (ver BANCOS_AQUISICAO_DEFAULT).
@@ -168,6 +176,11 @@ export interface ResultadoSimulacaoUnificado {
   input?: InputFinanciamento
   bancosResult?: ResultadoBanco[]
   analise?: AnalisePredicativa
+  // true quando MCMV foi mencionado explicitamente (mcmv_mencionado) mas o cliente não se
+  // enquadra em nenhuma faixa vigente (renda/imóvel fora do teto) — bancosResult vem vazio
+  // nesse caso (filtrado só para MCMV), então este flag distingue de "nenhum banco elegível"
+  // genérico pra dar uma mensagem específica (ver montarRespostaNormal).
+  mcmvSemEnquadramento?: boolean
   // modo CAPACIDADE_MAXIMA (sem valor_imovel informado)
   capacidade?: ItemCapacidade[]
   // modo COMPARACAO_PRAZOS (múltiplos prazos pedidos na mesma mensagem)
@@ -281,12 +294,24 @@ export async function executarSimulacao(
     financiandoValorMaximo,
   }
 
-  const bancosResult = simularTodosBancos(input, overrides)
+  let bancosResult = simularTodosBancos(input, overrides)
   const analise = calcularAnalise(input, bancosResult)
 
   const prazoLabel = dados.prazo_meses ? `${dados.prazo_meses} meses` : 'prazo máximo por banco'
 
-  return { modo: 'NORMAL', dados, bancosIds, prazoLabel, rendaMensal, semRenda, input, bancosResult, analise }
+  // MCMV mencionado: só interessa o(s) resultado(s) do programa MCMV da Caixa — Pró-Cotista
+  // e SBPE (sempre presentes no retorno de simularCaixaDuplo) são descartados aqui mesmo que
+  // elegíveis, porque o cliente pediu especificamente o MCMV (ver resolverBancos, que já
+  // restringiu bancosIds a ['caixa']). Sem nenhuma faixa MCMV elegível (renda/imóvel fora do
+  // teto — ver MCMV_FAIXAS, constantes.ts), o resultado fica vazio e mcmvSemEnquadramento
+  // avisa o workflow pra responder com o motivo, em vez do "nenhum banco elegível" genérico.
+  let mcmvSemEnquadramento = false
+  if (dados.mcmv_mencionado) {
+    bancosResult = bancosResult.filter((b) => b.programa.includes('MCMV'))
+    mcmvSemEnquadramento = bancosResult.length === 0
+  }
+
+  return { modo: 'NORMAL', dados, bancosIds, prazoLabel, rendaMensal, semRenda, input, bancosResult, analise, mcmvSemEnquadramento }
 }
 
 // Executa o Motor uma vez por prazo pedido (ex.: "5 anos, 10 anos, 15 anos" na mesma
@@ -527,9 +552,26 @@ function montarRespostaNormal(
 
   if (listaBancos) {
     linhas.push('', `🏦 *Bancos:*`, listaBancos)
-    if (inelegiveis.length > 0) {
+    if (resultado.dados.mcmv_mencionado) {
+      linhas.push('', `_Somente a Caixa opera o MCMV hoje — demais bancos não participam desta modalidade._`)
+    } else if (inelegiveis.length > 0) {
       linhas.push('', `_Os demais bancos não simulam ou não estão parametrizados para este produto._`)
     }
+  } else if (resultado.mcmvSemEnquadramento) {
+    // MCMV mencionado explicitamente, mas renda/imóvel fora de todas as faixas vigentes
+    // (MCMV_FAIXAS, constantes.ts) — mensagem específica em vez do diagnóstico genérico de
+    // capacidade abaixo, que citaria bancos que nem foram simulados (bancosIds restrito a
+    // ['caixa'] só para MCMV pelo resolverBancos).
+    const tetoMax = MCMV_FAIXAS[MCMV_FAIXAS.length - 1]
+    const acimaDoTetoImovel = dados.valor_imovel != null && dados.valor_imovel > tetoMax.tetoImovel
+    const acimaDaRenda = !acimaDoTetoImovel && rendaMensal > 0 && rendaMensal > tetoMax.rendaMax
+    linhas.push('', `⚠️ *Cliente não se enquadra no MCMV.*`,
+      acimaDoTetoImovel
+        ? `O valor do imóvel (${fmt.format(dados.valor_imovel!)}) está acima do teto máximo do programa (${fmt.format(tetoMax.tetoImovel)}, ${tetoMax.programa}).`
+        : acimaDaRenda
+          ? `A renda informada (${fmt.format(rendaMensal)}) está acima do teto máximo do programa (${fmt.format(tetoMax.rendaMax)}, ${tetoMax.programa}).`
+          : `Pela combinação de renda e valor do imóvel informados, o cliente não se enquadra em nenhuma faixa vigente do MCMV.`,
+      '', `Envie o pedido sem "MCMV" para simular nas demais modalidades (SBPE).`)
   } else {
     // Nenhum banco elegível — distingue idade (bloqueio já deveria ter ocorrido antes do
     // motor via validarParaSimulacao para casos extremos; aqui cobre idades "no limiar"
