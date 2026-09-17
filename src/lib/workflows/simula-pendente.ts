@@ -129,6 +129,19 @@ export function mergeCapturados(
     ;(result as any)[campo] = Boolean((result as any)[campo]) || Boolean(novo[campo])
   }
 
+  // conflito_valores/conflito_valores_descricao: SEMPRE reflete o parse mais recente do
+  // texto acumulado inteiro (nem regra escalar "novo não-null vence" nem OR sticky de
+  // boolean fazem sentido aqui) — achado real de auditoria: como não estava em nenhuma das
+  // duas listas acima, o campo ficava congelado com o valor da primeira captura (herdado
+  // do spread `{...anterior}`) e nunca refletia a mensagem de correção do operador.
+  // Cenário real corrigido: `*simula nascimento X` (falta imóvel) → pendência → operador
+  // responde "imóvel 500 mil, entrada 100 mil, financiado 350 mil" (soma não bate,
+  // `novo.conflito_valores=true`) — sem este fix, `result.conflito_valores` continuava
+  // `false`/`undefined` da captura original, e a simulação rodava com valores divergentes
+  // sem nenhum aviso ao operador (ver checagem em processarRespostaPendente, fonti-comandos.ts).
+  result.conflito_valores = novo.conflito_valores
+  result.conflito_valores_descricao = novo.conflito_valores_descricao
+
   // bancos_ids: substituir apenas se o novo parser encontrou bancos explícitos
   if (novo.bancos_ids && novo.bancos_ids.length > 0) {
     result.bancos_ids = novo.bancos_ids

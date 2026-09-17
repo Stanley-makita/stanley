@@ -17,6 +17,11 @@ const UAZAPI_TIPO_MAP: Record<TipoMidiaEnvio, string> = {
   ptt:      'ptt',
 }
 
+// Timeout explícito em todo fetch à Uazapi — achado real em produção (PR #297,
+// uazapi-helpers.ts): sem isso, se a Uazapi aceitar a conexão mas nunca responder, o
+// fetch fica pendurado até o teto de duração da Vercel matar a function sem resposta
+// nenhuma ao atendente. Este arquivo duplicava enviarPDFUazapi/enviarTextoUazapi sem
+// o fix — corrigido aqui do mesmo jeito.
 async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToken: string, texto?: string, arquivoUrl?: string, nomeArquivo?: string, replyId?: string) {
   if (tipo === 'text') {
     const body: Record<string, unknown> = { number: telefone, text: texto, track_source: 'crm-humano', delay: 800 }
@@ -26,6 +31,7 @@ async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToke
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'token': instanceToken },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) throw new Error(`Uazapi send/text: ${res.status} ${await res.text()}`)
     return res.json()
@@ -48,6 +54,7 @@ async function enviarUazapi(telefone: string, tipo: TipoMidiaEnvio, instanceToke
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'token': instanceToken },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
   })
   if (!res.ok) throw new Error(`Uazapi send/media: ${res.status} ${await res.text()}`)
   return res.json()
@@ -147,6 +154,7 @@ export async function enviarMensagemHumano(params: EnviarMensagemHumanoParams): 
           return_link: true,
           generate_mp3: tipo === 'ptt' || tipo === 'audio',
         }),
+        signal: AbortSignal.timeout(15000),
       })
       if (dlRes.ok) {
         const dlData = await dlRes.json()

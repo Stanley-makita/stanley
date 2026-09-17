@@ -283,7 +283,10 @@ async function vincularDocumentosRecentesPorTelefone(
 
 // ── Marca de sessão *fonti inicio ─────────────────────────────────────────────
 
-async function obterMarcaInicio(
+// Exportada para reuso — achado real de auditoria: workflow-captacao.ts e o webhook
+// (route.ts) reimplementavam esta mesma query de `fonti_marcas` sem o filtro
+// `sessao_real`, reintroduzindo o bug que esta função corrige (ver comentário abaixo).
+export async function obterMarcaInicio(
   supabase: SupabaseClient,
   empresa_id: string,
   telefoneConversa: string,
@@ -1704,6 +1707,29 @@ export async function processarRespostaPendente(
       dadosCapturados: novosDados,
     })
     return PERGUNTA_TIPO_CONSTRUCAO_REASK
+  }
+
+  // ── Conflito de valores (imóvel ≠ entrada + financiado) ──────────────────────
+  // Mesma checagem da Etapa 2.6 de workflow-consulta.ts, replicada aqui — achado real de
+  // auditoria: sem isso, uma resposta de pendência com valores que não batem (ex.: "imóvel
+  // 500 mil, entrada 100 mil, financiado 350 mil") seguia direto pra validarParaSimulacao
+  // (que só checa presença de campos, não consistência) e podia gerar/enviar uma simulação
+  // com dados divergentes sem nenhum aviso ao operador.
+  if (novosDados.conflito_valores) {
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      dadosCapturados: novosDados,
+    })
+    return [
+      '⚠️ *Há divergência entre os valores informados.*',
+      '',
+      novosDados.conflito_valores_descricao ?? '',
+      '',
+      'Confirme os dados corretos para simular:',
+      '• Valor do imóvel',
+      '• Entrada (ou percentual)',
+      '• Valor a financiar',
+    ].join('\n')
   }
 
   // ── Verificar campos faltando (em ordem de prioridade) ─────────────────────

@@ -17,7 +17,7 @@ import {
 } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import type { BancoId, InputFinanciamento, ResultadoBanco, AnalisePredicativa } from '@/lib/simuladorFinanciamento/tipos'
-import { BANCOS_AQUISICAO_DEFAULT, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS, MCMV_FAIXAS } from '@/lib/simuladorFinanciamento/constantes'
+import { BANCOS_AQUISICAO_DEFAULT, BANCOS_CONFIG, BANCOS_PRICE, IDADE_JOVEM_ASSUMIDA_ANOS, MCMV_FAIXAS, MIP_RATE_MCMV } from '@/lib/simuladorFinanciamento/constantes'
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -421,15 +421,54 @@ function calcularCapacidadeMaxima(
       const cfg = BANCOS_CONFIG[bancoId]
       const override = overridesBanco[bancoId] as BancoSimOverrides | undefined
 
-      const taxaAnual  = override?.taxaAnual ?? (dados.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
-      const taxaMensal = taxaAnualParaMensal(taxaAnual)
-
       const prazoBase = override?.prazoMaximoMeses ?? cfg.prazoMaximoMeses
       const prazoReq  = dados.prazo_maximo ? prazoBase : (dados.prazo_meses ?? prazoBase)
       const prazoEfetivo = calcularPrazoMaximo(dados.data_nascimento!, prazoReq)
       if (prazoEfetivo < 12) return null // mutuário próximo dos 80 anos
 
       const valorRef = dados.valor_imovel ?? 5_000_000
+
+      // MCMV mencionado explicitamente — achado real de auditoria: este modo (sem imóvel
+      // de referência, "quanto posso financiar") ignorava completamente as faixas MCMV
+      // (taxa 4,00%-10,47%, teto de renda/imóvel próprios — MCMV_FAIXAS, constantes.ts) e
+      // calculava com a taxa SBPE genérica da Caixa (~11,49% a.a.), subestimando a
+      // capacidade real e sem indicar ao operador que não era de fato um cálculo MCMV.
+      // resolverBancos já restringe bancosIds a ['caixa'] quando mcmv_mencionado — aqui só
+      // falta usar os parâmetros certos da faixa em vez dos genéricos do banco.
+      if (bancoId === 'caixa' && dados.mcmv_mencionado) {
+        // Teto de imóvel só é checável quando há um imóvel de referência real — sem isso
+        // (`valorRef` cai no placeholder de 5M só usado pra fórmula de max-financiável, não
+        // representa um imóvel de verdade), não faz sentido reprovar a faixa por teto.
+        const faixaMcmv = rendaMensal > 0
+          ? MCMV_FAIXAS.filter((f) => rendaMensal <= f.rendaMax && (dados.valor_imovel == null || dados.valor_imovel <= f.tetoImovel))
+          : []
+        if (faixaMcmv.length === 0) return null // fora de todas as faixas — não aparece na tabela
+        const f = faixaMcmv[0]
+        const taxaMcmv = f.taxaAnual
+        const mipMcmv = f.mipSubsidizado ? MIP_RATE_MCMV : mip
+        // valorImovel: 0 quando não há imóvel de referência real — faz os checks de teto
+        // internos (Pró-Cotista/MCMV) sempre passarem, coerente com o filtro de faixa acima.
+        const { ltvSac } = resolverLtvEfetivoCaixa({
+          valorImovel: dados.valor_imovel ?? 0, rendaMensal, rendaInformada: rendaMensal > 0,
+          tipoImovel: dados.tipo_imovel ?? undefined, usaFgts: dados.usa_fgts,
+          tipoOperacao: dados.tipo_operacao, finalidade: dados.finalidade_efetiva,
+        })
+        const maxByIncomeMcmv = calcularMaxFinanciavel(rendaMensal, valorRef, taxaAnualParaMensal(taxaMcmv), prazoEfetivo, mipMcmv)
+        const maxByLtvMcmv = dados.valor_imovel ? Math.round(dados.valor_imovel * ltvSac) : Infinity
+        const maxFinalMcmv = Math.max(0, Math.min(maxByIncomeMcmv, maxByLtvMcmv))
+        return {
+          bancoId,
+          bancoNome: `${cfg.nome} (${f.programa})`,
+          maxFinanciavel: maxFinalMcmv,
+          entradaMinima: dados.valor_imovel ? Math.max(0, dados.valor_imovel - maxFinalMcmv) : null,
+          prazoUsado: prazoEfetivo,
+          taxaAnual: taxaMcmv,
+        }
+      }
+
+      const taxaAnual  = override?.taxaAnual ?? (dados.correntista ? cfg.taxaAnualCorrentista : cfg.taxaAnualBase)
+      const taxaMensal = taxaAnualParaMensal(taxaAnual)
+
       const maxByIncome = calcularMaxFinanciavel(rendaMensal, valorRef, taxaMensal, prazoEfetivo, mip)
 
       const maxLtv = dados.correntista ? cfg.maxLtvCorrentista : cfg.maxLtv
@@ -684,7 +723,13 @@ function montarRespostaCapacidadeMaxima(
 
   linhas.push('', `🏦 *Financiamento máximo suportado pela renda:*`)
 
-  if (capacidade.length === 0) {
+  if (capacidade.length === 0 && dados.mcmv_mencionado) {
+    // Mensagem específica pro caso MCMV — achado real de auditoria: sem isso, o mesmo
+    // "não se enquadra" da simulação NORMAL (ver montarRespostaNormal) não existia aqui, e
+    // um cliente fora de todas as faixas (renda/imóvel acima do teto) caía na mensagem
+    // genérica de idade/prazo, que não tem nenhuma relação com o motivo real.
+    linhas.push('• Cliente não se enquadra em nenhuma faixa vigente do MCMV (renda ou imóvel de referência acima do teto).')
+  } else if (capacidade.length === 0) {
     linhas.push('• Nenhum banco disponível (idade máxima ou prazo insuficiente)')
   } else {
     for (const r of capacidade) {

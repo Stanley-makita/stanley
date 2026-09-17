@@ -153,6 +153,7 @@ async function salvarDocumentoCliente(params: {
 
 async function baixarMidiaUazapi(messageid: string, tipoMidia: string, instanciaToken: string): Promise<string | null> {
   try {
+    // Timeout explícito — mesmo achado do PR #297 (ver comentário em enviarMensagemUazapi).
     const res = await fetch(`${process.env.UAZAPI_API_URL}/message/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'token': instanciaToken },
@@ -161,6 +162,7 @@ async function baixarMidiaUazapi(messageid: string, tipoMidia: string, instancia
         return_link: true,
         generate_mp3: tipoMidia === 'audio' || tipoMidia === 'ptt',
       }),
+      signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) {
       console.error('[uazapi-download] erro:', res.status, await res.text())
@@ -179,28 +181,42 @@ async function baixarMidiaUazapi(messageid: string, tipoMidia: string, instancia
 // esta mensagem depois pela tela de Conversas.
 async function enviarMensagemUazapi(telefone: string, texto: string, token?: string): Promise<{ messageid?: string } | null> {
   const url = `${process.env.UAZAPI_API_URL}/send/text`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'token': token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '',
-    },
-    body: JSON.stringify({
-      number: telefone,
-      text: texto,
-      track_source: 'credifon-crm',
-      delay: 1500,
-    }),
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    console.error('[uazapi] Erro ao enviar mensagem:', res.status, body)
-    return null
-  }
-  console.log('[uazapi] Mensagem enviada com sucesso para', telefone)
+  // Timeout explícito + try/catch em volta de todo o fetch — mesmo achado real do PR #297
+  // (uazapi-helpers.ts): sem isso, se a Uazapi aceitar a conexão mas nunca responder, o
+  // fetch fica pendurado até o teto de duração da Vercel (60s) matar a function sem rodar
+  // o `finally` que marca o evento como concluído (fonti_events fica preso em
+  // "processando" e a idempotência descarta qualquer retry futuro dessa mensagem). Esta é
+  // a função que manda toda resposta de texto do bot, inclusive os próprios avisos de erro
+  // (linhas ~1020/1038/1056) — por isso nunca lança, só loga e retorna null, igual
+  // enviarTextoUazapi em uazapi-helpers.ts.
   try {
-    return await res.json()
-  } catch {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? '',
+      },
+      body: JSON.stringify({
+        number: telefone,
+        text: texto,
+        track_source: 'credifon-crm',
+        delay: 1500,
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      console.error('[uazapi] Erro ao enviar mensagem:', res.status, body)
+      return null
+    }
+    console.log('[uazapi] Mensagem enviada com sucesso para', telefone)
+    try {
+      return await res.json()
+    } catch {
+      return null
+    }
+  } catch (err) {
+    console.error('[uazapi] Exceção ao enviar mensagem (timeout ou rede):', err)
     return null
   }
 }
@@ -403,7 +419,11 @@ export async function POST(request: NextRequest) {
     const textoFromMe = (typeof msg?.content === 'string' ? msg.content : (msg?.text ?? '')).trim()
     const textoNormFM = textoFromMe.slice(0, 20).normalize('NFD').replace(/[̀-ͯ]/g, '') + textoFromMe.slice(20)
 
-    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|custas|cancelar?)\b/i.test(textoNormFM)) {
+    // `consorcio` — achado real de auditoria: faltava nesta lista (a versão em ~1237 tem),
+    // então *consorcio digitado na própria conversa do cliente (uso documentado e esperado,
+    // é o padrão do incidente de 2026-09-15) caía no bloco de mídia/texto solto e era
+    // descartado em silêncio, sem erro nem resposta ao operador.
+    if (/^\*(?:fonti|in[íi]cio|criar?\s+cliente|salvar?|atualizar?|processo|simula(?:r|[cç][aã]o)?|custas|consorcio|cancelar?)\b/i.test(textoNormFM)) {
       const fmToken = payload.token || process.env.UAZAPI_INSTANCE_TOKEN || ''
       const ownerPhone = (payload.owner ?? '').replace(/\D/g, '')
       const clientPhone = (msg.chatid ?? '').replace('@s.whatsapp.net', '')
@@ -551,11 +571,15 @@ export async function POST(request: NextRequest) {
           ? msg.content as UazapiMediaContent : null
 
         if (nmFileUrl) {
-          // Tenta lookup com e sem DDI 55 para cobrir variações de armazenamento
-          const nmTelDigits = nmClientPhone.replace(/\D/g, '')
-          const nmTelAlt = nmTelDigits.startsWith('55') && nmTelDigits.length > 11
-            ? nmTelDigits.slice(2) : `55${nmTelDigits}`
-          const nmTelVariantes = nmTelAlt === nmTelDigits ? [nmTelDigits] : [nmTelDigits, nmTelAlt]
+          // variantesTelefoneBR (telefone.ts) em vez de só DDI 55 com/sem — achado real de
+          // auditoria: a versão anterior não cobria o caso real documentado (dígito "9"
+          // divergente entre linhas antigas/novas de `conversas` pro mesmo número físico).
+          // Se houver conversa duplicada casando as duas variantes, `.maybeSingle()` retorna
+          // erro (mais de uma linha) que é descartado aqui — documento do cliente
+          // simplesmente não é salvo, sem log. Fora do escopo deste fix (é o mesmo risco já
+          // existente em outros `.in()+.maybeSingle()` do arquivo), mas a variante certa
+          // reduz a chance de cair nesse caso.
+          const nmTelVariantes = variantesTelefoneBR(nmClientPhone)
           const { data: convNM } = await supabase
             .from('conversas').select('id')
             .eq('empresa_id', nmEmpresaId).eq('canal', 'whatsapp')
@@ -604,15 +628,43 @@ export async function POST(request: NextRequest) {
           .from('usuarios').select('id, nome').eq('id', pendInst.atendente_id).eq('ativo', true).maybeSingle()
 
         if (atendentePend) {
-          const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
+          const pendDestino = nmClientPhone || pendOwnerPhone
+
           // Pendência é salva com telefone_operador = owner (ver fonti-comandos.ts,
           // executarWorkflowConsulta chamado com telefone_operador: ctx.telefone_remetente,
           // e telefone_remetente do fromMe é sempre o owner, nunca o cliente).
+          const { buscarSimulaPendente } = await import('@/lib/workflows/simula-pendente')
           const pendenteSim = await buscarSimulaPendente(supabase, pendEmpresaId, pendOwnerPhone)
+
+          // custas/consorcio — achado real de auditoria: este bloco (resposta a pendência
+          // digitada na própria conversa do cliente, fromMe) só checava buscarSimulaPendente;
+          // buscarCustasPendente/buscarConsorcioPendente só existiam no caminho direto ao bot
+          // (~linha 1013-1018). Resultado: respostas a perguntas de *custas/*consorcio em
+          // andamento, digitadas na conversa do cliente em vez de no chat com o bot, caíam no
+          // vazio (nem confirmação de valor, nem ambiguidade numérica reconheciam o passo).
+          const { buscarCustasPendente } = await import('@/lib/workflows/custas-pendente')
+          const pendenteCustasFM = !pendenteSim
+            ? await buscarCustasPendente(supabase, pendEmpresaId, pendOwnerPhone)
+            : null
+
+          const { buscarConsorcioPendente } = await import('@/lib/workflows/consorcio-pendente')
+          const pendenteConsorcioFM = (!pendenteSim && !pendenteCustasFM)
+            ? await buscarConsorcioPendente(supabase, pendEmpresaId, pendOwnerPhone)
+            : null
+
+          const ecoarRespostaFM = async (resposta: string): Promise<void> => {
+            if (!nmClientPhone) return
+            const { data: convPend } = await supabase
+              .from('conversas').select('id')
+              .eq('empresa_id', pendEmpresaId).eq('canal', 'whatsapp')
+              .eq('contato_telefone', nmClientPhone).maybeSingle()
+            if (convPend) {
+              await supabase.from('mensagens').insert({ conversa_id: convPend.id, origem: 'sistema', conteudo: resposta })
+            }
+          }
 
           if (pendenteSim) {
             const { processarRespostaPendente } = await import('@/lib/bot/fonti-comandos')
-            const pendDestino = nmClientPhone || pendOwnerPhone
             const respostaPend = await processarRespostaPendente(textoFromMe, pendenteSim, {
               empresa_id: pendEmpresaId,
               telefone_remetente: pendOwnerPhone,
@@ -624,15 +676,43 @@ export async function POST(request: NextRequest) {
 
             if (respostaPend !== null) {
               await enviarMensagemUazapi(pendDestino, respostaPend, pendToken)
-              if (nmClientPhone) {
-                const { data: convPend } = await supabase
-                  .from('conversas').select('id')
-                  .eq('empresa_id', pendEmpresaId).eq('canal', 'whatsapp')
-                  .eq('contato_telefone', nmClientPhone).maybeSingle()
-                if (convPend) {
-                  await supabase.from('mensagens').insert({ conversa_id: convPend.id, origem: 'sistema', conteudo: respostaPend })
-                }
-              }
+              await ecoarRespostaFM(respostaPend)
+            }
+          } else if (pendenteCustasFM) {
+            try {
+              const { processarRespostaCustas } = await import('@/lib/workflows/workflow-custas')
+              const respostaCustasFM = await processarRespostaCustas(textoFromMe, pendenteCustasFM, {
+                empresa_id: pendEmpresaId,
+                usuario_id: atendentePend.id,
+                usuario_nome: atendentePend.nome,
+                supabase,
+                instancia_token: pendToken,
+                telefone_destino: pendDestino,
+                telefone_operador: pendOwnerPhone,
+              })
+              await enviarMensagemUazapi(pendDestino, respostaCustasFM, pendToken)
+              await ecoarRespostaFM(respostaCustasFM)
+            } catch (err) {
+              console.error('[whatsapp-webhook] Erro processando pendente fromMe (custas):', err)
+              await enviarMensagemUazapi(pendDestino, '⚠️ Algo deu errado ao processar sua resposta. Tente novamente ou digite *sair* para recomeçar.', pendToken)
+            }
+          } else if (pendenteConsorcioFM) {
+            try {
+              const { processarRespostaConsorcio } = await import('@/lib/workflows/workflow-consorcio')
+              const respostaConsorcioFM = await processarRespostaConsorcio(textoFromMe, pendenteConsorcioFM, {
+                empresa_id: pendEmpresaId,
+                usuario_id: atendentePend.id,
+                usuario_nome: atendentePend.nome,
+                supabase,
+                instancia_token: pendToken,
+                telefone_destino: pendDestino,
+                telefone_operador: pendOwnerPhone,
+              })
+              await enviarMensagemUazapi(pendDestino, respostaConsorcioFM, pendToken)
+              await ecoarRespostaFM(respostaConsorcioFM)
+            } catch (err) {
+              console.error('[whatsapp-webhook] Erro processando pendente fromMe (consorcio):', err)
+              await enviarMensagemUazapi(pendDestino, '⚠️ Algo deu errado ao processar sua resposta. Tente novamente ou digite *sair* para recomeçar.', pendToken)
             }
           } else if (/^\d+$/.test(textoFromMe.trim())) {
             // Resposta numérica solta pra ambiguidade pendente de "*fonti salva [nome]"
@@ -1083,11 +1163,18 @@ export async function POST(request: NextRequest) {
         // não tinha nada pra vincular (etapa 5 de workflow-captacao.ts já sabia procurar
         // por `pessoa_id` + janela de `fonti_marcas.iniciado_at`, mas nunca havia doc
         // salvo com esse pessoa_id pra encontrar).
+        // `sessao_real: true` — achado real de auditoria: sem esse filtro, uma marca de
+        // AMBIGUIDADE de `*fonti salva` sem `*fonti inicio` aberto (sessao_real=false, só
+        // guarda candidatos_pendentes — ver migration 308) era tratada como sessão real, e
+        // a RPC abaixo (obter_ou_criar_pessoa_sessao_fonti, que também não olha
+        // sessao_real) gravava fonti_marcas.pessoa_id numa linha que era só um marcador de
+        // ambiguidade, misturando o fluxo de mídia solta com uma ambiguidade ainda aberta.
         const { data: marcaAtiva } = await supabase
           .from('fonti_marcas')
           .select('iniciado_at')
           .eq('empresa_id', empresa_id)
           .eq('telefone_conversa', telefone)
+          .eq('sessao_real', true)
           .maybeSingle()
 
         if (marcaAtiva) {

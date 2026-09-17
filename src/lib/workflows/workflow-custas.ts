@@ -132,11 +132,15 @@ async function carregarConfigCustas(
     return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
   }
 
+  // Timeout explícito — estas duas queries rodam ANTES do try/catch que protege o envio
+  // de PDF em finalizarSimulacao (mesmo achado do PR #297: um Supabase lento/indisponível
+  // aqui trava a function até o teto de duração da Vercel, sem nenhuma rede de segurança).
   const { data: itbiRows } = await supabase
     .from('simulador_itbi_config')
     .select('*')
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
+    .abortSignal(AbortSignal.timeout(10000))
 
   const itbiRow = (itbiRows ?? []).find((r: any) => normCity(r.municipio) === normCity(cidade))
   const itbi: SimuladorItbiConfig | undefined = itbiRow ? {
@@ -157,6 +161,7 @@ async function carregarConfigCustas(
     .eq('empresa_id', empresa_id)
     .eq('ativo', true)
     .eq('tipo', tipoNorm)
+    .abortSignal(AbortSignal.timeout(10000))
 
   const custasRow = (custasRows ?? []).find((r: any) => r.banco_nome.toLowerCase() === banco.toLowerCase())
   const custas: SimuladorCustasConfig | undefined = custasRow ? {
