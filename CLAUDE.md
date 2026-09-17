@@ -66,3 +66,38 @@ com login do Instagram (tem ID do app do Instagram próprio também). Usar o hos
 errado falha silenciosamente (401 no webhook, ou busca de nome de perfil sempre retornando
 null) — ver `src/app/api/instagram/webhook/route.ts` e
 `src/lib/comunicacao/enviarMensagemInstagram.ts`.
+
+## Pegadinhas de arquitetura (simulador de financiamento — `simuladorFinanciamento/`)
+
+Achados reais parametrizando imóvel comercial (Bradesco e Caixa, 2026-09-16) — repetir
+o mesmo erro é fácil porque o motor tem dois caminhos paralelos pra Caixa.
+
+### Qualquer ajuste pra Caixa precisa ser feito em `simularBanco` E `simularCaixaDuplo`
+
+`engine.ts` tem DOIS lugares que montam o `SimulationCriteria` da Caixa: `simularBanco`
+(chamado isoladamente) e `simularCaixaDuplo` (chamado por `simularTodosBancos`, que é o
+caminho REAL usado pelo bot `*fonti`/`*simula`). Um ajuste feito só em `simularBanco` parece
+funcionar em teste unitário direto (`simularBanco('caixa', ...)`) mas não tem nenhum efeito
+no bot de verdade — testar sempre via `simularTodosBancos`, nunca só `simularBanco`, antes de
+considerar um fix da Caixa validado. Achado corrigindo taxa/tarifa do comercial (PR #300):
+o fix só em `simularBanco` não aparecia nas respostas reais do WhatsApp.
+
+### Bancos com regra especial por modalidade usam overrides numa CHAVE separada, nunca a do residencial
+
+Bradesco Comercial PF (PR #298) tem taxa/MIP/DFI próprios, DIFERENTES do Bradesco
+residencial — implementado como uma segunda entrada no mapa de overrides
+(`overridesMap['bradesco_comercial']`, colunas `taxa_anual_comercial`/`mip_comercial`/
+`dfi_comercial` na tabela `bancos`), nunca reaproveitando a chave `'bradesco'` do
+residencial. Qualquer banco novo com uma modalidade de regra diferente (comercial, CGI,
+etc.) deve seguir o mesmo padrão — misturar as duas na mesma chave silenciosamente aplica a
+taxa errada numa das duas modalidades.
+
+### `CAIXA_DFI_RATE`/`CAIXA_MIP_RATES` são globais (residencial + comercial) — não recalibrar com 1 dado só
+
+Ajustar essas constantes (constantes.ts) afeta TODAS as modalidades da Caixa de uma vez —
+não existe separação residencial/comercial nelas hoje (diferente da taxa, que ganhou
+`CAIXA_COMERCIAL_TAXA_ANUAL` própria no PR #300). Uma tentativa de refinar `CAIXA_DFI_RATE`
+com um único PDF de simulação comercial quebrou 2 testes de regressão residencial já
+calibrados com outros casos-âncora — teve que ser revertida. Só mexer nessas tabelas globais
+com dado real suficiente pra confirmar que a mudança vale pras DUAS modalidades, ou criar uma
+constante separada tipo `CAIXA_COMERCIAL_TAXA_ANUAL` em vez de sobrescrever a global.
