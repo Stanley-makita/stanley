@@ -101,3 +101,96 @@ com um único PDF de simulação comercial quebrou 2 testes de regressão reside
 calibrados com outros casos-âncora — teve que ser revertida. Só mexer nessas tabelas globais
 com dado real suficiente pra confirmar que a mudança vale pras DUAS modalidades, ou criar uma
 constante separada tipo `CAIXA_COMERCIAL_TAXA_ANUAL` em vez de sobrescrever a global.
+
+## Pegadinhas de arquitetura (auditoria completa do Fonti — 2026-09-17)
+
+Auditoria via 5 revisões paralelas (webhook/roteamento, máquina de pendências, motor de
+simulação, captação de lead/documentos, consórcio/custas) + implementação da feature MCMV.
+Achados corrigidos nos PRs #302 (MCMV), #303 (críticos) e #304 (importantes/menores) —
+conhecimento que qualquer mudança futura no bot precisa respeitar pra não reintroduzir os
+mesmos problemas.
+
+### MCMV mencionado explicitamente restringe a simulação só à Caixa/MCMV
+
+Quando o texto cita MCMV (sigla, variações de digitação PMCMV/MCMVV/MDMV, ou "minha casa
+minha vida"/"minha casa mv" — `detectarMcmvMencionado()`, `normalizador-captacao.ts`), o
+campo `mcmv_mencionado` fica `true` e `resolverBancos()` (`motor-simulacao.ts`) força
+`bancosIds = ['caixa']`, com o resultado filtrado só pra `programa.includes('MCMV')` —
+nenhum outro banco/programa da Caixa (SBPE, Pró-Cotista) aparece. **Sem renda informada, o
+sistema NUNCA processa isso direto** — abre pendência pedindo a renda antes (Etapa 3.5 em
+`workflow-consulta.ts`/`workflow-captacao.ts`, e equivalente em `processarRespostaPendente`),
+porque sem renda não dá pra saber a faixa. Qualquer novo caminho de cálculo que ignore essa
+flag (ex.: um modo de simulação futuro) vai repetir o bug real corrigido no PR #302:
+`calcularCapacidadeMaxima` e `autoDerivarEntradaFinanciado` calculavam com a taxa SBPE
+genérica da Caixa mesmo com MCMV pedido, porque não checavam `dados.mcmv_mencionado`.
+
+### Timeout obrigatório em TODO `fetch` novo à Uazapi
+
+Achado real em produção (2026-09-16, corrigido no PR #297 só pra `uazapi-helpers.ts`, depois
+reencontrado reimplementado SEM timeout em mais 4 lugares no PR #303: `enviarMensagemUazapi`/
+`baixarMidiaUazapi` do webhook, `enviarUazapi` em `enviarMensagemHumano.ts`, queries de config
+do `*custas`). Sem `AbortSignal.timeout(...)`, se a Uazapi aceitar a conexão mas nunca
+responder, a function trava até o teto de duração da Vercel (60s) matar sem enviar resposta
+nenhuma — e o evento fica preso em `fonti_events` como "processando", descartando qualquer
+retry futuro da mesma mensagem (idempotência). **Qualquer novo `fetch`/query à Uazapi ou ao
+Supabase num caminho que responde ao operador/cliente precisa de timeout explícito** (15-30s
+pra fetch via `signal: AbortSignal.timeout(...)`, 10s pra query via `.abortSignal(...)`) —
+nunca copiar um `fetch` existente sem conferir se ele já tem isso.
+
+### `fonti_marcas` sem checar `sessao_real` — reusar `obterMarcaInicio()`, nunca reimplementar a query
+
+Regra já documentada acima (`fonti_marcas.iniciado_at`) foi reintroduzida 3x no PR #303 em
+lugares que reimplementaram a query do zero em vez de reusar `obterMarcaInicio()`
+(`fonti-comandos.ts`, agora exportada): `workflow-captacao.ts` (duas vezes — janela de busca
+de documento e resolução de `pessoa_id` da sessão) e o webhook (decisão de tratar mídia solta
+como sessão real). Uma delas ainda arriscava **deletar** a marca de ambiguidade de `*fonti
+salva` antes dela ser resolvida. **Sempre importar/reusar `obterMarcaInicio()` pra ler
+`fonti_marcas`, nunca fazer `.from('fonti_marcas').select(...)` direto** — se a query mudar,
+muda num lugar só.
+
+### Telefone: sempre `variantesTelefoneBR()` (`telefone.ts`), nunca normalização manual
+
+Além da regra de resolução de conversa via RPC canônica (já documentada acima), qualquer
+código que precise gerar as variantes de um número (com/sem "9", com/sem DDI 55) pra
+`.in('contato_telefone', [...])` deve usar `variantesTelefoneBR()` — achado real: 2 pontos
+(`workflow-captacao.ts`, webhook) reimplementavam isso cobrindo só DDI 55, sem o caso real
+documentado (dígito "9" divergente). Uma normalização incompleta falha silenciosamente: não
+dá erro, só deixa de encontrar a conversa/documento certo.
+
+### Pendências (`*simula`/`*consorcio`/`*custas`): concorrência de mensagens simultâneas
+
+Três mecanismos distintos, cada um com sua proteção — não misturar o padrão de um com outro:
+- **`*simula`**: `texto_acumulado` (reprocessa o texto INTEIRO da sessão a cada mensagem) usa
+  `acumularTextoSimulaPendente()` (RPC `acumular_texto_simula_pendente`, migration 312) — leitura+
+  concatenação+escrita atômica num único UPDATE. Nunca voltar a fazer SELECT+concatenar em JS+UPDATE
+  (perdia mensagens em requests concorrentes). Depois do debounce, `pendente` é reatribuído pra
+  `pendenteRelido` dentro de `processarRespostaPendente` — qualquer novo `salvarSimulaPendente`
+  adicionado à função deve vir DEPOIS dessa reatribuição pra não reverter o texto acumulado.
+- **`*consorcio`/`*custas`**: Q&A passo-a-passo (sem merge de texto) usa guard de concorrência
+  otimista — `salvarConsorcioPendente`/`salvarCustasPendente` recebem `pendenteAnterior` (o
+  estado lido no início do processamento) e o UPDATE só aplica se `consorcio_pendente`/
+  `custas_pendente` na linha ainda for exatamente esse snapshot; retornam `false` se perderam
+  a corrida. Qualquer novo `avancarPara`/step function precisa passar `pendenteAnterior` e
+  checar o retorno (resincronizar com `buscarConsorcioPendente`/`buscarCustasPendente` se `false`).
+
+### `mergeCapturados` (`simula-pendente.ts`): todo campo novo de `DadosCaptacaoNormalizados` precisa entrar numa lista
+
+Três categorias, escolher a certa é o que evita bug:
+- **Escalar comum** (`camposEscalares`): novo valor não-null sempre vence.
+- **Booleano sticky** (`camposBooleanos`): OR lógico — uma vez `true`, fica `true` até a
+  pendência resolver (ex.: `mcmv_mencionado`, `tipo_amortizacao_ambas`). Um campo aqui que
+  devia ser escalar comum (ou vice-versa) já causou bug real (prazo_maximo resetado).
+- **Sempre-fresco** (ex.: `conflito_valores`/`conflito_valores_descricao`): reflete só o
+  parse mais recente do texto acumulado inteiro, nem escalar nem sticky — atribuição direta
+  fora das duas listas. Um campo que fica de fora de TODAS as três (não documentado antes)
+  fica congelado no valor da primeira captura e nunca reflete correções do operador.
+
+### Lead duplicado: `leads_pessoa_aberto_unico` (migration 311)
+
+Criar Lead sempre passa por `buscarLeadAbertoPorPessoa` (SELECT) + `INSERT` — não é atômico.
+Duas mensagens `*cria cliente` quase simultâneas pra mesma Pessoa podiam duplicar Lead antes
+do PR #304. Agora há um índice único parcial replicando o predicado de "lead aberto"
+(`deleted_at is null AND status_analise NOT IN (...)` — mesma lista do `buscarLeadAbertoPorPessoa`).
+Se a lista de status "fechados" mudar num lugar, tem que mudar nos dois (a query E o índice).
+Código trata o conflito (`error.code === '23505'`) reaproveitando o Lead da corrida em vez de
+falhar — qualquer novo caminho de criação de Lead deveria fazer o mesmo.
