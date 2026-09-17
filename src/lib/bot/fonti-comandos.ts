@@ -1812,6 +1812,19 @@ export async function processarRespostaPendente(
     return `Para completar a simulação, preciso da data de nascimento.\nEx: "nascimento 25/01/1981"`
   }
 
+  // MCMV mencionado explicitamente: renda é obrigatória aqui (mesmo o Motor nunca
+  // bloqueando por renda em geral) porque sem ela o enquadramento por faixa não pode ser
+  // verificado — ver mcmv_mencionado, normalizador-captacao.ts, e resolverBancos/
+  // executarSimulacao, motor-simulacao.ts (que restringem a simulação só à Caixa/MCMV).
+  if (novosDados.mcmv_mencionado && faltaRenda) {
+    await salvarSimulaPendente(supabase, empresa_id, telefoneOp, {
+      ...pendente,
+      motivo: 'completar_dados_simulacao',
+      dadosCapturados: novosDados,
+    })
+    return 'Para verificar o enquadramento nas faixas do MCMV (Caixa), preciso da renda mensal do cliente.\nEx: "renda 3500"'
+  }
+
   // Construção: terreno e obra podem ter chegado em mensagens separadas — o merge não
   // recalcula o total sozinho, então recompomos antes de checar prontidão para simular.
   if (ehConstrucao && novosDados.valor_terreno && novosDados.valor_obra) {
