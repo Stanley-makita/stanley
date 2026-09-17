@@ -146,8 +146,14 @@ async function finalizarSimulacao(
         gerarPropostaConsorcioBuffer(resultado, 'detalhada'),
         gerarPropostaConsorcioBuffer(resultado, 'resumida'),
       ])
-      await enviarPDFUazapi(destinoEfetivo, detalhada, tokenEfetivo, 'Proposta de Consórcio Detalhada.pdf')
-      await enviarPDFUazapi(destinoEfetivo, resumida, tokenEfetivo, 'Proposta de Consórcio Resumida.pdf')
+      // Envio em paralelo, não sequencial — cada enviarPDFUazapi já tem timeout de 30s
+      // (ver uazapi-helpers.ts), mas dois `await` em sequência somam até 30s+30s=60s no
+      // pior caso, batendo exatamente no teto de duração da Vercel mesmo com o timeout
+      // individual funcionando. Em paralelo, o pior caso fica em 30s.
+      await Promise.all([
+        enviarPDFUazapi(destinoEfetivo, detalhada, tokenEfetivo, 'Proposta de Consórcio Detalhada.pdf'),
+        enviarPDFUazapi(destinoEfetivo, resumida, tokenEfetivo, 'Proposta de Consórcio Resumida.pdf'),
+      ])
       linhaPDF = '📎 Propostas (Detalhada + Resumida) enviadas acima.'
     } catch (err) {
       console.error('[workflow-consorcio] PDF falhou:', err instanceof Error ? err.message : err)

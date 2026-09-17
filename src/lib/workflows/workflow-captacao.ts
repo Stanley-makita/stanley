@@ -24,6 +24,7 @@ import type { BancoSimOverrides } from '@/lib/simuladorFinanciamento/engine'
 import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa, confirmarIdentidadePessoa } from '@/lib/pessoa'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared, enviarTextoUazapi } from './uazapi-helpers'
+import { variantesTelefoneBR } from '@/lib/telefone'
 
 export interface WorkflowCaptacaoContexto {
   empresa_id: string
@@ -309,17 +310,32 @@ export async function executarWorkflowCaptacao(
     if (!pessoa_id) {
       const telefoneSessao = ctx.telefone_cliente ?? ctx.telefone_remetente
       if (telefoneSessao) {
+        // `sessao_real: true` — achado real de auditoria: sem esse filtro, uma marca de
+        // AMBIGUIDADE de `*fonti salva` (sessao_real=false, criada só pra guardar
+        // candidatos_pendentes, ver migration 308) podia ser tratada como sessão real de
+        // `*fonti inicio` e emprestar `pessoa_id` de um cliente diferente do que estava em
+        // ambiguidade — e esse `*cria cliente` ainda RENOMEIA essa Pessoa logo abaixo.
+        // `deleted_at is null` evita reaproveitar uma Pessoa soft-deletada silenciosamente.
         const { data: marca } = await supabase
           .from('fonti_marcas')
           .select('pessoa_id')
           .eq('empresa_id', empresa_id)
           .eq('telefone_conversa', telefoneSessao)
+          .eq('sessao_real', true)
           .maybeSingle()
         if (marca?.pessoa_id) {
-          pessoa_id = marca.pessoa_id
-          // Promove a Pessoa provisória (nome placeholder) pro nome real informado agora.
-          // dados.nome já foi validado como não-nulo/vazio no início da função.
-          await confirmarIdentidadePessoa(pessoa_id!, dados.nome!)
+          const { data: pessoaValida } = await supabase
+            .from('pessoas')
+            .select('id')
+            .eq('id', marca.pessoa_id)
+            .is('deleted_at', null)
+            .maybeSingle()
+          if (pessoaValida) {
+            pessoa_id = marca.pessoa_id
+            // Promove a Pessoa provisória (nome placeholder) pro nome real informado agora.
+            // dados.nome já foi validado como não-nulo/vazio no início da função.
+            await confirmarIdentidadePessoa(pessoa_id!, dados.nome!)
+          }
         }
       }
     }
@@ -486,21 +502,23 @@ export async function executarWorkflowCaptacao(
   // (a resolvida nesta chamada + a da própria conversa, que pode ser uma Pessoa
   // provisória diferente se o *cria cliente identificou a pessoa por outro caminho,
   // ex: CPF explícito no texto) — não depende mais de conversa_id em `documentos`.
+  // Reusa obterMarcaInicio (fonti-comandos.ts) em vez de reimplementar a query — achado
+  // real de auditoria: a versão local anterior não filtrava `sessao_real`, tratando uma
+  // marca de AMBIGUIDADE de `*fonti salva` (sessao_real=false, só guarda
+  // candidatos_pendentes) como se fosse início de sessão real, e ainda arriscava deletá-la
+  // (ver bloco "Limpa fonti_marcas" abaixo) antes da ambiguidade ser resolvida.
   let marcaAt: Date | null = null
   if (telefoneConversa) {
-    const { data: marca } = await supabase
-      .from('fonti_marcas')
-      .select('iniciado_at')
-      .eq('empresa_id', empresa_id)
-      .eq('telefone_conversa', telefoneConversa)
-      .maybeSingle()
-    if (marca?.iniciado_at) marcaAt = new Date(marca.iniciado_at)
+    const { obterMarcaInicio } = await import('@/lib/bot/fonti-comandos')
+    marcaAt = await obterMarcaInicio(supabase, empresa_id, telefoneConversa)
   }
 
-  const telDigits = telefoneConversa.replace(/\D/g, '')
-  const telAlt = telDigits.startsWith('55') && telDigits.length > 11
-    ? telDigits.slice(2) : `55${telDigits}`
-  const telVariantes = telAlt === telDigits ? [telDigits] : [telDigits, telAlt]
+  // `variantesTelefoneBR` (telefone.ts) em vez de normalização local — achado real de
+  // auditoria: a versão anterior só cobria DDI 55 com/sem, não o caso real documentado
+  // (dígito "9" divergente entre linhas antigas/novas de `conversas` pro mesmo número
+  // físico). Sem a variante certa, a busca abaixo falhava silenciosamente em encontrar a
+  // conversa e deixava de ampliar `pessoaIdsCandidatos` pra busca de documentos.
+  const telVariantes = variantesTelefoneBR(telefoneConversa)
 
   const { data: conversa } = await supabase
     .from('conversas')

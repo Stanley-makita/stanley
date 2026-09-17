@@ -116,3 +116,33 @@ describe('executarSimulacao — MCMV mencionado + renda informada', () => {
     expect(resposta).toMatch(/valor do imóvel/i)
   })
 })
+
+describe('executarSimulacao — MCMV + "quanto posso financiar" (modo CAPACIDADE_MAXIMA)', () => {
+  it('usa taxa/LTV da faixa MCMV, não a taxa SBPE genérica da Caixa', async () => {
+    // Faixa 2 (renda até 5.000, teto imóvel 350k) — taxa 7,23% a.a., bem abaixo da
+    // taxa SBPE genérica (~11,49%) que o bug usava antes da correção.
+    const dados = baseDados({
+      valor_imovel: null, valor_financiado: null, renda_formal: 4_500,
+      modo_calculo: 'VALOR_MAXIMO_PELA_RENDA',
+    })
+    const resultado = await executarSimulacao(dados, {})
+    expect(resultado.modo).toBe('CAPACIDADE_MAXIMA')
+    const caixa = (resultado.capacidade ?? []).find((c) => c.bancoId === 'caixa')
+    expect(caixa).toBeDefined()
+    expect(caixa!.bancoNome).toMatch(/MCMV Faixa 2/)
+    expect(caixa!.taxaAnual).toBeCloseTo(0.0723, 4)
+  })
+
+  it('cliente fora de todas as faixas não aparece na tabela, com mensagem específica', async () => {
+    const dados = baseDados({
+      valor_imovel: null, valor_financiado: null, renda_formal: 50_000,
+      modo_calculo: 'VALOR_MAXIMO_PELA_RENDA',
+    })
+    const resultado = await executarSimulacao(dados, {})
+    expect(resultado.modo).toBe('CAPACIDADE_MAXIMA')
+    expect(resultado.capacidade ?? []).toEqual([])
+
+    const resposta = montarRespostaSimulacao(resultado, { nomeDisplay: 'Cliente Teste' })
+    expect(resposta).toMatch(/não se enquadra em nenhuma faixa vigente do MCMV/i)
+  })
+})
