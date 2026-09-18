@@ -884,7 +884,11 @@ function gerarCenariosComparativos(
       cfg, criteria, { ...input, ...cenario.patchInput }, `${resultadoIdBase}-${cenario.sufixoId}`,
     )
     if (resultado.elegivel) {
-      if (cenario.observacaoExtra) resultado.observacao = cenario.observacaoExtra
+      // Campo próprio (`notaEspecificaCenario`), não `observacao` — esta nota (ex.: entrada
+      // ajustada só para viabilizar o PRICE) vale só para ESTE cenário, nunca deve ser
+      // exibida como aviso geral da simulação (ver bug real: cabeçalho e "Nota:" do PDF
+      // aplicando a entrada ajustada do PRICE a todos os bancos, corrigido 2026-09-18).
+      if (cenario.observacaoExtra) resultado.notaEspecificaCenario = cenario.observacaoExtra
       results.push(resultado)
     }
   }

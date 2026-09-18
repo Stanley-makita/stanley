@@ -602,7 +602,11 @@ export async function gerarPDFFinanciamento(
     const gruposComparativos = Array.from(grupos.values()).filter((rs) => rs.length >= 2)
 
     for (const cenarios of gruposComparativos) {
-      const cardH = 38
+      // Cresce o card quando algum cenário do grupo carrega uma nota específica (ex.:
+      // entrada ajustada pra viabilizar o PRICE) — mesmo ajuste do gerador servidor
+      // (gerarPDFBuffer.ts), pra não sobrepor as métricas nem o aviso de renda.
+      const temNotaEspecifica = cenarios.some((c) => c.notaEspecificaCenario)
+      const cardH = temNotaEspecifica ? 52 : 38
       if (y + 12 + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
       y = drawSectionTitle(doc, `${cenarios[0].bancoNome} — Comparação de Cenários (${cenarios[0].programa})`, y, mL, usableW)
 
@@ -622,11 +626,15 @@ export async function gerarPDFFinanciamento(
         doc.rect(x, y + 8, cardW, cardH - 8, 'FD')
 
         const rendaMinima = Math.ceil(r.primeiraParcela / 0.30)
+        // Entrada específica DESTE cenário (SAC/PRICE), não `inp.valorEntrada` genérica —
+        // mesmo ajuste do gerador servidor (gerarPDFBuffer.ts): cada cenário pode
+        // recalcular sua própria entrada (ex.: PRICE ajustado pro teto de 70%).
+        const entradaCenario = inp.valorImovel - r.valorFinanciado
         const metricas: [string, string][] = [
           ['Prazo',           `${r.parcelas} meses`],
           ['Taxa a.a.',       `${(r.taxaAnual * 100).toFixed(2)}%`],
           ['Valor do Imóvel', BRL.format(inp.valorImovel)],
-          ['Entrada',         BRL.format(inp.valorEntrada)],
+          ['Entrada',         BRL.format(entradaCenario)],
           ['Valor Financiado', BRL.format(r.valorFinanciado)],
           ['1ª Parcela',      BRL.format(r.primeiraParcela)],
           ['Renda mínima',    BRL.format(rendaMinima)],
@@ -656,6 +664,14 @@ export async function gerarPDFFinanciamento(
         if (r.avisoRenda) {
           doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#B8860B')
           doc.text('⚠ comprometimento de renda acima de 30%', x + 3, y + cardH - 2)
+        }
+
+        // Nota específica deste cenário (ex.: entrada ajustada pro PRICE) — campo
+        // próprio, só na coluna do cenário afetado, nunca como aviso geral.
+        if (r.notaEspecificaCenario) {
+          doc.setFontSize(5.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#1A44AA')
+          const notaLinhas = doc.splitTextToSize(r.notaEspecificaCenario, cardW - 6)
+          doc.text(notaLinhas, x + 3, y + 31)
         }
 
         if (idx < cenarios.length - 1) {

@@ -248,8 +248,17 @@ export async function gerarPDFFinanciamentoBuffer(
   // simulação), que pode não bater com NENHUM resultado específico exibido — confuso pro
   // usuário ver aqui um número diferente do card "Melhor Cenário" logo acima. Quando não
   // há cenário elegível (`melhorBanco` undefined), mantém o valor bruto do input.
-  const valorFinanciado = melhorBanco ? melhorBanco.valorFinanciado : (inp.valorImovel - inp.valorEntrada)
-  const valorEntradaExibida = melhorBanco ? (inp.valorImovel - melhorBanco.valorFinanciado) : inp.valorEntrada
+  //
+  // Exceção corrigida 2026-09-18: quando o vencedor carrega `notaEspecificaCenario` (ex.:
+  // Caixa PRICE com entrada elevada só pra viabilizar o teto de 70%), ele NÃO representa
+  // o que os demais bancos da comparação realmente usam (esses continuam com
+  // `inp.valorEntrada` — ver `construirCenariosCaixa`, SAC nunca leva o patch de entrada).
+  // Mostrar a entrada do PRICE aqui dava a entender que TODOS os bancos exigiam entrada
+  // maior, quando só o PRICE precisa — bug real que gerou atrito com o comercial (a
+  // entrada específica do PRICE aparece só na seção "Comparação de Cenários" abaixo).
+  const usarEntradaGeral = !!melhorBanco?.notaEspecificaCenario
+  const valorFinanciado = melhorBanco && !usarEntradaGeral ? melhorBanco.valorFinanciado : (inp.valorImovel - inp.valorEntrada)
+  const valorEntradaExibida = melhorBanco && !usarEntradaGeral ? (inp.valorImovel - melhorBanco.valorFinanciado) : inp.valorEntrada
 
   let idadeStr = '—'
   if (inp.dataNascimento) {
@@ -319,6 +328,11 @@ export async function gerarPDFFinanciamentoBuffer(
   // Nota de modalidade — exibida quando a operação não é aquisição simples (lote,
   // construção, comercial). Sem isso, o PDF anexado no WhatsApp nunca explicava por que
   // só a Caixa aparece elegível nessas modalidades.
+  //
+  // Usa só `observacao` (nota de modalidade, vale para TODOS os bancos), nunca
+  // `notaEspecificaCenario` (nota de UM cenário só, ex.: entrada ajustada do PRICE — essa
+  // aparece junto do card do cenário específico na seção "Comparação de Cenários", não
+  // aqui como aviso geral).
   const observacaoModalidade = resultado.bancos.find((b) => b.observacao)?.observacao ?? ''
   if (observacaoModalidade) {
     if (y + 16 > pageH - mBot - 10) { doc.addPage(); y = mTop }
@@ -532,7 +546,11 @@ export async function gerarPDFFinanciamentoBuffer(
     const gruposComparativos = Array.from(grupos.values()).filter((rs) => rs.length >= 2)
 
     for (const cenarios of gruposComparativos) {
-      const cardH = 44
+      // Cresce o card quando algum cenário do grupo carrega uma nota específica (ex.:
+      // entrada ajustada pra viabilizar o PRICE) — espaço extra pra essa nota não
+      // sobrepor as métricas nem o aviso de renda.
+      const temNotaEspecifica = cenarios.some((c) => c.notaEspecificaCenario)
+      const cardH = temNotaEspecifica ? 58 : 44
       if (y + 12 + cardH > pageH - mBot - 10) { doc.addPage(); y = mTop }
       y = drawSectionTitle(doc, `${cenarios[0].bancoNome} — Comparação de Cenários (${cenarios[0].programa})`, y, mL, usableW)
 
@@ -592,6 +610,16 @@ export async function gerarPDFFinanciamentoBuffer(
         if (r.avisoRenda) {
           doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); setTxt(doc, '#B8860B')
           doc.text(pdf('⚠ comprometimento de renda acima de 30%'), x + 3, y + cardH - 2)
+        }
+
+        // Nota específica DESTE cenário (ex.: "Entrada ajustada de X para Y... para
+        // viabilizar a modalidade PRICE") — campo próprio, só aparece na coluna do cenário
+        // afetado, nunca como aviso geral da simulação (ver `usarEntradaGeral` acima e
+        // `notaEspecificaCenario` em tipos.ts).
+        if (r.notaEspecificaCenario) {
+          doc.setFontSize(5.5); doc.setFont('helvetica', 'italic'); setTxt(doc, '#1A44AA')
+          const notaLinhas = doc.splitTextToSize(pdf(r.notaEspecificaCenario), cardW - 6)
+          doc.text(notaLinhas, x + 3, y + 34)
         }
 
         if (idx < cenarios.length - 1) {
