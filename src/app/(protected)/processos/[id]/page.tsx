@@ -132,6 +132,20 @@ export default function ProcessoDetalhePage() {
   useEffect(() => {
     if (processo?.concluido_em) setAbaAtiva('resumo')
   }, [processo?.id, processo?.concluido_em])
+  // Negócio de Registro aberto pela primeira vez ainda em Preparação: a aba
+  // Registro é o que o usuário precisa preencher primeiro, então abre nela em
+  // vez do Resumo — só no load inicial (sem `aba` na URL), não sobrescreve
+  // navegação manual do usuário depois.
+  useEffect(() => {
+    if (
+      processo
+      && !searchParams.get('aba')
+      && processo.modalidade === 'Registro'
+      && normalizarTexto(processo.fase_atual?.nome) === normalizarTexto('Preparação')
+    ) {
+      setAbaAtiva('registro')
+    }
+  }, [processo?.id])
   const [itensObrigatoriosPendentes, setItensObrigatoriosPendentes] = useState(false)
   // Aba Crédito fica escondida até o usuário pedir uma nova análise — ou já
   // aparece direto se o negócio já tiver alguma análise registrada (evita
