@@ -373,7 +373,7 @@ describe('Fase 4 — Caixa: LTV do MCMV Classe Média em imóvel usado (60% — 
     expect(mcmvPrice?.elegivel).toBe(true)
     expect(mcmvPrice?.programa).toBe('MCMV Classe Média')
     expect(mcmvPrice?.valorFinanciado).toBeCloseTo(258_000, 6)
-    expect(mcmvPrice?.observacao).toContain('172.000')
+    expect(mcmvPrice?.notaEspecificaCenario).toContain('172.000')
     // Prazo PRICE do MCMV é 420, não 360 (teto de 360 é regra do SBPE, MO30769 §3.3, que
     // o MCMV/Pró-Cotista não herdam — MO30824 v040 §6.5 mostra máximo 420 pros dois
     // sistemas). Confirmado no simulador oficial: mesmo cenário, PRICE aparece com prazo
@@ -834,7 +834,7 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
     expect(sac?.valorFinanciado).toBeCloseTo(500_000 - 120_000, 6) // SAC usa a entrada informada, sem ajuste
     expect(price?.elegivel).toBe(true)
     expect(price?.valorFinanciado).toBeCloseTo(500_000 * 0.70, 6) // PRICE: entrada ajustada para 150_000 (30%)
-    expect(price?.observacao).toContain('Entrada ajustada')
+    expect(price?.notaEspecificaCenario).toContain('Entrada ajustada')
   })
 
   it('entrada informada já atinge o teto do PRICE (70%): não ajusta nem anota observação', () => {
@@ -843,7 +843,7 @@ describe('Fase 4 — Caixa: Comparação de Cenários (SAC×PRICE automático)',
     const price = porId.get('caixa-sbpe-price')
     expect(price?.elegivel).toBe(true)
     expect(price?.valorFinanciado).toBeCloseTo(350_000, 6)
-    expect(price?.observacao ?? '').not.toContain('Entrada ajustada')
+    expect(price?.notaEspecificaCenario ?? '').not.toContain('Entrada ajustada')
   })
 
   it('outros bancos continuam com exatamente 1 resultado, idêntico ao motor antigo', () => {

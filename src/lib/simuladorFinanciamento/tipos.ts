@@ -103,7 +103,12 @@ export interface ResultadoBanco {
   elegivel: boolean
   motivoInelegivel?: string
   avisoRenda?: boolean
-  observacao?: string              // nota contextual por modalidade (lote, construção, comercial)
+  observacao?: string              // nota contextual por modalidade (lote, construção, comercial) — aplicada a TODOS os bancos da comparação, nunca só a este
+  // Nota específica DESTE cenário/banco (ex.: entrada ajustada para viabilizar o PRICE da
+  // Caixa) — ao contrário de `observacao`, não deve ser exibida como aviso geral da
+  // simulação, só junto do card/linha deste resultado específico. Ver construirCenariosCaixa
+  // em engine.ts.
+  notaEspecificaCenario?: string
   // IOF-crédito — aplicável hoje só em imóvel comercial (ver calcIofVisivel em
   // src/lib/simulador/calcular.ts, mesma regra). Ausente/false = não exibir no PDF.
   iofAplicavel?: boolean

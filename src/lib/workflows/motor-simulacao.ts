@@ -600,6 +600,12 @@ function montarRespostaNormal(
           }
           linha += `\n  Para financiar ${fmt.format(dados.valor_financiado ?? b.valorFinanciado)}: renda aproximada necessária ${fmt.format(rendaNecessaria)}/mês.`
         }
+        // Nota específica DESTE banco/cenário (ex.: entrada ajustada pra viabilizar o
+        // PRICE) — campo próprio, junto da linha do banco afetado, nunca como aviso geral
+        // (ver `entradaCabecalho` acima e `notaEspecificaCenario` em tipos.ts).
+        if (b.notaEspecificaCenario) {
+          linha += `\n  ℹ️ _${b.notaEspecificaCenario}_`
+        }
         return linha
       }).join('\n')
     : null
@@ -613,7 +619,15 @@ function montarRespostaNormal(
   // (cada um com sua própria cota/comprometimento — ver construirCenariosCaixa,
   // engine.ts), o valor genérico deixou de bater com o resultado realmente exibido
   // (mesmo ajuste feito no PDF, gerarPDFBuffer.ts). Sem cenário elegível, mantém o bruto.
-  const entradaCabecalho = elegiveis[0]
+  //
+  // Exceção corrigida 2026-09-18: quando o vencedor carrega `notaEspecificaCenario` (ex.:
+  // Caixa PRICE com entrada elevada só pra viabilizar o teto de 70%), os demais bancos da
+  // comparação continuam usando `dados.valor_entrada` normalmente (só o PRICE recebe o
+  // patch de entrada — ver construirCenariosCaixa). Mostrar a entrada do PRICE no
+  // cabeçalho dava a entender que TODOS os bancos exigiam entrada maior — bug real que
+  // gerou atrito com o comercial. A entrada específica do PRICE aparece só na linha dele,
+  // abaixo (ver `listaBancos`).
+  const entradaCabecalho = elegiveis[0] && !elegiveis[0].notaEspecificaCenario
     ? dados.valor_imovel! - elegiveis[0].valorFinanciado
     : dados.valor_entrada!
 
@@ -731,6 +745,8 @@ function montarRespostaNormal(
 
   // Nota de modalidade (lote/construção/comercial) — sem isso, o texto do WhatsApp nunca
   // explicava por que só a Caixa aparece elegível nessas modalidades (o PDF já mostra).
+  // Usa só `observacao` (vale pra TODOS os bancos), nunca `notaEspecificaCenario` (nota de
+  // UM cenário só — já exibida junto da linha do banco específico, acima).
   const observacaoModalidade = bancosResult.find((b) => b.observacao)?.observacao
   if (observacaoModalidade) {
     linhas.push('', `ℹ️ _${observacaoModalidade}_`)

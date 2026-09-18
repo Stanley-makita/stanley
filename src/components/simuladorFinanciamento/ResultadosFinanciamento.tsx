@@ -197,6 +197,18 @@ export function ResultadosFinanciamento({ resultados, valorImovel, rendaMensal, 
               </div>
             )}
 
+            {/* Nota específica deste cenário (ex.: entrada ajustada pro PRICE) — campo
+                próprio, só neste card, nunca misturado com a observação de modalidade acima
+                (que vale pra todos os bancos da comparação). */}
+            {r.notaEspecificaCenario && (
+              <div className="mx-4 mb-3 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
+                <div className="flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{r.notaEspecificaCenario}</span>
+                </div>
+              </div>
+            )}
+
             {/* Botões por banco */}
             {(onSalvarBanco || onPDFBanco) && (
               <div className="flex gap-2 px-4 py-3">
