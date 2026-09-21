@@ -194,7 +194,7 @@ async function vincularDocumentosConversa(
 // "documento sem dono" que essa função precisava backfillar. O que resta fazer aqui é
 // só criar o vínculo com lead/processo para os documentos recentes dessa pessoa que
 // ainda não têm esse vínculo.
-async function vincularDocumentosRecentesPorTelefone(
+export async function vincularDocumentosRecentesPorTelefone(
   supabase: SupabaseClient,
   empresa_id: string,
   telefoneConversa: string,
@@ -228,8 +228,11 @@ async function vincularDocumentosRecentesPorTelefone(
   if (!pessoaDaConversa) return { count: 0, ids: [] }
 
   const entidadeTipo: 'lead' | 'processo' = processo_id ? 'processo' : 'lead'
+  // Sem lead/processo (pessoa sem negócio aberto, ou cujo lead já foi
+  // excluído) o documento ainda pertence à Pessoa: só não há vínculo a criar.
   const entidadeId = processo_id ?? lead_id
-  if (!entidadeId) return { count: 0, ids: [] }
+  // Sem entidade e sem troca de dono não há o que fazer.
+  if (!entidadeId && (!pessoaAlvo || pessoaAlvo === pessoaDaConversa)) return { count: 0, ids: [] }
 
   const limite = marcaAt ?? (() => {
     const d = new Date()
@@ -249,11 +252,15 @@ async function vincularDocumentosRecentesPorTelefone(
   if (!docsCandidatos?.length) return { count: 0, ids: [] }
 
   const idsCandidatos = docsCandidatos.map((d) => d.id)
-  const { data: vinculosExistentes } = await supabase
+  // Com entidade: pula quem já tem vínculo desse tipo. Sem entidade: pula quem
+  // já tem QUALQUER vínculo (lead/processo) — esses já foram atribuídos a um
+  // negócio e não podem ter o dono trocado por um *salva sem negócio.
+  let consultaVinculos = supabase
     .from('documento_vinculos')
     .select('documento_id')
-    .eq('entidade_tipo', entidadeTipo)
     .in('documento_id', idsCandidatos)
+  if (entidadeId) consultaVinculos = consultaVinculos.eq('entidade_tipo', entidadeTipo)
+  const { data: vinculosExistentes } = await consultaVinculos
   const idsComVinculo = new Set((vinculosExistentes ?? []).map((v) => v.documento_id))
   const idsParaVincular = idsCandidatos.filter((id) => !idsComVinculo.has(id))
 
@@ -266,6 +273,8 @@ async function vincularDocumentosRecentesPorTelefone(
   if (pessoaAlvo && pessoaAlvo !== pessoaDaConversa) {
     await supabase.from('documentos').update({ pessoa_id: pessoaAlvo }).in('id', idsParaVincular)
   }
+
+  if (!entidadeId) return { count: idsParaVincular.length, ids: idsParaVincular }
 
   const { error } = await supabase
     .from('documento_vinculos')
