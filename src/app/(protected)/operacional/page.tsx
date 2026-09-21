@@ -224,13 +224,17 @@ export default function OperacionalPage() {
   const [filtroTipo, setFiltroTipo] = useState<TipoSolicitacao | 'all'>('all')
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeSolicitacao | 'all'>('all')
   const [soMinhaFila, setSoMinhaFila] = useState(false)
+  // "Para mim" = o que eu preciso atender; "Que pedi" = o que eu pedi a outras pessoas.
+  const [visao, setVisao] = useState<'paraMim' | 'quePedi'>('paraMim')
+  const quePedi = visao === 'quePedi'
   const [selecionada, setSelecionada] = useState<SolicitacaoOperacional | null>(null)
   const [novaAberta, setNovaAberta] = useState(false)
 
   const filtrosBase = {
     tipo: filtroTipo !== 'all' ? filtroTipo : undefined,
     prioridade: filtroPrioridade !== 'all' ? filtroPrioridade : undefined,
-    todasDaEmpresa: isGestor ? !soMinhaFila : false,
+    todasDaEmpresa: isGestor && !quePedi ? !soMinhaFila : false,
+    quePedi,
   }
 
   const { data: ativas = [], isLoading } = useSolicitacoesFila(filtrosBase)
@@ -272,7 +276,7 @@ export default function OperacionalPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
         <div>
           <h1 className="text-lg font-bold text-fonti-primary">
-            {isGestor && !soMinhaFila ? 'Fila Operacional — Empresa' : 'Minha Fila Operacional'}
+            {quePedi ? 'Solicitações que pedi' : isGestor && !soMinhaFila ? 'Fila Operacional — Empresa' : 'Minha Fila Operacional'}
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
             {isLoading ? 'Carregando...' : (
@@ -285,7 +289,20 @@ export default function OperacionalPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isGestor && (
+          <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+            {([['paraMim', 'Para mim'], ['quePedi', 'Que pedi']] as const).map(([chave, rotulo]) => (
+              <button
+                key={chave}
+                onClick={() => setVisao(chave)}
+                className={visao === chave
+                  ? 'px-3 py-1 rounded-md text-xs font-medium bg-white text-fonti-primary shadow-sm'
+                  : 'px-3 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700'}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+          {isGestor && !quePedi && (
             <Button variant={soMinhaFila ? 'default' : 'outline'} size="sm"
               className={soMinhaFila ? 'bg-fonti-primary text-white text-xs' : 'text-xs'}
               onClick={() => setSoMinhaFila((v) => !v)}>
