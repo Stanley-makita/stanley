@@ -30,6 +30,7 @@ import {
 import { DollarSign, Loader2, X } from 'lucide-react'
 import {
   useConsorcioReceber,
+  useConsorcioRealtime,
   useConsorcioComercialPagar,
   useMarcarParcelaConsorcioRecebida,
   useMarcarParcelaConsorcioPaga,
@@ -50,6 +51,7 @@ const STATUS_PARCELA: Record<FinStatusParcelaConsorcio, { label: string; class: 
 type SubAba = 'receber' | 'pagar' | 'resumo' | 'dre'
 
 export function AbaConsorcio() {
+  useConsorcioRealtime()
   const [subAba, setSubAba] = useState<SubAba>('receber')
 
   return (
