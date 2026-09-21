@@ -62,7 +62,10 @@ export async function salvarConsorcioPendente(
     .update({ consorcio_pendente: pendente, consorcio_pendente_expira: expira })
     .eq('id', conversaId)
   if (pendenteAnterior) {
-    query = query.eq('consorcio_pendente', pendenteAnterior as unknown as Record<string, unknown>)
+    // JSON.stringify, NÃO o objeto: o supabase-js serializa objeto como "[object Object]" e o
+    // Postgres rejeita (22P02) — o UPDATE nunca aplicava e o fluxo travava no 1º passo.
+    // Comparação jsonb ignora a ordem das chaves.
+    query = query.eq('consorcio_pendente', JSON.stringify(pendenteAnterior))
   }
   const { data, error } = await query.select('id')
   if (error) {
