@@ -4,6 +4,7 @@
  * Retorna null se o remetente não for usuário interno (fluxo normal prossegue).
  */
 
+import type { StatusProcesso } from '@/types/processos'
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extrairProduto, extrairNumero } from './state-machine'
@@ -364,7 +365,24 @@ async function gravarSessaoProcesso(
 // IMPORTANTE: usar blocklist (não allowlist) — novos status operacionais devem aceitar docs automaticamente.
 // Processo pode receber documentos até sua conclusão, incluindo fases pós-emissão:
 // assinatura, registro, exigências cartorárias/bancárias, FGTS complementar, ITBI, docs do vendedor.
-const STATUS_BLOQUEADOS_PROCESSO = ['concluido', 'cancelado', 'reprovado', 'arquivado']
+// Tipado com StatusProcesso (o enum `status_processo` do banco só tem em_analise,
+// aprovado, pendente, reprovado, cancelado): um valor inexistente no `.not.in.()`
+// faz o Postgres rejeitar a consulta INTEIRA ("invalid enum value"), o supabase-js
+// devolve data=null e o *fonti processo respondia "não tem processos aptos" pra
+// todo cliente (achado real, 2026-09-21: 'concluido' e 'arquivado' nunca existiram).
+export const STATUS_BLOQUEADOS_PROCESSO: StatusProcesso[] = ['reprovado', 'cancelado']
+
+// `processos` não tem coluna `banco` (só `banco_id`) — pedir `banco` na consulta faz o
+// PostgREST devolver erro e o bot tratava como "sem processos". O nome vem da relação.
+const SELECT_PROCESSO_BOT = 'id, numero_processo, valor_imovel, banco_rel:bancos!banco_id(nome)'
+
+type ProcessoBotRow = { id: string; numero_processo: string; banco: string | null; valor_imovel: number | null }
+
+function normalizarProcessoBot(row: unknown): ProcessoBotRow {
+  const r = row as { id: string; numero_processo: string; valor_imovel: number | null; banco_rel?: { nome: string | null } | { nome: string | null }[] | null }
+  const rel = Array.isArray(r.banco_rel) ? r.banco_rel[0] : r.banco_rel
+  return { id: r.id, numero_processo: r.numero_processo, valor_imovel: r.valor_imovel, banco: rel?.nome ?? null }
+}
 
 async function buscarProcessoPorNumero(
   supabase: SupabaseClient,
@@ -375,13 +393,13 @@ async function buscarProcessoPorNumero(
   // Usar .or() para aceitar NULL explicitamente.
   const { data } = await supabase
     .from('processos')
-    .select('id, numero_processo, banco, valor_imovel')
+    .select(SELECT_PROCESSO_BOT)
     .eq('empresa_id', empresa_id)
     .eq('numero_processo', numeroProcesso)
     .is('deleted_at', null)
     .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
     .maybeSingle()
-  return data ?? null
+  return data ? normalizarProcessoBot(data) : null
 }
 
 async function buscarProcessosAtivos(
@@ -401,13 +419,13 @@ async function buscarProcessosAtivos(
 
   const { data: processos } = await supabase
     .from('processos')
-    .select('id, numero_processo, banco, valor_imovel')
+    .select(SELECT_PROCESSO_BOT)
     .in('id', processoIds)
     .is('deleted_at', null)
     .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
     .order('created_at', { ascending: false })
 
-  return processos ?? []
+  return (processos ?? []).map(normalizarProcessoBot)
 }
 
 async function buscarCompradorPrincipalProcesso(
@@ -440,20 +458,19 @@ async function salvarParaProcesso(
   arquivos: FontiArquivo[],
   marcaAt?: Date | null,
 ): Promise<string> {
-  type ProcessoRow = { id: string; numero_processo: string; banco: string | null; valor_imovel: number | null }
-  let processo: ProcessoRow | null = null
+  let processo: ProcessoBotRow | null = null
 
   // UUID completo → busca direta por ID (usado quando vem de sessao.processo_id)
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(processoRef)) {
     const { data } = await supabase
       .from('processos')
-      .select('id, numero_processo, banco, valor_imovel')
+      .select(SELECT_PROCESSO_BOT)
       .eq('id', processoRef)
       .eq('empresa_id', empresa_id)
       .is('deleted_at', null)
       .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
       .maybeSingle()
-    processo = data ?? null
+    processo = data ? normalizarProcessoBot(data) : null
   } else {
     // Número curto: 003, 3, proc-003, #proc-003
     const numMatch = processoRef.match(/^#?(?:proc-)?0*(\d+)$/)
