@@ -246,3 +246,30 @@ RENOMEADA pro cliente (telefone do Marcio virou "MARIA LUCIA...", 75 documentos)
 telefone de usuário interno ativo → sempre pessoa provisória NOVA por sessão, sem gravar o telefone
 do operador nela. Guard equivalente em `workflow-captacao.ts` (Prioridade 4). Qualquer novo código que
 "reaproveite pessoa por telefone" precisa antes descartar telefones de `usuarios`.
+
+## REGRA INEGOCIÁVEL — `*cria cliente` e `*salva`: cliente certo e documento no cliente certo, na hora
+
+Cada comercial, ao criar cliente (`*cria cliente`) ou salvar documentos (`*salva fulano`), precisa ter
+o resultado correto IMEDIATO: o lead do cliente certo e CADA documento no cliente certo. Errar aqui
+contamina dados de vários clientes sem dar erro nenhum (incidente 2026-09-21, na frente da equipe:
+142 documentos com dono diferente do lead vinculado; 74 dentro de pessoas de operador).
+
+**Invariantes — qualquer mudança em `workflow-captacao.ts`, `fonti-comandos.ts`, no handler de mídia
+solta do webhook ou em `obter_ou_criar_pessoa_sessao_fonti` tem que preservá-los:**
+1. **Pessoa de um usuário interno (comercial) NUNCA é pessoa de cliente.** O telefone do operador
+   (`usuarios.telefone_whatsapp`/`telefone`) não pode ser reaproveitado como "pessoa da sessão", nem
+   adotado por lead, nem renomeado. Ver migration 314 e o guard na Prioridade 4 de `workflow-captacao.ts`.
+2. **O DONO do documento (`documentos.pessoa_id`) é a pessoa do cliente**, não só o vínculo
+   (`documento_vinculos`) com lead/processo. `*cria cliente` (troca o dono ao vincular ao lead) e
+   `*salva` (`vincularDocumentosRecentesPorTelefone`) fazem os dois; um caminho novo que só cria o
+   vínculo está errado. Teste: `cria-cliente-dono-do-documento.test.ts`.
+3. **Um cliente novo nunca pode cair no lead de outro**: `buscarLeadAbertoPorPessoa` só é seguro se a
+   pessoa for realmente do cliente (ver 1). Nunca resolver pessoa por telefone do remetente.
+4. **`*salva fulano` tem que achar o cliente pelo nome da pessoa OU do lead**, ignorando excluídos.
+5. **A resposta do bot diz onde o documento ficou** (lead + etapa, processos do cliente).
+
+**Como conferir depois de mexer** (rodar contra o banco real, não só mock): a auditoria
+`supabase/2026-09-21_diagnostico_pessoas_de_operador.sql` deve mostrar operadores sem leads e sem
+documentos NOVOS; e nenhum documento com dono diferente da pessoa do lead a que está vinculado
+(exceto participantes de processo: cônjuge, vendedor). Teste de ponta a ponta com 2 clientes seguidos
+pelo mesmo comercial (`*inicio` + documentos + `*cria cliente`, duas vezes): dois leads, duas pessoas.

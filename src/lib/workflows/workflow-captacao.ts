@@ -616,6 +616,13 @@ export async function executarWorkflowCaptacao(
           .insert(idsAutoVincular.map((documento_id) => ({
             empresa_id, documento_id, entidade_tipo: 'lead', entidade_id: lead_id,
           })))
+        // O DONO do documento tem que ser a Pessoa do cliente, não só o vínculo com o lead:
+        // os documentos nasceram na pessoa da sessão/conversa (provisória ou, pior, a do
+        // próprio operador). Sem isso o cliente achado por CPF/telefone (pessoa existente)
+        // ficava sem os documentos na aba dele. Mesma regra do `*fonti salva`.
+        if (pessoa_id) {
+          await supabase.from('documentos').update({ pessoa_id }).in('id', idsAutoVincular)
+        }
         docsVinculados += idsAutoVincular.length
       }
     }
