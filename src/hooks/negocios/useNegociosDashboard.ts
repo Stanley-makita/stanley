@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { format, addDays, subDays } from 'date-fns'
 import type { TarefaAgenda } from '@/types/agenda'
-import type { SolicitacaoOperacional } from '@/types/solicitacoes-operacionais'
 
 const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'])
 
@@ -133,30 +132,5 @@ export function useNegociosDashboard(todasDaEmpresa: boolean = false) {
     },
   })
 
-  const solicitacoes = useQuery({
-    queryKey: ['negocios', 'dashboard', 'solicitacoes', usuario?.id, todasDaEmpresa],
-    enabled: !!usuario,
-    staleTime: 1000 * 60 * 2,
-    queryFn: async (): Promise<SolicitacaoOperacional[]> => {
-      let query = supabase
-        .from('solicitacoes_operacionais')
-        .select('id, titulo, tipo, prioridade, status, sla_at, created_at, lead_id, processo_id, responsavel_id, solicitante:usuarios!solicitante_id(id, nome), responsavel:usuarios!responsavel_id(id, nome)')
-        .eq('empresa_id', usuario!.empresa_id)
-        .is('deleted_at', null)
-        .not('status', 'in', '("concluido","cancelado")')
-
-      if (!todasDaEmpresa) {
-        query = query.eq('responsavel_id', usuario!.id)
-      }
-
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (error) throw error
-      return (data ?? []) as unknown as SolicitacaoOperacional[]
-    },
-  })
-
-  return { contagens, tarefasHoje, solicitacoes }
+  return { contagens, tarefasHoje }
 }

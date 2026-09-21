@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
-import { format, isToday, isBefore, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import type { Lead } from '@/types/leads'
 
 export type PrioridadeFila = 'urgente' | 'alta' | 'normal' | 'baixa'
@@ -36,31 +36,6 @@ export interface FilaItem {
   // saber quem ainda não atendeu.
   solicitanteNome?: string | null
   responsavelNome?: string | null
-}
-
-const TIPO_SOL_LABEL: Record<string, string> = {
-  simulacao: 'Simulação',
-  analise_credito: 'Análise',
-  reanalise: 'Reanálise',
-  engenharia: 'Engenharia',
-  custas: 'Custas',
-  documentos: 'Documentos',
-  formalizacao: 'Formalização',
-  registro: 'Registro',
-  pendencia: 'Pendência',
-  atendimento_cliente: 'Atend. cliente',
-  outros: 'Outros',
-}
-
-const TIPO_SOL_CSS: Record<string, string> = {
-  simulacao: 'bg-blue-100 text-blue-700',
-  analise_credito: 'bg-purple-100 text-purple-700',
-  reanalise: 'bg-indigo-100 text-indigo-700',
-  documentos: 'bg-amber-100 text-amber-700',
-  pendencia: 'bg-orange-100 text-orange-700',
-  atendimento_cliente: 'bg-teal-100 text-teal-700',
-  formalizacao: 'bg-cyan-100 text-cyan-700',
-  engenharia: 'bg-emerald-100 text-emerald-700',
 }
 
 function normalizarPrioridade(p: string | null | undefined): PrioridadeFila {
@@ -126,7 +101,7 @@ export function useLeadsDashboardContagens() {
           .select('id', { count: 'exact', head: true })
           .eq('empresa_id', eid).eq('responsavel_id', uid)
           .not('status', 'in', '("concluido","cancelado")')
-          .not('lead_id', 'is', null).is('deleted_at', null),
+          .is('deleted_at', null),
 
         supabase.from('lead_tarefas')
           .select('id', { count: 'exact', head: true })
@@ -137,7 +112,7 @@ export function useLeadsDashboardContagens() {
           .select('id', { count: 'exact', head: true })
           .eq('empresa_id', eid).eq('responsavel_id', uid)
           .not('status', 'in', '("concluido","cancelado")')
-          .not('lead_id', 'is', null).is('deleted_at', null)
+          .is('deleted_at', null)
           .not('sla_at', 'is', null).lt('sla_at', agora),
 
         supabase.from('lead_tarefas')
@@ -253,15 +228,6 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
       const uid = usuario!.id
       const eid = usuario!.empresa_id
 
-      const solQueryBase = supabase
-        .from('solicitacoes_operacionais')
-        .select('id, titulo, tipo, prioridade, sla_at, created_at, lead:leads!lead_id(id, nome), solicitante:usuarios!solicitante_id(id, nome), responsavel:usuarios!responsavel_id(id, nome)')
-        .eq('empresa_id', eid)
-        .not('status', 'in', '("concluido","cancelado")')
-        .not('lead_id', 'is', null)
-        .is('deleted_at', null)
-        .limit(50)
-
       const tarefaQueryBase = supabase
         .from('lead_tarefas')
         .select('id, titulo, prioridade, data_prazo, created_at, lead:leads!lead_id(id, nome)')
@@ -270,33 +236,11 @@ export function useFilaDeTrabalho(todasDaEmpresa: boolean) {
         .is('deleted_at', null)
         .limit(50)
 
-      const [solRes, tarefaRes] = await Promise.all([
-        todasDaEmpresa ? solQueryBase : solQueryBase.eq('responsavel_id', uid),
-        todasDaEmpresa ? tarefaQueryBase : tarefaQueryBase.eq('responsavel_id', uid),
-      ])
+      // Só tarefas: as solicitações (Para mim + Que pedi, de qualquer módulo) vêm de
+      // useMinhasSolicitacoes, mostradas pelo SolicitacoesPainel.
+      const tarefaRes = await (todasDaEmpresa ? tarefaQueryBase : tarefaQueryBase.eq('responsavel_id', uid))
 
       const items: FilaItem[] = []
-
-      for (const s of (solRes.data ?? []) as any[]) {
-        const lead = Array.isArray(s.lead) ? s.lead[0] : s.lead
-        if (!lead) continue
-        const solicitante = Array.isArray(s.solicitante) ? s.solicitante[0] : s.solicitante
-        const responsavel = Array.isArray(s.responsavel) ? s.responsavel[0] : s.responsavel
-        const prazoStr: string | null = s.sla_at ?? null
-        const prazoDate = prazoStr ? parseISO(prazoStr) : null
-        const venceHoje = prazoDate ? isToday(prazoDate) : false
-        const vencido = prazoDate ? isBefore(prazoDate, new Date()) && !venceHoje : false
-        items.push({
-          id: s.id, tipo: 'solicitacao',
-          tipoLabel: TIPO_SOL_LABEL[s.tipo] ?? s.tipo,
-          tipoCss: TIPO_SOL_CSS[s.tipo] ?? 'bg-gray-100 text-gray-600',
-          leadId: lead.id, leadNome: lead.nome, titulo: s.titulo,
-          prioridade: normalizarPrioridade(s.prioridade),
-          prazo: prazoStr, vencido, venceHoje, createdAt: s.created_at,
-          solicitanteNome: solicitante?.nome ?? null,
-          responsavelNome: responsavel?.nome ?? null,
-        })
-      }
 
       for (const t of (tarefaRes.data ?? []) as any[]) {
         const lead = Array.isArray(t.lead) ? t.lead[0] : t.lead

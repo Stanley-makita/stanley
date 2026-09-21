@@ -2,15 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { format, parseISO, isToday } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { Home, CircleDollarSign, FileText, MapPin, AlertCircle, Clock, LayoutList } from 'lucide-react'
+import { Home, CircleDollarSign, FileText, MapPin, Clock, LayoutList } from 'lucide-react'
 import { useNegociosDashboard } from '@/hooks/negocios/useNegociosDashboard'
 import { TarefaDetalheModal } from '@/components/tarefas/TarefaDetalheModal'
+import { SolicitacoesPainel } from '@/components/solicitacoes/SolicitacoesPainel'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { cn } from '@/lib/utils'
-import type { PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
 import type { PrioridadeTarefa, TarefaAgenda } from '@/types/agenda'
 
 const PRIORIDADE_TAREFA_COR: Record<PrioridadeTarefa, string> = {
@@ -18,27 +15,6 @@ const PRIORIDADE_TAREFA_COR: Record<PrioridadeTarefa, string> = {
   alta:  'bg-red-100 text-red-700',
   media: 'bg-yellow-100 text-yellow-700',
   baixa: 'bg-gray-100 text-gray-500',
-}
-
-const PRIORIDADE_SOL_COR: Record<PrioridadeSolicitacao, string> = {
-  urgente: 'bg-red-100 text-red-700',
-  alta:    'bg-orange-100 text-orange-700',
-  normal:  'bg-blue-100 text-blue-700',
-  baixa:   'bg-gray-100 text-gray-500',
-}
-
-const TIPO_SOL_LABEL: Record<string, string> = {
-  simulacao:          'Simulação',
-  analise_credito:    'Análise de crédito',
-  reanalise:          'Reanálise',
-  engenharia:         'Engenharia',
-  custas:             'Custas',
-  documentos:         'Documentos',
-  formalizacao:       'Formalização',
-  registro:           'Registro',
-  pendencia:          'Pendência',
-  atendimento_cliente:'Atend. cliente',
-  outros:             'Outros',
 }
 
 interface ModuloCardProps {
@@ -91,7 +67,6 @@ function ModuloCard({ titulo, href, icon: Icon, linhaA, linhaB, isLoading, desta
 }
 
 export default function NegociosDashboardPage() {
-  const router = useRouter()
   const { usuario } = useAuth()
   const [todasDaEmpresa, setTodasDaEmpresa] = useState(false)
   const isGestor =
@@ -99,17 +74,9 @@ export default function NegociosDashboardPage() {
     usuario?.perfil === 'gerente' ||
     usuario?.perfil === 'gestor'
 
-  const { contagens, tarefasHoje, solicitacoes } = useNegociosDashboard(todasDaEmpresa)
+  const { contagens, tarefasHoje } = useNegociosDashboard(todasDaEmpresa)
   const c = contagens.data
   const [tarefaAberta, setTarefaAberta] = useState<{ id: string; fonte: 'processo' | 'lead' } | null>(null)
-
-  function navegarParaSolicitacao(s: { processo_id?: string | null; lead_id?: string | null }) {
-    if (s.processo_id) {
-      router.push(`/processos/${s.processo_id}?aba=solicitacoes`)
-    } else if (s.lead_id) {
-      router.push(`/leads?solicitacao=${s.lead_id}`)
-    }
-  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -239,63 +206,9 @@ export default function NegociosDashboardPage() {
           )}
         </div>
 
-        {/* Solicitações a você */}
+        {/* Solicitações: Para mim + Que pedi, de qualquer módulo (lead ou negócio) */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertCircle className="h-4 w-4 text-fonti-primary" />
-            <h2 className="font-semibold text-fonti-primary text-sm">
-              {todasDaEmpresa ? 'Solicitações da equipe' : 'Solicitações a você'}
-            </h2>
-            {!solicitacoes.isLoading && (
-              <span className="ml-auto text-xs text-gray-400">
-                {solicitacoes.data?.length ?? 0} aberta{(solicitacoes.data?.length ?? 0) !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-
-          {solicitacoes.isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
-              ))}
-            </div>
-          ) : solicitacoes.data?.length === 0 ? (
-            <div className="py-8 text-center text-gray-400 text-sm">
-              Nenhuma solicitação aberta 👍
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {solicitacoes.data?.map((s) => {
-                const slaVencendo = s.sla_at ? isToday(parseISO(s.sla_at)) : false
-                const slaVencido  = s.sla_at ? parseISO(s.sla_at) < new Date() : false
-                return (
-                  <div key={s.id} onClick={() => navegarParaSolicitacao(s)} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-fonti-accent-hover/60 cursor-pointer transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{s.titulo}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {TIPO_SOL_LABEL[s.tipo] ?? s.tipo}
-                        {s.sla_at && (
-                          <span className={cn('ml-2', slaVencido ? 'text-red-500 font-medium' : slaVencendo ? 'text-orange-500 font-medium' : '')}>
-                            · SLA {format(parseISO(s.sla_at), "d 'de' MMM", { locale: ptBR })}
-                          </span>
-                        )}
-                      </p>
-                      {(s.solicitante?.nome || s.responsavel?.nome) && (
-                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                          {s.solicitante?.nome && <>Pedido por <span className="text-gray-500 font-medium">{s.solicitante.nome}</span></>}
-                          {s.solicitante?.nome && s.responsavel?.nome && ' · '}
-                          {s.responsavel?.nome && <>Para <span className="text-gray-500 font-medium">{s.responsavel.nome}</span></>}
-                        </p>
-                      )}
-                    </div>
-                    <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0', PRIORIDADE_SOL_COR[s.prioridade])}>
-                      {s.prioridade}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <SolicitacoesPainel todasDaEmpresa={todasDaEmpresa} />
         </div>
       </div>
 
