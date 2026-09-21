@@ -214,3 +214,14 @@ provisório (criado pelo telefone da conversa) pela pessoa escolhida. Resultado 
 sem lead/processo, só o dono do documento é trocado (e apenas de documentos SEM nenhum vínculo,
 pra não roubar documento já atribuído a um negócio). Qualquer novo caminho de vínculo de
 documento deve tratar "sem lead" como caso válido.
+
+### Consulta com coluna/valor de enum inexistente falha em silêncio (`*fonti processo`)
+
+O supabase-js não lança exceção quando o PostgREST rejeita a query: devolve `data = null` e o
+código do bot trata como "nenhum resultado". `*fonti processo` respondia "não tem processos aptos"
+pra todo cliente (2026-09-21) por dois erros: `.not.in.()` com `'concluido'`/`'arquivado'` que não
+existem no enum `status_processo` (só em_analise, aprovado, pendente, reprovado, cancelado) e
+`select('banco')` numa tabela que só tem `banco_id`. Regras: tipar listas de status com
+`StatusProcesso` (`@/types/processos`), pedir o banco via `banco:bancos!banco_id(nome)` e, em
+qualquer consulta nova do bot, olhar o `error` do retorno em vez de só `data`. Testar a query
+contra o banco real (não só com mock) antes de considerar validada.
