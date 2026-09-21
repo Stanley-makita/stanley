@@ -482,7 +482,7 @@ export interface FinConsorcioReceber {
   observacoes: string | null
   created_at: string
   updated_at: string
-  processo?: { numero_processo: string | null; lead?: { nome: string } }
+  processo?: { numero_processo: string | null; lead?: { nome: string } | null; pessoa?: { nome: string } | null }
   processo_cota?: { administradora_nome: string | null; grupo: string | null; cota: string | null; valor_carta: number | null }
 }
 
@@ -502,7 +502,7 @@ export interface FinConsorcioComercialPagar {
   observacoes: string | null
   created_at: string
   updated_at: string
-  processo?: { numero_processo: string | null; lead?: { nome: string } }
+  processo?: { numero_processo: string | null; lead?: { nome: string } | null; pessoa?: { nome: string } | null }
   processo_cota?: { administradora_nome: string | null; grupo: string | null; cota: string | null; valor_carta: number | null }
   usuario?: { nome: string } | null
 }

@@ -99,7 +99,7 @@ export function AbaConsorcio() {
 
 function nomeCota(processo?: FinConsorcioReceber['processo'], cota?: FinConsorcioReceber['processo_cota']) {
   return {
-    cliente: processo?.lead?.nome ?? '—',
+    cliente: processo?.lead?.nome ?? processo?.pessoa?.nome ?? '—',
     administradora: cota?.administradora_nome ?? '—',
     grupo: cota?.grupo ?? '—',
     cota: cota?.cota ?? '—',
