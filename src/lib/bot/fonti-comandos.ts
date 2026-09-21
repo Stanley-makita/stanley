@@ -572,7 +572,7 @@ interface EntidadeAmbigua {
   candidatos: { id: string; nome: string }[]
 }
 
-async function buscarEntidade(
+export async function buscarEntidade(
   supabase: SupabaseClient,
   empresa_id: string,
   referencia: string,
@@ -635,14 +635,42 @@ async function buscarEntidade(
   // primeiro — cobre o caso comum de "*salva joao" quando existe uma pessoa
   // chamada exatamente "Joao" entre várias outras com "joao" no meio do nome.
   const LIMITE_CANDIDATOS_PESSOA = 8
-  const { data: pessoasBrutas } = await supabase
-    .from('pessoas')
-    .select('id, nome')
-    .eq('empresa_id', empresa_id)
-    .is('deleted_at', null)
-    .ilike('nome', `%${ref}%`)
-    .order('created_at', { ascending: false })
-    .limit(30)
+  const [{ data: pessoasNome }, { data: leadsNome }] = await Promise.all([
+    supabase
+      .from('pessoas')
+      .select('id, nome')
+      .eq('empresa_id', empresa_id)
+      .is('deleted_at', null)
+      .ilike('nome', `%${ref}%`)
+      .order('created_at', { ascending: false })
+      .limit(30),
+    // Também pelo nome do LEAD: o lead pode ter nome diferente da pessoa a que está
+    // ligado (ex.: `*cria cliente Enoque` a partir do WhatsApp do operador reaproveita
+    // a pessoa provisória do telefone dele, "Bruno Fontinhas Assessoria"). Achado real
+    // (2026-09-21): `*salva enoque` respondia "não encontrei" com o lead existindo.
+    supabase
+      .from('leads')
+      .select('id, nome, pessoa_id, pessoa:pessoas!pessoa_id!inner(deleted_at)')
+      .eq('empresa_id', empresa_id)
+      .is('deleted_at', null)
+      .is('pessoa.deleted_at', null)
+      .not('pessoa_id', 'is', null)
+      .ilike('nome', `%${ref}%`)
+      .order('created_at', { ascending: false })
+      .limit(30),
+  ])
+
+  // Pessoas primeiro; leads só entram se a pessoa deles ainda não está na lista.
+  const pessoasBrutas: Array<{ id: string; nome: string; lead_id?: string }> | null =
+    pessoasNome || leadsNome ? [...(pessoasNome ?? [])] : null
+  if (pessoasBrutas) {
+    const vistos = new Set(pessoasBrutas.map((p) => p.id))
+    for (const l of (leadsNome ?? []) as Array<{ id: string; nome: string; pessoa_id: string }>) {
+      if (vistos.has(l.pessoa_id)) continue
+      vistos.add(l.pessoa_id)
+      pessoasBrutas.push({ id: l.pessoa_id, nome: l.nome, lead_id: l.id })
+    }
+  }
 
   const refNormalizado = ref.toLowerCase()
   const pessoas = pessoasBrutas
@@ -663,6 +691,11 @@ async function buscarEntidade(
     }
 
     const escolhido = pessoas[0]
+
+    // Achado pelo nome do lead: o lead é conhecido, não precisa adivinhar o mais recente.
+    if (escolhido.lead_id) {
+      return { tipo: 'pessoa', id: escolhido.id, label: escolhido.nome, lead_id: escolhido.lead_id }
+    }
 
     // Busca o lead mais recente da pessoa para incluir lead_id no documento
     const { data: leadDaPessoa } = await supabase

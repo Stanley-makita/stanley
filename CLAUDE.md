@@ -225,3 +225,12 @@ existem no enum `status_processo` (só em_analise, aprovado, pendente, reprovado
 `StatusProcesso` (`@/types/processos`), pedir o banco via `banco:bancos!banco_id(nome)` e, em
 qualquer consulta nova do bot, olhar o `error` do retorno em vez de só `data`. Testar a query
 contra o banco real (não só com mock) antes de considerar validada.
+
+### Lead pode ter nome diferente da Pessoa — `*fonti salva [nome]` busca nos dois
+
+`*cria cliente` feito a partir do WhatsApp do próprio operador reaproveita a pessoa provisória do
+telefone dele (ex.: "Bruno Fontinhas Assessoria"), então o lead "ENOQUE FRANCISCO..." fica ligado a
+uma pessoa com outro nome. Achado real (2026-09-21, na frente da equipe): `*salva enoque` respondia
+"não encontrei". `buscarEntidade` agora busca também em `leads.nome` (embed `pessoa:pessoas!pessoa_id!inner`
+— `leads` tem MAIS de uma relação com `pessoas`, sem o `!pessoa_id` o PostgREST recusa). Causa de raiz
+ainda em aberto: `*cria cliente` não deveria reaproveitar a pessoa do telefone do operador.
