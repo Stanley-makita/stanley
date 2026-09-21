@@ -204,3 +204,13 @@ Achado real (2026-09-21): `*fonti salva joao` listava "JOAO" e "joao" já exclu�
 `buscarEntidade` (nome, CPF, telefone fromMe) e a busca por nome via referência de processo em
 `fonti-comandos.ts` não filtravam. O padrão certo já existe em `src/lib/pessoa.ts`; conferir lá
 antes de escrever uma query nova.
+
+### `*fonti salva`: documento pertence à Pessoa, lead/processo é só vínculo opcional
+
+`vincularDocumentosRecentesPorTelefone` (`fonti-comandos.ts`) antes devolvia 0 quando a pessoa-alvo
+não tinha lead (`if (!entidadeId) return`), e nem chegava a trocar o `documentos.pessoa_id`
+provisório (criado pelo telefone da conversa) pela pessoa escolhida. Resultado real (2026-09-21):
+`*salva joao` só salvava no cliente em etapa Lead; nos demais respondia "nenhum documento". Agora,
+sem lead/processo, só o dono do documento é trocado (e apenas de documentos SEM nenhum vínculo,
+pra não roubar documento já atribuído a um negócio). Qualquer novo caminho de vínculo de
+documento deve tratar "sem lead" como caso válido.
