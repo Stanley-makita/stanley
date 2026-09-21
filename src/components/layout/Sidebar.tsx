@@ -24,8 +24,8 @@ import {
   Calculator,
   UserCheck,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
+  FastForward,
+  Rewind,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { usePermissao } from '@/hooks/auth/usePermissao'
@@ -294,8 +294,8 @@ export function Sidebar({ className, onNavigate, collapsed = false, onToggleColl
             )}
           >
             {collapsed
-              ? <PanelLeftOpen className="h-4 w-4" />
-              : <><PanelLeftClose className="h-4 w-4" /><span>Recolher menu</span></>
+              ? <Rewind className="h-4 w-4" />
+              : <FastForward className="h-4 w-4" />
             }
           </button>
         )}
