@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInDays, isToday, parseISO } from 'date-fns'
 import {
   ClipboardList, Users, Sparkles, CreditCard, Clock,
   CheckCircle2, Send, ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { SolicitacoesPainel } from '@/components/solicitacoes/SolicitacoesPainel'
+import { useMinhasSolicitacoes } from '@/hooks/solicitacoes/useMinhasSolicitacoes'
 import {
   useLeadsDashboardContagens,
   useFilaDeTrabalho,
@@ -210,10 +212,17 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
   const { data: contagens, isLoading: carregandoContagens } = useLeadsDashboardContagens()
   const { data: fila = [], isLoading: carregandoFila } = useFilaDeTrabalho(todasDaEmpresa)
 
+  // Solicitações vêm do hook compartilhado (Para mim + Que pedi, em qualquer módulo); a fila
+  // de trabalho daqui trata só as tarefas. Os totais do cabeçalho somam os dois.
+  const { isLoading: carregandoSol, paraMim, todas: todasSolicitacoes } = useMinhasSolicitacoes(todasDaEmpresa)
   const filaTarefas = fila.filter(i => i.tipo === 'tarefa')
-  const filaSolicitacoes = fila.filter(i => i.tipo === 'solicitacao')
-  const vencidosCount = fila.filter(i => i.vencido).length
-  const hojeCount = fila.filter(i => i.venceHoje).length
+  const solVisiveis = todasDaEmpresa ? todasSolicitacoes : paraMim
+  const agora = new Date()
+  const solHoje = solVisiveis.filter(s => s.sla_at && isToday(parseISO(s.sla_at))).length
+  const solVencidas = solVisiveis.filter(s => s.sla_at && parseISO(s.sla_at) < agora && !isToday(parseISO(s.sla_at))).length
+  const vencidosCount = filaTarefas.filter(i => i.vencido).length + solVencidas
+  const hojeCount = filaTarefas.filter(i => i.venceHoje).length + solHoje
+  const totalFila = filaTarefas.length + solVisiveis.length
 
   return (
     <div className="space-y-5">
@@ -291,7 +300,7 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
             </div>
           )}
 
-          {!carregandoFila && (
+          {!carregandoFila && !carregandoSol && (
             <div className="ml-auto flex items-center gap-3 text-xs">
               {vencidosCount > 0 && (
                 <span className="text-red-500 font-medium">
@@ -303,7 +312,7 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
                   {hojeCount} vence{hojeCount !== 1 ? 'm' : ''} hoje
                 </span>
               )}
-              <span className="text-gray-400">{fila.length} item{fila.length !== 1 ? 's' : ''}</span>
+              <span className="text-gray-400">{totalFila} item{totalFila !== 1 ? 's' : ''}</span>
             </div>
           )}
         </div>
@@ -318,13 +327,7 @@ export function DashboardLeads({ onAbrirLead, onIrParaLista, onIrParaKanban }: P
             isLoading={carregandoFila}
           />
           <div className="lg:pl-6">
-            <ColunaFila
-              titulo="Solicitações"
-              icon={Send}
-              items={filaSolicitacoes}
-              onAbrirLead={onAbrirLead}
-              isLoading={carregandoFila}
-            />
+            <SolicitacoesPainel todasDaEmpresa={todasDaEmpresa} onAbrirLead={onAbrirLead} />
           </div>
         </div>
       </div>
