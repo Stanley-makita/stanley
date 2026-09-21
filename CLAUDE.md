@@ -194,3 +194,13 @@ do PR #304. Agora há um índice único parcial replicando o predicado de "lead 
 Se a lista de status "fechados" mudar num lugar, tem que mudar nos dois (a query E o índice).
 Código trata o conflito (`error.code === '23505'`) reaproveitando o Lead da corrida em vez de
 falhar — qualquer novo caminho de criação de Lead deveria fazer o mesmo.
+
+### Excluir Pessoa é soft delete — toda busca em `pessoas` precisa de `deleted_at IS NULL`
+
+`DELETE /api/pessoas/[id]` só preenche `pessoas.deleted_at` (não apaga a linha nem os leads
+vinculados). Qualquer leitura de `pessoas` (ou de `pessoa_telefones` que devolva a pessoa) no bot
+tem que filtrar `.is('deleted_at', null)` — em join, `pessoas!inner(...)` + `.is('pessoas.deleted_at', null)`.
+Achado real (2026-09-21): `*fonti salva joao` listava "JOAO" e "joao" já excluídos porque
+`buscarEntidade` (nome, CPF, telefone fromMe) e a busca por nome via referência de processo em
+`fonti-comandos.ts` não filtravam. O padrão certo já existe em `src/lib/pessoa.ts`; conferir lá
+antes de escrever uma query nova.

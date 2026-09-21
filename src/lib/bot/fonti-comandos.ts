@@ -510,10 +510,11 @@ async function buscarEntidade(
   if (!ref && telefoneCliente) {
     const { data: pt } = await supabase
       .from('pessoa_telefones')
-      .select('pessoa_id, pessoas(id, nome)')
+      .select('pessoa_id, pessoas!inner(id, nome, deleted_at)')
       .eq('empresa_id', empresa_id)
       .eq('telefone', telefoneCliente)
       .eq('ativo', true)
+      .is('pessoas.deleted_at', null)
       .limit(1)
       .maybeSingle()
 
@@ -564,6 +565,7 @@ async function buscarEntidade(
     .from('pessoas')
     .select('id, nome')
     .eq('empresa_id', empresa_id)
+    .is('deleted_at', null)
     .ilike('nome', `%${ref}%`)
     .order('created_at', { ascending: false })
     .limit(30)
@@ -807,6 +809,7 @@ async function buscarLeadAbertoParaSimula(
       .select('id')
       .eq('empresa_id', empresa_id)
       .eq('cpf', cpf)
+      .is('deleted_at', null)
       .maybeSingle()
     if (pessoa?.id) {
       const lead = await leadDaPessoa(pessoa.id)
@@ -1413,6 +1416,7 @@ export async function processarComandoFonti(
       .from('pessoas')
       .select('id, nome')
       .eq('empresa_id', empresa_id)
+      .is('deleted_at', null)
       .ilike('nome', `%${ref}%`)
       .order('created_at', { ascending: false })
       .limit(30)
