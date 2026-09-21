@@ -12,6 +12,9 @@ interface FiltrosFila {
   prioridade?: PrioridadeSolicitacao
   todasDaEmpresa?: boolean
   incluirConcluidas?: boolean
+  // "Que pedi": solicitações que EU criei e que outra pessoa atende (a que pedi pra mim
+  // mesmo continua em "Para mim"). Tem precedência sobre todasDaEmpresa.
+  quePedi?: boolean
 }
 
 const JOINS = `
@@ -53,7 +56,10 @@ export function useSolicitacoesFila(filtros: FiltrosFila = {}) {
         .is('deleted_at', null)
         .not('status', 'in', '("concluido","cancelado")')
 
-      if (!filtros.todasDaEmpresa) {
+      if (filtros.quePedi) {
+        query = query.eq('solicitante_id', usuario!.id)
+          .or(`responsavel_id.is.null,responsavel_id.neq.${usuario!.id}`)
+      } else if (!filtros.todasDaEmpresa) {
         query = query.eq('responsavel_id', usuario!.id)
       }
 
@@ -88,7 +94,10 @@ export function useSolicitacoesConcluidasFila(filtros: Omit<FiltrosFila, 'inclui
         .is('deleted_at', null)
         .in('status', ['concluido', 'cancelado'])
 
-      if (!filtros.todasDaEmpresa) {
+      if (filtros.quePedi) {
+        query = query.eq('solicitante_id', usuario!.id)
+          .or(`responsavel_id.is.null,responsavel_id.neq.${usuario!.id}`)
+      } else if (!filtros.todasDaEmpresa) {
         query = query.eq('responsavel_id', usuario!.id)
       }
 

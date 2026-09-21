@@ -273,3 +273,17 @@ solta do webhook ou em `obter_ou_criar_pessoa_sessao_fonti` tem que preservá-lo
 documentos NOVOS; e nenhum documento com dono diferente da pessoa do lead a que está vinculado
 (exceto participantes de processo: cônjuge, vendedor). Teste de ponta a ponta com 2 clientes seguidos
 pelo mesmo comercial (`*inicio` + documentos + `*cria cliente`, duas vezes): dois leads, duas pessoas.
+
+## Solicitações: painéis mostram "Para mim" + "Que pedi", de qualquer módulo
+
+Decisão (2026-09-21): a pessoa vê TODAS as solicitações dela nas telas iniciais de Captação e Negócios
+e no módulo Solicitações, independente de onde o negócio está (lead, negócio ou sem vínculo).
+- **Para mim** = `responsavel_id` é o usuário (inclui a que ele pediu pra si). **Que pedi** = `solicitante_id`
+  é o usuário e o responsável é OUTRA pessoa (nunca duplica com "Para mim").
+- Fonte única: `useMinhasSolicitacoes` + `SolicitacoesPainel` (Captação e Negócios) e o filtro `quePedi` de
+  `useSolicitacoesFila` (módulo). Não criar consulta própria de solicitações num painel novo — foi assim que
+  as telas divergiram (Captação só lead, Negócios lead+processo, nenhuma olhava `solicitante_id`).
+- Painéis precisam de Realtime (`solicitacoes_operacionais`) invalidando as chaves `['solicitacoes']`,
+  `['leads','dashboard']` e `['negocios','dashboard']`; só `staleTime` deixava o painel 2-3 min desatualizado.
+- Contador do menu lateral e "Minhas pendências" contam só "Para mim" (o que a pessoa precisa fazer);
+  "Que pedi" é acompanhamento. A RLS de `solicitacoes_operacionais` já permite ao comercial ler o que ele pediu.
