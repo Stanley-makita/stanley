@@ -234,3 +234,15 @@ uma pessoa com outro nome. Achado real (2026-09-21, na frente da equipe): `*salv
 "não encontrei". `buscarEntidade` agora busca também em `leads.nome` (embed `pessoa:pessoas!pessoa_id!inner`
 — `leads` tem MAIS de uma relação com `pessoas`, sem o `!pessoa_id` o PostgREST recusa). Causa de raiz
 ainda em aberto: `*cria cliente` não deveria reaproveitar a pessoa do telefone do operador.
+
+### Pessoa da sessão `*fonti inicio` NUNCA pode ser a pessoa do telefone do operador
+
+No fluxo `*fonti inicio` → mídia solta → `*cria cliente`, o `telefone_conversa` é o do PRÓPRIO
+operador. A migration 279 fez `obter_ou_criar_pessoa_sessao_fonti` reaproveitar qualquer pessoa com
+esse telefone — ou seja, a pessoa do comercial. Efeitos reais (2026-09-21): o lead do cliente ficava
+ligado à pessoa do operador (`*salva enoque` não achava), o PRÓXIMO cliente do mesmo comercial caía
+em `buscarLeadAbertoPorPessoa` e ATUALIZAVA o lead anterior, e pessoa provisória do operador era
+RENOMEADA pro cliente (telefone do Marcio virou "MARIA LUCIA...", 75 documentos). Migration 314:
+telefone de usuário interno ativo → sempre pessoa provisória NOVA por sessão, sem gravar o telefone
+do operador nela. Guard equivalente em `workflow-captacao.ts` (Prioridade 4). Qualquer novo código que
+"reaproveite pessoa por telefone" precisa antes descartar telefones de `usuarios`.

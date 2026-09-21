@@ -330,7 +330,23 @@ export async function executarWorkflowCaptacao(
             .eq('id', marca.pessoa_id)
             .is('deleted_at', null)
             .maybeSingle()
-          if (pessoaValida) {
+          // Nunca adota a Pessoa que é do telefone do próprio operador (ver migration 314):
+          // o lead do cliente ficaria ligado à pessoa do comercial, e o próximo cliente dele
+          // cairia em "lead aberto já existe" e sobrescreveria este.
+          // Só vale no chat do próprio operador (sem telefone_cliente): dentro da conversa de um
+          // cliente (fromMe) o telefone da sessão é o do cliente e adotar a pessoa dele é o correto.
+          const { data: telDoOperador } = pessoaValida && !ctx.telefone_cliente
+            ? await supabase
+                .from('pessoa_telefones')
+                .select('id')
+                .eq('empresa_id', empresa_id)
+                .eq('pessoa_id', marca.pessoa_id)
+                .eq('ativo', true)
+                .in('telefone', variantesTelefoneBR(telefoneSessao))
+                .limit(1)
+                .maybeSingle()
+            : { data: null }
+          if (pessoaValida && !telDoOperador) {
             pessoa_id = marca.pessoa_id
             // Promove a Pessoa provisória (nome placeholder) pro nome real informado agora.
             // dados.nome já foi validado como não-nulo/vazio no início da função.
