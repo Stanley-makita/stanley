@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -18,6 +19,28 @@ const SELECT_COMERCIAL_PAGAR = `
   processo_cota:processo_cotas!processo_cota_id(administradora_nome, grupo, cota, valor_carta),
   usuario:usuarios!usuario_id(nome)
 `
+
+// Mantém as telas de Consórcio do Financeiro (A Receber, Comercial a Pagar,
+// Resumo por Cota, Prévia/DRE e o card do Painel) atualizadas em tempo real:
+// qualquer INSERT/UPDATE/DELETE nas duas tabelas de parcelas, feito por
+// qualquer sessão, invalida o cache. Depende da migration 313 (publicação
+// supabase_realtime); sem ela o hook é inofensivo, só não recebe eventos.
+export function useConsorcioRealtime() {
+  const queryClient = useQueryClient()
+  const { usuario } = useAuth()
+  const empresaId = usuario?.empresa_id
+
+  useEffect(() => {
+    if (!empresaId) return
+    const invalidar = () => queryClient.invalidateQueries({ queryKey: ['financeiro'] })
+    const channel = supabase
+      .channel(`financeiro_consorcio_${empresaId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_consorcio_receber', filter: `empresa_id=eq.${empresaId}` }, invalidar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financeiro_consorcio_comercial_pagar', filter: `empresa_id=eq.${empresaId}` }, invalidar)
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [empresaId]) // eslint-disable-line react-hooks/exhaustive-deps
+}
 
 export function useConsorcioReceber() {
   const { usuario } = useAuth()

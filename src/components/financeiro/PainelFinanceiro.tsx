@@ -19,7 +19,7 @@ import { type FinFechamentoStatus } from '@/types/financeiro'
 import { useFechamentos } from '@/hooks/financeiro/useFechamento'
 import { useConferencias } from '@/hooks/financeiro/useConferencias'
 import { usePainelFinanceiro } from '@/hooks/financeiro/usePainelFinanceiro'
-import { useConsorcioResumoMes } from '@/hooks/financeiro/useConsorcioFluxo'
+import { useConsorcioResumoMes, useConsorcioRealtime } from '@/hooks/financeiro/useConsorcioFluxo'
 import { useContasBancarias, useSaldosBancariosAtuais } from '@/hooks/financeiro/useContasBancarias'
 import { ModalDetalheEmissoes } from '@/components/financeiro/ModalDetalheEmissoes'
 import { formatarMoeda } from '@/lib/utils'
@@ -70,6 +70,7 @@ export function PainelFinanceiro({ mes, ano, onAbrirFechamento, onIrParaFechamen
   const criticos = conferencias.filter(c => c.status === 'pendente' && c.severidade === 'critico').length
 
   const { data: kpis, isLoading: kpisLoading } = usePainelFinanceiro(mes, ano)
+  useConsorcioRealtime()
   const { data: consorcioResumo } = useConsorcioResumoMes(mes, ano)
   const { data: contasBancarias = [] } = useContasBancarias()
   const { data: saldosAtuais = {} } = useSaldosBancariosAtuais()
