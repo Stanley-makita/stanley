@@ -241,12 +241,20 @@ export async function vincularDocumentosRecentesPorTelefone(
     return d
   })()
 
+  // Modo processo: os documentos podem já ter sido salvos na pessoa por um
+  // `*fonti salva [nome]` anterior (que troca o dono pra pessoa-alvo). Sem
+  // considerar também o dono já corrigido, `*fonti salva processo NNN` logo
+  // depois do `*salva` nome não achava nada e o operador tinha que reenviar.
+  const donosCandidatos = processo_id && pessoaAlvo && pessoaAlvo !== pessoaDaConversa
+    ? [pessoaDaConversa, pessoaAlvo]
+    : [pessoaDaConversa]
+
   const { data: docsCandidatos } = await supabase
     .from('documentos')
     .select('id')
     .eq('empresa_id', empresa_id)
     .eq('dominio', 'acervo_documental')
-    .eq('pessoa_id', pessoaDaConversa)
+    .in('pessoa_id', donosCandidatos)
     .is('deleted_at', null)
     .gte('recebido_em', limite.toISOString())
 
@@ -543,7 +551,7 @@ export function montarRespostaSalvaPessoa(args: {
     const lista = processos.map((p) => `${p.numero_processo} ${rotuloModalidade(p.modalidade)}`).join(', ')
     const exemplo = processos[0].numero_processo.replace('#proc-', '')
     linhas.push(`⚠️ ${temLead ? 'Ele tem também' : 'Processos dele'}: ${lista}.`)
-    linhas.push(`Para vincular a um processo: *fonti processo ${exemplo}`)
+    linhas.push(`Para vincular a um processo (até 15 min após enviar): *fonti salva processo ${exemplo}`)
   }
 
   return linhas.join('\n')
