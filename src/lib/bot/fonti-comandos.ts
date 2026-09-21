@@ -374,14 +374,14 @@ export const STATUS_BLOQUEADOS_PROCESSO: StatusProcesso[] = ['reprovado', 'cance
 
 // `processos` não tem coluna `banco` (só `banco_id`) — pedir `banco` na consulta faz o
 // PostgREST devolver erro e o bot tratava como "sem processos". O nome vem da relação.
-const SELECT_PROCESSO_BOT = 'id, numero_processo, valor_imovel, banco_rel:bancos!banco_id(nome)'
+const SELECT_PROCESSO_BOT = 'id, numero_processo, modalidade, valor_imovel, banco_rel:bancos!banco_id(nome)'
 
-type ProcessoBotRow = { id: string; numero_processo: string; banco: string | null; valor_imovel: number | null }
+type ProcessoBotRow = { id: string; numero_processo: string; modalidade: string | null; banco: string | null; valor_imovel: number | null }
 
 function normalizarProcessoBot(row: unknown): ProcessoBotRow {
-  const r = row as { id: string; numero_processo: string; valor_imovel: number | null; banco_rel?: { nome: string | null } | { nome: string | null }[] | null }
+  const r = row as { id: string; numero_processo: string; modalidade?: string | null; valor_imovel: number | null; banco_rel?: { nome: string | null } | { nome: string | null }[] | null }
   const rel = Array.isArray(r.banco_rel) ? r.banco_rel[0] : r.banco_rel
-  return { id: r.id, numero_processo: r.numero_processo, valor_imovel: r.valor_imovel, banco: rel?.nome ?? null }
+  return { id: r.id, numero_processo: r.numero_processo, modalidade: r.modalidade ?? null, valor_imovel: r.valor_imovel, banco: rel?.nome ?? null }
 }
 
 async function buscarProcessoPorNumero(
@@ -412,6 +412,7 @@ async function buscarProcessosAtivos(
     .select('processo_id')
     .eq('empresa_id', empresa_id)
     .eq('pessoa_id', pessoa_id)
+    .abortSignal(AbortSignal.timeout(10000))
 
   if (!compradorRows?.length) return []
 
@@ -424,6 +425,7 @@ async function buscarProcessosAtivos(
     .is('deleted_at', null)
     .or(`status_processo.is.null,status_processo.not.in.(${STATUS_BLOQUEADOS_PROCESSO.join(',')})`)
     .order('created_at', { ascending: false })
+    .abortSignal(AbortSignal.timeout(10000))
 
   return (processos ?? []).map(normalizarProcessoBot)
 }
@@ -507,6 +509,44 @@ async function salvarParaProcesso(
   if (vinculados > 0) partes.push(`${vinculados} da conversa`)
   if (salvos > 0) partes.push(`${salvos} novo${salvos > 1 ? 's' : ''}`)
   return `✅ ${total} documento(s) vinculado(s) ao processo ${processo.numero_processo} — ${processo.banco || 'banco não informado'} (${partes.join(' + ')})`
+}
+
+// ── Resposta do *fonti salva [nome] ───────────────────────────────────────────
+
+const ROTULO_MODALIDADE: Record<string, string> = {
+  Consorcio: 'Consórcio', Pro_Cotista: 'Pró-Cotista', PMCMV: 'MCMV',
+}
+
+function rotuloModalidade(m: string | null): string {
+  if (!m) return 'Processo'
+  return ROTULO_MODALIDADE[m] ?? m.replace(/_/g, ' ')
+}
+
+// Diz pro operador onde o documento foi parar e, se a pessoa tem processos (pra
+// onde o *salva por nome NÃO vincula), quais são e como escolher um. Sem isso o
+// operador não tinha como saber se o documento ficou no lead ou em qual negócio.
+export function montarRespostaSalvaPessoa(args: {
+  total: number
+  nome: string
+  temLead: boolean
+  faseLead: string | null
+  processos: Array<{ numero_processo: string; modalidade: string | null }>
+}): string {
+  const { total, nome, temLead, faseLead, processos } = args
+  const linhas = [`✅ ${total} documento(s) salvos em *${nome}* (pessoa)`]
+
+  linhas.push(temLead
+    ? `📎 Vinculado ao Lead${faseLead ? ` (etapa ${faseLead})` : ''}`
+    : '📎 Sem lead aberto — ficou só na pessoa')
+
+  if (processos.length > 0) {
+    const lista = processos.map((p) => `${p.numero_processo} ${rotuloModalidade(p.modalidade)}`).join(', ')
+    const exemplo = processos[0].numero_processo.replace('#proc-', '')
+    linhas.push(`⚠️ ${temLead ? 'Ele tem também' : 'Processos dele'}: ${lista}.`)
+    linhas.push(`Para vincular a um processo: *fonti processo ${exemplo}`)
+  }
+
+  return linhas.join('\n')
 }
 
 // ── Busca de entidade para *fonti salva ───────────────────────────────────────
@@ -1107,6 +1147,20 @@ export async function processarComandoFonti(
     const total = vinculados + salvos
     if (total === 0) {
       return `⚠️ Nenhum documento encontrado para *${entidade.label}*.\nEnvie os arquivos e use *fonti inicio antes para marcar o início da sessão.`
+    }
+
+    if (entidade.tipo === 'pessoa') {
+      const [processos, leadFase] = await Promise.all([
+        buscarProcessosAtivos(supabase, empresa_id, entidade.id).catch(() => []),
+        entidade.lead_id
+          ? supabase.from('leads').select('fase:fases!fase_id(nome)').eq('id', entidade.lead_id)
+              .abortSignal(AbortSignal.timeout(10000)).maybeSingle().then((r) => r.data, () => null)
+          : Promise.resolve(null),
+      ])
+      const fase = leadFase ? (Array.isArray(leadFase.fase) ? leadFase.fase[0] : leadFase.fase) as { nome: string } | null : null
+      return montarRespostaSalvaPessoa({
+        total, nome: entidade.label, temLead: !!entidade.lead_id, faseLead: fase?.nome ?? null, processos,
+      })
     }
 
     const partes: string[] = []
