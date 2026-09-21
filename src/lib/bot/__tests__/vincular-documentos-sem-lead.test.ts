@@ -96,3 +96,28 @@ describe('vincularDocumentosRecentesPorTelefone — pessoa sem lead', () => {
     expect(t.documento_vinculos.map((v) => v.entidade_id)).toEqual(['lead-1', 'lead-1'])
   })
 })
+
+describe('vincularDocumentosRecentesPorTelefone — modo processo depois de um *salva por nome', () => {
+  it('acha documentos que o *salva já passou pra pessoa-alvo e vincula ao processo sem reenvio', async () => {
+    const { vincularDocumentosRecentesPorTelefone } = await import('../fonti-comandos')
+    const t = cenario()
+    // estado depois de `*fonti salva joao`: dono já é a pessoa-alvo, vínculo só com o lead
+    t.documentos.forEach((d) => { d.pessoa_id = 'alvo' })
+    t.documento_vinculos.push(
+      { documento_id: 'd1', entidade_tipo: 'lead', entidade_id: 'lead-1' },
+      { documento_id: 'd2', entidade_tipo: 'lead', entidade_id: 'lead-1' },
+    )
+    const r = await vincularDocumentosRecentesPorTelefone(criarDb(t), 'e1', '5544', 'alvo', null, 15, undefined, 'proc-021')
+
+    expect(r.count).toBe(2)
+    expect(t.documento_vinculos.filter((v) => v.entidade_tipo === 'processo').map((v) => v.entidade_id)).toEqual(['proc-021', 'proc-021'])
+  })
+
+  it('não duplica: segunda chamada com o mesmo processo não conta de novo', async () => {
+    const { vincularDocumentosRecentesPorTelefone } = await import('../fonti-comandos')
+    const db = criarDb(cenario())
+    await vincularDocumentosRecentesPorTelefone(db, 'e1', '5544', 'alvo', null, 15, undefined, 'proc-021')
+    const r2 = await vincularDocumentosRecentesPorTelefone(db, 'e1', '5544', 'alvo', null, 15, undefined, 'proc-021')
+    expect(r2.count).toBe(0)
+  })
+})

@@ -21,7 +21,7 @@ describe('montarRespostaSalvaPessoa', () => {
       '✅ 4 documento(s) salvos em *João da Silva* (pessoa)',
       '📎 Vinculado ao Lead (etapa Lead)',
       '⚠️ Ele tem também: #proc-021 Consórcio, #proc-034 SBPE.',
-      'Para vincular a um processo: *fonti processo 021',
+      'Para vincular a um processo (até 15 min após enviar): *fonti salva processo 021',
     ].join('\n'))
   })
 
@@ -33,7 +33,7 @@ describe('montarRespostaSalvaPessoa', () => {
     })
     expect(r).toContain('📎 Sem lead aberto — ficou só na pessoa')
     expect(r).toContain('Processos dele: #proc-057 Consórcio.')
-    expect(r).toContain('*fonti processo 057')
+    expect(r).toContain('*fonti salva processo 057')
     expect(r).not.toContain('Vinculado ao Lead')
   })
 
