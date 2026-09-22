@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, User, X, Check, ClipboardList } from 'lucide-react'
 import { PessoaBuscaCombobox, type PessoaOpcao } from '@/components/processos/PessoaBuscaCombobox'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
 
@@ -61,6 +62,13 @@ const FORM_VAZIO: FormVendedorState = {
 interface Props { processoId: string }
 
 export function AbaVendedores({ processoId }: Props) {
+  const { usuario } = useAuth()
+  // RLS de processo_vendedores (proc_vendedores_delete, migration 20260721_181) só
+  // permite DELETE pra gerente/gestor/admin — comercial/analista/operacional clicavam
+  // no ícone e a exclusão falhava (ou parecia falhar) silenciosamente. Oculta o ícone
+  // pra quem o banco de qualquer forma vai recusar.
+  const podeExcluirVendedor = usuario?.perfil === 'admin' || usuario?.perfil === 'gerente' || usuario?.perfil === 'gestor'
+
   const { data: vendedores = [], isLoading } = useProcessoVendedores(processoId)
   const adicionar = useAdicionarVendedor(processoId)
   const editar = useEditarVendedor(processoId)
@@ -309,7 +317,7 @@ export function AbaVendedores({ processoId }: Props) {
       ) : (
         <div className="space-y-3">
           {vendedores.map((v) => (
-            <VendedorCard key={v.id} vendedor={v} onEditar={() => abrirFormEditar(v)} onRemover={() => remover.mutate(v.id)} onCompletarDados={setCompletarDadosId} />
+            <VendedorCard key={v.id} vendedor={v} onEditar={() => abrirFormEditar(v)} onRemover={() => remover.mutate(v.id)} onCompletarDados={setCompletarDadosId} podeExcluir={podeExcluirVendedor} />
           ))}
         </div>
       )}
@@ -329,7 +337,7 @@ export function AbaVendedores({ processoId }: Props) {
   )
 }
 
-function VendedorCard({ vendedor: v, onEditar, onRemover, onCompletarDados }: { vendedor: ProcessoVendedor; onEditar: () => void; onRemover: () => void; onCompletarDados: (pessoaId: string) => void }) {
+function VendedorCard({ vendedor: v, onEditar, onRemover, onCompletarDados, podeExcluir }: { vendedor: ProcessoVendedor; onEditar: () => void; onRemover: () => void; onCompletarDados: (pessoaId: string) => void; podeExcluir: boolean }) {
   const temBanco = v.banco || v.agencia || v.conta
   const temConjuge = v.conjuge_nome || v.conjuge_cpf
 
@@ -377,9 +385,11 @@ function VendedorCard({ vendedor: v, onEditar, onRemover, onCompletarDados }: { 
         <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-fonti-primary" onClick={onEditar}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-red-500" onClick={onRemover}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        {podeExcluir && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-red-500" onClick={onRemover}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
     </div>
   )
