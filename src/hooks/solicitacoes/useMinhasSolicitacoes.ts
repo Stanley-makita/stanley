@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -72,13 +72,19 @@ export function useMinhasSolicitacoes(todasDaEmpresa = false) {
   const { usuario } = useAuth()
   const qc = useQueryClient()
   const empresaId = usuario?.empresa_id
+  // Nome do canal precisa ser único por instância do hook: DashboardLeads chama este hook
+  // diretamente E renderiza <SolicitacoesPainel>, que chama de novo — duas instâncias na
+  // mesma página. Com o nome dependendo só da empresa, a 2ª tentava .on() num canal que a
+  // 1ª já tinha inscrito (mesmo nome) e o supabase-js lançava, derrubando a página inteira
+  // (achado real, 2026-09-22: tela branca "Application error" pra Andresa em Captação).
+  const instanceId = useId()
 
   // Tempo real: o painel não pode ficar com dado velho (antes só atualizava a cada 2-3 min).
   // Invalida também os contadores dos painéis que dependem das mesmas solicitações.
   useEffect(() => {
     if (!empresaId) return
     const channel = supabase
-      .channel(`solicitacoes-painel-${empresaId}`)
+      .channel(`solicitacoes-painel-${empresaId}-${instanceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'solicitacoes_operacionais', filter: `empresa_id=eq.${empresaId}` },
