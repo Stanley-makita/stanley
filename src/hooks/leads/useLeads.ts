@@ -115,6 +115,7 @@ export function useLeadsTodos(faseId?: string, search?: string, responsavelId?: 
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor),
+          vendedores:lead_vendedores(id, pessoa_id, pessoa:pessoas(id, nome, cpf)),
           corretores:lead_corretores(id, corretor:corretores(id, nome)),
           imobiliarias:lead_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
           parceiros:lead_parceiros(id, parceiro:parceiros(id, nome)),
