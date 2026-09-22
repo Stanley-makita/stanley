@@ -7,6 +7,29 @@ import { type Processo, type StatusProcesso } from '@/types/processos'
 
 export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato' | 'registro'
 
+// O PostgREST não lança erro quando a RLS filtra a linha do UPDATE pra fora — devolve
+// sucesso com 0 linhas afetadas, silenciosamente. `.select('id')` no update + checar o
+// tamanho é o jeito de perceber isso (achado real, 2026-09-22: RLS de `processos_update`
+// não incluía comercial_id — UPDATE de comercial "funcionava" na tela, mas não gravava
+// nada; ver migration 20260922_315). Qualquer novo UPDATE direto em `processos` deve usar
+// este helper, não `if (error) throw` sozinho.
+export async function updateProcessoOuFalha(
+  processoId: string,
+  empresaId: string,
+  campos: Record<string, unknown>,
+) {
+  const { data, error } = await supabase
+    .from('processos')
+    .update(campos)
+    .eq('id', processoId)
+    .eq('empresa_id', empresaId)
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) {
+    throw new Error('Não foi possível salvar: você não tem permissão para editar este processo.')
+  }
+}
+
 const FINANCIAMENTO_MODALIDADES = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI']
 
 interface FiltrosProcessos {
@@ -179,12 +202,7 @@ export function useAtualizarDadosProcesso() {
 
   return useMutation({
     mutationFn: async ({ processoId, ...campos }: DadosProcessoUpdate) => {
-      const { error } = await supabase
-        .from('processos')
-        .update(campos)
-        .eq('id', processoId)
-        .eq('empresa_id', usuario!.empresa_id)
-      if (error) throw error
+      await updateProcessoOuFalha(processoId, usuario!.empresa_id, campos)
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['processos', vars.processoId] })
@@ -209,12 +227,7 @@ export function useAtualizarResponsaveis() {
       operacional_id: string | null
       juridico_id: string | null
     }) => {
-      const { error } = await supabase
-        .from('processos')
-        .update({ comercial_id, operacional_id, juridico_id })
-        .eq('id', processoId)
-        .eq('empresa_id', usuario!.empresa_id)
-      if (error) throw error
+      await updateProcessoOuFalha(processoId, usuario!.empresa_id, { comercial_id, operacional_id, juridico_id })
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['processos', vars.processoId] })
@@ -247,12 +260,7 @@ export function useAtualizarImovelProcesso() {
 
   return useMutation({
     mutationFn: async ({ processoId, ...campos }: ImovelProcessoUpdate) => {
-      const { error } = await supabase
-        .from('processos')
-        .update(campos)
-        .eq('id', processoId)
-        .eq('empresa_id', usuario!.empresa_id)
-      if (error) throw error
+      await updateProcessoOuFalha(processoId, usuario!.empresa_id, campos)
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['processos', vars.processoId] })

@@ -231,8 +231,8 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
       })
       toast.success('Dados financeiros atualizados com sucesso.')
       onFechar()
-    } catch {
-      toast.error('Não foi possível salvar. Tente novamente.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Não foi possível salvar. Tente novamente.')
     }
   }
 
