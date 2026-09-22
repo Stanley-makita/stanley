@@ -442,3 +442,78 @@ Fases 1-4 (push de nova mensagem no WhatsApp) não são afetadas — já validad
 Qualquer retomada desta fase deve conferir primeiro se o schema já foi corrigido (rodar
 `select nspname from pg_namespace where nspname = 'supabase_functions';` no SQL Editor) antes de
 tentar criar o Database Webhook de novo.
+
+## RLS de carteira comercial ignorando permissões configuráveis (achado + corrigido, 2026-09-22)
+
+Sintoma real: usuária com perfil customizado ("Assistente"), com `leads.ver_todas` liberado por
+override individual, conseguia abrir um lead fora da própria carteira comercial, mas a aba
+**Pessoa** aparecia vazia e a confirmação de campos extraídos por OCR "aplicava" no banco (rota
+usa service role, sempre grava) sem nunca aparecer pra ela — como se o sistema escondesse dados
+só pra ela, mesmo sem nenhuma configuração de perfil restringindo isso.
+
+**Causa raiz**: em 24/07 (`20260724_186_visibilidade_carteira_comercial.sql`), a visibilidade por
+carteira foi implementada igual em 5 tabelas (`leads`, `processos`, `pessoas`, `conversas`,
+`solicitacoes_operacionais`) com a regra fixa `usuario_atual_perfil() <> 'comercial' OU dono do
+registro`. Depois (`20260730_217`), só a política de SELECT de `leads` foi migrada pra usar a
+permissão **configurável** `usuario_atual_pode('leads.ver_todas')` — que resolve em 3 camadas
+(exceção individual em `usuario_permissoes`, perfil customizado em
+`perfil_customizado_permissoes`, matriz por empresa em `perfil_permissoes`) antes de cair no
+fallback hardcoded. As outras políticas nunca foram atualizadas junto, e continuaram cegas a
+qualquer um desses 3 níveis de override — só respeitavam o perfil bruto salvo em `usuarios.perfil`.
+
+**Regra pra qualquer RLS nova (ou revisão de uma existente) que precise da mesma noção de
+"carteira comercial" hoje ou no futuro**: sempre usar `usuario_atual_pode('leads.ver_todas')`
+(ou a permissão configurável equivalente), nunca `usuario_atual_perfil() <> 'comercial'` nem
+qualquer lista fixa de perfis (`IN ('admin','gerente','gestor',...)`) — perfis customizados e
+overrides individuais não aparecem em nenhuma lista fixa, então checagem hardcoded sempre vai
+divergir do que a tela de Permissões realmente mostra pro usuário.
+
+**Corrigido nesta sessão** (2 PRs, 2 migrations — rodar manualmente no SQL Editor se ainda não
+rodadas):
+- PR #335 (`20260922_320`): SELECT de `pessoas`, `processos`, `solicitacoes_operacionais`.
+- PR #339 (`20260922_321`): UPDATE de `leads` (`leads_update_responsavel_ou_gerencia`) — achado
+  numa segunda rodada de teste: salvar a aba Pessoa (`AbaPessoa.tsx`) atualiza a Pessoa
+  normalmente, mas o UPDATE espelhado em `leads` (nome/cpf/data_nascimento — colunas duplicadas
+  que o sidebar de Captação lê) falhava silenciosamente pela RLS (PostgREST não avisa) pra quem
+  não é `responsavel_id` nem bate na lista fixa de perfis de gestão.
+- `conversas` ficou de fora — a política foi reescrita depois (`20260801_230`) com um modelo de
+  visibilidade totalmente diferente (atendente/instância/participante), não usa mais esse hardcode.
+
+**Diagnóstico**: se algo parecer "funciona no admin, não funciona em outro perfil" e não houver
+nenhuma configuração de permissão explicando a diferença, suspeitar primeiro de uma RLS com
+`usuario_atual_perfil() <>` ou lista fixa de perfis em vez de `usuario_atual_pode(...)` — não
+assumir que é falta de permissão configurada até conferir o código da policy.
+
+## `AbaPessoa.tsx` (Captação → cliente): 2 bugs corrigidos na mesma sessão (2026-09-22)
+
+Achados junto com o diagnóstico de RLS acima, na mesma bateria de testes reais:
+
+1. **Form resetava por refetch em segundo plano** (PR #337) — mesmo anti-padrão já documentado
+   em "Formulário de edição não pode resetar por refetch em segundo plano" (seção acima), nunca
+   aplicado neste componente. `useEffect(() => {...; setForm(...)}, [pessoa])` + `staleTime: 0` +
+   `refetchOnWindowFocus: true` (padrão global) + `refetchOnMount: 'always'`: qualquer refetch em
+   2º plano (ex.: voltar o foco na aba do navegador) resetava TODO o form pros valores do
+   servidor, apagando edições em campos ainda não salvos. Corrigido: só reseta quando `pessoa.id`
+   muda de verdade (via ref), nunca por uma nova referência do mesmo `pessoa.id`.
+2. **Data implausível aceita sem validação** (PR #338) — `<input type="date">` nativo dispara
+   `onChange` a cada dígito; editar o ano dígito a dígito (em vez de colar/usar o seletor) pode
+   capturar um valor intermediário tipo "0001-11-25" (ano 1) antes do usuário terminar de digitar.
+   Sem checagem, esse valor ia pro banco do jeito que estava. `normalizarDataPlausivel()` descarta
+   (trata como vazio) `data_nascimento`/`conjuge_data_nascimento`/`data_casamento` com ano fora de
+   1900..anoAtual+1 — não bloqueia o resto do form, só ignora o campo implausível.
+
+Qualquer novo `<input type="date">` editável manualmente neste projeto deve considerar o mesmo
+risco (2) — e qualquer novo formulário de edição que popule `form` a partir de uma entidade de
+`useQuery` deve seguir o padrão do item (1) desde o início.
+
+## OCR de documentos não propagava pro Lead (PR #336, 2026-09-22)
+
+`AbaFormularios.tsx` (`dadosIncompletos`) e o sidebar de Captação leem `nome`/`cpf`/
+`data_nascimento` da tabela **`leads`** (colunas duplicadas), não de `pessoas` — mesma lacuna já
+corrigida antes só pro fluxo via WhatsApp (`*fonti`, `workflow-captacao.ts` já propaga). O modal
+"Completar cadastro por OCR" (`/api/leads/[id]/aplicar-ocr`) só gravava em `pessoas`. Corrigido
+pra propagar `nome`/`cpf`/`data_nascimento` pro `lead` sempre que aplicados (CPF divergente
+continua sem propagar). Qualquer novo caminho que grave dado de identidade da Pessoa deve conferir
+se precisa espelhar em `leads` também — ver também a seção de RLS acima, já que o **caminho já
+existente** de propagação em `AbaPessoa.tsx` (edição manual) foi o que expôs o bug de UPDATE
+bloqueado por RLS.
