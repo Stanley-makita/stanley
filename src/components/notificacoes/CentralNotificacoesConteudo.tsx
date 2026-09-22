@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useNotificacoes } from '@/hooks/useNotificacoes'
 import { useMarcarTodasLidas, useMarcarNotificacoesLidas } from '@/hooks/useMarcarNotificacoesLidas'
 import { NotificacaoItem } from './NotificacaoItem'
+import { PushOptIn } from './PushOptIn'
 import { NOTIFICACAO_META, type TipoNotificacao } from '@/types/notificacoes'
 import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
 import { cn } from '@/lib/utils'
@@ -180,9 +181,10 @@ export function CentralNotificacoesConteudo({ variante = 'pagina', onFechar }: C
         )}
       </div>
 
-      {/* Rodapé — só na variante drawer, atalho para a página cheia */}
+      {/* Rodapé — só na variante drawer: opt-in de push + atalho pra página cheia */}
       {variante === 'drawer' && (
-        <div className="shrink-0 border-t bg-gray-50 px-4 py-2">
+        <div className="shrink-0 space-y-2 border-t bg-gray-50 px-4 py-2">
+          <PushOptIn />
           <button
             onClick={() => { router.push('/notificacoes'); onFechar?.() }}
             className="w-full text-center text-xs font-medium text-fonti-primary transition-colors hover:text-fonti-primary-hover"
