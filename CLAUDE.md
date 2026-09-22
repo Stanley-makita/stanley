@@ -405,3 +405,22 @@ no input. Isso faz `notify()` inserir direto em `notificacoes` (mesmo padrão qu
 contornando a mesma RPC pelo mesmo motivo, antes de `notify()` existir). Sem
 `viaServiceRole`, a chamada "funciona" sem erro aparente no fluxo principal (a falha fica
 só no log), mas nunca gera notificação nenhuma.
+
+## Fase 5 do push: Database Webhook do Supabase, não trigger + pg_net escrito à mão
+
+Decisão (2026-09-22): pra levar push aos 6 tipos de notificação que já nascem de trigger de
+banco (lead_atribuido, fase_avancada, processo_emitido, tarefa_atribuida, solicitacao_atribuida,
+solicitacao_concluida), usamos o recurso pronto do Supabase (Dashboard → Database → Webhooks:
+tabela `notificacoes`, evento Insert, POST pra `/api/push/dispatch`) em vez de escrever uma
+migration com `CREATE EXTENSION pg_net` + trigger chamando `net.http_post` à mão. Motivo: o
+Database Webhook do Supabase já usa `pg_net` por baixo, é configurado sem SQL nenhum (o próprio
+painel avisa se o recurso não estiver disponível no plano, sem precisar eu rodar uma migration só
+pra descobrir), e evita o problema de guardar um segredo dentro de um arquivo de migration
+versionado no git (o painel do Supabase guarda o header customizado com o segredo por fora).
+
+`/api/push/dispatch` (`src/app/api/push/dispatch/route.ts`) ignora de propósito o tipo
+`mensagem_whatsapp` — o push dela já sai direto do webhook do WhatsApp (Fase 3,
+`NotificationService.notify()`); se o dispatcher também reagisse a ela, duplicaria a notificação.
+Qualquer tipo novo de notificação criado por trigger de banco (não por `notify()` direto) ganha
+push automaticamente por este caminho, sem precisar mexer em código nenhum — só cadastrar o
+Database Webhook uma vez cobre para sempre.
