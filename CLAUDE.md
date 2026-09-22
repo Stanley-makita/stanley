@@ -385,3 +385,23 @@ parecido (`*salva`/Nova Conversa "some" ou envio falha com erro de LID/Uazapi), 
 padrão é: conferir se `contato_telefone`/`pessoa_telefones.telefone` tem um "9" a mais
 que não devia (1º dígito depois do 9 entre 2-5) e corrigir manualmente a linha —
 não existe hoje uma varredura/backfill automático pra isso.
+
+## Notificação criada por webhook/cron (service role) precisa de `viaServiceRole: true`
+
+A RPC `criar_notificacao` (o caminho padrão de `NotificationService.notify()`) exige
+`auth.uid()` pertencendo à mesma empresa do destinatário — desenhada pra chamada de
+usuário autenticado no navegador. Numa chamada de service role (webhook, cron, rota de
+servidor sem sessão nenhuma), `auth.uid()` é sempre NULL, e a RPC sempre rejeita com
+`"Sem permissão para notificar este usuário"` — silenciosamente, porque `notify()` nunca
+lança (por desenho, pra não afetar quem chamou), só loga o erro. Achado real em produção
+(2026-09-22): o push de "nova mensagem" no webhook do WhatsApp nunca disparava por causa
+disso — a mensagem do cliente era salva normalmente, mas a notificação (e o push) nunca
+saíam, sem nenhum erro visível pro usuário.
+
+**Regra:** todo `NotificationService.notify(...)` chamado de dentro de uma rota de API,
+webhook ou cron que usa `supabaseAdmin`/service role precisa passar `viaServiceRole: true`
+no input. Isso faz `notify()` inserir direto em `notificacoes` (mesmo padrão que
+`agenda/compromissos/route.ts` e `telefonia/chamada-recebida/route.ts` já usavam,
+contornando a mesma RPC pelo mesmo motivo, antes de `notify()` existir). Sem
+`viaServiceRole`, a chamada "funciona" sem erro aparente no fluxo principal (a falha fica
+só no log), mas nunca gera notificação nenhuma.

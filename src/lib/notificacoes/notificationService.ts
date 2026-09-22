@@ -34,6 +34,21 @@ export interface NotifyInput {
   dadosJson?: Record<string, unknown>
   /** De onde veio a notificação (ex.: 'formulario-site', 'webhook-ocr'). */
   origem?: string
+  /**
+   * true quando quem chama é um webhook/cron/rota de servidor rodando com a
+   * chave de serviço (sem sessão de usuário nenhuma) — ex. o webhook do
+   * WhatsApp. A RPC `criar_notificacao` foi desenhada só pra chamada de
+   * usuário autenticado no navegador: ela exige `auth.uid()` pertencendo à
+   * mesma empresa do destinatário, e `auth.uid()` é sempre NULL numa chamada
+   * de service role, então a RPC sempre rejeitava com "Sem permissão para
+   * notificar este usuário" (achado real, 2026-09-22 — o push de nova
+   * mensagem nunca disparava por causa disso, mesmo com tudo mais certo).
+   * Com `viaServiceRole: true`, insere direto na tabela — mesmo padrão já
+   * usado por outras rotas de servidor (ex. agenda/compromissos/route.ts,
+   * telefonia/chamada-recebida/route.ts), que sempre contornaram essa RPC
+   * pelo mesmo motivo.
+   */
+  viaServiceRole?: boolean
 }
 
 export interface NotifyResult {
@@ -42,21 +57,26 @@ export interface NotifyResult {
 }
 
 /**
- * Cria uma notificação via RPC `criar_notificacao` (SECURITY DEFINER — INSERT
- * direto na tabela continua bloqueado para `authenticated`). O Supabase
- * Realtime cuida de entregar a notificação ao destinatário (toast + badge +
- * drawer) sem nenhum passo extra aqui — por isso não há toast otimista local
- * neste serviço, nem quando o autor é o próprio destinatário (ver
- * docs/central-notificacoes.md, seção "por que não há toast otimista").
+ * Cria uma notificação. Usuário autenticado no navegador (padrão, sem
+ * `viaServiceRole`): via RPC `criar_notificacao` (SECURITY DEFINER — INSERT
+ * direto na tabela continua bloqueado para `authenticated`). Webhook/cron/
+ * rota rodando com service role (`viaServiceRole: true`): INSERT direto,
+ * porque a RPC exige `auth.uid()` de um usuário da mesma empresa, que nunca
+ * existe numa chamada de service role — ver o comentário de `viaServiceRole`
+ * em `NotifyInput`. O Supabase Realtime cuida de entregar a notificação ao
+ * destinatário (toast + badge + drawer) sem nenhum passo extra aqui — por
+ * isso não há toast otimista local neste serviço, nem quando o autor é o
+ * próprio destinatário (ver docs/central-notificacoes.md, seção "por que não
+ * há toast otimista").
  *
- * Nunca lança exceção: se a RPC falhar (rede, permissão, validação), loga o
- * erro e retorna `{ id: null, error }` — quem chamou (criação de lead,
+ * Nunca lança exceção: se a criação falhar (rede, permissão, validação), loga
+ * o erro e retorna `{ id: null, error }` — quem chamou (criação de lead,
  * webhook, cron futuro) não pode quebrar por causa de notificação.
  *
  * @param client Cliente Supabase opcional. Por padrão usa o client de
  *   browser (`@/lib/supabase/client`), para chamadas vindas de componentes/
- *   hooks. Em Route Handlers/webhooks/Server Actions, passe um client de
- *   `@/lib/supabase/server` (`await createClient()`).
+ *   hooks. Em Route Handlers/webhooks/Server Actions, passe o client de
+ *   service role da rota e `input.viaServiceRole: true`.
  */
 export async function notify(
   input: NotifyInput,
@@ -67,18 +87,56 @@ export async function notify(
   const severidade = input.severidade ?? meta.severidadePadrao
   const prioridade = input.prioridade ?? meta.prioridadePadrao
 
-  const { data, error } = await supabase.rpc('criar_notificacao', {
-    p_usuario_id: input.usuarioId,
-    p_tipo: input.tipo,
-    p_titulo: input.titulo,
-    p_mensagem: input.mensagem ?? null,
-    p_entidade: input.entidade ?? null,
-    p_entidade_id: input.entidadeId ?? null,
-    p_severidade: severidade,
-    p_prioridade: prioridade,
-    p_dados_json: input.dadosJson ?? null,
-    p_origem: input.origem ?? null,
-  })
+  let data: string | null = null
+  let error: Error | null = null
+
+  if (input.viaServiceRole) {
+    const { data: usuario, error: erroUsuario } = await supabase
+      .from('usuarios')
+      .select('empresa_id')
+      .eq('id', input.usuarioId)
+      .eq('ativo', true)
+      .maybeSingle()
+
+    if (erroUsuario || !usuario) {
+      error = new Error('Usuário destinatário inválido ou inativo')
+    } else {
+      const { data: linha, error: erroInsert } = await supabase
+        .from('notificacoes')
+        .insert({
+          empresa_id: usuario.empresa_id,
+          usuario_id: input.usuarioId,
+          tipo: input.tipo,
+          titulo: input.titulo,
+          mensagem: input.mensagem ?? null,
+          entidade: input.entidade ?? null,
+          entidade_id: input.entidadeId ?? null,
+          severidade,
+          prioridade,
+          dados_json: input.dadosJson ?? null,
+          origem: input.origem ?? null,
+        })
+        .select('id')
+        .single()
+      data = linha?.id ?? null
+      error = erroInsert
+    }
+  } else {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('criar_notificacao', {
+      p_usuario_id: input.usuarioId,
+      p_tipo: input.tipo,
+      p_titulo: input.titulo,
+      p_mensagem: input.mensagem ?? null,
+      p_entidade: input.entidade ?? null,
+      p_entidade_id: input.entidadeId ?? null,
+      p_severidade: severidade,
+      p_prioridade: prioridade,
+      p_dados_json: input.dadosJson ?? null,
+      p_origem: input.origem ?? null,
+    })
+    data = rpcData as string | null
+    error = rpcError
+  }
 
   if (error) {
     console.error('[NotificationService.notify] falha ao criar notificação', { input, error })

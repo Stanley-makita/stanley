@@ -1438,6 +1438,7 @@ export async function POST(request: NextRequest) {
               entidade: 'conversa',
               entidadeId: conversa_id,
               origem: 'webhook-whatsapp',
+              viaServiceRole: true,
             },
             supabase,
           )
