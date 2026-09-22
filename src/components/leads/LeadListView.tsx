@@ -118,7 +118,7 @@ function getColValue(lead: Lead, col: ColKey, fases: FaseAtiva[]): string {
     case 'operacional':  return (lead as any).responsavel_operacional?.nome ?? ''
     case 'valor':        return String(lead.valor_pretendido ?? 0)
     case 'banco':        return bancoDefinido(lead)
-    case 'vendedor':     return lead.vendedor_nome ?? ''
+    case 'vendedor':     return lead.vendedores?.[0]?.pessoa?.nome ?? lead.vendedor_nome ?? ''
     case 'corretor':     return lead.corretores?.[0]?.corretor?.nome ?? ''
     case 'imobiliaria':  return lead.imobiliarias?.[0]?.imobiliaria?.nome ?? ''
     case 'parceiro':     return lead.parceiros?.[0]?.parceiro?.nome ?? lead.parceiro?.nome ?? ''
@@ -965,7 +965,9 @@ function LeadRow({
 
       {/* Vendedor */}
       <td className="px-3 py-1.5">
-        <span className="text-xs text-gray-600 truncate max-w-[130px] block">{lead.vendedor_nome ?? '—'}</span>
+        <span className="text-xs text-gray-600 truncate max-w-[130px] block">
+          {lead.vendedores?.[0]?.pessoa?.nome ?? lead.vendedor_nome ?? '—'}
+        </span>
       </td>
 
       {/* Corretor */}
