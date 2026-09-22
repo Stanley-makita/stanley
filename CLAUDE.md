@@ -345,3 +345,18 @@ repetidas vezes. Corrigido em dois níveis (migration 20260922_315 + código):
    `.select('id')` no update e lança erro claro se vier vazio — qualquer UPDATE direto
    em `processos` deve usar esse helper, nunca `if (error) throw` sozinho. Mesmo
    princípio vale pra outras tabelas com RLS restritiva por dono/responsável.
+
+## `+ Nova` conversa precisa definir `atendente_id`, senão o criador não a enxerga
+
+A RLS de SELECT em `conversas` (`empresa_conversas_select`, migration 20260801_230) só
+libera ver a conversa pra: admin/gerente/gestor, o `atendente_id` dela, o atendente da
+instância vinculada, um `conversa_participantes`, ou uma conversa sem atendente **E**
+sem instância. `useIniciarConversa` (botão "+ Nova" em Conversas) criava a conversa via
+`obter_ou_criar_conversa` sem passar `p_atendente_id` — com uma instância vinculada
+(comum) e sem atendente, NENHUMA dessas condições batia pro usuário que acabou de criar
+(perfil comercial/operacional, não dono da instância): a conversa existia, recebia
+mensagens do WhatsApp normalmente, aparecia pra admin — mas sumia da lista de quem
+clicou em "+ Nova" (achado real, 2026-09-22). Corrigido: `p_atendente_id` = usuário que
+cria. A RPC só define isso na criação (`ON CONFLICT` não sobrescreve o dono de uma
+conversa já existente). Qualquer novo caminho que insira em `conversas` direto (fora
+dessa RPC) precisa pensar na mesma regra de visibilidade.
