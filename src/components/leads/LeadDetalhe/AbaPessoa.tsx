@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -138,8 +138,22 @@ export function AbaPessoa({ lead }: Props) {
     },
   })
 
+  // Reseta o form só quando a Pessoa carregada MUDA de verdade (troca de pessoa_id) —
+  // nunca por um refetch em segundo plano da MESMA pessoa. A query roda com
+  // staleTime: 0 + refetchOnWindowFocus: true (padrão do projeto) + refetchOnMount:
+  // 'always', então qualquer volta de foco na aba troca a referência de `pessoa`. Sem
+  // esse guard, o efeito reseta TODO o form pros valores do servidor no meio da edição,
+  // apagando o que o usuário tinha digitado nos campos que ainda não tinham sido
+  // salvos — mesmo padrão já documentado e corrigido em EditarProcessoDrawer.tsx e
+  // LeadEditarModal.tsx (achado real, 2026-09-22: usuária editava vários campos, um
+  // refetch em 2º plano revertia todos menos o último mexido, "Salvar" gravava a
+  // mistura de campo novo + demais campos revertidos pro valor antigo do banco).
+  const pessoaCarregadaIdRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!pessoa) return
+    if (pessoaCarregadaIdRef.current === pessoa.id) return
+    pessoaCarregadaIdRef.current = pessoa.id
     const p = pessoa as any
     const tels = p.pessoa_telefones ?? []
     const telAtivos = tels.filter((t: any) => t.ativo)
