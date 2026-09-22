@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -136,15 +136,32 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
     defaultValues: buildDefaults(processo),
   })
 
+  // `processo` (useProcesso) usa staleTime 0 + refetchOnWindowFocus (default global,
+  // providers.tsx) — QUALQUER refetch em segundo plano (voltar o foco na aba, alt-tab,
+  // até um print de tela) troca a referência do objeto `processo` mesmo sem o dado ter
+  // mudado. Reagir a essa troca no efeito de reset apagava tudo que o usuário tinha
+  // digitado no meio do preenchimento, sem aviso nenhum — ele clicava Salvar num
+  // formulário que já tinha voltado sozinho aos valores antigos (vazios/nulos), a
+  // validação barrava (campo obrigatório vazio) e nada era gravado. Achado real,
+  // 2026-09-22: taxa_juros/sistema_amortizacao/prazo/dia ficavam null no banco mesmo
+  // aparecendo preenchidos no print do usuário.
+  // Fix: reseta o form só quando o drawer ABRE (transição aberto=false->true / 1ª
+  // montagem com aberto=true), nunca por causa de um refetch enquanto já está aberto —
+  // por isso `processo` sai das deps do efeito e é lido de uma ref sempre atualizada.
+  const processoRef = useRef(processo)
+  processoRef.current = processo
+
   useEffect(() => {
     if (aberto) {
-      setFgtsOpcao(initFgtsOpcao(processo))
+      const p = processoRef.current
+      setFgtsOpcao(initFgtsOpcao(p))
       setFgtsErro('')
-      setResponsavelRegistro((processo as any).responsavel_registro ?? null)
+      setResponsavelRegistro((p as any).responsavel_registro ?? null)
       setResponsavelRegistroErro('')
-      form.reset(buildDefaults(processo))
+      form.reset(buildDefaults(p))
     }
-  }, [aberto, processo, form])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir, ver comentário acima
+  }, [aberto])
 
   // ── Cálculo automático de Recursos Próprios ─────────────────────────────────
   const valorImovel    = (form.watch('valor_imovel')   as number) || 0

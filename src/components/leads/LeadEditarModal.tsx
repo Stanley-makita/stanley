@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm, type Resolver, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -89,9 +89,21 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
   const temConjuge = estadoCivil === 'casado' || estadoCivil === 'uniao_estavel'
   const camposContatoPendentes = getCamposContatoPendentes({ telefone: form.watch('telefone'), email: form.watch('email') })
 
+  // `lead` (useLead) tem staleTime 0 + refetchOnWindowFocus (default global,
+  // providers.tsx) — qualquer refetch em segundo plano enquanto o modal está aberto
+  // (voltar o foco na aba, alt-tab, uma invalidação de cache de qualquer lugar do
+  // sistema) troca a referência do objeto `lead`. Reagir a essa troca aqui reseta o
+  // form e apaga tudo que o usuário tinha digitado, sem aviso — mesma causa raiz do
+  // bug corrigido em EditarProcessoDrawer.tsx (2026-09-22). Reseta só quando o modal
+  // ABRE, nunca por refetch enquanto já está aberto — por isso `lead` sai das deps e
+  // é lido de uma ref sempre atualizada.
+  const leadRef = useRef(lead)
+  leadRef.current = lead
+
   useEffect(() => {
-    if (aberto) form.reset(leadToForm(lead))
-  }, [aberto, lead])
+    if (aberto) form.reset(leadToForm(leadRef.current))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir, ver comentário acima
+  }, [aberto])
 
   async function onSubmit(data: FormData) {
     try {
