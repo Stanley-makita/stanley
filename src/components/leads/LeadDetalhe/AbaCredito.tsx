@@ -1578,22 +1578,24 @@ function BlocoVendedor({ lead }: { lead: Lead }) {
   const vendedores = lead.vendedores ?? []
   const jaVinculados = new Set(vendedores.map(v => v.pessoa_id))
 
+  // Via /api/pessoas (papel=vendedor), não select direto: vendedor do imóvel não é
+  // "cliente" do comercial que está no lead — um SELECT direto em `pessoas` é sujeito
+  // à RLS de carteira comercial (migration 20260801_228) e vinha sempre vazio pra
+  // quem não fosse responsável pelo lead da pessoa buscada (achado real, 2026-09-22:
+  // usuária comercial não achava vendedor já cadastrado por outro comercial e
+  // acabava recriando a pessoa).
   useEffect(() => {
     if (termoBusca.length < 2) { setResultados([]); setShowDropdown(false); return }
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
       if (!usuario?.empresa_id) return
       setBuscando(true)
-      const q = `%${termoBusca}%`
-      const { data } = await supabaseClient
-        .from('pessoas')
-        .select('id, nome, cpf')
-        .eq('empresa_id', usuario.empresa_id)
-        .is('deleted_at', null)
-        .or(`nome.ilike.${q},cpf.ilike.${q}`)
-        .order('nome')
-        .limit(10)
-      setResultados((data ?? []) as PessoaResultado[])
+      const { data: { session } } = await supabaseClient.auth.getSession()
+      const res = await fetch(`/api/pessoas?q=${encodeURIComponent(termoBusca)}&papel=vendedor`, {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      })
+      const json = res.ok ? await res.json() : { data: [] }
+      setResultados((json.data ?? []) as PessoaResultado[])
       setShowDropdown(true)
       setBuscando(false)
     }, 250)

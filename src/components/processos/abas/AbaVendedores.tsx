@@ -190,6 +190,7 @@ export function AbaVendedores({ processoId }: Props) {
                 pessoaSelecionada={pessoaSelecionada}
                 onSelect={(p) => { if (p) aplicarPessoa(p); else { setPessoaSelecionada(null); setPessoaId(null) } }}
                 onCriarPessoa={() => setNovaPessoaAberta(true)}
+                papel="vendedor"
               />
             </div>
           )}

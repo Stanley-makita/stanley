@@ -19,7 +19,7 @@ async function resolveUsuario(token: string) {
   return usuario ?? null
 }
 
-function buildQuery(empresa_id: string, q: string, cpfParam: string, offset: number, pageSize: number) {
+function buildQuery(empresa_id: string, q: string, cpfParam: string, ids: string[], offset: number, pageSize: number) {
   let query = supabase
     .from('pessoas')
     .select(`
@@ -30,7 +30,9 @@ function buildQuery(empresa_id: string, q: string, cpfParam: string, offset: num
     .order('nome', { ascending: true })
     .range(offset, offset + pageSize - 1)
 
-  if (cpfParam.trim()) {
+  if (ids.length > 0) {
+    query = query.in('id', ids)
+  } else if (cpfParam.trim()) {
     const cpfNorm = cpfParam.replace(/\D/g, '')
     if (cpfNorm) query = query.eq('cpf', cpfNorm)
   } else if (q.trim()) {
@@ -52,17 +54,26 @@ export async function GET(request: NextRequest) {
 
   const q = request.nextUrl.searchParams.get('q') ?? ''
   const cpfParam = request.nextUrl.searchParams.get('cpf') ?? ''
+  const idsParam = request.nextUrl.searchParams.get('ids') ?? ''
+  const ids = idsParam.split(',').map((s) => s.trim()).filter(Boolean)
+  // Vendedor (dono do imóvel na ponta vendedora) não é "cliente" de ninguém — restringir
+  // por carteira aqui bloqueava um comercial de achar/reaproveitar um vendedor já
+  // cadastrado por outro comercial ou sem lead nenhum, e ele acabava recriando a pessoa
+  // (achado real, 2026-09-22: busca de vendedor sempre vazia pra quem não era dono do
+  // lead da pessoa). Comprador/Cliente continua restrito — é o caso que a carteira
+  // protege de verdade (ver migration 20260801_228).
+  const papel = request.nextUrl.searchParams.get('papel') ?? ''
   const page = Math.max(1, parseInt(request.nextUrl.searchParams.get('page') ?? '1'))
   const pageSize = 30
   const offset = (page - 1) * pageSize
 
-  let query = buildQuery(empresa_id, q, cpfParam, offset, pageSize)
+  let query = buildQuery(empresa_id, q, cpfParam, ids, offset, pageSize)
 
   // Rota usa service-role (supabaseAdmin), então RLS não se aplica aqui —
   // a mesma regra de carteira comercial da RLS de `pessoas` (ver migration
   // 20260724_186) precisa ser replicada manualmente: perfil comercial só
   // vê pessoas com lead atual (não excluído) onde ele é o responsável.
-  if (usuario.perfil === 'comercial') {
+  if (usuario.perfil === 'comercial' && papel !== 'vendedor') {
     const { data: leadsDaCarteira } = await supabase
       .from('leads')
       .select('pessoa_id')

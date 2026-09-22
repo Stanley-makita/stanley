@@ -287,3 +287,23 @@ e no módulo Solicitações, independente de onde o negócio está (lead, negóc
   `['leads','dashboard']` e `['negocios','dashboard']`; só `staleTime` deixava o painel 2-3 min desatualizado.
 - Contador do menu lateral e "Minhas pendências" contam só "Para mim" (o que a pessoa precisa fazer);
   "Que pedi" é acompanhamento. A RLS de `solicitacoes_operacionais` já permite ao comercial ler o que ele pediu.
+
+## Busca de Pessoa por papel: Vendedor ignora carteira comercial, Comprador/Cliente não
+
+`GET /api/pessoas` (usado por `PessoaBuscaCombobox`) e as buscas diretas em `pessoas` replicam
+manualmente a restrição de carteira comercial da RLS (migration 20260724_186/20260801_228):
+comercial só vê Pessoa com lead onde ele é `responsavel_id`. Essa regra protege dado de CLIENTE
+de outro comercial — mas **Vendedor** (dono do imóvel na ponta vendedora) não é cliente de
+ninguém; pode ter sido cadastrado por outro comercial ou não ter lead nenhum. Achado real
+(2026-09-22): busca de vendedor sempre vazia pra quem não era `responsavel_id` do lead da pessoa
+— tanto a busca (silenciosa, sem erro) quanto o pré-preenchimento do vendedor já vinculado ao
+Lead/Processo, e o usuário acabava recriando a pessoa (risco de duplicidade de cadastro).
+
+**Regra**: qualquer busca/lookup de Pessoa no papel de Vendedor passa `papel=vendedor` pra
+`/api/pessoas` (`<PessoaBuscaCombobox papel="vendedor" ... />`) — isso ignora a restrição de
+carteira, mantendo o scope de empresa e a permissão `pessoas.ver`. Comprador/Cliente/Cônjuge/
+Coparticipante continuam restritos à carteira (papel padrão, sem passar o prop) — é o caso que a
+regra protege de verdade. Pontos corrigidos: `NovoProcessoModal.tsx` (busca + pré-preenchimento),
+`AbaVendedores.tsx` (processos), `BlocoVendedor` em `AbaCredito.tsx`. Qualquer SELECT direto em
+`pessoas` (fora da API) pra achar um vendedor está sujeito à mesma RLS e vai falhar do mesmo jeito
+— sempre passar pela API com `papel=vendedor`, nunca reimplementar a query direto no componente.
