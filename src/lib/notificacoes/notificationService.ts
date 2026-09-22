@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
+import { enviarPushParaUsuario } from '@/lib/push/enviarPush'
+import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
 import {
   NOTIFICACAO_META,
   type TipoNotificacao,
@@ -81,6 +83,29 @@ export async function notify(
   if (error) {
     console.error('[NotificationService.notify] falha ao criar notificação', { input, error })
     return { id: null, error }
+  }
+
+  // Push é efeito colateral da notificação já persistida (fonte de verdade é a
+  // linha em `notificacoes`, inserida acima) — quem chamou `notify()` não
+  // precisa saber nada de Web Push. Isolado em try/catch próprio: uma falha
+  // aqui (VAPID mal configurado, subscription inválida, rede fora) nunca faz
+  // `notify()` rejeitar — a notificação já está gravada e visível no sino
+  // independente do push ter saído ou não.
+  try {
+    // Título fixo "Fonti" no push (não `input.titulo`) de propósito: `titulo` é o
+    // texto em negrito mostrado no SINO (ex. "Nova mensagem de João Silva"), faz
+    // sentido lá; no push, quem aparece em negrito é o nome do app na notificação
+    // do sistema operacional — usar o mesmo texto do sino ali seria redundante e,
+    // pra outros tipos futuros, arriscaria vazar informação sensível no título
+    // sem ninguém ter pensado nisso caso a caso. `mensagem` (o corpo) já é
+    // decidido pelo chamador com a privacidade em mente (ver webhook do WhatsApp).
+    await enviarPushParaUsuario(supabase, input.usuarioId, {
+      titulo: 'Fonti',
+      corpo: input.mensagem ?? input.titulo,
+      url: resolverRotaNotificacao(input.entidade ?? null, input.entidadeId ?? null) ?? undefined,
+    })
+  } catch (err) {
+    console.error('[NotificationService.notify] falha ao enviar push (notificação já foi criada normalmente)', err)
   }
 
   return { id: data as string, error: null }

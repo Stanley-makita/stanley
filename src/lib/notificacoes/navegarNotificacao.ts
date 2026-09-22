@@ -29,6 +29,11 @@ export function resolverRotaNotificacao(
       // Sem deep-link por item ainda — leva pra Fila Operacional, onde a
       // solicitação já aparece na coluna "Novo" (mesmo padrão de 'compromisso').
       return '/operacional'
+    case 'conversa':
+      // entidadeId aqui é conversas.id (não lead_id/telefone) — ?id= já é lido
+      // por conversas/page.tsx hoje, mesmo padrão usado em gestao/page.tsx,
+      // pessoas/[id]/page.tsx e LeadDetalheModal.tsx.
+      return `/conversas?id=${entidadeId}`
     default:
       return null
   }
