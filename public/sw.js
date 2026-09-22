@@ -15,5 +15,44 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
-// Os listeners de 'push' e 'notificationclick' são adicionados na Fase 3
-// (ver commit "fase 3"), quando o backend passa a de fato enviar push.
+// Fase 3 — recebe o push e mostra a notificação do sistema operacional.
+// Payload vem de enviarPush.ts: { titulo, corpo, url }. Nunca conteúdo
+// sensível (CPF, renda, valor, texto integral da mensagem) — ver
+// src/lib/push/enviarPush.ts / notificationService.ts.
+self.addEventListener('push', (event) => {
+  let dados = { titulo: 'Fonti', corpo: 'Você tem uma nova notificação.', url: '/' }
+  try {
+    if (event.data) dados = { ...dados, ...event.data.json() }
+  } catch {
+    // payload não era JSON válido — usa os valores padrão acima
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(dados.titulo, {
+      body: dados.corpo,
+      icon: '/favicon-512.png',
+      badge: '/favicon-512.png',
+      data: { url: dados.url || '/' },
+    }),
+  )
+})
+
+// Ao tocar na notificação: foca uma aba do Fonti já aberta nessa URL, ou
+// abre uma nova. Sempre fecha a notificação antes.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    (async () => {
+      const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const existente = clientsList.find((c) => new URL(c.url).origin === self.location.origin)
+      if (existente) {
+        await existente.focus()
+        existente.navigate(url)
+        return
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
+})

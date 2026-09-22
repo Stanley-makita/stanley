@@ -12,6 +12,7 @@ import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { variantesTelefoneBR, telefoneCanonico } from '@/lib/telefone'
+import { NotificationService } from '@/lib/notificacoes/notificationService'
 
 // Margem extra pro trabalho em segundo plano (waitUntil) de download+upload de
 // documento terminar mesmo sob carga (vários comerciais mandando documentos ao
@@ -1371,7 +1372,7 @@ export async function POST(request: NextRequest) {
   const conversa_id = conversaIdResolvida as string
   const { data: conversaExistente } = await supabase
     .from('conversas')
-    .select('id, bot_ativo, lead_id, bot_estado, bot_dados')
+    .select('id, bot_ativo, lead_id, bot_estado, bot_dados, atendente_id')
     .eq('id', conversa_id)
     .single()
 
@@ -1416,6 +1417,36 @@ export async function POST(request: NextRequest) {
       uazapi_message_id: msg?.messageid ?? null,
     },
   }).select('id').single()
+
+  // Notifica o responsável pela conversa (sino + push) — mensagem do cliente já
+  // foi gravada acima, independente disso. Sem atendente_id definido, não
+  // notifica ninguém (nunca manda pro time inteiro, mesmo princípio do resto
+  // do sistema). Dentro de waitUntil + try/catch próprio: uma falha aqui (RPC,
+  // push, VAPID mal configurado) nunca pode afetar a resposta já dada ao
+  // Uazapi nem a mensagem já salva em `mensagens`.
+  if (conversaExistente?.atendente_id && conteudoCliente) {
+    const atendenteId = conversaExistente.atendente_id
+    waitUntil(
+      (async () => {
+        try {
+          await NotificationService.notify(
+            {
+              usuarioId: atendenteId,
+              tipo: 'mensagem_whatsapp',
+              titulo: `Nova mensagem de ${nomeContato ?? 'contato'}`,
+              mensagem: `Nova mensagem de ${nomeContato ?? 'contato'}`,
+              entidade: 'conversa',
+              entidadeId: conversa_id,
+              origem: 'webhook-whatsapp',
+            },
+            supabase,
+          )
+        } catch (err) {
+          console.error('[whatsapp] erro ao notificar nova mensagem (mensagem já foi salva normalmente):', err)
+        }
+      })(),
+    )
+  }
 
   // Auto-save de arquivos no Supabase Storage (fora do bot — salva sempre)
   // await garante que o registro existe no banco antes de retornar (vincular do *fonti depende disso)
