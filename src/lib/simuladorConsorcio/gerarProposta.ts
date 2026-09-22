@@ -187,7 +187,7 @@ function itensLance(resultado: ResultadoConsorcio): [string, string][] {
 
 const INFO_IMPORTANTES = [
   'Valores expressos em reais.',
-  'Esta proposta não contempla fundo de reserva.',
+  'O fundo de reserva está incluído no custo de administração informado.',
   'O prazo estimado de contemplação é uma média considerando o histórico do grupo e não representa garantia de contemplação.',
   'Consulte condições gerais, taxas, seguros e regulamento do consórcio.',
 ]
