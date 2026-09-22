@@ -327,3 +327,21 @@ ref (`const entidadeRef = useRef(entidade); entidadeRef.current = entidade`), de
 `[aberto]`. Ver `EditarProcessoDrawer.tsx` e `LeadEditarModal.tsx`. Qualquer modal novo de edição
 (não de criação) que resete form a partir de uma entidade vinda de `useQuery` precisa seguir esse
 padrão — `AbaOportunidade.tsx` já fazia certo por acidente (deps `[lead.id]`, não `[lead]`).
+
+## UPDATE bloqueado pela RLS não gera erro — sempre checar linhas afetadas
+
+O PostgREST não lança erro quando a RLS filtra a linha de um UPDATE pra fora do que o
+usuário pode ver/alterar — devolve sucesso com 0 linhas afetadas, silenciosamente. Um
+`mutationFn` que só faz `if (error) throw error` (sem checar `data`/count) reporta
+"sucesso" pro usuário mesmo quando NADA foi gravado. Achado real (2026-09-22): RLS de
+`processos_update` (migration 20260721_183) não incluía `comercial_id` — só
+operacional/gerente/gestor/admin podiam editar. O modal "Dados do Negócio"
+(EditarProcessoDrawer.tsx) é mostrado e usável por qualquer perfil, inclusive comercial,
+mas o UPDATE do comercial (dono do negócio) batia na RLS e o toast de sucesso mentia;
+taxa_juros/sistema_amortizacao/prazo/etc continuavam `null` mesmo depois de "salvar"
+repetidas vezes. Corrigido em dois níveis (migration 20260922_315 + código):
+1. RLS: `processos_update` agora inclui `u.id = processos.comercial_id`.
+2. Defesa em profundidade: `updateProcessoOuFalha()` (`useProcessos.ts`) faz
+   `.select('id')` no update e lança erro claro se vier vazio — qualquer UPDATE direto
+   em `processos` deve usar esse helper, nunca `if (error) throw` sozinho. Mesmo
+   princípio vale pra outras tabelas com RLS restritiva por dono/responsável.
