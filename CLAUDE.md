@@ -307,3 +307,23 @@ regra protege de verdade. Pontos corrigidos: `NovoProcessoModal.tsx` (busca + pr
 `AbaVendedores.tsx` (processos), `BlocoVendedor` em `AbaCredito.tsx`. Qualquer SELECT direto em
 `pessoas` (fora da API) pra achar um vendedor está sujeito à mesma RLS e vai falhar do mesmo jeito
 — sempre passar pela API com `papel=vendedor`, nunca reimplementar a query direto no componente.
+
+## Formulário de edição não pode resetar por refetch em segundo plano
+
+Padrão perigoso: `useEffect(() => { if (aberto) form.reset(paraForm(entidade)) }, [aberto, entidade])`.
+Toda query do projeto usa `staleTime: 0` + `refetchOnWindowFocus: true` por padrão (`providers.tsx`)
+— qualquer refetch em segundo plano (voltar o foco na aba, alt-tab, um print de tela, uma
+invalidação de cache de QUALQUER lugar do sistema que bata na queryKey) troca a referência do
+objeto `entidade`, mesmo sem o dado ter mudado de verdade. Com `entidade` nas deps do efeito, o
+form.reset() dispara de novo e **apaga tudo que o usuário tinha digitado**, sem aviso — ele clica
+Salvar num formulário que voltou sozinho aos valores antigos, a validação de campo obrigatório
+barra, e nada é gravado (achado real, 2026-09-22: modal "Dados do Negócio" do processo —
+taxa_juros/sistema_amortizacao/prazo/dia ficavam `null` no banco mesmo aparecendo preenchidos no
+print do usuário logo antes; mesma causa também em `LeadEditarModal.tsx`).
+
+**Regra**: o reset só pode acontecer quando o modal/drawer ABRE, nunca por refetch enquanto já
+está aberto. Padrão certo: tirar a entidade das deps do efeito e ler o valor mais recente por uma
+ref (`const entidadeRef = useRef(entidade); entidadeRef.current = entidade`), deps do efeito só
+`[aberto]`. Ver `EditarProcessoDrawer.tsx` e `LeadEditarModal.tsx`. Qualquer modal novo de edição
+(não de criação) que resete form a partir de uma entidade vinda de `useQuery` precisa seguir esse
+padrão — `AbaOportunidade.tsx` já fazia certo por acidente (deps `[lead.id]`, não `[lead]`).
