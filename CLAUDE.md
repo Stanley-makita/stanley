@@ -424,3 +424,21 @@ versionado no git (o painel do Supabase guarda o header customizado com o segred
 Qualquer tipo novo de notificação criado por trigger de banco (não por `notify()` direto) ganha
 push automaticamente por este caminho, sem precisar mexer em código nenhum — só cadastrar o
 Database Webhook uma vez cobre para sempre.
+
+**PAUSADA (2026-09-22): projeto Supabase sem o schema interno `supabase_functions`.**
+Ao tentar criar o Database Webhook em Integrations, o painel falhou com
+`ERROR: 3F000: schema "supabase_functions" does not exist` — mesmo com a extensão `pg_net`
+habilitada (Database → Extensions) e sem nenhum outro ponto de entrada de "Webhooks" no painel
+(confirmado: não existe em Database, só o card em Integrations). Diagnóstico aprofundado: criar o
+schema manualmente (`create schema if not exists supabase_functions;`) resolveu esse primeiro
+erro, mas o próximo passo falhou com `ERROR: 42883: function supabase_functions.http_request()
+does not exist` — confirma que falta TODA a infraestrutura interna que o Supabase normalmente
+provisiona sozinho em todo projeto (schema + tabela de controle + essa função + permissões), não
+só o schema. **Decisão: não recriar essa infraestrutura à mão** (risco de ficar incompatível com o
+que a plataforma espera) — precisa de chamado no suporte do Supabase pra provisionar do jeito
+certo, ou do fallback via Vercel Cron (só viável no plano Pro da Vercel — o Hobby atual limita
+cron a 1x/dia, insuficiente pra push em tempo real; ver histórico de decisão no PR #333/#334).
+Fases 1-4 (push de nova mensagem no WhatsApp) não são afetadas — já validadas em produção.
+Qualquer retomada desta fase deve conferir primeiro se o schema já foi corrigido (rodar
+`select nspname from pg_namespace where nspname = 'supabase_functions';` no SQL Editor) antes de
+tentar criar o Database Webhook de novo.
