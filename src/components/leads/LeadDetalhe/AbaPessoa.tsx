@@ -28,6 +28,20 @@ function normalizarCpf(valor: string): string | null {
   return d.length === 11 ? d : d.length === 0 ? null : d
 }
 
+// `<input type="date">` nativo dispara onChange a cada dígito digitado — se o usuário
+// edita o segmento do ano dígito a dígito (em vez de colar/usar o seletor), um onChange
+// intermediário chega com o valor ainda incompleto (ex.: "0001-11-25" depois de digitar
+// só o primeiro "1" do ano 1999). Sem essa checagem esse valor implausível é salvo do
+// jeito que está. Descarta (equivale a campo vazio) datas com ano fora de uma faixa
+// plausível de nascimento/documento — nunca bloqueia o salvamento do resto do form.
+function normalizarDataPlausivel(valor: string): string | null {
+  if (!valor) return null
+  const ano = Number(valor.slice(0, 4))
+  const anoAtual = new Date().getFullYear()
+  if (!Number.isFinite(ano) || ano < 1900 || ano > anoAtual + 1) return null
+  return valor
+}
+
 const ESTADOS_CIVIS = [
   { value: 'solteiro',      label: 'Solteiro(a)' },
   { value: 'casado',        label: 'Casado(a)' },
@@ -215,7 +229,7 @@ export function AbaPessoa({ lead }: Props) {
         nome:                     form.nome.trim() || undefined,
         email:                    form.email.trim() || null,
         cpf:                      normalizarCpf(form.cpf) ?? null,
-        data_nascimento:          form.data_nascimento || null,
+        data_nascimento:          normalizarDataPlausivel(form.data_nascimento),
         profissao:                form.profissao.trim() || null,
         estado_civil:             form.estado_civil || null,
         sexo:                     form.sexo || null,
@@ -239,13 +253,13 @@ export function AbaPessoa({ lead }: Props) {
         endereco_cep:             form.endereco_cep.trim() || null,
         conjuge_nome:             eCasado ? (form.conjuge_nome.trim() || null) : null,
         conjuge_cpf:              eCasado ? (normalizarCpf(form.conjuge_cpf) ?? null) : null,
-        conjuge_data_nascimento:  eCasado ? (form.conjuge_data_nascimento || null) : null,
+        conjuge_data_nascimento:  eCasado ? normalizarDataPlausivel(form.conjuge_data_nascimento) : null,
         conjuge_telefone:         eCasado ? (form.conjuge_telefone.trim() || null) : null,
         conjuge_profissao:        eCasado ? (form.conjuge_profissao.trim() || null) : null,
         conjuge_renda_formal:     eCasado && form.conjuge_renda_formal ? Number(form.conjuge_renda_formal) : null,
         conjuge_renda_informal:   eCasado && form.conjuge_renda_informal ? Number(form.conjuge_renda_informal) : null,
         regime_casamento:         eCasado ? (form.regime_casamento || null) : null,
-        data_casamento:           eCasado ? (form.data_casamento || null) : null,
+        data_casamento:           eCasado ? normalizarDataPlausivel(form.data_casamento) : null,
         empresa_nome:             form.empresa_nome.trim() || null,
         empresa_cnpj:             form.empresa_cnpj.trim() || null,
         municipio_trabalho:       form.municipio_trabalho.trim() || null,
