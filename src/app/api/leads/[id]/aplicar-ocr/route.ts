@@ -144,6 +144,24 @@ export async function POST(
       }
     }
 
+    // Propaga pro Lead os campos que ele duplica da Pessoa (nome/cpf/data_nascimento) —
+    // são os que o sidebar de Captação ("Faltando") e o gate de Formulários
+    // (AbaFormularios.tsx → dadosIncompletos) leem de `lead`, não de `pessoas`. Mesma
+    // lacuna já corrigida pro fluxo do WhatsApp (*fonti) em workflow-captacao.ts; aqui
+    // era o mesmo bug pro fluxo de confirmação de OCR pela tela (achado real, 2026-09-22:
+    // data de nascimento já preenchida na aba Pessoa, sidebar continuava dizendo "Faltando").
+    const CAMPOS_DUPLICADOS_NO_LEAD = ['nome', 'cpf', 'data_nascimento']
+    const updateLead: Record<string, unknown> = {}
+    for (const c of CAMPOS_DUPLICADOS_NO_LEAD) {
+      if (camposAplicados.includes(c)) updateLead[c] = valoresNovos[c]
+    }
+    if (Object.keys(updateLead).length > 0) {
+      const { error: errLead } = await supabase.from('leads').update(updateLead).eq('id', leadId)
+      if (errLead) {
+        console.error('[aplicar-ocr] Erro ao propagar campos pro lead:', errLead.message, '| campos:', Object.keys(updateLead))
+      }
+    }
+
     // Audit trail
     const documentoIds = Array.from(new Set(campos.filter(c => camposAplicados.includes(c.campo)).map(c => c.documento_id)))
     await supabase.from('pessoas_alteracoes').insert({
