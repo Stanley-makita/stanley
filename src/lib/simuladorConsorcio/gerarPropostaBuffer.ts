@@ -153,7 +153,7 @@ function labelTipoBem(tipoBem: ResultadoConsorcio['input']['tipoBem']): string {
 
 const INFO_IMPORTANTES = [
   'Valores expressos em reais.',
-  'Esta proposta nao contempla fundo de reserva.',
+  'O fundo de reserva esta incluido no custo de administracao informado.',
   'O prazo estimado de contemplacao e uma media considerando o historico do grupo e nao representa garantia de contemplacao.',
   'Consulte condicoes gerais, taxas, seguros e regulamento do consorcio.',
 ]
