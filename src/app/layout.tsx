@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
@@ -18,6 +18,18 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
   },
+  // PWA: iOS só permite instalar/ativar push dentro do app adicionado à Tela
+  // de Início — este bloco é o que faz o Safari oferecer "Adicionar à Tela
+  // de Início" corretamente (o manifest.ts cuida do Android/desktop).
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Fonti',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#253B29',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
