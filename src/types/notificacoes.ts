@@ -64,7 +64,7 @@ export type TipoNotificacao =
   | 'compromisso_criado'
   | 'compromisso_recepcao'
 
-export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao' | 'compromisso'
+export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao' | 'compromisso' | 'conversa'
 
 export interface Notificacao {
   id: string
