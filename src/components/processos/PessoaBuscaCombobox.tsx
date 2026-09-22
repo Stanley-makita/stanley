@@ -17,9 +17,13 @@ interface Props {
   pessoaSelecionada: PessoaOpcao | null
   onSelect: (pessoa: PessoaOpcao | null) => void
   onCriarPessoa: () => void
+  // 'vendedor': ignora a restrição de carteira comercial na busca (ver /api/pessoas) —
+  // vendedor do imóvel não é cliente de ninguém, pode ter sido cadastrado por outro
+  // comercial ou sem lead nenhum. 'comprador' (padrão) mantém a restrição de carteira.
+  papel?: 'comprador' | 'vendedor'
 }
 
-export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa }: Props) {
+export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa, papel = 'comprador' }: Props) {
   const [termo, setTermo] = useState('')
   const [resultados, setResultados] = useState<PessoaOpcao[]>([])
   const [carregando, setCarregando] = useState(false)
@@ -39,7 +43,7 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
       setCarregando(true)
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const res = await fetch(`/api/pessoas?q=${encodeURIComponent(termo)}`, {
+        const res = await fetch(`/api/pessoas?q=${encodeURIComponent(termo)}&papel=${papel}`, {
           headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
         })
         if (!res.ok) return
@@ -65,7 +69,7 @@ export function PessoaBuscaCombobox({ pessoaSelecionada, onSelect, onCriarPessoa
         setCarregando(false)
       }
     }, 300)
-  }, [termo])
+  }, [termo, papel])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

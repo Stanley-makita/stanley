@@ -666,18 +666,26 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
   // completo, quando disponível) tem prioridade; sem ele, cai no campo
   // legado vendedor_pessoa_id (1 só) — cobre telas que abrem este modal com
   // uma versão mais enxuta do Lead, sem o join de lead_vendedores.
+  //
+  // Via /api/pessoas (papel=vendedor), não select direto: um SELECT direto em
+  // `pessoas` é sujeito à RLS de carteira comercial (migration 20260801_228) —
+  // o vendedor do imóvel não é "cliente" do comercial que está criando o
+  // processo, então um SELECT direto vinha vazio e o pré-preenchimento
+  // silenciosamente não aparecia (achado real, 2026-09-22).
   useEffect(() => {
     const idsDaLista = (lead?.vendedores ?? []).map(v => v.pessoa_id)
     const ids = idsDaLista.length > 0 ? idsDaLista : (lead?.vendedor_pessoa_id ? [lead.vendedor_pessoa_id] : [])
     if (ids.length === 0) return
     let cancelado = false
-    supabase
-      .from('pessoas')
-      .select('id, nome, cpf, email')
-      .in('id', ids)
-      .then(({ data }) => {
-        if (!cancelado && data) {
-          setVendedores(data.map(d => ({ id: d.id, nome: d.nome, cpf: d.cpf, email: d.email, telefone: null })))
+    supabase.auth.getSession().then(({ data: { session } }) =>
+      fetch(`/api/pessoas?ids=${ids.join(',')}&papel=vendedor`, {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      }),
+    )
+      .then(res => res.json())
+      .then((json: { data?: Array<{ id: string; nome: string; cpf: string | null; email: string | null }> }) => {
+        if (!cancelado && json.data) {
+          setVendedores(json.data.map(d => ({ id: d.id, nome: d.nome, cpf: d.cpf, email: d.email, telefone: null })))
         }
       })
     return () => { cancelado = true }
@@ -978,6 +986,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
             pessoaSelecionada={null}
             onSelect={p => { if (p && !vendedores.some(v => v.id === p.id)) setVendedores(prev => [...prev, p]) }}
             onCriarPessoa={() => setNovaPessoaVendedorAberta(true)}
+            papel="vendedor"
           />
         </div>
       </Secao>
