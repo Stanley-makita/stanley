@@ -360,3 +360,28 @@ clicou em "+ Nova" (achado real, 2026-09-22). Corrigido: `p_atendente_id` = usu�
 cria. A RPC só define isso na criação (`ON CONFLICT` não sobrescreve o dono de uma
 conversa já existente). Qualquer novo caminho que insira em `conversas` direto (fora
 dessa RPC) precisa pensar na mesma regra de visibilidade.
+
+## `telefone_canonico_br` não pode adicionar "9" em telefone fixo
+
+A função assumia que TODO número de 8 dígitos (sem DDD) era celular no formato antigo
+(pré-2012, sem o "9") e sempre prefixava um "9". Telefone FIXO também tem 8 dígitos e
+NUNCA leva "9" — a função corrompia número fixo, transformando num número de celular
+que não existe. Achado real (2026-09-22): contato "Mileno", fixo (44) 3123-5755 (44 +
+31235755), virou "(44) 93123-5755" ao ser salvo via `*fonti inicio`/Nova Conversa. A
+conversa em si funcionava (o WhatsApp de verdade entrega mensagem recebida pro número
+real, o webhook grava certo), mas o ENVIO pelo Fonti usava o número forjado e o
+WhatsApp/Uazapi recusava: `"failed to resolve LID for PN 5544931235755: USync returned
+no LID"` — o WhatsApp não tem esse número (com 9) cadastrado, só o original sem 9.
+
+**Fix (migration 20260922_316)**: usa a convenção pública da ANATEL — depois do DDD,
+celular (mesmo formato antigo de 8 dígitos) sempre começa com 6/7/8/9; fixo sempre
+começa com 2/3/4/5. Só adiciona "9" quando o 1º dígito indica celular. Não é 100%
+garantido pra todo caso do Brasil, mas é a convenção usada pelo próprio setor de
+telecom pra essa mesma distinção — MUITO melhor que assumir sempre celular.
+
+**Não corrige dados já gravados** (decisão do usuário, 2026-09-22: só a conversa da
+Mileno foi corrigida manualmente). Se aparecer outro contato de fixo com problema
+parecido (`*salva`/Nova Conversa "some" ou envio falha com erro de LID/Uazapi), o
+padrão é: conferir se `contato_telefone`/`pessoa_telefones.telefone` tem um "9" a mais
+que não devia (1º dígito depois do 9 entre 2-5) e corrigir manualmente a linha —
+não existe hoje uma varredura/backfill automático pra isso.
