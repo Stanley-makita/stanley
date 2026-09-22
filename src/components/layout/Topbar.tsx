@@ -2,7 +2,8 @@
 
 import { useRef, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Loader2, User, Users, FileText, Menu, Lock } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Loader2, User, Users, FileText, Menu, Lock, Calendar } from 'lucide-react'
 import { useBuscaGlobal, type ResultadoBusca } from '@/hooks/busca/useBuscaGlobal'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { SinoNotificacoes } from './SinoNotificacoes'
@@ -201,6 +202,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Notificações + perfil */}
       <div className="flex items-center gap-3">
+        <Link
+          href="/agenda"
+          aria-label="Agenda"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-50"
+        >
+          <Calendar className="w-5 h-5" />
+        </Link>
+
         <SinoNotificacoes />
 
         {/* Avatar do usuário */}
