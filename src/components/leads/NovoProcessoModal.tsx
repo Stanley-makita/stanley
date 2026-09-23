@@ -606,11 +606,11 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
   // intenção já declarada na aba Oportunidade do Lead (valor em R$ continua
   // vazio, só é conhecido aqui).
   const [fgts, setFgts]         = useState<boolean | null>(lead?.fgts ?? null)
-  const [valorFgts, setValorFgts] = useState('')
+  const [valorFgts, setValorFgts] = useState(() => fmtN(lead?.valor_fgts))
 
   // Assessoria: null = não escolhido, true = com, false = sem
   const [assessoria, setAssessoria]         = useState<boolean | null>(lead?.tem_assessoria ?? null)
-  const [valorAssessoria, setValorAssessoria] = useState('')
+  const [valorAssessoria, setValorAssessoria] = useState(() => fmtN(lead?.valor_assessoria))
 
   // Quem vai fazer o registro — pré-preenche do Lead
   const [responsavelRegistro, setResponsavelRegistro] = useState<ResponsavelRegistro | null>(lead?.responsavel_registro ?? null)
@@ -1125,7 +1125,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   // Pré-preenche com a intenção já declarada na aba Oportunidade do Lead —
   // sem valor salvo, mantém o padrão anterior (true)
   const [temAssessoria, setTemAssessoria] = useState(lead?.tem_assessoria ?? true)
-  const [valorAssessoria, setValorAssessoria] = useState('')
+  const [valorAssessoria, setValorAssessoria] = useState(() => fmtN(lead?.valor_assessoria))
   const [responsavelRegistro, setResponsavelRegistro] = useState<ResponsavelRegistro | null>(lead?.responsavel_registro ?? null)
   const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
   const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? usuario?.id ?? '')

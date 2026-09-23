@@ -41,10 +41,11 @@ const schema = z.object({
   valor_imovel:      z.coerce.number().min(0).optional(),
   valor_pretendido:  z.coerce.number().min(0).optional(),
   observacoes:       z.string().optional(),
-  // Negociação (Financiamento/CGI) — só a intenção nesta fase, ver
-  // migration 20260923_322
+  // Negociação (Financiamento/CGI) — ver migrations 20260923_322/323
   fgts:                 z.boolean().nullable().optional(),
+  valor_fgts:           z.coerce.number().min(0).optional(),
   tem_assessoria:       z.boolean().nullable().optional(),
+  valor_assessoria:     z.coerce.number().min(0).optional(),
   responsavel_registro: z.enum(['fontinhas', 'cliente', 'corretor']).nullable().optional(),
 })
 
@@ -83,7 +84,9 @@ function leadParaForm(lead: Lead): FormData {
     valor_pretendido:           lead.valor_pretendido ?? undefined,
     observacoes:                lead.observacoes ?? undefined,
     fgts:                       lead.fgts ?? null,
+    valor_fgts:                 lead.valor_fgts ?? undefined,
     tem_assessoria:             lead.tem_assessoria ?? null,
+    valor_assessoria:           lead.valor_assessoria ?? undefined,
     responsavel_registro:       lead.responsavel_registro ?? null,
   }
 }
@@ -166,7 +169,9 @@ export function AbaOportunidade({ lead }: Props) {
       valor_pretendido:           data.valor_pretendido ?? null,
       observacoes:                data.observacoes || null,
       fgts:                       data.fgts ?? null,
+      valor_fgts:                 data.fgts ? (data.valor_fgts ?? null) : null,
       tem_assessoria:             data.tem_assessoria ?? null,
+      valor_assessoria:           data.tem_assessoria ? (data.valor_assessoria ?? null) : null,
       responsavel_registro:       data.responsavel_registro ?? null,
     })
     // Lembrete pós-salvar — a consulta em si é feita marcando o item
@@ -368,6 +373,21 @@ export function AbaOportunidade({ lead }: Props) {
                 </FormItem>
               )} />
 
+              {form.watch('fgts') === true && (
+                <FormField control={form.control} name="valor_fgts" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor do FGTS <Opc /></FormLabel>
+                    <FormControl>
+                      <InputMoeda
+                        value={field.value != null ? String(field.value) : ''}
+                        onChange={v => field.onChange(v ? Number(v) : undefined)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
+
               <FormField control={form.control} name="tem_assessoria" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Com Assessoria <Opc /></FormLabel>
@@ -384,6 +404,21 @@ export function AbaOportunidade({ lead }: Props) {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              {form.watch('tem_assessoria') === true && (
+                <FormField control={form.control} name="valor_assessoria" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor da Assessoria <Opc /></FormLabel>
+                    <FormControl>
+                      <InputMoeda
+                        value={field.value != null ? String(field.value) : ''}
+                        onChange={v => field.onChange(v ? Number(v) : undefined)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
 
               <FormField control={form.control} name="responsavel_registro" render={({ field }) => (
                 <FormItem>

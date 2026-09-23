@@ -122,10 +122,13 @@ export interface Lead {
   campanha:        string | null
   parceiro_id:     string | null
   produto_subtipo: string | null
-  // Negociação (Financiamento/CGI) — só a intenção; valores em R$ ficam só
-  // no Processo (ver migration 20260923_322)
+  // Negociação (Financiamento/CGI) — intenção + valor estimado, ver
+  // migrations 20260923_322/323. Acompanha o lead quando ele vira Processo
+  // (pré-preenche "+ Novo Processo").
   fgts:                  boolean | null
+  valor_fgts:            number | null
   tem_assessoria:        boolean | null
+  valor_assessoria:      number | null
   responsavel_registro:  ResponsavelRegistro | null
   // Joins
   responsavel?: { id: string; nome: string } | null
