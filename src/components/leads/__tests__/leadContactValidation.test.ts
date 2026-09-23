@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCamposContatoPendentes, temContatoObrigatorioParaCredito } from '../leadContactValidation'
+import { getCamposContatoPendentes, getCamposContatoBloqueantesCredito, temContatoObrigatorioParaCredito } from '../leadContactValidation'
 
 const TELEFONE_VALIDO = '5544998765432'
 const EMAIL_VALIDO = 'cliente@email.com'
@@ -12,6 +12,23 @@ describe('lead contact validation', () => {
     expect(p).toContain('email')
     expect(p).toContain('data_nascimento')
     expect(temContatoObrigatorioParaCredito({ telefone: null, email: '', data_nascimento: null })).toBe(false)
+  })
+
+  // ── E-mail não bloqueia mais (decisão da diretoria comercial, 2026-09-23) ──
+  // Continua aparecendo em getCamposContatoPendentes (destaque visual amarelo),
+  // mas não entra mais na lista que bloqueia avanço de fase / aba Crédito.
+
+  it('e-mail ausente não bloqueia crédito, só telefone/nascimento', () => {
+    expect(temContatoObrigatorioParaCredito({ telefone: TELEFONE_VALIDO, email: null, data_nascimento: NASCIMENTO_VALIDO })).toBe(true)
+    expect(getCamposContatoBloqueantesCredito({ telefone: TELEFONE_VALIDO, email: null, data_nascimento: NASCIMENTO_VALIDO })).toEqual([])
+  })
+
+  it('e-mail inválido (sem @) não bloqueia crédito', () => {
+    expect(temContatoObrigatorioParaCredito({ telefone: TELEFONE_VALIDO, email: 'clientesemarroba', data_nascimento: NASCIMENTO_VALIDO })).toBe(true)
+  })
+
+  it('e-mail continua listado em getCamposContatoPendentes mesmo não bloqueando', () => {
+    expect(getCamposContatoPendentes({ telefone: TELEFONE_VALIDO, email: null, data_nascimento: NASCIMENTO_VALIDO })).toEqual(['email'])
   })
 
   it('libera quando todos os três campos são válidos', () => {
@@ -64,11 +81,12 @@ describe('lead contact validation', () => {
     expect(getCamposContatoPendentes({ telefone: TELEFONE_VALIDO, email: null, data_nascimento: NASCIMENTO_VALIDO })).toEqual(['email'])
   })
 
-  it('rejeita email sem @', () => {
-    expect(temContatoObrigatorioParaCredito({ telefone: TELEFONE_VALIDO, email: 'clientesemarroba', data_nascimento: NASCIMENTO_VALIDO })).toBe(false)
+  it('marca email sem @ como pendente (aviso), mas não bloqueia crédito', () => {
+    expect(getCamposContatoPendentes({ telefone: TELEFONE_VALIDO, email: 'clientesemarroba', data_nascimento: NASCIMENTO_VALIDO })).toEqual(['email'])
+    expect(temContatoObrigatorioParaCredito({ telefone: TELEFONE_VALIDO, email: 'clientesemarroba', data_nascimento: NASCIMENTO_VALIDO })).toBe(true)
   })
 
-  it('aceita email com @', () => {
+  it('aceita email com @ (sem pendência)', () => {
     expect(temContatoObrigatorioParaCredito({ telefone: TELEFONE_VALIDO, email: 'x@y.com', data_nascimento: NASCIMENTO_VALIDO })).toBe(true)
   })
 
