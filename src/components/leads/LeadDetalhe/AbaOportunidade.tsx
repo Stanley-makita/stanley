@@ -348,24 +348,24 @@ export function AbaOportunidade({ lead }: Props) {
           </div>
 
           {mostrarNegociacao && (
-            <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+            <div className="mt-4 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
               <FormField control={form.control} name="fgts" render={({ field }) => (
                 <FormItem>
                   <FormLabel>FGTS <Opc /></FormLabel>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="flex gap-2">
                     {([true, false] as const).map(val => (
                       <button
                         key={String(val)}
                         type="button"
                         onClick={() => field.onChange(field.value === val ? null : val)}
                         className={cn(
-                          'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                          'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all',
                           field.value === val
                             ? 'border-fonti-primary bg-fonti-accent-hover text-fonti-primary'
                             : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                         )}
                       >
-                        {val ? 'Utilizará FGTS' : 'Não utilizará FGTS'}
+                        {val ? 'Utilizará' : 'Não utilizará'}
                       </button>
                     ))}
                   </div>
@@ -373,7 +373,7 @@ export function AbaOportunidade({ lead }: Props) {
                 </FormItem>
               )} />
 
-              {form.watch('fgts') === true && (
+              {form.watch('fgts') === true ? (
                 <FormField control={form.control} name="valor_fgts" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor do FGTS <Opc /></FormLabel>
@@ -386,26 +386,26 @@ export function AbaOportunidade({ lead }: Props) {
                     <FormMessage />
                   </FormItem>
                 )} />
-              )}
+              ) : <div className="hidden sm:block" />}
 
               <FormField control={form.control} name="tem_assessoria" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Com Assessoria <Opc /></FormLabel>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 h-9">
                     <button
                       type="button"
                       onClick={() => field.onChange(!field.value)}
-                      className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5', field.value ? 'bg-fonti-primary' : 'bg-gray-200')}
+                      className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0', field.value ? 'bg-fonti-primary' : 'bg-gray-200')}
                     >
                       <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', field.value ? 'translate-x-4' : 'translate-x-0')} />
                     </button>
-                    <span className="text-sm text-gray-600">{field.value ? 'Com Assessoria' : 'Sem Assessoria'}</span>
+                    <span className="text-xs text-gray-600">{field.value ? 'Com Assessoria' : 'Sem Assessoria'}</span>
                   </div>
                   <FormMessage />
                 </FormItem>
               )} />
 
-              {form.watch('tem_assessoria') === true && (
+              {form.watch('tem_assessoria') === true ? (
                 <FormField control={form.control} name="valor_assessoria" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor da Assessoria <Opc /></FormLabel>
@@ -418,19 +418,19 @@ export function AbaOportunidade({ lead }: Props) {
                     <FormMessage />
                   </FormItem>
                 )} />
-              )}
+              ) : <div className="hidden sm:block" />}
 
               <FormField control={form.control} name="responsavel_registro" render={({ field }) => (
-                <FormItem>
+                <FormItem className="sm:col-span-2">
                   <FormLabel>Quem vai fazer o registro <Opc /></FormLabel>
-                  <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="flex flex-wrap gap-2">
                     {(Object.keys(RESPONSAVEL_REGISTRO_LABELS) as ResponsavelRegistro[]).map(opcao => (
                       <button
                         key={opcao}
                         type="button"
                         onClick={() => field.onChange(field.value === opcao ? null : opcao)}
                         className={cn(
-                          'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                          'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all',
                           field.value === opcao
                             ? 'border-fonti-primary bg-fonti-accent-hover text-fonti-primary'
                             : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
