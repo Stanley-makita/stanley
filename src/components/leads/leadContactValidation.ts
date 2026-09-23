@@ -32,6 +32,14 @@ export function getCamposContatoPendentes(input: CamposContatoInput) {
   return pendentes
 }
 
+// E-mail deixou de bloquear avanço de fase / abertura da aba Crédito a pedido
+// da diretoria comercial (2026-09-23) — não é exigido pela consulta de
+// restritivos. Continua aparecendo em getCamposContatoPendentes (destaque
+// visual amarelo), só não entra mais na lista que efetivamente bloqueia.
+export function getCamposContatoBloqueantesCredito(input: CamposContatoInput) {
+  return getCamposContatoPendentes(input).filter(campo => campo !== 'email')
+}
+
 export function temContatoObrigatorioParaCredito(input: CamposContatoInput) {
-  return getCamposContatoPendentes(input).length === 0
+  return getCamposContatoBloqueantesCredito(input).length === 0
 }

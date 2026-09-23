@@ -10,7 +10,7 @@ import { FaseBreadcrumbBar } from '@/components/shared/FaseBreadcrumbBar'
 import { toast } from 'sonner'
 import type { Lead } from '@/types/leads'
 import type { Fase } from '@/types/configuracoes'
-import { getCamposContatoPendentes, temContatoObrigatorioParaCredito } from './leadContactValidation'
+import { getCamposContatoBloqueantesCredito, temContatoObrigatorioParaCredito } from './leadContactValidation'
 import { normalizarTexto } from '@/lib/utils'
 
 const LABELS_CONTATO: Record<string, string> = {
@@ -56,11 +56,13 @@ export function PipelineBarLead({ lead, fases, onConcluido }: Props) {
     }
 
     // Mesma exigência da aba Crédito (temContatoObrigatorioParaCredito) — só
-    // permite pular para "Análise de Crédito" com telefone/e-mail/data de
-    // nascimento válidos. Comparação tolerante a acento/maiúscula porque o
-    // nome da fase é livremente configurado pelo usuário em Configurações.
+    // permite pular para "Análise de Crédito" com telefone/data de nascimento
+    // válidos. E-mail NÃO bloqueia (a pedido da diretoria comercial,
+    // 2026-09-23) — vira só aviso visual, não é exigido pela consulta de
+    // restritivos. Comparação tolerante a acento/maiúscula porque o nome da
+    // fase é livremente configurado pelo usuário em Configurações.
     if (normalizarTexto(fase.nome) === normalizarTexto('Análise de Crédito') && !temContatoObrigatorioParaCredito(lead)) {
-      const pendentes = getCamposContatoPendentes(lead).map(c => LABELS_CONTATO[c] ?? c).join(' · ')
+      const pendentes = getCamposContatoBloqueantesCredito(lead).map(c => LABELS_CONTATO[c] ?? c).join(' · ')
       toast.warning('Campos obrigatórios pendentes', {
         description: pendentes,
       })

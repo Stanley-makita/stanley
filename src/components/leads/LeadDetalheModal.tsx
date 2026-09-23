@@ -50,7 +50,7 @@ import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useEditarLead } from '@/hooks/leads/useEditarLead'
 import { useConfigAbas } from '@/hooks/leads/useConfigAbas'
-import { getCamposContatoPendentes, temContatoObrigatorioParaCredito } from './leadContactValidation'
+import { getCamposContatoPendentes, getCamposContatoBloqueantesCredito, temContatoObrigatorioParaCredito } from './leadContactValidation'
 
 type Aba = 'resumo' | 'pessoa' | 'oportunidade' | 'credito' | 'operacional' | 'formularios' | 'notas' | 'tarefas' | 'processos' | 'simulador' | 'solicitacoes' | 'historico' | 'documentos'
 
@@ -186,7 +186,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   } : undefined
 
   const camposContatoPendentes = lead ? getCamposContatoPendentes({ telefone: lead.telefone, email: lead.email, data_nascimento: lead.data_nascimento }) : []
+  // Só telefone/data de nascimento bloqueiam (e-mail vira aviso não-bloqueante, ver leadContactValidation.ts)
+  const camposContatoBloqueantes = lead ? getCamposContatoBloqueantesCredito({ telefone: lead.telefone, email: lead.email, data_nascimento: lead.data_nascimento }) : []
   const creditoLiberado = !!lead && temContatoObrigatorioParaCredito({ telefone: lead.telefone, email: lead.email, data_nascimento: lead.data_nascimento })
+  const emailPendente = camposContatoPendentes.includes('email')
 
   function fechar() {
     setAbaAtiva('resumo')
@@ -329,18 +332,18 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                   {lead.cpf && (
                     <InfoRow icone={<CreditCard className="h-3.5 w-3.5" />} label="CPF" valor={lead.cpf} />
                   )}
-                  <div className={cn('rounded-lg border px-2.5 py-2', camposContatoPendentes.includes('email') ? 'border-red-300 bg-red-50' : 'border-transparent bg-transparent')}>
+                  <div className={cn('rounded-lg border px-2.5 py-2', emailPendente ? 'border-amber-300 bg-amber-50' : 'border-transparent bg-transparent')}>
                     {lead.email ? (
                       <>
-                        <InfoRow icone={<Mail className={cn('h-3.5 w-3.5', camposContatoPendentes.includes('email') && 'text-red-400')} />} label="E-mail" valor={lead.email} />
-                        {camposContatoPendentes.includes('email') && (
-                          <p className="text-[10px] text-red-500 mt-0.5">E-mail inválido (sem @)</p>
+                        <InfoRow icone={<Mail className={cn('h-3.5 w-3.5', emailPendente && 'text-amber-500')} />} label="E-mail" valor={lead.email} />
+                        {emailPendente && (
+                          <p className="text-[10px] text-amber-600 mt-0.5">E-mail inválido (sem @) — solicite ao cliente</p>
                         )}
                       </>
                     ) : (
                       <div className="min-w-0">
                         <p className="text-xs text-gray-400">E-mail</p>
-                        <p className="text-sm font-medium text-red-600">Faltando</p>
+                        <p className="text-sm font-medium text-amber-600">Faltando — solicite ao cliente</p>
                       </div>
                     )}
                   </div>
@@ -465,7 +468,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                           if (bloqueado) {
                             const LABELS: Record<string, string> = { telefone: 'Telefone válido', email: 'E-mail com @', data_nascimento: 'Data de nascimento' }
                             toast.warning('Campos obrigatórios pendentes', {
-                              description: camposContatoPendentes.map(c => LABELS[c] ?? c).join(' · '),
+                              description: camposContatoBloqueantes.map(c => LABELS[c] ?? c).join(' · '),
                             })
                             return
                           }
@@ -501,11 +504,16 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                     <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 mb-3">
                       <p className="font-semibold mb-1">Campos obrigatórios para acessar Crédito</p>
                       <ul className="list-disc ml-4 space-y-0.5 text-red-700">
-                        {camposContatoPendentes.includes('telefone') && <li>Telefone válido (mín. 10 dígitos, sem sequências repetidas)</li>}
-                        {camposContatoPendentes.includes('email') && <li>E-mail com @</li>}
-                        {camposContatoPendentes.includes('data_nascimento') && <li>Data de nascimento</li>}
+                        {camposContatoBloqueantes.includes('telefone') && <li>Telefone válido (mín. 10 dígitos, sem sequências repetidas)</li>}
+                        {camposContatoBloqueantes.includes('data_nascimento') && <li>Data de nascimento</li>}
                       </ul>
                       <p className="mt-2 text-xs text-red-500">Edite o lead para preencher os campos em vermelho.</p>
+                    </div>
+                  )}
+                  {emailPendente && abaAtiva === 'credito' && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 mb-3">
+                      <p className="font-medium">E-mail não preenchido — solicite ao cliente.</p>
+                      <p className="mt-0.5 text-xs text-amber-600">Não é necessário para a consulta de restritivos, mas é importante para envio de propostas e contratos.</p>
                     </div>
                   )}
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
