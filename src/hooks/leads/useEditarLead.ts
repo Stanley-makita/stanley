@@ -73,7 +73,9 @@ interface EditarLeadInput {
   parceiro_id?: string | null
   // Negociação (Financiamento/CGI)
   fgts?: boolean | null
+  valor_fgts?: number | null
   tem_assessoria?: boolean | null
+  valor_assessoria?: number | null
   responsavel_registro?: Lead['responsavel_registro']
 }
 
