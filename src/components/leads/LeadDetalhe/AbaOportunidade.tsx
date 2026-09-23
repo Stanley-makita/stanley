@@ -24,7 +24,8 @@ import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { type Lead } from '@/types/leads'
-import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
+import { MODALIDADE_LABELS, type ModalidadeProcesso, RESPONSAVEL_REGISTRO_LABELS, type ResponsavelRegistro } from '@/types/processos'
+import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
 // ── schema ────────────────────────────────────────────────────────────────────
@@ -40,6 +41,11 @@ const schema = z.object({
   valor_imovel:      z.coerce.number().min(0).optional(),
   valor_pretendido:  z.coerce.number().min(0).optional(),
   observacoes:       z.string().optional(),
+  // Negociação (Financiamento/CGI) — só a intenção nesta fase, ver
+  // migration 20260923_322
+  fgts:                 z.boolean().nullable().optional(),
+  tem_assessoria:       z.boolean().nullable().optional(),
+  responsavel_registro: z.enum(['fontinhas', 'cliente', 'corretor']).nullable().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -76,6 +82,9 @@ function leadParaForm(lead: Lead): FormData {
     valor_imovel:               lead.valor_imovel ?? undefined,
     valor_pretendido:           lead.valor_pretendido ?? undefined,
     observacoes:                lead.observacoes ?? undefined,
+    fgts:                       lead.fgts ?? null,
+    tem_assessoria:             lead.tem_assessoria ?? null,
+    responsavel_registro:       lead.responsavel_registro ?? null,
   }
 }
 
@@ -133,6 +142,12 @@ export function AbaOportunidade({ lead }: Props) {
     defaultValues: leadParaForm(lead),
   })
 
+  // Card de Negociação (FGTS/Assessoria/Registro) só faz sentido pra
+  // Financiamento e CGI — mesmos 2 produtos que o "+ Novo Processo" usa
+  // esses campos hoje.
+  const produtoInteresse = form.watch('produto_interesse')
+  const mostrarNegociacao = produtoInteresse === 'financiamento' || produtoInteresse === 'cgi'
+
   useEffect(() => {
     form.reset(leadParaForm(lead))
   }, [lead.id])
@@ -150,6 +165,9 @@ export function AbaOportunidade({ lead }: Props) {
       valor_imovel:               data.valor_imovel ?? null,
       valor_pretendido:           data.valor_pretendido ?? null,
       observacoes:                data.observacoes || null,
+      fgts:                       data.fgts ?? null,
+      tem_assessoria:             data.tem_assessoria ?? null,
+      responsavel_registro:       data.responsavel_registro ?? null,
     })
     // Lembrete pós-salvar — a consulta em si é feita marcando o item
     // obrigatório "Consulta CPF" no checklist da fase (painel direito), que
@@ -323,6 +341,75 @@ export function AbaOportunidade({ lead }: Props) {
               </FormItem>
             )} />
           </div>
+
+          {mostrarNegociacao && (
+            <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+              <FormField control={form.control} name="fgts" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>FGTS <Opc /></FormLabel>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {([true, false] as const).map(val => (
+                      <button
+                        key={String(val)}
+                        type="button"
+                        onClick={() => field.onChange(field.value === val ? null : val)}
+                        className={cn(
+                          'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                          field.value === val
+                            ? 'border-fonti-primary bg-fonti-accent-hover text-fonti-primary'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                        )}
+                      >
+                        {val ? 'Utilizará FGTS' : 'Não utilizará FGTS'}
+                      </button>
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="tem_assessoria" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Com Assessoria <Opc /></FormLabel>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => field.onChange(!field.value)}
+                      className={cn('w-9 h-5 rounded-full transition-colors flex items-center px-0.5', field.value ? 'bg-fonti-primary' : 'bg-gray-200')}
+                    >
+                      <div className={cn('w-4 h-4 rounded-full bg-white shadow transition-transform', field.value ? 'translate-x-4' : 'translate-x-0')} />
+                    </button>
+                    <span className="text-sm text-gray-600">{field.value ? 'Com Assessoria' : 'Sem Assessoria'}</span>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="responsavel_registro" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quem vai fazer o registro <Opc /></FormLabel>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {(Object.keys(RESPONSAVEL_REGISTRO_LABELS) as ResponsavelRegistro[]).map(opcao => (
+                      <button
+                        key={opcao}
+                        type="button"
+                        onClick={() => field.onChange(field.value === opcao ? null : opcao)}
+                        className={cn(
+                          'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                          field.value === opcao
+                            ? 'border-fonti-primary bg-fonti-accent-hover text-fonti-primary'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                        )}
+                      >
+                        {RESPONSAVEL_REGISTRO_LABELS[opcao]}
+                      </button>
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          )}
         </Secao>
 
         {/* ── Parceiro ("indicado por") ────────────────────────────────── */}
