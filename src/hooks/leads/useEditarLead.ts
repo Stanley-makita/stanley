@@ -71,6 +71,10 @@ interface EditarLeadInput {
   campanha?: string | null
   produto_subtipo?: string | null
   parceiro_id?: string | null
+  // Negociação (Financiamento/CGI)
+  fgts?: boolean | null
+  tem_assessoria?: boolean | null
+  responsavel_registro?: Lead['responsavel_registro']
 }
 
 export function useEditarLead() {

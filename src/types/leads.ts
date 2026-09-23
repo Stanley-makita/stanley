@@ -1,4 +1,4 @@
-import type { ModalidadeProcesso, ChanceEmissao } from '@/types/processos'
+import type { ModalidadeProcesso, ChanceEmissao, ResponsavelRegistro } from '@/types/processos'
 
 /**
  * Deixou de ser união fechada — leads.origem virou TEXT (migration 286),
@@ -122,6 +122,11 @@ export interface Lead {
   campanha:        string | null
   parceiro_id:     string | null
   produto_subtipo: string | null
+  // Negociação (Financiamento/CGI) — só a intenção; valores em R$ ficam só
+  // no Processo (ver migration 20260923_322)
+  fgts:                  boolean | null
+  tem_assessoria:        boolean | null
+  responsavel_registro:  ResponsavelRegistro | null
   // Joins
   responsavel?: { id: string; nome: string } | null
   responsavel_operacional?: { id: string; nome: string } | null

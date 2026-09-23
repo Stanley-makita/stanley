@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Lead, type LeadAnaliseCredito } from '@/types/leads'
-import { type TipoContrato, TIPO_CONTRATO_LABELS } from '@/types/processos'
+import { type TipoContrato, TIPO_CONTRATO_LABELS, type ResponsavelRegistro, RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
@@ -602,13 +602,18 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
   const [valorFinanciar, setValorFinanciar] = useState(() => fmtN(fonte?.valor_pretendido))
   const [valorEntrada, setValorEntrada]     = useState(() => fmtN(fonte?.entrada))
 
-  // FGTS: null = não escolhido, true = sim, false = não
-  const [fgts, setFgts]         = useState<boolean | null>(null)
+  // FGTS: null = não escolhido, true = sim, false = não — pré-preenche com a
+  // intenção já declarada na aba Oportunidade do Lead (valor em R$ continua
+  // vazio, só é conhecido aqui).
+  const [fgts, setFgts]         = useState<boolean | null>(lead?.fgts ?? null)
   const [valorFgts, setValorFgts] = useState('')
 
   // Assessoria: null = não escolhido, true = com, false = sem
-  const [assessoria, setAssessoria]         = useState<boolean | null>(null)
+  const [assessoria, setAssessoria]         = useState<boolean | null>(lead?.tem_assessoria ?? null)
   const [valorAssessoria, setValorAssessoria] = useState('')
+
+  // Quem vai fazer o registro — pré-preenche do Lead
+  const [responsavelRegistro, setResponsavelRegistro] = useState<ResponsavelRegistro | null>(lead?.responsavel_registro ?? null)
 
   // Responsáveis
   const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
@@ -739,6 +744,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       status_processo:  'em_analise',
       tem_assessoria:   assessoria === true,
       valor_assessoria: assessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
+      responsavel_registro: responsavelRegistro,
       comissao_comercial: comissaoComercial,
       comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId,
@@ -1025,6 +1031,29 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
         </div>
       </Secao>
 
+      <Secao titulo="Registro">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-700">Quem vai fazer o registro</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(Object.keys(RESPONSAVEL_REGISTRO_LABELS) as ResponsavelRegistro[]).map(opcao => (
+              <button
+                key={opcao}
+                type="button"
+                onClick={() => setResponsavelRegistro(responsavelRegistro === opcao ? null : opcao)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                  responsavelRegistro === opcao
+                    ? 'border-fonti-primary bg-fonti-accent-hover text-fonti-primary'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                )}
+              >
+                {RESPONSAVEL_REGISTRO_LABELS[opcao]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Secao>
+
       <Secao titulo="Responsáveis">
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Operacional *">
@@ -1093,8 +1122,11 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
   const [bancoId, setBancoId] = useState('')
   const [comissaoComercial, setComissaoComercial] = useState<number | null>(null)
   const [comissaoEmpresa, setComissaoEmpresa] = useState<number | null>(null)
-  const [temAssessoria, setTemAssessoria] = useState(true)
+  // Pré-preenche com a intenção já declarada na aba Oportunidade do Lead —
+  // sem valor salvo, mantém o padrão anterior (true)
+  const [temAssessoria, setTemAssessoria] = useState(lead?.tem_assessoria ?? true)
   const [valorAssessoria, setValorAssessoria] = useState('')
+  const [responsavelRegistro, setResponsavelRegistro] = useState<ResponsavelRegistro | null>(lead?.responsavel_registro ?? null)
   const [operacionalId, setOperacionalId] = useState(usuario?.id ?? '')
   const [comercialId, setComercialId] = useState(lead?.responsavel_id ?? usuario?.id ?? '')
 
@@ -1120,6 +1152,7 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       status_processo:  'em_analise',
       tem_assessoria:   temAssessoria,
       valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
+      responsavel_registro: responsavelRegistro,
       comissao_comercial: comissaoComercial,
       comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,
@@ -1212,6 +1245,29 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
               <Input placeholder="R$ 0,00" value={valorAssessoria} onChange={e => setValorAssessoria(e.target.value)} onBlur={e => setValorAssessoria(formatMoedaInput(e.target.value))} className="h-9 text-sm" />
             </Campo>
           )}
+        </div>
+      </Secao>
+
+      <Secao titulo="Registro">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-700">Quem vai fazer o registro</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(Object.keys(RESPONSAVEL_REGISTRO_LABELS) as ResponsavelRegistro[]).map(opcao => (
+              <button
+                key={opcao}
+                type="button"
+                onClick={() => setResponsavelRegistro(responsavelRegistro === opcao ? null : opcao)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                  responsavelRegistro === opcao
+                    ? 'border-fonti-primary bg-fonti-accent-hover text-fonti-primary'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                )}
+              >
+                {RESPONSAVEL_REGISTRO_LABELS[opcao]}
+              </button>
+            ))}
+          </div>
         </div>
       </Secao>
 
