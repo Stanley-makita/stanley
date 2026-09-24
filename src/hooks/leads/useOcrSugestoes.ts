@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import type { OcrResultado } from '@/lib/documentos/ocr'
+import { cpfValido } from '@/lib/cpf'
 
 export interface SugestaoOcr {
   campo: string
@@ -134,8 +135,8 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
       }
 
       function validarValor(campo: string, valor: string): boolean {
-        // CPF deve ter exatamente 11 dígitos
-        if (campo === 'cpf' && valor.replace(/\D/g, '').length !== 11) return false
+        // CPF precisa passar no dígito verificador (11 dígitos não basta)
+        if (campo === 'cpf' && !cpfValido(valor)) return false
         // Datas devem estar no formato YYYY-MM-DD
         if (CAMPOS_DATA.has(campo) && !DATA_RE.test(valor)) return false
         return true
@@ -156,7 +157,12 @@ export function useOcrSugestoes(leadId: string): OcrSugestoesResult {
           if (!validarValor(campo, valorBruto)) continue
 
           const valorAtual = (pessoa as unknown as Record<string, unknown>)[campo]
-          const strAtual = valorAtual ? String(valorAtual).trim() : null
+          let strAtual = valorAtual ? String(valorAtual).trim() : null
+          // CPF: compara só dígitos (OCR pode vir com máscara) e trata CPF atual
+          // inválido (ex: telefone gravado como CPF) como vazio — vira "novo", não
+          // "conflito" bloqueado. Mesma regra de /api/leads/[id]/aplicar-ocr.
+          if (campo === 'cpf' && strAtual && !cpfValido(strAtual)) strAtual = null
+          if (campo === 'cpf' && strAtual && strAtual.replace(/\D/g, '') === valorBruto.replace(/\D/g, '')) continue
 
           if (strAtual && strAtual.toLowerCase() === valorBruto.toLowerCase()) continue
 

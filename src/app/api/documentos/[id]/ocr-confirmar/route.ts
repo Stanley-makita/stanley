@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { resolverPessoaConjuge } from '@/lib/pessoa'
+import { cpfValido } from '@/lib/cpf'
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -69,6 +70,7 @@ export async function POST(
   const DATA_FIELDS = ['data_nascimento', 'data_casamento', 'data_emissao', 'validade_cnh', 'primeira_habilitacao_cnh']
 
   const camposFiltrados: Record<string, unknown> = {}
+  let cpf_invalido = false
   for (const [k, v] of Object.entries(campos)) {
     if (!CAMPOS_PERMITIDOS.includes(k)) continue
     if (v === null || v === undefined || v === '') continue
@@ -76,7 +78,8 @@ export async function POST(
     // Validações por campo para evitar rejeição no banco
     if (k === 'cpf') {
       s = s.replace(/\D/g, '')  // normaliza para apenas dígitos
-      if (s.length !== 11) continue
+      // Dígito verificador: OCR que leu um dígito errado não pode gravar CPF inexistente
+      if (!cpfValido(s)) { cpf_invalido = true; continue }
     }
     if (DATA_FIELDS.includes(k) && !DATA_REGEX.test(s)) continue
     if (k === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) continue
@@ -111,8 +114,13 @@ export async function POST(
     }
   }
 
-  // CPF separado: se violar UNIQUE (pertence a outra pessoa), ignora graciosamente
+  // CPF separado: se violar UNIQUE (pertence a outra pessoa), não salva o CPF mas
+  // devolve QUEM é o dono, pra tela avisar de forma clara — antes só saía um toast
+  // verde de "sucesso" e o CPF antigo (ex: telefone capturado no *cria cliente)
+  // continuava no cadastro sem ninguém perceber (achado real, 2026-09-24).
   let cpf_divergente = false
+  let cpf_pertence_a: { id: string; nome: string | null } | null = null
+  let cpfSalvo = false
   if (camposFiltrados['cpf']) {
     const { error: errCpf } = await supabase
       .from('pessoas')
@@ -121,6 +129,41 @@ export async function POST(
     if (errCpf) {
       console.warn('[ocr-confirmar] CPF não salvo (conflito UNIQUE):', errCpf.message)
       cpf_divergente = true
+      const { data: dono } = await supabase
+        .from('pessoas')
+        .select('id, nome')
+        .eq('empresa_id', empresa_id)
+        .eq('cpf', camposFiltrados['cpf'] as string)
+        .is('deleted_at', null)
+        .neq('id', pessoaId)
+        .limit(1)
+        .maybeSingle()
+      cpf_pertence_a = dono ?? null
+    } else {
+      cpfSalvo = true
+    }
+  }
+
+  // Espelha no Lead os campos que ele duplica da Pessoa (nome/cpf/data_nascimento) —
+  // o sidebar de Captação e o gate de Formulários leem de `leads`, não de `pessoas`.
+  // Mesmo espelhamento que /api/leads/[id]/aplicar-ocr já fazia; esta rota não fazia,
+  // e o lado esquerdo da tela ficava com o dado do *cria cliente pra sempre, mesmo
+  // após refresh (achado real, 2026-09-24). Só pro titular: dado do cônjuge não é do lead.
+  if (alvo === 'principal') {
+    const updateLead: Record<string, unknown> = {}
+    if (camposFiltrados['nome']) updateLead.nome = camposFiltrados['nome']
+    if (camposFiltrados['data_nascimento']) updateLead.data_nascimento = camposFiltrados['data_nascimento']
+    if (cpfSalvo) updateLead.cpf = camposFiltrados['cpf']
+    if (Object.keys(updateLead).length > 0) {
+      const { error: errLead } = await supabase
+        .from('leads')
+        .update(updateLead)
+        .eq('pessoa_id', pessoaId)
+        .eq('empresa_id', empresa_id)
+        .is('deleted_at', null)
+      if (errLead) {
+        console.error('[ocr-confirmar] Erro ao espelhar campos no lead:', errLead.message, '| campos:', Object.keys(updateLead))
+      }
     }
   }
 
@@ -259,6 +302,8 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     cpf_divergente,
+    cpf_pertence_a,
+    cpf_invalido,
     camposSalvos: Object.keys(camposFiltrados),
     pessoaId,
     alvo,

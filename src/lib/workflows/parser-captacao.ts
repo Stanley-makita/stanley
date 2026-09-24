@@ -91,6 +91,7 @@ Regras de extração:
 NOME: Nome completo do cliente. null se ausente.
 
 CPF: Retorna exatamente como escrito (com ou sem pontuação). null se ausente.
+Um número de 10-11 dígitos solto, sem a palavra "CPF" perto, com cara de DDD + celular (ex: "44984558945", "(44) 98455-8945") é TELEFONE, nunca CPF.
 Se houver múltiplos CPFs no formato "Nome: CPF ... / Nome: CPF ...", retornar o CPF do PRIMEIRO nome listado.
 
 MÚLTIPLOS CLIENTES: Se o texto contiver dois ou mais clientes no formato "Nome: CPF DN data / Nome: CPF DN data",
