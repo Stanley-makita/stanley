@@ -45,6 +45,7 @@ interface DocumentoParaVincular {
   created_at: string
   pessoa_id: string | null
   storage_path: string
+  pasta_lead_id: string | null
 }
 
 interface ProcessoCriadoPayload {
@@ -352,7 +353,18 @@ export function NovoProcessoModal({ aberto, onFechar, lead, pessoa }: Props) {
       setBuscandoDocs(false)
 
       if (docs && docs.length > 0) {
-        setVinculacao({ ...payload, docs: docs as DocumentoParaVincular[] })
+        // Pasta escolhida na Captação (vínculo com o lead) vira a 1ª sugestão no negócio.
+        let pastaPorDoc = new Map<string, string | null>()
+        if (lead?.id && docs && docs.length > 0) {
+          const { data: vincLead } = await supabase
+            .from('documento_vinculos')
+            .select('documento_id, pasta_id')
+            .eq('entidade_tipo', 'lead')
+            .eq('entidade_id', lead.id)
+            .in('documento_id', docs.map(d => d.id))
+          pastaPorDoc = new Map((vincLead ?? []).map(v => [v.documento_id as string, v.pasta_id as string | null]))
+        }
+        setVinculacao({ ...payload, docs: docs.map(d => ({ ...d, pasta_lead_id: pastaPorDoc.get(d.id) ?? null })) as DocumentoParaVincular[] })
         return
       }
     }
@@ -1773,11 +1785,15 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
     const rows = Array.from(ids).map(docId => {
       const doc = docs.find(d => d.id === docId)
       const codigoDoTipo = catalogoTipos?.find(t => t.codigo === doc?.classificacao)?.pasta_sugerida_codigo ?? null
+      const pastaDoLeadCodigo = doc?.pasta_lead_id
+        ? catalogoPastas.find(p => p.id === doc.pasta_lead_id)?.codigo ?? null
+        : null
       const codigoPasta = doc ? inferirPastaSugerida({
         documentoPessoaId: doc.pessoa_id,
         pastaSugeridaCodigoDoTipo: codigoDoTipo,
         pessoasCompradorasIds: compradorasIds,
         pessoasVendedorasIds: vendedorasIds,
+        pastaDoLeadCodigo,
       }) : null
       const pastaId = codigoPasta ? catalogoPastas.find(p => p.codigo === codigoPasta)?.id ?? null : null
       return {
