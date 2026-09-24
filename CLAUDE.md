@@ -547,5 +547,7 @@ rota `POST /api/leads/[id]/organizar-documentos/aplicar`, nunca por UPDATE diret
 (`useMoverDocumentoParaPasta` só faz UPDATE e não criaria o vínculo). "Organizar arquivos" chama
 `/classificar`, que roda só a fase 1 do OCR (Haiku) e grava o tipo em `classificacao_legado`,
 inclusive `'outro'`, pra não pagar de novo; `processarOcrDocumento` pula a fase 1 quando o tipo já
-é conhecido. Na conversão lead → negócio, a pasta do lead é a 1ª prioridade de
-`inferirPastaSugerida` (`pastaDoLeadCodigo`).
+é conhecido — inclusive quando o operador escolheu o tipo manualmente no upload (não `'auto'`):
+"Extrair dados" confia nesse tipo e pula a classificação por Haiku, então um tipo manual errado
+vai direto pra extração completa por Sonnet, sem checagem intermediária. Na conversão lead →
+negócio, a pasta do lead é a 1ª prioridade de `inferirPastaSugerida` (`pastaDoLeadCodigo`).

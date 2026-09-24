@@ -28,7 +28,7 @@ vi.mock('@/lib/supabase/admin', () => ({
       q.eq = (k: string, v: unknown) => { filtros[k] = v; return q }
       q.update = (valores: unknown) => { estado.updates.push({ valores, filtros }); return q }
       q.select = () => Promise.resolve({ data: Array(estado.linhasAfetadasUpdate).fill({ id: 'v' }), error: null })
-      q.insert = (rows: unknown) => { estado.inserts.push(rows); return { select: () => Promise.resolve({ data: [{ id: 'novo' }], error: null }) } }
+      q.upsert = (rows: unknown) => { estado.inserts.push(rows); return { select: () => Promise.resolve({ data: (rows as unknown[]).map(() => ({ id: 'novo' })), error: null }) } }
       return q
     },
   },
@@ -68,5 +68,16 @@ describe('POST organizar-documentos/aplicar', () => {
     const { POST } = await import('../aplicar/route')
     const res = await POST(req({ itens: [{ documento_id: 'd1', pasta_id: 'pA' }] }), { params: { id: 'lead-1' } })
     expect(res.status).toBe(500)
+  })
+
+  it('itens duplicados pro mesmo documento: o último vence, sem duplicar operação', async () => {
+    const { POST } = await import('../aplicar/route')
+    const res = await POST(req({ itens: [
+      { documento_id: 'd2', pasta_id: 'pA' },
+      { documento_id: 'd2', pasta_id: 'pB' },
+    ] }), { params: { id: 'lead-1' } })
+    expect(await res.json()).toEqual({ ok: true, atualizados: 0, criados: 1 })
+    expect(estado.inserts).toHaveLength(1)
+    expect(estado.inserts[0]).toEqual([expect.objectContaining({ documento_id: 'd2', pasta_id: 'pB' })])
   })
 })

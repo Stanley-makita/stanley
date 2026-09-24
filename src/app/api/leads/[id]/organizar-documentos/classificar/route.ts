@@ -10,6 +10,11 @@ import { inferirPastaSugerida } from '@/lib/documentos'
 export const maxDuration = 60
 
 const CONCORRENCIA = 4
+// maxDuration=60 + timeout de 45s por chamada de IA: mais que 4 documentos
+// por requisição arrisca estourar o limite da função. O modal já manda em
+// lotes de 4 (ver OrganizarArquivosModal.tsx), então isto é só uma trava de
+// segurança contra um chamador que mande mais.
+const MAX_DOCUMENTOS_POR_REQUISICAO = 4
 
 /** "Organizar arquivos" passo 1: classifica (Haiku) e sugere pasta. Não grava pasta. */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -18,7 +23,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { usuario, lead } = ctx
 
   const body = await request.json().catch(() => ({})) as { documento_ids?: string[] }
-  const pedidos = Array.isArray(body.documento_ids) ? body.documento_ids : []
+  const pedidos = (Array.isArray(body.documento_ids) ? body.documento_ids : []).slice(0, MAX_DOCUMENTOS_POR_REQUISICAO)
 
   const [{ docs }, vendedores, pastaPorTipo] = await Promise.all([
     carregarDocumentosDoLead(lead.id, lead.pessoa_id, usuario.empresa_id),

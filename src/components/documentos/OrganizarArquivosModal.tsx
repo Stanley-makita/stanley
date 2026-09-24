@@ -122,9 +122,10 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
         body: JSON.stringify({ itens }),
       })
-      const json = await res.json()
+      // res.json() pode falhar (erro de rede já lançou antes, ou 5xx sem corpo JSON).
+      const json = await res.json().catch(() => null) as { error?: string } | null
       if (!res.ok) {
-        toast.error(json.error ?? 'Erro ao organizar.')
+        toast.error(json?.error ?? 'Erro ao organizar.')
         // Pode ter havido gravação parcial no servidor (alguns vínculos
         // atualizados antes do erro) — recarrega a lista real em vez de
         // deixar a tela mostrar um estado que já não é verdade.
@@ -132,6 +133,10 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
         return
       }
       toast.success(`${itens.length} arquivo${itens.length !== 1 ? 's' : ''} organizado${itens.length !== 1 ? 's' : ''}.`)
+      onConcluido()
+    } catch {
+      // Erro de rede — mesma lógica: pode ter havido gravação parcial.
+      toast.error('Erro ao organizar.')
       onConcluido()
     } finally {
       setSalvando(false)

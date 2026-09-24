@@ -15,8 +15,12 @@ vi.mock('@/lib/documentos/contextoLeadServidor', () => ({
     docs: [
       { id: 'd1', pessoa_id: 'pessoa-1', classificacao_legado: null },
       { id: 'd2', pessoa_id: 'vend-1', classificacao_legado: null },
+      { id: 'd3', pessoa_id: 'pessoa-1', classificacao_legado: null },
+      { id: 'd4', pessoa_id: 'pessoa-1', classificacao_legado: null },
+      { id: 'd5', pessoa_id: 'pessoa-1', classificacao_legado: null },
+      { id: 'd6', pessoa_id: 'pessoa-1', classificacao_legado: null },
     ],
-    idsComVinculoLead: new Set(['d1', 'd2']),
+    idsComVinculoLead: new Set(['d1', 'd2', 'd3', 'd4', 'd5', 'd6']),
   }),
   carregarVendedoresDoLead: async () => ['vend-1'],
   carregarPastaSugeridaPorTipo: async () => new Map([['cnh', 'comprador'], ['rg', 'comprador']]),
@@ -64,5 +68,13 @@ describe('POST organizar-documentos/classificar', () => {
     const { POST } = await import('../classificar/route')
     const json = await (await POST(req({ documento_ids: ['d1', 'd2'] }), { params: { id: 'lead-1' } })).json()
     expect(json.itens[1]).toEqual({ documento_id: 'd2', tipo: null, pasta_sugerida_codigo: null, motivo: 'erro' })
+  })
+
+  it('requisição com 6 ids só classifica os 4 primeiros (MAX_DOCUMENTOS_POR_REQUISICAO)', async () => {
+    estado.tipos = { d1: 'cnh', d2: 'rg', d3: 'cnh', d4: 'rg', d5: 'cnh', d6: 'rg' }
+    const { POST } = await import('../classificar/route')
+    const json = await (await POST(req({ documento_ids: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] }), { params: { id: 'lead-1' } })).json()
+    expect(estado.classificados).toEqual(['d1', 'd2', 'd3', 'd4'])
+    expect(json.itens).toHaveLength(4)
   })
 })

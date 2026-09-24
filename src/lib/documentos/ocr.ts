@@ -8,6 +8,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { precisaClassificar, tipoPermitePularClassificacao } from './organizarPastas'
+import { inferirPastaSugerida } from '@/lib/documentos'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -310,30 +311,69 @@ export async function classificarDocumentoPorId(
 
 /**
  * Depois do "Extrair dados": vínculos de lead SEM pasta recebem a pasta sugerida
- * pelo tipo (catalogo_tipos_documento.pasta_sugerida_codigo). Nunca sobrescreve
- * pasta já escolhida pelo operador.
+ * — mesma regra de 3 níveis do endpoint /classificar (inferirPastaSugerida):
+ * dono vendedor do lead vence o tipo do documento. Nunca sobrescreve pasta já
+ * escolhida pelo operador. Nunca lança (chamada dentro do try do OCR — uma
+ * falha aqui não pode marcar a extração como erro).
  */
 export async function preencherPastaDeVinculosLeadSemPasta(documentoId: string, tipo: string): Promise<void> {
-  const supabase = serviceSupabase()
-  const { data: tipoCat } = await supabase
-    .from('catalogo_tipos_documento')
-    .select('pasta_sugerida_codigo')
-    .eq('codigo', tipo)
-    .maybeSingle()
-  const codigo = tipoCat?.pasta_sugerida_codigo as string | null | undefined
-  if (!codigo) return
-  const { data: pasta } = await supabase
-    .from('catalogo_pastas_processo')
-    .select('id')
-    .eq('codigo', codigo)
-    .maybeSingle()
-  if (!pasta?.id) return
-  await supabase
-    .from('documento_vinculos')
-    .update({ pasta_id: pasta.id })
-    .eq('documento_id', documentoId)
-    .eq('entidade_tipo', 'lead')
-    .is('pasta_id', null)
+  try {
+    const supabase = serviceSupabase()
+
+    const { data: doc } = await supabase
+      .from('documentos')
+      .select('pessoa_id')
+      .eq('id', documentoId)
+      .maybeSingle()
+    const documentoPessoaId = (doc?.pessoa_id as string | null | undefined) ?? null
+
+    const { data: tipoCat } = await supabase
+      .from('catalogo_tipos_documento')
+      .select('pasta_sugerida_codigo')
+      .eq('codigo', tipo)
+      .maybeSingle()
+    const pastaSugeridaCodigoDoTipo = (tipoCat?.pasta_sugerida_codigo as string | null | undefined) ?? null
+
+    // Cada vínculo é de um lead — o papel de vendedor é por lead, não global.
+    const { data: vinculos } = await supabase
+      .from('documento_vinculos')
+      .select('id, entidade_id')
+      .eq('documento_id', documentoId)
+      .eq('entidade_tipo', 'lead')
+      .is('pasta_id', null)
+    if (!vinculos || vinculos.length === 0) return
+
+    for (const vinculo of vinculos as { id: string; entidade_id: string }[]) {
+      const { data: vendedores } = await supabase
+        .from('lead_vendedores')
+        .select('pessoa_id')
+        .eq('lead_id', vinculo.entidade_id)
+      const pessoasVendedorasIds = (vendedores ?? []).map(v => v.pessoa_id as string)
+
+      const codigo = inferirPastaSugerida({
+        documentoPessoaId,
+        pastaSugeridaCodigoDoTipo,
+        pessoasCompradorasIds: [],
+        pessoasVendedorasIds,
+      })
+      if (!codigo) continue
+
+      const { data: pasta } = await supabase
+        .from('catalogo_pastas_processo')
+        .select('id')
+        .eq('codigo', codigo)
+        .maybeSingle()
+      if (!pasta?.id) continue
+
+      await supabase
+        .from('documento_vinculos')
+        .update({ pasta_id: pasta.id })
+        .eq('id', vinculo.id)
+        .is('pasta_id', null)
+    }
+  } catch (err) {
+    console.error('[ocr] Falha ao preencher pasta de vínculos do documento:', documentoId, err instanceof Error ? err.message : err)
+  }
 }
 
 export async function processarOcrDocumento(

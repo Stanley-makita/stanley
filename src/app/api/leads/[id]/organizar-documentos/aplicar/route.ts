@@ -15,7 +15,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { usuario, lead } = ctx
 
   const body = await request.json().catch(() => ({})) as { itens?: { documento_id: string; pasta_id: string | null }[] }
-  const itens = Array.isArray(body.itens) ? body.itens : []
+  const itensBrutos = Array.isArray(body.itens) ? body.itens : []
+  // Dedup por documento_id: em requisição duplicada/concorrente, o último item
+  // do array vence (mesmo padrão que um novo clique substituiria o anterior).
+  const itens = Array.from(new Map(itensBrutos.map(i => [i.documento_id, i])).values())
 
   const { docs, idsComVinculoLead } = await carregarDocumentosDoLead(lead.id, lead.pessoa_id, usuario.empresa_id)
   const permitidos = new Set(filtrarDocumentosDoLead(itens.map(i => i.documento_id), docs).map(d => d.id))
@@ -38,16 +41,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   if (criar.length > 0) {
+    // upsert (não insert): há índice único (documento_id, entidade_tipo, entidade_id) —
+    // duas requisições concorrentes pro mesmo documento sem vínculo ainda não colidem
+    // com erro de duplicidade, a segunda só atualiza a pasta da primeira.
     const { data, error } = await supabase
       .from('documento_vinculos')
-      .insert(criar.map(c => ({
+      .upsert(criar.map(c => ({
         empresa_id:    usuario.empresa_id,
         documento_id:  c.documento_id,
         entidade_tipo: 'lead',
         entidade_id:   lead.id,
         vinculado_por: usuario.id,
         pasta_id:      c.pasta_id,
-      })))
+      })), { onConflict: 'documento_id,entidade_tipo,entidade_id' })
       .select('id')
     if (error || !data || data.length !== criar.length) {
       console.error('[organizar-documentos/aplicar] vínculo não criado:', error?.message)

@@ -655,14 +655,24 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   // (documento só da Pessoa) — por isso passa pela rota de servidor, não pelo
   // useMoverDocumentoParaPasta (que só faz UPDATE).
   async function moverDocumentoNoLead(documentoId: string, novaPastaId: string | null) {
-    const { data: session } = await supabase.auth.getSession()
-    const res = await fetch(`/api/leads/${leadId}/organizar-documentos/aplicar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token ?? ''}` },
-      body: JSON.stringify({ itens: [{ documento_id: documentoId, pasta_id: novaPastaId }] }),
-    })
-    if (!res.ok) { toast.error('Não foi possível mover o documento.'); return }
-    queryClient.invalidateQueries({ queryKey })
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      const res = await fetch(`/api/leads/${leadId}/organizar-documentos/aplicar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token ?? ''}` },
+        body: JSON.stringify({ itens: [{ documento_id: documentoId, pasta_id: novaPastaId }] }),
+      })
+      if (!res.ok) {
+        // res.json() pode falhar (5xx sem corpo JSON) — trata como erro genérico.
+        const json = await res.json().catch(() => null) as { error?: string } | null
+        toast.error(json?.error ?? 'Não foi possível mover o documento.')
+        return
+      }
+      queryClient.invalidateQueries({ queryKey })
+    } catch {
+      // Erro de rede — fetch nem chegou a responder.
+      toast.error('Não foi possível mover o documento.')
+    }
   }
 
   function contarDocsNaPasta(codigo: string): number {
