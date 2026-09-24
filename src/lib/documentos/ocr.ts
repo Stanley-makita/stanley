@@ -7,6 +7,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { precisaClassificar, tipoPermitePularClassificacao } from './organizarPastas'
+import { inferirPastaSugerida } from '@/lib/documentos'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -243,6 +245,137 @@ const MODELO_CLASSIFICACAO = 'claude-haiku-4-5-20251001'
 const MODELO_EXTRACAO = 'claude-sonnet-5'
 const VERSAO_PROMPT = 'v2'
 
+/** Fase 1 do OCR isolada: só identifica o tipo (Haiku, barato). Lança em falha. */
+export async function classificarTipoDocumento(
+  contentBlock: Anthropic.Messages.ContentBlockParam,
+): Promise<{ tipo_documento: string; confianca: string }> {
+  const res = await anthropic.messages.create(
+    {
+      model: MODELO_CLASSIFICACAO,
+      max_tokens: 120,
+      system: SYSTEM_PROMPT_CLASSIFICAR,
+      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Que tipo de documento é este?' }] }],
+    },
+    { signal: AbortSignal.timeout(45000) },
+  )
+  const bloco = res.content[0]
+  if (bloco?.type !== 'text') throw new Error('Resposta inesperada na classificação')
+  return JSON.parse(limparJson(bloco.text)) as { tipo_documento: string; confianca: string }
+}
+
+/** Baixa o arquivo do storage e monta o bloco pra IA; null se o mime não é suportado. */
+async function baixarContentBlock(doc: { storage_path: string; storage_bucket: string | null; mime_type: string | null }) {
+  const supabase = serviceSupabase()
+  const { data: urlData } = await supabase.storage
+    .from(doc.storage_bucket ?? 'documentos-clientes')
+    .createSignedUrl(doc.storage_path, 120)
+  if (!urlData?.signedUrl) throw new Error('Não foi possível gerar URL do documento')
+  const resp = await fetch(urlData.signedUrl, { signal: AbortSignal.timeout(30000) })
+  if (!resp.ok) throw new Error(`Download falhou: ${resp.status}`)
+  const base64 = Buffer.from(await resp.arrayBuffer()).toString('base64')
+  const rawMime = doc.mime_type ?? 'image/jpeg'
+  const mimeType = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime
+  return { contentBlock: montarContentBlock(base64, mimeType), mimeType }
+}
+
+/**
+ * "Organizar arquivos": classifica um documento e grava o tipo em
+ * classificacao_legado — inclusive 'outro', pra um novo clique não pagar a IA
+ * de novo. Nunca lança: falha vira { tipo: null, motivo }.
+ */
+export async function classificarDocumentoPorId(
+  documentoId: string,
+  empresaId: string,
+): Promise<{ tipo: string | null; motivo?: 'nao_suportado' | 'erro' }> {
+  const supabase = serviceSupabase()
+  const { data: doc } = await supabase
+    .from('documentos')
+    .select('id, storage_path, storage_bucket, mime_type, classificacao_legado')
+    .eq('id', documentoId)
+    .eq('empresa_id', empresaId)
+    .maybeSingle()
+  if (!doc) return { tipo: null, motivo: 'erro' }
+  if (!precisaClassificar(doc.classificacao_legado)) return { tipo: doc.classificacao_legado as string }
+
+  try {
+    const { contentBlock } = await baixarContentBlock(doc)
+    if (!contentBlock) return { tipo: null, motivo: 'nao_suportado' }
+    const { tipo_documento } = await classificarTipoDocumento(contentBlock)
+    await supabase.from('documentos').update({ classificacao_legado: tipo_documento }).eq('id', documentoId)
+    return { tipo: tipo_documento }
+  } catch (err) {
+    console.error('[ocr] Falha ao classificar documento:', documentoId, err instanceof Error ? err.message : err)
+    return { tipo: null, motivo: 'erro' }
+  }
+}
+
+/**
+ * Depois do "Extrair dados": vínculos de lead SEM pasta recebem a pasta sugerida
+ * — mesma regra de 3 níveis do endpoint /classificar (inferirPastaSugerida):
+ * dono vendedor do lead vence o tipo do documento. Nunca sobrescreve pasta já
+ * escolhida pelo operador. Nunca lança (chamada dentro do try do OCR — uma
+ * falha aqui não pode marcar a extração como erro).
+ */
+export async function preencherPastaDeVinculosLeadSemPasta(documentoId: string, tipo: string): Promise<void> {
+  try {
+    const supabase = serviceSupabase()
+
+    const { data: doc } = await supabase
+      .from('documentos')
+      .select('pessoa_id')
+      .eq('id', documentoId)
+      .maybeSingle()
+    const documentoPessoaId = (doc?.pessoa_id as string | null | undefined) ?? null
+
+    const { data: tipoCat } = await supabase
+      .from('catalogo_tipos_documento')
+      .select('pasta_sugerida_codigo')
+      .eq('codigo', tipo)
+      .maybeSingle()
+    const pastaSugeridaCodigoDoTipo = (tipoCat?.pasta_sugerida_codigo as string | null | undefined) ?? null
+
+    // Cada vínculo é de um lead — o papel de vendedor é por lead, não global.
+    const { data: vinculos } = await supabase
+      .from('documento_vinculos')
+      .select('id, entidade_id')
+      .eq('documento_id', documentoId)
+      .eq('entidade_tipo', 'lead')
+      .is('pasta_id', null)
+    if (!vinculos || vinculos.length === 0) return
+
+    for (const vinculo of vinculos as { id: string; entidade_id: string }[]) {
+      const { data: vendedores } = await supabase
+        .from('lead_vendedores')
+        .select('pessoa_id')
+        .eq('lead_id', vinculo.entidade_id)
+      const pessoasVendedorasIds = (vendedores ?? []).map(v => v.pessoa_id as string)
+
+      const codigo = inferirPastaSugerida({
+        documentoPessoaId,
+        pastaSugeridaCodigoDoTipo,
+        pessoasCompradorasIds: [],
+        pessoasVendedorasIds,
+      })
+      if (!codigo) continue
+
+      const { data: pasta } = await supabase
+        .from('catalogo_pastas_processo')
+        .select('id')
+        .eq('codigo', codigo)
+        .maybeSingle()
+      if (!pasta?.id) continue
+
+      await supabase
+        .from('documento_vinculos')
+        .update({ pasta_id: pasta.id })
+        .eq('id', vinculo.id)
+        .is('pasta_id', null)
+    }
+  } catch (err) {
+    console.error('[ocr] Falha ao preencher pasta de vínculos do documento:', documentoId, err instanceof Error ? err.message : err)
+  }
+}
+
 export async function processarOcrDocumento(
   supabaseCliente: SupabaseClient,
   documentoId: string,
@@ -254,7 +387,7 @@ export async function processarOcrDocumento(
   // Modelo definitivo: lê e escreve exclusivamente em `documentos`.
   const { data: doc } = await supabase
     .from('documentos')
-    .select('id, storage_path, storage_bucket, mime_type, ocr_status:status_ocr')
+    .select('id, storage_path, storage_bucket, mime_type, ocr_status:status_ocr, classificacao_legado')
     .eq('id', documentoId)
     .eq('empresa_id', empresa_id)
     .maybeSingle()
@@ -313,20 +446,7 @@ export async function processarOcrDocumento(
 
   try {
     // Download único — reutilizado nas duas fases
-    const { data: urlData } = await supabase.storage
-      .from(doc.storage_bucket ?? 'documentos-clientes')
-      .createSignedUrl(doc.storage_path, 120)
-
-    if (!urlData?.signedUrl) throw new Error('Não foi possível gerar URL do documento')
-
-    const resp = await fetch(urlData.signedUrl, { signal: AbortSignal.timeout(30000) })
-    if (!resp.ok) throw new Error(`Download falhou: ${resp.status}`)
-
-    const base64 = Buffer.from(await resp.arrayBuffer()).toString('base64')
-    const rawMime = doc.mime_type ?? 'image/jpeg'
-    const mimeType = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime
-
-    const contentBlock = montarContentBlock(base64, mimeType)
+    const { contentBlock, mimeType } = await baixarContentBlock(doc)
     if (!contentBlock) {
       await supabase.from('documentos').update({ status_ocr: 'ignorado' }).eq('id', documentoId)
       await finalizarExtracao({ status: 'ignorado', erro_mensagem: `mime_type não suportado: ${mimeType}` })
@@ -335,20 +455,11 @@ export async function processarOcrDocumento(
     }
 
     // ── Fase 1: classificação rápida ──────────────────────────────
-    const resClassificacao = await anthropic.messages.create(
-      {
-        model: MODELO_CLASSIFICACAO,
-        max_tokens: 120,
-        system: SYSTEM_PROMPT_CLASSIFICAR,
-        messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Que tipo de documento é este?' }] }],
-      },
-      { signal: AbortSignal.timeout(45000) },
-    )
-
-    const blocoClass = resClassificacao.content[0]
-    if (blocoClass?.type !== 'text') throw new Error('Resposta inesperada na classificação')
-
-    const classificacao = JSON.parse(limparJson(blocoClass.text)) as { tipo_documento: string; confianca: string }
+    // Pulada quando o tipo já é conhecido (ex.: "Organizar arquivos" já
+    // classificou) — economiza a chamada ao Haiku.
+    const classificacao = tipoPermitePularClassificacao(doc.classificacao_legado)
+      ? { tipo_documento: doc.classificacao_legado as string, confianca: 'alta' }
+      : await classificarTipoDocumento(contentBlock)
     const tipo = classificacao.tipo_documento
 
     // Extrato bancário detectado em modo auto → encaminha para apuração de renda
@@ -401,6 +512,7 @@ export async function processarOcrDocumento(
       status_ocr: 'concluido',
       classificacao_legado: resultado.tipo_documento,
     }).eq('id', documentoId)
+    await preencherPastaDeVinculosLeadSemPasta(documentoId, resultado.tipo_documento)
     await finalizarExtracao({ status: 'concluido', dados: resultado, confianca: resultado.confianca })
 
     console.log('[ocr] Documento processado:', documentoId, '| tipo:', resultado.tipo_documento, '| confiança:', resultado.confianca)

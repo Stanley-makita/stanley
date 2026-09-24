@@ -108,23 +108,30 @@ export function preSelecionar(doc: {
 
 /**
  * Sugestão de pasta pra um documento dentro de um Processo específico —
- * nunca obrigatória, sempre sobrescrevível pelo operador. Prioridade de 3
+ * nunca obrigatória, sempre sobrescrevível pelo operador. Prioridade de 4
  * níveis (nessa ordem):
- *   1. Papel da pessoa dona do documento *neste* processo (comprador/cônjuge
+ *   1. Pasta já escolhida pelo operador na Captação (pastaDoLeadCodigo) —
+ *      decisão humana, máxima prioridade.
+ *   2. Papel da pessoa dona do documento *neste* processo (comprador/cônjuge
  *      → "01 Comprador", vendedor → "03 Vendedor") — vale pra qualquer tipo
  *      de documento pessoal, a pessoa manda mais que o tipo.
- *   2. Tipo documental (catalogo_tipos_documento.pasta_sugerida_codigo) — só
+ *   3. Tipo documental (catalogo_tipos_documento.pasta_sugerida_codigo) — só
  *      quando a regra 1 não se aplica (documento não é de uma pessoa com
  *      papel definido no processo, ex.: documento do imóvel em si).
- *   3. Nenhuma sugestão (retorna null) — o operador escolhe manualmente.
+ *   4. Nenhuma sugestão (retorna null) — o operador escolhe manualmente.
  */
 export function inferirPastaSugerida(input: {
   documentoPessoaId: string | null
   pastaSugeridaCodigoDoTipo: string | null
   pessoasCompradorasIds: string[]
   pessoasVendedorasIds: string[]
+  /** Pasta já escolhida pelo operador na Captação (vínculo com o lead de origem).
+   * Prioridade máxima: é uma decisão humana, vale mais que papel ou tipo. */
+  pastaDoLeadCodigo?: string | null
 }): string | null {
-  const { documentoPessoaId, pastaSugeridaCodigoDoTipo, pessoasCompradorasIds, pessoasVendedorasIds } = input
+  const { documentoPessoaId, pastaSugeridaCodigoDoTipo, pessoasCompradorasIds, pessoasVendedorasIds, pastaDoLeadCodigo } = input
+
+  if (pastaDoLeadCodigo) return pastaDoLeadCodigo
 
   if (documentoPessoaId) {
     if (pessoasCompradorasIds.includes(documentoPessoaId)) return 'comprador'
