@@ -32,10 +32,13 @@ const LABEL_TIPO: Record<string, string> = {
 
 type Linha = { tipo: string | null; motivo?: string; pastaCodigo: string }
 
-// Tamanho do lote de classificação: cada chamada à IA pode levar até ~45s e a
-// function da Vercel tem limite de 60s, então mandamos poucos ids por request
-// em vez de um único fetch com todos os documentos.
-const TAMANHO_LOTE_CLASSIFICAR = 8
+// Tamanho do lote de classificação: precisa bater com CONCORRENCIA da rota
+// /classificar (route.ts) — a rota já processa os ids do request em
+// sub-lotes sequenciais de CONCORRENCIA=4 (cada chamada à IA pode levar até
+// ~45s, sob maxDuration=60 da function). Se mandássemos mais que 4 ids por
+// request, a rota faria 2+ sub-lotes sequenciais numa única invocação e
+// poderia estourar o limite de 60s da Vercel.
+const TAMANHO_LOTE_CLASSIFICAR = 4
 
 async function token() {
   const { data } = await supabase.auth.getSession()
@@ -49,14 +52,22 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
   const [linhas, setLinhas] = useState<Record<string, Linha>>({})
   const [miniaturas, setMiniaturas] = useState<Record<string, string>>({})
 
+  // Congela a lista de documentos no momento em que o modal abre. O pai
+  // recalcula `documentos` a cada refetch em segundo plano (foco na janela,
+  // polling enquanto o OCR está 'processando'), e usar a prop diretamente
+  // nas deps do efeito reiniciaria a classificação e apagaria as pastas já
+  // escolhidas pelo operador (mesmo anti-padrão do CLAUDE.md: "Formulário de
+  // edição não pode resetar por refetch em segundo plano").
+  const [docsModal] = useState(() => documentos)
+
   useEffect(() => {
     let cancelado = false
     ;(async () => {
-      const paths = documentos.map(d => d.storage_path)
+      const paths = docsModal.map(d => d.storage_path)
       const { data: urls } = await supabase.storage.from('documentos-clientes').createSignedUrls(paths, 3600)
       if (!cancelado && urls) {
         const m: Record<string, string> = {}
-        urls.forEach((u, i) => { if (u.signedUrl) m[documentos[i].id] = u.signedUrl })
+        urls.forEach((u, i) => { if (u.signedUrl) m[docsModal[i].id] = u.signedUrl })
         setMiniaturas(m)
       }
 
@@ -67,9 +78,9 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
       // sugestão em vez de travar o modal inteiro).
       const authToken = await token()
       let algumLoteFalhou = false
-      for (let i = 0; i < documentos.length; i += TAMANHO_LOTE_CLASSIFICAR) {
+      for (let i = 0; i < docsModal.length; i += TAMANHO_LOTE_CLASSIFICAR) {
         if (cancelado) return
-        const lote = documentos.slice(i, i + TAMANHO_LOTE_CLASSIFICAR)
+        const lote = docsModal.slice(i, i + TAMANHO_LOTE_CLASSIFICAR)
         try {
           const res = await fetch(`/api/leads/${leadId}/organizar-documentos/classificar`, {
             method: 'POST',
@@ -94,10 +105,11 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
       if (!cancelado) setClassificando(false)
     })()
     return () => { cancelado = true }
-  }, [leadId, documentos])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- docsModal é congelado na abertura de propósito (ver comentário acima); não deve disparar o efeito de novo
+  }, [leadId])
 
   async function confirmar() {
-    const itens = documentos
+    const itens = docsModal
       .map(d => ({ documento_id: d.id, codigo: linhas[d.id]?.pastaCodigo ?? '' }))
       .filter(i => i.codigo)
       .map(i => ({ documento_id: i.documento_id, pasta_id: catalogoPastas.find(p => p.codigo === i.codigo)?.id ?? null }))
@@ -146,10 +158,10 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
         <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6">
           {classificando && (
             <div className="flex items-center gap-2 py-6 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Identificando {documentos.length} arquivo{documentos.length !== 1 ? 's' : ''}…
+              <Loader2 className="h-4 w-4 animate-spin" /> Identificando {docsModal.length} arquivo{docsModal.length !== 1 ? 's' : ''}…
             </div>
           )}
-          {!classificando && documentos.map(d => {
+          {!classificando && docsModal.map(d => {
             const l = linhas[d.id]
             const url = miniaturas[d.id]
             const ehImagem = (d.mime_type ?? '').startsWith('image/')
