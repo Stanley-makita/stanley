@@ -18,11 +18,34 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET ?? ''
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET ?? ''
 const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN ?? ''
 
+// "Resposta do anúncio" — a Meta anexa este objeto ao evento de mensagem
+// quando a conversa começou a partir de um clique num anúncio ou post
+// promovido (é o que o app do Instagram mostra como "Resposta do anúncio ·
+// Ver" no topo da conversa). Campos conforme a doc oficial de Instagram
+// Messaging (referral de Ads That Click to Instagram Direct); alguns podem
+// vir ausentes dependendo do tipo de anúncio — por isso tudo opcional.
+// Formato ainda não confirmado 1:1 contra um payload real desta conta (ver
+// log de diagnóstico em registrarMensagemInstagram) — se o Meta mandar
+// campos com nomes diferentes, ajustar aqui depois de ver o log real.
+interface InstagramReferral {
+  ref?: string
+  ad_id?: string
+  source?: string
+  type?: string
+  ads_context_data?: {
+    ad_title?: string
+    photo_url?: string
+    video_url?: string
+    post_id?: string
+  }
+}
+
 interface InstagramMessagingEvent {
   sender: { id: string }
   recipient: { id: string }
   timestamp: number
-  message?: { mid: string; text?: string; is_echo?: boolean }
+  message?: { mid: string; text?: string; is_echo?: boolean; referral?: InstagramReferral }
+  referral?: InstagramReferral
 }
 
 interface InstagramWebhookBody {
@@ -106,9 +129,18 @@ export async function POST(request: NextRequest) {
       if (!texto || evento.message?.is_echo) continue
 
       const senderId = evento.sender.id
+      const referral = evento.referral ?? evento.message?.referral
+
+      // Log de diagnóstico temporário — formato do referral ainda não
+      // confirmado contra um payload real desta conta. Remover depois de
+      // validar em produção que os campos abaixo (ads_context_data etc.)
+      // batem com o que a Meta realmente envia.
+      if (referral) {
+        console.log('[instagram-webhook] Referral de anúncio recebido:', JSON.stringify(referral))
+      }
 
       try {
-        await registrarMensagemInstagram(empresa_id, senderId, texto)
+        await registrarMensagemInstagram(empresa_id, senderId, texto, referral)
       } catch (err) {
         console.error('[instagram-webhook] Erro ao processar mensagem:', err)
       }
@@ -118,7 +150,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true })
 }
 
-async function registrarMensagemInstagram(empresa_id: string, senderId: string, texto: string) {
+async function registrarMensagemInstagram(empresa_id: string, senderId: string, texto: string, referral?: InstagramReferral) {
   const { data: conversaExistente } = await supabase
     .from('conversas')
     .select('id')
@@ -186,6 +218,7 @@ async function registrarMensagemInstagram(empresa_id: string, senderId: string, 
     conversa_id: conversaId,
     origem: 'cliente',
     conteudo: texto,
+    metadata: referral ? { referral_anuncio: referral } : null,
   })
 }
 

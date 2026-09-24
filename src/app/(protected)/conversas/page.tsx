@@ -92,6 +92,15 @@ interface Mensagem {
     uazapi_message_id?: string | null
     reacao?: string | null
     reply_preview?: { autor: string; texto: string; mensagemId?: string; fileUrl?: string; tipoMidia?: string } | null
+    // Instagram: "Resposta do anúncio" — de qual anúncio/post a conversa começou
+    // (ver src/app/api/instagram/webhook/route.ts)
+    referral_anuncio?: {
+      ref?: string
+      ad_id?: string
+      source?: string
+      type?: string
+      ads_context_data?: { ad_title?: string; photo_url?: string; video_url?: string; post_id?: string }
+    } | null
   } | null
 }
 
@@ -1351,6 +1360,36 @@ export default function ConversasPage() {
                         ? 'bg-fonti-primary text-white rounded-br-sm'
                         : 'bg-fonti-accent text-fonti-primary rounded-br-sm font-medium'
                   )}>
+                    {/* Instagram: "Resposta do anúncio" — mesmo pill que o app do
+                        Instagram mostra no topo da conversa quando ela começou a
+                        partir de um clique em anúncio/post promovido. */}
+                    {m.metadata?.referral_anuncio && (() => {
+                      const ref = m.metadata.referral_anuncio
+                      const ctx = ref?.ads_context_data
+                      const imagem = ctx?.photo_url
+                      const link = ctx?.photo_url ?? ctx?.video_url
+                      return (
+                        <a
+                          href={link}
+                          target={link ? '_blank' : undefined}
+                          rel={link ? 'noopener noreferrer' : undefined}
+                          onClick={(e) => { e.stopPropagation(); if (!link) e.preventDefault() }}
+                          className={cn(
+                            'w-[calc(100%-1rem)] mx-2 mt-2 flex items-center gap-2 rounded-lg bg-black/5 border-l-2 border-current/40 px-2 py-1 text-left text-[11px] opacity-80',
+                            link && 'hover:opacity-100 cursor-pointer'
+                          )}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold">Resposta do anúncio {link && '· Ver'}</p>
+                            {ctx?.ad_title && <p className="truncate">{ctx.ad_title}</p>}
+                          </div>
+                          {imagem && (
+                            <img src={imagem} alt="Anúncio" className="w-8 h-8 rounded object-cover shrink-0" />
+                          )}
+                        </a>
+                      )
+                    })()}
+
                     {/* Citação da mensagem respondida — clicável, igual ao WhatsApp: rola até a original */}
                     {m.metadata?.reply_preview && (
                       <button
