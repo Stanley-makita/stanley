@@ -988,6 +988,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
             setDocOcrRevisao(null)
             queryClient.invalidateQueries({ queryKey })
             if (pessoaId) queryClient.refetchQueries({ queryKey: ['pessoa-completa', pessoaId] })
+            // A rota também espelha nome/CPF/nascimento no Lead — o sidebar lê de lá
+            queryClient.invalidateQueries({ queryKey: ['leads'] })
+            if (leadId) queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+            queryClient.invalidateQueries({ queryKey: ['ocr-sugestoes'] })
           }}
         />
       )}

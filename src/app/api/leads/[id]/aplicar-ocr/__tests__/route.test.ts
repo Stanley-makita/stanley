@@ -111,18 +111,49 @@ describe('POST /api/leads/[id]/aplicar-ocr', () => {
     expect(estado.updatesLeads).toHaveLength(0)
   })
 
-  it('CPF divergente: não sobrescreve Pessoa nem propaga pro Lead', async () => {
-    estado.pessoaAtual = { cpf: '11111111111' }
+  it('CPF divergente (dois CPFs válidos): não sobrescreve Pessoa nem propaga pro Lead', async () => {
+    estado.pessoaAtual = { cpf: '52998224725' }
     const { POST } = await import('../route')
     const res = await POST(
       montarRequest({
-        campos: [{ campo: 'cpf', valor: '22222222222', documento_id: 'doc-1', confirmado: false }],
+        campos: [{ campo: 'cpf', valor: '036.677.819-62', documento_id: 'doc-1', confirmado: false }],
         documento_ids_revisados: [],
       }),
       { params: { id: 'lead-1' } } as never,
     )
     const json = await res.json()
     expect(json.cpf_divergente).toBe(true)
+    expect(estado.updatesLeads).toHaveLength(0)
+  })
+
+  it('CPF atual inválido (telefone gravado como CPF) é substituído pelo CPF do documento', async () => {
+    estado.pessoaAtual = { cpf: '44984558945' }
+    const { POST } = await import('../route')
+    const res = await POST(
+      montarRequest({
+        campos: [{ campo: 'cpf', valor: '036.677.819-62', documento_id: 'doc-1', confirmado: false }],
+        documento_ids_revisados: [],
+      }),
+      { params: { id: 'lead-1' } } as never,
+    )
+    const json = await res.json()
+    expect(json.cpf_divergente).toBe(false)
+    expect(json.camposAplicados).toContain('cpf')
+    expect(estado.updatesLeads).toContainEqual({ valores: { cpf: '03667781962' } })
+  })
+
+  it('CPF do documento com dígito verificador inválido é ignorado', async () => {
+    estado.pessoaAtual = { cpf: null }
+    const { POST } = await import('../route')
+    const res = await POST(
+      montarRequest({
+        campos: [{ campo: 'cpf', valor: '44984558945', documento_id: 'doc-1', confirmado: false }],
+        documento_ids_revisados: [],
+      }),
+      { params: { id: 'lead-1' } } as never,
+    )
+    const json = await res.json()
+    expect(json.camposAplicados).not.toContain('cpf')
     expect(estado.updatesLeads).toHaveLength(0)
   })
 })

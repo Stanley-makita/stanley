@@ -99,6 +99,10 @@ export function OcrEnriquecimentoModal({ aberto, leadId, sugestoes, onFechar }: 
 
       queryClient.invalidateQueries({ queryKey: ['ocr-sugestoes', leadId] })
       queryClient.invalidateQueries({ queryKey: ['documentos-clientes', 'lead', leadId] })
+      // Sem isso a aba Pessoa e o sidebar só mostravam os campos aplicados após F5
+      queryClient.invalidateQueries({ queryKey: ['pessoa-completa'] })
+      queryClient.invalidateQueries({ queryKey: ['leads', leadId] })
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
       onFechar()
     } catch (err) {
       console.error('[OcrEnriquecimentoModal]', err)

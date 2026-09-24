@@ -13,6 +13,7 @@
 import type { DadosCaptacaoRaw } from './parser-captacao'
 import type { BancoId, TipoOperacao } from '@/lib/simuladorFinanciamento/tipos'
 import type { BancoCgiId } from '@/lib/simuladorCgi/tipos'
+import { cpfValido } from '@/lib/cpf'
 
 export interface DadosCaptacaoNormalizados {
   nome:                  string | null
@@ -269,20 +270,25 @@ function normalizarBancoCgi(nome: string): BancoCgiId | null {
   return BANCO_CGI_ALIAS_MAP[chave] ?? null
 }
 
+// Exige dígito verificador válido — telefone com DDD também tem 11 dígitos e o parser
+// já confundiu os dois (ver src/lib/cpf.ts).
 function normalizarCpf(cpf: string | null | undefined): string | null {
   if (!cpf) return null
   const digits = cpf.replace(/\D/g, '')
-  return digits.length === 11 ? digits : null
+  return cpfValido(digits) ? digits : null
 }
 
 // Fallback determinístico: usado quando o parser LLM falha/erra a extração de CPF
 // (ex: cai no catch de parsearTextoCaptacao) mesmo com CPF explícito no texto bruto.
-const REGEX_CPF_BRUTO = /\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.\s]?\d{2})\b/
+// Só aceita sequência com dígito verificador válido: sem isso, o telefone do cliente
+// (11 dígitos com DDD) virava CPF quando vinha solto na mensagem do *cria cliente.
+const REGEX_CPF_BRUTO = /\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.\s]?\d{2})\b/g
 export function extrairCpfBrutoDoTexto(texto: string): string | null {
-  const m = texto.match(REGEX_CPF_BRUTO)
-  if (!m) return null
-  const digits = m[1].replace(/\D/g, '')
-  return digits.length === 11 ? digits : null
+  for (const m of Array.from(texto.matchAll(REGEX_CPF_BRUTO))) {
+    const digits = m[1].replace(/\D/g, '')
+    if (cpfValido(digits)) return digits
+  }
+  return null
 }
 
 function normalizarTelefone(tel: string | null | undefined): string | null {

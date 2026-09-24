@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { Loader2, ExternalLink, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { OcrResultado } from '@/lib/documentos/ocr'
+import { cpfValido } from '@/lib/cpf'
 
 interface DocumentoOcrProps {
   id: string
@@ -166,9 +167,27 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
         toast.error((err.error ?? 'Erro ao salvar dados.') + (err.detail ? ` (${err.detail})` : ''))
         return
       }
-      const result = await res.json().catch(() => ({})) as { cpf_divergente?: boolean; alvo?: string }
+      const result = await res.json().catch(() => ({})) as {
+        cpf_divergente?: boolean
+        cpf_pertence_a?: { id: string; nome: string | null } | null
+        cpf_invalido?: boolean
+        alvo?: string
+      }
+      // CPF não gravado é aviso em amarelo e demorado — um toast verde de "sucesso"
+      // passava despercebido e o CPF errado ficava no cadastro.
       if (result.cpf_divergente) {
-        toast.success('Dados salvos. O CPF encontrado já pertence a outro cliente — verifique manualmente.')
+        const dono = result.cpf_pertence_a?.nome
+        toast.warning(
+          dono
+            ? `Os outros dados foram salvos, mas o CPF NÃO: ele já está no cadastro de "${dono}" (Pessoas). Confira se é o mesmo cliente.`
+            : 'Os outros dados foram salvos, mas o CPF NÃO: ele já está no cadastro de outra pessoa. Confira em Pessoas.',
+          { duration: 15000 },
+        )
+      } else if (result.cpf_invalido) {
+        toast.warning(
+          'Os outros dados foram salvos, mas o CPF NÃO: o número não é um CPF válido (confira os dígitos no documento).',
+          { duration: 15000 },
+        )
       } else if (result.alvo === 'conjuge') {
         toast.success('Dados confirmados e salvos no cadastro do cônjuge.')
       } else {
@@ -288,6 +307,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
             const label = CAMPOS_LABELS[key]
             if (!label) return null
             const isDate = DATE_FIELDS.has(key)
+            const cpfComErro = key === 'cpf' && !!campos.cpf && !cpfValido(campos.cpf)
             return (
               <div key={key} className="mb-3">
                 <label className="text-xs font-medium text-gray-600 block mb-1">{label}</label>
@@ -298,6 +318,11 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fonti-primary/20 focus:border-fonti-primary"
                   placeholder={isDate ? undefined : `${label}...`}
                 />
+                {cpfComErro && (
+                  <p className="mt-1 text-xs text-red-600">
+                    CPF inválido (dígito verificador não confere) — não será salvo. Confira no documento.
+                  </p>
+                )}
               </div>
             )
           })}

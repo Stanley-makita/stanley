@@ -133,7 +133,7 @@ export function AbaPessoa({ lead }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pessoas')
-        .select(`id, nome, cpf, email, data_nascimento,
+        .select(`id, updated_at, nome, cpf, email, data_nascimento,
           profissao, estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
           orgao_emissor, data_emissao, cidade_nascimento, estado_nascimento, filiacao_mae, filiacao_pai,
           registro_cnh, validade_cnh, primeira_habilitacao_cnh,
@@ -162,12 +162,18 @@ export function AbaPessoa({ lead }: Props) {
   // LeadEditarModal.tsx (achado real, 2026-09-22: usuária editava vários campos, um
   // refetch em 2º plano revertia todos menos o último mexido, "Salvar" gravava a
   // mistura de campo novo + demais campos revertidos pro valor antigo do banco).
-  const pessoaCarregadaIdRef = useRef<string | null>(null)
+  //
+  // A chave inclui `updated_at` (trigger pessoas_set_updated_at): refetch com o MESMO
+  // dado não reseta, mas uma gravação real vinda de fora do form — "Confirmar dados"
+  // do OCR, *fonti atualiza — reseta na hora. Só com o id, os campos confirmados no
+  // OCR só apareciam depois de F5 (achado real, 2026-09-24).
+  const pessoaCarregadaChaveRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!pessoa) return
-    if (pessoaCarregadaIdRef.current === pessoa.id) return
-    pessoaCarregadaIdRef.current = pessoa.id
+    const chave = `${pessoa.id}|${(pessoa as { updated_at?: string }).updated_at ?? ''}`
+    if (pessoaCarregadaChaveRef.current === chave) return
+    pessoaCarregadaChaveRef.current = chave
     const p = pessoa as any
     const tels = p.pessoa_telefones ?? []
     const telAtivos = tels.filter((t: any) => t.ativo)

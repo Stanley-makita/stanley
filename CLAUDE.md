@@ -517,3 +517,23 @@ continua sem propagar). Qualquer novo caminho que grave dado de identidade da Pe
 se precisa espelhar em `leads` também — ver também a seção de RLS acima, já que o **caminho já
 existente** de propagação em `AbaPessoa.tsx` (edição manual) foi o que expôs o bug de UPDATE
 bloqueado por RLS.
+
+## CPF: sempre `cpfValido()` (`src/lib/cpf.ts`), nunca só `length === 11` (2026-09-24)
+
+Celular com DDD também tem 11 dígitos. `*cria cliente Luciana ... 44984558945 ...` (telefone solto,
+sem rótulo) gravava o telefone como CPF da Pessoa e do Lead — pelo parser LLM e pelo fallback de regex
+(`extrairCpfBrutoDoTexto`), que só checavam o tamanho. Agora todo caminho que decide "isto é CPF"
+(parsers do bot, `ocr-confirmar`, `aplicar-ocr`, `useOcrSugestoes`) exige dígito verificador válido.
+Consequência pra teste: CPF inventado (`12345678901`, `11111111111`) não é mais aceito pelo bot nem
+pelo OCR — usar CPF válido gerado.
+
+Mesma rodada, fluxo "Extrair dados" → "Confirmar dados" (`ocr-confirmar`):
+- **Espelha nome/CPF/nascimento no Lead** (antes só `aplicar-ocr` espelhava; o sidebar de Captação
+  lê de `leads` e ficava com o dado do `*cria cliente` pra sempre).
+- **CPF que já é de outra Pessoa** (UNIQUE) → resposta traz `cpf_pertence_a` e a tela mostra aviso
+  amarelo com o nome do dono, em vez de toast verde de sucesso.
+- **CPF atual inválido conta como vazio** em `aplicar-ocr`/`useOcrSugestoes` — o CPF real do documento
+  substitui o telefone gravado por engano, em vez de ficar "conflito bloqueado".
+- **`AbaPessoa.tsx` reseta o form por `id + updated_at`**, não só `id`: refetch com o mesmo dado não
+  apaga edição (regra do PR #337 mantida), mas gravação real vinda de fora (OCR, bot) aparece na hora,
+  sem F5.

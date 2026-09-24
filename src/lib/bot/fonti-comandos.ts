@@ -12,6 +12,7 @@ import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
 import { PERGUNTA_TIPO_CONSTRUCAO } from '@/lib/workflows/normalizador-captacao'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
 import { variantesTelefoneBR } from '@/lib/telefone'
+import { cpfValido } from '@/lib/cpf'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -752,7 +753,7 @@ Regras:
 - valor_financiamento: valor que o cliente quer financiar (quando explicitamente mencionado como financiamento)
 - renda e valores: número inteiro sem R$ (ex: "750 mil" → 750000, "35 mi" → 35000, "35k" → 35000)
 - valor_entrada: valor de entrada/FGTS/recursos próprios mencionado (ex: "200 mil de entrada" → 200000)
-- cpf: apenas dígitos, sem pontos/traços (ex: "012.625.478-45" → "01262547845"). null se ausente.
+- cpf: apenas dígitos, sem pontos/traços (ex: "012.625.478-45" → "01262547845"). null se ausente. Número solto com cara de DDD + celular (ex: "44984558945") sem a palavra CPF é telefone, não CPF.
 - data_nascimento: converter qualquer formato para YYYY-MM-DD. null se ausente.
 - estado_civil: "casado/a" → "casado", "solteiro/a" → "solteiro", "união estável" → "uniao_estavel", "divorciado/a" → "divorciado", "viúvo/a" → "viuvo". null se não mencionado.
 - telefone: número de celular/telefone do CLIENTE (não do corretor). Remover espaços, traços, parênteses. Manter DDD. Ex: "44 984557766" → "44984557766". null se ausente.
@@ -772,7 +773,7 @@ Regras:
         valor_imovel:        typeof d.valor_imovel === 'number' ? d.valor_imovel : null,
         valor_financiamento: typeof d.valor_financiamento === 'number' ? d.valor_financiamento : null,
         renda:               typeof d.renda === 'number' ? d.renda : null,
-        cpf:                 typeof d.cpf === 'string' && /^\d{11}$/.test(d.cpf) ? d.cpf : null,
+        cpf:                 typeof d.cpf === 'string' && cpfValido(d.cpf) ? d.cpf.replace(/\D/g, '') : null,
         data_nascimento:     typeof d.data_nascimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.data_nascimento) ? d.data_nascimento : null,
         estado_civil:        ESTADOS_CIVIS_VALIDOS.includes(d.estado_civil as EstadoCivil) ? d.estado_civil as EstadoCivil : null,
         valor_entrada:       typeof d.valor_entrada === 'number' ? d.valor_entrada : null,

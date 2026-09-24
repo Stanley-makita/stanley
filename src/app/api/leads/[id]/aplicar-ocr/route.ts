@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { cpfValido } from '@/lib/cpf'
 
 async function resolveUsuario(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -78,7 +79,7 @@ export async function POST(
     let s = valor.trim()
     if (campo === 'cpf') {
       s = s.replace(/\D/g, '')  // normaliza para apenas dígitos
-      if (s.length !== 11) return null
+      if (!cpfValido(s)) return null
     }
     if (campo === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) return null
     if (CAMPOS_DATA.has(campo)) {
@@ -99,9 +100,15 @@ export async function POST(
     if (valorNorm === null) continue
 
     const valorAtual = (pessoa as unknown as Record<string, unknown>)[campo]
-    const strAtual = valorAtual ? String(valorAtual).trim() : null
+    let strAtual = valorAtual ? String(valorAtual).trim() : null
+    // CPF atual inválido (ex: telefone capturado como CPF no *cria cliente) conta como
+    // vazio — senão o CPF real do documento nunca conseguiria substituí-lo.
+    if (campo === 'cpf' && strAtual) {
+      strAtual = strAtual.replace(/\D/g, '')
+      if (!cpfValido(strAtual)) strAtual = null
+    }
 
-    // CPF divergente — nunca sobrescreve
+    // CPF divergente (dois CPFs válidos diferentes) — nunca sobrescreve
     if (campo === 'cpf' && strAtual && strAtual !== valorNorm) {
       cpf_divergente = true
       continue
