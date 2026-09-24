@@ -538,6 +538,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       contexto="lead"
                       leadId={lead.id}
                       pessoaId={lead.pessoa_id}
+                      onNavegarParaAba={(aba) => setAbaAtiva(aba)}
                     />
                   )}
                 </div>

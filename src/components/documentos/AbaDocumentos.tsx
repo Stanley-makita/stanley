@@ -20,6 +20,7 @@ import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasP
 import { uploadDocumentoParaPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
 import { useMoverDocumentoParaPasta } from '@/hooks/documentos/useMoverDocumentoParaPasta'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
+import { OrganizarArquivosModal } from '@/components/documentos/OrganizarArquivosModal'
 import { DocumentoFgtsRevisaoModal } from '@/components/documentos/DocumentoFgtsRevisaoModal'
 import { DocumentoCompartilharModal } from '@/components/documentos/DocumentoCompartilharModal'
 import { ApuracaoRendaModal } from '@/components/documentos/ApuracaoRendaModal'
@@ -123,6 +124,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
 
   const entidadeId = contexto === 'lead' ? leadId : contexto === 'processo' ? processoId : pessoaId ?? undefined
 
+  // Pastas existem em Negócios e, desde 2026-09-24, na Captação (mesmo catálogo).
+  const usaPastas = contexto === 'processo' || contexto === 'lead'
+
   const [modalAberto, setModalAberto] = useState(false)
   const [arquivosSelecionados, setArquivosSelecionados] = useState<File[]>([])
   const [tiposPorArquivo, setTiposPorArquivo] = useState<Record<string, string>>({})
@@ -140,6 +144,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   const [extrairAposUpload, setExtrairAposUpload] = useState(true)
   const [renomeando, setRenomeando] = useState<string | null>(null)
   const [novoNome, setNovoNome] = useState('')
+  const [organizarAberto, setOrganizarAberto] = useState(false)
 
   // OcrEnriquecimentoCard/Modal só existe para Lead — é sobre enriquecer o cadastro
   // do Lead, não se aplica a Processo/Pessoa. Hook sempre chamado (regra dos hooks),
@@ -283,7 +288,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           // ESTE processo; processo_trabalho mora direto no documento.
           pasta_id: contexto === 'processo'
             ? (d.dominio === 'processo_trabalho' ? d.pasta_id : (pastaPorVinculo.get(d.id) ?? null))
-            : null,
+            : contexto === 'lead'
+              ? (pastaPorVinculo.get(d.id) ?? null)
+              : null,
         }))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     },
@@ -313,7 +320,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   // documental) é possível aqui, já que ainda não sabemos qual Pessoa é dona do
   // arquivo (resolverPessoaIdUpload roda só no envio); sempre sobrescrevível.
   function pastaSugeridaPorTipo(tipoCodigo: string): string | null {
-    if (contexto !== 'processo') return null
+    if (!usaPastas) return null
     const codigoDoTipo = catalogoTipos?.find(t => t.codigo === tipoCodigo)?.pasta_sugerida_codigo ?? null
     return inferirPastaSugerida({
       documentoPessoaId: null,
@@ -335,7 +342,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     const pastas: Record<string, string> = {}
     arquivos.forEach(f => {
       tipos[chaveArquivo(f)] = 'auto'
-      pastas[chaveArquivo(f)] = pastaSugeridaPorTipo('auto') ?? ''
+      pastas[chaveArquivo(f)] = pastaAtivaInfo?.codigo ?? pastaSugeridaPorTipo('auto') ?? ''
     })
     setArquivosSelecionados(arquivos)
     setTiposPorArquivo(tipos)
@@ -384,7 +391,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   }
 
   async function uploadArquivo(arquivo: File, tipoArquivo: string, pastaCodigoArquivo: string, pessoaIdUpload: string, token: string | undefined): Promise<void> {
-    const pastaId = contexto === 'processo' && pastaCodigoArquivo
+    const pastaId = usaPastas && pastaCodigoArquivo
       ? catalogoPastas.find(p => p.codigo === pastaCodigoArquivo)?.id ?? null
       : null
 
@@ -622,7 +629,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   // Grid de navegação estilo Explorer — 13 posições sempre visíveis (mesma numeração
   // usada há anos na rede), mesmo que 04/13 só sejam atalhos pra outras abas do sistema.
   const pastasGrid = useMemo(() => {
-    if (contexto !== 'processo') return []
+    if (!usaPastas) return []
     const atalhos = [
       { codigo: 'formularios', nome: '04 Formulários', ordem_exibicao: 40, aba: 'formularios' as const },
       { codigo: 'simulacoes',  nome: '13 Simulações',  ordem_exibicao: 130, aba: 'simulador' as const },
@@ -631,15 +638,32 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
       ...catalogoPastas.map(p => ({ codigo: p.codigo, nome: p.nome, ordem_exibicao: p.ordem_exibicao, aba: undefined })),
       ...atalhos,
     ].sort((a, b) => a.ordem_exibicao - b.ordem_exibicao)
-  }, [contexto, catalogoPastas])
+  }, [usaPastas, catalogoPastas])
 
   const pastaAtivaInfo = pastaAtiva && pastaAtiva !== 'todos' ? catalogoPastas.find(p => p.codigo === pastaAtiva) ?? null : null
 
   const documentosExibidos = useMemo(() => {
-    if (contexto !== 'processo' || !pastaAtiva) return documentos
+    if (!usaPastas || !pastaAtiva) return documentos
     if (pastaAtiva === 'todos') return documentos
+    if (pastaAtiva === 'sem_pasta') return documentos.filter(d => !d.pasta_id)
     return documentos.filter(d => d.pasta_id === (pastaAtivaInfo?.id ?? '__nunca__'))
-  }, [contexto, pastaAtiva, pastaAtivaInfo, documentos])
+  }, [usaPastas, pastaAtiva, pastaAtivaInfo, documentos])
+
+  const documentosSemPasta = useMemo(() => documentos.filter(d => !d.pasta_id), [documentos])
+
+  // Captação: pasta mora no vínculo com o lead, que pode ainda não existir
+  // (documento só da Pessoa) — por isso passa pela rota de servidor, não pelo
+  // useMoverDocumentoParaPasta (que só faz UPDATE).
+  async function moverDocumentoNoLead(documentoId: string, novaPastaId: string | null) {
+    const { data: session } = await supabase.auth.getSession()
+    const res = await fetch(`/api/leads/${leadId}/organizar-documentos/aplicar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token ?? ''}` },
+      body: JSON.stringify({ itens: [{ documento_id: documentoId, pasta_id: novaPastaId }] }),
+    })
+    if (!res.ok) { toast.error('Não foi possível mover o documento.'); return }
+    queryClient.invalidateQueries({ queryKey })
+  }
 
   function contarDocsNaPasta(codigo: string): number {
     const pastaId = catalogoPastas.find(p => p.codigo === codigo)?.id
@@ -694,7 +718,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         />
       </div>
 
-      {contexto === 'processo' && !pastaAtiva && (
+      {usaPastas && !pastaAtiva && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           <button
             onClick={() => setPastaAtiva('todos')}
@@ -704,6 +728,18 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
             <span className="text-xs font-medium text-gray-700">Todos</span>
             <span className="text-[10px] text-gray-400">{documentos.length} arquivo{documentos.length !== 1 ? 's' : ''}</span>
           </button>
+          {contexto === 'lead' && (
+            <button
+              onClick={() => setPastaAtiva('sem_pasta')}
+              className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-center transition-colors ${
+                documentosSemPasta.length > 0 ? 'border-amber-200 bg-amber-50 hover:bg-amber-100' : 'border-gray-100 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <FolderOpen className={`h-6 w-6 ${documentosSemPasta.length > 0 ? 'text-amber-500' : 'text-gray-400'}`} />
+              <span className="text-xs font-medium text-gray-700">Sem pasta</span>
+              <span className="text-[10px] text-gray-400">{documentosSemPasta.length} arquivo{documentosSemPasta.length !== 1 ? 's' : ''}</span>
+            </button>
+          )}
           {pastasGrid.map(p => (
             <button
               key={p.codigo}
@@ -726,14 +762,26 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         </div>
       )}
 
-      {contexto === 'processo' && pastaAtiva && (
+      {usaPastas && pastaAtiva && (
         <button
           onClick={() => setPastaAtiva(null)}
           className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-fonti-primary transition-colors"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
-          Documentos / {pastaAtiva === 'todos' ? 'Todos' : pastaAtivaInfo?.nome ?? pastaAtiva}
+          Documentos / {pastaAtiva === 'todos' ? 'Todos' : pastaAtiva === 'sem_pasta' ? 'Sem pasta' : pastaAtivaInfo?.nome ?? pastaAtiva}
         </button>
+      )}
+
+      {contexto === 'lead' && documentosSemPasta.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-medium text-amber-800">
+            {documentosSemPasta.length} arquivo{documentosSemPasta.length !== 1 ? 's' : ''} sem pasta
+          </span>
+          <Button size="sm" variant="outline" className="h-8 w-full shrink-0 border-amber-200 text-xs text-amber-700 hover:bg-amber-100 sm:h-7 sm:w-auto" onClick={() => setOrganizarAberto(true)}>
+            <Sparkles className="h-3 w-3 mr-1" />
+            Organizar arquivos
+          </Button>
+        </div>
       )}
 
       {contexto === 'lead' && <OcrEnriquecimentoCard sugestoes={ocrSugestoes} onAbrir={() => setOcrModalAberto(true)} />}
@@ -769,7 +817,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         </div>
       )}
 
-      {(contexto !== 'processo' || !!pastaAtiva) && (isLoading ? (
+      {(!usaPastas || !!pastaAtiva) && (isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="animate-pulse h-14 bg-gray-100 rounded-xl" />
@@ -907,15 +955,19 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                 })()}
                 <BadgeValidade doc={doc} />
                 <BadgeOcr doc={doc} />
-                {contexto === 'processo' && (
+                {usaPastas && (
                   <Select
                     value={doc.pasta_id ? (catalogoPastas.find(p => p.id === doc.pasta_id)?.codigo ?? '__nenhuma__') : '__nenhuma__'}
-                    onValueChange={(v) => moverParaPasta.mutate({
-                      documentoId: doc.id,
-                      dominio: doc.dominio ?? 'acervo_documental',
-                      processoId: processoId,
-                      novaPastaId: v === '__nenhuma__' ? null : (catalogoPastas.find(p => p.codigo === v)?.id ?? null),
-                    })}
+                    onValueChange={(v) => {
+                      const novaPastaId = v === '__nenhuma__' ? null : (catalogoPastas.find(p => p.codigo === v)?.id ?? null)
+                      if (contexto === 'lead') { void moverDocumentoNoLead(doc.id, novaPastaId); return }
+                      moverParaPasta.mutate({
+                        documentoId: doc.id,
+                        dominio: doc.dominio ?? 'acervo_documental',
+                        processoId: processoId,
+                        novaPastaId,
+                      })
+                    }}
                   >
                     <SelectTrigger className="h-7 w-32 shrink-0 text-xs" title="Mover para pasta">
                       <SelectValue placeholder="Pasta" />
@@ -996,6 +1048,15 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         />
       )}
 
+      {organizarAberto && contexto === 'lead' && leadId && (
+        <OrganizarArquivosModal
+          leadId={leadId}
+          documentos={documentosSemPasta}
+          onFechar={() => setOrganizarAberto(false)}
+          onConcluido={() => { setOrganizarAberto(false); queryClient.invalidateQueries({ queryKey }) }}
+        />
+      )}
+
       {docFgtsRevisao && (
         <DocumentoFgtsRevisaoModal
           documento={docFgtsRevisao}
@@ -1069,7 +1130,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                       ))}
                     </SelectContent>
                   </Select>
-                  {contexto === 'processo' && (
+                  {usaPastas && (
                     <Select
                       value={pastasPorArquivo[chave] || '__nenhuma__'}
                       onValueChange={(v) => setPastasPorArquivo(prev => ({ ...prev, [chave]: v === '__nenhuma__' ? '' : v }))}
