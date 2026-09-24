@@ -537,3 +537,15 @@ Mesma rodada, fluxo "Extrair dados" → "Confirmar dados" (`ocr-confirmar`):
 - **`AbaPessoa.tsx` reseta o form por `id + updated_at`**, não só `id`: refetch com o mesmo dado não
   apaga edição (regra do PR #337 mantida), mas gravação real vinda de fora (OCR, bot) aparece na hora,
   sem F5.
+
+## Pastas de documentos na Captação (2026-09-24)
+
+A aba Documentos do lead usa o mesmo catálogo de pastas de Negócios. A pasta de um documento no
+lead mora em `documento_vinculos.pasta_id` do vínculo `entidade_tipo='lead'`; documento que só
+pertence à Pessoa (sem vínculo) é "Sem pasta" e ganha o vínculo ao ser organizado — sempre pela
+rota `POST /api/leads/[id]/organizar-documentos/aplicar`, nunca por UPDATE direto no cliente
+(`useMoverDocumentoParaPasta` só faz UPDATE e não criaria o vínculo). "Organizar arquivos" chama
+`/classificar`, que roda só a fase 1 do OCR (Haiku) e grava o tipo em `classificacao_legado`,
+inclusive `'outro'`, pra não pagar de novo; `processarOcrDocumento` pula a fase 1 quando o tipo já
+é conhecido. Na conversão lead → negócio, a pasta do lead é a 1ª prioridade de
+`inferirPastaSugerida` (`pastaDoLeadCodigo`).
