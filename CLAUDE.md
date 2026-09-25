@@ -183,6 +183,12 @@ processo 57` logo depois de 4 arquivos rodou uma vez só e vinculou 2). Todo `*s
 com o `mensagem_id` dela = ainda subindo; por isso o webhook grava a `mensagens` do arquivo ANTES do
 upload em segundo plano). Nunca escrever um caminho novo de vínculo com uma tentativa só.
 
+**Lista do `*salva` ambíguo e sessão do PDF disputam a mesma linha de `fonti_marcas`** (mesmo dia: certidão +
+`*salva joao` com 0,5s de diferença — a lista de 8 "joao" sumiu e a resposta "3" não fez nada). Gravar
+candidatos só via `gravarCandidatosPendentes()` (UPDATE → upsert ignoreDuplicates → UPDATE de novo) e
+`garantirSessaoMidiaOperador()` converte marca de ambiguidade criada no meio tempo. Nunca UPDATE-senão-INSERT
+solto nessa tabela: a unicidade `(empresa_id, telefone_conversa)` faz o INSERT perdedor falhar em silêncio.
+
 ### Pendências (`*simula`/`*consorcio`/`*custas`): concorrência de mensagens simultâneas
 
 Três mecanismos distintos, cada um com sua proteção — não misturar o padrão de um com outro:
