@@ -164,9 +164,18 @@ comercial mandava caía em `processarRespostaPendente` com texto vazio e era des
 (e ainda renovava a validade da pendência) — mesmo depois de `*inicio`, porque a pendência era
 checada antes da sessão. `*salva` respondia "nenhum documento encontrado". Agora
 `rotearMidiaOperador()` (`src/lib/bot/rotear-midia-operador.ts`) decide ANTES das pendências e do
-portão `conversaHumanoExistente` no webhook: sessão real aberta (`obterMarcaInicio`) + arquivo →
-salva na sessão e encerra; mídia sem legenda sem sessão → nunca vira resposta de pendência.
+portão `conversaHumanoExistente` no webhook: arquivo de comercial → sempre vai pra sessão de
+documentos; mídia sem arquivo e sem legenda → nunca vira resposta de pendência.
 Qualquer novo workflow com pendência precisa respeitar essa ordem.
+
+**`*inicio` é opcional** (mesmo dia): sem ele o PDF era descartado, ou — com a conversa do operador
+em `humano` — gravado na pessoa achada pelo telefone dele (um cliente qualquer), e `*salva fulano`
+respondia "nenhum documento". Agora `garantirSessaoMidiaOperador()` (`fonti-comandos.ts`) abre uma
+sessão real no 1º PDF (ou converte a marca de ambiguidade, ou reinicia uma sessão sem documento
+novo há mais de 2h, pra não juntar clientes diferentes). O `*salva` procura os documentos pela
+Pessoa da SESSÃO (`fonti_marcas.pessoa_id`, parâmetro `pessoaSessao` de
+`vincularDocumentosRecentesPorTelefone`), nunca pela `conversas.pessoa_id` — que outras mensagens
+do operador sobrescrevem.
 
 ### Pendências (`*simula`/`*consorcio`/`*custas`): concorrência de mensagens simultâneas
 
