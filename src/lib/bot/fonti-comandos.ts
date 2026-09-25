@@ -361,6 +361,13 @@ export async function garantirSessaoMidiaOperador(
       { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: agora, sessao_real: true },
       { onConflict: 'empresa_id,telefone_conversa', ignoreDuplicates: true },
     )
+    // Se um *salva ambíguo criou a marca de ambiguidade nesse meio tempo, o upsert acima não
+    // fez nada: converte em sessão real preservando os candidatos (achado real 2026-09-25).
+    await supabase.from('fonti_marcas')
+      .update({ sessao_real: true })
+      .eq('empresa_id', empresa_id)
+      .eq('telefone_conversa', telefoneConversa)
+      .eq('sessao_real', false)
     return
   }
 
@@ -393,6 +400,47 @@ export async function garantirSessaoMidiaOperador(
     .eq('empresa_id', empresa_id)
     .eq('telefone_conversa', telefoneConversa)
     .eq('iniciado_at', marca.iniciado_at)
+}
+
+// Guarda a lista de "Encontrei N clientes…" do *salva ambíguo. Não pode ser UPDATE-senão-INSERT
+// solto: um PDF mandado junto abre a sessão (garantirSessaoMidiaOperador) entre os dois passos e
+// o INSERT bate na unicidade — a lista sumia em silêncio e a resposta "3" não fazia nada
+// (achado real 2026-09-25). Preserva iniciado_at/sessao_real de uma sessão já existente.
+// Retorna false se não conseguiu gravar (o chamador avisa o operador).
+export async function gravarCandidatosPendentes(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+  candidatos: { id: string; nome: string }[],
+): Promise<boolean> {
+  const atualizar = () => supabase.from('fonti_marcas')
+    .update({ candidatos_pendentes: candidatos })
+    .eq('empresa_id', empresa_id)
+    .eq('telefone_conversa', telefoneConversa)
+    .select('id')
+  const primeira = await atualizar()
+  if (primeira.error) { console.error('[fonti] candidatos pendentes (update):', primeira.error.message); return false }
+  if (primeira.data?.length) return true
+
+  const { error: eIns } = await supabase.from('fonti_marcas').upsert(
+    {
+      empresa_id, telefone_conversa: telefoneConversa,
+      iniciado_at: new Date().toISOString(),
+      candidatos_pendentes: candidatos,
+      // Não é uma sessão real de *fonti inicio — só guarda a ambiguidade
+      // pendente. Ver obterMarcaInicio() e migration 308.
+      sessao_real: false,
+    },
+    { onConflict: 'empresa_id,telefone_conversa', ignoreDuplicates: true },
+  )
+  if (eIns) { console.error('[fonti] candidatos pendentes (insert):', eIns.message); return false }
+  // Se outra requisição criou a linha no meio tempo, o upsert não fez nada: grava nela.
+  const segunda = await atualizar()
+  if (segunda.error || !segunda.data?.length) {
+    console.error('[fonti] candidatos pendentes não gravados:', segunda.error?.message)
+    return false
+  }
+  return true
 }
 
 // Roda `tentar` (que devolve quantos documentos NOVOS vinculou) até os arquivos da sessão
@@ -1265,21 +1313,10 @@ export async function processarComandoFonti(
       return `❌ Não encontrei "${referencia}" no sistema. Verifique o nome ou referência.`
     }
     if (entidade.tipo === 'ambiguo') {
-      // Atualiza só candidatos_pendentes — preserva iniciado_at do *fonti inicio caso já exista
-      const { data: linhasAtualizadas } = await supabase.from('fonti_marcas')
-        .update({ candidatos_pendentes: entidade.candidatos })
-        .eq('empresa_id', empresa_id)
-        .eq('telefone_conversa', telefoneConversaSalva)
-        .select('id')
-      if (!linhasAtualizadas?.length) {
-        await supabase.from('fonti_marcas').insert({
-          empresa_id, telefone_conversa: telefoneConversaSalva,
-          iniciado_at: new Date().toISOString(),
-          candidatos_pendentes: entidade.candidatos,
-          // Não é uma sessão real de *fonti inicio — só guarda a ambiguidade
-          // pendente. Ver obterMarcaInicio() e migration 308.
-          sessao_real: false,
-        })
+      // Preserva iniciado_at do *fonti inicio caso já exista; atômico contra o PDF que abre a sessão junto.
+      const gravou = await gravarCandidatosPendentes(supabase, empresa_id, telefoneConversaSalva, entidade.candidatos)
+      if (!gravou) {
+        return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${referencia}", mas não consegui registrar a lista. Envie *salva ${referencia} de novo.`
       }
       const linhas = entidade.candidatos.map((c, i) => `${i + 1}. ${c.nome}`).join('\n')
       return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${referencia}":\n\n${linhas}\n\nResponda com o número:\n*fonti salva 1`
