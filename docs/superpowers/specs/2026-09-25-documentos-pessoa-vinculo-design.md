@@ -69,8 +69,8 @@ lead/negócio certo, já na pasta certa — e consegue desfazer um envio errado 
   não em documento de trabalho do negócio (esse continua só com "Excluir") nem no documento da pessoa
   que aparece virtualmente em "Sem pasta" do lead sem vínculo.
 
-**Conversão lead → negócio** — o passo "Vincular documentos ao processo" passa a usar a mesma janela e
-a rota de vínculo. Comportamento visível igual ao atual.
+**Conversão lead → negócio** — o passo "Vincular documentos ao processo" mantém a tela atual e passa a
+gravar pela rota de vínculo (pasta calculada no servidor). Comportamento visível igual ao atual.
 
 **Bot** — resposta do `*salva` "Sem lead aberto — ficou só na pessoa" ganha a dica:
 "Para mandar a um lead/negócio: Pessoas → {nome} → Documentos → Enviar para…".
@@ -110,9 +110,9 @@ pasta.
 | `GET /api/documentos/vinculos/candidatos` | `?entidade_tipo&entidade_id` → acervo das pessoas do lead/negócio ainda não vinculado ali, agrupado por pessoa (alimenta "Trazer das pessoas") |
 | `GET /api/documentos/vinculos/destinos` | `?pessoa_id&busca` → leads/negócios da pessoa + resultado da busca livre, com flag `pessoa_participa` |
 | `src/lib/documentos/vinculos.ts` | lógica pura/servidor reaproveitada pelas rotas: participantes de lead/negócio, candidatos, pasta |
-| `SeletorDocumentosModal` | janela única nos dois modos (`modo: 'enviar' \| 'trazer'`) |
+| `EnviarDocumentosModal` / `TrazerDocumentosModal` | as duas janelas (escolher destino / escolher documentos das pessoas), ambas sobre as mesmas rotas |
 | `AbaDocumentos.tsx` | etiquetas/filtro/seleção/"Enviar para…" (contexto pessoa); "Trazer das pessoas" e "Remover" (lead/processo) |
-| `NovoProcessoModal.tsx` | `VincularStep` passa a usar a rota `POST` |
+| `NovoProcessoModal.tsx` | `handleVincular` passa a usar a rota `POST` (tela mantida) |
 
 Rotas usam `supabaseAdmin` para gravar e um cliente com o JWT do usuário para as checagens de
 visibilidade (RLS), seguindo o padrão Bearer de `resolverUsuarioELead`. Toda query nova checa `error`
