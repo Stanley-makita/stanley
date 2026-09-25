@@ -157,6 +157,17 @@ código que precise gerar as variantes de um número (com/sem "9", com/sem DDI 5
 documentado (dígito "9" divergente). Uma normalização incompleta falha silenciosamente: não
 dá erro, só deixa de encontrar a conversa/documento certo.
 
+### Mídia do operador: sessão `*fonti inicio` vence pendência e portão "humano"
+
+Achado real (2026-09-25, na frente da equipe): com um `*simula` pendente aberto, todo PDF que o
+comercial mandava caía em `processarRespostaPendente` com texto vazio e era descartado sem erro
+(e ainda renovava a validade da pendência) — mesmo depois de `*inicio`, porque a pendência era
+checada antes da sessão. `*salva` respondia "nenhum documento encontrado". Agora
+`rotearMidiaOperador()` (`src/lib/bot/rotear-midia-operador.ts`) decide ANTES das pendências e do
+portão `conversaHumanoExistente` no webhook: sessão real aberta (`obterMarcaInicio`) + arquivo →
+salva na sessão e encerra; mídia sem legenda sem sessão → nunca vira resposta de pendência.
+Qualquer novo workflow com pendência precisa respeitar essa ordem.
+
 ### Pendências (`*simula`/`*consorcio`/`*custas`): concorrência de mensagens simultâneas
 
 Três mecanismos distintos, cada um com sua proteção — não misturar o padrão de um com outro:
