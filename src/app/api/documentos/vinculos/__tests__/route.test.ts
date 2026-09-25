@@ -87,6 +87,14 @@ describe('DELETE /api/documentos/vinculos', () => {
     expect(estado.tabelas.lead_historico[0]).toMatchObject({ lead_id: 'l1', tipo: 'acao_operacional', usuario_id: 'u1' })
   })
 
+  it('recusa remover documento de trabalho do negócio (400) e não apaga o vínculo', async () => {
+    estado.tabelas.documento_vinculos.push({ id: 'v2', empresa_id: 'e1', documento_id: 'trab', entidade_tipo: 'processo', entidade_id: 'pr1', pasta_id: null })
+    const { DELETE } = await import('../route')
+    const res = await DELETE(req('DELETE', { documento_id: 'trab', entidade_tipo: 'processo', entidade_id: 'pr1' }))
+    expect(res.status).toBe(400)
+    expect(estado.tabelas.documento_vinculos.some(v => v.documento_id === 'trab')).toBe(true)
+  })
+
   it('404 quando o vínculo não existe', async () => {
     const { DELETE } = await import('../route')
     expect((await DELETE(req('DELETE', { documento_id: 'd1', entidade_tipo: 'processo', entidade_id: 'pr1' }))).status).toBe(404)

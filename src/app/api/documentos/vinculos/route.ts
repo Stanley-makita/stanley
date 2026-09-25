@@ -96,6 +96,15 @@ export async function DELETE(request: NextRequest) {
   const negado = await verificarDestino(ctx, entidadeTipo, entidadeId)
   if (negado) return negado
 
+  // Documento de trabalho (contrato, matrícula…) não tem Pessoa dona: vive só pelo vínculo
+  // com o processo — tirar o vínculo o faria sumir de todas as telas.
+  const { data: docAlvo, error: eDoc } = await supabase.from('documentos')
+    .select('dominio, nome_original, nome_exibicao').eq('id', documentoId).eq('empresa_id', empresaId).maybeSingle()
+  if (eDoc) return erro500('remover', eDoc.message)
+  if (docAlvo && docAlvo.dominio !== 'acervo_documental') {
+    return NextResponse.json({ error: 'Documento de trabalho do negócio não pode ser removido daqui — use Excluir.' }, { status: 400 })
+  }
+
   const { data: removidos, error } = await supabase.from('documento_vinculos').delete()
     .eq('documento_id', documentoId).eq('entidade_tipo', entidadeTipo).eq('entidade_id', entidadeId).eq('empresa_id', empresaId)
     .select('id')
@@ -104,8 +113,7 @@ export async function DELETE(request: NextRequest) {
 
   // Histórico é secundário: falha aqui só loga, não desfaz a remoção.
   try {
-    const { data: d } = await supabase.from('documentos').select('nome_original, nome_exibicao').eq('id', documentoId).maybeSingle()
-    const nomeDoc = (d?.nome_exibicao ?? d?.nome_original ?? 'documento') as string
+    const nomeDoc = (docAlvo?.nome_exibicao ?? docAlvo?.nome_original ?? 'documento') as string
     const texto = `${ctx.usuario.nome} removeu o documento "${nomeDoc}" deste ${entidadeTipo === 'lead' ? 'lead' : 'negócio'} (o documento continua na pessoa).`
     const { error: eHist } = entidadeTipo === 'lead'
       ? await supabase.from('lead_historico').insert({ lead_id: entidadeId, empresa_id: empresaId, usuario_id: ctx.usuario.id, tipo: 'acao_operacional', descricao: texto })

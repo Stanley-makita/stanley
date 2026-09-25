@@ -78,3 +78,19 @@ describe('interpretarBuscaDestino', () => {
     expect(interpretarBuscaDestino('j')).toEqual({ numeroProcesso: null, texto: null })
   })
 })
+
+describe('podeRemoverVinculo', () => {
+  it('lead: documento do titular não mostra Remover (voltaria em "Sem pasta")', async () => {
+    const { podeRemoverVinculo } = await import('../vinculos')
+    expect(podeRemoverVinculo({ contexto: 'lead', vinculoDireto: true, docPessoaId: 'titular', titularPessoaId: 'titular' })).toBe(false)
+  })
+  it('lead: documento do cônjuge/outra pessoa pode ser removido', async () => {
+    const { podeRemoverVinculo } = await import('../vinculos')
+    expect(podeRemoverVinculo({ contexto: 'lead', vinculoDireto: true, docPessoaId: 'conj', titularPessoaId: 'titular' })).toBe(true)
+  })
+  it('processo: qualquer vínculo direto pode ser removido; sem vínculo direto nunca', async () => {
+    const { podeRemoverVinculo } = await import('../vinculos')
+    expect(podeRemoverVinculo({ contexto: 'processo', vinculoDireto: true, docPessoaId: 'titular', titularPessoaId: null })).toBe(true)
+    expect(podeRemoverVinculo({ contexto: 'processo', vinculoDireto: false, docPessoaId: 'x', titularPessoaId: null })).toBe(false)
+  })
+})

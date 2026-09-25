@@ -33,6 +33,7 @@ import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDo
 import { EnviarDocumentosModal } from '@/components/documentos/EnviarDocumentosModal'
 import { TrazerDocumentosModal } from '@/components/documentos/TrazerDocumentosModal'
 import { useEtiquetasVinculo, useRemoverVinculo } from '@/hooks/documentos/useVinculosDocumento'
+import { podeRemoverVinculo } from '@/lib/documentos/vinculos'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -1094,7 +1095,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                 >
                   <Share2 className="h-3.5 w-3.5" />
                 </button>
-                {doc.vinculo_direto && (
+                {contexto !== 'pessoa' && podeRemoverVinculo({
+                  contexto, vinculoDireto: !!doc.vinculo_direto, docPessoaId: doc.pessoa_id ?? null,
+                  titularPessoaId: contexto === 'lead' ? pessoaId ?? null : null,
+                }) && (
                   <button
                     onClick={() => handleRemoverVinculo(doc)}
                     title={confirmandoRemocao === doc.id ? 'Clique novamente para remover daqui' : `Remover deste ${contexto === 'lead' ? 'lead' : 'negócio'} (continua na pessoa)`}

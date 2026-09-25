@@ -98,3 +98,19 @@ export function interpretarBuscaDestino(busca: string): { numeroProcesso: string
   if (num) return { numeroProcesso: `#proc-${num[1].padStart(3, '0')}`, texto: null }
   return { numeroProcesso: null, texto: b.length >= 2 ? b : null }
 }
+
+/**
+ * "Remover deste lead/negócio" só aparece quando tirar o vínculo tem efeito visível. No lead,
+ * documento do titular sem outro vínculo sempre aparece na aba (em "Sem pasta") — removê-lo
+ * faria o documento voltar na hora, parecendo que o botão não funcionou.
+ */
+export function podeRemoverVinculo(p: {
+  contexto: EntidadeVinculo
+  vinculoDireto: boolean
+  docPessoaId: string | null
+  titularPessoaId: string | null
+}): boolean {
+  if (!p.vinculoDireto) return false
+  if (p.contexto === 'lead' && p.titularPessoaId && p.docPessoaId === p.titularPessoaId) return false
+  return true
+}
