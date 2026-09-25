@@ -695,7 +695,7 @@ export function montarRespostaSalvaPessoa(args: {
 
   linhas.push(temLead
     ? `📎 Vinculado ao Lead${faseLead ? ` (etapa ${faseLead})` : ''}`
-    : '📎 Sem lead aberto — ficou só na pessoa')
+    : `📎 Sem lead aberto — ficou só na pessoa\nPara mandar a um lead/negócio: Pessoas → ${nome} → Documentos → Enviar para…`)
 
   if (processos.length > 0) {
     const lista = processos.map((p) => `${p.numero_processo} ${rotuloModalidade(p.modalidade)}`).join(', ')

@@ -32,6 +32,7 @@ describe('montarRespostaSalvaPessoa', () => {
       processos: [{ numero_processo: '#proc-057', modalidade: 'Consorcio' }],
     })
     expect(r).toContain('📎 Sem lead aberto — ficou só na pessoa')
+    expect(r).toContain('Para mandar a um lead/negócio: Pessoas → Joao PEde Feijao → Documentos → Enviar para…')
     expect(r).toContain('Processos dele: #proc-057 Consórcio.')
     expect(r).toContain('*fonti salva processo 057')
     expect(r).not.toContain('Vinculado ao Lead')
