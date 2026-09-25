@@ -205,6 +205,11 @@ export async function vincularDocumentosRecentesPorTelefone(
   janela_minutos = 15,
   marcaAt?: Date,
   processo_id?: string,
+  // Pessoa provisória da sessão *fonti inicio/lote de PDFs (fonti_marcas.pessoa_id). Quando
+  // existe, é ela a dona dos documentos da sessão — não conversas.pessoa_id, que outras
+  // mensagens do operador (fluxo de conversa "humano") sobrescrevem com a pessoa achada
+  // pelo telefone dele. Achado real 2026-09-25: *salva não achava nada por isso.
+  pessoaSessao?: string | null,
 ): Promise<{ count: number; ids: string[] }> {
   // Os documentos recém-enviados nesta conversa foram salvos (pelo webhook, fora
   // do *fonti) com o pessoa_id resolvido pelo TELEFONE da conversa
@@ -225,7 +230,7 @@ export async function vincularDocumentosRecentesPorTelefone(
     .limit(1)
     .maybeSingle()
 
-  const pessoaDaConversa = conversa?.pessoa_id ?? null
+  const pessoaDaConversa = pessoaSessao ?? conversa?.pessoa_id ?? null
   const pessoaAlvo = pessoa_id ?? pessoaDaConversa
   if (!pessoaDaConversa) return { count: 0, ids: [] }
 
@@ -323,6 +328,70 @@ export async function obterMarcaInicio(
   // documentos enviados antes do comando, que é o caso normal).
   if (!data?.iniciado_at || data.sessao_real === false) return null
   return new Date(data.iniciado_at)
+}
+
+// Sessão sem nenhum documento novo há mais que isso é tratada como abandonada: o próximo
+// PDF começa um lote novo, pra não juntar documentos de outro cliente no mesmo *salva.
+const SESSAO_MIDIA_ABANDONADA_MS = 2 * 60 * 60 * 1000
+
+// Todo PDF que um comercial manda pro número da empresa pertence a uma sessão — com ou sem
+// *fonti inicio antes. Sem sessão, abre uma (sessao_real=true); com marca só de ambiguidade
+// do *salva, converte em sessão real preservando os candidatos; com sessão abandonada,
+// reinicia. A Pessoa da sessão é criada depois, pela RPC obter_ou_criar_pessoa_sessao_fonti
+// (provisória nova, nunca a do telefone do operador — migration 314).
+// Achado real 2026-09-25: sem *inicio o PDF era descartado e *salva fulano não achava nada.
+export async function garantirSessaoMidiaOperador(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+): Promise<void> {
+  const agora = new Date().toISOString()
+  const { data: marca } = await supabase
+    .from('fonti_marcas')
+    .select('iniciado_at, sessao_real, pessoa_id')
+    .eq('empresa_id', empresa_id)
+    .eq('telefone_conversa', telefoneConversa)
+    .maybeSingle()
+
+  if (!marca) {
+    // ignoreDuplicates: vários PDFs chegam quase juntos; só o primeiro cria a sessão, os
+    // outros não podem sobrescrever o pessoa_id que a RPC já gravou nela.
+    await supabase.from('fonti_marcas').upsert(
+      { empresa_id, telefone_conversa: telefoneConversa, iniciado_at: agora, sessao_real: true },
+      { onConflict: 'empresa_id,telefone_conversa', ignoreDuplicates: true },
+    )
+    return
+  }
+
+  const soAmbiguidade = marca.sessao_real === false
+  if (!soAmbiguidade) {
+    let ultimaAtividade = new Date(marca.iniciado_at).getTime()
+    if (marca.pessoa_id) {
+      const { data: ultimoDoc } = await supabase
+        .from('documentos')
+        .select('recebido_em')
+        .eq('empresa_id', empresa_id)
+        .eq('pessoa_id', marca.pessoa_id)
+        .is('deleted_at', null)
+        .order('recebido_em', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (ultimoDoc?.recebido_em) {
+        ultimaAtividade = Math.max(ultimaAtividade, new Date(ultimoDoc.recebido_em).getTime())
+      }
+    }
+    if (Date.now() - ultimaAtividade < SESSAO_MIDIA_ABANDONADA_MS) return
+  }
+
+  // Condicional no iniciado_at lido: com PDFs simultâneos, só um webhook reinicia a sessão.
+  await supabase.from('fonti_marcas')
+    .update({
+      iniciado_at: agora, sessao_real: true, pessoa_id: null, processo_id: null,
+      ...(soAmbiguidade ? {} : { candidatos_pendentes: null }),
+    })
+    .eq('empresa_id', empresa_id)
+    .eq('telefone_conversa', telefoneConversa)
+    .eq('iniciado_at', marca.iniciado_at)
 }
 
 async function limparMarca(
@@ -1140,10 +1209,15 @@ export async function processarComandoFonti(
 
     const tentarVincularDocumentos = async (): Promise<number> => {
       if (entidade!.tipo !== 'pessoa') return 0
+      // Relida a cada tentativa: a Pessoa da sessão é gravada pela RPC no webhook do 1º
+      // PDF, em segundo plano — pode ainda não existir na 1ª tentativa.
+      const pessoaSessao = marcaAtSalva
+        ? (await obterSessaoCompleta(supabase, empresa_id, telefoneConversaSalva))?.pessoa_id ?? null
+        : null
       const res = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversaSalva,
         entidade!.id, entidade!.lead_id ?? null,
-        15, marcaAtSalva ?? undefined,
+        15, marcaAtSalva ?? undefined, undefined, pessoaSessao,
       )
       // Vincula também docs da conversa do próprio cliente (bot, 90 dias)
       const viaConversa = await vincularDocumentosConversa(supabase, empresa_id, entidade!.id, entidade!.lead_id ?? null)
@@ -1188,7 +1262,7 @@ export async function processarComandoFonti(
 
     const total = vinculados + salvos
     if (total === 0) {
-      return `⚠️ Nenhum documento encontrado para *${entidade.label}*.\nEnvie os arquivos e use *fonti inicio antes para marcar o início da sessão.`
+      return `⚠️ Nenhum documento encontrado para *${entidade.label}*.\nEnvie os arquivos aqui e depois *salva ${entidade.label}.`
     }
 
     if (entidade.tipo === 'pessoa') {
@@ -1279,8 +1353,10 @@ export async function processarComandoFonti(
     let docsAtualizaCount = 0
     let docsAtualizaIds: string[] = []
     if (marcaAtAtualiza) {
+      const pessoaSessaoAtualiza = (await obterSessaoCompleta(supabase, empresa_id, telefoneConversaAtualiza))?.pessoa_id ?? null
       const res = await vincularDocumentosRecentesPorTelefone(
         supabase, empresa_id, telefoneConversaAtualiza, pessoaId, leadId, 15, marcaAtAtualiza,
+        undefined, pessoaSessaoAtualiza,
       )
       docsAtualizaCount = res.count
       docsAtualizaIds = res.ids

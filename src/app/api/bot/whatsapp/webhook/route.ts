@@ -7,7 +7,8 @@ import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
 import { carregarBotConfig } from '@/lib/bot/bot-config'
 import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
-import { processarComandoFonti, obterMarcaInicio } from '@/lib/bot/fonti-comandos'
+import { processarComandoFonti, garantirSessaoMidiaOperador } from '@/lib/bot/fonti-comandos'
+import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
 import { rotearMidiaOperador, type RotaMidiaOperador } from '@/lib/bot/rotear-midia-operador'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
@@ -1049,19 +1050,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Mídia do operador: sessão *fonti inicio aberta tem prioridade sobre pendência de
-    // workflow e sobre o portão de conversa "humano"; mídia sem legenda nunca vira
-    // resposta de pendência. Ver rotear-midia-operador.ts (incidente 2026-09-25).
+    // Arquivo de comercial vai sempre pra sessão de documentos (abre uma se não houver
+    // *inicio), com prioridade sobre pendência de workflow e sobre o portão de conversa
+    // "humano"; mídia sem arquivo e sem legenda nunca vira resposta de pendência.
+    // Ver rotear-midia-operador.ts (incidentes 2026-09-25).
     let rotaMidia: RotaMidiaOperador = 'fluxo_normal'
     if (usuarioInterno && isMidia) {
-      const marcaSessao = await obterMarcaInicio(supabase, empresa_id, telefone)
-      rotaMidia = rotearMidiaOperador({ isMidia, temArquivo: !!fileUrl, texto, temSessaoFonti: !!marcaSessao })
+      rotaMidia = rotearMidiaOperador({ isMidia, temArquivo: !!fileUrl, texto })
       if (rotaMidia === 'ignorar_pendencias') {
-        console.log('[whatsapp-webhook] mídia de operador sem sessão *fonti inicio — não é resposta de pendência. telefone:', telefone)
+        console.log('[whatsapp-webhook] mídia de operador sem arquivo baixado — não é resposta de pendência. telefone:', telefone)
       }
     }
 
     if (rotaMidia === 'salvar_na_sessao' && fileUrl) {
+      // Antes do waitUntil: a RPC da Pessoa da sessão exige a linha em fonti_marcas.
+      await garantirSessaoMidiaOperador(supabase, empresa_id, telefone)
+      // Conversa resolvida pela RPC canônica (nunca busca solta por telefone).
+      const conversaIdDoc = await garantirConversaOperador(supabase, empresa_id, telefone)
+      // Registra o arquivo na conversa do operador, pra ele aparecer na tela de Conversas.
+      const { data: mensagemDoc } = await supabase.from('mensagens').insert({
+        conversa_id: conversaIdDoc,
+        origem: 'cliente',
+        conteudo: texto.trim(),
+        metadata: {
+          tipo_midia: tipoMidia,
+          file_url: fileUrl,
+          nome_arquivo: mediaContent?.fileName ?? undefined,
+          sender_pn: senderPn,
+          senderName: nomeContato,
+          uazapi_message_id: msg?.messageid ?? null,
+        },
+      }).select('id').single()
+
       // Download do arquivo real + upload pro Storage (dentro de
       // salvarDocumentoCliente) são as duas chamadas de rede caras desse
       // fluxo — rodar em segundo plano (waitUntil) evita que a resposta ao
@@ -1095,51 +1115,27 @@ export async function POST(request: NextRequest) {
           )
           if (erroPessoaSessao || !pessoaIdDoc) throw erroPessoaSessao ?? new Error('RPC não retornou pessoa_id')
 
-          const { data: convExistente } = await supabase
-            .from('conversas')
-            .select('id')
-            .eq('empresa_id', empresa_id)
-            .eq('canal', 'whatsapp')
-            .eq('contato_telefone', telefone)
-            .maybeSingle()
+          // Conversa do operador aponta pra Pessoa provisória da sessão — nunca fica
+          // apontando pra um cliente achado pelo telefone dele.
+          await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
 
-          let conversaIdDoc = convExistente?.id as string | undefined
-          if (!conversaIdDoc) {
-            const { data: novaConv, error: erroNovaConv } = await supabase
-              .from('conversas')
-              .insert({
-                empresa_id,
-                canal: 'whatsapp',
-                contato_telefone: telefone,
-                contato_nome: nomeContato ?? null,
-                pessoa_id: pessoaIdDoc,
-                status: 'humano',
-                bot_ativo: false,
-                instancia_id: instancia_id ?? undefined,
-              })
-              .select('id')
-              .single()
-            if (erroNovaConv) console.error('[whatsapp-webhook] Erro ao criar conversa pra documento:', erroNovaConv.message)
-            conversaIdDoc = novaConv?.id
-          } else {
-            await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
-          }
-
-          if (conversaIdDoc) {
-            await salvarDocumentoCliente({
-              empresa_id,
-              pessoa_id: pessoaIdDoc,
-              conversa_id: conversaIdDoc,
-              fileUrl: fileUrlCapturado,
-              fileName: mediaContentCapturado?.fileName ?? null,
-              mimeType: mediaContentCapturado?.mimetype ?? null,
-            })
-          }
+          await salvarDocumentoCliente({
+            empresa_id,
+            pessoa_id: pessoaIdDoc,
+            conversa_id: conversaIdDoc,
+            mensagem_id: mensagemDoc?.id ?? null,
+            fileUrl: fileUrlCapturado,
+            fileName: mediaContentCapturado?.fileName ?? null,
+            mimeType: mediaContentCapturado?.mimetype ?? null,
+          })
         } catch (err) {
-          console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
+          console.error('[whatsapp-webhook] Erro ao salvar documento da sessão de documentos do operador:', err)
         }
       })())
-      return NextResponse.json({ ok: true })
+      if (!texto.trim()) return NextResponse.json({ ok: true })
+      // Arquivo com legenda: o arquivo já está salvo; a legenda segue o fluxo normal
+      // (pode ser dado de uma pendência de *simula), sem salvar o arquivo de novo.
+      fileUrl = null
     }
 
     const { data: conversaHumanoExistente } = usuarioInterno
@@ -1255,9 +1251,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (isMidia && fileUrl) {
-        // Mídia solta de operador SEM sessão *fonti inicio aberta: não persiste (evita
-        // salvar qualquer mídia solta enviada ao número do bot). Com sessão aberta ela já
-        // foi salva lá em cima (rotaMidia === 'salvar_na_sessao'), antes das pendências.
+        // Inalcançável na prática: arquivo de operador já foi salvo na sessão de
+        // documentos lá em cima (rotaMidia === 'salvar_na_sessao'), que zera fileUrl ou
+        // encerra a requisição. Mantido só pra não cair no parser de simulação abaixo.
       } else {
         // Sem pendência ativa — antes de descartar, verifica se a mensagem tem "cara"
         // de dados de simulação (nome + intenção clara), mesma regra do *cria cliente.
