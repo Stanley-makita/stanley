@@ -7,7 +7,8 @@ import type { BotEstado, BotDados } from '@/lib/bot/state-machine'
 import { carregarBotConfig } from '@/lib/bot/bot-config'
 import { estaEmHorarioConfig } from '@/lib/horarioAtendimento'
 import { buscarOuCriarPessoa, buscarPessoaPorTelefone, carregarContextoPessoa, formatarContextoParaBot, confirmarIdentidadePessoa } from '@/lib/pessoa'
-import { processarComandoFonti } from '@/lib/bot/fonti-comandos'
+import { processarComandoFonti, obterMarcaInicio } from '@/lib/bot/fonti-comandos'
+import { rotearMidiaOperador, type RotaMidiaOperador } from '@/lib/bot/rotear-midia-operador'
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { reivindicarEvento, marcarEventoConcluido } from '@/lib/bot/idempotenciaWebhook'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
@@ -1048,6 +1049,99 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Mídia do operador: sessão *fonti inicio aberta tem prioridade sobre pendência de
+    // workflow e sobre o portão de conversa "humano"; mídia sem legenda nunca vira
+    // resposta de pendência. Ver rotear-midia-operador.ts (incidente 2026-09-25).
+    let rotaMidia: RotaMidiaOperador = 'fluxo_normal'
+    if (usuarioInterno && isMidia) {
+      const marcaSessao = await obterMarcaInicio(supabase, empresa_id, telefone)
+      rotaMidia = rotearMidiaOperador({ isMidia, temArquivo: !!fileUrl, texto, temSessaoFonti: !!marcaSessao })
+      if (rotaMidia === 'ignorar_pendencias') {
+        console.log('[whatsapp-webhook] mídia de operador sem sessão *fonti inicio — não é resposta de pendência. telefone:', telefone)
+      }
+    }
+
+    if (rotaMidia === 'salvar_na_sessao' && fileUrl) {
+      // Download do arquivo real + upload pro Storage (dentro de
+      // salvarDocumentoCliente) são as duas chamadas de rede caras desse
+      // fluxo — rodar em segundo plano (waitUntil) evita que a resposta ao
+      // webhook fique refém delas. Sob carga (vários comerciais mandando
+      // documentos ao mesmo tempo) isso já estourou o teto de duração da
+      // função em produção, derrubando documentos sem erro nenhum pro
+      // comercial (achado real, apresentação de 2026-09-15/16). A resposta
+      // ao Uazapi sai rápido; o *fonti salva (com o retry já implementado
+      // hoje) espera os documentos aparecerem.
+      const fileUrlCapturado = fileUrl
+      const mediaContentCapturado = mediaContent
+      waitUntil((async () => {
+        try {
+          // Pessoa da sessão: a RPC reaproveita se já existe (documento anterior
+          // nesta mesma sessão já criou uma) ou cria uma nova e ancora na sessão
+          // (fonti_marcas.pessoa_id). NUNCA busca/cria pelo telefone do comercial
+          // (buscarOuCriarPessoa) — isso faria uma segunda sessão do mesmo
+          // comercial, pra outro cliente, reaproveitar por engano a Pessoa
+          // provisória do cliente anterior.
+          //
+          // Resolvido via RPC (obter_ou_criar_pessoa_sessao_fonti), não um
+          // SELECT+INSERT+UPDATE manual aqui: vários documentos mandados quase
+          // juntos disparam o webhook quase em paralelo, e duas invocações
+          // concorrentes liam pessoa_id=null antes de qualquer uma escrever,
+          // cada uma criando sua própria Pessoa — documentos ficavam divididos
+          // entre elas. A função Postgres trava a linha (FOR UPDATE) e resolve
+          // a corrida de forma atômica.
+          const { data: pessoaIdDoc, error: erroPessoaSessao } = await supabase.rpc(
+            'obter_ou_criar_pessoa_sessao_fonti',
+            { p_empresa_id: empresa_id, p_telefone_conversa: telefone, p_nome: nomeContato ?? 'Cliente' },
+          )
+          if (erroPessoaSessao || !pessoaIdDoc) throw erroPessoaSessao ?? new Error('RPC não retornou pessoa_id')
+
+          const { data: convExistente } = await supabase
+            .from('conversas')
+            .select('id')
+            .eq('empresa_id', empresa_id)
+            .eq('canal', 'whatsapp')
+            .eq('contato_telefone', telefone)
+            .maybeSingle()
+
+          let conversaIdDoc = convExistente?.id as string | undefined
+          if (!conversaIdDoc) {
+            const { data: novaConv, error: erroNovaConv } = await supabase
+              .from('conversas')
+              .insert({
+                empresa_id,
+                canal: 'whatsapp',
+                contato_telefone: telefone,
+                contato_nome: nomeContato ?? null,
+                pessoa_id: pessoaIdDoc,
+                status: 'humano',
+                bot_ativo: false,
+                instancia_id: instancia_id ?? undefined,
+              })
+              .select('id')
+              .single()
+            if (erroNovaConv) console.error('[whatsapp-webhook] Erro ao criar conversa pra documento:', erroNovaConv.message)
+            conversaIdDoc = novaConv?.id
+          } else {
+            await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
+          }
+
+          if (conversaIdDoc) {
+            await salvarDocumentoCliente({
+              empresa_id,
+              pessoa_id: pessoaIdDoc,
+              conversa_id: conversaIdDoc,
+              fileUrl: fileUrlCapturado,
+              fileName: mediaContentCapturado?.fileName ?? null,
+              mimeType: mediaContentCapturado?.mimetype ?? null,
+            })
+          }
+        } catch (err) {
+          console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
+        }
+      })())
+      return NextResponse.json({ ok: true })
+    }
+
     const { data: conversaHumanoExistente } = usuarioInterno
       ? await supabase
           .from('conversas')
@@ -1059,7 +1153,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle()
       : { data: null }
 
-    if (usuarioInterno) {
+    if (usuarioInterno && rotaMidia !== 'ignorar_pendencias') {
       // Pendências de workflow interno (*simula/*custas/*consorcio) sempre têm
       // prioridade sobre o portão "conversa humano" abaixo, MESMO se a própria
       // conversa do operador estiver com status='humano' — isso acontece sem
@@ -1161,110 +1255,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (isMidia && fileUrl) {
-        // Mídia solta, sem pendência de simulação ativa: só persiste se houver uma sessão
-        // *fonti inicio* aberta pra este telefone (fonti_marcas) — é o sinal explícito de
-        // "documentos do cliente virão a seguir, feche depois com *cria cliente". Sem essa
-        // marca, ignora (evita salvar qualquer mídia solta enviada ao número do bot).
-        //
-        // Bug corrigido jul/2026: antes deste bloco, mídia enviada aqui (ex.: PDFs/fotos
-        // do cliente logo após *inicio) era baixada do Uazapi (`fileUrl` acima) e depois
-        // simplesmente descartada — nunca chegava a `documentos`, então o `*cria cliente`
-        // não tinha nada pra vincular (etapa 5 de workflow-captacao.ts já sabia procurar
-        // por `pessoa_id` + janela de `fonti_marcas.iniciado_at`, mas nunca havia doc
-        // salvo com esse pessoa_id pra encontrar).
-        // `sessao_real: true` — achado real de auditoria: sem esse filtro, uma marca de
-        // AMBIGUIDADE de `*fonti salva` sem `*fonti inicio` aberto (sessao_real=false, só
-        // guarda candidatos_pendentes — ver migration 308) era tratada como sessão real, e
-        // a RPC abaixo (obter_ou_criar_pessoa_sessao_fonti, que também não olha
-        // sessao_real) gravava fonti_marcas.pessoa_id numa linha que era só um marcador de
-        // ambiguidade, misturando o fluxo de mídia solta com uma ambiguidade ainda aberta.
-        const { data: marcaAtiva } = await supabase
-          .from('fonti_marcas')
-          .select('iniciado_at')
-          .eq('empresa_id', empresa_id)
-          .eq('telefone_conversa', telefone)
-          .eq('sessao_real', true)
-          .maybeSingle()
-
-        if (marcaAtiva) {
-          // Download do arquivo real + upload pro Storage (dentro de
-          // salvarDocumentoCliente) são as duas chamadas de rede caras desse
-          // fluxo — rodar em segundo plano (waitUntil) evita que a resposta ao
-          // webhook fique refém delas. Sob carga (vários comerciais mandando
-          // documentos ao mesmo tempo) isso já estourou o teto de duração da
-          // função em produção, derrubando documentos sem erro nenhum pro
-          // comercial (achado real, apresentação de 2026-09-15/16). A resposta
-          // ao Uazapi sai rápido; o *fonti salva (com o retry já implementado
-          // hoje) espera os documentos aparecerem.
-          const fileUrlCapturado = fileUrl
-          const mediaContentCapturado = mediaContent
-          waitUntil((async () => {
-            try {
-              // Pessoa da sessão: a RPC reaproveita se já existe (documento anterior
-              // nesta mesma sessão já criou uma) ou cria uma nova e ancora na sessão
-              // (fonti_marcas.pessoa_id). NUNCA busca/cria pelo telefone do comercial
-              // (buscarOuCriarPessoa) — isso faria uma segunda sessão do mesmo
-              // comercial, pra outro cliente, reaproveitar por engano a Pessoa
-              // provisória do cliente anterior.
-              //
-              // Resolvido via RPC (obter_ou_criar_pessoa_sessao_fonti), não um
-              // SELECT+INSERT+UPDATE manual aqui: vários documentos mandados quase
-              // juntos disparam o webhook quase em paralelo, e duas invocações
-              // concorrentes liam pessoa_id=null antes de qualquer uma escrever,
-              // cada uma criando sua própria Pessoa — documentos ficavam divididos
-              // entre elas. A função Postgres trava a linha (FOR UPDATE) e resolve
-              // a corrida de forma atômica.
-              const { data: pessoaIdDoc, error: erroPessoaSessao } = await supabase.rpc(
-                'obter_ou_criar_pessoa_sessao_fonti',
-                { p_empresa_id: empresa_id, p_telefone_conversa: telefone, p_nome: nomeContato ?? 'Cliente' },
-              )
-              if (erroPessoaSessao || !pessoaIdDoc) throw erroPessoaSessao ?? new Error('RPC não retornou pessoa_id')
-
-              const { data: convExistente } = await supabase
-                .from('conversas')
-                .select('id')
-                .eq('empresa_id', empresa_id)
-                .eq('canal', 'whatsapp')
-                .eq('contato_telefone', telefone)
-                .maybeSingle()
-
-              let conversaIdDoc = convExistente?.id as string | undefined
-              if (!conversaIdDoc) {
-                const { data: novaConv, error: erroNovaConv } = await supabase
-                  .from('conversas')
-                  .insert({
-                    empresa_id,
-                    canal: 'whatsapp',
-                    contato_telefone: telefone,
-                    contato_nome: nomeContato ?? null,
-                    pessoa_id: pessoaIdDoc,
-                    status: 'humano',
-                    bot_ativo: false,
-                    instancia_id: instancia_id ?? undefined,
-                  })
-                  .select('id')
-                  .single()
-                if (erroNovaConv) console.error('[whatsapp-webhook] Erro ao criar conversa pra documento:', erroNovaConv.message)
-                conversaIdDoc = novaConv?.id
-              } else {
-                await supabase.from('conversas').update({ pessoa_id: pessoaIdDoc }).eq('id', conversaIdDoc)
-              }
-
-              if (conversaIdDoc && fileUrlCapturado) {
-                await salvarDocumentoCliente({
-                  empresa_id,
-                  pessoa_id: pessoaIdDoc,
-                  conversa_id: conversaIdDoc,
-                  fileUrl: fileUrlCapturado,
-                  fileName: mediaContentCapturado?.fileName ?? null,
-                  mimeType: mediaContentCapturado?.mimetype ?? null,
-                })
-              }
-            } catch (err) {
-              console.error('[whatsapp-webhook] Erro ao salvar documento da sessão *fonti inicio:', err)
-            }
-          })())
-        }
+        // Mídia solta de operador SEM sessão *fonti inicio aberta: não persiste (evita
+        // salvar qualquer mídia solta enviada ao número do bot). Com sessão aberta ela já
+        // foi salva lá em cima (rotaMidia === 'salvar_na_sessao'), antes das pendências.
       } else {
         // Sem pendência ativa — antes de descartar, verifica se a mensagem tem "cara"
         // de dados de simulação (nome + intenção clara), mesma regra do *cria cliente.
