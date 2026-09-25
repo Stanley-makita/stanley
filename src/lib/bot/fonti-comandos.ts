@@ -13,6 +13,7 @@ import { PERGUNTA_TIPO_CONSTRUCAO } from '@/lib/workflows/normalizador-captacao'
 import { buscarOuCriarPessoa } from '@/lib/pessoa'
 import { variantesTelefoneBR } from '@/lib/telefone'
 import { cpfValido } from '@/lib/cpf'
+import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -394,6 +395,73 @@ export async function garantirSessaoMidiaOperador(
     .eq('iniciado_at', marca.iniciado_at)
 }
 
+// Roda `tentar` (que devolve quantos documentos NOVOS vinculou) até os arquivos da sessão
+// terminarem de chegar. Documentos enviados logo antes do *salva ainda podem estar subindo
+// (download + upload do Storage rodam em segundo plano, um webhook por arquivo). Só para
+// quando uma rodada não acha nada novo E não há arquivo pendente — nunca antes de 2 rodadas
+// extras (o download ainda pode nem ter registrado a mensagem na conversa) nem depois de ~17s.
+// Achados reais: apresentação 2026-09-15 (achou 1 de 3) e 2026-09-25 (*salva processo 57
+// rodou uma vez só e vinculou 2 de 4).
+export async function vincularComEspera(
+  tentar: () => Promise<number>,
+  pendentes: () => Promise<number>,
+  esperar: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<number> {
+  let total = await tentar()
+  const esperas = [1200, 1500, 2000, 3000, 4000, 5000]
+  for (let i = 0; i < esperas.length; i++) {
+    await esperar(esperas[i])
+    const novos = await tentar()
+    total += novos
+    if (novos === 0 && i >= 1 && (await pendentes()) === 0) break
+  }
+  return total
+}
+
+// Arquivos que o operador mandou na conversa (registrados em `mensagens` pelo webhook na
+// chegada) e que ainda não viraram documento — ou seja, ainda estão subindo.
+export async function contarArquivosPendentes(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+  desde: Date,
+): Promise<number> {
+  const conversaId = await garantirConversaOperador(supabase, empresa_id, telefoneConversa)
+  const { data: msgs, error } = await supabase
+    .from('mensagens')
+    .select('id')
+    .eq('conversa_id', conversaId)
+    .eq('origem', 'cliente')
+    .not('metadata->>tipo_midia', 'is', null)
+    .gte('created_at', desde.toISOString())
+    .abortSignal(AbortSignal.timeout(10000))
+  if (error || !msgs?.length) return 0
+  const ids = msgs.map((m) => m.id as string)
+  const { data: docs } = await supabase
+    .from('documentos')
+    .select('mensagem_id')
+    .in('mensagem_id', ids)
+    .abortSignal(AbortSignal.timeout(10000))
+  const gravados = new Set((docs ?? []).map((d) => d.mensagem_id))
+  return ids.filter((id) => !gravados.has(id)).length
+}
+
+// Falha na contagem nunca pode travar o *salva: sem informação, trata como "nada pendente".
+async function contarPendentesSeguro(
+  supabase: SupabaseClient,
+  empresa_id: string,
+  telefoneConversa: string,
+  marcaAt: Date | null,
+): Promise<number> {
+  try {
+    const desde = marcaAt ?? new Date(Date.now() - 15 * 60_000)
+    return await contarArquivosPendentes(supabase, empresa_id, telefoneConversa, desde)
+  } catch (err) {
+    console.error('[fonti] Erro ao contar arquivos pendentes:', err)
+    return 0
+  }
+}
+
 async function limparMarca(
   supabase: SupabaseClient,
   empresa_id: string,
@@ -564,9 +632,21 @@ async function salvarParaProcesso(
   const comprador = await buscarCompradorPrincipalProcesso(supabase, empresa_id, processo.id)
   const pessoa_id = comprador?.pessoa_id ?? null
 
-  const { count: vinculados } = await vincularDocumentosRecentesPorTelefone(
-    supabase, empresa_id, telefoneConversa,
-    pessoa_id, null, 15, marcaAt ?? undefined, processo.id,
+  // Mesma sessão do *salva por nome: janela e Pessoa da sessão (PDFs mandados antes do
+  // comando, com ou sem *inicio/*processo) — o atalho "*salva processo 57" não recebia marcaAt.
+  const marcaEfetiva = marcaAt ?? await obterMarcaInicio(supabase, empresa_id, telefoneConversa)
+  const vinculados = await vincularComEspera(
+    async () => {
+      const pessoaSessao = marcaEfetiva
+        ? (await obterSessaoCompleta(supabase, empresa_id, telefoneConversa))?.pessoa_id ?? null
+        : null
+      const res = await vincularDocumentosRecentesPorTelefone(
+        supabase, empresa_id, telefoneConversa,
+        pessoa_id, null, 15, marcaEfetiva ?? undefined, processo.id, pessoaSessao,
+      )
+      return res.count
+    },
+    () => contarPendentesSeguro(supabase, empresa_id, telefoneConversa, marcaEfetiva),
   )
 
   let salvos = 0
@@ -1224,28 +1304,12 @@ export async function processarComandoFonti(
       return res.count + viaConversa
     }
 
-    let vinculados = await tentarVincularDocumentos()
-
-    // Retry com backoff, incondicional (não só quando dá zero): documentos
-    // enviados logo antes do *fonti salva às vezes ainda não terminaram de ser
-    // processados (download + insert em `documentos` é assíncrono, um webhook
-    // por mensagem) — sob carga (vários comerciais enviando documentos ao
-    // mesmo tempo) isso demora mais que o esperado, e o atraso é variável: às
-    // vezes falta 1 de 3, às vezes faltam todos. Continua tentando enquanto
-    // CADA rodada ainda encontra documento novo (tentarVincularDocumentos só
-    // conta os ainda não vinculados); para assim que uma rodada não acha nada
-    // de novo — sinal de que já achou tudo que existia (ou que não tinha
-    // mesmo). Achado real na apresentação pra equipe comercial (2026-09-15):
-    // 1ª tentativa achou 1 de 3 documentos; outra, no mesmo fluxo, achou 0 de
-    // 3 mesmo com retry — porque a versão anterior deste fix só reentrava
-    // quando o resultado era exatamente zero E havia sessão *fonti inicio
-    // ativa (o que nem sempre é o caso).
-    for (const esperaMs of [1200, 1500, 2000, 3000]) {
-      await new Promise((r) => setTimeout(r, esperaMs))
-      const novos = await tentarVincularDocumentos()
-      vinculados += novos
-      if (novos === 0) break
-    }
+    // Documentos enviados logo antes do *salva ainda podem estar subindo — espera por
+    // eles (ver vincularComEspera; achados reais 2026-09-15 e 2026-09-25).
+    const vinculados = await vincularComEspera(
+      tentarVincularDocumentos,
+      () => contarPendentesSeguro(supabase, empresa_id, telefoneConversaSalva, marcaAtSalva),
+    )
 
     if (marcaAtSalva) await limparMarca(supabase, empresa_id, telefoneConversaSalva)
 

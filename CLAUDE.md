@@ -177,6 +177,12 @@ Pessoa da SESSÃO (`fonti_marcas.pessoa_id`, parâmetro `pessoaSessao` de
 `vincularDocumentosRecentesPorTelefone`), nunca pela `conversas.pessoa_id` — que outras mensagens
 do operador sobrescrevem.
 
+**`*salva` (nome E processo) espera os arquivos que ainda estão subindo** (mesmo dia: `*salva
+processo 57` logo depois de 4 arquivos rodou uma vez só e vinculou 2). Todo `*salva` usa
+`vincularComEspera()` + `contarArquivosPendentes()` (mensagem de mídia na conversa sem `documentos`
+com o `mensagem_id` dela = ainda subindo; por isso o webhook grava a `mensagens` do arquivo ANTES do
+upload em segundo plano). Nunca escrever um caminho novo de vínculo com uma tentativa só.
+
 ### Pendências (`*simula`/`*consorcio`/`*custas`): concorrência de mensagens simultâneas
 
 Três mecanismos distintos, cada um com sua proteção — não misturar o padrão de um com outro:
