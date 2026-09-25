@@ -577,3 +577,17 @@ inclusive `'outro'`, pra não pagar de novo; `processarOcrDocumento` pula a fase
 "Extrair dados" confia nesse tipo e pula a classificação por Haiku, então um tipo manual errado
 vai direto pra extração completa por Sonnet, sem checagem intermediária. Na conversão lead →
 negócio, a pasta do lead é a 1ª prioridade de `inferirPastaSugerida` (`pastaDoLeadCodigo`).
+
+## Documento da Pessoa → Lead/Negócio: sempre pelas rotas `/api/documentos/vinculos` (2026-09-25)
+
+Vincular documento existente a um lead/negócio ("Enviar para…" na tela da Pessoa, "Trazer das
+pessoas" no Lead/Negócio, conversão lead → negócio) passa por `POST /api/documentos/vinculos`;
+remover por `DELETE` (só tira o vínculo, registra em `lead_historico`/`processo_comentarios`).
+Regras puras em `src/lib/documentos/vinculos.ts`, checagens em `vinculosServidor.ts`.
+- Nunca muda `documentos.pessoa_id`; `upsert` com `ignoreDuplicates` (não sobrescreve a pasta de um
+  vínculo que já existia). Só `acervo_documental`.
+- Permissão: `leads.editar`/`processos.editar` (`podeServidor`) **e** destino visível com o JWT do
+  usuário (`clienteDoUsuario`) — a RLS de carteira decide; a busca de destinos (`destinosVinculo.ts`)
+  também roda com esse cliente, então nunca revela lead/negócio de outra carteira.
+- Não gravar vínculo direto do cliente (`supabase.from('documento_vinculos').upsert` num componente) —
+  foi assim que a conversão lead → negócio tinha a regra de pasta copiada.

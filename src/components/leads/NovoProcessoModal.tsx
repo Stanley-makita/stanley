@@ -22,12 +22,11 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import {
-  inferirValidade, preSelecionar, inferirPastaSugerida,
+  inferirValidade, preSelecionar,
   calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE,
   type StatusValidade,
 } from '@/lib/documentos'
-import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
-import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDocumento'
+import { chamarApiVinculos } from '@/hooks/documentos/useVinculosDocumento'
 import { SeletorImovelProcesso, type ImovelSelecionado } from '@/components/leads/SeletorImovelProcesso'
 import { PessoaBuscaCombobox, type PessoaOpcao } from '@/components/processos/PessoaBuscaCombobox'
 import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
@@ -1731,10 +1730,7 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
   onConcluir: (processoId: string) => void
   onPular: (processoId: string) => void
 }) {
-  const { processoId, empresaId, docs, pessoaIdComprador, nomeComprador, pessoaIdConjuge, nomeConjuge, pessoaIdVendedor, nomeVendedor } = vinculacao
-
-  const { data: catalogoPastas = [] } = useCatalogoPastasProcesso()
-  const { data: catalogoTipos } = useCatalogoTiposDocumento()
+  const { processoId, docs, pessoaIdComprador, nomeComprador, pessoaIdConjuge, nomeConjuge, pessoaIdVendedor, nomeVendedor } = vinculacao
 
   const [selecionados, setSelecionados] = useState<Set<string>>(() => {
     const pre = new Set<string>()
@@ -1776,44 +1772,22 @@ function VincularStep({ vinculacao, usuario, onConcluir, onPular }: {
   async function handleVincular(ids: Set<string>) {
     if (ids.size === 0) { onPular(processoId); return }
     setVinculando(true)
-    // Fase 1.1 (modelo definitivo): grava direto em documento_vinculos — não
-    // depende mais de trigger nenhum pra o Processo enxergar o documento reaproveitado.
-    // pasta_id já sai sugerido (prioridade: papel da pessoa neste processo > tipo
-    // documental) — nunca obrigatório, sempre sobrescrevível depois na aba Documentos.
-    const compradorasIds = [pessoaIdComprador, pessoaIdConjuge].filter((id): id is string => !!id)
-    const vendedorasIds  = [pessoaIdVendedor].filter((id): id is string => !!id)
-    const rows = Array.from(ids).map(docId => {
-      const doc = docs.find(d => d.id === docId)
-      const codigoDoTipo = catalogoTipos?.find(t => t.codigo === doc?.classificacao)?.pasta_sugerida_codigo ?? null
-      const pastaDoLeadCodigo = doc?.pasta_lead_id
-        ? catalogoPastas.find(p => p.id === doc.pasta_lead_id)?.codigo ?? null
-        : null
-      const codigoPasta = doc ? inferirPastaSugerida({
-        documentoPessoaId: doc.pessoa_id,
-        pastaSugeridaCodigoDoTipo: codigoDoTipo,
-        pessoasCompradorasIds: compradorasIds,
-        pessoasVendedorasIds: vendedorasIds,
-        pastaDoLeadCodigo,
-      }) : null
-      const pastaId = codigoPasta ? catalogoPastas.find(p => p.codigo === codigoPasta)?.id ?? null : null
-      return {
-        empresa_id:    empresaId,
-        documento_id:  docId,
-        entidade_tipo: 'processo',
-        entidade_id:   processoId,
-        vinculado_por: usuario?.id ?? null,
-        pasta_id:      pastaId,
-      }
-    })
-    const { error } = await supabase
-      .from('documento_vinculos')
-      .upsert(rows, { onConflict: 'documento_id,entidade_tipo,entidade_id' })
-    setVinculando(false)
-    if (error) {
-      console.error('[VincularStep] erro ao vincular documentos:', error)
-      toast.error(`Erro ao vincular documentos: ${error.message}`)
+    // Grava pela rota de servidor (/api/documentos/vinculos): mesma regra de pasta
+    // (pasta do lead > papel no processo > tipo) e mesmas checagens do "Trazer das
+    // pessoas" — antes a regra de pasta era copiada aqui no cliente.
+    try {
+      const r = await chamarApiVinculos<{ vinculados: number; ja_existiam: number; recusados: unknown[] }>('', {
+        method: 'POST',
+        body: { documento_ids: Array.from(ids), entidade_tipo: 'processo', entidade_id: processoId },
+      })
+      if (r.recusados.length > 0) toast.warning(`${r.recusados.length} documento(s) não puderam ser vinculados.`)
+    } catch (err) {
+      setVinculando(false)
+      console.error('[VincularStep] erro ao vincular documentos:', err)
+      toast.error(`Erro ao vincular documentos: ${(err as Error).message}`)
       return
     }
+    setVinculando(false)
     onConcluir(processoId)
   }
 

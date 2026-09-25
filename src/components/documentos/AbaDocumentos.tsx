@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2, ChevronLeft, FileSpreadsheet, Calculator } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2, ChevronLeft, FileSpreadsheet, Calculator, Send, Users, Unlink } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -30,6 +30,10 @@ import { OcrEnriquecimentoModal } from '@/components/leads/OcrEnriquecimentoModa
 import { useOcrSugestoes } from '@/hooks/leads/useOcrSugestoes'
 import { useApuracaoRenda } from '@/hooks/leads/useApuracaoRenda'
 import { useCatalogoTiposDocumento } from '@/hooks/documentos/useCatalogoTiposDocumento'
+import { EnviarDocumentosModal } from '@/components/documentos/EnviarDocumentosModal'
+import { TrazerDocumentosModal } from '@/components/documentos/TrazerDocumentosModal'
+import { useEtiquetasVinculo, useRemoverVinculo } from '@/hooks/documentos/useVinculosDocumento'
+import { podeRemoverVinculo } from '@/lib/documentos/vinculos'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -72,6 +76,8 @@ interface DocumentoCliente {
   validade_data?: string | null
   validade_dias?: number | null
   vinculado?: boolean
+  /** Tem vínculo real com ESTE lead/processo (só esses podem ser removidos daqui). */
+  vinculo_direto?: boolean
   dominio?: 'acervo_documental' | 'processo_trabalho'
   pessoa_id?: string | null
   pasta_id?: string | null
@@ -145,6 +151,13 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   const [renomeando, setRenomeando] = useState<string | null>(null)
   const [novoNome, setNovoNome] = useState('')
   const [organizarAberto, setOrganizarAberto] = useState(false)
+  // Documento da Pessoa → Lead/Negócio (spec 2026-09-25-documentos-pessoa-vinculo-design.md)
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const [enviarAberto, setEnviarAberto] = useState(false)
+  const [soNaPessoa, setSoNaPessoa] = useState(false)
+  const [trazerAberto, setTrazerAberto] = useState(false)
+  const [confirmandoRemocao, setConfirmandoRemocao] = useState<string | null>(null)
+  const removerVinculo = useRemoverVinculo()
 
   // OcrEnriquecimentoCard/Modal só existe para Lead — é sobre enriquecer o cadastro
   // do Lead, não se aplica a Processo/Pessoa. Hook sempre chamado (regra dos hooks),
@@ -284,6 +297,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           ...d,
           ocr_dados: ocrPorDocumento.get(d.id) ?? null,
           vinculado: idsVinculados.has(d.id),
+          // pastaPorVinculo só tem os vínculos diretos com ESTE lead/processo — documento da
+          // pessoa que aparece em "Sem pasta" do lead sem vínculo não entra.
+          vinculo_direto: contexto !== 'pessoa' && pastaPorVinculo.has(d.id) && d.dominio !== 'processo_trabalho',
           // pasta é conceito de Processo: acervo_documental mora no vínculo com
           // ESTE processo; processo_trabalho mora direto no documento.
           pasta_id: contexto === 'processo'
@@ -299,6 +315,8 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
       return docs.some(d => d.ocr_status === 'processando') ? 3000 : false
     },
   })
+
+  const { data: etiquetas } = useEtiquetasVinculo(documentos.map(d => d.id), contexto === 'pessoa')
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
@@ -529,6 +547,24 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     }
   }
 
+  // Tira só o vínculo com este lead/negócio — o documento continua na Pessoa.
+  async function handleRemoverVinculo(doc: DocumentoCliente) {
+    if (contexto === 'pessoa' || !entidadeId) return
+    if (confirmandoRemocao !== doc.id) {
+      setConfirmandoRemocao(doc.id)
+      toast.info('O documento continua na pessoa. Clique de novo para remover daqui.')
+      setTimeout(() => setConfirmandoRemocao(c => (c === doc.id ? null : c)), 4000)
+      return
+    }
+    setConfirmandoRemocao(null)
+    try {
+      await removerVinculo.mutateAsync({ documento_id: doc.id, entidade_tipo: contexto, entidade_id: entidadeId })
+      toast.success(`Removido deste ${contexto === 'lead' ? 'lead' : 'negócio'}. O documento continua na pessoa.`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
+  }
+
   function labelTipo(classificacao: string | null) {
     if (classificacao === 'auto') return 'Detectando...'
     return tiposDocumento.find(t => t.value === classificacao)?.label ?? classificacao ?? '—'
@@ -643,11 +679,12 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   const pastaAtivaInfo = pastaAtiva && pastaAtiva !== 'todos' ? catalogoPastas.find(p => p.codigo === pastaAtiva) ?? null : null
 
   const documentosExibidos = useMemo(() => {
+    if (contexto === 'pessoa') return soNaPessoa ? documentos.filter(d => !(etiquetas?.get(d.id)?.length)) : documentos
     if (!usaPastas || !pastaAtiva) return documentos
     if (pastaAtiva === 'todos') return documentos
     if (pastaAtiva === 'sem_pasta') return documentos.filter(d => !d.pasta_id)
     return documentos.filter(d => d.pasta_id === (pastaAtivaInfo?.id ?? '__nunca__'))
-  }, [usaPastas, pastaAtiva, pastaAtivaInfo, documentos])
+  }, [contexto, soNaPessoa, etiquetas, usaPastas, pastaAtiva, pastaAtivaInfo, documentos])
 
   const documentosSemPasta = useMemo(() => documentos.filter(d => !d.pasta_id), [documentos])
 
@@ -710,14 +747,22 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         <p className="text-xs text-gray-500 font-medium">
           {documentos.length} documento{documentos.length !== 1 ? 's' : ''}
         </p>
-        <Button
-          size="sm"
-          className="h-8 w-full gap-1.5 bg-fonti-primary text-xs text-white hover:bg-fonti-primary-hover sm:w-auto"
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload className="h-3 w-3" />
-          Adicionar Documento
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {contexto !== 'pessoa' && (
+            <Button size="sm" variant="outline" className="h-8 w-full gap-1.5 text-xs sm:w-auto" onClick={() => setTrazerAberto(true)}>
+              <Users className="h-3 w-3" />
+              Trazer das pessoas
+            </Button>
+          )}
+          <Button
+            size="sm"
+            className="h-8 w-full gap-1.5 bg-fonti-primary text-xs text-white hover:bg-fonti-primary-hover sm:w-auto"
+            onClick={() => inputRef.current?.click()}
+          >
+            <Upload className="h-3 w-3" />
+            Adicionar Documento
+          </Button>
+        </div>
         <input
           ref={inputRef}
           type="file"
@@ -727,6 +772,26 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           onChange={handleArquivoSelecionado}
         />
       </div>
+
+      {contexto === 'pessoa' && documentos.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSoNaPessoa(v => !v)}
+            className={cn('rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors',
+              soNaPessoa ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50')}
+          >
+            Só na pessoa
+          </button>
+          <Button
+            size="sm" variant="outline" className="h-7 gap-1 text-xs"
+            disabled={selecionados.size === 0}
+            onClick={() => setEnviarAberto(true)}
+          >
+            <Send className="h-3 w-3" />
+            Enviar para…{selecionados.size > 0 ? ` (${selecionados.size})` : ''}
+          </Button>
+        </div>
+      )}
 
       {usaPastas && !pastaAtiva && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -847,6 +912,15 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
               className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white px-3 py-3 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:px-4"
             >
               <div className="flex min-w-0 gap-3 sm:flex-1 sm:items-center">
+              {contexto === 'pessoa' && (
+                <input
+                  type="checkbox"
+                  aria-label="Selecionar documento"
+                  className="mt-1 h-4 w-4 shrink-0 accent-fonti-primary sm:mt-0"
+                  checked={selecionados.has(doc.id)}
+                  onChange={() => setSelecionados(prev => { const nx = new Set(prev); if (nx.has(doc.id)) nx.delete(doc.id); else nx.add(doc.id); return nx })}
+                />
+              )}
               <span className="shrink-0 text-xl">{iconeParaMime(doc.mime_type ?? '')}</span>
               {(() => {
                 const classificacaoLabel = LABELS_CLASSIFICACAO[doc.classificacao ?? ''] ?? null
@@ -936,7 +1010,15 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
               })()}
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-1 sm:justify-end">
-                {doc.vinculado && (
+                {contexto === 'pessoa' && etiquetas && (() => {
+                  const lista = etiquetas?.get(doc.id) ?? []
+                  return lista.length === 0
+                    ? <span className="px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Só na pessoa</span>
+                    : lista.map(e => (
+                        <span key={`${e.tipo}-${e.entidade_id}`} className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">{e.texto}</span>
+                      ))
+                })()}
+                {doc.vinculado && contexto !== 'pessoa' && (
                   <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
                     <Link2 className="h-3 w-3" />
                     Compartilhado
@@ -1013,6 +1095,20 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                 >
                   <Share2 className="h-3.5 w-3.5" />
                 </button>
+                {contexto !== 'pessoa' && podeRemoverVinculo({
+                  contexto, vinculoDireto: !!doc.vinculo_direto, docPessoaId: doc.pessoa_id ?? null,
+                  titularPessoaId: contexto === 'lead' ? pessoaId ?? null : null,
+                }) && (
+                  <button
+                    onClick={() => handleRemoverVinculo(doc)}
+                    title={confirmandoRemocao === doc.id ? 'Clique novamente para remover daqui' : `Remover deste ${contexto === 'lead' ? 'lead' : 'negócio'} (continua na pessoa)`}
+                    disabled={removerVinculo.isPending}
+                    className={cn('p-1.5 rounded-lg transition-colors',
+                      confirmandoRemocao === doc.id ? 'bg-amber-500 text-white' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50')}
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => handleExcluir(doc.id)}
                   title={confirmandoExclusao === doc.id ? 'Clique novamente para confirmar' : 'Excluir'}
@@ -1065,6 +1161,20 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           onFechar={() => setOrganizarAberto(false)}
           onConcluido={() => { setOrganizarAberto(false); queryClient.invalidateQueries({ queryKey }) }}
         />
+      )}
+
+      {contexto === 'pessoa' && pessoaId && (
+        <EnviarDocumentosModal
+          aberto={enviarAberto}
+          onFechar={() => setEnviarAberto(false)}
+          pessoaId={pessoaId}
+          documentoIds={Array.from(selecionados)}
+          onEnviado={() => setSelecionados(new Set())}
+        />
+      )}
+
+      {contexto !== 'pessoa' && entidadeId && (
+        <TrazerDocumentosModal aberto={trazerAberto} onFechar={() => setTrazerAberto(false)} entidadeTipo={contexto} entidadeId={entidadeId} />
       )}
 
       {docFgtsRevisao && (
