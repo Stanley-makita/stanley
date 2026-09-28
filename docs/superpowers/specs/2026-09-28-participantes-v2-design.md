@@ -85,7 +85,8 @@ id, empresa_id,
 lead_id      NULL REFERENCES leads,
 processo_id  NULL REFERENCES processos,    -- CHECK: exatamente um dos dois
 pessoa_id    NOT NULL REFERENCES pessoas,
-papel        -- 'titular' | 'coparticipante' | 'conjuge_anuente' | 'vendedor'
+papel        -- compra: 'titular' | 'coparticipante' | 'conjuge_anuente'
+             -- venda:  'vendedor' | 'conjuge_vendedor' (cônjuge do vendedor que só assina)
 compoe_renda BOOLEAN NOT NULL
 ordem        INT NOT NULL                  -- ordem dos compradores (1º, 2º, 3º); vendedores ordem própria
 created_at, updated_at, criado_por
@@ -229,8 +230,11 @@ servidor; só documentos cujo dono é participante daquela proposta). "Organizar
 1. Tabelas, RLS, guards, backfill.
 2. Sincronização **de mão única** antigo → novo (triggers nas tabelas/colunas antigas atualizam
    Participações/Relacionamentos). Ninguém grava nas tabelas novas diretamente ainda.
-3. Todas as **leituras** migram para o modelo novo: formulários, contratos, Crédito (totais), conversão,
-   busca do bot.
+3. Migram para o modelo novo as leituras que **combinam várias fontes** (onde o modelo novo muda o
+   resultado): formulários (+ aviso de vagas), Crédito (totais), vínculos/destinos de documento, busca
+   do bot. Leitores que só exibem uma tabela antiga (~20 arquivos com `processo_compradores`, dashboards,
+   agenda, clicksign, contratos) continuam corretos porque a sincronização mantém as tabelas antigas
+   iguais — migram na Fase B, antes das colunas virarem `_legado`.
 
 **Fase B — troca de escrita**
 4. `ParticipantesProposta` (Lead e Negócio), OCR novo, "Mover para participante", `*salva` por participante,
