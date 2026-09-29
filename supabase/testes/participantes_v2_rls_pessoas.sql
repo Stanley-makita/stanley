@@ -32,7 +32,8 @@ BEGIN
     VALUES (v_emp, least(v_cop, v_esposa), greatest(v_cop, v_esposa), 'casamento');
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_auth, 'role', 'authenticated')::text, true);
-  SET LOCAL ROLE authenticated;
+  -- set_config em vez de SET ROLE: mesmo efeito, sem depender de comando utilitário dentro do DO.
+  PERFORM set_config('role', 'authenticated', true);
   IF usuario_atual_pode('leads.ver_todas') THEN
     RAISE NOTICE 'comercial escolhido tem leads.ver_todas — teste inconclusivo, escolha outro'; RETURN;
   END IF;
