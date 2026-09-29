@@ -55,8 +55,8 @@ LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.data_fim IS NOT NULL THEN RETURN NEW; END IF;
   -- trava as duas pessoas (sempre na mesma ordem) contra corrida
-  PERFORM pg_advisory_xact_lock(hashtext(NEW.pessoa_a_id::text));
-  PERFORM pg_advisory_xact_lock(hashtext(NEW.pessoa_b_id::text));
+  PERFORM pg_advisory_xact_lock(hashtext(least(NEW.pessoa_a_id, NEW.pessoa_b_id)::text));
+  PERFORM pg_advisory_xact_lock(hashtext(greatest(NEW.pessoa_a_id, NEW.pessoa_b_id)::text));
   IF EXISTS (
     SELECT 1 FROM pessoa_relacionamentos r
     WHERE r.id <> NEW.id AND r.data_fim IS NULL
@@ -69,6 +69,7 @@ END $$;
 DROP TRIGGER IF EXISTS trg_relacionamento_um_vigente ON pessoa_relacionamentos;
 CREATE TRIGGER trg_relacionamento_um_vigente BEFORE INSERT OR UPDATE ON pessoa_relacionamentos
   FOR EACH ROW EXECUTE FUNCTION fn_relacionamento_um_vigente();
+DROP TRIGGER IF EXISTS trg_pessoa_relacionamentos_updated_at ON pessoa_relacionamentos;
 CREATE TRIGGER trg_pessoa_relacionamentos_updated_at BEFORE UPDATE ON pessoa_relacionamentos
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -100,14 +101,15 @@ BEGIN
   IF pessoa_e_de_operador(NEW.pessoa_id) THEN
     RAISE EXCEPTION 'pessoa_de_operador';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pessoas WHERE id = NEW.pessoa_id AND empresa_id = NEW.empresa_id) THEN
-    RAISE EXCEPTION 'pessoa_de_outra_empresa';
+  IF NOT EXISTS (SELECT 1 FROM pessoas WHERE id = NEW.pessoa_id AND empresa_id = NEW.empresa_id AND deleted_at IS NULL) THEN
+    RAISE EXCEPTION 'pessoa_de_outra_empresa_ou_excluida';
   END IF;
   RETURN NEW;
 END $$;
 DROP TRIGGER IF EXISTS trg_participacao_guard ON participacoes;
 CREATE TRIGGER trg_participacao_guard BEFORE INSERT OR UPDATE OF pessoa_id, empresa_id ON participacoes
   FOR EACH ROW EXECUTE FUNCTION fn_participacao_guard();
+DROP TRIGGER IF EXISTS trg_participacoes_updated_at ON participacoes;
 CREATE TRIGGER trg_participacoes_updated_at BEFORE UPDATE ON participacoes
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -115,6 +117,7 @@ ALTER TABLE participacoes          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pessoa_relacionamentos ENABLE ROW LEVEL SECURITY;
 
 -- Leitura: quem enxerga o lead/processo (RLS deles decide a carteira) enxerga os participantes.
+DROP POLICY IF EXISTS "participacoes_select" ON participacoes;
 CREATE POLICY "participacoes_select" ON participacoes FOR SELECT USING (
   empresa_id = usuario_atual_empresa_id()
   AND (
@@ -123,10 +126,11 @@ CREATE POLICY "participacoes_select" ON participacoes FOR SELECT USING (
   )
 );
 -- Leitura: quem enxerga uma das duas pessoas enxerga o casal.
+DROP POLICY IF EXISTS "pessoa_relacionamentos_select" ON pessoa_relacionamentos;
 CREATE POLICY "pessoa_relacionamentos_select" ON pessoa_relacionamentos FOR SELECT USING (
   empresa_id = usuario_atual_empresa_id()
   AND (
-    EXISTS (SELECT 1 FROM pessoas p WHERE p.id = pessoa_relacionamentos.pessoa_a_id)
-    OR EXISTS (SELECT 1 FROM pessoas p WHERE p.id = pessoa_relacionamentos.pessoa_b_id)
+    EXISTS (SELECT 1 FROM pessoas p WHERE p.id = pessoa_relacionamentos.pessoa_a_id AND p.deleted_at IS NULL)
+    OR EXISTS (SELECT 1 FROM pessoas p WHERE p.id = pessoa_relacionamentos.pessoa_b_id AND p.deleted_at IS NULL)
   )
 );

@@ -3,7 +3,7 @@ BEGIN;
 DO $$
 DECLARE
   v_emp uuid; v_fase uuid; v_origem lead_origem;
-  v_p1 uuid; v_p2 uuid; v_p3 uuid; v_lead uuid; v_ok boolean;
+  v_p1 uuid; v_p2 uuid; v_p3 uuid; v_p4 uuid; v_p5 uuid; v_lead uuid; v_ok boolean;
 BEGIN
   SELECT id INTO v_emp FROM empresas LIMIT 1;
   SELECT id INTO v_fase FROM fases WHERE empresa_id = v_emp LIMIT 1;
@@ -11,6 +11,8 @@ BEGIN
   INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 TESTE A') RETURNING id INTO v_p1;
   INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 TESTE B') RETURNING id INTO v_p2;
   INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 TESTE C') RETURNING id INTO v_p3;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 TESTE D') RETURNING id INTO v_p4;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 TESTE E') RETURNING id INTO v_p5;
   INSERT INTO leads (empresa_id, nome, telefone, fase_id, origem)
     VALUES (v_emp, 'PV2 LEAD', '5544900000000', v_fase, v_origem) RETURNING id INTO v_lead;
 
@@ -54,7 +56,7 @@ BEGIN
   EXCEPTION WHEN unique_violation THEN NULL; END;
   BEGIN
     INSERT INTO pessoa_relacionamentos (empresa_id, pessoa_a_id, pessoa_b_id, tipo)
-      VALUES (v_emp, greatest(v_p2, v_p3), least(v_p2, v_p3), 'casamento');
+      VALUES (v_emp, greatest(v_p4, v_p5), least(v_p4, v_p5), 'casamento');
     RAISE EXCEPTION 'par fora de ordem aceito';
   EXCEPTION WHEN check_violation THEN NULL; END;
 
@@ -73,6 +75,15 @@ BEGIN
     END;
   END IF;
   IF pessoa_e_de_operador(v_p1) THEN RAISE EXCEPTION 'pessoa comum marcada como operador'; END IF;
+
+  -- soft-deleted pessoa não pode ser participante
+  UPDATE pessoas SET deleted_at = now() WHERE id = v_p2;
+  BEGIN
+    INSERT INTO participacoes (empresa_id, lead_id, pessoa_id, papel, compoe_renda, ordem) VALUES (v_emp, v_lead, v_p2, 'coparticipante', true, 4);
+    RAISE EXCEPTION 'pessoa excluída aceita como participante';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'pessoa_de_outra_empresa_ou_excluida' THEN RAISE; END IF;
+  END;
 
   RAISE NOTICE 'OK: integridade participantes v2';
 END $$;
