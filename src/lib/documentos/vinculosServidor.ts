@@ -4,6 +4,7 @@ import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import type { UsuarioPerfil } from '@/types/auth'
 import type { EntidadeVinculo } from '@/lib/documentos/vinculos'
+import { PAPEIS_COMPRA, PAPEIS_VENDA, type PapelParticipacao } from '@/lib/participantes/tipos'
 
 export interface UsuarioRota { id: string; empresa_id: string; perfil: UsuarioPerfil; nome: string }
 export interface ContextoRota { usuario: UsuarioRota; token: string }
@@ -54,21 +55,19 @@ export async function verificarDestino(
 
 export interface Participantes { pessoaIds: string[]; compradorasIds: string[]; vendedorasIds: string[]; titularLeadPessoaId: string | null }
 
-/** Pessoas do lead (titular + cônjuge) ou do negócio (compradores, inclui cônjuge/coparticipante, + vendedores). */
+/** Pessoas do lead (lado da compra) ou do negócio (compra + venda), via participacoes. */
 export async function participantesDaEntidade(entidadeTipo: EntidadeVinculo, entidadeId: string, empresaId: string): Promise<Participantes> {
+  const coluna = entidadeTipo === 'lead' ? 'lead_id' : 'processo_id'
+  const { data, error } = await supabase.from('participacoes').select('pessoa_id, papel')
+    .eq(coluna, entidadeId).eq('empresa_id', empresaId)
+  if (error) throw new Error(`participantes: ${error.message}`)
+  const linhas = (data ?? []) as Array<{ pessoa_id: string; papel: PapelParticipacao }>
+  const compra = linhas.filter(l => PAPEIS_COMPRA.includes(l.papel)).map(l => l.pessoa_id)
+  const venda = linhas.filter(l => PAPEIS_VENDA.includes(l.papel)).map(l => l.pessoa_id)
   if (entidadeTipo === 'lead') {
-    const { data: lead, error } = await supabase.from('leads').select('pessoa_id, conjuge_pessoa_id')
-      .eq('id', entidadeId).eq('empresa_id', empresaId).maybeSingle()
-    if (error) throw new Error(`leads: ${error.message}`)
-    const ids = [lead?.pessoa_id, lead?.conjuge_pessoa_id].filter((x): x is string => !!x)
-    return { pessoaIds: Array.from(new Set(ids)), compradorasIds: [], vendedorasIds: [], titularLeadPessoaId: lead?.pessoa_id ?? null }
+    // Lead: pasta sugerida não distingue comprador/vendedor (comportamento anterior).
+    const titular = linhas.find(l => l.papel === 'titular')?.pessoa_id ?? null
+    return { pessoaIds: Array.from(new Set(compra)), compradorasIds: [], vendedorasIds: [], titularLeadPessoaId: titular }
   }
-  const [{ data: comp, error: e1 }, { data: vend, error: e2 }] = await Promise.all([
-    supabase.from('processo_compradores').select('pessoa_id').eq('processo_id', entidadeId).eq('empresa_id', empresaId),
-    supabase.from('processo_vendedores').select('pessoa_id').eq('processo_id', entidadeId).eq('empresa_id', empresaId),
-  ])
-  if (e1 || e2) throw new Error(`participantes: ${(e1 ?? e2)!.message}`)
-  const compradorasIds = (comp ?? []).map(c => c.pessoa_id as string | null).filter((x): x is string => !!x)
-  const vendedorasIds = (vend ?? []).map(v => v.pessoa_id as string | null).filter((x): x is string => !!x)
-  return { pessoaIds: Array.from(new Set([...compradorasIds, ...vendedorasIds])), compradorasIds, vendedorasIds, titularLeadPessoaId: null }
+  return { pessoaIds: Array.from(new Set([...compra, ...venda])), compradorasIds: compra, vendedorasIds: venda, titularLeadPessoaId: null }
 }

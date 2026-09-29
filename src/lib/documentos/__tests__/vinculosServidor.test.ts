@@ -12,9 +12,14 @@ vi.mock('@/lib/auth/resolverPermissaoServidor', () => ({ podeServidor: async () 
 beforeEach(() => {
   estado.pode = true
   estado.tabelas = {
-    leads: [{ id: 'l1', empresa_id: 'e1', pessoa_id: 'titular', conjuge_pessoa_id: 'conj', deleted_at: null }],
-    processo_compradores: [{ processo_id: 'pr1', empresa_id: 'e1', pessoa_id: 'comp' }, { processo_id: 'pr1', empresa_id: 'e1', pessoa_id: null }],
-    processo_vendedores: [{ processo_id: 'pr1', empresa_id: 'e1', pessoa_id: 'vend' }],
+    leads: [{ id: 'l1', empresa_id: 'e1', deleted_at: null }],
+    participacoes: [
+      { empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'titular', papel: 'titular' },
+      { empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'conj', papel: 'conjuge_anuente' },
+      { empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'cop', papel: 'coparticipante' },
+      { empresa_id: 'e1', processo_id: 'pr1', pessoa_id: 'comp', papel: 'titular' },
+      { empresa_id: 'e1', processo_id: 'pr1', pessoa_id: 'vend', papel: 'vendedor' },
+    ],
   }
 })
 
@@ -40,10 +45,10 @@ describe('verificarDestino', () => {
 })
 
 describe('participantesDaEntidade', () => {
-  it('lead: titular + cônjuge', async () => {
+  it('lead: titular + cônjuge + coparticipante', async () => {
     const { participantesDaEntidade } = await import('../vinculosServidor')
     expect(await participantesDaEntidade('lead', 'l1', 'e1')).toEqual({
-      pessoaIds: ['titular', 'conj'], compradorasIds: [], vendedorasIds: [], titularLeadPessoaId: 'titular',
+      pessoaIds: ['titular', 'conj', 'cop'], compradorasIds: [], vendedorasIds: [], titularLeadPessoaId: 'titular',
     })
   })
   it('processo: compradores + vendedores, sem nulos', async () => {
