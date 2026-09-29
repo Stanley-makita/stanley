@@ -597,3 +597,22 @@ Regras puras em `src/lib/documentos/vinculos.ts`, checagens em `vinculosServidor
   também roda com esse cliente, então nunca revela lead/negócio de outra carteira.
 - Não gravar vínculo direto do cliente (`supabase.from('documento_vinculos').upsert` num componente) —
   foi assim que a conversão lead → negócio tinha a regra de pasta copiada.
+
+## Participantes V2 — Fase A (modelo novo em paralelo, sincronizado do antigo)
+
+Spec: `docs/superpowers/specs/2026-09-28-participantes-v2-design.md`. `participacoes` (Pessoa × lead/processo
+com papel) e `pessoa_relacionamentos` (casal) são preenchidas SÓ pelas funções `pv2_*` (migrations 326/327),
+chamadas por triggers nas tabelas antigas (`leads`, `lead_coparticipantes`, `lead_vendedores`,
+`processo_compradores`, `processo_vendedores`, `pessoas`). Na Fase A:
+- **Escrita continua no modelo antigo.** Nunca gravar direto em `participacoes`/`pessoa_relacionamentos`
+  (não há policy de escrita; service role gravando por fora desincroniza).
+- **Formulários, renda do Crédito, vínculos/destinos de documento e `*salva` já leem do modelo novo**
+  (`src/lib/participantes/`). Código novo que precise de "quem participa desta proposta" usa
+  `carregarParticipantes()`/`useParticipantes()`, nunca `conjuge_*`/`lead_coparticipantes`/`processo_compradores`.
+- Cônjuge em campos soltos vira Pessoa automaticamente (sync); CPF inválido é descartado (`cpf_valido`).
+- Pessoa de operador é ignorada pela sync e recusada pelo trigger `trg_participacao_guard`.
+- Renda: fonte é a Pessoa; editar renda no lead (tela antiga) propaga para a Pessoa via `fn_pv2_leads`.
+- **Ordem de lançamento:** rodar no Supabase 324 → 325 → diagnóstico (`supabase/2026-10-02_diagnostico_participantes_v2.sql`, revisar com o usuário) → 326 → 327 (triggers + backfill), fora do horário comercial (a 327 trava 6 tabelas durante a transação e o backfill mexe em `updated_at`, o que reseta formulários abertos da AbaPessoa); só DEPOIS publicar o código (formulários, Crédito, vínculos e `*salva` leem `participacoes` e ficam vazios sem o backfill). Testes SQL em `supabase/testes/participantes_v2_*.sql` rodam com ROLLBACK.
+- **Casamento encerrado nunca é recriado automaticamente:** "Desvincular cônjuge" (`/api/leads/[id]/vincular-conjuge`) encerra o relacionamento (`data_fim`) e a sync não religa por campos soltos nem por ponteiro antigo (`pv2_ex_conjuge`); só um vínculo explícito (`pessoas.conjuge_pessoa_id` passando a apontar para alguém) cria de novo.
+- **Backfill desliga os triggers** via `set_config('pv2.backfill','on',true)` (checado nas 4 funções de trigger) e faz 2 passadas de leads/processos; as funções `pv2_*` têm EXECUTE revogado de anon/authenticated (só service_role e as funções de trigger SECURITY DEFINER chamam).
+- **CPF de operador:** cônjuge/comprador em campos soltos cujo CPF pertence a uma Pessoa de operador não é vinculado (fica sem Pessoa; aparece no bloco 11 do diagnóstico).

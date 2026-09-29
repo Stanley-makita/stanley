@@ -1,7 +1,7 @@
 # Participantes da proposta (Fonti V2 — Parte 1) — Design
 
 **Data:** 2026-09-28
-**Status:** aprovado em conversa (4 seções), aguardando revisão do spec escrito
+**Status:** Fase A implementada no branch feat/participantes-v2-fase-a (migrations 324-327 ainda não executadas — rodar depois do go-live de 01/10); Fase B pendente de plano próprio
 **Implementação:** depois do go-live de 01/10/2026 (equipe começa no modelo atual)
 
 ## Objetivo
