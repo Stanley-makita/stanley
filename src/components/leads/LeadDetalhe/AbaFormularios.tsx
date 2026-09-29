@@ -132,6 +132,9 @@ export function AbaFormularios({ lead }: Props) {
         } else {
           toast.success(json.mensagem)
         }
+        if (Array.isArray(json.avisos) && json.avisos.length) {
+          toast.warning(json.avisos.join('\n'), { duration: 12000 })
+        }
       }
     } catch {
       toast.error('Erro de rede ao gerar formulários.')

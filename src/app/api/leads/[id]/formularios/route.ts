@@ -5,6 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { buscarDadosFormularioLead } from '@/lib/formularios/dados-lead'
 import { preencherPdf } from '@/lib/formularios/engine'
+import { avisoVagasCompradores } from '@/lib/participantes/vagas'
 
 // Bradesco
 import { mapaAutorizacao }  from '@/lib/formularios/bradesco/autorizacao'
@@ -64,25 +65,29 @@ type FormularioDef = {
   // (proponente principal, cônjuge, coparticipantes) em vez de um único PDF
   // fixado no principal — ex: Autorização SCR, que cada envolvido assina.
   porPessoa?: boolean
+  // Nº de compradores que o template do banco tem espaço para preencher —
+  // quando a proposta tem mais, o mapper corta em silêncio; usado para avisar
+  // o usuário em vez de simplesmente descartar quem ficou de fora.
+  vagasCompradores?: number
 }
 
 const FORMULARIOS_POR_BANCO: Record<BancoSuportado, FormularioDef[]> = {
   BRADESCO: [
-    { nomeArquivo: '1-Autorizacao.pdf',               label: 'Autorização (análise/avaliação)', template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf', mapa: mapaAutorizacao },
+    { nomeArquivo: '1-Autorizacao.pdf',               label: 'Autorização (análise/avaliação)', template: 'BRADESCO/1-Autorização - Análises de Crédito e de Avaliação.pdf', mapa: mapaAutorizacao, vagasCompradores: 2 },
     { nomeArquivo: '2-DPS.pdf',                       label: 'DPS — Declaração Pessoal de Saúde', template: 'BRADESCO/2-DPS.pdf', mapa: mapaDps },
-    { nomeArquivo: '3-Proposta de Financiamento.pdf', label: 'Proposta de Financiamento',       template: 'BRADESCO/3-Proposta de Financiamento.pdf', mapa: mapaProposta },
+    { nomeArquivo: '3-Proposta de Financiamento.pdf', label: 'Proposta de Financiamento',       template: 'BRADESCO/3-Proposta de Financiamento.pdf', mapa: mapaProposta, vagasCompradores: 4 },
     { nomeArquivo: '4-Autorizacao FGTS.pdf',          label: 'Autorização FGTS',                template: 'BRADESCO/AUTORIZAÇÃO FGTS.pdf',           mapa: mapaFgts },
     { nomeArquivo: '5-Isencao IR.pdf',                label: 'Isenção IR',                      template: 'BRADESCO/ISENÇÃO IR.pdf',                 mapa: mapaIsencaoIr },
   ],
   BANCO_DO_BRASIL: [
-    { nomeArquivo: '1-Proposta Comprador.pdf',        label: 'Proposta Comprador',              template: 'BANCO_DO_BRASIL/1-Formulario comprador.pdf',       mapa: mapaCompradorBB },
+    { nomeArquivo: '1-Proposta Comprador.pdf',        label: 'Proposta Comprador',              template: 'BANCO_DO_BRASIL/1-Formulario comprador.pdf',       mapa: mapaCompradorBB, vagasCompradores: 3 },
     { nomeArquivo: '2-Autorizacao FGTS.pdf',          label: 'Autorização FGTS',                template: 'BANCO_DO_BRASIL/Formulario FGTS Atualizado.pdf',   mapa: mapaFgtsBB },
     { nomeArquivo: '3-Vendedor PF.pdf',               label: 'Vendedor PF',                     template: 'BANCO_DO_BRASIL/3- Vendedor PF.pdf',              mapa: () => [] },
     { nomeArquivo: '4-Isencao IR.pdf',                label: 'Isenção IR',                      template: 'BANCO_DO_BRASIL/Declaração de Isenção do IR.pdf', mapa: () => [] },
     { nomeArquivo: '5-SCR.pdf',                       label: 'Autorização SCR',                 template: 'BANCO_DO_BRASIL/SCR - Nova BB.pdf',               mapa: mapaScrBB, porPessoa: true },
   ],
   SANTANDER: [
-    { nomeArquivo: '1-Autorizacao Compradores.pdf',   label: 'Autorização Compradores',         template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                      mapa: mapaAutorizacaoSantander },
+    { nomeArquivo: '1-Autorizacao Compradores.pdf',   label: 'Autorização Compradores',         template: 'SANTANDER/1-AUTORIZAÇÃO.pdf',                      mapa: mapaAutorizacaoSantander, vagasCompradores: 2 },
     { nomeArquivo: '2-DPS.pdf',                       label: 'DPS',                             template: 'SANTANDER/2-DPS.pdf',                             mapa: () => [] },
     { nomeArquivo: '3-Declaracao SFH.pdf',            label: 'Declaração SFH',                  template: 'SANTANDER/3-Declaração SFH.pdf',                  mapa: () => [] },
     { nomeArquivo: '4-Autorizacao FGTS.pdf',          label: 'Autorização FGTS',                template: 'SANTANDER/Autorizacao FGTS atualizada.pdf',        mapa: mapaFgtsSantander },
@@ -230,7 +235,13 @@ export async function POST(
       salvos.push(label)
     }
 
+    const avisos: string[] = []
+
     for (const form of selecionados) {
+      if (form.vagasCompradores) {
+        const aviso = avisoVagasCompradores(form.label, form.vagasCompradores, dados.compradores)
+        if (aviso) avisos.push(aviso)
+      }
       if (form.porPessoa) {
         for (const pessoa of dados.compradores) {
           // Nome do arquivo do principal fica sem sufixo (compatibilidade com
@@ -251,6 +262,7 @@ export async function POST(
     return NextResponse.json({
       salvos,
       erros,
+      avisos,
       mensagem: erros.length === 0
         ? `${salvos.length} formulário(s) gerado(s) e salvos em Documentos.`
         : `${salvos.length} salvos. ${erros.length} com erro: ${erros.join(', ')}`,
