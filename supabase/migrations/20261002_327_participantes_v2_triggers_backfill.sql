@@ -17,6 +17,13 @@
 -- `set_config('pv2.backfill', 'on', true)` (true = local à transação) e cada função de trigger
 -- checa essa flag logo no início, ao lado do guard de profundidade.
 --
+-- 2ª passada de leads/processos (fix round 3): com os triggers desligados, um ponteiro
+-- preenchido no MEIO do backfill (pv2_sincronizar_lead escrevendo pessoas.conjuge_pessoa_id,
+-- ou o vendedor de pv2_sincronizar_processo) não propaga mais sozinho pros leads/processos que
+-- já tinham sido sincronizados ANTES nas mesmas passadas — o fill acontece na hora, mas nada
+-- avisa quem já passou. Por isso o loop de leads e o de processos rodam DUAS vezes; as funções
+-- são idempotentes, então a 2ª passada só preenche o que ficou faltando, nunca duplica nada.
+--
 -- OPERACIONAL: rodar fora do horário comercial. O CREATE TRIGGER trava leads, pessoas,
 -- lead_coparticipantes, lead_vendedores, processo_compradores e processo_vendedores pelo
 -- resto da transação (até o COMMIT no fim do arquivo); e o backfill sobe updated_at de
@@ -239,6 +246,16 @@ BEGIN
            ORDER BY created_at LOOP
     PERFORM pv2_sincronizar_relacionamento_pessoa(r.id);
   END LOOP;
+  FOR r IN SELECT id FROM leads WHERE deleted_at IS NULL ORDER BY created_at LOOP
+    PERFORM pv2_sincronizar_lead(r.id);
+  END LOOP;
+  FOR r IN SELECT id FROM processos WHERE deleted_at IS NULL ORDER BY created_at LOOP
+    PERFORM pv2_sincronizar_processo(r.id);
+  END LOOP;
+
+  -- 2ª passada: ponteiros preenchidos durante a 1ª passada (lead → pessoa, vendedor) precisam
+  -- alcançar leads/processos já sincronizados; as funções são idempotentes, a 2ª passada não
+  -- cria ponteiros novos.
   FOR r IN SELECT id FROM leads WHERE deleted_at IS NULL ORDER BY created_at LOOP
     PERFORM pv2_sincronizar_lead(r.id);
   END LOOP;
