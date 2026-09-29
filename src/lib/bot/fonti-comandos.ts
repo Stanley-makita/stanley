@@ -14,6 +14,7 @@ import { buscarOuCriarPessoa } from '@/lib/pessoa'
 import { variantesTelefoneBR } from '@/lib/telefone'
 import { cpfValido } from '@/lib/cpf'
 import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
+import { leadMaisRecenteDaPessoa } from '@/lib/participantes/leadDaPessoa'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -792,10 +793,8 @@ export async function buscarEntidade(
 
     const pessoa = pt ? (Array.isArray(pt.pessoas) ? pt.pessoas[0] : pt.pessoas) as { id: string; nome: string } | null : null
     if (pessoa) {
-      const { data: lead } = await supabase
-        .from('leads').select('id').eq('empresa_id', empresa_id).eq('pessoa_id', pessoa.id)
-        .is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
-      return { tipo: 'pessoa', id: pessoa.id, label: pessoa.nome, lead_id: lead?.id ?? undefined }
+      const leadId = await leadMaisRecenteDaPessoa(supabase, empresa_id, pessoa.id)
+      return { tipo: 'pessoa', id: pessoa.id, label: pessoa.nome, lead_id: leadId ?? undefined }
     }
     return null
   }
@@ -896,21 +895,14 @@ export async function buscarEntidade(
     }
 
     // Busca o lead mais recente da pessoa para incluir lead_id no documento
-    const { data: leadDaPessoa } = await supabase
-      .from('leads')
-      .select('id')
-      .eq('empresa_id', empresa_id)
-      .eq('pessoa_id', escolhido.id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    // (titular; senão, coparticipante/cônjuge — ver leadMaisRecenteDaPessoa)
+    const leadId = await leadMaisRecenteDaPessoa(supabase, empresa_id, escolhido.id)
 
     return {
       tipo: 'pessoa',
       id: escolhido.id,
       label: escolhido.nome,
-      lead_id: leadDaPessoa?.id ?? undefined,
+      lead_id: leadId ?? undefined,
     }
   }
 
@@ -1272,11 +1264,9 @@ export async function processarComandoFonti(
         const escolhido = candidatos[idx]
         await supabase.from('fonti_marcas').update({ candidatos_pendentes: null })
           .eq('empresa_id', empresa_id).eq('telefone_conversa', telefoneConversaSalva)
-        const { data: lead } = await supabase.from('leads').select('id')
-          .eq('empresa_id', empresa_id).eq('pessoa_id', escolhido.id)
-          .is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        const leadId = await leadMaisRecenteDaPessoa(supabase, empresa_id, escolhido.id)
         entidadeResolvidaPorNumero = {
-          tipo: 'pessoa', id: escolhido.id, label: escolhido.nome, lead_id: lead?.id ?? undefined,
+          tipo: 'pessoa', id: escolhido.id, label: escolhido.nome, lead_id: leadId ?? undefined,
         }
       } else {
         return '❌ Número inválido. Tente *fonti salva [nome] novamente.'
