@@ -158,10 +158,10 @@ BEGIN
   ELSE
     v_conj := NULL;
   END IF;
-  IF v_conj IS NOT NULL AND v_conj <> l.pessoa_id THEN
+  IF v_conj IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id THEN
     UPDATE leads SET conjuge_pessoa_id = v_conj WHERE id = l.id AND conjuge_pessoa_id IS NULL;
   END IF;
-  IF v_conj IS NOT NULL AND l.pessoa_id IS NOT NULL AND v_conj <> l.pessoa_id THEN
+  IF v_conj IS NOT NULL AND l.pessoa_id IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id THEN
     UPDATE pessoas SET conjuge_pessoa_id = v_conj WHERE id = l.pessoa_id AND conjuge_pessoa_id IS NULL;
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
   END IF;
@@ -223,6 +223,8 @@ BEGIN
   i := 2;
   FOR r IN SELECT pessoa_id FROM processo_compradores
            WHERE processo_id = pr.id AND pessoa_id IS NOT NULL AND pessoa_id IS DISTINCT FROM v_titular
+             AND EXISTS (SELECT 1 FROM pessoas px WHERE px.id = processo_compradores.pessoa_id AND px.deleted_at IS NULL AND px.empresa_id = pr.empresa_id)
+             AND NOT pessoa_e_de_operador(processo_compradores.pessoa_id)
            ORDER BY created_at LOOP
     PERFORM pv2_sincronizar_relacionamento_pessoa(r.pessoa_id);
     -- Comprador casado com outro comprador do mesmo processo = cônjuge.
@@ -258,7 +260,8 @@ BEGIN
       v_conj := NULL;
       SELECT CASE WHEN rel.pessoa_a_id = v_pid THEN rel.pessoa_b_id ELSE rel.pessoa_a_id END
       INTO v_conj FROM pessoa_relacionamentos rel
-      WHERE rel.data_fim IS NULL AND v_pid IN (rel.pessoa_a_id, rel.pessoa_b_id)
+      JOIN pessoas px ON px.id = (CASE WHEN rel.pessoa_a_id = v_pid THEN rel.pessoa_b_id ELSE rel.pessoa_a_id END)
+      WHERE rel.data_fim IS NULL AND v_pid IN (rel.pessoa_a_id, rel.pessoa_b_id) AND px.deleted_at IS NULL
       LIMIT 1;
       IF v_conj IS NULL THEN
         SELECT conjuge_pessoa_id INTO v_conj FROM pessoas WHERE id = v_pid AND deleted_at IS NULL;
