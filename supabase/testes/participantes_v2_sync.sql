@@ -23,7 +23,7 @@ BEGIN
   IF v_maria IS NULL THEN RAISE EXCEPTION 'cônjuge solto não virou Pessoa'; END IF;
   IF (SELECT cpf FROM pessoas WHERE id = v_maria) IS NOT NULL THEN RAISE EXCEPTION 'telefone gravado como CPF'; END IF;
   SELECT * INTO r FROM pessoa_relacionamentos WHERE data_fim IS NULL AND v_afranio IN (pessoa_a_id, pessoa_b_id);
-  IF r.regime_bens <> 'comunhao_parcial' OR r.data_inicio <> '1990-05-01' OR r.tipo <> 'casamento' THEN
+  IF NOT FOUND OR r.regime_bens IS DISTINCT FROM 'comunhao_parcial' OR r.data_inicio IS DISTINCT FROM '1990-05-01'::date OR r.tipo IS DISTINCT FROM 'casamento' THEN
     RAISE EXCEPTION 'relacionamento sem regime/data/tipo: %', row_to_json(r);
   END IF;
 
@@ -52,26 +52,31 @@ BEGIN
   PERFORM pv2_sincronizar_lead(v_lead);
   SELECT count(*) INTO n FROM participacoes WHERE lead_id = v_lead AND pessoa_id = v_maria;
   IF n <> 1 THEN RAISE EXCEPTION 'pessoa duplicada'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead AND pessoa_id = v_maria AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'Maria deve ter papel conjuge_anuente após dedupe'; END IF;
 
   -- Processo: comprador sem pessoa_id com CPF de pessoa existente → reaproveita
-  UPDATE pessoas SET cpf = '529.982.247-25' WHERE id = v_heitor;
+  UPDATE pessoas SET cpf = '483.152.970-23' WHERE id = v_heitor;
   INSERT INTO processos (empresa_id, numero_processo, nome_imovel, modalidade, lead_id)
     VALUES (v_emp, 'PV2-TESTE', 'PV2 IMOVEL', v_modal, v_lead) RETURNING id INTO v_proc;
   INSERT INTO processo_compradores (empresa_id, processo_id, nome, principal, pessoa_id) VALUES (v_emp, v_proc, 'PV2 AFRANIO', true, v_afranio);
-  INSERT INTO processo_compradores (empresa_id, processo_id, nome, cpf, principal) VALUES (v_emp, v_proc, 'Heitor digitado', '52998224725', false);
+  INSERT INTO processo_compradores (empresa_id, processo_id, nome, cpf, principal) VALUES (v_emp, v_proc, 'Heitor digitado', '48315297023', false);
   INSERT INTO processo_compradores (empresa_id, processo_id, nome, principal, pessoa_id) VALUES (v_emp, v_proc, 'PV2 MARIA', false, v_maria);
   INSERT INTO processo_vendedores (empresa_id, processo_id, nome, cpf, conjuge_nome, conjuge_papel, banco)
     VALUES (v_emp, v_proc, 'PV2 VENDEDOR', NULL, 'PV2 VENDEDORA', 'proprietario', '001');
   PERFORM pv2_sincronizar_processo(v_proc);
-  IF (SELECT pessoa_id FROM processo_compradores WHERE processo_id = v_proc AND nome = 'Heitor digitado') <> v_heitor THEN RAISE EXCEPTION 'CPF existente não reaproveitado'; END IF;
+  IF (SELECT pessoa_id FROM processo_compradores WHERE processo_id = v_proc AND nome = 'Heitor digitado') IS DISTINCT FROM v_heitor THEN RAISE EXCEPTION 'CPF existente não reaproveitado'; END IF;
   IF NOT EXISTS (SELECT 1 FROM participacoes WHERE processo_id = v_proc AND pessoa_id = v_afranio AND papel = 'titular') THEN RAISE EXCEPTION 'titular do processo'; END IF;
   IF NOT EXISTS (SELECT 1 FROM participacoes WHERE processo_id = v_proc AND pessoa_id = v_maria AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'cônjuge do processo'; END IF;
   IF NOT EXISTS (SELECT 1 FROM participacoes WHERE processo_id = v_proc AND pessoa_id = v_heitor AND papel = 'coparticipante') THEN RAISE EXCEPTION 'coparticipante do processo'; END IF;
   SELECT count(*) INTO n FROM participacoes WHERE processo_id = v_proc AND papel = 'vendedor';
   IF n <> 2 THEN RAISE EXCEPTION 'vendedor + cônjuge proprietária deviam ser 2 vendedores, veio %', n; END IF;
   SELECT pessoa_id INTO v_x FROM processo_vendedores WHERE processo_id = v_proc;
-  IF (SELECT conta_bancaria_banco FROM pessoas WHERE id = v_x) <> '001' THEN RAISE EXCEPTION 'banco do vendedor não foi pra Pessoa'; END IF;
+  IF (SELECT conta_bancaria_banco FROM pessoas WHERE id = v_x) IS DISTINCT FROM '001' THEN RAISE EXCEPTION 'banco do vendedor não foi pra Pessoa'; END IF;
   IF NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND v_x IN (pessoa_a_id, pessoa_b_id)) THEN RAISE EXCEPTION 'casal vendedor sem relacionamento'; END IF;
+
+  -- Sync do processo deve ser idempotente: segunda chamada não duplica vendedora
+  PERFORM pv2_sincronizar_processo(v_proc);
+  IF (SELECT count(*) FROM pessoas WHERE nome = 'PV2 VENDEDORA' AND empresa_id = v_emp) <> 1 THEN RAISE EXCEPTION 'vendedora duplicada na segunda sync'; END IF;
 
   -- Titular pessoa soft-deleted: sync sem erro, 0 participações para essa pessoa
   INSERT INTO pessoas (empresa_id, nome, estado_civil) VALUES (v_emp, 'PV2 DELETADO', 'solteiro') RETURNING id INTO v_x;

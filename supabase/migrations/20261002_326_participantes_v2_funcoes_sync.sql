@@ -18,6 +18,8 @@ BEGIN
     SELECT id INTO v_id FROM pessoas
     WHERE empresa_id = p_empresa_id AND deleted_at IS NULL
       AND regexp_replace(coalesce(cpf, ''), '\D', '', 'g') = v_cpf
+      AND NOT pessoa_e_de_operador(id)
+    ORDER BY created_at
     LIMIT 1;
     IF v_id IS NOT NULL THEN RETURN v_id; END IF;
   END IF;
@@ -37,14 +39,13 @@ BEGIN
   SELECT id INTO v_id FROM pessoa_relacionamentos
   WHERE pessoa_a_id = v_a AND pessoa_b_id = v_b AND data_fim IS NULL;
   IF v_id IS NOT NULL THEN
+    -- Fill-only: preenche campos vazios, não altera tipo (explicit edits propagate via trigger fn_pv2_pessoas em migration 327)
     UPDATE pessoa_relacionamentos
-    SET regime_bens = coalesce(p_regime, regime_bens),
-        data_inicio = coalesce(p_data, data_inicio),
-        tipo        = coalesce(p_tipo, tipo)
+    SET regime_bens = coalesce(regime_bens, p_regime),
+        data_inicio = coalesce(data_inicio, p_data)
     WHERE id = v_id
-      AND (regime_bens IS DISTINCT FROM coalesce(p_regime, regime_bens)
-        OR data_inicio IS DISTINCT FROM coalesce(p_data, data_inicio)
-        OR tipo IS DISTINCT FROM coalesce(p_tipo, tipo));
+      AND ((regime_bens IS NULL AND p_regime IS NOT NULL)
+        OR (data_inicio IS NULL AND p_data IS NOT NULL));
     RETURN;
   END IF;
   -- Uma das duas já tem outro casamento vigente: não decide sozinho (aparece no diagnóstico).
@@ -87,19 +88,21 @@ CREATE OR REPLACE FUNCTION pv2_gravar_participacoes(
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_titular uuid;
 BEGIN
-  CREATE TEMP TABLE IF NOT EXISTS pv2_desejadas (pessoa_id uuid, papel text, compoe_renda boolean, ordem int) ON COMMIT DROP;
-  TRUNCATE pv2_desejadas;
-  INSERT INTO pv2_desejadas
+  IF to_regclass('pg_temp.pv2_desejadas') IS NULL THEN
+    CREATE TEMP TABLE pv2_desejadas (pessoa_id uuid, papel text, compoe_renda boolean, ordem int) ON COMMIT DROP;
+  END IF;
+  TRUNCATE pg_temp.pv2_desejadas;
+  INSERT INTO pg_temp.pv2_desejadas
   SELECT DISTINCT ON (x.pessoa_id) x.pessoa_id, x.papel, x.renda, x.ordem
   FROM unnest(p_pessoas, p_papeis, p_renda, p_ordens) WITH ORDINALITY AS x(pessoa_id, papel, renda, ordem, prioridade)
-  WHERE x.pessoa_id IS NOT NULL AND NOT pessoa_e_de_operador(x.pessoa_id) AND EXISTS (SELECT 1 FROM pessoas px WHERE px.id = x.pessoa_id AND px.deleted_at IS NULL)
+  WHERE x.pessoa_id IS NOT NULL AND NOT pessoa_e_de_operador(x.pessoa_id) AND EXISTS (SELECT 1 FROM pessoas px WHERE px.id = x.pessoa_id AND px.deleted_at IS NULL AND px.empresa_id = p_empresa_id)
   ORDER BY x.pessoa_id, x.prioridade;
 
-  SELECT pessoa_id INTO v_titular FROM pv2_desejadas WHERE papel = 'titular';
+  SELECT pessoa_id INTO v_titular FROM pg_temp.pv2_desejadas WHERE papel = 'titular';
 
   DELETE FROM participacoes pa
   WHERE ((p_lead_id IS NOT NULL AND pa.lead_id = p_lead_id) OR (p_processo_id IS NOT NULL AND pa.processo_id = p_processo_id))
-    AND NOT EXISTS (SELECT 1 FROM pv2_desejadas d WHERE d.pessoa_id = pa.pessoa_id);
+    AND NOT EXISTS (SELECT 1 FROM pg_temp.pv2_desejadas d WHERE d.pessoa_id = pa.pessoa_id);
 
   -- Rebaixa o titular antigo antes de promover o novo (índice de titular único).
   UPDATE participacoes pa SET papel = 'coparticipante'
@@ -108,14 +111,14 @@ BEGIN
 
   IF p_lead_id IS NOT NULL THEN
     INSERT INTO participacoes (empresa_id, lead_id, pessoa_id, papel, compoe_renda, ordem)
-    SELECT p_empresa_id, p_lead_id, d.pessoa_id, d.papel, d.compoe_renda, d.ordem FROM pv2_desejadas d
+    SELECT p_empresa_id, p_lead_id, d.pessoa_id, d.papel, d.compoe_renda, d.ordem FROM pg_temp.pv2_desejadas d
     ON CONFLICT (lead_id, pessoa_id) WHERE lead_id IS NOT NULL
     DO UPDATE SET papel = EXCLUDED.papel, compoe_renda = EXCLUDED.compoe_renda, ordem = EXCLUDED.ordem
     WHERE (participacoes.papel, participacoes.compoe_renda, participacoes.ordem)
           IS DISTINCT FROM (EXCLUDED.papel, EXCLUDED.compoe_renda, EXCLUDED.ordem);
   ELSE
     INSERT INTO participacoes (empresa_id, processo_id, pessoa_id, papel, compoe_renda, ordem)
-    SELECT p_empresa_id, p_processo_id, d.pessoa_id, d.papel, d.compoe_renda, d.ordem FROM pv2_desejadas d
+    SELECT p_empresa_id, p_processo_id, d.pessoa_id, d.papel, d.compoe_renda, d.ordem FROM pg_temp.pv2_desejadas d
     ON CONFLICT (processo_id, pessoa_id) WHERE processo_id IS NOT NULL
     DO UPDATE SET papel = EXCLUDED.papel, compoe_renda = EXCLUDED.compoe_renda, ordem = EXCLUDED.ordem
     WHERE (participacoes.papel, participacoes.compoe_renda, participacoes.ordem)
@@ -125,7 +128,7 @@ END $$;
 
 CREATE OR REPLACE FUNCTION pv2_tem_renda(p_pessoa_id uuid) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT coalesce(renda_formal, 0) + coalesce(renda_informal, 0) > 0 FROM pessoas WHERE id = p_pessoa_id;
+  SELECT coalesce(renda_formal, 0) + coalesce(renda_informal, 0) > 0 FROM pessoas WHERE id = p_pessoa_id AND deleted_at IS NULL;
 $$;
 
 CREATE OR REPLACE FUNCTION pv2_sincronizar_lead(p_lead_id uuid) RETURNS void
@@ -143,7 +146,7 @@ BEGIN
   -- leads.conjuge_pessoa_id ainda aponte pro ex (senão a sync "recasaria" a pessoa).
   IF l.pessoa_id IS NOT NULL THEN
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
-    SELECT conjuge_pessoa_id, estado_civil INTO v_conj, v_estado FROM pessoas WHERE id = l.pessoa_id;
+    SELECT conjuge_pessoa_id, estado_civil INTO v_conj, v_estado FROM pessoas WHERE id = l.pessoa_id AND deleted_at IS NULL;
   END IF;
   v_estado := coalesce(v_estado, l.estado_civil);
   IF v_estado IN ('casado', 'uniao_estavel') THEN
@@ -155,8 +158,10 @@ BEGIN
   ELSE
     v_conj := NULL;
   END IF;
+  IF v_conj IS NOT NULL AND v_conj <> l.pessoa_id THEN
+    UPDATE leads SET conjuge_pessoa_id = v_conj WHERE id = l.id AND conjuge_pessoa_id IS NULL;
+  END IF;
   IF v_conj IS NOT NULL AND l.pessoa_id IS NOT NULL AND v_conj <> l.pessoa_id THEN
-    UPDATE leads SET conjuge_pessoa_id = v_conj WHERE id = l.id AND conjuge_pessoa_id IS DISTINCT FROM v_conj;
     UPDATE pessoas SET conjuge_pessoa_id = v_conj WHERE id = l.pessoa_id AND conjuge_pessoa_id IS NULL;
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
   END IF;
@@ -202,8 +207,14 @@ BEGIN
 
   -- Titular: principal; sem principal, o mais antigo.
   SELECT pessoa_id INTO v_titular FROM processo_compradores
-  WHERE processo_id = pr.id AND pessoa_id IS NOT NULL ORDER BY principal DESC, created_at LIMIT 1;
-  SELECT array_agg(pessoa_id) INTO v_compradores FROM processo_compradores WHERE processo_id = pr.id AND pessoa_id IS NOT NULL;
+  WHERE processo_id = pr.id AND pessoa_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM pessoas px WHERE px.id = processo_compradores.pessoa_id AND px.deleted_at IS NULL AND px.empresa_id = pr.empresa_id)
+    AND NOT pessoa_e_de_operador(processo_compradores.pessoa_id)
+  ORDER BY principal DESC, created_at LIMIT 1;
+  SELECT coalesce(array_agg(pessoa_id), '{}') INTO v_compradores FROM processo_compradores
+  WHERE processo_id = pr.id AND pessoa_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM pessoas px WHERE px.id = processo_compradores.pessoa_id AND px.deleted_at IS NULL AND px.empresa_id = pr.empresa_id)
+    AND NOT pessoa_e_de_operador(processo_compradores.pessoa_id);
 
   IF v_titular IS NOT NULL THEN
     PERFORM pv2_sincronizar_relacionamento_pessoa(v_titular);
@@ -243,8 +254,21 @@ BEGIN
                        OR conta_bancaria_numero IS NULL AND r.conta IS NOT NULL);
     v_pessoas := v_pessoas || v_pid; v_papeis := v_papeis || 'vendedor'::text; v_renda := v_renda || false; v_ordens := v_ordens || i; i := i + 1;
     IF coalesce(trim(r.conjuge_nome), '') <> '' OR r.conjuge_cpf IS NOT NULL THEN
-      v_conj := pv2_pessoa_de_campos_soltos(pr.empresa_id, r.conjuge_nome, r.conjuge_cpf, r.conjuge_data_nasc, NULL, NULL, NULL);
+      -- Reuse existing related pessoa: first from vigente relacionamento, else conjuge_pessoa_id
+      v_conj := NULL;
+      SELECT CASE WHEN rel.pessoa_a_id = v_pid THEN rel.pessoa_b_id ELSE rel.pessoa_a_id END
+      INTO v_conj FROM pessoa_relacionamentos rel
+      WHERE rel.data_fim IS NULL AND v_pid IN (rel.pessoa_a_id, rel.pessoa_b_id)
+      LIMIT 1;
+      IF v_conj IS NULL THEN
+        SELECT conjuge_pessoa_id INTO v_conj FROM pessoas WHERE id = v_pid AND deleted_at IS NULL;
+      END IF;
+      -- Create new pessoa only if neither exists
+      IF v_conj IS NULL THEN
+        v_conj := pv2_pessoa_de_campos_soltos(pr.empresa_id, r.conjuge_nome, r.conjuge_cpf, r.conjuge_data_nasc, NULL, NULL, NULL);
+      END IF;
       IF v_conj IS NOT NULL AND v_conj <> v_pid THEN
+        UPDATE pessoas SET conjuge_pessoa_id = v_conj WHERE id = v_pid AND conjuge_pessoa_id IS NULL;
         PERFORM pv2_garantir_relacionamento(pr.empresa_id, v_pid, v_conj,
           CASE WHEN r.estado_civil = 'uniao_estavel' THEN 'uniao_estavel' ELSE 'casamento' END, NULL, NULL);
         v_pessoas := v_pessoas || v_conj;
@@ -256,3 +280,28 @@ BEGIN
 
   PERFORM pv2_gravar_participacoes(NULL, pr.id, pr.empresa_id, v_pessoas, v_papeis, v_renda, v_ordens);
 END $$;
+
+-- ============================================================
+-- Permissions: funções só acessíveis via service_role (backfill, triggers)
+-- ============================================================
+
+REVOKE ALL ON FUNCTION pv2_pessoa_de_campos_soltos(uuid, text, text, date, text, numeric, numeric) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_pessoa_de_campos_soltos(uuid, text, text, date, text, numeric, numeric) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_sincronizar_relacionamento_pessoa(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_sincronizar_relacionamento_pessoa(uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_gravar_participacoes(uuid, uuid, uuid, uuid[], text[], boolean[], int[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_gravar_participacoes(uuid, uuid, uuid, uuid[], text[], boolean[], int[]) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_tem_renda(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_tem_renda(uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_sincronizar_lead(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_sincronizar_lead(uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_sincronizar_processo(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_sincronizar_processo(uuid) TO service_role;
