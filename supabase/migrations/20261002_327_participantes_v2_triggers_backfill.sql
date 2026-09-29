@@ -5,6 +5,18 @@
 -- pg_trigger_depth() > 1: ignora UPDATEs feitos pelas próprias funções pv2_* e por
 -- outros triggers (ex.: fn_sincronizar_pessoa_conjuge), evitando laço.
 --
+-- Flag pv2.backfill (fix round 2): o backfill abaixo chama pv2_sincronizar_lead/_processo/
+-- _relacionamento_pessoa DIRETO de um DO block de topo (profundidade de trigger 0), não de
+-- dentro de um trigger de aplicação. Quando essas funções escrevem pessoas.conjuge_pessoa_id
+-- (fill de ponteiro vazio), esse UPDATE dispara trg_pv2_pessoas em profundidade 1 — igual a uma
+-- edição real da tela antiga — e o bloco de "vínculo explícito" (fix round 1) então ENCERRA
+-- qualquer OUTRO relacionamento vigente dessa pessoa, achando que é um recasamento de verdade.
+-- Isso pode apagar um relacionamento vigente REAL só porque o backfill preencheu um ponteiro
+-- unilateral em outra pessoa do mesmo casal. Como o backfill já varre pessoas/leads/processos
+-- explicitamente (loops abaixo), os 4 triggers são desligados por toda a duração do backfill via
+-- `set_config('pv2.backfill', 'on', true)` (true = local à transação) e cada função de trigger
+-- checa essa flag logo no início, ao lado do guard de profundidade.
+--
 -- OPERACIONAL: rodar fora do horário comercial. O CREATE TRIGGER trava leads, pessoas,
 -- lead_coparticipantes, lead_vendedores, processo_compradores e processo_vendedores pelo
 -- resto da transação (até o COMMIT no fim do arquivo); e o backfill sobe updated_at de
@@ -19,6 +31,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_conj uuid; v_estado text;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
+  IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
   IF TG_OP = 'INSERT' AND NEW.pessoa_id IS NOT NULL THEN
     -- Renda no INSERT: só preenche o que a Pessoa ainda não tiver (Pessoa é a fonte de verdade;
     -- nunca sobrescreve um valor que ela já tinha antes deste lead existir).
@@ -46,10 +59,11 @@ BEGIN
       IF v_conj IS NULL OR coalesce(v_estado, '') NOT IN ('casado', 'uniao_estavel') THEN
         v_conj := NULL;
       END IF;
-      IF v_conj IS NULL AND NEW.conjuge_pessoa_id IS NOT NULL AND NOT EXISTS (
-        SELECT 1 FROM pessoa_relacionamentos
-        WHERE data_fim IS NOT NULL
-          AND pessoa_a_id = least(NEW.pessoa_id, NEW.conjuge_pessoa_id) AND pessoa_b_id = greatest(NEW.pessoa_id, NEW.conjuge_pessoa_id)
+      -- Só descarta o ponteiro do lead como alvo quando o par está de fato ENCERRADO e não há
+      -- uma linha VIGENTE pro mesmo par (senão já recasaram, não é ex).
+      IF v_conj IS NULL AND NEW.conjuge_pessoa_id IS NOT NULL AND NOT (
+        EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NOT NULL AND pessoa_a_id = least(NEW.pessoa_id, NEW.conjuge_pessoa_id) AND pessoa_b_id = greatest(NEW.pessoa_id, NEW.conjuge_pessoa_id))
+        AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(NEW.pessoa_id, NEW.conjuge_pessoa_id) AND pessoa_b_id = greatest(NEW.pessoa_id, NEW.conjuge_pessoa_id))
       ) THEN
         v_conj := NEW.conjuge_pessoa_id;
       END IF;
@@ -76,6 +90,7 @@ CREATE OR REPLACE FUNCTION fn_pv2_lead_filhos() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
+  IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
   IF TG_OP = 'DELETE' THEN
     PERFORM pv2_sincronizar_lead(OLD.lead_id);
   ELSE
@@ -97,6 +112,7 @@ CREATE OR REPLACE FUNCTION fn_pv2_processo_filhos() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
+  IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
   IF TG_OP = 'DELETE' THEN
     PERFORM pv2_sincronizar_processo(OLD.processo_id);
   ELSE
@@ -119,6 +135,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE r record;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
+  IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
 
   -- Fim de casamento pela tela antiga: troca/remoção do cônjuge ou estado civil não-casado.
   -- Relacionamento encerrado NUNCA é recriado implicitamente (só por vínculo explícito, abaixo).
@@ -197,6 +214,10 @@ CREATE TRIGGER trg_pv2_pessoas AFTER UPDATE OF
   ON pessoas FOR EACH ROW EXECUTE FUNCTION fn_pv2_pessoas();
 
 -- ── Backfill ────────────────────────────────────────────────────
+-- Desliga os 4 triggers pv2_* (ver comentário no topo do arquivo) pela duração do backfill —
+-- 'on'/'off' local à transação (3º arg `true` de set_config), então nunca vaza pra fora dela.
+SELECT set_config('pv2.backfill', 'on', true);
+
 -- Renda: Pessoa vence; Pessoa sem renda recebe a do lead mais recente.
 UPDATE pessoas p
 SET renda_formal   = coalesce(p.renda_formal, x.renda_formal),
@@ -225,5 +246,7 @@ BEGIN
     PERFORM pv2_sincronizar_processo(r.id);
   END LOOP;
 END $$;
+
+SELECT set_config('pv2.backfill', 'off', true);
 
 COMMIT;

@@ -66,30 +66,36 @@ BEGIN
   -- pela sync. Replay exato de src/app/api/leads/[id]/vincular-conjuge/route.ts:41-49 —
   -- lead → pessoa(C) → pessoa(T), nessa ordem.
   -- ══════════════════════════════════════════════════════════════════════════════════
-  INSERT INTO pessoas (empresa_id, nome, estado_civil) VALUES (v_emp, 'PV2T T', 'casado') RETURNING id INTO v_t;
-  INSERT INTO pessoas (empresa_id, nome, estado_civil, cpf) VALUES (v_emp, 'PV2T C', 'casado', '48315297023') RETURNING id INTO v_c2;
+  INSERT INTO pessoas (empresa_id, nome, estado_civil, cpf) VALUES (v_emp, 'PV2T T', 'casado', '11144477735') RETURNING id INTO v_t;
+  INSERT INTO pessoas (empresa_id, nome, estado_civil, cpf) VALUES (v_emp, 'PV2T C2', 'casado', '48315297023') RETURNING id INTO v_c2;
   -- casar pela tela antiga (ponteiro nos dois lados) + lead do titular
   UPDATE pessoas SET conjuge_pessoa_id = v_c2 WHERE id = v_t;
   UPDATE pessoas SET conjuge_pessoa_id = v_t  WHERE id = v_c2;
   INSERT INTO leads (empresa_id, nome, telefone, fase_id, origem, pessoa_id)
     VALUES (v_emp, 'PV2T T LEAD', '5544900000004', v_fase, v_origem, v_t) RETURNING id INTO v_lead2;
-  IF NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(v_t, v_c2) AND pessoa_b_id = greatest(v_t, v_c2)) THEN RAISE EXCEPTION 'setup: casamento T/C não criou relacionamento'; END IF;
-  IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead2 AND pessoa_id = v_c2 AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'setup: C não entrou no lead'; END IF;
-  -- mimetiza o cache mantido por fn_sincronizar_pessoa_conjuge (migration 190): T guarda
-  -- nome/cpf soltos de C, e a rota de desvincular NUNCA limpa esses campos.
-  UPDATE pessoas SET conjuge_nome = 'PV2T C', conjuge_cpf = '48315297023' WHERE id = v_t;
+  IF NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(v_t, v_c2) AND pessoa_b_id = greatest(v_t, v_c2)) THEN RAISE EXCEPTION 'setup: casamento T/C2 não criou relacionamento'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead2 AND pessoa_id = v_c2 AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'setup: C2 não entrou no lead'; END IF;
+  -- mimetiza o cache mantido por fn_sincronizar_pessoa_conjuge (migration 190) NOS DOIS LADOS
+  -- (ele roda pra qualquer Pessoa que seja apontada por outra) — T guarda nome/cpf soltos de C2,
+  -- C2 guarda nome/cpf soltos de T, e a rota de desvincular NUNCA limpa nenhum desses campos.
+  -- O lead também ganha seus PRÓPRIOS campos soltos de cônjuge (nunca setados antes), pra
+  -- exercitar o guard de pv2_ex_conjuge em pv2_sincronizar_lead, não só em
+  -- pv2_sincronizar_relacionamento_pessoa.
+  UPDATE pessoas SET conjuge_nome = 'PV2T C2', conjuge_cpf = '48315297023' WHERE id = v_t;
+  UPDATE pessoas SET conjuge_nome = 'PV2T T',  conjuge_cpf = '11144477735' WHERE id = v_c2;
+  UPDATE leads   SET conjuge_nome = 'PV2T C2', conjuge_cpf = '48315297023' WHERE id = v_lead2;
 
   UPDATE leads   SET conjuge_pessoa_id = NULL WHERE id = v_lead2;
   UPDATE pessoas SET conjuge_pessoa_id = NULL WHERE id = v_c2;
   UPDATE pessoas SET conjuge_pessoa_id = NULL WHERE id = v_t;
 
   IF EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND v_t IN (pessoa_a_id, pessoa_b_id)) THEN RAISE EXCEPTION 'desvincular: relacionamento não encerrado'; END IF;
-  IF EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead2 AND pessoa_id = v_c2) THEN RAISE EXCEPTION 'desvincular: C continuou como participante (critical bug reintroduzido)'; END IF;
+  IF EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead2 AND pessoa_id = v_c2) THEN RAISE EXCEPTION 'desvincular: C2 continuou como participante (critical bug reintroduzido, guards de campos soltos do lead e/ou da Pessoa C2 falharam)'; END IF;
   IF (SELECT conjuge_pessoa_id FROM leads WHERE id = v_lead2) IS NOT NULL THEN RAISE EXCEPTION 'desvincular: leads.conjuge_pessoa_id voltou'; END IF;
   IF (SELECT conjuge_pessoa_id FROM pessoas WHERE id = v_t) IS NOT NULL THEN RAISE EXCEPTION 'desvincular: pessoas(T).conjuge_pessoa_id voltou'; END IF;
-  IF (SELECT conjuge_pessoa_id FROM pessoas WHERE id = v_c2) IS NOT NULL THEN RAISE EXCEPTION 'desvincular: pessoas(C).conjuge_pessoa_id voltou'; END IF;
-  SELECT count(*) INTO n FROM pessoas WHERE empresa_id = v_emp AND nome = 'PV2T C';
-  IF n IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'desvincular: pessoa fantasma de C criada (%), esperava 1', n; END IF;
+  IF (SELECT conjuge_pessoa_id FROM pessoas WHERE id = v_c2) IS NOT NULL THEN RAISE EXCEPTION 'desvincular: pessoas(C2).conjuge_pessoa_id voltou'; END IF;
+  SELECT count(*) INTO n FROM pessoas WHERE empresa_id = v_emp AND nome = 'PV2T C2';
+  IF n IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'desvincular: pessoa fantasma de C2 criada (%), esperava 1', n; END IF;
 
   -- religar EXPLICITAMENTE (tela antiga aponta o ponteiro de novo) deve recriar o relacionamento
   UPDATE pessoas SET conjuge_pessoa_id = v_c2 WHERE id = v_t;

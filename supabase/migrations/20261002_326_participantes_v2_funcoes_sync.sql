@@ -50,6 +50,9 @@ END $$;
 -- p_explicito = true só quando a chamada vem de um vínculo EXPLÍCITO (tela antiga apontando
 -- pessoas.conjuge_pessoa_id pra esse cônjuge). Nesse caso, e só nesse caso, um relacionamento
 -- encerrado entre o mesmo par pode ser recriado. Toda sync implícita (default false) nunca refaz.
+-- DROP antes do CREATE OR REPLACE: evita overload ambíguo de 6 args caso essa versão já tenha
+-- sido aplicada antes (CREATE OR REPLACE não troca assinatura, só cria uma sobrecarga nova).
+DROP FUNCTION IF EXISTS pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date);
 CREATE OR REPLACE FUNCTION pv2_garantir_relacionamento(
   p_empresa_id uuid, p1 uuid, p2 uuid, p_tipo text, p_regime text, p_data date, p_explicito boolean DEFAULT false
 ) RETURNS void
@@ -86,7 +89,9 @@ BEGIN
 END $$;
 
 -- true se p_pessoa_id já teve um relacionamento ENCERRADO com alguém que bate com p_nome/p_cpf
--- (por CPF, se os dígitos não forem vazios, ou por nome, se não for vazio). Usado pra bloquear a
+-- (por CPF, se os dígitos não forem vazios, ou por nome, se não for vazio) E não existe hoje um
+-- relacionamento VIGENTE pro mesmo par (senão não é "ex": casaram, terminaram, casaram nessa
+-- ordenação de novo — o par voltou a estar junto e não é mais bloqueado). Usado pra impedir a
 -- reconversão de campos soltos (conjuge_nome/conjuge_cpf) que ainda apontam pro ex depois de um
 -- "Desvincular cônjuge" — esses campos soltos não são limpos pela rota antiga nem pela sync.
 CREATE OR REPLACE FUNCTION pv2_ex_conjuge(p_pessoa_id uuid, p_nome text, p_cpf text) RETURNS boolean
@@ -103,6 +108,11 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
          AND regexp_replace(coalesce(partner.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g'))
         OR
         (coalesce(trim(p_nome), '') <> '' AND upper(trim(partner.nome)) = upper(trim(p_nome)))
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM pessoa_relacionamentos v
+        WHERE v.data_fim IS NULL
+          AND v.pessoa_a_id = least(p_pessoa_id, partner.id) AND v.pessoa_b_id = greatest(p_pessoa_id, partner.id)
       )
   );
 $$;
@@ -205,12 +215,14 @@ BEGIN
   v_estado := coalesce(v_estado, l.estado_civil);
   IF v_estado IN ('casado', 'uniao_estavel') THEN
     IF v_conj IS NULL AND l.conjuge_pessoa_id IS NOT NULL THEN
-      IF l.pessoa_id IS NULL OR NOT EXISTS (
-        SELECT 1 FROM pessoa_relacionamentos
-        WHERE data_fim IS NOT NULL
-          AND pessoa_a_id = least(l.pessoa_id, l.conjuge_pessoa_id) AND pessoa_b_id = greatest(l.pessoa_id, l.conjuge_pessoa_id)
-      ) THEN
-        v_conj := l.conjuge_pessoa_id;
+      v_conj := l.conjuge_pessoa_id;
+      -- Só descarta o ponteiro do lead quando o par está de fato ENCERRADO (existe linha com
+      -- data_fim) E não existe uma linha VIGENTE pro mesmo par (senão já recasaram, não é ex).
+      IF l.pessoa_id IS NOT NULL
+         AND EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NOT NULL AND pessoa_a_id = least(l.pessoa_id, l.conjuge_pessoa_id) AND pessoa_b_id = greatest(l.pessoa_id, l.conjuge_pessoa_id))
+         AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(l.pessoa_id, l.conjuge_pessoa_id) AND pessoa_b_id = greatest(l.pessoa_id, l.conjuge_pessoa_id))
+      THEN
+        v_conj := NULL;
       END IF;
     END IF;
     IF v_conj IS NULL AND (coalesce(trim(l.conjuge_nome), '') <> '' OR l.conjuge_cpf IS NOT NULL)
@@ -229,9 +241,10 @@ BEGIN
   END IF;
   IF v_conj IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id AND l.pessoa_id IS NOT NULL
      AND (v_conj_de_campos_lead OR l.conjuge_pessoa_id = v_conj)
-     AND NOT EXISTS (
-       SELECT 1 FROM pessoa_relacionamentos
-       WHERE data_fim IS NOT NULL AND pessoa_a_id = least(l.pessoa_id, v_conj) AND pessoa_b_id = greatest(l.pessoa_id, v_conj)
+     -- Bloqueia só quando o par está ENCERRADO e não há linha VIGENTE pro mesmo par.
+     AND NOT (
+       EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NOT NULL AND pessoa_a_id = least(l.pessoa_id, v_conj) AND pessoa_b_id = greatest(l.pessoa_id, v_conj))
+       AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(l.pessoa_id, v_conj) AND pessoa_b_id = greatest(l.pessoa_id, v_conj))
      ) THEN
     UPDATE pessoas SET conjuge_pessoa_id = v_conj WHERE id = l.pessoa_id AND conjuge_pessoa_id IS NULL;
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
@@ -337,8 +350,9 @@ BEGIN
       IF v_conj IS NULL THEN
         SELECT conjuge_pessoa_id INTO v_conj FROM pessoas WHERE id = v_pid AND deleted_at IS NULL;
       END IF;
-      -- Create new pessoa only if neither exists
-      IF v_conj IS NULL THEN
+      -- Create new pessoa only if neither exists, e nunca reconverte um ex (campos soltos que
+      -- ainda apontam/batem com um relacionamento já encerrado do vendedor).
+      IF v_conj IS NULL AND NOT pv2_ex_conjuge(v_pid, r.conjuge_nome, r.conjuge_cpf) THEN
         v_conj := pv2_pessoa_de_campos_soltos(pr.empresa_id, r.conjuge_nome, r.conjuge_cpf, r.conjuge_data_nasc, NULL, NULL, NULL);
       END IF;
       IF v_conj IS NOT NULL AND v_conj <> v_pid THEN
