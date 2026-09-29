@@ -21,3 +21,30 @@ export function rendaComposta(ps: Entrada[]): RendaComposta {
   const informal = somados.reduce((t, p) => t + p.informal, 0)
   return { formal, informal, total: formal + informal, participantes }
 }
+
+/**
+ * Renda total considerando uma edição em andamento (não salva) da renda do cônjuge —
+ * usado pra manter o feedback "ao vivo" do total no rodapé enquanto o usuário digita,
+ * sem esperar o save + refetch de `useParticipantes`.
+ *
+ * `edicao` null = sem edição em andamento, usa só o que já veio do servidor.
+ * Com edição: se já existe um participante `conjuge_anuente`, substitui a renda dele
+ * pelos valores digitados e recalcula `compoe_renda` como `renda > 0` (mesma regra que
+ * `salvarRendaConjuge` vai persistir). Se ainda não existe (`casado` mas sem participação
+ * cadastrada), soma os valores digitados direto — ele passará a existir só depois do save.
+ */
+export function rendaTotalComEdicaoConjuge(
+  ps: Entrada[],
+  edicao: { formal: number; informal: number } | null,
+): number {
+  if (!edicao) return rendaComposta(ps).total
+  const { formal, informal } = edicao
+  const idx = ps.findIndex(p => p.papel === 'conjuge_anuente')
+  if (idx === -1) return rendaComposta(ps).total + formal + informal
+  const ajustados = ps.map((p, i) =>
+    i === idx
+      ? { ...p, compoe_renda: formal + informal > 0, pessoa: { ...p.pessoa, renda_formal: formal, renda_informal: informal } }
+      : p,
+  )
+  return rendaComposta(ajustados).total
+}
