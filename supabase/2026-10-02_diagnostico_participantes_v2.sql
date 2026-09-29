@@ -70,3 +70,37 @@ LEFT JOIN pessoas cp ON cp.id = p.conjuge_pessoa_id
 WHERE l.deleted_at IS NULL
   AND l.conjuge_pessoa_id IS NOT NULL AND p.conjuge_pessoa_id IS NOT NULL
   AND l.conjuge_pessoa_id <> p.conjuge_pessoa_id;
+
+-- 11. CPFs soltos (cônjuge em leads/pessoas; comprador/vendedor de negócio sem pessoa_id) cujos
+-- dígitos batem com o CPF de uma Pessoa de OPERADOR — NÃO serão vinculados pelo backfill
+-- (pv2_pessoa_de_campos_soltos devolve NULL nesse caso pra não violar pessoas_empresa_cpf_ativo_unique
+-- nem transformar o operador em participante). Revisar manualmente se algum desses precisa virar
+-- Pessoa própria com outro CPF, ou se o CPF solto está simplesmente errado.
+-- DEPENDE DE: migration 324 (pessoa_e_de_operador)
+SELECT 'lead conjuge' AS origem, l.id, l.conjuge_cpf AS cpf_solto, p.id AS pessoa_operador, p.nome AS nome_operador
+FROM leads l
+JOIN pessoas p ON p.empresa_id = l.empresa_id AND p.deleted_at IS NULL
+  AND regexp_replace(coalesce(p.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(l.conjuge_cpf, ''), '\D', '', 'g')
+  AND regexp_replace(coalesce(l.conjuge_cpf, ''), '\D', '', 'g') <> ''
+WHERE l.deleted_at IS NULL AND l.conjuge_pessoa_id IS NULL AND pessoa_e_de_operador(p.id)
+UNION ALL
+SELECT 'pessoa conjuge', pe.id, pe.conjuge_cpf, p.id, p.nome
+FROM pessoas pe
+JOIN pessoas p ON p.empresa_id = pe.empresa_id AND p.deleted_at IS NULL
+  AND regexp_replace(coalesce(p.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(pe.conjuge_cpf, ''), '\D', '', 'g')
+  AND regexp_replace(coalesce(pe.conjuge_cpf, ''), '\D', '', 'g') <> ''
+WHERE pe.deleted_at IS NULL AND pe.conjuge_pessoa_id IS NULL AND pessoa_e_de_operador(p.id)
+UNION ALL
+SELECT 'comprador', c.id, c.cpf, p.id, p.nome
+FROM processo_compradores c
+JOIN pessoas p ON p.empresa_id = c.empresa_id AND p.deleted_at IS NULL
+  AND regexp_replace(coalesce(p.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(c.cpf, ''), '\D', '', 'g')
+  AND regexp_replace(coalesce(c.cpf, ''), '\D', '', 'g') <> ''
+WHERE c.pessoa_id IS NULL AND pessoa_e_de_operador(p.id)
+UNION ALL
+SELECT 'vendedor', v.id, v.cpf, p.id, p.nome
+FROM processo_vendedores v
+JOIN pessoas p ON p.empresa_id = v.empresa_id AND p.deleted_at IS NULL
+  AND regexp_replace(coalesce(p.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(v.cpf, ''), '\D', '', 'g')
+  AND regexp_replace(coalesce(v.cpf, ''), '\D', '', 'g') <> ''
+WHERE v.pessoa_id IS NULL AND pessoa_e_de_operador(p.id);

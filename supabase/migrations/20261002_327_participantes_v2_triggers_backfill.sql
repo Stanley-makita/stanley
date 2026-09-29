@@ -4,27 +4,62 @@
 -- Triggers e backfill na mesma transação: nenhuma escrita escapa entre um e outro.
 -- pg_trigger_depth() > 1: ignora UPDATEs feitos pelas próprias funções pv2_* e por
 -- outros triggers (ex.: fn_sincronizar_pessoa_conjuge), evitando laço.
+--
+-- OPERACIONAL: rodar fora do horário comercial. O CREATE TRIGGER trava leads, pessoas,
+-- lead_coparticipantes, lead_vendedores, processo_compradores e processo_vendedores pelo
+-- resto da transação (até o COMMIT no fim do arquivo); e o backfill sobe updated_at de
+-- pessoas/leads/processos em massa, o que reseta formulários abertos na tela (AbaPessoa e
+-- afins recarregam a entidade quando a referência muda — ver regra "Formulário de edição
+-- não pode resetar por refetch em segundo plano" no CLAUDE.md do projeto).
 -- ============================================================
 BEGIN;
 
 CREATE OR REPLACE FUNCTION fn_pv2_leads() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_conj uuid;
+DECLARE v_conj uuid; v_estado text;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
-  IF TG_OP = 'UPDATE' AND NEW.pessoa_id IS NOT NULL THEN
-    -- Renda editada no lead (tela antiga) → Pessoa (fonte nova).
+  IF TG_OP = 'INSERT' AND NEW.pessoa_id IS NOT NULL THEN
+    -- Renda no INSERT: só preenche o que a Pessoa ainda não tiver (Pessoa é a fonte de verdade;
+    -- nunca sobrescreve um valor que ela já tinha antes deste lead existir).
+    UPDATE pessoas SET
+      renda_formal   = coalesce(renda_formal, NEW.renda_formal),
+      renda_informal = coalesce(renda_informal, NEW.renda_informal)
+    WHERE id = NEW.pessoa_id
+      AND ((renda_formal IS NULL AND NEW.renda_formal IS NOT NULL) OR (renda_informal IS NULL AND NEW.renda_informal IS NOT NULL));
+  ELSIF TG_OP = 'UPDATE' AND NEW.pessoa_id IS NOT NULL THEN
+    -- Renda editada no lead (tela antiga) → Pessoa (fonte nova). Coluna a coluna: não sobrescreve
+    -- o campo irmão que não mudou (ex.: renda_informal gravada direto na Pessoa por outro caminho).
     IF NEW.renda_formal IS DISTINCT FROM OLD.renda_formal OR NEW.renda_informal IS DISTINCT FROM OLD.renda_informal THEN
-      UPDATE pessoas SET renda_formal = NEW.renda_formal, renda_informal = NEW.renda_informal
+      UPDATE pessoas SET
+        renda_formal   = CASE WHEN NEW.renda_formal   IS DISTINCT FROM OLD.renda_formal   THEN NEW.renda_formal   ELSE renda_formal   END,
+        renda_informal = CASE WHEN NEW.renda_informal IS DISTINCT FROM OLD.renda_informal THEN NEW.renda_informal ELSE renda_informal END
       WHERE id = NEW.pessoa_id
-        AND (renda_formal IS DISTINCT FROM NEW.renda_formal OR renda_informal IS DISTINCT FROM NEW.renda_informal);
+        AND ((NEW.renda_formal   IS DISTINCT FROM OLD.renda_formal   AND renda_formal   IS DISTINCT FROM NEW.renda_formal)
+          OR (NEW.renda_informal IS DISTINCT FROM OLD.renda_informal AND renda_informal IS DISTINCT FROM NEW.renda_informal));
     END IF;
     IF NEW.conjuge_renda_formal IS DISTINCT FROM OLD.conjuge_renda_formal OR NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal THEN
-      SELECT coalesce(NEW.conjuge_pessoa_id, conjuge_pessoa_id) INTO v_conj FROM pessoas WHERE id = NEW.pessoa_id;
+      -- Cônjuge-alvo como na sync: ponteiro da Pessoa titular primeiro (só se ela estiver
+      -- casada/em união estável); senão o ponteiro do lead, mas nunca se o par já foi encerrado.
+      v_conj := NULL;
+      SELECT conjuge_pessoa_id, estado_civil INTO v_conj, v_estado FROM pessoas WHERE id = NEW.pessoa_id AND deleted_at IS NULL;
+      IF v_conj IS NULL OR coalesce(v_estado, '') NOT IN ('casado', 'uniao_estavel') THEN
+        v_conj := NULL;
+      END IF;
+      IF v_conj IS NULL AND NEW.conjuge_pessoa_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pessoa_relacionamentos
+        WHERE data_fim IS NOT NULL
+          AND pessoa_a_id = least(NEW.pessoa_id, NEW.conjuge_pessoa_id) AND pessoa_b_id = greatest(NEW.pessoa_id, NEW.conjuge_pessoa_id)
+      ) THEN
+        v_conj := NEW.conjuge_pessoa_id;
+      END IF;
       IF v_conj IS NOT NULL THEN
-        UPDATE pessoas SET renda_formal = NEW.conjuge_renda_formal, renda_informal = NEW.conjuge_renda_informal
+        UPDATE pessoas SET
+          renda_formal   = CASE WHEN NEW.conjuge_renda_formal   IS DISTINCT FROM OLD.conjuge_renda_formal   THEN NEW.conjuge_renda_formal   ELSE renda_formal   END,
+          renda_informal = CASE WHEN NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal THEN NEW.conjuge_renda_informal ELSE renda_informal END
         WHERE id = v_conj
-          AND (renda_formal IS DISTINCT FROM NEW.conjuge_renda_formal OR renda_informal IS DISTINCT FROM NEW.conjuge_renda_informal);
+          AND ((NEW.conjuge_renda_formal   IS DISTINCT FROM OLD.conjuge_renda_formal   AND renda_formal   IS DISTINCT FROM NEW.conjuge_renda_formal)
+            OR (NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal AND renda_informal IS DISTINCT FROM NEW.conjuge_renda_informal));
       END IF;
     END IF;
   END IF;
@@ -41,7 +76,14 @@ CREATE OR REPLACE FUNCTION fn_pv2_lead_filhos() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
-  PERFORM pv2_sincronizar_lead(CASE WHEN TG_OP = 'DELETE' THEN OLD.lead_id ELSE NEW.lead_id END);
+  IF TG_OP = 'DELETE' THEN
+    PERFORM pv2_sincronizar_lead(OLD.lead_id);
+  ELSE
+    PERFORM pv2_sincronizar_lead(NEW.lead_id);
+    IF TG_OP = 'UPDATE' AND OLD.lead_id IS DISTINCT FROM NEW.lead_id THEN
+      PERFORM pv2_sincronizar_lead(OLD.lead_id);
+    END IF;
+  END IF;
   RETURN NULL;
 END $$;
 DROP TRIGGER IF EXISTS trg_pv2_lead_coparticipantes ON lead_coparticipantes;
@@ -55,7 +97,14 @@ CREATE OR REPLACE FUNCTION fn_pv2_processo_filhos() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
-  PERFORM pv2_sincronizar_processo(CASE WHEN TG_OP = 'DELETE' THEN OLD.processo_id ELSE NEW.processo_id END);
+  IF TG_OP = 'DELETE' THEN
+    PERFORM pv2_sincronizar_processo(OLD.processo_id);
+  ELSE
+    PERFORM pv2_sincronizar_processo(NEW.processo_id);
+    IF TG_OP = 'UPDATE' AND OLD.processo_id IS DISTINCT FROM NEW.processo_id THEN
+      PERFORM pv2_sincronizar_processo(OLD.processo_id);
+    END IF;
+  END IF;
   RETURN NULL;
 END $$;
 DROP TRIGGER IF EXISTS trg_pv2_processo_compradores ON processo_compradores;
@@ -70,7 +119,9 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE r record;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
+
   -- Fim de casamento pela tela antiga: troca/remoção do cônjuge ou estado civil não-casado.
+  -- Relacionamento encerrado NUNCA é recriado implicitamente (só por vínculo explícito, abaixo).
   IF OLD.conjuge_pessoa_id IS NOT NULL
      AND (NEW.conjuge_pessoa_id IS DISTINCT FROM OLD.conjuge_pessoa_id
           OR coalesce(NEW.estado_civil, '') NOT IN ('casado', 'uniao_estavel')) THEN
@@ -78,17 +129,50 @@ BEGIN
     WHERE data_fim IS NULL
       AND pessoa_a_id = least(NEW.id, OLD.conjuge_pessoa_id)
       AND pessoa_b_id = greatest(NEW.id, OLD.conjuge_pessoa_id);
+    -- O ex-cônjuge pode ter ficado com participação/estado desatualizado (era cônjuge anuente em
+    -- leads/processos deste titular, ou é titular de outro lead/processo próprio) — resincroniza.
+    FOR r IN SELECT id FROM leads WHERE deleted_at IS NULL
+             AND (pessoa_id = OLD.conjuge_pessoa_id OR conjuge_pessoa_id = OLD.conjuge_pessoa_id) LOOP
+      PERFORM pv2_sincronizar_lead(r.id);
+    END LOOP;
+    FOR r IN SELECT DISTINCT processo_id FROM processo_compradores WHERE pessoa_id = OLD.conjuge_pessoa_id LOOP
+      PERFORM pv2_sincronizar_processo(r.processo_id);
+    END LOOP;
   END IF;
-  -- Edição explícita de regime/data pela tela antiga, com o mesmo cônjuge já vigente, tem
-  -- que propagar pro relacionamento existente — pv2_garantir_relacionamento é fill-only e
-  -- nunca sobrescreveria um regime_bens/data_inicio já preenchido.
+
+  -- Vínculo explícito (tela antiga aponta pra um cônjuge novo/diferente): só isso recria um
+  -- relacionamento encerrado — pv2_garantir_relacionamento(..., true) ignora o histórico de fim.
+  IF NEW.conjuge_pessoa_id IS NOT NULL AND NEW.conjuge_pessoa_id IS DISTINCT FROM OLD.conjuge_pessoa_id
+     AND coalesce(NEW.estado_civil, '') IN ('casado', 'uniao_estavel') THEN
+    UPDATE pessoa_relacionamentos SET data_fim = current_date
+    WHERE data_fim IS NULL
+      AND NEW.id IN (pessoa_a_id, pessoa_b_id)
+      AND (CASE WHEN pessoa_a_id = NEW.id THEN pessoa_b_id ELSE pessoa_a_id END) IS DISTINCT FROM NEW.conjuge_pessoa_id;
+    PERFORM pv2_garantir_relacionamento(NEW.empresa_id, NEW.id, NEW.conjuge_pessoa_id,
+      CASE WHEN NEW.estado_civil = 'uniao_estavel' THEN 'uniao_estavel' ELSE 'casamento' END,
+      NEW.regime_casamento, NEW.data_casamento, true);
+  END IF;
+
+  -- Edição explícita de regime/data/estado_civil pela tela antiga, com o mesmo cônjuge já vigente,
+  -- tem que propagar pro relacionamento existente — pv2_garantir_relacionamento é fill-only e
+  -- nunca sobrescreveria um regime_bens/data_inicio já preenchido. Atualiza só o(s) campo(s) que
+  -- mudou(aram), sem apagar o irmão que ficou igual.
   IF NEW.conjuge_pessoa_id IS NOT NULL AND NEW.conjuge_pessoa_id IS NOT DISTINCT FROM OLD.conjuge_pessoa_id
-     AND (NEW.regime_casamento IS DISTINCT FROM OLD.regime_casamento OR NEW.data_casamento IS DISTINCT FROM OLD.data_casamento) THEN
-    UPDATE pessoa_relacionamentos SET regime_bens = NEW.regime_casamento, data_inicio = NEW.data_casamento
+     AND (NEW.regime_casamento IS DISTINCT FROM OLD.regime_casamento
+       OR NEW.data_casamento IS DISTINCT FROM OLD.data_casamento
+       OR NEW.estado_civil IS DISTINCT FROM OLD.estado_civil) THEN
+    UPDATE pessoa_relacionamentos SET
+      regime_bens = CASE WHEN NEW.regime_casamento IS DISTINCT FROM OLD.regime_casamento THEN NEW.regime_casamento ELSE regime_bens END,
+      data_inicio = CASE WHEN NEW.data_casamento   IS DISTINCT FROM OLD.data_casamento   THEN NEW.data_casamento   ELSE data_inicio END,
+      tipo = CASE WHEN NEW.estado_civil IS DISTINCT FROM OLD.estado_civil
+                   AND NEW.estado_civil IN ('casado', 'uniao_estavel') AND OLD.estado_civil IN ('casado', 'uniao_estavel')
+                  THEN (CASE WHEN NEW.estado_civil = 'uniao_estavel' THEN 'uniao_estavel' ELSE 'casamento' END)
+                  ELSE tipo END
     WHERE data_fim IS NULL
       AND pessoa_a_id = least(NEW.id, NEW.conjuge_pessoa_id)
       AND pessoa_b_id = greatest(NEW.id, NEW.conjuge_pessoa_id);
   END IF;
+
   PERFORM pv2_sincronizar_relacionamento_pessoa(NEW.id);
   FOR r IN SELECT id FROM leads WHERE pessoa_id = NEW.id AND deleted_at IS NULL LOOP
     PERFORM pv2_sincronizar_lead(r.id);
@@ -96,11 +180,20 @@ BEGIN
   FOR r IN SELECT DISTINCT processo_id FROM processo_compradores WHERE pessoa_id = NEW.id LOOP
     PERFORM pv2_sincronizar_processo(r.processo_id);
   END LOOP;
+  -- compoe_renda de quem é cônjuge desta Pessoa precisa refletir a renda atual dela: resincroniza
+  -- também os leads onde NEW.id é o cônjuge (via ponteiro do lead ou via ponteiro da Pessoa
+  -- titular). Processos: já coberto acima quando NEW.id é o próprio comprador cônjuge.
+  FOR r IN SELECT id FROM leads WHERE deleted_at IS NULL
+           AND (conjuge_pessoa_id = NEW.id
+             OR pessoa_id IN (SELECT id FROM pessoas WHERE conjuge_pessoa_id = NEW.id AND deleted_at IS NULL)) LOOP
+    PERFORM pv2_sincronizar_lead(r.id);
+  END LOOP;
   RETURN NULL;
 END $$;
 DROP TRIGGER IF EXISTS trg_pv2_pessoas ON pessoas;
 CREATE TRIGGER trg_pv2_pessoas AFTER UPDATE OF
-  conjuge_pessoa_id, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf
+  conjuge_pessoa_id, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf,
+  renda_formal, renda_informal
   ON pessoas FOR EACH ROW EXECUTE FUNCTION fn_pv2_pessoas();
 
 -- ── Backfill ────────────────────────────────────────────────────

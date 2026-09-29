@@ -3,6 +3,13 @@
 -- Idempotentes. Usadas pelo backfill e pelos triggers (migration 327).
 -- Única escrita nas tabelas antigas: preencher pessoa_id/conjuge_pessoa_id que estavam
 -- vazios com a Pessoa criada a partir de campos soltos (converge o modelo antigo).
+--
+-- Fix round 1 (2026-10-02): um relacionamento ENCERRADO nunca é recriado implicitamente pela
+-- sync — só um vínculo explícito (tela antiga gravando pessoas.conjuge_pessoa_id de novo) refaz.
+-- Sem isso, "Desvincular cônjuge" (src/app/api/leads/[id]/vincular-conjuge/route.ts) era desfeito
+-- pela própria sync: o titular ficava com estado_civil='casado' e os campos soltos
+-- conjuge_nome/conjuge_cpf (cache mantido por fn_sincronizar_pessoa_conjuge, migration 190) ainda
+-- apontavam pro ex, e a sync recriava o relacionamento e a participação a partir deles.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION pv2_pessoa_de_campos_soltos(
@@ -22,6 +29,17 @@ BEGIN
     ORDER BY created_at
     LIMIT 1;
     IF v_id IS NOT NULL THEN RETURN v_id; END IF;
+    -- CPF já pertence a uma Pessoa de OPERADOR (não-cliente): não cria uma segunda Pessoa com o
+    -- mesmo CPF (violaria pessoas_empresa_cpf_ativo_unique, migration 086) nem transforma um
+    -- operador em participante por tabela dupla.
+    IF EXISTS (
+      SELECT 1 FROM pessoas
+      WHERE empresa_id = p_empresa_id AND deleted_at IS NULL
+        AND regexp_replace(coalesce(cpf, ''), '\D', '', 'g') = v_cpf
+        AND pessoa_e_de_operador(id)
+    ) THEN
+      RETURN NULL;
+    END IF;
   END IF;
   INSERT INTO pessoas (empresa_id, nome, cpf, data_nascimento, profissao, renda_formal, renda_informal)
   VALUES (p_empresa_id, coalesce(nullif(trim(p_nome), ''), 'Cônjuge sem nome'), v_cpf, p_nascimento, p_profissao, p_renda_formal, p_renda_informal)
@@ -29,8 +47,11 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- p_explicito = true só quando a chamada vem de um vínculo EXPLÍCITO (tela antiga apontando
+-- pessoas.conjuge_pessoa_id pra esse cônjuge). Nesse caso, e só nesse caso, um relacionamento
+-- encerrado entre o mesmo par pode ser recriado. Toda sync implícita (default false) nunca refaz.
 CREATE OR REPLACE FUNCTION pv2_garantir_relacionamento(
-  p_empresa_id uuid, p1 uuid, p2 uuid, p_tipo text, p_regime text, p_data date
+  p_empresa_id uuid, p1 uuid, p2 uuid, p_tipo text, p_regime text, p_data date, p_explicito boolean DEFAULT false
 ) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_a uuid := least(p1, p2); v_b uuid := greatest(p1, p2); v_id uuid;
@@ -48,6 +69,13 @@ BEGIN
         OR (data_inicio IS NULL AND p_data IS NOT NULL));
     RETURN;
   END IF;
+  -- Relacionamento encerrado entre esse par nunca é recriado implicitamente — só um vínculo
+  -- explícito (fn_pv2_pessoas, tela antiga apontando o ponteiro pra esse cônjuge de novo) refaz.
+  IF NOT p_explicito AND EXISTS (
+    SELECT 1 FROM pessoa_relacionamentos WHERE pessoa_a_id = v_a AND pessoa_b_id = v_b AND data_fim IS NOT NULL
+  ) THEN
+    RETURN;
+  END IF;
   -- Uma das duas já tem outro casamento vigente: não decide sozinho (aparece no diagnóstico).
   IF EXISTS (SELECT 1 FROM pessoa_relacionamentos
              WHERE data_fim IS NULL AND (pessoa_a_id IN (v_a, v_b) OR pessoa_b_id IN (v_a, v_b))) THEN
@@ -57,6 +85,28 @@ BEGIN
   VALUES (p_empresa_id, v_a, v_b, coalesce(p_tipo, 'casamento'), p_regime, p_data);
 END $$;
 
+-- true se p_pessoa_id já teve um relacionamento ENCERRADO com alguém que bate com p_nome/p_cpf
+-- (por CPF, se os dígitos não forem vazios, ou por nome, se não for vazio). Usado pra bloquear a
+-- reconversão de campos soltos (conjuge_nome/conjuge_cpf) que ainda apontam pro ex depois de um
+-- "Desvincular cônjuge" — esses campos soltos não são limpos pela rota antiga nem pela sync.
+CREATE OR REPLACE FUNCTION pv2_ex_conjuge(p_pessoa_id uuid, p_nome text, p_cpf text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM pessoa_relacionamentos rel
+    JOIN pessoas partner ON partner.id = (CASE WHEN rel.pessoa_a_id = p_pessoa_id THEN rel.pessoa_b_id ELSE rel.pessoa_a_id END)
+    WHERE rel.data_fim IS NOT NULL
+      AND p_pessoa_id IN (rel.pessoa_a_id, rel.pessoa_b_id)
+      AND partner.deleted_at IS NULL
+      AND (
+        (regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g') <> ''
+         AND regexp_replace(coalesce(partner.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g'))
+        OR
+        (coalesce(trim(p_nome), '') <> '' AND upper(trim(partner.nome)) = upper(trim(p_nome)))
+      )
+  );
+$$;
+
 CREATE OR REPLACE FUNCTION pv2_sincronizar_relacionamento_pessoa(p_pessoa_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE p pessoas%ROWTYPE; v_conj uuid;
@@ -65,7 +115,8 @@ BEGIN
   IF NOT FOUND THEN RETURN; END IF;
   v_conj := p.conjuge_pessoa_id;
   IF v_conj IS NULL AND p.estado_civil IN ('casado', 'uniao_estavel')
-     AND (coalesce(trim(p.conjuge_nome), '') <> '' OR p.conjuge_cpf IS NOT NULL) THEN
+     AND (coalesce(trim(p.conjuge_nome), '') <> '' OR p.conjuge_cpf IS NOT NULL)
+     AND NOT pv2_ex_conjuge(p.id, p.conjuge_nome, p.conjuge_cpf) THEN
     v_conj := pv2_pessoa_de_campos_soltos(p.empresa_id, p.conjuge_nome, p.conjuge_cpf, p.conjuge_data_nascimento,
                                           p.conjuge_profissao, p.conjuge_renda_formal, p.conjuge_renda_informal);
     IF v_conj IS NOT NULL AND v_conj <> p.id THEN
@@ -73,6 +124,7 @@ BEGIN
     END IF;
   END IF;
   IF v_conj IS NOT NULL AND v_conj <> p.id AND p.estado_civil IN ('casado', 'uniao_estavel') THEN
+    -- Implícito (default false): não recria um relacionamento que já foi encerrado com este par.
     PERFORM pv2_garantir_relacionamento(p.empresa_id, p.id, v_conj,
       CASE WHEN p.estado_civil = 'uniao_estavel' THEN 'uniao_estavel' ELSE 'casamento' END,
       p.regime_casamento, p.data_casamento);
@@ -134,7 +186,7 @@ $$;
 CREATE OR REPLACE FUNCTION pv2_sincronizar_lead(p_lead_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  l leads%ROWTYPE; v_conj uuid; v_estado text;
+  l leads%ROWTYPE; v_conj uuid; v_estado text; v_conj_de_campos_lead boolean := false;
   v_pessoas uuid[] := '{}'; v_papeis text[] := '{}'; v_renda boolean[] := '{}'; v_ordens int[] := '{}';
   r record; i int;
 BEGIN
@@ -144,24 +196,43 @@ BEGIN
   -- Cônjuge: Pessoa do titular → Pessoa do lead → campos soltos do lead (vira Pessoa).
   -- Estado civil da Pessoa manda: divorciado/viúvo/solteiro = sem cônjuge, mesmo que
   -- leads.conjuge_pessoa_id ainda aponte pro ex (senão a sync "recasaria" a pessoa).
+  -- Relacionamento encerrado nunca é recriado implicitamente: um ponteiro de lead ou campos
+  -- soltos que ainda apontam/batem com um ex são descartados, não viram cônjuge de novo.
   IF l.pessoa_id IS NOT NULL THEN
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
     SELECT conjuge_pessoa_id, estado_civil INTO v_conj, v_estado FROM pessoas WHERE id = l.pessoa_id AND deleted_at IS NULL;
   END IF;
   v_estado := coalesce(v_estado, l.estado_civil);
   IF v_estado IN ('casado', 'uniao_estavel') THEN
-    v_conj := coalesce(v_conj, l.conjuge_pessoa_id);
-    IF v_conj IS NULL AND (coalesce(trim(l.conjuge_nome), '') <> '' OR l.conjuge_cpf IS NOT NULL) THEN
+    IF v_conj IS NULL AND l.conjuge_pessoa_id IS NOT NULL THEN
+      IF l.pessoa_id IS NULL OR NOT EXISTS (
+        SELECT 1 FROM pessoa_relacionamentos
+        WHERE data_fim IS NOT NULL
+          AND pessoa_a_id = least(l.pessoa_id, l.conjuge_pessoa_id) AND pessoa_b_id = greatest(l.pessoa_id, l.conjuge_pessoa_id)
+      ) THEN
+        v_conj := l.conjuge_pessoa_id;
+      END IF;
+    END IF;
+    IF v_conj IS NULL AND (coalesce(trim(l.conjuge_nome), '') <> '' OR l.conjuge_cpf IS NOT NULL)
+       AND NOT pv2_ex_conjuge(l.pessoa_id, l.conjuge_nome, l.conjuge_cpf) THEN
       v_conj := pv2_pessoa_de_campos_soltos(l.empresa_id, l.conjuge_nome, l.conjuge_cpf, l.conjuge_data_nascimento,
                                             NULL, l.conjuge_renda_formal, l.conjuge_renda_informal);
+      v_conj_de_campos_lead := v_conj IS NOT NULL;
     END IF;
   ELSE
     v_conj := NULL;
   END IF;
-  IF v_conj IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id THEN
+  -- Grava de volta só quando a sync CRIOU/ACHOU o cônjuge a partir dos campos soltos do lead
+  -- (nunca quando veio do ponteiro da Pessoa — evita reescrever um desvínculo explícito).
+  IF v_conj_de_campos_lead AND v_conj IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id THEN
     UPDATE leads SET conjuge_pessoa_id = v_conj WHERE id = l.id AND conjuge_pessoa_id IS NULL;
   END IF;
-  IF v_conj IS NOT NULL AND l.pessoa_id IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id THEN
+  IF v_conj IS NOT NULL AND v_conj IS DISTINCT FROM l.pessoa_id AND l.pessoa_id IS NOT NULL
+     AND (v_conj_de_campos_lead OR l.conjuge_pessoa_id = v_conj)
+     AND NOT EXISTS (
+       SELECT 1 FROM pessoa_relacionamentos
+       WHERE data_fim IS NOT NULL AND pessoa_a_id = least(l.pessoa_id, v_conj) AND pessoa_b_id = greatest(l.pessoa_id, v_conj)
+     ) THEN
     UPDATE pessoas SET conjuge_pessoa_id = v_conj WHERE id = l.pessoa_id AND conjuge_pessoa_id IS NULL;
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
   END IF;
@@ -272,6 +343,7 @@ BEGIN
       END IF;
       IF v_conj IS NOT NULL AND v_conj <> v_pid THEN
         UPDATE pessoas SET conjuge_pessoa_id = v_conj WHERE id = v_pid AND conjuge_pessoa_id IS NULL;
+        -- Implícito: não recria um relacionamento já encerrado entre vendedor e este cônjuge.
         PERFORM pv2_garantir_relacionamento(pr.empresa_id, v_pid, v_conj,
           CASE WHEN r.estado_civil = 'uniao_estavel' THEN 'uniao_estavel' ELSE 'casamento' END, NULL, NULL);
         v_pessoas := v_pessoas || v_conj;
@@ -291,8 +363,11 @@ END $$;
 REVOKE ALL ON FUNCTION pv2_pessoa_de_campos_soltos(uuid, text, text, date, text, numeric, numeric) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION pv2_pessoa_de_campos_soltos(uuid, text, text, date, text, numeric, numeric) TO service_role;
 
-REVOKE ALL ON FUNCTION pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date) TO service_role;
+REVOKE ALL ON FUNCTION pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_garantir_relacionamento(uuid, uuid, uuid, text, text, date, boolean) TO service_role;
+
+REVOKE ALL ON FUNCTION pv2_ex_conjuge(uuid, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION pv2_ex_conjuge(uuid, text, text) TO service_role;
 
 REVOKE ALL ON FUNCTION pv2_sincronizar_relacionamento_pessoa(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION pv2_sincronizar_relacionamento_pessoa(uuid) TO service_role;
