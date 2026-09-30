@@ -1,3 +1,5 @@
+import { executarEtapaContrato } from '@/lib/contratos/etapaServidor'
+import { mensagemErroContrato } from '@/lib/contratos/execucaoIA'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { planejarContrato } from '@/lib/contratos/planejarContrato'
@@ -15,7 +17,7 @@ async function resolveEmpresaId(token: string): Promise<string | null> {
   return usuario?.empresa_id ?? null
 }
 
-export async function POST(
+async function executar(
   request: NextRequest,
   { params }: { params: { id: string; contratoId: string } },
 ) {
@@ -43,7 +45,12 @@ export async function POST(
     })
     return NextResponse.json({ plano })
   } catch (err) {
-    console.error('[contratos/plano] erro ao planejar contrato:', err)
-    return NextResponse.json({ error: 'Não foi possível planejar o contrato. Tente novamente.' }, { status: 500 })
+    const falha = mensagemErroContrato(err, 'planejar o contrato')
+    console.error('[contratos/erro]', { etapa: 'planejar o contrato', tipo: err instanceof Error ? err.name : 'desconhecido' })
+    return NextResponse.json({ error: falha.error }, { status: falha.status })
   }
+}
+
+export function POST(request: NextRequest, context: Parameters<typeof executar>[1]) {
+  return executarEtapaContrato('planejar o contrato', () => executar(request, context))
 }

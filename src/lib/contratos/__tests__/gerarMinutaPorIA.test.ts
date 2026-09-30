@@ -1,136 +1,81 @@
-/**
- * Testes com resposta de IA MOCKADA (não ao vivo) — provam a lógica de
- * pipeline (redigir → injetar cláusulas protegidas → sanitizar → validar →
- * retry → fallback) de forma determinística, sem depender da qualidade real
- * do modelo. Segue o mesmo padrão de mock de @anthropic-ai/sdk usado em
- * src/lib/workflows/__tests__/cria-cliente-pendencia.test.ts.
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ResumoNegociacao } from '../entenderNegociacao'
-import type { PlanoContrato } from '../planejarContrato'
 import type { Processo } from '@/types/processos'
 import { gerarMinutaPorIA } from '../gerarMinutaPorIA'
+import { modeloParaRedacao } from '../referenciaCompraVenda'
 
-const filaRespostas = vi.hoisted(() => ({ itens: [] as string[] }))
+const mock = vi.hoisted(() => ({ create: vi.fn() }))
+vi.mock('@anthropic-ai/sdk', () => ({ default: class { messages = { create: mock.create } } }))
 
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: class AnthropicMock {
-    messages = {
-      create: async () => {
-        // Fila vazia simula falha técnica (rede/timeout) — nunca "texto
-        // vazio válido", que seria um caso de conteúdo, não de infra.
-        if (filaRespostas.itens.length === 0) throw new Error('Erro de rede simulado')
-        const texto = filaRespostas.itens.shift() as string
-        return { content: [{ type: 'text', text: texto }], stop_reason: 'end_turn' }
-      },
-    }
-  },
-}))
-
-function resumo(overrides: Partial<ResumoNegociacao> = {}): ResumoNegociacao {
-  return {
-    compradores: [
-      { nome: 'Maria Compradora', cpf: '111.111.111-11', rg: null, orgao_emissor_rg: null, cnh: null, estado_civil: null, regime_casamento: null, profissao: null, nacionalidade: null, data_nascimento: null, endereco: null },
-      { nome: 'Yovanny Comprador', cpf: '222.222.222-22', rg: null, orgao_emissor_rg: null, cnh: null, estado_civil: null, regime_casamento: null, profissao: null, nacionalidade: null, data_nascimento: null, endereco: null },
-    ],
-    vendedores: [
-      { nome: 'Carla Vendedora', cpf: '333.333.333-33', rg: null, orgao_emissor_rg: null, cnh: null, estado_civil: null, regime_casamento: null, profissao: null, nacionalidade: null, data_nascimento: null, endereco: null },
-    ],
-    imovel: { descricao: 'apartamento', endereco: 'Rua Teste, 1', matricula: '123', cartorio: '1º Ofício', area: '80m²', cadastro_prefeitura: '456', cidade: 'Maringá', uf: 'PR' },
-    valor: 780000,
-    entrada: 80000,
-    saldo: 'financiado',
-    valor_financiado: 550000,
-    banco_financiador: 'Caixa Econômica Federal',
-    prazo_posse_dias: 30,
-    condicao_posse: null,
-    multa_percentual: 10,
-    cidade: 'Maringá',
-    clausula_pagamento_complementar: null,
-    painel_inteligencia: [],
-    testemunhas: [],
-    corretor: null,
-    comissao: null,
-    certidoes: [],
-    ...overrides,
-  }
+const pessoa = (nome: string) => ({ nome, cpf: null, rg: null, orgao_emissor_rg: null, cnh: null, estado_civil: null, regime_casamento: null, profissao: null, nacionalidade: null, data_nascimento: null, endereco: null })
+const resumo: ResumoNegociacao = {
+  compradores: [pessoa('Maria Compradora'), pessoa('Pedro Comprador')], vendedores: [pessoa('Carla Vendedora')],
+  imovel: { descricao: null, endereco: null, matricula: null, cartorio: null, area: null, cadastro_prefeitura: null, cidade: null, uf: null },
+  valor: 570000, entrada: 250000, saldo: 'financiado', valor_financiado: 320000, banco_financiador: null,
+  prazo_posse_dias: null, condicao_posse: null, multa_percentual: 10, cidade: 'Maringá',
+  clausula_pagamento_complementar: null, painel_inteligencia: [], testemunhas: [], corretor: null, comissao: null, certidoes: [],
 }
+const input = { tipoContrato: 'compra_venda', resumo, plano: { clausulas: [] }, instrucoesLivres: null, processo: { id: 'p1', empresa_id: 'e1' } as Processo }
+function minuta() {
+  return modeloParaRedacao(resumo)
+    .replace('{{vendedores_qualificacao}}', '<p>Carla Vendedora</p>')
+    .replace('{{compradores_qualificacao}}', '<p>Maria Compradora e Pedro Comprador</p>')
+    .replace('{{vendedores_assinaturas}}', '<p>Carla Vendedora — assinatura</p>')
+    .replace('{{compradores_assinaturas}}', '<p>Maria Compradora — assinatura</p><p>Pedro Comprador — assinatura</p>')
+    .replace('{{valor_total}}', 'R$ 570.000,00').replace('{{valor_entrada}}', 'R$ 250.000,00').replace('{{valor_financiado}}', 'R$ 320.000,00')
+    .replace(/\{\{(?!PROTEGIDA:)[^}]+\}\}/g, '')
+}
+function responder(html: string) { mock.create.mockResolvedValue({ content: [{ type: 'text', text: html }], stop_reason: 'end_turn' }) }
+beforeEach(() => { mock.create.mockReset() })
 
-const plano: PlanoContrato = { clausulas: [{ texto: 'Qualificação das partes', tipo: 'padrao' }] }
-const processo = { id: 'p1', empresa_id: 'e1', valor_imovel: 780000, valor_entrada: 80000, valor_financiado: 550000, numero_processo: '1', nome_imovel: null, banco: null, corretor_nome: null, corretor_creci: null } as unknown as Processo
-
-const MINUTA_HTML_COMPLETA = `<p>abertura</p>
-<p><strong>COMPROMITENTE VENDEDOR(A):</strong> Carla Vendedora.</p>
-<p><strong>COMPROMISSÁRIO(A) COMPRADOR(A):</strong> Maria Compradora; e Yovanny Comprador.</p>
-<h3>CLÁUSULA PRIMEIRA — DO OBJETO</h3>
-<p>O preço é de R$ 780.000,00.</p>
-{{PROTEGIDA:FORO}}
-<p>Carla Vendedora — assinatura</p>
-<p>Maria Compradora — assinatura</p>
-<p>Yovanny Comprador — assinatura</p>
-`
-
-const MINUTA_HTML_INCOMPLETA = `<p>abertura</p>
-<p><strong>COMPROMITENTE VENDEDOR(A):</strong> Carla Vendedora.</p>
-<p><strong>COMPROMISSÁRIO(A) COMPRADOR(A):</strong> Maria Compradora.</p>
-<h3>CLÁUSULA PRIMEIRA — DO OBJETO</h3>
-<p>O preço é de R$ 780.000,00.</p>
-{{PROTEGIDA:FORO}}
-<p>Carla Vendedora — assinatura</p>
-<p>Maria Compradora — assinatura</p>
-`
-
-beforeEach(() => {
-  filaRespostas.itens = []
-})
-
-describe('gerarMinutaPorIA — pipeline com IA mockada', () => {
-  it('resposta incompleta (falta 2º comprador) reprova por seção; retry com lista exata de problemas; 2ª resposta completa → sucesso', async () => {
-    filaRespostas.itens = [MINUTA_HTML_INCOMPLETA, MINUTA_HTML_COMPLETA]
-
-    const resultado = await gerarMinutaPorIA({
-      tipoContrato: 'compra_venda', resumo: resumo(), plano, instrucoesLivres: null, processo,
-    })
-
+describe('geração com referência e sem substituição silenciosa', () => {
+  it('envia o modelo completo, faz uma chamada e devolve referência identificada', async () => {
+    responder(minuta())
+    const resultado = await gerarMinutaPorIA(input)
     expect(resultado.origem).toBe('ia')
-    expect(resultado.html).toContain('Yovanny Comprador')
-    expect(resultado.html).not.toContain('{{PROTEGIDA:FORO}}')
-    expect(resultado.html).toContain('CLÁUSULA DÉCIMA SEXTA — DO FORO')
-    expect(filaRespostas.itens).toHaveLength(0) // consumiu exatamente 2 chamadas, nem mais nem menos
+    expect(resultado.referencia.versao).toBe('2026-09-29')
+    expect(resultado.html).toContain('não será constituída inadimplência')
+    expect(resultado.html).not.toContain('{{PROTEGIDA:')
+    expect(resultado.html).toContain('multa de 2% (dois por cento) sobre o débito inadimplido')
+    expect(resultado.html).toContain('excetuadas as hipóteses do Parágrafo Primeiro da Cláusula Segunda')
+    expect(mock.create).toHaveBeenCalledTimes(1)
+    const [pedido, opcoes] = mock.create.mock.calls[0]
+    expect(pedido.messages[0].content).toContain('MODELO DE REFERÊNCIA COMPLETO')
+    expect(pedido.messages[0].content).toContain('negativa do agente financeiro')
+    expect(opcoes).toMatchObject({ timeout: 75000, maxRetries: 0 })
   })
-
-  it('primeira E segunda resposta incompletas → cai no fallback determinístico, sem travar', async () => {
-    filaRespostas.itens = [MINUTA_HTML_INCOMPLETA, MINUTA_HTML_INCOMPLETA]
-
-    const resultado = await gerarMinutaPorIA({
-      tipoContrato: 'compra_venda', resumo: resumo(), plano, instrucoesLivres: null, processo,
-    })
-
-    expect(resultado.origem).toBe('fallback')
-    expect(resultado.avisoFallback).toBeTruthy()
-    // fallback determinístico (substituirVariaveis) qualifica os DOIS compradores
-    expect(resultado.html).toContain('Yovanny Comprador')
-    expect(resultado.html).toContain('Maria Compradora')
+  it('comprador omitido causa erro; não gera fallback nem outra chamada oculta', async () => {
+    responder(minuta().replaceAll('Pedro Comprador', ''))
+    await expect(gerarMinutaPorIA(input)).rejects.toThrow('não passou na conferência')
+    expect(mock.create).toHaveBeenCalledTimes(1)
   })
-
-  it('falha técnica (resposta sem bloco de texto) cai direto no fallback, sem consumir retry', async () => {
-    filaRespostas.itens = [] // fila vazia → create() devolve texto '', sem bloco 'text' útil
-
-    const resultado = await gerarMinutaPorIA({
-      tipoContrato: 'compra_venda', resumo: resumo(), plano, instrucoesLivres: null, processo,
-    })
-
-    expect(resultado.origem).toBe('fallback')
+  it('proteção omitida reprova mesmo se a IA escrever um título de sanção penal', async () => {
+    responder(minuta().replace('{{PROTEGIDA:SANCAO_PENAL}}', '<h3>CLÁUSULA QUARTA — DA SANÇÃO PENAL</h3><p>Sem multa.</p>'))
+    await expect(gerarMinutaPorIA(input)).rejects.toThrow('SANCAO_PENAL')
   })
-
-  it('minuta completa já na 1ª resposta não dispara retry nenhum', async () => {
-    filaRespostas.itens = [MINUTA_HTML_COMPLETA, MINUTA_HTML_COMPLETA]
-
-    const resultado = await gerarMinutaPorIA({
-      tipoContrato: 'compra_venda', resumo: resumo(), plano, instrucoesLivres: null, processo,
-    })
-
-    expect(resultado.origem).toBe('ia')
-    expect(filaRespostas.itens).toHaveLength(1) // só consumiu a 1ª, a 2ª sobrou na fila
+  it('supressão de cláusula não protegida também reprova', async () => {
+    responder(minuta().replace('<h3>CLÁUSULA NONA — DA SUCESSÃO</h3>', ''))
+    await expect(gerarMinutaPorIA(input)).rejects.toThrow('SUCESSÃO')
+  })
+  it('erro técnico não devolve modelo alternativo incompleto', async () => {
+    mock.create.mockRejectedValue(Object.assign(new Error('timeout'), { name: 'APIConnectionTimeoutError' }))
+    await expect(gerarMinutaPorIA(input)).rejects.toThrow('timeout')
+    expect(mock.create).toHaveBeenCalledTimes(1)
+  })
+  it('e-mail explícito nas instruções não pode ser perdido no resumo', async () => {
+    responder(minuta())
+    await expect(gerarMinutaPorIA({ ...input, instrucoesLivres: 'Email da compradora: maria@example.com' })).rejects.toThrow('maria@example.com')
+  })
+  it('insere literalmente a condição de posse confirmada, sem depender de paráfrase', async () => {
+    const condicao = 'imediatamente após entrada e assinatura'
+    responder(minuta().replace('ficará imitido(a) na posse do imóvel ', 'ficará imitido(a) na posse do imóvel {{DADO:CONDICAO_POSSE}} '))
+    const resultado = await gerarMinutaPorIA({ ...input, resumo: { ...resumo, condicao_posse: condicao } })
+    expect(resultado.html).toContain(condicao)
+    expect(resultado.html).not.toContain('{{DADO:')
+  })
+  it('campo de certidão faltante identificado fica visível como pendência', async () => {
+    responder(minuta().replace('{{PROTEGIDA:FORO}}', '<p>Certidão cível: [A PREENCHER: número da certidão cível]</p>{{PROTEGIDA:FORO}}'))
+    const resultado = await gerarMinutaPorIA(input)
+    expect(resultado.avisos).toEqual(['Complete antes de assinar: [A PREENCHER: número da certidão cível]'])
   })
 })

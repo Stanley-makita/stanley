@@ -21,8 +21,8 @@ function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
     orgao_emissor: p.orgao_emissor_rg,
     estado_civil: p.estado_civil,
     regime_casamento: p.regime_casamento,
-    data_casamento: null,
-    conjuge_nome: null,
+    data_casamento: p.data_casamento ?? null,
+    conjuge_nome: p.conjuge_nome ?? null,
     conjuge_cpf: null,
     conjuge_data_nascimento: null,
     // Endereço vem só do comprovante anexado na pasta da própria pessoa
@@ -40,7 +40,7 @@ function pessoaDetalhes(p: PessoaResumo | undefined): PessoaDetalhes | null {
 function comprador(p: PessoaResumo, processoId: string, empresaId: string): ProcessoComprador {
   return {
     id: '', processo_id: processoId, empresa_id: empresaId,
-    nome: p.nome ?? '', cpf: p.cpf, email: null, telefone: null,
+    nome: p.nome ?? '', cpf: p.cpf, email: p.email ?? null, telefone: null,
     renda_mensal: null, principal: true, created_at: '',
     pessoa: pessoaDetalhes(p),
   }
@@ -49,9 +49,9 @@ function comprador(p: PessoaResumo, processoId: string, empresaId: string): Proc
 function vendedor(p: PessoaResumo, processoId: string, empresaId: string): ProcessoVendedor {
   return {
     id: '', processo_id: processoId, empresa_id: empresaId,
-    nome: p.nome ?? '', cpf: p.cpf, email: null, telefone: null,
+    nome: p.nome ?? '', cpf: p.cpf, email: p.email ?? null, telefone: null,
     banco: null, agencia: null, conta: null,
-    estado_civil: p.estado_civil, conjuge_nome: null, conjuge_cpf: null,
+    estado_civil: p.estado_civil, conjuge_nome: p.conjuge_nome ?? null, conjuge_cpf: null,
     conjuge_rg: null, conjuge_data_nasc: null, conjuge_papel: null,
     created_at: '', pessoa: pessoaDetalhes(p),
   }
@@ -93,6 +93,7 @@ export function construirDadosTemplate(resumo: ResumoNegociacao, processo: Proce
     compradoresAdaptados: resumo.compradores.map((p) => comprador(p, processo.id, processo.empresa_id)),
     vendedoresAdaptados: resumo.vendedores.map((p) => vendedor(p, processo.id, processo.empresa_id)),
     extras: {
+      financiamentoPrevisto: (resumo.valor_financiado ?? 0) > 0 || /^financiado$/i.test(resumo.saldo?.trim() ?? ''),
       imovelDescricao: resumo.imovel.descricao,
       imovelMatricula: resumo.imovel.matricula,
       imovelCartorio: resumo.imovel.cartorio,

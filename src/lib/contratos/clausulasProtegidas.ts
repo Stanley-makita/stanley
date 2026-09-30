@@ -27,6 +27,10 @@ import {
 } from './substituirVariaveis'
 
 export const CLAUSULAS_PROTEGIDAS_COMPRA_VENDA = {
+  INADIMPLEMENTO: `<h3>CLÁUSULA TERCEIRA — DO INADIMPLEMENTO</h3>
+
+<p>Havendo o descumprimento pelas partes das obrigações elencadas neste instrumento, incidirá sobre o débito inadimplido correção monetária apurada pela variação do IGP-M (FGV), juros de mora de 1% (um por cento) ao mês, além de multa de 2% (dois por cento) sobre o débito inadimplido. Persistindo a inadimplência por mais de 30 (trinta) dias, salvo expressa convenção em contrário, dar-se-á por rescindido de pleno direito o presente instrumento, ficando a parte que der causa constituída em mora e sujeita à sanção penal inerente à rescisão contratual, independentemente de notificação ou interpelação judicial ou extrajudicial.</p>`,
+
   SANCAO_PENAL: `<h3>CLÁUSULA QUARTA — DA SANÇÃO PENAL</h3>
 
 <p>A parte que, por inadimplência ou desistência das obrigações avençadas, der causa à rescisão contratual, ficará sujeita à multa contratual equivalente a {{multa_percentual_texto}} sobre o valor pago pelo(a) COMPROMISSÁRIO(A) COMPRADOR(A) até então, sem prejuízo das perdas e danos que a parte infratora causar à parte inocente, bem como custas, emolumentos, comissão de corretagem e demais despesas judiciais e extrajudiciais, além de honorários advocatícios relativos à sucumbência.</p>`,
@@ -59,7 +63,7 @@ const REGEX_MARCADOR_PROTEGIDA = /\{\{PROTEGIDA:(\w+)\}\}/g
  * (ver redigirContrato.ts) pelo BLOCO INTEIRO da cláusula (título + corpo),
  * já com as variáveis internas dele (ex: {{multa_percentual_texto}})
  * resolvidas via substituirVariaveis — a IA nunca escreve nem controla o
- * texto dessas 5 cláusulas, só decide onde elas entram no documento.
+ * texto dessas cláusulas, só decide onde elas entram no documento.
  *
  * Marcador com chave desconhecida ou repetido é preservado como texto cru
  * no HTML — não lança erro aqui; fica para `validarMinutaGerada` sinalizar
@@ -78,7 +82,10 @@ export function injetarClausulasProtegidas(
   return html.replace(REGEX_MARCADOR_PROTEGIDA, (marcadorCompleto, chave: string) => {
     if (usadas.has(chave) || !(chave in CLAUSULAS_PROTEGIDAS_COMPRA_VENDA)) return marcadorCompleto
     usadas.add(chave)
-    const bloco = CLAUSULAS_PROTEGIDAS_COMPRA_VENDA[chave as ChaveClausulaProtegida]
+    let bloco: string = CLAUSULAS_PROTEGIDAS_COMPRA_VENDA[chave as ChaveClausulaProtegida]
+    if (chave === 'INADIMPLEMENTO' && ((processo.valor_financiado ?? 0) > 0 || extras?.financiamentoPrevisto)) {
+      bloco = bloco.replace('obrigações elencadas neste instrumento, incidirá', 'obrigações elencadas neste instrumento, excetuadas as hipóteses do Parágrafo Primeiro da Cláusula Segunda, incidirá')
+    }
     return substituirVariaveis(bloco, processo, compradores, vendedores, opcoes, extras)
   })
 }

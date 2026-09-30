@@ -1,50 +1,22 @@
-/**
- * Entrypoint da Fase 4 v3 — geração INICIAL de minuta por IA. Único caller
- * do motor genérico `redigirContrato()` hoje habilitado a chamá-lo sem uma
- * minuta anterior (rodada 1) e, se a validação reprovar, com uma rodada de
- * autocorreção (rodada 2, origem 'validacao_automatica' — ver
- * redigirContrato.ts para o porquê dessa rodada já nascer genérica).
- *
- * Pipeline (ver Diagnóstico V2 / Fase 4 do Construtor de Contratos):
- *
- *   redigirContrato() → injeta cláusulas protegidas → sanitiza → valida
- *     ├── válida → pronto
- *     └── inválida por conteúdo → 1 retry (rodada de correção) → valida de novo
- *           ├── válida → pronto
- *           └── ainda inválida → fallback determinístico (substituirVariaveis)
- *   falha técnica (rede/timeout/parse) em qualquer chamada → direto pro
- *     fallback, sem retry — nunca insiste numa IA que não respondeu.
- *
- * IMPORTANTE — esta distinção só vale para a geração INICIAL: cair no
- * fallback aqui significa "a IA não conseguiu, mas ainda não existe nenhuma
- * minuta desta negociação, então um ponto de partida determinístico é
- * melhor que nada". Uma futura rodada de REVISÃO conversacional (Fase 4.5)
- * NUNCA deve ter esse mesmo comportamento — se uma correção pedida pelo
- * operador falhar, a resposta certa é preservar a última minuta válida e
- * avisar o erro, nunca substituir silenciosamente o que o operador já
- * estava revisando pelo modelo padrão. Esta função não decide isso sozinha
- * porque ela é, por desenho, só o caminho de geração inicial — uma futura
- * `revisarMinutaPorIA` (Fase 4.5) chamaria `redigirContrato` diretamente,
- * com sua própria política de erro, sem passar por aqui.
- */
-
 import type { ResumoNegociacao } from './entenderNegociacao'
 import type { PlanoContrato } from './planejarContrato'
 import type { Processo } from '@/types/processos'
 import { redigirContrato } from './redigirContrato'
-import { injetarClausulasProtegidas } from './clausulasProtegidas'
+import { CHAVES_CLAUSULAS_PROTEGIDAS, injetarClausulasProtegidas } from './clausulasProtegidas'
 import { sanitizarMinutaHtml } from './sanitizarMinuta'
 import { validarMinutaGerada } from './validarMinutaGerada'
 import { construirDadosTemplate } from './resumoParaTemplate'
-import { selecionarTemplate } from './selecionarTemplate'
-import { substituirVariaveis } from './substituirVariaveis'
+import { TEMPLATE_COMPRA_VENDA } from './templates/compra-venda'
+import { REFERENCIA_COMPRA_VENDA } from './referenciaCompraVenda'
 
 export interface ResultadoGeracaoMinuta {
   html: string
-  origem: 'ia' | 'fallback'
-  avisoFallback?: string
+  origem: 'ia'
+  referencia: typeof REFERENCIA_COMPRA_VENDA
+  avisos: string[]
 }
 
+/** Uma redação por solicitação. Falha nunca troca o contrato por um modelo incompleto. */
 export async function gerarMinutaPorIA(input: {
   tipoContrato: string
   resumo: ResumoNegociacao
@@ -54,51 +26,41 @@ export async function gerarMinutaPorIA(input: {
 }): Promise<ResultadoGeracaoMinuta> {
   const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } =
     construirDadosTemplate(input.resumo, input.processo)
-
-  const fallback = (motivo: string): ResultadoGeracaoMinuta => {
-    console.error(`[gerarMinutaPorIA] caindo no fallback determinístico: ${motivo}`)
-    const template = selecionarTemplate(input.tipoContrato)
-    const html = substituirVariaveis(
-      template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras,
-    )
-    return {
-      html,
-      origem: 'fallback',
-      avisoFallback: 'A IA não conseguiu redigir a minuta; foi usado o modelo padrão da Fontinhas. Revise com atenção antes de salvar.',
+  let bruto = await redigirContrato({ resumo: input.resumo, plano: input.plano, instrucoesLivres: input.instrucoesLivres })
+  const problemas: string[] = []
+  if (input.resumo.condicao_posse?.trim()) {
+    const marcador = '{{DADO:CONDICAO_POSSE}}'
+    if (bruto.split(marcador).length !== 2) problemas.push('A condição de posse confirmada não foi preservada no local indicado pelo modelo.')
+    const textoSeguro = input.resumo.condicao_posse.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    bruto = bruto.replace(marcador, textoSeguro)
+  }
+  for (const chave of CHAVES_CLAUSULAS_PROTEGIDAS) {
+    if (bruto.split(`{{PROTEGIDA:${chave}}}`).length !== 2) {
+      problemas.push(`Cláusula protegida ausente ou repetida: ${chave}.`)
     }
   }
-
-  let bruto1: string
-  try {
-    bruto1 = await redigirContrato({ resumo: input.resumo, plano: input.plano, instrucoesLivres: input.instrucoesLivres })
-  } catch (err) {
-    return fallback(`falha técnica na redação inicial (${err instanceof Error ? err.message : 'erro desconhecido'})`)
+  const html = sanitizarMinutaHtml(injetarClausulasProtegidas(
+    bruto, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras,
+  ))
+  // A numeração do modelo é estável: não aceitar supressão silenciosa de títulos.
+  for (const [, titulo] of Array.from(TEMPLATE_COMPRA_VENDA.conteudo.matchAll(/<h3>([\s\S]*?)<\/h3>/g))) {
+    const chave = titulo.replace(/\s+/g, ' ').trim()
+    const titulosGerados = Array.from(html.matchAll(/<h3>([\s\S]*?)<\/h3>/g), m => m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+    if (titulosGerados.filter(t => t === chave).length !== 1) problemas.push(`Cláusula do modelo ausente ou repetida: ${chave}.`)
   }
-
-  const minuta1 = sanitizarMinutaHtml(
-    injetarClausulasProtegidas(bruto1, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras),
-  )
-  const validacao1 = validarMinutaGerada(minuta1, input.resumo)
-  if (validacao1.valido) return { html: minuta1, origem: 'ia' }
-
-  let bruto2: string
-  try {
-    bruto2 = await redigirContrato({
-      resumo: input.resumo,
-      plano: input.plano,
-      instrucoesLivres: input.instrucoesLivres,
-      minutaAnterior: minuta1,
-      origem: { tipo: 'validacao_automatica', problemas: validacao1.problemas },
-    })
-  } catch (err) {
-    return fallback(`falha técnica na rodada de correção (${err instanceof Error ? err.message : 'erro desconhecido'})`)
+  problemas.push(...validarMinutaGerada(html, input.resumo).problemas)
+  if (/\{\{[^}]+\}\}/.test(html)) problemas.push('A minuta contém variáveis do modelo que não foram preenchidas.')
+  for (const email of input.instrucoesLivres?.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi) ?? []) {
+    if (!html.toLowerCase().includes(email.toLowerCase())) problemas.push(`E-mail fornecido nas instruções não foi preservado: ${email}.`)
   }
-
-  const minuta2 = sanitizarMinutaHtml(
-    injetarClausulasProtegidas(bruto2, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras),
-  )
-  const validacao2 = validarMinutaGerada(minuta2, input.resumo, minuta1)
-  if (validacao2.valido) return { html: minuta2, origem: 'ia' }
-
-  return fallback(`minuta reprovou 2x na validação: ${validacao2.problemas.join('; ')}`)
+  if (problemas.length > 0) {
+    const erro = new Error(`A minuta não passou na conferência e não substituiu o contrato anterior. ${problemas.slice(0, 8).join(' ')}`)
+    erro.name = 'ValidacaoContratoError'
+    throw erro
+  }
+  const pendentes = Array.from(html.matchAll(/\[A PREENCHER(?::[^\]]+)?\]/gi), m => m[0])
+  return {
+    html, origem: 'ia', referencia: REFERENCIA_COMPRA_VENDA,
+    avisos: Array.from(new Set(pendentes)).map(p => `Complete antes de assinar: ${p}`),
+  }
 }

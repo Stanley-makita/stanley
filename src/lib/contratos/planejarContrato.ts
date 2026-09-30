@@ -1,87 +1,23 @@
-/**
- * Etapa "Plano do Contrato" do Construtor de Contratos — roda depois que o
- * usuário já confirmou o Resumo Estruturado da Negociação (etapa anterior).
- * Mostra, antes de escrever qualquer cláusula, a estrutura que o contrato
- * terá, pra dar confiança ao operador antes de ler o documento inteiro.
- */
-
-import Anthropic from '@anthropic-ai/sdk'
 import type { ResumoNegociacao } from './entenderNegociacao'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { selecionarTemplate } from './selecionarTemplate'
 
 export interface ClausulaPlano {
   texto: string
   tipo: 'padrao' | 'condicional'
 }
 
-export interface PlanoContrato {
-  clausulas: ClausulaPlano[]
-}
+export interface PlanoContrato { clausulas: ClausulaPlano[] }
 
-const SYSTEM_PROMPT = `Você é um assistente jurídico que planeja a estrutura de um contrato antes de redigi-lo.
-
-Você recebe o tipo de contrato e o resumo estruturado de uma negociação (já confirmado por um operador humano). Sua tarefa é listar as cláusulas que o contrato terá — não redigir o texto das cláusulas, só nomeá-las.
-
-Separe em duas categorias:
-- "padrao": cláusulas que qualquer contrato deste tipo tem (ex: qualificação das partes, objeto, foro).
-- "condicional": cláusulas que só existem por causa de detalhes específicos desta negociação (ex: "cláusula de financiamento" porque o saldo é financiado, "cláusula de imóvel ocupado" porque o imóvel está ocupado até a assinatura, "cláusula de multa" só se houver percentual de multa informado).
-
-Retorne SOMENTE o JSON abaixo, sem markdown, sem explicação:
-
-{
-  "clausulas": [
-    {"texto": "Qualificação das partes", "tipo": "padrao"},
-    {"texto": "Cláusula de financiamento (saldo financiado)", "tipo": "condicional"}
-  ]
-}`
-
+/** A estrutura vem do modelo usado, sem uma chamada à IA para inventar títulos. */
 export async function planejarContrato(input: {
   tipoContrato: string
   resumo: ResumoNegociacao
 }): Promise<PlanoContrato> {
-  const contexto = JSON.stringify({
-    tipo_contrato: input.tipoContrato,
-    resumo_negociacao: input.resumo,
-  }, null, 2)
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-5',
-    max_tokens: 4000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: contexto }],
-  })
-
-  // Sonnet 5 roda thinking adaptativo por padrão — o(s) primeiro(s) bloco(s)
-  // costumam ser 'thinking', não 'text' (mesmo motivo do .find() em ocr.ts).
-  // A resposta em texto pode vir dividida em mais de um bloco 'text' — junta
-  // todos, em vez de pegar só o primeiro, para não cortar o JSON no meio.
-  const blocosTexto = response.content.filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
-  if (blocosTexto.length === 0) throw new Error('Resposta inesperada da IA.')
-  if (response.stop_reason === 'max_tokens') {
-    console.error('[planejarContrato] resposta cortada por max_tokens')
-    throw new Error('A IA não conseguiu concluir o plano do contrato (resposta muito longa). Tente novamente.')
+  const template = selecionarTemplate(input.tipoContrato)
+  const clausulas: ClausulaPlano[] = Array.from(template.conteudo.matchAll(/<h3>([\s\S]*?)<\/h3>/g))
+    .map((m) => ({ texto: m[1].replace(/<[^>]+>/g, '').trim(), tipo: 'padrao' }))
+  if (input.tipoContrato === 'compra_venda' && (input.resumo.valor_financiado ?? 0) > 0) {
+    clausulas.push({ texto: 'Condições do financiamento e hipóteses de negativa de crédito', tipo: 'condicional' })
   }
-
-  const bruto = blocosTexto.map((b) => b.text).join('').trim()
-  const semFences = bruto
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/, '')
-
-  try {
-    return JSON.parse(semFences) as PlanoContrato
-  } catch {
-    const inicio = semFences.indexOf('{')
-    const fim = semFences.lastIndexOf('}')
-    if (inicio === -1 || fim === -1) {
-      console.error('[planejarContrato] resposta sem JSON reconhecível:', bruto)
-      throw new Error('A IA não devolveu um plano em formato reconhecível.')
-    }
-    try {
-      return JSON.parse(semFences.slice(inicio, fim + 1)) as PlanoContrato
-    } catch {
-      console.error('[planejarContrato] falha ao parsear JSON da IA:', bruto)
-      throw new Error('A IA não devolveu um plano em formato reconhecível.')
-    }
-  }
+  return { clausulas }
 }

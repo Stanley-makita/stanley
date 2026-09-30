@@ -14,6 +14,7 @@
  * diff não precisar recalcular nada.
  */
 import type { ResumoNegociacao } from './entenderNegociacao'
+import { temFinanciamento } from './referenciaCompraVenda'
 
 export interface ResultadoValidacaoMinuta {
   valido: boolean
@@ -42,7 +43,7 @@ function extrairSecoesClausula(html: string): SecaoClausula[] {
 }
 
 function normalizar(s: string): string {
-  return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  return s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
 }
 
 function delimitarSecoes(html: string) {
@@ -62,7 +63,9 @@ function delimitarSecoes(html: string) {
   const ultimoH3 = matchesH3.length > 0 ? matchesH3[matchesH3.length - 1] : null
   const fimUltimoTituloH3 = ultimoH3 ? (ultimoH3.index ?? 0) + ultimoH3[0].length : 0
 
-  const idxTestemunhas = html.search(/testemunhas/i)
+  // A frase de fechamento já diz "na presença das testemunhas" ANTES das
+  // assinaturas. Só o rótulo do bloco delimita a seção, não essa menção em prosa.
+  const idxTestemunhas = html.search(/<(?:p|h3)[^>]*>\s*(?:<(?:strong|em)[^>]*>\s*)*testemunhas(?:\s*:|\s*<)/i)
   const fimAssinaturas = idxTestemunhas === -1 ? html.length : idxTestemunhas
   const assinaturas = html.slice(fimUltimoTituloH3, Math.max(fimUltimoTituloH3, fimAssinaturas))
   const testemunhas = idxTestemunhas === -1 ? '' : html.slice(idxTestemunhas)
@@ -89,10 +92,10 @@ function contemTexto(texto: string, alvo: string | null | undefined): boolean {
  * da IA (espaço, símbolo, casas decimais) sem deixar de pegar um valor
  * realmente ausente. */
 function contemValor(documentoInteiro: string, valor: number): boolean {
-  const digitosAlvo = Math.round(valor).toString()
-  if (digitosAlvo === '0') return true
-  const digitosDocumento = documentoInteiro.replace(/\D/g, '')
-  return digitosDocumento.includes(digitosAlvo)
+  // Comparar valores inteiros em centavos; não concatenar CPF, datas e valores
+  // nem aceitar 57.000 dentro de 570.000 ou arredondar os centavos.
+  const encontrados = documentoInteiro.match(/\b\d+(?:\.\d{3})*(?:,\d{1,2})?\b/g) ?? []
+  return encontrados.some(texto => Math.round(Number(texto.replace(/\./g, '').replace(',', '.')) * 100) === Math.round(valor * 100))
 }
 
 /** Cláusulas cujo conteúdo (normalizado) mudou entre duas versões — usada
@@ -135,6 +138,10 @@ export function validarMinutaGerada(
     if (!contemTexto(qualificacao, v.nome)) problemas.push(`Vendedor "${v.nome}" não aparece na qualificação das partes.`)
     if (!contemTexto(assinaturas, v.nome)) problemas.push(`Vendedor "${v.nome}" não tem bloco de assinatura.`)
   }
+  for (const pessoa of [...resumo.compradores, ...resumo.vendedores]) {
+    if (pessoa.email && !contemTexto(qualificacao, pessoa.email)) problemas.push(`E-mail de ${pessoa.nome} ausente da qualificação.`)
+    if (pessoa.regime_casamento && !contemTexto(qualificacao, pessoa.regime_casamento)) problemas.push(`Regime de casamento de ${pessoa.nome} ausente da qualificação.`)
+  }
   for (const t of resumo.testemunhas) {
     if (!t.nome?.trim()) continue
     if (!contemTexto(testemunhas, t.nome)) problemas.push(`Testemunha "${t.nome}" não aparece no bloco de testemunhas.`)
@@ -145,6 +152,21 @@ export function validarMinutaGerada(
 
   if (resumo.valor != null && !contemValor(documentoInteiro, resumo.valor)) {
     problemas.push('Valor total da negociação não aparece no documento.')
+  }
+  if (resumo.entrada != null && !contemValor(documentoInteiro, resumo.entrada)) problemas.push('Valor da entrada não aparece no documento.')
+  if (resumo.valor_financiado != null && !contemValor(documentoInteiro, resumo.valor_financiado)) problemas.push('Valor do financiamento não aparece no documento.')
+  if (resumo.imovel.cadastro_prefeitura && !contemTexto(documentoInteiro, resumo.imovel.cadastro_prefeitura)) problemas.push('Cadastro imobiliário não aparece no documento.')
+  if (temFinanciamento(resumo)) {
+    for (const trecho of ['negativa do agente financeiro', 'avaliação menor', 'certidão positiva', 'não será constituída inadimplência']) {
+      if (!contemTexto(documentoInteiro, trecho)) problemas.push(`Proteção do modelo de financiamento ausente: ${trecho}.`)
+    }
+    if (/parágrafo primeiro da cláusula segunda/i.test(documentoInteiro) && !/parágrafo primeiro\s*[:–—-]/i.test(documentoInteiro)) {
+      problemas.push('A minuta cita o Parágrafo Primeiro da Cláusula Segunda, mas não o apresenta.')
+    }
+  }
+  for (const intermediador of resumo.intermediadores ?? []) {
+    if (!contemTexto(corretagem, intermediador.nome)) problemas.push(`Intermediador ${intermediador.nome} ausente da corretagem.`)
+    if (intermediador.valor != null && !contemValor(corretagem, intermediador.valor)) problemas.push(`Valor da comissão de ${intermediador.nome} ausente da corretagem.`)
   }
   if (resumo.condicao_posse?.trim() && !contemTexto(documentoInteiro, resumo.condicao_posse)) {
     problemas.push('Condição de posse informada não aparece no documento.')
