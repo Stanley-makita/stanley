@@ -21,12 +21,22 @@ export function useParticipantes(ref: PropostaRef | null) {
     enabled: !!ref,
     queryFn: async (): Promise<ParticipanteResumo[]> => {
       const coluna = ref!.tipo === 'lead' ? 'lead_id' : 'processo_id'
+      // !inner + deleted_at IS NULL: Pessoa excluída (soft delete) não aparece nem soma renda.
       const { data, error } = await supabase.from('participacoes')
-        .select('id, papel, compoe_renda, ordem, pessoa:pessoas!pessoa_id(id, nome, renda_formal, renda_informal)')
+        .select('id, papel, compoe_renda, ordem, pessoa:pessoas!pessoa_id!inner(id, nome, renda_formal, renda_informal, deleted_at)')
         .eq(coluna, ref!.id)
+        .is('pessoa.deleted_at', null)
         .order('ordem', { ascending: true })
       if (error) throw error
-      return (data ?? []).map(r => ({ ...r, pessoa: Array.isArray(r.pessoa) ? r.pessoa[0] : r.pessoa })) as ParticipanteResumo[]
+      return (data ?? [])
+        .map(r => {
+          const p = Array.isArray(r.pessoa) ? r.pessoa[0] : r.pessoa
+          return {
+            ...r,
+            pessoa: p ? { id: p.id, nome: p.nome, renda_formal: p.renda_formal, renda_informal: p.renda_informal } : null,
+          }
+        })
+        .filter(r => r.pessoa !== null) as ParticipanteResumo[]
     },
   })
 }
