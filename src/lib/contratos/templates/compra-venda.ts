@@ -5,7 +5,7 @@
  * inventado neste arquivo. Só o texto institucional é protegido; nomes,
  * valores, datas e condições da negociação continuam vindo de {{variável}}.
  *
- * A partir da Fase 4, o texto das 5 cláusulas protegidas (QUARTA, QUINTA,
+ * O texto das 6 cláusulas protegidas (TERCEIRA, QUARTA, QUINTA,
  * DÉCIMA PRIMEIRA, DÉCIMA QUINTA, DÉCIMA SEXTA) mora em `clausulasProtegidas.ts`
  * — é a MESMA fonte usada pela redação por IA (`redigirContrato.ts`), pra
  * nunca haver dois textos institucionais divergentes no sistema. Este
@@ -44,9 +44,7 @@ export const TEMPLATE_COMPRA_VENDA = {
 
 <p>Os dados bancários para eventual transferência são: Banco {{conta_banco}}, Agência {{agencia}}, em nome de {{titular_conta}}.</p>
 
-<h3>CLÁUSULA TERCEIRA — DO INADIMPLEMENTO</h3>
-
-<p>Havendo o descumprimento pelas partes das obrigações elencadas neste instrumento, incidirá sobre o débito inadimplido correção monetária apurada pela variação do IGP-M (FGV), juros de mora de 1% (um por cento) ao mês, além de multa de 2% (dois por cento) sobre o débito inadimplido. Persistindo a inadimplência por mais de 30 (trinta) dias, salvo expressa convenção em contrário, dar-se-á por rescindido de pleno direito o presente instrumento, ficando a parte que der causa constituída em mora e sujeita à sanção penal inerente à rescisão contratual, independentemente de notificação ou interpelação judicial ou extrajudicial.</p>
+${C.INADIMPLEMENTO}
 
 ${C.SANCAO_PENAL}
 

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { toast } from 'sonner'
+import { lerRespostaContrato } from '@/lib/contratos/respostaApi'
 
 export interface ProcessoContrato {
   id: string
@@ -44,9 +45,9 @@ export function useEntenderNegociacao(processoId: string) {
         },
         body: JSON.stringify({ descricao }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Erro ao entender a negociação.')
-      return json.resumo as import('@/lib/contratos/entenderNegociacao').ResumoNegociacao
+      const json = await lerRespostaContrato<{ resumo: import('@/lib/contratos/entenderNegociacao').ResumoNegociacao }>(res, 'entender a negociação')
+      if (!json.resumo) throw new Error('O servidor não devolveu o resumo da negociação.')
+      return json.resumo
     },
     onError: (error) => {
       console.error('[contratos] erro ao entender negociação:', error)
@@ -84,11 +85,15 @@ export function useConfirmarEntendimento(processoId: string) {
         : payload.resumo
 
       if (payload.rascunhoId) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('processo_contratos')
           .update({ resumo_negociacao_json: resumoPersistido, updated_at: new Date().toISOString() })
           .eq('id', payload.rascunhoId)
+          .eq('processo_id', processoId)
+          .select('id')
+          .maybeSingle()
         if (error) throw error
+        if (!data) throw new Error('Não foi possível atualizar o rascunho. Verifique seu acesso ao contrato.')
         return payload.rascunhoId
       }
 
@@ -157,7 +162,7 @@ export function useSalvarContrato(processoId: string) {
       conteudo_html: string
     }): Promise<string> => {
       if (payload.id) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('processo_contratos')
           .update({
             titulo: payload.titulo,
@@ -165,7 +170,11 @@ export function useSalvarContrato(processoId: string) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', payload.id)
+          .eq('processo_id', processoId)
+          .select('id')
+          .maybeSingle()
         if (error) throw error
+        if (!data) throw new Error('Não foi possível salvar a minuta. Verifique seu acesso ao contrato.')
         return payload.id
       }
 
@@ -216,9 +225,9 @@ export function useGerarPlanoContrato(processoId: string) {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Erro ao planejar o contrato.')
-      return json.plano as import('@/lib/contratos/planejarContrato').PlanoContrato
+      const json = await lerRespostaContrato<{ plano: import('@/lib/contratos/planejarContrato').PlanoContrato }>(res, 'planejar o contrato')
+      if (!json.plano) throw new Error('O servidor não devolveu o plano do contrato.')
+      return json.plano
     },
     onError: (error) => {
       console.error('[contratos] erro ao planejar contrato:', error)
@@ -232,11 +241,15 @@ export function useConfirmarPlano(processoId: string) {
 
   return useMutation({
     mutationFn: async (payload: { contratoId: string; plano: import('@/lib/contratos/planejarContrato').PlanoContrato }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('processo_contratos')
         .update({ plano_contrato_json: payload.plano, updated_at: new Date().toISOString() })
         .eq('id', payload.contratoId)
+        .eq('processo_id', processoId)
+        .select('id')
+        .maybeSingle()
       if (error) throw error
+      if (!data) throw new Error('Não foi possível salvar o plano. Verifique seu acesso ao contrato.')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processo-contratos', processoId] })
@@ -251,11 +264,9 @@ export function useConfirmarPlano(processoId: string) {
 /**
  * Etapa "Redigir contrato" (Fase 4, só compra_venda): a partir do resumo e
  * do plano já confirmados (relidos pelo servidor via contratoId — nunca
- * confia num payload fresco do client), chama a redação por IA. Servidor
- * decide sozinho, internamente, entre devolver a minuta redigida pela IA
- * (já com cláusulas protegidas injetadas, sanitizada e validada) ou o
- * fallback determinístico — ver gerarMinutaPorIA.ts para a política de
- * retry/fallback. Não persiste; ContratoConstrutor.tsx decide quando salvar
+ * confia num payload fresco do client), chama a redação por IA. O servidor
+ * só devolve uma minuta que passou na conferência; uma falha preserva a
+ * anterior. Não persiste; ContratoConstrutor.tsx decide quando salvar
  * (mesma filosofia das etapas anteriores).
  */
 export function useRedigirContrato(processoId: string) {
@@ -270,9 +281,9 @@ export function useRedigirContrato(processoId: string) {
         },
         body: JSON.stringify({ contratoId }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Erro ao redigir o contrato.')
-      return json as import('@/lib/contratos/gerarMinutaPorIA').ResultadoGeracaoMinuta
+      const json = await lerRespostaContrato<import('@/lib/contratos/gerarMinutaPorIA').ResultadoGeracaoMinuta>(res, 'redigir o contrato')
+      if (!json.html?.trim()) throw new Error('O servidor não devolveu a minuta do contrato.')
+      return json
     },
     onError: (error) => {
       console.error('[contratos] erro ao redigir contrato:', error)

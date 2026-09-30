@@ -157,6 +157,7 @@ export function percentualTexto(n: number): string {
 }
 
 export interface ExtrasResumoNegociacao {
+  financiamentoPrevisto?: boolean
   imovelDescricao?: string | null
   imovelMatricula?: string | null
   imovelCartorio?: string | null
@@ -450,7 +451,7 @@ export function substituirVariaveis(
   }
   if (extras?.cidade) {
     variaveis.cidade = extras.cidade
-    variaveis.cidade_comarca = `${extras.cidade}/PR`
+    variaveis.cidade_comarca = /\/[A-Z]{2}$/i.test(extras.cidade.trim()) ? extras.cidade.trim() : `${extras.cidade.trim()}/PR`
     variaveis.foro_comarca = `${extras.cidade}/PR`
     variaveis.cidade_foro = `${extras.cidade}/PR`
   }

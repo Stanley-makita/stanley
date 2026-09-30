@@ -477,6 +477,15 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   const [documentosExpandido, setDocumentosExpandido] = useState(false)
 
   const [estado, setEstado] = useState<EstadoGeracao>('idle')
+  const [etapaGeracao, setEtapaGeracao] = useState('')
+  const [erroGeracao, setErroGeracao] = useState<string | null>(null)
+  const [avisosMinuta, setAvisosMinuta] = useState<string[]>([])
+  const [instrucoesAnalisadas, setInstrucoesAnalisadas] = useState<string | null>(null)
+  const contextoAtual = JSON.stringify([tipoContrato, instrucoes, Object.entries(documentosPastas)
+    .map(([pasta, documentos]) => [pasta, documentos.map(d => `${d.id}:${d.storagePath}`).sort()]).sort()])
+  const contextoAtualRef = useRef(contextoAtual)
+  contextoAtualRef.current = contextoAtual
+  const contextoAnalisadoRef = useRef<string | null>(null)
   const [rascunhoId, setRascunhoId] = useState<string | null>(null)
   const [resumoAtual, setResumoAtual] = useState<ResumoNegociacao | null>(null)
   const [planoAtual, setPlanoAtual] = useState<PlanoContrato | null>(null)
@@ -490,14 +499,28 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
   useEffect(() => {
     if (!jaVerificouExistentes && !carregandoContratos) {
       setJaVerificouExistentes(true)
-      if ((contratosExistentes?.length ?? 0) > 0) setEstado('pronto')
+      if (contratosExistentes?.some(c => c.conteudo_html?.trim())) setEstado('pronto')
+      // Reabrir não apaga as instruções já salvas. Não reaproveitar um resumo
+      // automaticamente: os documentos podem ter mudado desde aquela geração.
+      const ultimo = contratosExistentes?.[contratosExistentes.length - 1]
+      const texto = (ultimo?.resumo_negociacao_json as (ResumoNegociacao & { _instrucoesLivres?: string }) | null)?._instrucoesLivres
+      if (texto) setInstrucoes(atual => atual || texto)
     }
   }, [jaVerificouExistentes, carregandoContratos, contratosExistentes])
 
   function salvarTipoValor(patch: Partial<{ tipo: TipoContrato | ''; valor: string }>) {
     const tipo = patch.tipo !== undefined ? patch.tipo : tipoContrato
     const valor = patch.valor !== undefined ? patch.valor : valorContrato
-    if (patch.tipo !== undefined) setTipoContrato(patch.tipo)
+    if (patch.tipo !== undefined) {
+      setTipoContrato(patch.tipo)
+      if (patch.tipo !== tipoContrato) {
+        setRascunhoId(null)
+        setResumoAtual(null)
+        setPlanoAtual(null)
+        setEstado('idle')
+        setErroGeracao(null)
+      }
+    }
     if (patch.valor !== undefined) setValorContrato(patch.valor)
     atualizar.mutate({
       tipo_contrato: tipo || null,
@@ -511,43 +534,51 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
     plano: PlanoContrato
     tipoConfirmacao: 'automatica' | 'manual'
   }) {
+    const contextoInicial = contextoAtualRef.current
     setEstado('processando')
+    setErroGeracao(null)
+    setEtapaGeracao('Preparando as cláusulas do modelo…')
     try {
       await confirmarPlano.mutateAsync({ contratoId: params.contratoId, plano: params.plano })
       const template = selecionarTemplate(tipoContrato)
 
-      // Fase 4 — só compra_venda tem redação por IA; os demais tipos
-      // continuam no caminho determinístico de sempre (substituirVariaveis),
-      // intocado. O servidor decide sozinho, internamente, entre a minuta
-      // da IA e o fallback determinístico (mesmo template/substituirVariaveis
-      // de baixo) — ver gerarMinutaPorIA.ts.
       let html: string
-      let avisoFallback: string | undefined
       if (tipoContrato === 'compra_venda') {
+        setEtapaGeracao('Adaptando o modelo e conferindo a minuta…')
         const resultado = await redigirContrato.mutateAsync(params.contratoId)
         html = resultado.html
-        avisoFallback = resultado.avisoFallback
+        setAvisosMinuta(resultado.avisos ?? [])
       } else {
         const { processoAdaptado, compradoresAdaptados, vendedoresAdaptados, extras } =
           construirDadosTemplate(params.resumo, processo)
         html = substituirVariaveis(template.conteudo, processoAdaptado, compradoresAdaptados, vendedoresAdaptados, undefined, extras)
       }
 
+      setEtapaGeracao('Salvando a minuta para revisão…')
+      if (contextoInicial !== contextoAtualRef.current) throw new Error('Os documentos ou as instruções mudaram durante a geração. Gere novamente para usar os dados atuais.')
       await salvarContrato.mutateAsync({ id: params.contratoId, tipo_modelo: tipoContrato, titulo: template.titulo, conteudo_html: html })
       registrarConfirmacao.mutate({ tipoConfirmacao: params.tipoConfirmacao, tituloContrato: template.titulo })
-      if (avisoFallback) toast.warning(avisoFallback)
       setEstado('pronto')
     } catch (error) {
       console.error('[contratos] erro ao construir contrato:', error)
+      setErroGeracao(error instanceof Error ? error.message : 'Não foi possível concluir a minuta. Tente novamente.')
       setEstado('revisao')
     }
   }
 
   async function gerarContrato() {
     if (!tipoContrato) return
+    const contextoInicial = contextoAtualRef.current
     setEstado('processando')
+    setErroGeracao(null)
+    setAvisosMinuta([])
+    setEtapaGeracao('Conferindo as instruções e os documentos…')
     try {
       const resumo = await entenderNegociacao.mutateAsync(instrucoes)
+      if (contextoInicial !== contextoAtualRef.current) throw new Error('Os documentos ou as instruções mudaram durante a análise. Tente novamente.')
+      contextoAnalisadoRef.current = contextoInicial
+      setInstrucoesAnalisadas(instrucoes)
+      setEtapaGeracao('Salvando os dados e preparando as cláusulas…')
       const novoRascunhoId = await confirmarEntendimento.mutateAsync({ rascunhoId, tipoContrato, resumo, instrucoesLivres: instrucoes })
       setRascunhoId(novoRascunhoId)
       const plano = await gerarPlano.mutateAsync(novoRascunhoId)
@@ -563,12 +594,14 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
       }
     } catch (error) {
       console.error('[contratos] erro ao gerar contrato:', error)
+      setErroGeracao(error instanceof Error ? error.message : 'Não foi possível gerar o contrato. Tente novamente.')
       setEstado('idle')
     }
   }
 
   function continuarComPendencias() {
     if (!rascunhoId || !resumoAtual || !planoAtual) return
+    if (instrucoes !== instrucoesAnalisadas || contextoAtualRef.current !== contextoAnalisadoRef.current) { void gerarContrato(); return }
     finalizarConstrucao({ contratoId: rascunhoId, resumo: resumoAtual, plano: planoAtual, tipoConfirmacao: 'manual' })
   }
 
@@ -598,7 +631,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
         <section className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="text-xs text-gray-500">Modelo de contrato</label>
-            <Select value={tipoContrato} onValueChange={(v) => salvarTipoValor({ tipo: v as TipoContrato })}>
+            <Select disabled={processando} value={tipoContrato} onValueChange={(v) => salvarTipoValor({ tipo: v as TipoContrato })}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
               <SelectContent>
                 {Object.entries(TIPO_CONTRATO_LABELS).map(([valor, label]) => (
@@ -758,11 +791,17 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
           <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Digite aqui as condições do contrato</h2>
           <Textarea
             value={instrucoes}
+            disabled={processando}
             onChange={(e) => setInstrucoes(e.target.value)}
             rows={6}
             placeholder="Ex: Contrato de compra e venda de imóvel residencial em Maringá. Valor R$450 mil, entrada R$180 mil, saldo financiado. Posse em 30 dias. Multa 10%."
             className="rounded-xl text-sm"
           />
+          {tipoContrato === 'compra_venda' && (
+            <p className="text-xs text-gray-500">Referência: modelo de compra e venda da Fontinhas, versão 29/09/2026. Confira as condições específicas antes de assinar.</p>
+          )}
+          {processando && <p role="status" aria-live="polite" className="text-sm text-fonti-primary">{etapaGeracao}</p>}
+          {erroGeracao && <p role="alert" className="text-sm text-red-700">{erroGeracao}</p>}
           <div className="flex items-center justify-end">
             <Button
               disabled={!tipoContrato || processando}
@@ -799,7 +838,7 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
               <Button size="sm" disabled={processando} onClick={continuarComPendencias}>
                 {processando
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando...</>
-                  : <>✓ Continuar mesmo assim</>}
+                  : <>{erroGeracao ? 'Tentar redigir novamente' : '✓ Continuar mesmo assim'}</>}
               </Button>
             </div>
           </section>
@@ -809,6 +848,12 @@ export function ContratoConstrutor({ processo }: { processo: Processo }) {
             já reaproveitado tal e qual da aba antiga de Contrato. */}
         {estado === 'pronto' && (
           <section className="rounded-lg border border-gray-200 bg-white p-4">
+            {avisosMinuta.length > 0 && (
+              <div role="status" className="mb-3 rounded bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="font-medium">Campos pendentes na minuta</p>
+                <ul className="list-disc pl-5">{avisosMinuta.map(aviso => <li key={aviso}>{aviso}</li>)}</ul>
+              </div>
+            )}
             <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
               <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Minuta pronta para revisão
             </h2>

@@ -1,3 +1,5 @@
+import { executarEtapaContrato } from '@/lib/contratos/etapaServidor'
+import { mensagemErroContrato } from '@/lib/contratos/execucaoIA'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { entenderNegociacao, type DocumentoOcrResumo } from '@/lib/contratos/entenderNegociacao'
@@ -15,7 +17,7 @@ async function resolveUsuario(token: string): Promise<{ empresa_id: string } | n
   return usuario ? { empresa_id: usuario.empresa_id } : null
 }
 
-export async function POST(
+async function executar(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
@@ -87,8 +89,12 @@ export async function POST(
     })
     return NextResponse.json({ resumo })
   } catch (err) {
-    console.error('[contratos/entender] erro ao consolidar negociação:', err)
-    const mensagem = err instanceof Error ? err.message : 'Não foi possível entender a negociação. Tente novamente.'
-    return NextResponse.json({ error: mensagem }, { status: 500 })
+    const falha = mensagemErroContrato(err, 'entender a negociação')
+    console.error('[contratos/erro]', { etapa: 'entender a negociação', tipo: err instanceof Error ? err.name : 'desconhecido' })
+    return NextResponse.json({ error: falha.error }, { status: falha.status })
   }
+}
+
+export function POST(request: NextRequest, context: Parameters<typeof executar>[1]) {
+  return executarEtapaContrato('entender a negociação', () => executar(request, context))
 }

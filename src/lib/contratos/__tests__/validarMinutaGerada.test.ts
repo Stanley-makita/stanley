@@ -51,6 +51,28 @@ const MINUTA_COMPLETA = `<p>abertura</p>
 `
 
 describe('validarMinutaGerada — validação por seção/papel', () => {
+  it('menção a testemunhas no fechamento não esconde as assinaturas', () => {
+    const html = MINUTA_COMPLETA.replace('<p>foro</p>', '<p>foro</p><p>Assinam na presença das testemunhas abaixo.</p>')
+    expect(validarMinutaGerada(html, resumoBase({ compradores: [pessoa('Maria Compradora')], vendedores: [pessoa('Carla Vendedora')] })).valido).toBe(true)
+  })
+
+  it('não aceita um valor dez vezes maior nem concatena números como preço', () => {
+    const resumo = resumoBase({ valor: 57000 })
+    expect(validarMinutaGerada(MINUTA_COMPLETA.replace('<p>texto</p>', '<p>R$ 570.000,00</p>'), resumo).valido).toBe(false)
+    expect(validarMinutaGerada(MINUTA_COMPLETA.replace('<p>texto</p>', '<p>57 e 000</p>'), resumo).valido).toBe(false)
+  })
+
+  it('não arredonda centavos diferentes para aprovar o preço', () => {
+    expect(validarMinutaGerada(MINUTA_COMPLETA.replace('<p>texto</p>', '<p>R$ 570.000,01</p>'), resumoBase({ valor: 570000.49 })).valido).toBe(false)
+  })
+
+  it('reprova perda de cadastro imobiliário, entrada e segundo intermediador', () => {
+    const resumo = resumoBase({ entrada: 250000, imovel: { ...resumoBase().imovel, cadastro_prefeitura: '23042450' }, intermediadores: [{ nome: 'Imobiliária Exemplo', documento: null, creci: null, percentual: 3.5, valor: 19950, dados_pagamento: null }] })
+    const resultado = validarMinutaGerada(MINUTA_COMPLETA, resumo)
+    expect(resultado.problemas.join(' ')).toMatch(/entrada/)
+    expect(resultado.problemas.join(' ')).toMatch(/Cadastro imobiliário/)
+    expect(resultado.problemas.join(' ')).toMatch(/Imobiliária Exemplo/)
+  })
   it('aprova quando todo comprador/vendedor está em qualificação E assinatura', () => {
     const resumo = resumoBase({
       compradores: [pessoa('Maria Compradora'), pessoa('Yovanny Comprador')],
