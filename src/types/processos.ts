@@ -1,3 +1,5 @@
+import type { ParticipanteLista } from '@/lib/participantes/tipos'
+
 export type ModalidadeProcesso =
   | 'SFI' | 'SBPE' | 'PMCMV' | 'Pro_Cotista' | 'CGI' | 'Contrato' | 'Consorcio' | 'Registro'
 
@@ -175,8 +177,9 @@ export interface Processo {
   comercial?: { id: string; nome: string; email: string } | null
   juridico?: { id: string; nome: string; email: string } | null
   fase_atual?: { id: string; nome: string; cor: string | null } | null
-  compradores?: { id: string; nome: string; cpf: string | null; telefone: string | null; principal: boolean; pessoa_id: string | null }[]
-  vendedores?:  { id: string; nome: string; cpf: string | null }[]
+  // V2 (fase B1): vêm de participacoes + pessoas (comListasDeParticipantes), não de processo_compradores/vendedores.
+  compradores?: ParticipanteLista[]
+  vendedores?:  ParticipanteLista[]
   parceiro?: { id: string; nome: string; tipo_parceiro: string | null; imobiliaria: string | null } | null
   corretores?:  { id: string; papel: string; principal: boolean; corretor?: { id: string; nome: string } | null }[]
   imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]

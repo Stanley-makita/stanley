@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { toast } from 'sonner'
 import type { ProcessoTarefa } from '@/types/processos'
+import { EMBED_PARTICIPANTES, comListasDeParticipantes, type ParticipacaoEmbed } from '@/lib/participantes/resumo'
 
 export interface ProcessoTarefaComentario {
   id: string
@@ -26,13 +27,14 @@ export function useProcessoTarefaById(tarefaId: string | null) {
           responsavel:usuarios!responsavel_id(nome),
           processo:processos!processo_id(
             id, numero_processo, nome_imovel,
-            compradores:processo_compradores(nome, principal)
+            ${EMBED_PARTICIPANTES}
           )
         `)
         .eq('id', tarefaId!)
         .single()
       if (error) throw error
-      return data as ProcessoTarefa & {
+      const processo = (data as { processo?: { participantes?: ParticipacaoEmbed[] | null } | null }).processo
+      return { ...data, processo: processo ? comListasDeParticipantes(processo) : null } as ProcessoTarefa & {
         responsavel?: { nome: string } | null
         processo?: {
           id: string

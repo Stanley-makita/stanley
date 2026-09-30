@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Processo, type StatusProcesso } from '@/types/processos'
+import { EMBED_PARTICIPANTES, comListasDeParticipantes, type ParticipacaoEmbed } from '@/lib/participantes/resumo'
+import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
 
 export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato' | 'registro'
 
@@ -56,8 +58,7 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
           operacional:usuarios!operacional_id(id, nome, email),
           comercial:usuarios!comercial_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
-          compradores:processo_compradores(nome, cpf, principal),
-          vendedores:processo_vendedores(id, nome, cpf),
+          ${EMBED_PARTICIPANTES},
           corretores:processo_corretores(id, papel, principal, corretor:corretores(id, nome)),
           imobiliarias:processo_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
           parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria)
@@ -90,14 +91,29 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
 
       if (filtros.busca) {
         const termo = filtros.busca.trim()
-        // Cliente/CPF ficam em processo_compradores (tabela relacionada) —
+        // Cliente/CPF ficam na Pessoa dos participantes de compra (V2) —
         // não dá pra filtrar direto no .or() principal, então busca os
-        // processo_id que batem lá primeiro e inclui via id.in(...).
-        const { data: compradoresMatch } = await supabase
-          .from('processo_compradores')
-          .select('processo_id')
+        // processo_id que batem primeiro e inclui via id.in(...).
+        const { data: pessoasMatch, error: erroPessoas } = await supabase
+          .from('pessoas')
+          .select('id')
+          .eq('empresa_id', usuario!.empresa_id)
+          .is('deleted_at', null)
           .or(`nome.ilike.%${termo}%,cpf.ilike.%${termo}%`)
-        const idsCompradores = Array.from(new Set((compradoresMatch ?? []).map((c) => c.processo_id)))
+          .limit(200)
+        if (erroPessoas) throw erroPessoas
+        const idsPessoas = (pessoasMatch ?? []).map((p) => p.id as string)
+        let idsCompradores: string[] = []
+        if (idsPessoas.length > 0) {
+          const { data: partsMatch, error: erroParts } = await supabase
+            .from('participacoes')
+            .select('processo_id')
+            .in('pessoa_id', idsPessoas)
+            .in('papel', [...PAPEIS_COMPRA])
+            .not('processo_id', 'is', null)
+          if (erroParts) throw erroParts
+          idsCompradores = Array.from(new Set((partsMatch ?? []).map((r) => r.processo_id as string)))
+        }
 
         const orPartes = [`nome_imovel.ilike.%${termo}%`, `numero_processo.ilike.%${termo}%`]
         if (idsCompradores.length > 0) orPartes.push(`id.in.(${idsCompradores.join(',')})`)
@@ -112,7 +128,7 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
 
       const { data, error } = await query
       if (error) throw error
-      return data
+      return (data ?? []).map((row) => comListasDeParticipantes(row as { participantes?: ParticipacaoEmbed[] | null })) as unknown as Processo[]
     },
     enabled: !!usuario,
   })
@@ -135,8 +151,7 @@ export function useProcesso(processoId: string) {
           comercial:usuarios!comercial_id(id, nome, email),
           juridico:usuarios!juridico_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
-          compradores:processo_compradores(id, nome, cpf, telefone, principal, pessoa_id),
-          vendedores:processo_vendedores(id, nome, cpf),
+          ${EMBED_PARTICIPANTES},
           parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria)
         `)
         .eq('id', processoId)
@@ -144,7 +159,7 @@ export function useProcesso(processoId: string) {
         .single()
 
       if (error) throw error
-      return data
+      return comListasDeParticipantes(data as { participantes?: ParticipacaoEmbed[] | null }) as unknown as Processo
     },
     enabled: !!usuario && !!processoId,
   })

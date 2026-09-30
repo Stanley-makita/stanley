@@ -617,3 +617,18 @@ chamadas por triggers nas tabelas antigas (`leads`, `lead_coparticipantes`, `lea
 - **Casamento encerrado nunca é recriado automaticamente:** "Desvincular cônjuge" (`/api/leads/[id]/vincular-conjuge`) encerra o relacionamento (`data_fim`) e a sync não religa por campos soltos nem por ponteiro antigo (`pv2_ex_conjuge`); só um vínculo explícito (`pessoas.conjuge_pessoa_id` passando a apontar para alguém) cria de novo.
 - **Backfill desliga os triggers** via `set_config('pv2.backfill','on',true)` (checado nas 4 funções de trigger) e faz 2 passadas de leads/processos; as funções `pv2_*` têm EXECUTE revogado de anon/authenticated (só service_role e as funções de trigger SECURITY DEFINER chamam).
 - **CPF de operador:** cônjuge/comprador em campos soltos cujo CPF pertence a uma Pessoa de operador não é vinculado (fica sem Pessoa; aparece no bloco 11 do diagnóstico).
+
+### Participantes V2 — Fase B1: leitor novo lê participações, nunca as tabelas antigas (2026-10)
+
+Listas e identidade de quem participa de um lead/negócio (nome, CPF, papel, titular) vêm de
+`participacoes` + `pessoas`: embed `EMBED_PARTICIPANTES` + `comListasDeParticipantes`/
+`compradoresDaProposta`/`nomeTitular` (`src/lib/participantes/resumo.ts`) no cliente, e
+`titularDaProposta`/`pessoasDaProposta`/`processosDaPessoa` (`src/lib/participantes/consultas.ts`)
+no servidor/bot. Nenhum leitor novo pode ler `processo_compradores`, `processo_vendedores`,
+`lead_vendedores`, `lead_coparticipantes` nem `leads/pessoas.conjuge_*` — essas tabelas deixam
+de ser escritas na Fase B2 e viram `_legado` na B3; um leitor novo nelas vai mostrar dado velho
+sem erro nenhum. Em SQL: `JOIN participacoes ... papel = 'titular'` (ver migration 328).
+**Exceção temporária até a B2:** e-mail/telefone de comprador (Clicksign, e-mail de confirmação
+de valores, interessados/comunicação, overlay de `formularios/dados.ts`) ainda leem as linhas
+antigas, porque a inclusão de comprador pela aba do Negócio grava e-mail/telefone só em
+`processo_compradores` — ler da Pessoa antes da B2 perde esses valores.

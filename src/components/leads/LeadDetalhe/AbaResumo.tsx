@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { InputMoeda } from '@/components/ui/input-moeda'
 import { toast } from 'sonner'
+import { useParticipantes } from '@/hooks/participantes/useParticipantes'
+import { ROTULO_PAPEL } from '@/lib/participantes/tipos'
 
 const PRODUTO_LABELS: Record<string, string> = {
   financiamento: 'Financiamento',
@@ -51,6 +53,8 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
   const { data: tarefas = [] } = useLeadTarefas(lead.id)
 
   const { data: pendencias = [] } = useSolicitacoesAbertasPorLead(lead.id)
+  const { data: participantes = [] } = useParticipantes({ tipo: 'lead', id: lead.id })
+  const outrosParticipantes = participantes.filter(pt => pt.papel !== 'titular')
   const diasComoLead = differenceInDays(new Date(), new Date(lead.created_at))
   const rendaTotal = (lead.renda_formal ?? 0) + (lead.renda_informal ?? 0)
 
@@ -199,15 +203,25 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
             {lead.regime_casamento && <Campo label="Regime" valor={REGIME_LABELS[lead.regime_casamento] ?? lead.regime_casamento} />}
           </div>
 
-          {lead.conjuge_nome && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-400 mb-2">Cônjuge</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                <Campo label="Nome" valor={lead.conjuge_nome} />
-                {lead.conjuge_cpf && <Campo label="CPF" valor={lead.conjuge_cpf} />}
+        </div>
+      )}
+
+      {/* ── Participantes da proposta (V2) ── */}
+      {outrosParticipantes.length > 0 && (
+        <div className="border border-gray-300 rounded-xl p-4 bg-white shadow">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-gray-400" />
+            <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Participantes</p>
+          </div>
+          <div className="space-y-1.5">
+            {outrosParticipantes.map(pt => (
+              <div key={pt.id} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-fonti-primary font-medium">{pt.pessoa.nome}</span>
+                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">{ROTULO_PAPEL[pt.papel]}</span>
+                {pt.compoe_renda && <span className="text-[10px] text-emerald-700">compõe renda</span>}
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
 

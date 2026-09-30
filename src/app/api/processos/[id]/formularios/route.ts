@@ -27,6 +27,7 @@ import { mapaFgtsSantander }        from '@/lib/formularios/santander/fgts'
 import { mapaAutorizacaoSantander } from '@/lib/formularios/santander/autorizacao'
 import { mapaIqVendedorSantander }  from '@/lib/formularios/santander/iq-vendedor'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { titularDaProposta } from '@/lib/participantes/consultas'
 
 type BancoSuportado = 'BRADESCO' | 'BANCO_DO_BRASIL' | 'SANTANDER' | 'ITAU' | 'CAIXA'
 
@@ -119,26 +120,13 @@ export async function POST(
     if (!processo) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
 
     // Modelo definitivo: formulário gerado entra no acervo documental da Pessoa,
-    // que exige pessoa_id — resolve pelo comprador principal (mesma cadeia usada
-    // em outros pontos do sistema: pessoa_id direto → CPF → nome).
-    const { data: comprador } = await supabaseAdmin
-      .from('processo_compradores')
-      .select('pessoa_id, cpf, nome')
-      .eq('processo_id', params.id)
-      .eq('empresa_id', usuario.empresa_id)
-      .eq('principal', true)
-      .maybeSingle()
-
-    let pessoaIdProcesso: string | null = comprador?.pessoa_id ?? null
-    if (!pessoaIdProcesso && comprador?.cpf) {
-      const { data: p } = await supabaseAdmin.from('pessoas').select('id')
-        .eq('empresa_id', usuario.empresa_id).eq('cpf', comprador.cpf).maybeSingle()
-      pessoaIdProcesso = p?.id ?? null
-    }
-    if (!pessoaIdProcesso && comprador?.nome) {
-      const { data: p } = await supabaseAdmin.from('pessoas').select('id')
-        .eq('empresa_id', usuario.empresa_id).ilike('nome', comprador.nome).maybeSingle()
-      pessoaIdProcesso = p?.id ?? null
+    // que exige pessoa_id — Pessoa do titular da proposta (V2: participações).
+    let pessoaIdProcesso: string | null = null
+    try {
+      pessoaIdProcesso = (await titularDaProposta(supabaseAdmin, { tipo: 'processo', id: params.id }))?.pessoa_id ?? null
+    } catch (e) {
+      console.error('[processos/formularios] titular:', e)
+      return NextResponse.json({ error: 'Erro ao identificar o comprador principal deste processo.' }, { status: 500 })
     }
     if (!pessoaIdProcesso) {
       return NextResponse.json(

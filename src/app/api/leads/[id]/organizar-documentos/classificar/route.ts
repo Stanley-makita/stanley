@@ -25,11 +25,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const body = await request.json().catch(() => ({})) as { documento_ids?: string[] }
   const pedidos = (Array.isArray(body.documento_ids) ? body.documento_ids : []).slice(0, MAX_DOCUMENTOS_POR_REQUISICAO)
 
-  const [{ docs }, vendedores, pastaPorTipo] = await Promise.all([
-    carregarDocumentosDoLead(lead.id, lead.pessoa_id, usuario.empresa_id),
-    carregarVendedoresDoLead(lead.id),
-    carregarPastaSugeridaPorTipo(),
-  ])
+  let docs: Awaited<ReturnType<typeof carregarDocumentosDoLead>>['docs']
+  let vendedores: string[]
+  let pastaPorTipo: Map<string, string>
+  try {
+    ;[{ docs }, vendedores, pastaPorTipo] = await Promise.all([
+      carregarDocumentosDoLead(lead.id, lead.pessoa_id, usuario.empresa_id),
+      carregarVendedoresDoLead(lead.id),
+      carregarPastaSugeridaPorTipo(),
+    ])
+  } catch (e) {
+    console.error('[organizar-documentos/classificar] contexto do lead:', e)
+    return NextResponse.json({ error: 'Erro ao carregar os documentos do lead.' }, { status: 500 })
+  }
   const alvo = filtrarDocumentosDoLead(pedidos, docs)
   const ordem = new Map(pedidos.map((id, i) => [id, i]))
   alvo.sort((a, b) => (ordem.get(a.id) ?? 0) - (ordem.get(b.id) ?? 0))

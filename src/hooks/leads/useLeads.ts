@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Lead } from '@/types/leads'
+import { EMBED_PARTICIPANTES, comoLeadVendedores, type ParticipacaoEmbed } from '@/lib/participantes/resumo'
 
 export function useLeadsPorFase(faseId: string, responsavelId?: string) {
   const { usuario } = useAuth()
@@ -115,7 +116,7 @@ export function useLeadsTodos(faseId?: string, search?: string, responsavelId?: 
           responsavel_operacional:usuarios!responsavel_operacional_id(id, nome),
           fase:fases!fase_id(id, nome, cor),
           status:fase_statuses!status_id(id, nome, cor),
-          vendedores:lead_vendedores(id, pessoa_id, pessoa:pessoas(id, nome, cpf)),
+          ${EMBED_PARTICIPANTES},
           corretores:lead_corretores(id, corretor:corretores(id, nome)),
           imobiliarias:lead_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
           parceiros:lead_parceiros(id, parceiro:parceiros(id, nome)),
@@ -135,7 +136,10 @@ export function useLeadsTodos(faseId?: string, search?: string, responsavelId?: 
         .limit(200)
 
       if (error) throw error
-      return data as Lead[]
+      return (data ?? []).map(({ participantes, ...l }: { participantes?: ParticipacaoEmbed[] | null } & Record<string, unknown>) => ({
+        ...l,
+        vendedores: comoLeadVendedores(participantes),
+      })) as unknown as Lead[]
     },
     enabled: !!usuario,
     refetchInterval: 30 * 1000,

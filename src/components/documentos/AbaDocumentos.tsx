@@ -34,6 +34,8 @@ import { EnviarDocumentosModal } from '@/components/documentos/EnviarDocumentosM
 import { TrazerDocumentosModal } from '@/components/documentos/TrazerDocumentosModal'
 import { useEtiquetasVinculo, useRemoverVinculo } from '@/hooks/documentos/useVinculosDocumento'
 import { podeRemoverVinculo } from '@/lib/documentos/vinculos'
+import { pessoasDaProposta, titularDaProposta } from '@/lib/participantes/consultas'
+import { PAPEIS_COMPRA, PAPEIS_VENDA } from '@/lib/participantes/tipos'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -189,14 +191,13 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     queryKey: ['processo-papeis-pessoas', processoId],
     enabled: contexto === 'processo' && !!processoId && !!usuario,
     queryFn: async () => {
-      const [{ data: compradores }, { data: vendedores }] = await Promise.all([
-        supabase.from('processo_compradores').select('pessoa_id').eq('processo_id', processoId!).eq('empresa_id', usuario!.empresa_id),
-        supabase.from('processo_vendedores').select('pessoa_id').eq('processo_id', processoId!).eq('empresa_id', usuario!.empresa_id),
+      // V2: papéis vêm das participações (RLS de participacoes limita à empresa/carteira).
+      const ref = { tipo: 'processo' as const, id: processoId! }
+      const [compradoras, vendedoras] = await Promise.all([
+        pessoasDaProposta(supabase, ref, PAPEIS_COMPRA),
+        pessoasDaProposta(supabase, ref, PAPEIS_VENDA),
       ])
-      return {
-        compradoras: (compradores ?? []).map(c => c.pessoa_id).filter((id): id is string => !!id),
-        vendedoras:  (vendedores ?? []).map(v => v.pessoa_id).filter((id): id is string => !!id),
-      }
+      return { compradoras, vendedoras }
     },
   })
 
@@ -380,32 +381,20 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   }
 
   // Resolve a Pessoa dona do documento no momento do upload.
-  // Lead: prop estática. Pessoa: é a própria entidade. Processo: resolve pelo
-  // comprador principal (pessoa_id direto → CPF → nome), igual ao resto do sistema.
+  // Lead: prop estática. Pessoa: é a própria entidade. Processo: Pessoa do titular (V2).
+  // Sem titular ativo (ex.: titular excluído) devolve null — o upload já trata isso como erro.
   async function resolverPessoaIdUpload(): Promise<string | null> {
     if (contexto === 'pessoa') return entidadeId ?? null
     if (contexto === 'lead') return pessoaId ?? null
     if (!processoId || !usuario) return null
-    const { data: comprador } = await supabase
-      .from('processo_compradores')
-      .select('pessoa_id, cpf, nome')
-      .eq('processo_id', processoId)
-      .eq('empresa_id', usuario.empresa_id)
-      .eq('principal', true)
-      .maybeSingle()
-
-    if (comprador?.pessoa_id) return comprador.pessoa_id
-    if (comprador?.cpf) {
-      const { data: p } = await supabase
-        .from('pessoas').select('id').eq('empresa_id', usuario.empresa_id).eq('cpf', comprador.cpf).maybeSingle()
-      if (p?.id) return p.id
+    try {
+      const titular = await titularDaProposta(supabase, { tipo: 'processo', id: processoId })
+      return titular?.pessoa_id ?? null
+    } catch (e) {
+      // Erro de banco vira "sem dono": o upload mostra o toast de erro em vez de travar o spinner.
+      console.error('[AbaDocumentos] titular do processo:', e)
+      return null
     }
-    if (comprador?.nome) {
-      const { data: p } = await supabase
-        .from('pessoas').select('id').eq('empresa_id', usuario.empresa_id).ilike('nome', comprador.nome).maybeSingle()
-      if (p?.id) return p.id
-    }
-    return null
   }
 
   async function uploadArquivo(arquivo: File, tipoArquivo: string, pastaCodigoArquivo: string, pessoaIdUpload: string, token: string | undefined): Promise<void> {
