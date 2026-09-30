@@ -4,6 +4,8 @@ import { enviarMensagemHumano } from '@/lib/comunicacao/enviarMensagemHumano'
 import { substituirVariaveis } from '@/lib/comunicacao/substituirVariaveis'
 import { type TipoInteressado } from '@/types/comunicacao'
 import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
+import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
+import { telefonePrincipalAtivo } from '@/lib/participantes/contato'
 
 const TIPOS_INTERESSADO: TipoInteressado[] = ['comprador', 'corretor', 'parceiro', 'imobiliaria', 'construtora']
 
@@ -14,7 +16,7 @@ type PapelRelacionamento = 'cliente' | 'corretor' | 'parceiro' | 'imobiliaria' |
 // Coluna de identidade em comunicacao_relacionamentos pro lado Processo — diferente do Lead,
 // aqui TODO papel (inclusive comprador) tem sua própria FK de identidade além de processo_id;
 // não existe autorreferência (processo_compradores é uma tabela própria, não o Processo em si).
-type ColunaIdentidadeProcesso = 'processo_comprador_id' | 'processo_corretor_id' | 'processo_parceiro_id' | 'processo_imobiliaria_id'
+type ColunaIdentidadeProcesso = 'participacao_id' | 'processo_comprador_id' | 'processo_corretor_id' | 'processo_parceiro_id' | 'processo_imobiliaria_id'
 
 interface Destinatario {
   nome: string
@@ -84,21 +86,46 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // Resolução do destinatário — feita inteiramente aqui, nunca a partir de dados do client.
   let destinatario: Destinatario
   if (tipo_interessado === 'comprador') {
-    const { data: comprador } = await supabaseService
-      .from('processo_compradores')
-      .select('id, nome, telefone, pessoa_id')
+    // V2: interessado_id é a participação de compra. Compatibilidade com a lista aberta antes
+    // do deploy da B2a: um id de processo_compradores é traduzido para a participação da mesma Pessoa.
+    const SELECT_PART = 'id, pessoa:pessoas!pessoa_id!inner(id, nome, deleted_at, pessoa_telefones(telefone, principal, ativo))'
+    let { data: part } = await supabaseService
+      .from('participacoes')
+      .select(SELECT_PART)
       .eq('id', interessado_id)
       .eq('processo_id', processoId)
+      .in('papel', [...PAPEIS_COMPRA])
+      .is('pessoa.deleted_at', null)
       .maybeSingle()
-    if (!comprador) {
+    if (!part) {
+      const { data: antigo } = await supabaseService
+        .from('processo_compradores')
+        .select('pessoa_id')
+        .eq('id', interessado_id)
+        .eq('processo_id', processoId)
+        .maybeSingle()
+      if (antigo?.pessoa_id) {
+        ;({ data: part } = await supabaseService
+          .from('participacoes')
+          .select(SELECT_PART)
+          .eq('processo_id', processoId)
+          .eq('pessoa_id', antigo.pessoa_id)
+          .in('papel', [...PAPEIS_COMPRA])
+          .is('pessoa.deleted_at', null)
+          .maybeSingle())
+      }
+    }
+    const pessoa = part ? (Array.isArray(part.pessoa) ? part.pessoa[0] : part.pessoa) : null
+    if (!part || !pessoa) {
       return NextResponse.json({ error: 'Comprador não encontrado para este Negócio.' }, { status: 404 })
     }
-    if (!comprador.telefone?.trim()) {
+    const telefone = telefonePrincipalAtivo(pessoa.pessoa_telefones)
+    if (!telefone) {
       return NextResponse.json({ error: 'Este comprador não tem telefone cadastrado.' }, { status: 422 })
     }
     destinatario = {
-      nome: comprador.nome, telefone: comprador.telefone, pessoaId: comprador.pessoa_id,
-      papelRelacionamento: 'cliente', colunaIdentidade: 'processo_comprador_id', valorIdentidade: comprador.id,
+      nome: pessoa.nome, telefone, pessoaId: pessoa.id,
+      papelRelacionamento: 'cliente', colunaIdentidade: 'participacao_id', valorIdentidade: part.id,
     }
   } else if (tipo_interessado === 'corretor') {
     const { data: vinculo } = await supabaseService

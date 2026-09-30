@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { type Interessado } from '@/types/comunicacao'
 import { motivoIndisponibilidade } from '@/lib/comunicacao/interessados'
 import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
+import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
+import { telefonePrincipalAtivo } from '@/lib/participantes/contato'
 
 // Lista os destinatários possíveis de comunicação manual para um Processo (Negócio) —
 // comprador(es), corretores, parceiros e imobiliárias/construtoras vinculados. Espelha
 // GET /api/leads/[id]/interessados. Lista TODOS os vínculos reais, inclusive os sem
 // telefone/inativos (apto=false + motivo) -- não esconde o vínculo.
 //
-// Diferença do Lead: pode haver mais de um comprador por Processo (processo_compradores não é
-// 1:1 como leads). 'vendedora' (processo_imobiliarias.papel) fica de fora de propósito -- sem
+// Diferença do Lead: pode haver mais de um comprador por Processo (V2: participações de compra —
+// titular, coparticipante, cônjuge anuente — não 1:1 como leads). 'vendedora' (processo_imobiliarias.papel) fica de fora de propósito -- sem
 // equivalente no Lead. Vendedor não aparece aqui (mesma exclusão do Lead).
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const authHeader = request.headers.get('authorization') ?? ''
@@ -40,18 +42,28 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const interessados: Interessado[] = []
 
-  const { data: compradores } = await supabaseService
-    .from('processo_compradores')
-    .select('id, nome, telefone')
+  // V2: compradores = participações de compra (titular, coparticipante, cônjuge anuente);
+  // nome e telefone sempre da Pessoa. interessado_id = id da participação.
+  const { data: compradores, error: erroCompradores } = await supabaseService
+    .from('participacoes')
+    .select('id, papel, ordem, pessoa:pessoas!pessoa_id!inner(id, nome, deleted_at, pessoa_telefones(telefone, principal, ativo))')
     .eq('processo_id', processoId)
+    .in('papel', [...PAPEIS_COMPRA])
+    .is('pessoa.deleted_at', null)
+  if (erroCompradores) return NextResponse.json({ error: 'Erro ao carregar os compradores.' }, { status: 500 })
 
-  for (const comprador of compradores ?? []) {
+  const ordenados = [...(compradores ?? [])].sort((a, b) =>
+    (a.papel === 'titular' ? 0 : 1) - (b.papel === 'titular' ? 0 : 1) || a.ordem - b.ordem)
+  for (const c of ordenados) {
+    const pessoa = Array.isArray(c.pessoa) ? c.pessoa[0] : c.pessoa
+    if (!pessoa) continue
+    const telefone = telefonePrincipalAtivo(pessoa.pessoa_telefones)
     interessados.push({
       tipo_interessado: 'comprador',
-      interessado_id: comprador.id,
-      nome: comprador.nome,
-      apto: !!comprador.telefone?.trim(),
-      motivo_indisponibilidade: comprador.telefone?.trim() ? null : 'Telefone não cadastrado',
+      interessado_id: c.id,
+      nome: pessoa.nome,
+      apto: !!telefone,
+      motivo_indisponibilidade: telefone ? null : 'Telefone não cadastrado',
     })
   }
 
