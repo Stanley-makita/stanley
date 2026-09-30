@@ -125,9 +125,14 @@ export function useEditarVendedor(processoId: string) {
         if (input.conjuge_nome  !== undefined) pessoaPayload.conjuge_nome  = input.conjuge_nome || null
         if (input.conjuge_cpf   !== undefined) pessoaPayload.conjuge_cpf   = input.conjuge_cpf || null
         if (input.conjuge_data_nasc !== undefined) pessoaPayload.conjuge_data_nascimento = input.conjuge_data_nasc || null
+        // Conta bancária: Pessoa é a fonte dos formulários (V2 B2a) — edição aqui precisa chegar lá.
+        if (input.banco   !== undefined) pessoaPayload.conta_bancaria_banco   = input.banco || null
+        if (input.agencia !== undefined) pessoaPayload.conta_bancaria_agencia = input.agencia || null
+        if (input.conta   !== undefined) pessoaPayload.conta_bancaria_numero  = input.conta || null
 
         if (Object.keys(pessoaPayload).length > 0) {
-          await supabase.from('pessoas').update(pessoaPayload).eq('id', resolvedPessoaId)
+          const { error: errPessoa } = await supabase.from('pessoas').update(pessoaPayload).eq('id', resolvedPessoaId)
+          if (errPessoa) throw errPessoa
           if (usuario?.id && usuario?.empresa_id) {
             await supabase.from('pessoas_alteracoes').insert({
               pessoa_id: resolvedPessoaId,
