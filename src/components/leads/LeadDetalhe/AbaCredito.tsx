@@ -719,16 +719,13 @@ function BlocoCoparticipantes({ lead }: { lead: Lead }) {
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Coparticipantes</p>
-        {!adicionando && (
-          <button onClick={() => setAdicionando(true)} className="flex items-center gap-0.5 text-xs text-fonti-primary hover:underline font-medium">
-            <Plus className="h-3 w-3" /> Adicionar
-          </button>
-        )}
+        {/* V2 B2b: incluir/remover participante é só pela aba Pessoa (uma sub-aba por participante). */}
+        <span className="text-xs text-gray-500">Gerencie na aba Pessoa</span>
       </div>
 
       {coparticipantes.length === 0 && !adicionando && (
-        <p className="text-xs text-gray-300 italic">
-          Nenhum coparticipante. Use para pessoas sem vínculo familiar que também entram no financiamento.
+        <p className="text-xs text-gray-400 italic">
+          Nenhum coparticipante. Inclua pela aba Pessoa, em “+ Participante”.
         </p>
       )}
 
@@ -746,9 +743,6 @@ function BlocoCoparticipantes({ lead }: { lead: Lead }) {
             </button>
             {c.pessoa?.cpf && <p className="text-xs text-gray-500">{c.pessoa.cpf}</p>}
           </div>
-          <button onClick={() => removerCoparticipante(c.id)} className="text-gray-300 hover:text-red-400 shrink-0">
-            <X className="h-3.5 w-3.5" />
-          </button>
         </div>
       ))}
 
