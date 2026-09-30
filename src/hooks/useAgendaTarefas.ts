@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUsuarioAtual } from '@/hooks/useUsuarioAtual'
 import { TarefaAgenda } from '@/types/agenda'
 import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns'
+import { EMBED_PARTICIPANTES, nomeTitular } from '@/lib/participantes/resumo'
 
 export function useAgendaTarefas(mes: Date, responsavelId?: string) {
   const supabase = createClient()
@@ -23,7 +24,7 @@ export function useAgendaTarefas(mes: Date, responsavelId?: string) {
           responsavel_id, criado_por,
           processo:processos!processo_id (
             id, nome_imovel, numero_processo,
-            compradores:processo_compradores(nome, principal)
+            ${EMBED_PARTICIPANTES}
           ),
           responsavel:usuarios!responsavel_id (nome)
         `)
@@ -72,10 +73,7 @@ export function useAgendaTarefas(mes: Date, responsavelId?: string) {
 
       const processoTarefas: TarefaAgenda[] = (pt ?? []).map((t: any) => {
         const p = t.processo
-        const nomeComprador =
-          p?.compradores?.find((c: any) => c.principal)?.nome ??
-          p?.compradores?.[0]?.nome ??
-          p?.nome_imovel ?? ''
+        const nomeComprador = nomeTitular(p?.participantes) ?? p?.nome_imovel ?? ''
         return {
           tarefa_id:            t.id,
           tarefa_titulo:        t.titulo,

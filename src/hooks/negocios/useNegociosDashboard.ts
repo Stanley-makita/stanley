@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { format, addDays, subDays } from 'date-fns'
 import type { TarefaAgenda } from '@/types/agenda'
+import { EMBED_PARTICIPANTES, nomeTitular } from '@/lib/participantes/resumo'
 
 const FINANCIAMENTO_MODS = new Set(['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'])
 
@@ -89,7 +90,7 @@ export function useNegociosDashboard(todasDaEmpresa: boolean = false) {
           responsavel_id, criado_por,
           processo:processos!processo_id (
             id, nome_imovel, numero_processo,
-            compradores:processo_compradores(nome, principal)
+            ${EMBED_PARTICIPANTES}
           )
         `)
         .eq('empresa_id', usuario!.empresa_id)
@@ -109,10 +110,7 @@ export function useNegociosDashboard(todasDaEmpresa: boolean = false) {
 
       return (data ?? []).map((t: any): TarefaAgenda => {
         const p = t.processo
-        const nomeComprador =
-          p?.compradores?.find((c: any) => c.principal)?.nome ??
-          p?.compradores?.[0]?.nome ??
-          p?.nome_imovel ?? ''
+        const nomeComprador = nomeTitular(p?.participantes) ?? p?.nome_imovel ?? ''
         return {
           tarefa_id:            t.id,
           tarefa_titulo:        t.titulo,

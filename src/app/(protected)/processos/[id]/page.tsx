@@ -59,6 +59,7 @@ import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialog'
 import { ModalConfirmacaoValores } from '@/components/processos/ModalConfirmacaoValores'
 import { EmailConfirmacaoBadge } from '@/components/processos/EmailConfirmacaoBadge'
+import { ROTULO_PAPEL } from '@/lib/participantes/tipos'
 
 const MODALIDADES_COM_CUSTAS = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'] as const
 
@@ -897,8 +898,10 @@ function AbaResumo({
                   <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
                   <span className="text-fonti-primary font-medium">{c.nome}</span>
                   {c.cpf && <span className="text-xs text-text-muted">{c.cpf}</span>}
-                  {c.principal && (
+                  {c.principal ? (
                     <span className="text-[10px] bg-fonti-primary text-white px-1.5 py-0.5 rounded-full">Principal</span>
+                  ) : c.papel !== 'coparticipante' && (
+                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">{ROTULO_PAPEL[c.papel]}</span>
                   )}
                 </div>
               ))}
