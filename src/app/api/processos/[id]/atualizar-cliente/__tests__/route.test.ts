@@ -33,6 +33,7 @@ function criarFakeSupabase() {
     auth: {
       getUser: async (_token: string) => ({ data: { user: { id: 'auth-user-1' } }, error: null }),
     },
+    rpc: async (_nome: string, _args: unknown) => ({ data: 'conversa-nova-1', error: null }),
     from(tabela: string) {
       const proxy: Record<string, unknown> = {}
       Object.assign(proxy, {
@@ -71,13 +72,20 @@ function criarFakeSupabase() {
           if (tabela === 'comunicacao_relacionamentos') {
             return fakeState.relacionamentoExiste ? { data: { id: 'comrel-1' }, error: null } : { data: null, error: null }
           }
-          if (tabela === 'processo_compradores') {
+          if (tabela === 'participacoes') {
             if (!fakeState.compradorExiste) return { data: null, error: null }
             return {
-              data: { id: 'comprador-1', nome: 'Comprador Teste', telefone: fakeState.compradorTelefone, pessoa_id: null },
+              data: {
+                id: 'comprador-1',
+                pessoa: {
+                  id: 'pessoa-1', nome: 'Comprador Teste', deleted_at: null,
+                  pessoa_telefones: fakeState.compradorTelefone ? [{ telefone: fakeState.compradorTelefone, principal: true, ativo: true }] : [],
+                },
+              },
               error: null,
             }
           }
+          if (tabela === 'processo_compradores') return { data: null, error: null } // id antigo não reconhecido
           if (tabela === 'processo_corretores') {
             if (!fakeState.corretorVinculoExiste) return { data: null, error: null }
             return {

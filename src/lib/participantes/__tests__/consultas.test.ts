@@ -13,7 +13,7 @@ const base = () => criarFakeDb({
     { empresa_id: 'e1', processo_id: 'pr3', lead_id: null, pessoa_id: 'x', papel: 'titular' },
   ],
   pessoas: [
-    { id: 'h', nome: 'Heitor', cpf: '52998224725', deleted_at: null },
+    { id: 'h', nome: 'Heitor', cpf: '52998224725', email: 'heitor@x.com', deleted_at: null },
     { id: 'm', nome: 'Maria', cpf: null, deleted_at: null },
     { id: 'v', nome: 'Vera', cpf: null, deleted_at: null },
     { id: 'x', nome: 'Excluída', cpf: null, deleted_at: '2026-09-01' },
@@ -41,7 +41,7 @@ describe('pessoasDaProposta', () => {
 describe('titularDaProposta', () => {
   it('Pessoa do titular', async () => {
     expect(await titularDaProposta(base() as never, { tipo: 'processo', id: 'pr1' }))
-      .toEqual({ pessoa_id: 'h', nome: 'Heitor', cpf: '52998224725' })
+      .toEqual({ pessoa_id: 'h', nome: 'Heitor', cpf: '52998224725', email: 'heitor@x.com' })
   })
   it('titular excluído (soft delete) → null', async () => {
     expect(await titularDaProposta(base() as never, { tipo: 'processo', id: 'pr3' })).toBeNull()

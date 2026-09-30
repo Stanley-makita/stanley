@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const fakeState = {
   processoExiste: true,
   compradores: [
-    { id: 'comprador-1', nome: 'Comprador Ativo', telefone: '5511900000000' },
-    { id: 'comprador-2', nome: 'Comprador Sem Telefone', telefone: null },
-  ] as Array<{ id: string; nome: string; telefone: string | null }>,
+    { id: 'comprador-1', papel: 'titular', ordem: 1, pessoa: { id: 'pe-1', nome: 'Comprador Ativo', deleted_at: null, pessoa_telefones: [{ telefone: '5511900000000', principal: true, ativo: true }] } },
+    { id: 'comprador-2', papel: 'coparticipante', ordem: 2, pessoa: { id: 'pe-2', nome: 'Comprador Sem Telefone', deleted_at: null, pessoa_telefones: [] } },
+  ] as Array<{ id: string; papel: string; ordem: number; pessoa: { id: string; nome: string; deleted_at: null; pessoa_telefones: Array<{ telefone: string; principal: boolean; ativo: boolean }> } }>,
   corretorVinculos: [
     { corretor: { id: 'corretor-1', nome: 'Corretor Ativo', telefone: '5511988887777', ativo: true } },
     { corretor: { id: 'corretor-2', nome: 'Corretor Inativo', telefone: '5511977776666', ativo: false } },
@@ -41,8 +41,8 @@ function criarFakeSupabase() {
       })
       // Tabelas de junção — .select().eq(...) [.in(...)] sem .single()/.maybeSingle() resolvem
       // direto como array via await, padrão do supabase-js para queries de lista.
-      if (tabela === 'processo_compradores') {
-        return { select: () => ({ eq: async () => ({ data: fakeState.compradores, error: null }) }) }
+      if (tabela === 'participacoes') {
+        return { select: () => ({ eq: () => ({ in: () => ({ is: async () => ({ data: fakeState.compradores, error: null }) }) }) }) }
       }
       if (tabela === 'processo_corretores') {
         return { select: () => ({ eq: async () => ({ data: fakeState.corretorVinculos, error: null }) }) }

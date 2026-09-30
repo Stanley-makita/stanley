@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils'
 import { usePermissao } from '@/lib/auth/guards'
 import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { NovoProcessoModal, type PessoaMinima } from '@/components/leads/NovoProcessoModal'
+import { processosDaPessoa } from '@/lib/participantes/consultas'
+import { PAPEIS_COMPRA, PAPEIS_VENDA } from '@/lib/participantes/tipos'
 
 interface PessoaTelefone {
   id: string
@@ -339,9 +341,12 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
     queryKey: ['processos-pessoa', params.id, leadIds],
     enabled: !!usuario?.empresa_id,
     queryFn: async (): Promise<ProcessoVinculado[]> => {
-      const orFilter = leadIds.length > 0
-        ? `pessoa_id.eq.${params.id},lead_id.in.(${leadIds.join(',')})`
-        : `pessoa_id.eq.${params.id}`
+      // V2: também os negócios em que a Pessoa é participante (compra ou venda).
+      const idsParticipacao = await processosDaPessoa(supabase, usuario!.empresa_id, params.id, [...PAPEIS_COMPRA, ...PAPEIS_VENDA])
+      const partes = [`pessoa_id.eq.${params.id}`]
+      if (leadIds.length > 0) partes.push(`lead_id.in.(${leadIds.join(',')})`)
+      if (idsParticipacao.length > 0) partes.push(`id.in.(${idsParticipacao.join(',')})`)
+      const orFilter = partes.join(',')
       const { data, error } = await supabase
         .from('processos')
         .select('id, nome_imovel, numero_processo, status_processo, valor_financiado, valor_imovel, created_at, banco:bancos!banco_id(nome), fase_atual:fases!fase_atual_id(nome, cor), lead:leads!lead_id(nome)')

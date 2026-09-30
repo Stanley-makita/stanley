@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { titularDaProposta } from '@/lib/participantes/consultas'
 import { podeExecutar } from '@/lib/auth/permissions'
 import {
   criarEnvelope,
@@ -70,15 +71,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 })
     }
 
-    // Comprador principal resolvido no servidor (mesmo padrão de
-    // formularios/route.ts) — nome/e-mail do signatário nunca vêm do body.
-    const { data: comprador } = await supabaseAdmin
-      .from('processo_compradores')
-      .select('nome, email')
-      .eq('processo_id', contrato.processo_id)
-      .eq('empresa_id', contrato.empresa_id)
-      .eq('principal', true)
-      .maybeSingle()
+    // Titular da proposta resolvido no servidor (V2: participações + Pessoa) —
+    // nome/e-mail do signatário nunca vêm do body.
+    let comprador: { nome: string; email: string | null } | null = null
+    try {
+      const titular = await titularDaProposta(supabaseAdmin, { tipo: 'processo', id: contrato.processo_id })
+      comprador = titular ? { nome: titular.nome, email: titular.email } : null
+    } catch (e) {
+      console.error('[clicksign/enviar] titular:', e)
+      return NextResponse.json({ error: 'Erro ao identificar o comprador principal.' }, { status: 500 })
+    }
 
     if (!comprador?.nome || !comprador?.email) {
       return NextResponse.json(

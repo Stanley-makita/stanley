@@ -105,24 +105,6 @@ export type DadosProcesso = {
   fgts_comprador1: DadosFgts[]
 }
 
-type LinhaAntiga = { pessoa_id: string | null } & Record<string, unknown>
-
-/** Sobrepõe, por pessoa_id, os campos não-nulos das linhas antigas (processo_compradores/
- *  processo_vendedores) nos dados montados a partir da Pessoa. Mesma Pessoa em mais de uma
- *  linha: vale o 1º valor não-nulo (linhas em ordem de criação). */
-function sobreporCamposAntigos<T extends { id: string }>(itens: T[], antigas: LinhaAntiga[], campos: Array<keyof T & string>): T[] {
-  return itens.map(item => {
-    const linhas = antigas.filter(l => l.pessoa_id === item.id)
-    if (linhas.length === 0) return item
-    const saida = { ...item }
-    for (const campo of campos) {
-      const valor = linhas.map(l => l[campo]).find(v => v !== null && v !== undefined && v !== '')
-      if (valor !== undefined) (saida as Record<string, unknown>)[campo] = valor
-    }
-    return saida
-  })
-}
-
 export async function buscarDadosFormulario(processoId: string): Promise<DadosProcesso> {
   const sb = getClient()
 
@@ -144,25 +126,10 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
 
   const participantes = await carregarParticipantes(sb, { tipo: 'processo', id: proc.id }, proc.empresa_id)
 
-  // Fase A: a tela antiga ainda grava email/telefone/conta/estado civil/cônjuge direto em
-  // processo_compradores/processo_vendedores (não na Pessoa). Quando preenchidos, esses campos
-  // das linhas antigas vencem o que veio da Pessoa (casados pelo pessoa_id).
-  const [{ data: compAntigos, error: errCompAnt }, { data: vendAntigos, error: errVendAnt }] = await Promise.all([
-    sb.from('processo_compradores')
-      .select('pessoa_id, email, telefone')
-      .eq('processo_id', proc.id)
-      .order('created_at', { ascending: true }),
-    sb.from('processo_vendedores')
-      .select('pessoa_id, email, telefone, estado_civil, banco, agencia, conta, conjuge_nome, conjuge_cpf')
-      .eq('processo_id', proc.id)
-      .order('created_at', { ascending: true }),
-  ])
-  if (errCompAnt) throw errCompAnt
-  if (errVendAnt) throw errVendAnt
-
-  const compradores = sobreporCamposAntigos(montarCompradores(participantes), compAntigos ?? [], ['email', 'telefone'])
-  const vendedores = sobreporCamposAntigos(montarVendedores(participantes), vendAntigos ?? [],
-    ['email', 'telefone', 'estado_civil', 'banco', 'agencia', 'conta', 'conjuge_nome', 'conjuge_cpf'])
+  // V2 B2a: tudo vem da Pessoa (e o cônjuge, do Relacionamento). E-mail/telefone/estado civil
+  // digitados nas linhas antigas são copiados para a Pessoa pela migration 329.
+  const compradores = montarCompradores(participantes)
+  const vendedores = montarVendedores(participantes)
 
   // Buscar imóvel
   let imovel: DadosImovel | null = null
