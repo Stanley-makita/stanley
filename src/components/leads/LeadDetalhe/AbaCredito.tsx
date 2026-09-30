@@ -39,6 +39,8 @@ import {
 } from '@/components/parceiros/ModaisVincularParceiro'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
+import { useParticipantes, type ParticipanteResumo } from '@/hooks/participantes/useParticipantes'
+import { rendaComposta, rendaTotalComEdicaoConjuge } from '@/lib/participantes/renda'
 
 // ── Tipos internos ────────────────────────────────────────────
 
@@ -159,12 +161,11 @@ export function AbaCredito({ lead }: Props) {
     qc.invalidateQueries({ queryKey: ['leads', lead.id] })
   }
 
-  const casadoKpi = lead.estado_civil === 'casado' || lead.estado_civil === 'uniao_estavel'
-  const rendaConjugeFormalKpi   = (lead.conjuge_pessoa?.renda_formal   ?? lead.conjuge_renda_formal)   ?? 0
-  const rendaConjugeInformalKpi = (lead.conjuge_pessoa?.renda_informal ?? lead.conjuge_renda_informal) ?? 0
-  const rendaFormalKpi   = (lead.renda_formal   ?? 0) + (casadoKpi ? rendaConjugeFormalKpi   : 0)
-  const rendaInformalKpi = (lead.renda_informal ?? 0) + (casadoKpi ? rendaConjugeInformalKpi : 0)
-  const rendaTotal = rendaFormalKpi + rendaInformalKpi
+  const { data: participantes } = useParticipantes({ tipo: 'lead', id: lead.id })
+  const renda = rendaComposta(participantes ?? [])
+  const rendaFormalKpi   = renda.formal
+  const rendaInformalKpi = renda.informal
+  const rendaTotal       = renda.total
 
   return (
     <div className="space-y-5">
@@ -214,6 +215,7 @@ export function AbaCredito({ lead }: Props) {
       {/* 3. Participantes */}
       <BlocoParticipantes
         lead={lead}
+        participantes={participantes}
         onCompletarPessoa={lead.pessoa_id ? () => setCompletarPessoaAberto(true) : undefined}
         onAbrirConjugePessoa={lead.conjuge_pessoa_id ? () => setConjugePessoaDrawer(lead.conjuge_pessoa_id) : undefined}
         onEditarConjuge={() => setConjugeDialogAberto(true)}
@@ -366,8 +368,9 @@ function StatusFase({ lead }: { lead: Lead }) {
 
 // ── BlocoParticipantes ────────────────────────────────────────
 
-function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onEditarConjuge, onDesvincularConjuge, onCriarConjuge }: {
+function BlocoParticipantes({ lead, participantes, onCompletarPessoa, onAbrirConjugePessoa, onEditarConjuge, onDesvincularConjuge, onCriarConjuge }: {
   lead: Lead
+  participantes: ParticipanteResumo[] | undefined
   onCompletarPessoa?: () => void
   onAbrirConjugePessoa?: () => void
   onEditarConjuge?: () => void
@@ -409,7 +412,12 @@ function BlocoParticipantes({ lead, onCompletarPessoa, onAbrirConjugePessoa, onE
   const conjInformalNum = parseMoeda(conjInformal) ?? 0
   const totalConjuge    = conjFormalNum + conjInformalNum
 
-  const rendaTotal = totalComprador + (casado ? totalConjuge : 0)
+  // Feedback ao vivo: enquanto o cônjuge está sendo editado (conjDirty), reflete os
+  // valores digitados no total sem esperar save + refetch de `useParticipantes`.
+  const rendaTotal = rendaTotalComEdicaoConjuge(
+    participantes ?? [],
+    conjDirty ? { formal: conjFormalNum, informal: conjInformalNum } : null,
+  )
 
   function salvarRendaConjuge() {
     editar.mutate({

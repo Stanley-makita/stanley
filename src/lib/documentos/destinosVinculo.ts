@@ -30,16 +30,18 @@ export async function buscarDestinos(cliente: SupabaseClient, pessoaId: string, 
   const selLead = 'id, nome, fase:fases!fase_id(nome)'
   const selProc = 'id, numero_processo, banco:bancos!banco_id(nome)'
 
-  const [leadsTit, leadsConj, comp, vend] = await Promise.all([
-    cliente.from('leads').select(selLead).eq('pessoa_id', pessoaId).is('deleted_at', null).not('status_analise', 'in', fechados),
-    cliente.from('leads').select(selLead).eq('conjuge_pessoa_id', pessoaId).is('deleted_at', null).not('status_analise', 'in', fechados),
-    cliente.from('processo_compradores').select('processo_id').eq('pessoa_id', pessoaId),
-    cliente.from('processo_vendedores').select('processo_id').eq('pessoa_id', pessoaId),
-  ])
-  const erro = leadsTit.error ?? leadsConj.error ?? comp.error ?? vend.error
-  if (erro) throw new Error(`destinos: ${erro.message}`)
-
-  const idsProcDaPessoa = Array.from(new Set([...(comp.data ?? []), ...(vend.data ?? [])].map(r => r.processo_id as string)))
+  const { data: parts, error: eParts } = await cliente.from('participacoes')
+    .select('lead_id, processo_id').eq('pessoa_id', pessoaId)
+  if (eParts) throw new Error(`destinos: ${eParts.message}`)
+  const idsLeadDaPessoa = Array.from(new Set((parts ?? []).map(r => r.lead_id as string | null).filter((x): x is string => !!x)))
+  const idsProcDaPessoa = Array.from(new Set((parts ?? []).map(r => r.processo_id as string | null).filter((x): x is string => !!x)))
+  let leadsDaPessoa: LeadRow[] = []
+  if (idsLeadDaPessoa.length) {
+    const { data, error } = await cliente.from('leads').select(selLead)
+      .in('id', idsLeadDaPessoa).is('deleted_at', null).not('status_analise', 'in', fechados)
+    if (error) throw new Error(`destinos: ${error.message}`)
+    leadsDaPessoa = (data ?? []) as unknown as LeadRow[]
+  }
   let procsDaPessoa: ProcRow[] = []
   if (idsProcDaPessoa.length) {
     const { data, error } = await cliente.from('processos').select(selProc)
@@ -51,7 +53,7 @@ export async function buscarDestinos(cliente: SupabaseClient, pessoaId: string, 
   const vistos = new Set<string>()
   const resultado: DestinoVinculo[] = []
   const add = (d: DestinoVinculo) => { if (!vistos.has(d.entidade_id)) { vistos.add(d.entidade_id); resultado.push(d) } }
-  for (const l of [...(leadsTit.data ?? []), ...(leadsConj.data ?? [])] as unknown as LeadRow[]) add(paraDestinoLead(l, true))
+  for (const l of leadsDaPessoa) add(paraDestinoLead(l, true))
   for (const p of procsDaPessoa) add(paraDestinoProc(p, true))
 
   const { numeroProcesso, texto } = interpretarBuscaDestino(busca)
@@ -68,7 +70,7 @@ export async function buscarDestinos(cliente: SupabaseClient, pessoaId: string, 
     for (const l of (leadsBusca.data ?? []) as unknown as LeadRow[]) add(paraDestinoLead(l, false))
     const idsPessoas = (pessoasBusca.data ?? []).map(p => p.id as string)
     if (idsPessoas.length) {
-      const { data: compBusca, error: eC } = await cliente.from('processo_compradores').select('processo_id').in('pessoa_id', idsPessoas).limit(LIMITE_BUSCA)
+      const { data: compBusca, error: eC } = await cliente.from('participacoes').select('processo_id').in('pessoa_id', idsPessoas).not('processo_id', 'is', null).limit(LIMITE_BUSCA)
       if (eC) throw new Error(`destinos: ${eC.message}`)
       const ids = Array.from(new Set((compBusca ?? []).map(r => r.processo_id as string)))
       if (ids.length) {

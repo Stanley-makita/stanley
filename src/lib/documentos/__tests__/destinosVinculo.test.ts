@@ -5,17 +5,23 @@ vi.mock('@/lib/bot/fonti-comandos', () => ({ STATUS_BLOQUEADOS_PROCESSO: ['repro
 
 const base = () => criarFakeDb({
   leads: [
-    { id: 'l1', nome: 'Joao do oculos', pessoa_id: 'p1', conjuge_pessoa_id: null, deleted_at: null, status_analise: 'aguardando_documentos', fase: { nome: 'Captação' } },
-    { id: 'l-fechado', nome: 'Joao do oculos', pessoa_id: 'p1', conjuge_pessoa_id: null, deleted_at: null, status_analise: 'convertido_em_processo', fase: { nome: 'Convertido' } },
-    { id: 'l-outro', nome: 'Joao PEde Feijao', pessoa_id: 'p2', conjuge_pessoa_id: null, deleted_at: null, status_analise: 'novo', fase: { nome: 'Captação' } },
+    { id: 'l1', nome: 'Joao do oculos', deleted_at: null, status_analise: 'aguardando_documentos', fase: { nome: 'Captação' } },
+    { id: 'l-fechado', nome: 'Joao do oculos', deleted_at: null, status_analise: 'convertido_em_processo', fase: { nome: 'Convertido' } },
+    { id: 'l-outro', nome: 'Joao PEde Feijao', deleted_at: null, status_analise: 'novo', fase: { nome: 'Captação' } },
+    { id: 'l-cop', nome: 'Casal Coparticipante', deleted_at: null, status_analise: 'novo', fase: { nome: 'Captação' } },
   ],
-  processo_compradores: [{ processo_id: 'pr1', pessoa_id: 'p1' }],
-  processo_vendedores: [],
+  participacoes: [
+    { lead_id: 'l1', pessoa_id: 'p1', papel: 'titular' },
+    { lead_id: 'l-fechado', pessoa_id: 'p1', papel: 'titular' },
+    { lead_id: 'l-outro', pessoa_id: 'p2', papel: 'titular' },
+    { lead_id: 'l-cop', pessoa_id: 'p3', papel: 'coparticipante' },
+    { processo_id: 'pr1', pessoa_id: 'p1', papel: 'titular' },
+  ],
   processos: [
     { id: 'pr1', numero_processo: '#proc-010', deleted_at: null, status_processo: 'em_analise', banco: { nome: 'Caixa' } },
     { id: 'pr57', numero_processo: '#proc-057', deleted_at: null, status_processo: 'em_analise', banco: null },
   ],
-  pessoas: [{ id: 'p1', nome: 'Joao do oculos' }, { id: 'p2', nome: 'Joao PEde Feijao' }],
+  pessoas: [{ id: 'p1', nome: 'Joao do oculos' }, { id: 'p2', nome: 'Joao PEde Feijao' }, { id: 'p3', nome: 'Maria Coparticipante' }],
 })
 
 describe('buscarDestinos', () => {
@@ -40,5 +46,13 @@ describe('buscarDestinos', () => {
     expect(r.filter(d => d.entidade_id === 'l1')).toHaveLength(1)
     expect(r.find(d => d.entidade_id === 'l-outro')).toMatchObject({ pessoa_participa: false })
     expect(r.find(d => d.entidade_id === 'l-fechado')).toBeUndefined()
+  })
+
+  it('coparticipante do lead vê o lead como destino com pessoa_participa: true', async () => {
+    const { buscarDestinos } = await import('../destinosVinculo')
+    const r = await buscarDestinos(base() as never, 'p3', '')
+    expect(r).toEqual([
+      { entidade_tipo: 'lead', entidade_id: 'l-cop', titulo: 'Lead · Casal Coparticipante', subtitulo: 'Captação', pessoa_participa: true },
+    ])
   })
 })

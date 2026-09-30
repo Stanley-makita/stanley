@@ -118,6 +118,9 @@ export default function ProcessoDetalhePage() {
       if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar formulários')
 
       setResultadoFormularios({ salvos: json.salvos ?? [], erros: json.erros ?? [] })
+      if (Array.isArray(json.avisos) && json.avisos.length) {
+        toast.warning(json.avisos.join('\n'), { duration: 12000 })
+      }
       // Recarrega aba de documentos
       setAbaAtiva('documentos')
     } catch (e: any) {

@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { carregarParticipantes } from '@/lib/participantes/carregar'
+import { montarCompradores, montarVendedores } from '@/lib/participantes/compradores'
 // Busca todos os dados necessários para preencher os formulários de um processo
 
 function getClient() {
@@ -103,6 +105,24 @@ export type DadosProcesso = {
   fgts_comprador1: DadosFgts[]
 }
 
+type LinhaAntiga = { pessoa_id: string | null } & Record<string, unknown>
+
+/** Sobrepõe, por pessoa_id, os campos não-nulos das linhas antigas (processo_compradores/
+ *  processo_vendedores) nos dados montados a partir da Pessoa. Mesma Pessoa em mais de uma
+ *  linha: vale o 1º valor não-nulo (linhas em ordem de criação). */
+function sobreporCamposAntigos<T extends { id: string }>(itens: T[], antigas: LinhaAntiga[], campos: Array<keyof T & string>): T[] {
+  return itens.map(item => {
+    const linhas = antigas.filter(l => l.pessoa_id === item.id)
+    if (linhas.length === 0) return item
+    const saida = { ...item }
+    for (const campo of campos) {
+      const valor = linhas.map(l => l[campo]).find(v => v !== null && v !== undefined && v !== '')
+      if (valor !== undefined) (saida as Record<string, unknown>)[campo] = valor
+    }
+    return saida
+  })
+}
+
 export async function buscarDadosFormulario(processoId: string): Promise<DadosProcesso> {
   const sb = getClient()
 
@@ -122,87 +142,27 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
     .single()
   if (errProc) throw errProc
 
-  // Buscar compradores com dados completos de pessoas
-  const { data: compRows, error: errComp } = await sb
-    .from('processo_compradores')
-    .select(`
-      id, nome, cpf, email, telefone, renda_mensal, principal,
-      pessoa_id,
-      pessoa:pessoas!inner(
-        id, nome, cpf, email, data_nascimento, rg, profissao,
-        estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
-        endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
-        regime_casamento, data_casamento,
-        conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_profissao, conjuge_renda_formal,
-        empresa_nome, empresa_cnpj, municipio_trabalho, uf_trabalho,
-        conta_bancaria_banco, conta_bancaria_agencia, conta_bancaria_numero, conta_bancaria_digito,
-        pessoa_telefones(telefone, principal, ativo)
-      )
-    `)
-    .eq('processo_id', processoId)
-    .order('created_at', { ascending: true })
+  const participantes = await carregarParticipantes(sb, { tipo: 'processo', id: proc.id }, proc.empresa_id)
 
-  // Se o inner join falhar (compradores sem pessoa_id), busca sem o join
-  const { data: compRowsSimples } = errComp
-    ? await sb.from('processo_compradores')
-        .select('id, nome, cpf, email, telefone, renda_mensal, principal')
-        .eq('processo_id', processoId)
-        .order('created_at', { ascending: true })
-    : { data: null }
+  // Fase A: a tela antiga ainda grava email/telefone/conta/estado civil/cônjuge direto em
+  // processo_compradores/processo_vendedores (não na Pessoa). Quando preenchidos, esses campos
+  // das linhas antigas vencem o que veio da Pessoa (casados pelo pessoa_id).
+  const [{ data: compAntigos, error: errCompAnt }, { data: vendAntigos, error: errVendAnt }] = await Promise.all([
+    sb.from('processo_compradores')
+      .select('pessoa_id, email, telefone')
+      .eq('processo_id', proc.id)
+      .order('created_at', { ascending: true }),
+    sb.from('processo_vendedores')
+      .select('pessoa_id, email, telefone, estado_civil, banco, agencia, conta, conjuge_nome, conjuge_cpf')
+      .eq('processo_id', proc.id)
+      .order('created_at', { ascending: true }),
+  ])
+  if (errCompAnt) throw errCompAnt
+  if (errVendAnt) throw errVendAnt
 
-  const rows = compRows ?? compRowsSimples ?? []
-
-  const compradores: DadosComprador[] = rows.map((r: any) => {
-    const p = r.pessoa ?? {}
-    const tels = (p.pessoa_telefones ?? []).filter((t: any) => t.ativo)
-    const telPrincipal = tels.find((t: any) => t.principal) ?? tels[0]
-    // Prioriza dados da tabela pessoas; cai para dados diretos do comprador
-    return {
-      id:                       p.id ?? r.id,
-      nome:                     p.nome ?? r.nome ?? '',
-      cpf:                      p.cpf ?? r.cpf ?? null,
-      email:                    p.email ?? r.email ?? null,
-      telefone:                 telPrincipal?.telefone ?? r.telefone ?? null,
-      data_nascimento:          p.data_nascimento ?? null,
-      rg:                       p.rg ?? null,
-      profissao:                p.profissao ?? null,
-      estado_civil:             p.estado_civil ?? null,
-      sexo:                     p.sexo ?? null,
-      renda_formal:             p.renda_formal ?? r.renda_mensal ?? null,
-      renda_informal:           p.renda_informal ?? null,
-      nacionalidade:            p.nacionalidade ?? null,
-      endereco_rua:             p.endereco_rua ?? null,
-      endereco_numero:          p.endereco_numero ?? null,
-      endereco_bairro:          p.endereco_bairro ?? null,
-      endereco_cidade:          p.endereco_cidade ?? null,
-      endereco_uf:              p.endereco_uf ?? null,
-      endereco_cep:             p.endereco_cep ?? null,
-      regime_casamento:         p.regime_casamento ?? null,
-      data_casamento:           p.data_casamento ?? null,
-      conjuge_nome:             p.conjuge_nome ?? null,
-      conjuge_cpf:              p.conjuge_cpf ?? null,
-      conjuge_data_nascimento:  p.conjuge_data_nascimento ?? null,
-      conjuge_profissao:        p.conjuge_profissao ?? null,
-      conjuge_renda_formal:     p.conjuge_renda_formal ?? null,
-      empresa_nome:             p.empresa_nome ?? null,
-      empresa_cnpj:             p.empresa_cnpj ?? null,
-      municipio_trabalho:       p.municipio_trabalho ?? null,
-      uf_trabalho:              p.uf_trabalho ?? null,
-      conta_bancaria_banco:     p.conta_bancaria_banco ?? null,
-      conta_bancaria_agencia:   p.conta_bancaria_agencia ?? null,
-      conta_bancaria_numero:    p.conta_bancaria_numero ?? null,
-      conta_bancaria_digito:    p.conta_bancaria_digito ?? null,
-      principal:                r.principal ?? false,
-    }
-  })
-
-  // Buscar vendedores
-  const { data: vendRows, error: errVend } = await sb
-    .from('processo_vendedores')
-    .select('id, nome, cpf, email, telefone, estado_civil, banco, agencia, conta, conjuge_nome, conjuge_cpf')
-    .eq('processo_id', processoId)
-    .order('created_at', { ascending: true })
-  if (errVend) throw errVend
+  const compradores = sobreporCamposAntigos(montarCompradores(participantes), compAntigos ?? [], ['email', 'telefone'])
+  const vendedores = sobreporCamposAntigos(montarVendedores(participantes), vendAntigos ?? [],
+    ['email', 'telefone', 'estado_civil', 'banco', 'agencia', 'conta', 'conjuge_nome', 'conjuge_cpf'])
 
   // Buscar imóvel
   let imovel: DadosImovel | null = null
@@ -221,11 +181,12 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
   const compradorPrincipal = compradores.find((c) => c.principal) ?? compradores[0]
   let fgtsContas: DadosFgts[] = []
   if (compradorPrincipal?.id) {
-    const { data: fgtsRows } = await sb
+    const { data: fgtsRows, error: errFgts } = await sb
       .from('pessoa_fgts_contas')
       .select('pis_pasep, cod_empregador, nro_conta_fgts, valor_saque, saldo_disponivel')
       .eq('pessoa_id', compradorPrincipal.id)
       .order('created_at', { ascending: true })
+    if (errFgts) throw errFgts
     fgtsContas = fgtsRows ?? []
   }
 
@@ -246,7 +207,7 @@ export async function buscarDadosFormulario(processoId: string): Promise<DadosPr
     indexador: proc.indexador,
     financiar_despesas_cartorariais: proc.financiar_despesas_cartorariais ?? false,
     compradores,
-    vendedores: vendRows ?? [],
+    vendedores,
     imovel,
     fgts_comprador1: fgtsContas,
   }
