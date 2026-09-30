@@ -121,20 +121,52 @@ WHERE p.deleted_at IS NULL AND p.conjuge_pessoa_id IS NULL AND p.conjuge_nome IS
   AND (length(trim(p.conjuge_nome)) < 3
     OR upper(trim(p.conjuge_nome)) IN ('NAO INFORMADO', 'NÃO INFORMADO', '-', '--', 'X', 'N/A', 'NA', 'SEM'));
 
--- 13. Titular cujo cônjuge em campos soltos NÃO bate com a Pessoa do cônjuge apontada
--- (pessoas.conjuge_pessoa_id): CPF solto com outros dígitos, ou 1º nome solto diferente do 1º nome
--- da Pessoa. fn_pv2_pessoas (migration 327) não propaga campos soltos nesses casos (podem ser outra
--- pessoa — recasamento digitado sobre o ponteiro antigo, ou troca de cônjuge) e emite NOTICE.
--- Revisar manualmente: religar o cônjuge certo ou corrigir o campo solto.
-SELECT p.id AS titular_id, p.nome AS titular, p.estado_civil,
-       p.conjuge_nome AS conjuge_nome_solto, p.conjuge_cpf AS conjuge_cpf_solto,
+-- 13. Cônjuge em campos soltos que NÃO bate com a Pessoa do cônjuge resolvida:
+--   * origem 'pessoa': pessoas.conjuge_* do titular vs pessoas.conjuge_pessoa_id;
+--   * origem 'lead':   leads.conjuge_* vs o cônjuge que a sync resolve pro lead (ponteiro da Pessoa
+--     titular, senão ponteiro do lead; só com estado civil casado/união estável; ponteiro de par
+--     ENCERRADO sem linha vigente é descartado — mesma ordem de pv2_sincronizar_lead).
+-- "Não bate" = CPF solto (não vazio) com dígitos diferentes do CPF da Pessoa, ou 1º nome solto
+-- diferente do 1º nome da Pessoa. Nesses casos fn_pv2_pessoas não propaga os campos soltos e
+-- fn_pv2_leads não propaga a renda do cônjuge (NOTICE) — podem ser OUTRA pessoa (recasamento
+-- digitado sobre o ponteiro antigo, troca de cônjuge). Revisar manualmente: religar o cônjuge certo
+-- ou corrigir o campo solto.
+WITH lead_conj AS (
+  SELECT l.id AS lead_id, l.nome AS titular, coalesce(p.estado_civil, l.estado_civil) AS estado_civil,
+         l.conjuge_nome, l.conjuge_cpf,
+         CASE WHEN coalesce(p.estado_civil, l.estado_civil) IN ('casado', 'uniao_estavel') THEN
+           CASE
+             WHEN p.conjuge_pessoa_id IS NOT NULL AND NOT (
+               EXISTS (SELECT 1 FROM pessoa_relacionamentos r WHERE r.data_fim IS NOT NULL AND r.pessoa_a_id = least(p.id, p.conjuge_pessoa_id) AND r.pessoa_b_id = greatest(p.id, p.conjuge_pessoa_id))
+               AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos r WHERE r.data_fim IS NULL AND r.pessoa_a_id = least(p.id, p.conjuge_pessoa_id) AND r.pessoa_b_id = greatest(p.id, p.conjuge_pessoa_id)))
+               THEN p.conjuge_pessoa_id
+             WHEN l.conjuge_pessoa_id IS NOT NULL AND NOT (
+               EXISTS (SELECT 1 FROM pessoa_relacionamentos r WHERE r.data_fim IS NOT NULL AND r.pessoa_a_id = least(p.id, l.conjuge_pessoa_id) AND r.pessoa_b_id = greatest(p.id, l.conjuge_pessoa_id))
+               AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos r WHERE r.data_fim IS NULL AND r.pessoa_a_id = least(p.id, l.conjuge_pessoa_id) AND r.pessoa_b_id = greatest(p.id, l.conjuge_pessoa_id)))
+               THEN l.conjuge_pessoa_id
+           END
+         END AS conjuge_pessoa_id
+  FROM leads l
+  JOIN pessoas p ON p.id = l.pessoa_id AND p.deleted_at IS NULL
+  WHERE l.deleted_at IS NULL
+),
+soltos AS (
+  SELECT 'pessoa'::text AS origem, p.id AS registro_id, p.nome AS titular, p.estado_civil,
+         p.conjuge_nome, p.conjuge_cpf, p.conjuge_pessoa_id
+  FROM pessoas p
+  WHERE p.deleted_at IS NULL AND p.conjuge_pessoa_id IS NOT NULL
+  UNION ALL
+  SELECT 'lead', lead_id, titular, estado_civil, conjuge_nome, conjuge_cpf, conjuge_pessoa_id
+  FROM lead_conj
+  WHERE conjuge_pessoa_id IS NOT NULL
+)
+SELECT s.origem, s.registro_id, s.titular, s.estado_civil,
+       s.conjuge_nome AS conjuge_nome_solto, s.conjuge_cpf AS conjuge_cpf_solto,
        c.id AS conjuge_pessoa_id, c.nome AS conjuge_pessoa_nome, c.cpf AS conjuge_pessoa_cpf
-FROM pessoas p
-JOIN pessoas c ON c.id = p.conjuge_pessoa_id AND c.deleted_at IS NULL
-WHERE p.deleted_at IS NULL
-  AND (
-    (regexp_replace(coalesce(p.conjuge_cpf, ''), '\D', '', 'g') <> ''
-     AND regexp_replace(coalesce(p.conjuge_cpf, ''), '\D', '', 'g') <> regexp_replace(coalesce(c.cpf, ''), '\D', '', 'g'))
-    OR (coalesce(trim(p.conjuge_nome), '') <> ''
-     AND split_part(upper(trim(p.conjuge_nome)), ' ', 1) <> split_part(upper(trim(c.nome)), ' ', 1))
-  );
+FROM soltos s
+JOIN pessoas c ON c.id = s.conjuge_pessoa_id AND c.deleted_at IS NULL
+WHERE (regexp_replace(coalesce(s.conjuge_cpf, ''), '\D', '', 'g') <> ''
+       AND regexp_replace(coalesce(s.conjuge_cpf, ''), '\D', '', 'g') <> regexp_replace(coalesce(c.cpf, ''), '\D', '', 'g'))
+   OR (coalesce(trim(s.conjuge_nome), '') <> ''
+       AND split_part(upper(trim(s.conjuge_nome)), ' ', 1) <> split_part(upper(trim(c.nome)), ' ', 1))
+ORDER BY s.origem, s.titular;

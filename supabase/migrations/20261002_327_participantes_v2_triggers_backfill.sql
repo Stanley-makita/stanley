@@ -35,7 +35,7 @@ BEGIN;
 
 CREATE OR REPLACE FUNCTION fn_pv2_leads() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_conj uuid; v_estado text;
+DECLARE v_conj uuid; v_estado text; v_c_nome text; v_c_cpf text; v_lead_cpf text; v_lead_nome text;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
   IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
@@ -75,6 +75,31 @@ BEGIN
         AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(NEW.pessoa_id, NEW.conjuge_pessoa_id) AND pessoa_b_id = greatest(NEW.pessoa_id, NEW.conjuge_pessoa_id))
       ) THEN
         v_conj := NEW.conjuge_pessoa_id;
+      END IF;
+      -- Portão de identidade (mesmo princípio de fn_pv2_pessoas): a renda do cônjuge digitada no
+      -- lead só vai pra Pessoa do cônjuge (C) quando C é comprovadamente a pessoa descrita no lead:
+      --   CPF solto do lead = CPF de C; ou, sem CPF dos dois lados, mesmo 1º nome; ou o lead não
+      --   tem identidade solta nenhuma (nome e CPF vazios — comportamento anterior).
+      -- Senão (ex.: AbaPessoa gravando outra pessoa nos campos soltos) → NOTICE e não propaga.
+      IF v_conj IS NOT NULL THEN
+        SELECT nome, regexp_replace(coalesce(cpf, ''), '\D', '', 'g') INTO v_c_nome, v_c_cpf
+        FROM pessoas WHERE id = v_conj AND deleted_at IS NULL;
+        IF NOT FOUND THEN
+          v_conj := NULL;
+        ELSE
+          v_lead_cpf  := regexp_replace(coalesce(NEW.conjuge_cpf, ''), '\D', '', 'g');
+          v_lead_nome := coalesce(trim(NEW.conjuge_nome), '');
+          IF NOT (
+               (v_lead_cpf <> '' AND v_lead_cpf = v_c_cpf)
+            OR (v_lead_cpf = '' AND v_c_cpf = '' AND v_lead_nome <> ''
+                AND split_part(upper(v_lead_nome), ' ', 1) = split_part(upper(trim(coalesce(v_c_nome, ''))), ' ', 1))
+            OR (v_lead_nome = '' AND v_lead_cpf = '')
+          ) THEN
+            RAISE NOTICE 'pv2: renda do cônjuge do lead NÃO propagada (campos soltos do lead não batem com a Pessoa do cônjuge): lead %, titular %, pessoa do cônjuge %',
+              NEW.id, NEW.pessoa_id, v_conj;
+            v_conj := NULL;
+          END IF;
+        END IF;
       END IF;
       IF v_conj IS NOT NULL THEN
         UPDATE pessoas SET

@@ -5,7 +5,7 @@ DECLARE
   v_a uuid; v_b uuid; v_c uuid; v_lead uuid; v_proc uuid; n int;
   v_t uuid; v_c2 uuid; v_lead2 uuid;
   v_t3 uuid; v_x uuid; v_t4 uuid; v_c4 uuid; v_d4 uuid; v_lead4 uuid; v_lead_c4 uuid;
-  v_t5 uuid; v_c5 uuid; v_t6 uuid; v_c6 uuid; v_t7 uuid; v_c7 uuid; v_t8 uuid; v_c8 uuid; v_t9 uuid; v_c9 uuid;
+  v_lead6 uuid; v_t5 uuid; v_c5 uuid; v_t6 uuid; v_c6 uuid; v_t7 uuid; v_c7 uuid; v_t8 uuid; v_c8 uuid; v_t9 uuid; v_c9 uuid;
 BEGIN
   SELECT id INTO v_emp FROM empresas LIMIT 1;
   SELECT id INTO v_fase FROM fases WHERE empresa_id = v_emp LIMIT 1;
@@ -200,6 +200,17 @@ BEGIN
   UPDATE pessoas SET conjuge_nome = 'OUTRA PESSOA', conjuge_cpf = '47994073417' WHERE id = v_t6;
   IF (SELECT nome FROM pessoas WHERE id = v_c6) IS DISTINCT FROM 'PV2 C6 DONA' THEN RAISE EXCEPTION 'troca: Pessoa do cônjuge renomeada para outra pessoa'; END IF;
   IF (SELECT cpf FROM pessoas WHERE id = v_c6) IS DISTINCT FROM '22856517595' THEN RAISE EXCEPTION 'troca: CPF da Pessoa do cônjuge trocado'; END IF;
+
+  -- 2b. Mesmo cenário pela tela antiga do lead (AbaPessoa grava o lead DEPOIS da Pessoa): lead de T6
+  --     com outra pessoa nos campos soltos → renda do cônjuge do lead NÃO vai pra C6.
+  INSERT INTO leads (empresa_id, nome, telefone, fase_id, origem, pessoa_id)
+    VALUES (v_emp, 'PV2 T6 LEAD', '5544900000007', v_fase, v_origem, v_t6) RETURNING id INTO v_lead6;
+  UPDATE leads SET conjuge_nome = 'OUTRA PESSOA', conjuge_cpf = '47994073417', conjuge_renda_formal = 9999 WHERE id = v_lead6;
+  IF (SELECT renda_formal FROM pessoas WHERE id = v_c6) IS NOT DISTINCT FROM 9999 THEN RAISE EXCEPTION 'renda do lead: renda de outra pessoa gravada na Pessoa do cônjuge'; END IF;
+  IF (SELECT renda_formal FROM pessoas WHERE id = v_c6) IS NOT NULL THEN RAISE EXCEPTION 'renda do lead: renda da Pessoa do cônjuge mudou'; END IF;
+  -- lead que confirma C6 pelo CPF continua propagando a renda
+  UPDATE leads SET conjuge_nome = 'PV2 C6 DONA', conjuge_cpf = '22856517595', conjuge_renda_formal = 4321 WHERE id = v_lead6;
+  IF (SELECT renda_formal FROM pessoas WHERE id = v_c6) IS DISTINCT FROM 4321 THEN RAISE EXCEPTION 'renda do lead: lead com CPF da Pessoa do cônjuge não propagou'; END IF;
 
   -- 3. Correção de digitação (mesmo 1º nome, sem CPF) continua propagando.
   INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 MARIA SOUZA') RETURNING id INTO v_c7;
