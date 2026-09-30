@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { titularDaProposta } from '@/lib/participantes/consultas'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
@@ -43,8 +44,7 @@ export async function POST(
         id, modalidade, valor_imovel, valor_financiado, valor_entrada,
         valor_fgts, valor_recursos_proprios,
         prazo_amortizacao_meses, sistema_amortizacao,
-        banco:bancos!banco_id(id, nome),
-        compradores:processo_compradores(nome, email, principal)
+        banco:bancos!banco_id(id, nome)
       `)
       .eq('id', params.id)
       .eq('empresa_id', usuario.empresa_id)
@@ -65,8 +65,13 @@ export async function POST(
       )
     }
 
-    const compradorPrincipal = (processo.compradores as any[])?.find((c: any) => c.principal)
-      ?? (processo.compradores as any[])?.[0]
+    // V2: e-mail do titular da proposta (Pessoa). Sem titular → e-mail vazio e nome 'Cliente' na prévia (como antes sem comprador).
+    let compradorPrincipal: { nome: string; email: string | null } | null = null
+    try {
+      compradorPrincipal = await titularDaProposta(supabaseAdmin, { tipo: 'processo', id: processo.id })
+    } catch (e) {
+      console.error('[confirmacao-valores/preview] titular:', e)
+    }
     const paraEmail: string = compradorPrincipal?.email ?? ''
 
     // Busca tarifa do banco em Configurações > Simulador > Tarifas por Banco

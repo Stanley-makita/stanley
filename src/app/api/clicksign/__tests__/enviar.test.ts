@@ -36,6 +36,7 @@ vi.mock('@/lib/supabase/admin', () => ({
         select: () => proxy,
         or: () => proxy,
         eq: () => proxy,
+        is: () => proxy,
         update: () => proxy,
         single: async () => {
           if (tabela === 'usuarios') {
@@ -46,7 +47,8 @@ vi.mock('@/lib/supabase/admin', () => ({
         },
         maybeSingle: async () => {
           if (tabela === 'processo_contratos') return { data: fakeState.contrato, error: null }
-          if (tabela === 'processo_compradores') return { data: fakeState.comprador, error: null }
+          if (tabela === 'participacoes') return { data: fakeState.comprador ? { pessoa_id: 'pessoa-1' } : null, error: null }
+          if (tabela === 'pessoas') return { data: fakeState.comprador ? { id: 'pessoa-1', cpf: null, ...fakeState.comprador } : null, error: null }
           return { data: null, error: null }
         },
       })
