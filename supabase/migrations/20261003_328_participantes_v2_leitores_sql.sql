@@ -12,8 +12,23 @@
 -- COALESCE(pc.nome, pe.nome), mesma prioridade que a 296 aplicou nas outras funções
 -- (processos.pessoa_id é legado e pode apontar para a pessoa errada).
 -- Rodar fora do horário comercial (CREATE OR REPLACE de função usada pelo financeiro).
+-- Negócio sem titular em participacoes (Pessoa excluída ou de operador: a sincronização não
+-- os inclui) cai em processos.pessoa_id no COALESCE(pc.nome, pe.nome, ''). Em produção
+-- (2026-09-30) 2 consórcios EMITIDOS (#proc-043, #proc-052) têm esse campo vazio — sem o
+-- UPDATE abaixo o nome do cliente sumiria dos relatórios financeiros/de comissão. Preenche o
+-- campo legado só onde está vazio, com a Pessoa do comprador principal. Só dispara o trigger
+-- de updated_at (UPDATE OF pessoa_id não aciona comissão/notificação).
 -- ============================================================
 BEGIN;
+
+UPDATE processos p
+SET pessoa_id = pc.pessoa_id
+FROM processo_compradores pc
+WHERE p.pessoa_id IS NULL
+  AND pc.processo_id = p.id
+  AND pc.principal = true
+  AND pc.pessoa_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM participacoes pa WHERE pa.processo_id = p.id AND pa.papel = 'titular');
 
 -- de 20260911_296_fix_prioridade_pessoa_id_vs_comprador.sql:645
 CREATE OR REPLACE FUNCTION analise_comissoes_contratos_mes(
