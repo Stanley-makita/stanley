@@ -144,6 +144,7 @@ CREATE TRIGGER trg_pv2_processo_vendedores AFTER INSERT OR UPDATE OR DELETE ON p
 CREATE OR REPLACE FUNCTION fn_pv2_pessoas() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE r record; c pessoas%ROWTYPE; v_nome text; v_cpf text; v_nasc date; v_prof text; v_rf numeric; v_ri numeric;
+  v_cpf_c text; v_cpf_novo text; v_bloqueio text;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
   IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
@@ -206,15 +207,26 @@ BEGIN
   END IF;
 
   -- Campos soltos do cônjuge editados na tela antiga (AbaPessoa) → Pessoa do cônjuge (C).
-  -- Por campo, só enquanto C ainda ESPELHA o valor solto antigo (campo de C nulo ou igual ao OLD):
-  -- nunca sobrescreve um dado que C recebeu por outro caminho (ex.: OCR confirmado no cadastro
-  -- dele). Só com estado civil casado/união estável: "descasar" limpa os campos soltos e não pode
-  -- apagar os dados do ex. C excluída, de outra empresa ou de operador nunca é tocada.
+  -- A regra de "espelho" (campo de C nulo ou igual ao OLD) sozinha não distingue correção de
+  -- digitação de OUTRA pessoa — por isso, antes de qualquer campo, 4 portões de identidade:
+  --   (A) só quando o titular JÁ era casado/união estável antes deste save e continua: o save de
+  --       transição (divorciado → casado, digitando o novo cônjuge) nunca propaga — o ponteiro ainda
+  --       aponta pro ex e os dados digitados são de outra pessoa;
+  --   (B) CPF é identidade: C com CPF e CPF solto novo (não vazio) com outros dígitos = pessoa
+  --       DIFERENTE → nada propaga neste save; CPF só é gravado em C quando C ainda não tem CPF;
+  --   (C) troca de nome sem confirmação por CPF (CPF solto novo ≠ CPF de C, ou algum dos dois
+  --       vazio) só passa se o 1º nome (upper/trim, acentos mantidos) for o mesmo de C;
+  --   (D) nunca quando o ponteiro aponta pra própria pessoa.
+  -- Bloqueio por (B)/(C) emite NOTICE e aparece no bloco 13 do diagnóstico (revisão manual).
+  -- Mantidos: só com o titular casado (descasar limpa os campos soltos e não pode apagar os dados
+  -- do ex) e nome nunca gravado vazio. C excluída, de outra empresa ou de operador nunca é tocada.
   -- UM único UPDATE em C: fn_sincronizar_pessoa_conjuge (migration 190) espelha C de volta nos
   -- campos soltos (nome/cpf/nascimento) uma vez só, já com os valores finais; o guard de
   -- profundidade (pg_trigger_depth() > 1) impede que isso volte a disparar esta função.
   IF NEW.conjuge_pessoa_id IS NOT NULL
+     AND NEW.conjuge_pessoa_id <> NEW.id
      AND coalesce(NEW.estado_civil, '') IN ('casado', 'uniao_estavel')
+     AND coalesce(OLD.estado_civil, '') IN ('casado', 'uniao_estavel')
      AND (NEW.conjuge_nome IS DISTINCT FROM OLD.conjuge_nome
        OR NEW.conjuge_cpf IS DISTINCT FROM OLD.conjuge_cpf
        OR NEW.conjuge_data_nascimento IS DISTINCT FROM OLD.conjuge_data_nascimento
@@ -225,49 +237,65 @@ BEGIN
     SELECT * INTO c FROM pessoas
     WHERE id = NEW.conjuge_pessoa_id AND deleted_at IS NULL AND empresa_id = NEW.empresa_id;
     IF FOUND THEN
-      v_nome := c.nome; v_cpf := c.cpf; v_nasc := c.data_nascimento; v_prof := c.profissao;
-      v_rf := c.renda_formal; v_ri := c.renda_informal;
-      -- Nome: nunca grava vazio (pessoas.nome é obrigatório). 'Cônjuge sem nome' é o nome que
-      -- pv2_pessoa_de_campos_soltos dá quando o nome solto estava vazio — conta como espelho de vazio.
-      IF NEW.conjuge_nome IS DISTINCT FROM OLD.conjuge_nome AND coalesce(trim(NEW.conjuge_nome), '') <> ''
-         AND (c.nome IS NULL
-           OR upper(trim(c.nome)) = upper(trim(coalesce(OLD.conjuge_nome, '')))
-           OR (coalesce(trim(OLD.conjuge_nome), '') = '' AND c.nome = 'Cônjuge sem nome')) THEN
-        v_nome := NEW.conjuge_nome;
+      v_cpf_c    := regexp_replace(coalesce(c.cpf, ''), '\D', '', 'g');
+      v_cpf_novo := regexp_replace(coalesce(NEW.conjuge_cpf, ''), '\D', '', 'g');
+      v_bloqueio := NULL;
+      -- (B) CPF diferente do de C = outra pessoa.
+      IF v_cpf_c <> '' AND v_cpf_novo <> '' AND v_cpf_novo <> v_cpf_c THEN
+        v_bloqueio := 'CPF solto difere do CPF da Pessoa do cônjuge';
+      -- (C) nome trocado sem CPF confirmando: só com o mesmo 1º nome.
+      ELSIF NEW.conjuge_nome IS DISTINCT FROM OLD.conjuge_nome AND coalesce(trim(NEW.conjuge_nome), '') <> ''
+            AND NOT (v_cpf_c <> '' AND v_cpf_novo = v_cpf_c)
+            AND split_part(upper(trim(NEW.conjuge_nome)), ' ', 1) IS DISTINCT FROM split_part(upper(trim(coalesce(c.nome, ''))), ' ', 1) THEN
+        v_bloqueio := 'nome solto com outro 1º nome e sem CPF confirmando';
       END IF;
-      -- CPF: só válido, gravado só com dígitos, e só se nenhuma OUTRA Pessoa ativa da empresa já
-      -- tiver esses dígitos (senão C fica como está — o diagnóstico mostra a divergência).
-      IF NEW.conjuge_cpf IS DISTINCT FROM OLD.conjuge_cpf AND cpf_valido(NEW.conjuge_cpf)
-         AND (c.cpf IS NULL
-           OR regexp_replace(c.cpf, '\D', '', 'g') = regexp_replace(coalesce(OLD.conjuge_cpf, ''), '\D', '', 'g'))
-         AND NOT EXISTS (
-           SELECT 1 FROM pessoas o
-           WHERE o.empresa_id = NEW.empresa_id AND o.deleted_at IS NULL AND o.id <> c.id
-             AND regexp_replace(coalesce(o.cpf, ''), '\D', '', 'g') = regexp_replace(NEW.conjuge_cpf, '\D', '', 'g')
-         ) THEN
-        v_cpf := regexp_replace(NEW.conjuge_cpf, '\D', '', 'g');
-      END IF;
-      IF NEW.conjuge_data_nascimento IS DISTINCT FROM OLD.conjuge_data_nascimento
-         AND (c.data_nascimento IS NULL OR c.data_nascimento = OLD.conjuge_data_nascimento) THEN
-        v_nasc := NEW.conjuge_data_nascimento;
-      END IF;
-      IF NEW.conjuge_profissao IS DISTINCT FROM OLD.conjuge_profissao
-         AND (c.profissao IS NULL OR c.profissao = OLD.conjuge_profissao) THEN
-        v_prof := NEW.conjuge_profissao;
-      END IF;
-      IF NEW.conjuge_renda_formal IS DISTINCT FROM OLD.conjuge_renda_formal
-         AND (c.renda_formal IS NULL OR c.renda_formal = OLD.conjuge_renda_formal) THEN
-        v_rf := NEW.conjuge_renda_formal;
-      END IF;
-      IF NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal
-         AND (c.renda_informal IS NULL OR c.renda_informal = OLD.conjuge_renda_informal) THEN
-        v_ri := NEW.conjuge_renda_informal;
-      END IF;
-      IF (v_nome, v_cpf, v_nasc, v_prof, v_rf, v_ri)
-         IS DISTINCT FROM (c.nome, c.cpf, c.data_nascimento, c.profissao, c.renda_formal, c.renda_informal) THEN
-        UPDATE pessoas SET nome = v_nome, cpf = v_cpf, data_nascimento = v_nasc, profissao = v_prof,
-                           renda_formal = v_rf, renda_informal = v_ri
-        WHERE id = c.id;
+
+      IF v_bloqueio IS NOT NULL THEN
+        RAISE NOTICE 'pv2: campos soltos do cônjuge NÃO propagados (%): titular %, pessoa do cônjuge %',
+          v_bloqueio, NEW.id, c.id;
+      ELSE
+        v_nome := c.nome; v_cpf := c.cpf; v_nasc := c.data_nascimento; v_prof := c.profissao;
+        v_rf := c.renda_formal; v_ri := c.renda_informal;
+        -- Nome: nunca grava vazio (pessoas.nome é obrigatório). 'Cônjuge sem nome' é o nome que
+        -- pv2_pessoa_de_campos_soltos dá quando o nome solto estava vazio — conta como espelho de vazio.
+        IF NEW.conjuge_nome IS DISTINCT FROM OLD.conjuge_nome AND coalesce(trim(NEW.conjuge_nome), '') <> ''
+           AND (c.nome IS NULL
+             OR upper(trim(c.nome)) = upper(trim(coalesce(OLD.conjuge_nome, '')))
+             OR (coalesce(trim(OLD.conjuge_nome), '') = '' AND c.nome = 'Cônjuge sem nome')) THEN
+          v_nome := NEW.conjuge_nome;
+        END IF;
+        -- CPF: só quando C ainda NÃO tem CPF; só válido, gravado só com dígitos, e só se nenhuma
+        -- OUTRA Pessoa ativa da empresa já tiver esses dígitos.
+        IF v_cpf_c = '' AND NEW.conjuge_cpf IS DISTINCT FROM OLD.conjuge_cpf AND cpf_valido(NEW.conjuge_cpf)
+           AND NOT EXISTS (
+             SELECT 1 FROM pessoas o
+             WHERE o.empresa_id = NEW.empresa_id AND o.deleted_at IS NULL AND o.id <> c.id
+               AND regexp_replace(coalesce(o.cpf, ''), '\D', '', 'g') = v_cpf_novo
+           ) THEN
+          v_cpf := v_cpf_novo;
+        END IF;
+        IF NEW.conjuge_data_nascimento IS DISTINCT FROM OLD.conjuge_data_nascimento
+           AND (c.data_nascimento IS NULL OR c.data_nascimento = OLD.conjuge_data_nascimento) THEN
+          v_nasc := NEW.conjuge_data_nascimento;
+        END IF;
+        IF NEW.conjuge_profissao IS DISTINCT FROM OLD.conjuge_profissao
+           AND (c.profissao IS NULL OR c.profissao = OLD.conjuge_profissao) THEN
+          v_prof := NEW.conjuge_profissao;
+        END IF;
+        IF NEW.conjuge_renda_formal IS DISTINCT FROM OLD.conjuge_renda_formal
+           AND (c.renda_formal IS NULL OR c.renda_formal = OLD.conjuge_renda_formal) THEN
+          v_rf := NEW.conjuge_renda_formal;
+        END IF;
+        IF NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal
+           AND (c.renda_informal IS NULL OR c.renda_informal = OLD.conjuge_renda_informal) THEN
+          v_ri := NEW.conjuge_renda_informal;
+        END IF;
+        IF (v_nome, v_cpf, v_nasc, v_prof, v_rf, v_ri)
+           IS DISTINCT FROM (c.nome, c.cpf, c.data_nascimento, c.profissao, c.renda_formal, c.renda_informal) THEN
+          UPDATE pessoas SET nome = v_nome, cpf = v_cpf, data_nascimento = v_nasc, profissao = v_prof,
+                             renda_formal = v_rf, renda_informal = v_ri
+          WHERE id = c.id;
+        END IF;
       END IF;
     END IF;
   END IF;

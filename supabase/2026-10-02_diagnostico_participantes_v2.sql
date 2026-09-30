@@ -120,3 +120,21 @@ FROM pessoas p
 WHERE p.deleted_at IS NULL AND p.conjuge_pessoa_id IS NULL AND p.conjuge_nome IS NOT NULL
   AND (length(trim(p.conjuge_nome)) < 3
     OR upper(trim(p.conjuge_nome)) IN ('NAO INFORMADO', 'NÃO INFORMADO', '-', '--', 'X', 'N/A', 'NA', 'SEM'));
+
+-- 13. Titular cujo cônjuge em campos soltos NÃO bate com a Pessoa do cônjuge apontada
+-- (pessoas.conjuge_pessoa_id): CPF solto com outros dígitos, ou 1º nome solto diferente do 1º nome
+-- da Pessoa. fn_pv2_pessoas (migration 327) não propaga campos soltos nesses casos (podem ser outra
+-- pessoa — recasamento digitado sobre o ponteiro antigo, ou troca de cônjuge) e emite NOTICE.
+-- Revisar manualmente: religar o cônjuge certo ou corrigir o campo solto.
+SELECT p.id AS titular_id, p.nome AS titular, p.estado_civil,
+       p.conjuge_nome AS conjuge_nome_solto, p.conjuge_cpf AS conjuge_cpf_solto,
+       c.id AS conjuge_pessoa_id, c.nome AS conjuge_pessoa_nome, c.cpf AS conjuge_pessoa_cpf
+FROM pessoas p
+JOIN pessoas c ON c.id = p.conjuge_pessoa_id AND c.deleted_at IS NULL
+WHERE p.deleted_at IS NULL
+  AND (
+    (regexp_replace(coalesce(p.conjuge_cpf, ''), '\D', '', 'g') <> ''
+     AND regexp_replace(coalesce(p.conjuge_cpf, ''), '\D', '', 'g') <> regexp_replace(coalesce(c.cpf, ''), '\D', '', 'g'))
+    OR (coalesce(trim(p.conjuge_nome), '') <> ''
+     AND split_part(upper(trim(p.conjuge_nome)), ' ', 1) <> split_part(upper(trim(c.nome)), ' ', 1))
+  );

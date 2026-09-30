@@ -5,6 +5,7 @@ DECLARE
   v_a uuid; v_b uuid; v_c uuid; v_lead uuid; v_proc uuid; n int;
   v_t uuid; v_c2 uuid; v_lead2 uuid;
   v_t3 uuid; v_x uuid; v_t4 uuid; v_c4 uuid; v_d4 uuid; v_lead4 uuid; v_lead_c4 uuid;
+  v_t5 uuid; v_c5 uuid; v_t6 uuid; v_c6 uuid; v_t7 uuid; v_c7 uuid; v_t8 uuid; v_c8 uuid; v_t9 uuid; v_c9 uuid;
 BEGIN
   SELECT id INTO v_emp FROM empresas LIMIT 1;
   SELECT id INTO v_fase FROM fases WHERE empresa_id = v_emp LIMIT 1;
@@ -170,6 +171,56 @@ BEGIN
   UPDATE pessoas SET conjuge_pessoa_id = v_d4 WHERE id = v_t4;
   IF NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(v_t4, v_d4) AND pessoa_b_id = greatest(v_t4, v_d4)) THEN RAISE EXCEPTION 'ponteiro encerrado: T4/D4 não criou relacionamento'; END IF;
   IF EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead_c4 AND pessoa_id = v_t4) THEN RAISE EXCEPTION 'ponteiro encerrado: T4 continuou cônjuge no lead de C4 (pessoas(C4).conjuge_pessoa_id aponta pra par encerrado)'; END IF;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════
+  -- Blocker fix: a propagação dos campos soltos do cônjuge NUNCA reescreve a identidade de outra
+  -- pessoa (recasamento pela AbaPessoa; troca do cônjuge digitando outro nome/CPF).
+  -- CPFs válidos (mod-11 conferido) e livres: 68181031202 (D), 22856517595 (X), 47994073417 (Y),
+  -- 51029764514 (F).
+  -- ══════════════════════════════════════════════════════════════════════════════════
+  IF EXISTS (SELECT 1 FROM pessoas WHERE empresa_id = v_emp AND deleted_at IS NULL
+             AND regexp_replace(coalesce(cpf, ''), '\D', '', 'g') IN ('68181031202', '22856517595', '47994073417', '51029764514')) THEN
+    RAISE EXCEPTION 'pré-condição: algum CPF de teste do blocker fix já existe nesta empresa — troque por outro CPF válido livre';
+  END IF;
+
+  -- 1. Recasamento: T5 casado com C5 (sem CPF) → divórcio (campos soltos NULL, ponteiro mantido)
+  --    → casado + nome/CPF de OUTRA pessoa num UPDATE só → C5 não recebe nada de D.
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 C5 ANTIGA') RETURNING id INTO v_c5;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 T5') RETURNING id INTO v_t5;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_c5, conjuge_nome = 'PV2 C5 ANTIGA' WHERE id = v_t5;
+  UPDATE pessoas SET estado_civil = 'divorciado', conjuge_nome = NULL, conjuge_cpf = NULL WHERE id = v_t5;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_nome = 'PV2 NOVA D', conjuge_cpf = '68181031202' WHERE id = v_t5;
+  IF (SELECT nome FROM pessoas WHERE id = v_c5) IS DISTINCT FROM 'PV2 C5 ANTIGA' THEN RAISE EXCEPTION 'recasamento: nome de D gravado na Pessoa do ex'; END IF;
+  IF (SELECT cpf FROM pessoas WHERE id = v_c5) IS NOT NULL THEN RAISE EXCEPTION 'recasamento: CPF de D gravado na Pessoa do ex'; END IF;
+
+  -- 2. Troca: C6 tem CPF X; T6 digita outra pessoa com CPF Y (≠ X) → C6 intacta.
+  INSERT INTO pessoas (empresa_id, nome, cpf) VALUES (v_emp, 'PV2 C6 DONA', '22856517595') RETURNING id INTO v_c6;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 T6') RETURNING id INTO v_t6;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_c6, conjuge_nome = 'PV2 C6 DONA', conjuge_cpf = '22856517595' WHERE id = v_t6;
+  UPDATE pessoas SET conjuge_nome = 'OUTRA PESSOA', conjuge_cpf = '47994073417' WHERE id = v_t6;
+  IF (SELECT nome FROM pessoas WHERE id = v_c6) IS DISTINCT FROM 'PV2 C6 DONA' THEN RAISE EXCEPTION 'troca: Pessoa do cônjuge renomeada para outra pessoa'; END IF;
+  IF (SELECT cpf FROM pessoas WHERE id = v_c6) IS DISTINCT FROM '22856517595' THEN RAISE EXCEPTION 'troca: CPF da Pessoa do cônjuge trocado'; END IF;
+
+  -- 3. Correção de digitação (mesmo 1º nome, sem CPF) continua propagando.
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 MARIA SOUZA') RETURNING id INTO v_c7;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 T7') RETURNING id INTO v_t7;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_c7, conjuge_nome = 'PV2 MARIA SOUZA' WHERE id = v_t7;
+  UPDATE pessoas SET conjuge_nome = 'PV2 MARIA SOUSA' WHERE id = v_t7;
+  IF (SELECT nome FROM pessoas WHERE id = v_c7) IS DISTINCT FROM 'PV2 MARIA SOUSA' THEN RAISE EXCEPTION 'digitação: correção do sobrenome não propagou'; END IF;
+
+  -- 3b. Nome com OUTRO 1º nome e sem CPF confirmando → não propaga.
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 JOANA LIMA') RETURNING id INTO v_c8;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 T8') RETURNING id INTO v_t8;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_c8, conjuge_nome = 'PV2 JOANA LIMA' WHERE id = v_t8;
+  UPDATE pessoas SET conjuge_nome = 'OUTRA JOANA LIMA' WHERE id = v_t8;
+  IF (SELECT nome FROM pessoas WHERE id = v_c8) IS DISTINCT FROM 'PV2 JOANA LIMA' THEN RAISE EXCEPTION 'nome: outro 1º nome sem CPF propagou'; END IF;
+
+  -- 4. Preencher CPF numa Pessoa de cônjuge sem CPF continua funcionando.
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 C9') RETURNING id INTO v_c9;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2 T9') RETURNING id INTO v_t9;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_c9, conjuge_nome = 'PV2 C9' WHERE id = v_t9;
+  UPDATE pessoas SET conjuge_cpf = '51029764514' WHERE id = v_t9;
+  IF (SELECT cpf FROM pessoas WHERE id = v_c9) IS DISTINCT FROM '51029764514' THEN RAISE EXCEPTION 'CPF: preenchimento em cônjuge sem CPF não propagou'; END IF;
 
   RAISE NOTICE 'OK: triggers participantes v2';
 END $$;
