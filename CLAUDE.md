@@ -628,7 +628,9 @@ no servidor/bot. Nenhum leitor novo pode ler `processo_compradores`, `processo_v
 `lead_vendedores`, `lead_coparticipantes` nem `leads/pessoas.conjuge_*` — essas tabelas deixam
 de ser escritas na Fase B2 e viram `_legado` na B3; um leitor novo nelas vai mostrar dado velho
 sem erro nenhum. Em SQL: `JOIN participacoes ... papel = 'titular'` (ver migration 328).
-**Exceção temporária até a B2:** e-mail/telefone de comprador (Clicksign, e-mail de confirmação
-de valores, interessados/comunicação, overlay de `formularios/dados.ts`) ainda leem as linhas
-antigas, porque a inclusão de comprador pela aba do Negócio grava e-mail/telefone só em
-`processo_compradores` — ler da Pessoa antes da B2 perde esses valores.
+**B2a (2026-10):** e-mail/telefone/estado civil/conta bancária de participante também vêm só da Pessoa
+(Clicksign, e-mail de confirmação, formulários sem overlay). O que a aba do Negócio ainda digita nas linhas
+antigas é copiado para a Pessoa pelo trigger (migration 329: só preenche vazio). Comunicação com comprador
+é por participação: `interessado_id` = `participacoes.id` e `comunicacao_relacionamentos.participacao_id`
+(migration 330). **B3:** `comunicacao_relacionamentos.processo_comprador_id` é `ON DELETE CASCADE` — zerar
+antes de apagar `processo_compradores`, senão o histórico de comunicação some.
