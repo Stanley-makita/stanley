@@ -6,6 +6,23 @@
 antigas. Fase B1 em produção (#354, migration 328): listas, busca, documentos, bot e relatórios já
 **leem** do modelo novo.
 
+## Atualização (2026-09-30, fim do dia) — B2b revista
+
+Com a tela aprovada pelo usuário, a B2b virou **"tela de participantes sobre o modelo atual"**
+(`2026-09-30-participantes-v2-fase-b2b-tela-participantes.md`): a aba Pessoa do Lead ganhou uma
+sub-aba por participante, gravando pelos caminhos antigos (`lead_coparticipantes`, ponteiros de
+cônjuge nas Pessoas) com a sincronização ligada; "compõe renda" manual ficou em
+`participacoes.compoe_renda_manual` (migration 331), respeitado pela sync e herdado pelo negócio.
+**Negócios mantém o visual** (decisão do usuário) e o **vendedor do Lead continua na aba Crédito**.
+Nova ordem das etapas:
+
+- **B2c — virada** (o que esta página chamava de B2b): desligar a sincronização, `leads.pessoa_id`
+  derivado, travar as tabelas antigas, trocar os escritores restantes (tabela abaixo, menos a aba
+  Pessoa, que já está pronta). Só banco e escritores; nada visível muda.
+- **B2d — recursos novos**: OCR "De quem é este documento?", certidão de casamento → relacionamento,
+  "Mover para participante", resposta do `*salva` por participante, "Tornar principal".
+- **B3 — limpeza**, como antes.
+
 ## Por que a B2 é dividida
 
 A sincronização da Fase A (`pv2_gravar_participacoes`) **reconstrói** as participações de uma proposta a

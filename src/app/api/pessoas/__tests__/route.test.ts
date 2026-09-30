@@ -19,6 +19,7 @@ const ANDRESA = 'u-andresa'
 const PESSOAS = [
   { id: 'p-cliente-1', nome: 'Cliente Da Andresa', cpf: null, email: null, created_at: '2026-01-01', empresa_id: EMPRESA },
   { id: 'p-vendedor-fora', nome: 'Vendedor Fora Da Carteira', cpf: null, email: null, created_at: '2026-01-02', empresa_id: EMPRESA },
+  { id: 'p-excluida', nome: 'Vendedor Excluído', cpf: null, email: null, created_at: '2026-01-03', empresa_id: EMPRESA, deleted_at: '2026-09-01' },
 ]
 
 // leads: só o p-cliente-1 tem lead com responsavel_id = Andresa — define a "carteira" dela.
@@ -46,6 +47,15 @@ function criarFakeSupabase() {
         q.eq = () => q
         q.is = () => q
         q.not = () => Promise.resolve({ data: LEADS.map((l) => ({ pessoa_id: l.pessoa_id })), error: null })
+        // papel=participante: .select(responsavel).in('pessoa_id', ids).is(...)×3 → lead aberto de OUTRO comercial.
+        q.in = () => {
+          const q2: Record<string, unknown> = {}
+          q2.is = () => q2
+          q2.then = (resolve: (v: unknown) => unknown) => resolve({
+            data: [{ pessoa_id: 'p-vendedor-fora', responsavel: { id: 'u-bruno', nome: 'Bruno Machado' } }], error: null,
+          })
+          return q2
+        }
         return q
       }
       if (tabela === 'pessoas') {
@@ -57,6 +67,7 @@ function criarFakeSupabase() {
         q.eq = (col: string, v: string) => { filtros.push((p) => (p as Record<string, unknown>)[col] === v); return q }
         q.order = () => q
         q.range = () => q
+        q.is = (col: string, v: unknown) => { filtros.push((p) => ((p as Record<string, unknown>)[col] ?? null) === v); return q }
         q.in = (col: string, v: string[]) => { filtros.push((p) => v.includes((p as Record<string, unknown>)[col] as string)); return q }
         q.ilike = (col: string, v: string) => {
           const termo = v.replace(/%/g, '').toLowerCase()
@@ -105,6 +116,19 @@ describe('GET /api/pessoas', () => {
     const res = await GET(montarRequest('q=Cliente&papel=vendedor'))
     const json = await res.json()
     expect(json.data.map((p: { id: string }) => p.id)).toEqual(['p-cliente-1'])
+  })
+
+  it('papel=participante: comercial acha pessoa fora da carteira, com aviso de quem é o cliente', async () => {
+    const { GET } = await import('../route')
+    const res = await GET(montarRequest('q=Vendedor&papel=participante'))
+    const json = await res.json()
+    expect(json.data).toEqual([expect.objectContaining({ id: 'p-vendedor-fora', cliente_de: 'Bruno Machado' })])
+  })
+
+  it('pessoa excluída (soft delete) nunca aparece na busca', async () => {
+    const { GET } = await import('../route')
+    const res = await GET(montarRequest('q=Excluído&papel=vendedor'))
+    expect((await res.json()).data).toEqual([])
   })
 
   it('ids= (pré-preenchimento de vendedor) busca por id, ignora carteira com papel=vendedor', async () => {

@@ -1,654 +1,223 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/auth/useAuth'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { InputMoeda } from '@/components/ui/input-moeda'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { Loader2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Check, Loader2 } from 'lucide-react'
-import { DocumentosIdentidadeSection } from '@/components/pessoas/DocumentosIdentidadeSection'
 import { type Lead } from '@/types/leads'
+import { useParticipantes } from '@/hooks/participantes/useParticipantes'
+import {
+  useAdicionarParticipante, useAlterarCompoeRenda, useRelacionamentosDe, useRemoverParticipante,
+} from '@/hooks/participantes/useMutacoesParticipantes'
+import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
+import { rotuloParticipante } from '@/lib/participantes/rotulos'
+import { rendaComposta } from '@/lib/participantes/renda'
+import { FormularioPessoa, type OpcaoConjuge } from '@/components/pessoas/FormularioPessoa'
+import { AdicionarParticipanteModal, type EscolhaParticipante } from '@/components/participantes/AdicionarParticipanteModal'
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+const moeda = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const primeiroNome = (nome: string) => nome.trim().split(/\s+/)[0] ?? nome
 
-function formatarCpf(valor: string): string {
-  const d = valor.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 3) return d
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
-}
+type Busca = { titulo: string; textoConfirmar: string; aoEscolher: (e: EscolhaParticipante) => Promise<void> }
 
-function normalizarCpf(valor: string): string | null {
-  const d = valor.replace(/\D/g, '')
-  return d.length === 11 ? d : d.length === 0 ? null : d
-}
+/**
+ * Aba Pessoa do Lead (V2 B2b): uma sub-aba por participante de compra, cada uma com o
+ * formulário completo da Pessoa. Incluir/remover participante grava lead_coparticipantes e o
+ * casamento grava os ponteiros das Pessoas — a sincronização da Fase A mantém o modelo novo.
+ * "Compõe renda" é a única escrita direta no modelo novo (PATCH /api/participacoes/[id]).
+ */
+export function AbaPessoa({ lead }: { lead: Lead }) {
+  const { data: participantes = [], isLoading } = useParticipantes({ tipo: 'lead', id: lead.id })
+  const compra = useMemo(() => participantes
+    .filter(p => PAPEIS_COMPRA.includes(p.papel))
+    .sort((a, b) => (a.papel === 'titular' ? 0 : 1) - (b.papel === 'titular' ? 0 : 1) || a.ordem - b.ordem),
+  [participantes])
+  const { data: rels = [] } = useRelacionamentosDe(compra.map(p => p.pessoa.id))
 
-// `<input type="date">` nativo dispara onChange a cada dígito digitado — se o usuário
-// edita o segmento do ano dígito a dígito (em vez de colar/usar o seletor), um onChange
-// intermediário chega com o valor ainda incompleto (ex.: "0001-11-25" depois de digitar
-// só o primeiro "1" do ano 1999). Sem essa checagem esse valor implausível é salvo do
-// jeito que está. Descarta (equivale a campo vazio) datas com ano fora de uma faixa
-// plausível de nascimento/documento — nunca bloqueia o salvamento do resto do form.
-function normalizarDataPlausivel(valor: string): string | null {
-  if (!valor) return null
-  const ano = Number(valor.slice(0, 4))
-  const anoAtual = new Date().getFullYear()
-  if (!Number.isFinite(ano) || ano < 1900 || ano > anoAtual + 1) return null
-  return valor
-}
+  const [selecionadaId, setSelecionadaId] = useState<string | null>(null)
+  const [sujo, setSujo] = useState(false)
+  const [busca, setBusca] = useState<Busca | null>(null)
 
-const ESTADOS_CIVIS = [
-  { value: 'solteiro',      label: 'Solteiro(a)' },
-  { value: 'casado',        label: 'Casado(a)' },
-  { value: 'uniao_estavel', label: 'União Estável' },
-  { value: 'divorciado',    label: 'Divorciado(a)' },
-  { value: 'viuvo',         label: 'Viúvo(a)' },
-]
+  const adicionar = useAdicionarParticipante(lead.id)
+  const remover = useRemoverParticipante(lead.id)
+  const alterarCompoe = useAlterarCompoeRenda(lead.id)
 
-const REGIMES = [
-  { value: 'comunhao_parcial',   label: 'Comunhão Parcial de Bens' },
-  { value: 'comunhao_total',     label: 'Comunhão Total de Bens' },
-  { value: 'separacao_total',    label: 'Separação Total de Bens' },
-  { value: 'participacao_final', label: 'Participação Final nos Aquestos' },
-]
+  const atual = compra.find(p => p.pessoa.id === selecionadaId) ?? compra.find(p => p.papel === 'titular') ?? compra[0]
+  const todosRotulo = compra.map(p => ({ pessoaId: p.pessoa.id, nome: p.pessoa.nome, papel: p.papel }))
+  const opcoesConjuge: OpcaoConjuge[] = compra.map(p => ({ pessoaId: p.pessoa.id, nome: p.pessoa.nome }))
+  const renda = rendaComposta(compra.map(p => ({ papel: p.papel, compoe_renda: p.compoe_renda, pessoa: p.pessoa })))
+  const onSujoChange = useCallback((v: boolean) => setSujo(v), [])
 
-// ── tipos ─────────────────────────────────────────────────────────────────────
+  function trocarPara(pessoaId: string) {
+    if (pessoaId === atual?.pessoa.id) return
+    if (sujo && !window.confirm(`Há alterações não salvas de ${atual ? primeiroNome(atual.pessoa.nome) : 'esta pessoa'}. Descartar?`)) return
+    setSujo(false)
+    setSelecionadaId(pessoaId)
+  }
 
-type FormState = {
-  telefone: string
-  nome: string; email: string; cpf: string; data_nascimento: string
-  profissao: string; estado_civil: string; sexo: string
-  renda_formal: string; renda_informal: string; nacionalidade: string
-  orgao_emissor: string; data_emissao: string
-  cidade_nascimento: string; estado_nascimento: string
-  filiacao_mae: string; filiacao_pai: string
-  registro_cnh: string; validade_cnh: string; primeira_habilitacao_cnh: string
-  endereco_rua: string; endereco_numero: string; endereco_bairro: string
-  endereco_cidade: string; endereco_uf: string; endereco_cep: string
-  conjuge_nome: string; conjuge_cpf: string; conjuge_data_nascimento: string
-  conjuge_telefone: string; conjuge_profissao: string
-  conjuge_renda_formal: string; conjuge_renda_informal: string
-  regime_casamento: string; data_casamento: string
-  empresa_nome: string; empresa_cnpj: string
-  municipio_trabalho: string; uf_trabalho: string
-  conta_bancaria_banco: string; conta_bancaria_agencia: string
-  conta_bancaria_numero: string; conta_bancaria_digito: string
-}
+  async function incluir(escolha: EscolhaParticipante) {
+    const pessoaId = await adicionar.mutateAsync(escolha)
+    toast.success(`${'pessoaId' in escolha ? escolha.nome : escolha.nome} incluído(a) na proposta.`)
+    setSujo(false)
+    setSelecionadaId(pessoaId)
+  }
 
-const VAZIO: FormState = {
-  telefone: '',
-  nome: '', email: '', cpf: '', data_nascimento: '', profissao: '',
-  estado_civil: '', sexo: '', renda_formal: '', renda_informal: '', nacionalidade: '',
-  orgao_emissor: '', data_emissao: '', cidade_nascimento: '', estado_nascimento: '',
-  filiacao_mae: '', filiacao_pai: '',
-  registro_cnh: '', validade_cnh: '', primeira_habilitacao_cnh: '',
-  endereco_rua: '', endereco_numero: '', endereco_bairro: '', endereco_cidade: '',
-  endereco_uf: '', endereco_cep: '',
-  conjuge_nome: '', conjuge_cpf: '', conjuge_data_nascimento: '',
-  conjuge_telefone: '', conjuge_profissao: '',
-  conjuge_renda_formal: '', conjuge_renda_informal: '',
-  regime_casamento: '', data_casamento: '',
-  empresa_nome: '', empresa_cnpj: '', municipio_trabalho: '', uf_trabalho: '',
-  conta_bancaria_banco: '', conta_bancaria_agencia: '',
-  conta_bancaria_numero: '', conta_bancaria_digito: '',
-}
+  function abrirInclusao() {
+    setBusca({ titulo: 'Adicionar participante', textoConfirmar: 'Adicionar à proposta', aoEscolher: incluir })
+  }
 
-// ── sub-componentes de layout ─────────────────────────────────────────────────
+  function onConjugeForaDaProposta(conjuge: OpcaoConjuge) {
+    // Cônjuge do titular entra sozinho pela sincronização; de outro participante, só se o usuário quiser.
+    if (atual?.papel === 'titular') return
+    if (window.confirm(`Incluir ${conjuge.nome} na proposta como cônjuge?`)) {
+      adicionar.mutate({ pessoaId: conjuge.pessoaId }, {
+        onError: (e) => toast.error(e instanceof Error ? e.message : 'Não foi possível incluir.'),
+      })
+    }
+  }
 
-function L({ children }: { children: React.ReactNode }) {
-  return <label className="text-xs font-medium text-gray-500 mb-1 block">{children}</label>
-}
-
-function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold text-fonti-primary mb-3">{titulo}</p>
-      {children}
-    </div>
-  )
-}
-
-// ── componente principal ──────────────────────────────────────────────────────
-
-interface Props {
-  lead: Lead
-}
-
-export function AbaPessoa({ lead }: Props) {
-  const pessoaId = lead.pessoa_id
-  const { usuario } = useAuth()
-  const qc = useQueryClient()
-  const [form, setForm] = useState<FormState>(VAZIO)
-  const f = (patch: Partial<FormState>) => setForm(s => ({ ...s, ...patch }))
-
-  const { data: pessoa, isLoading } = useQuery({
-    queryKey: ['pessoa-completa', pessoaId],
-    enabled: !!pessoaId,
-    refetchOnMount: 'always',
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('pessoas')
-        .select(`id, updated_at, nome, cpf, email, data_nascimento,
-          profissao, estado_civil, sexo, renda_formal, renda_informal, nacionalidade,
-          orgao_emissor, data_emissao, cidade_nascimento, estado_nascimento, filiacao_mae, filiacao_pai,
-          registro_cnh, validade_cnh, primeira_habilitacao_cnh,
-          endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
-          conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
-          conjuge_renda_formal, conjuge_renda_informal, regime_casamento, data_casamento,
-          empresa_nome, empresa_cnpj, municipio_trabalho, uf_trabalho,
-          conta_bancaria_banco, conta_bancaria_agencia, conta_bancaria_numero, conta_bancaria_digito,
-          conjuge_pessoa_id,
-          conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf),
-          pessoa_telefones(id, telefone, principal, whatsapp, ativo)`)
-        .eq('id', pessoaId!)
-        .single()
-      if (error) throw error
-      return data
-    },
-  })
-
-  // Reseta o form só quando a Pessoa carregada MUDA de verdade (troca de pessoa_id) —
-  // nunca por um refetch em segundo plano da MESMA pessoa. A query roda com
-  // staleTime: 0 + refetchOnWindowFocus: true (padrão do projeto) + refetchOnMount:
-  // 'always', então qualquer volta de foco na aba troca a referência de `pessoa`. Sem
-  // esse guard, o efeito reseta TODO o form pros valores do servidor no meio da edição,
-  // apagando o que o usuário tinha digitado nos campos que ainda não tinham sido
-  // salvos — mesmo padrão já documentado e corrigido em EditarProcessoDrawer.tsx e
-  // LeadEditarModal.tsx (achado real, 2026-09-22: usuária editava vários campos, um
-  // refetch em 2º plano revertia todos menos o último mexido, "Salvar" gravava a
-  // mistura de campo novo + demais campos revertidos pro valor antigo do banco).
-  //
-  // A chave inclui `updated_at` (trigger pessoas_set_updated_at): refetch com o MESMO
-  // dado não reseta, mas uma gravação real vinda de fora do form — "Confirmar dados"
-  // do OCR, *fonti atualiza — reseta na hora. Só com o id, os campos confirmados no
-  // OCR só apareciam depois de F5 (achado real, 2026-09-24).
-  const pessoaCarregadaChaveRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!pessoa) return
-    const chave = `${pessoa.id}|${(pessoa as { updated_at?: string }).updated_at ?? ''}`
-    if (pessoaCarregadaChaveRef.current === chave) return
-    pessoaCarregadaChaveRef.current = chave
-    const p = pessoa as any
-    const tels = p.pessoa_telefones ?? []
-    const telAtivos = tels.filter((t: any) => t.ativo)
-    const telPrincipal = telAtivos.find((t: any) => t.principal) ?? telAtivos[0]
-    setForm({
-      telefone:                 telPrincipal?.telefone ?? '',
-      nome:                     pessoa.nome ?? '',
-      email:                    pessoa.email ?? '',
-      cpf:                      formatarCpf(pessoa.cpf ?? ''),
-      data_nascimento:          pessoa.data_nascimento ?? '',
-      profissao:                pessoa.profissao ?? '',
-      estado_civil:             pessoa.estado_civil ?? '',
-      sexo:                     p.sexo ?? '',
-      orgao_emissor:            p.orgao_emissor ?? '',
-      data_emissao:             p.data_emissao ?? '',
-      cidade_nascimento:        p.cidade_nascimento ?? '',
-      estado_nascimento:        p.estado_nascimento ?? '',
-      filiacao_mae:             p.filiacao_mae ?? '',
-      filiacao_pai:             p.filiacao_pai ?? '',
-      registro_cnh:             p.registro_cnh ?? '',
-      validade_cnh:             p.validade_cnh ?? '',
-      primeira_habilitacao_cnh: p.primeira_habilitacao_cnh ?? '',
-      renda_formal:             pessoa.renda_formal != null ? String(pessoa.renda_formal) : '',
-      renda_informal:           pessoa.renda_informal != null ? String(pessoa.renda_informal) : '',
-      nacionalidade:            p.nacionalidade ?? '',
-      endereco_rua:             pessoa.endereco_rua ?? '',
-      endereco_numero:          pessoa.endereco_numero ?? '',
-      endereco_bairro:          pessoa.endereco_bairro ?? '',
-      endereco_cidade:          pessoa.endereco_cidade ?? '',
-      endereco_uf:              pessoa.endereco_uf ?? '',
-      endereco_cep:             pessoa.endereco_cep ?? '',
-      conjuge_nome:             pessoa.conjuge_nome ?? '',
-      conjuge_cpf:              formatarCpf(pessoa.conjuge_cpf ?? ''),
-      conjuge_data_nascimento:  pessoa.conjuge_data_nascimento ?? '',
-      conjuge_telefone:         p.conjuge_telefone ?? '',
-      conjuge_profissao:        p.conjuge_profissao ?? '',
-      conjuge_renda_formal:     pessoa.conjuge_renda_formal != null ? String(pessoa.conjuge_renda_formal) : '',
-      conjuge_renda_informal:   p.conjuge_renda_informal != null ? String(p.conjuge_renda_informal) : '',
-      regime_casamento:         pessoa.regime_casamento ?? '',
-      data_casamento:           p.data_casamento ?? '',
-      empresa_nome:             p.empresa_nome ?? '',
-      empresa_cnpj:             p.empresa_cnpj ?? '',
-      municipio_trabalho:       p.municipio_trabalho ?? '',
-      uf_trabalho:              p.uf_trabalho ?? '',
-      conta_bancaria_banco:     p.conta_bancaria_banco ?? '',
-      conta_bancaria_agencia:   p.conta_bancaria_agencia ?? '',
-      conta_bancaria_numero:    p.conta_bancaria_numero ?? '',
-      conta_bancaria_digito:    p.conta_bancaria_digito ?? '',
+  function onBuscarConjuge(escolher: (p: OpcaoConjuge) => void) {
+    setBusca({
+      titulo: 'Casado(a) com', textoConfirmar: 'Escolher',
+      aoEscolher: async (e) => {
+        if ('pessoaId' in e) { escolher(e); return }
+        // Nova pessoa pelo modal de busca: cria só a Pessoa (sem incluir na proposta ainda).
+        const { supabase } = await import('@/lib/supabase')
+        const { data: nova, error } = await supabase.from('pessoas')
+          .insert({ empresa_id: lead.empresa_id, nome: e.nome, cpf: e.cpf || null, tipo: 'cliente' })
+          .select('id').single()
+        if (error?.code === '23505') throw new Error('Esse CPF já é de outra pessoa cadastrada — busque por ele.')
+        if (error || !nova) throw new Error('Não foi possível criar a pessoa.')
+        escolher({ pessoaId: nova.id as string, nome: e.nome })
+      },
     })
-  }, [pessoa])
-
-  const eCasado = form.estado_civil === 'casado' || form.estado_civil === 'uniao_estavel'
-
-  const salvar = useMutation({
-    mutationFn: async () => {
-      if (!pessoaId || !usuario) return
-
-      const payload = {
-        nome:                     form.nome.trim() || undefined,
-        email:                    form.email.trim() || null,
-        cpf:                      normalizarCpf(form.cpf) ?? null,
-        data_nascimento:          normalizarDataPlausivel(form.data_nascimento),
-        profissao:                form.profissao.trim() || null,
-        estado_civil:             form.estado_civil || null,
-        sexo:                     form.sexo || null,
-        orgao_emissor:            form.orgao_emissor.trim() || null,
-        data_emissao:             form.data_emissao || null,
-        cidade_nascimento:        form.cidade_nascimento.trim() || null,
-        estado_nascimento:        form.estado_nascimento.trim().toUpperCase().slice(0, 2) || null,
-        filiacao_mae:             form.filiacao_mae.trim() || null,
-        filiacao_pai:             form.filiacao_pai.trim() || null,
-        registro_cnh:             form.registro_cnh.trim() || null,
-        validade_cnh:             form.validade_cnh || null,
-        primeira_habilitacao_cnh: form.primeira_habilitacao_cnh || null,
-        renda_formal:             form.renda_formal ? Number(form.renda_formal) : null,
-        renda_informal:           form.renda_informal ? Number(form.renda_informal) : null,
-        nacionalidade:            form.nacionalidade.trim() || null,
-        endereco_rua:             form.endereco_rua.trim() || null,
-        endereco_numero:          form.endereco_numero.trim() || null,
-        endereco_bairro:          form.endereco_bairro.trim() || null,
-        endereco_cidade:          form.endereco_cidade.trim() || null,
-        endereco_uf:              form.endereco_uf.trim() || null,
-        endereco_cep:             form.endereco_cep.trim() || null,
-        conjuge_nome:             eCasado ? (form.conjuge_nome.trim() || null) : null,
-        conjuge_cpf:              eCasado ? (normalizarCpf(form.conjuge_cpf) ?? null) : null,
-        conjuge_data_nascimento:  eCasado ? normalizarDataPlausivel(form.conjuge_data_nascimento) : null,
-        conjuge_telefone:         eCasado ? (form.conjuge_telefone.trim() || null) : null,
-        conjuge_profissao:        eCasado ? (form.conjuge_profissao.trim() || null) : null,
-        conjuge_renda_formal:     eCasado && form.conjuge_renda_formal ? Number(form.conjuge_renda_formal) : null,
-        conjuge_renda_informal:   eCasado && form.conjuge_renda_informal ? Number(form.conjuge_renda_informal) : null,
-        regime_casamento:         eCasado ? (form.regime_casamento || null) : null,
-        data_casamento:           eCasado ? normalizarDataPlausivel(form.data_casamento) : null,
-        empresa_nome:             form.empresa_nome.trim() || null,
-        empresa_cnpj:             form.empresa_cnpj.trim() || null,
-        municipio_trabalho:       form.municipio_trabalho.trim() || null,
-        uf_trabalho:              form.uf_trabalho.trim() || null,
-        conta_bancaria_banco:     form.conta_bancaria_banco.trim() || null,
-        conta_bancaria_agencia:   form.conta_bancaria_agencia.trim() || null,
-        conta_bancaria_numero:    form.conta_bancaria_numero.trim() || null,
-        conta_bancaria_digito:    form.conta_bancaria_digito.trim() || null,
-      }
-
-      // 0. Telefone principal
-      const telefoneVal = form.telefone.trim()
-      if (telefoneVal) {
-        const p = pessoa as any
-        const tels = p?.pessoa_telefones ?? []
-        const telAtivos = tels.filter((t: any) => t.ativo)
-        const telPrincipal = telAtivos.find((t: any) => t.principal) ?? telAtivos[0]
-        if (telPrincipal) {
-          if (telPrincipal.telefone !== telefoneVal) {
-            await supabase.from('pessoa_telefones').update({ telefone: telefoneVal }).eq('id', telPrincipal.id)
-          }
-        } else {
-          await supabase.from('pessoa_telefones').insert({
-            pessoa_id: pessoaId, empresa_id: usuario.empresa_id,
-            telefone: telefoneVal, principal: true, whatsapp: true, ativo: true,
-          })
-        }
-        await supabase.from('processo_compradores').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-        await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-      }
-
-      // 1. Atualizar pessoas (CPF do TITULAR separado para não bloquear em UNIQUE).
-      // conjuge_cpf NÃO tem UNIQUE e vai no mesmo UPDATE de conjuge_nome/estado_civil: se fosse
-      // separado, a sync (fn_pv2_pessoas) criaria a Pessoa do cônjuge sem CPF no 1º UPDATE.
-      const payloadSemCpf = { ...payload } as Record<string, unknown>
-      delete payloadSemCpf['cpf']
-
-      const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
-      if (error) throw error
-
-      if (payload.cpf) {
-        const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
-        if (errCpf) console.warn('[aba-pessoa] CPF não salvo (conflito):', errCpf.message)
-      }
-
-      // 2. Propagar para leads
-      await supabase.from('leads').update({
-        nome:                    payload.nome,
-        email:                   payload.email,
-        cpf:                     payload.cpf,
-        data_nascimento:         payload.data_nascimento,
-        profissao:               payload.profissao,
-        estado_civil:            payload.estado_civil,
-        renda_formal:            payload.renda_formal,
-        renda_informal:          payload.renda_informal,
-        conjuge_nome:            payload.conjuge_nome,
-        conjuge_cpf:             payload.conjuge_cpf,
-        conjuge_data_nascimento: payload.conjuge_data_nascimento,
-        conjuge_renda_formal:    payload.conjuge_renda_formal,
-        conjuge_renda_informal:  payload.conjuge_renda_informal,
-        regime_casamento:        payload.regime_casamento,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
-      // 3. Propagar para compradores
-      await supabase.from('processo_compradores').update({
-        nome:  payload.nome,
-        cpf:   payload.cpf,
-        email: payload.email,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
-      // 4. Propagar para vendedores
-      await supabase.from('processo_vendedores').update({
-        nome:         payload.nome,
-        cpf:          payload.cpf,
-        email:        payload.email,
-        estado_civil: payload.estado_civil,
-        conjuge_nome: payload.conjuge_nome,
-        conjuge_cpf:  payload.conjuge_cpf,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
-      // 5. Auditoria
-      await supabase.from('pessoas_alteracoes').insert({
-        pessoa_id:          pessoaId,
-        empresa_id:         usuario.empresa_id,
-        usuario_id:         usuario.id,
-        campos_alterados:   Object.keys(payload),
-        valores_anteriores: {},
-        valores_novos:      payload as Record<string, unknown>,
-        origem:             'leads',
-      })
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pessoa', pessoaId] })
-      qc.invalidateQueries({ queryKey: ['pessoa-completa', pessoaId] })
-      qc.invalidateQueries({ queryKey: ['pessoas', pessoaId, 'alteracoes'] })
-      qc.invalidateQueries({ queryKey: ['leads'] })
-      toast.success('Dados da pessoa salvos.', {
-        className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary',
-      })
-    },
-    onError: () => toast.error('Erro ao salvar dados.'),
-  })
-
-  if (!pessoaId) {
-    return (
-      <div className="flex items-center justify-center h-32 text-sm text-gray-400">
-        Este lead ainda não possui pessoa vinculada.
-      </div>
-    )
   }
 
+  async function removerAtual() {
+    if (!atual || atual.papel !== 'coparticipante') return
+    if (!window.confirm(`Remover ${atual.pessoa.nome} desta proposta? O cadastro e os documentos dela continuam na Pessoa.`)) return
+    try {
+      await remover.mutateAsync(atual.pessoa.id)
+      toast.success(`${primeiroNome(atual.pessoa.nome)} removido(a) da proposta.`)
+      setSujo(false)
+      setSelecionadaId(null)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível remover.')
+    }
+  }
+
+  if (!lead.pessoa_id) {
+    return <div className="flex h-32 items-center justify-center text-sm text-gray-400">Este lead ainda não possui pessoa vinculada.</div>
+  }
   if (isLoading) {
+    return <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-fonti-primary" /></div>
+  }
+  // Sem participações (ex.: titular que é Pessoa de operador, nunca vira participante): só o formulário.
+  if (!atual) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <Loader2 className="h-5 w-5 animate-spin text-fonti-primary" />
+      <div className="-mx-3 -my-4 bg-gray-50 px-3 py-4 pb-8 sm:-mx-5 sm:px-5">
+        <FormularioPessoa key={lead.pessoa_id} pessoaId={lead.pessoa_id} participantesDaProposta={[]} onSujoChange={onSujoChange} />
       </div>
     )
   }
 
-  const conjugeVinculado = (() => {
-    const cp = (pessoa as any)?.conjuge_pessoa
-    return Array.isArray(cp) ? cp[0] : cp
-  })()
+  const rotuloAtual = rotuloParticipante({ pessoaId: atual.pessoa.id, nome: atual.pessoa.nome, papel: atual.papel }, todosRotulo, rels)
 
   return (
     <div className="-mx-3 -my-4 bg-gray-50 px-3 py-4 pb-8 sm:-mx-5 sm:px-5">
-
-      {/* ── Dados básicos ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="sm:col-span-2">
-          <L>Nome completo</L>
-          <Input value={form.nome} onChange={e => f({ nome: e.target.value })} />
-        </div>
-        <div>
-          <L>CPF</L>
-          <Input value={form.cpf} onChange={e => f({ cpf: formatarCpf(e.target.value) })} placeholder="000.000.000-00" />
-        </div>
-        <div>
-          <L>Data de Nascimento</L>
-          <Input type="date" value={form.data_nascimento} onChange={e => f({ data_nascimento: e.target.value })} />
-        </div>
-        <div>
-          <L>E-mail</L>
-          <Input value={form.email} onChange={e => f({ email: e.target.value })} placeholder="email@exemplo.com" />
-        </div>
-        <div>
-          <L>Telefone principal</L>
-          <Input value={form.telefone} onChange={e => f({ telefone: e.target.value })} placeholder="5544999990000" />
-        </div>
-        <div>
-          <L>Profissão</L>
-          <Input value={form.profissao} onChange={e => f({ profissao: e.target.value })} placeholder="Ex: Advogado" />
-        </div>
-        <div>
-          <L>Nacionalidade</L>
-          <Input value={form.nacionalidade} onChange={e => f({ nacionalidade: e.target.value })} placeholder="Brasileiro(a)" />
-        </div>
-        <div>
-          <L>Sexo</L>
-          <select
-            className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
-            value={form.sexo}
-            onChange={e => f({ sexo: e.target.value })}
-          >
-            <option value="">Selecionar...</option>
-            <option value="M">Masculino</option>
-            <option value="F">Feminino</option>
-          </select>
-        </div>
-        <div>
-          <L>Cidade de nascimento</L>
-          <Input value={form.cidade_nascimento} onChange={e => f({ cidade_nascimento: e.target.value })} placeholder="Ex: Maringá" />
-        </div>
-        <div>
-          <L>UF de nascimento</L>
-          <Input value={form.estado_nascimento} onChange={e => f({ estado_nascimento: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
-        </div>
-        <div>
-          <L>Nome da mãe</L>
-          <Input value={form.filiacao_mae} onChange={e => f({ filiacao_mae: e.target.value })} />
-        </div>
-        <div>
-          <L>Nome do pai</L>
-          <Input value={form.filiacao_pai} onChange={e => f({ filiacao_pai: e.target.value })} />
-        </div>
-      </div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-fonti-primary">Participantes da proposta</h2>
       </div>
 
-      {/* ── Documentos ───────────────────────────────────────────────────── */}
-      <Secao titulo="Documentos">
-        {pessoaId && usuario?.empresa_id && (
-          <DocumentosIdentidadeSection pessoaId={pessoaId} empresaId={usuario.empresa_id} />
-        )}
-      </Secao>
-
-      {/* ── Renda (compat temporária — migra futuramente para Crédito) ─── */}
-      <Secao titulo="Renda">
-        <p className="text-xs text-gray-400 mb-3">
-          Campos de renda ficam aqui temporariamente para compatibilidade. Futuramente serão consolidados na aba Crédito.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <L>Renda Formal (R$)</L>
-            <InputMoeda value={form.renda_formal} onChange={v => f({ renda_formal: v })} />
-          </div>
-          <div>
-            <L>Renda Informal (R$)</L>
-            <InputMoeda value={form.renda_informal} onChange={v => f({ renda_informal: v })} />
-          </div>
-        </div>
-      </Secao>
-
-      {/* ── Estado Civil ─────────────────────────────────────────────────── */}
-      <Secao titulo="Estado Civil">
-        <div className="flex flex-wrap gap-2 mb-3">
-          {ESTADOS_CIVIS.map(ec => (
+      <div role="tablist" aria-label="Participantes" className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
+        {compra.map(p => {
+          const ativo = p.pessoa.id === atual.pessoa.id
+          const rotulo = rotuloParticipante({ pessoaId: p.pessoa.id, nome: p.pessoa.nome, papel: p.papel }, todosRotulo, rels)
+          return (
             <button
-              key={ec.value}
+              key={p.id}
               type="button"
-              onClick={() => f({ estado_civil: form.estado_civil === ec.value ? '' : ec.value })}
+              role="tab"
+              aria-selected={ativo}
+              onClick={() => trocarPara(p.pessoa.id)}
               className={cn(
-                'text-xs px-3 py-1.5 rounded-lg border transition-all',
-                form.estado_civil === ec.value
-                  ? 'border-fonti-primary bg-fonti-primary text-white font-medium'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                'inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors',
+                ativo ? 'border-fonti-primary bg-fonti-primary text-white' : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50',
               )}
             >
-              {ec.label}
+              <span className="font-semibold">{primeiroNome(p.pessoa.nome)}</span>
+              <span className={ativo ? 'text-white/80' : 'text-gray-500'}>· {rotulo}</span>
             </button>
-          ))}
-        </div>
-
-        {eCasado && (
-          <div className="p-3 bg-fonti-accent-hover/20 border border-fonti-accent/40 rounded-xl space-y-3">
-            <p className="text-xs font-semibold text-fonti-primary">Cônjuge / Companheiro(a)</p>
-            {conjugeVinculado && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-green-800">{conjugeVinculado.nome}</p>
-                  {conjugeVinculado.cpf && <p className="text-xs text-green-600">{conjugeVinculado.cpf}</p>}
-                </div>
-                <span className="text-xs text-green-600 font-medium shrink-0">Cadastrado</span>
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <L>Nome completo</L>
-                <Input value={form.conjuge_nome} onChange={e => f({ conjuge_nome: e.target.value })} />
-              </div>
-              <div>
-                <L>CPF</L>
-                <Input value={form.conjuge_cpf} onChange={e => f({ conjuge_cpf: formatarCpf(e.target.value) })} placeholder="000.000.000-00" />
-              </div>
-              <div>
-                <L>Nascimento</L>
-                <Input type="date" value={form.conjuge_data_nascimento} onChange={e => f({ conjuge_data_nascimento: e.target.value })} />
-              </div>
-              <div>
-                <L>Telefone</L>
-                <Input value={form.conjuge_telefone} onChange={e => f({ conjuge_telefone: e.target.value })} />
-              </div>
-              <div>
-                <L>Profissão</L>
-                <Input value={form.conjuge_profissao} onChange={e => f({ conjuge_profissao: e.target.value })} />
-              </div>
-              <div>
-                <L>Renda Formal (R$)</L>
-                <InputMoeda value={form.conjuge_renda_formal} onChange={v => f({ conjuge_renda_formal: v })} />
-              </div>
-              <div>
-                <L>Renda Informal (R$)</L>
-                <InputMoeda value={form.conjuge_renda_informal} onChange={v => f({ conjuge_renda_informal: v })} />
-              </div>
-              <div>
-                <L>Data do Casamento/União</L>
-                <Input type="date" value={form.data_casamento} onChange={e => f({ data_casamento: e.target.value })} />
-              </div>
-              <div>
-                <L>Regime de Bens</L>
-                <select
-                  className="w-full h-10 text-sm border rounded-md px-3 focus:outline-none focus:ring-2 focus:ring-fonti-primary/30"
-                  value={form.regime_casamento}
-                  onChange={e => f({ regime_casamento: e.target.value })}
-                >
-                  <option value="">Selecionar...</option>
-                  {REGIMES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-      </Secao>
-
-      {/* ── Endereço ─────────────────────────────────────────────────────── */}
-      <Secao titulo="Endereço">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <L>CEP</L>
-            <Input value={form.endereco_cep} onChange={e => f({ endereco_cep: e.target.value })} placeholder="00000-000" />
-          </div>
-          <div>
-            <L>Número</L>
-            <Input value={form.endereco_numero} onChange={e => f({ endereco_numero: e.target.value })} placeholder="123" />
-          </div>
-          <div className="sm:col-span-2">
-            <L>Rua / Logradouro</L>
-            <Input value={form.endereco_rua} onChange={e => f({ endereco_rua: e.target.value })} placeholder="Rua das Flores" />
-          </div>
-          <div>
-            <L>Bairro</L>
-            <Input value={form.endereco_bairro} onChange={e => f({ endereco_bairro: e.target.value })} placeholder="Centro" />
-          </div>
-          <div>
-            <L>UF</L>
-            <Input value={form.endereco_uf} onChange={e => f({ endereco_uf: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
-          </div>
-          <div className="sm:col-span-2">
-            <L>Cidade</L>
-            <Input value={form.endereco_cidade} onChange={e => f({ endereco_cidade: e.target.value })} placeholder="Maringá" />
-          </div>
-        </div>
-      </Secao>
-
-      {/* ── Trabalho (FGTS) ──────────────────────────────────────────────── */}
-      <Secao titulo="Trabalho (para FGTS)">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">
-            <L>Nome da Empresa</L>
-            <Input value={form.empresa_nome} onChange={e => f({ empresa_nome: e.target.value })} placeholder="Razão Social" />
-          </div>
-          <div>
-            <L>CNPJ</L>
-            <Input value={form.empresa_cnpj} onChange={e => f({ empresa_cnpj: e.target.value })} placeholder="00.000.000/0001-00" />
-          </div>
-          <div>
-            <L>Município de Trabalho</L>
-            <Input value={form.municipio_trabalho} onChange={e => f({ municipio_trabalho: e.target.value })} placeholder="Maringá" />
-          </div>
-          <div>
-            <L>UF de Trabalho</L>
-            <Input value={form.uf_trabalho} onChange={e => f({ uf_trabalho: e.target.value.toUpperCase().slice(0, 2) })} placeholder="PR" maxLength={2} />
-          </div>
-        </div>
-      </Secao>
-
-      {/* ── Conta Bancária ───────────────────────────────────────────────── */}
-      <Secao titulo="Conta Bancária (débito das parcelas)">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">
-            <L>Banco</L>
-            <Input value={form.conta_bancaria_banco} onChange={e => f({ conta_bancaria_banco: e.target.value })} placeholder="Ex: Bradesco" />
-          </div>
-          <div>
-            <L>Agência</L>
-            <Input value={form.conta_bancaria_agencia} onChange={e => f({ conta_bancaria_agencia: e.target.value })} placeholder="0000-0" />
-          </div>
-          <div>
-            <L>Conta</L>
-            <Input value={form.conta_bancaria_numero} onChange={e => f({ conta_bancaria_numero: e.target.value })} placeholder="00000-0" />
-          </div>
-          <div>
-            <L>Dígito</L>
-            <Input value={form.conta_bancaria_digito} onChange={e => f({ conta_bancaria_digito: e.target.value })} placeholder="0" maxLength={2} />
-          </div>
-        </div>
-      </Secao>
-
-      {/* ── Botão Salvar ─────────────────────────────────────────────────── */}
-      <div className="flex justify-end pt-4 mt-4 border-t">
-        <Button
-          size="sm"
-          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-          onClick={() => salvar.mutate()}
-          disabled={salvar.isPending}
+          )
+        })}
+        <button
+          type="button"
+          onClick={abrirInclusao}
+          className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border border-dashed border-fonti-primary px-4 text-sm font-semibold text-fonti-primary hover:bg-fonti-surface-warm"
         >
-          {salvar.isPending
-            ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Salvando...</>
-            : <><Check className="h-3.5 w-3.5 mr-1.5" />Salvar Dados da Pessoa</>
-          }
-        </Button>
+          <Plus className="h-4 w-4" /> Participante
+        </button>
       </div>
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0">
+          <p className="truncate text-base font-bold text-fonti-primary">{atual.pessoa.nome}</p>
+          <p className="text-xs text-gray-500">{rotuloAtual}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex min-h-[44px] items-center gap-2 text-sm text-gray-800">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[#253B29]"
+              checked={atual.compoe_renda}
+              disabled={alterarCompoe.isPending}
+              onChange={e => alterarCompoe.mutate(
+                { participacaoId: atual.id, compoe: e.target.checked },
+                { onError: (err) => toast.error(err instanceof Error ? err.message : 'Não foi possível salvar.') },
+              )}
+            />
+            Compõe renda
+          </label>
+          {atual.papel === 'coparticipante' && (
+            <button
+              type="button"
+              onClick={() => { void removerAtual() }}
+              disabled={remover.isPending}
+              className="min-h-[44px] rounded-lg border border-gray-300 px-3 text-sm font-semibold text-red-800 hover:bg-red-50"
+            >
+              Remover da proposta
+            </button>
+          )}
+        </div>
+      </div>
+
+      <FormularioPessoa
+        key={atual.pessoa.id}
+        pessoaId={atual.pessoa.id}
+        participantesDaProposta={opcoesConjuge}
+        onConjugeForaDaProposta={onConjugeForaDaProposta}
+        onBuscarConjuge={onBuscarConjuge}
+        onSujoChange={onSujoChange}
+      />
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-fonti-primary px-4 py-3 text-white">
+        <span className="text-sm">
+          Renda composta da proposta{' '}
+          <span className="text-fonti-accent-hover">
+            ({renda.participantes.filter(p => p.compoe_renda).map(p => primeiroNome(p.nome)).join(' + ') || 'ninguém'})
+          </span>
+        </span>
+        <span className="text-lg font-bold">{moeda(renda.total)}</span>
+      </div>
+
+      <AdicionarParticipanteModal
+        aberto={!!busca}
+        onFechar={() => setBusca(null)}
+        titulo={busca?.titulo ?? ''}
+        textoConfirmar={busca?.textoConfirmar ?? 'Confirmar'}
+        excluirIds={compra.map(p => p.pessoa.id)}
+        onConfirmar={async (e) => { if (busca) await busca.aoEscolher(e) }}
+      />
     </div>
   )
 }
