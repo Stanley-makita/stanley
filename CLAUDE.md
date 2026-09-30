@@ -628,6 +628,14 @@ no servidor/bot. Nenhum leitor novo pode ler `processo_compradores`, `processo_v
 `lead_vendedores`, `lead_coparticipantes` nem `leads/pessoas.conjuge_*` — essas tabelas deixam
 de ser escritas na Fase B2 e viram `_legado` na B3; um leitor novo nelas vai mostrar dado velho
 sem erro nenhum. Em SQL: `JOIN participacoes ... papel = 'titular'` (ver migration 328).
+**B2b (2026-10) — aba Pessoa do Lead com uma sub-aba por participante:** cada sub-aba é um
+`FormularioPessoa` (`src/components/pessoas/FormularioPessoa.tsx`, `key={pessoaId}`); incluir/remover
+participante grava `lead_coparticipantes` (hooks em `useMutacoesParticipantes.ts`), casamento vai por
+`POST /api/pessoas/[id]/conjuge` (ponteiros e regime/data nos DOIS lados; encerrar casamento de terceiro
+pede confirmação), e "compõe renda" definido à mão é a ÚNICA escrita direta no modelo novo:
+`PATCH /api/participacoes/[id]` → `participacoes.compoe_renda_manual` (migration 331), que a sincronização
+respeita e o negócio herda na conversão. Não criar outro caminho de incluir participante (a aba Crédito
+só lista). Negócios mantém os cards Compradores/Vendedores (decisão do usuário).
 **B2a (2026-10):** e-mail/telefone/estado civil/conta bancária de participante também vêm só da Pessoa
 (Clicksign, e-mail de confirmação, formulários sem overlay). O que a aba do Negócio ainda digita nas linhas
 antigas é copiado para a Pessoa pelo trigger (migration 329: só preenche vazio). Comunicação com comprador
