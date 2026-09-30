@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { pessoasDaProposta } from '@/lib/participantes/consultas'
+import { PAPEIS_VENDA } from '@/lib/participantes/tipos'
 
 /** Autentica pelo Bearer e confere que o lead é da empresa do usuário. */
 export async function resolverUsuarioELead(request: NextRequest, leadId: string) {
@@ -55,9 +57,9 @@ export async function carregarDocumentosDoLead(leadId: string, pessoaId: string 
   }
 }
 
+/** Vendedor e cônjuge do vendedor do lead (V2: participações). Lança se a consulta falhar. */
 export async function carregarVendedoresDoLead(leadId: string): Promise<string[]> {
-  const { data } = await supabase.from('lead_vendedores').select('pessoa_id').eq('lead_id', leadId)
-  return (data ?? []).map(v => v.pessoa_id as string)
+  return pessoasDaProposta(supabase, { tipo: 'lead', id: leadId }, PAPEIS_VENDA)
 }
 
 /** codigo do tipo → codigo da pasta sugerida (catalogo_tipos_documento). */

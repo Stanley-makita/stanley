@@ -9,6 +9,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { precisaClassificar, tipoPermitePularClassificacao } from './organizarPastas'
 import { inferirPastaSugerida } from '@/lib/documentos'
+import { pessoasDaProposta } from '@/lib/participantes/consultas'
+import { PAPEIS_VENDA } from '@/lib/participantes/tipos'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -344,11 +346,8 @@ export async function preencherPastaDeVinculosLeadSemPasta(documentoId: string, 
     if (!vinculos || vinculos.length === 0) return
 
     for (const vinculo of vinculos as { id: string; entidade_id: string }[]) {
-      const { data: vendedores } = await supabase
-        .from('lead_vendedores')
-        .select('pessoa_id')
-        .eq('lead_id', vinculo.entidade_id)
-      const pessoasVendedorasIds = (vendedores ?? []).map(v => v.pessoa_id as string)
+      // Vendedor e cônjuge do vendedor (V2: participações do lead).
+      const pessoasVendedorasIds = await pessoasDaProposta(supabase, { tipo: 'lead', id: vinculo.entidade_id }, PAPEIS_VENDA)
 
       const codigo = inferirPastaSugerida({
         documentoPessoaId,

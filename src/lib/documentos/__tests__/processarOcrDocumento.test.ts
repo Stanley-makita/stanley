@@ -91,13 +91,15 @@ vi.mock('@/lib/supabase/admin', () => {
     return q
   }
 
-  function tabelaLeadVendedores() {
+  function tabelaParticipacoes() {
     const filtros: Record<string, unknown> = {}
+    let papeis: unknown[] = []
     const q: Record<string, unknown> = {}
     q.select = () => q
     q.eq = (k: string, v: unknown) => { filtros[k] = v; return q }
+    q.in = (k: string, vs: unknown[]) => { if (k === 'papel') papeis = vs; return q }
     q.then = (resolve: (v: { data: unknown; error: null }) => void) => {
-      const ids = estado.vendedoresPorLead[filtros.lead_id as string] ?? []
+      const ids = papeis.includes('vendedor') ? (estado.vendedoresPorLead[filtros.lead_id as string] ?? []) : []
       resolve({ data: ids.map(id => ({ pessoa_id: id })), error: null })
     }
     return q
@@ -138,7 +140,7 @@ vi.mock('@/lib/supabase/admin', () => {
           case 'documentos': return tabelaDocumentos()
           case 'extracoes_ocr': return tabelaExtracoesOcr()
           case 'documento_vinculos': return tabelaDocumentoVinculos()
-          case 'lead_vendedores': return tabelaLeadVendedores()
+          case 'participacoes': return tabelaParticipacoes()
           case 'catalogo_tipos_documento': return tabelaCatalogoTipos()
           case 'catalogo_pastas_processo': return tabelaCatalogoPastas()
           default: throw new Error('tabela não mockada em processarOcrDocumento.test.ts: ' + tabela)

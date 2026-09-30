@@ -15,6 +15,8 @@ import { variantesTelefoneBR } from '@/lib/telefone'
 import { cpfValido } from '@/lib/cpf'
 import { garantirConversaOperador } from '@/lib/conversas/garantirConversaOperador'
 import { leadMaisRecenteDaPessoa } from '@/lib/participantes/leadDaPessoa'
+import { processosDaPessoa, titularDaProposta } from '@/lib/participantes/consultas'
+import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
 
 // Mesma pergunta usada pelo normalizador, mas com prefixo de re-ask
 const PERGUNTA_TIPO_CONSTRUCAO_REASK = PERGUNTA_TIPO_CONSTRUCAO
@@ -602,16 +604,15 @@ async function buscarProcessosAtivos(
   empresa_id: string,
   pessoa_id: string,
 ) {
-  const { data: compradorRows } = await supabase
-    .from('processo_compradores')
-    .select('processo_id')
-    .eq('empresa_id', empresa_id)
-    .eq('pessoa_id', pessoa_id)
-    .abortSignal(AbortSignal.timeout(10000))
-
-  if (!compradorRows?.length) return []
-
-  const processoIds = compradorRows.map((r) => r.processo_id)
+  // V2: qualquer papel de compra (titular, coparticipante, cônjuge anuente), não só a linha antiga do comprador.
+  let processoIds: string[]
+  try {
+    processoIds = await processosDaPessoa(supabase, empresa_id, pessoa_id, PAPEIS_COMPRA, { timeoutMs: 10000 })
+  } catch (e) {
+    console.error('[buscarProcessosAtivos] participacoes:', e)
+    return []
+  }
+  if (!processoIds.length) return []
 
   const { data: processos } = await supabase
     .from('processos')
@@ -630,14 +631,15 @@ async function buscarCompradorPrincipalProcesso(
   empresa_id: string,
   processo_id: string,
 ) {
-  const { data } = await supabase
-    .from('processo_compradores')
-    .select('pessoa_id, nome')
-    .eq('empresa_id', empresa_id)
-    .eq('processo_id', processo_id)
-    .eq('principal', true)
-    .maybeSingle()
-  return data ?? null
+  // V2: titular da proposta. Erro vira "sem comprador" (o bot ainda responde ao operador — mesmo
+  // comportamento de antes, quando a query sem checagem de erro devolvia null).
+  try {
+    const t = await titularDaProposta(supabase, { tipo: 'processo', id: processo_id }, { timeoutMs: 10000 })
+    return t ? { pessoa_id: t.pessoa_id, nome: t.nome } : null
+  } catch (e) {
+    console.error('[buscarCompradorPrincipalProcesso] titular:', e)
+    return null
+  }
 }
 
 function fmtValorProcesso(v: number | null): string {
