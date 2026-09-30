@@ -25,3 +25,23 @@ export interface ParticipanteCarregado {
   pessoa: PessoaRow
   conjuge: { pessoa: PessoaRow; relacionamento: RelacionamentoVigente } | null
 }
+
+/** Participante no formato de lista — compatível com o antigo `processo.compradores`/`vendedores`
+ *  (`id`, `nome`, `cpf`, `principal`, `pessoa_id`). `id` é o da participação (chave de lista). */
+export interface ParticipanteLista {
+  id: string
+  pessoa_id: string
+  nome: string
+  cpf: string | null
+  papel: PapelParticipacao
+  /** true só para o titular (equivale ao antigo processo_compradores.principal). */
+  principal: boolean
+}
+
+export const ROTULO_PAPEL: Record<PapelParticipacao, string> = {
+  titular: 'Titular',
+  coparticipante: 'Coparticipante',
+  conjuge_anuente: 'Cônjuge',
+  vendedor: 'Vendedor',
+  conjuge_vendedor: 'Cônjuge do vendedor',
+}
