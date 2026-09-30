@@ -27,6 +27,7 @@ function buildQuery(empresa_id: string, q: string, cpfParam: string, ids: string
       pessoa_telefones(id, telefone, principal, whatsapp, ativo)
     `, { count: 'exact' })
     .eq('empresa_id', empresa_id)
+    .is('deleted_at', null)
     .order('nome', { ascending: true })
     .range(offset, offset + pageSize - 1)
 
@@ -73,7 +74,9 @@ export async function GET(request: NextRequest) {
   // a mesma regra de carteira comercial da RLS de `pessoas` (ver migration
   // 20260724_186) precisa ser replicada manualmente: perfil comercial só
   // vê pessoas com lead atual (não excluído) onde ele é o responsável.
-  if (usuario.perfil === 'comercial' && papel !== 'vendedor') {
+  // Participante (coparticipante/cônjuge na aba Pessoa do lead) segue a decisão da spec V2:
+  // pode ser Pessoa de outra carteira — a resposta traz `cliente_de` para a tela avisar.
+  if (usuario.perfil === 'comercial' && papel !== 'vendedor' && papel !== 'participante') {
     const { data: leadsDaCarteira } = await supabase
       .from('leads')
       .select('pessoa_id')
@@ -99,5 +102,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erro ao buscar pessoas' }, { status: 500 })
   }
 
-  return NextResponse.json({ data, total: count ?? 0, page, pageSize })
+  let resultado: Array<Record<string, unknown> & { id: string }> = (data ?? []) as Array<Record<string, unknown> & { id: string }>
+  if (papel === 'participante' && resultado.length > 0) {
+    const { data: leadsAbertos, error: erroLeads } = await supabase
+      .from('leads')
+      .select('pessoa_id, responsavel:usuarios!responsavel_id(id, nome)')
+      .in('pessoa_id', resultado.map((p) => p.id))
+      .is('deleted_at', null)
+      .is('perdido_em', null)
+      .is('convertido_em', null)
+    if (erroLeads) console.error('[api/pessoas] erro ao buscar leads dos participantes:', erroLeads)
+    const donoDe = new Map<string, string>()
+    for (const l of (leadsAbertos ?? []) as Array<{ pessoa_id: string | null; responsavel: { id: string; nome: string } | { id: string; nome: string }[] | null }>) {
+      const r = Array.isArray(l.responsavel) ? l.responsavel[0] : l.responsavel
+      if (r && r.id !== usuario.id && l.pessoa_id) donoDe.set(l.pessoa_id, r.nome)
+    }
+    resultado = resultado.map((p) => ({ ...p, cliente_de: donoDe.get(p.id) ?? null }))
+  }
+
+  return NextResponse.json({ data: resultado, total: count ?? 0, page, pageSize })
 }
