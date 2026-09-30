@@ -610,6 +610,7 @@ chamadas por triggers nas tabelas antigas (`leads`, `lead_coparticipantes`, `lea
   (`src/lib/participantes/`). Código novo que precise de "quem participa desta proposta" usa
   `carregarParticipantes()`/`useParticipantes()`, nunca `conjuge_*`/`lead_coparticipantes`/`processo_compradores`.
 - Cônjuge em campos soltos vira Pessoa automaticamente (sync); CPF inválido é descartado (`cpf_valido`).
+- Editar os campos soltos do cônjuge (`pessoas.conjuge_*`, tela antiga) propaga para a Pessoa do cônjuge (`fn_pv2_pessoas`) só nos campos em que ela ainda espelha o valor antigo (nulo ou igual ao OLD); CPF só se válido e livre na empresa. Por isso a AbaPessoa grava `conjuge_cpf` no MESMO UPDATE de `conjuge_nome`/`estado_civil` (só o CPF do titular vai separado, por causa do UNIQUE).
 - Pessoa de operador é ignorada pela sync e recusada pelo trigger `trg_participacao_guard`.
 - Renda: fonte é a Pessoa; editar renda no lead (tela antiga) propaga para a Pessoa via `fn_pv2_leads`.
 - **Ordem de lançamento:** rodar no Supabase 324 → 325 → diagnóstico (`supabase/2026-10-02_diagnostico_participantes_v2.sql`, revisar com o usuário) → 326 → 327 (triggers + backfill), fora do horário comercial (a 327 trava 6 tabelas durante a transação e o backfill mexe em `updated_at`, o que reseta formulários abertos da AbaPessoa); só DEPOIS publicar o código (formulários, Crédito, vínculos e `*salva` leem `participacoes` e ficam vazios sem o backfill). Testes SQL em `supabase/testes/participantes_v2_*.sql` rodam com ROLLBACK.

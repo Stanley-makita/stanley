@@ -26,6 +26,9 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
       )
   );
 $$;
+-- A policy de pessoas chama a função como o papel que consulta (authenticated); anon nunca.
+REVOKE EXECUTE ON FUNCTION pessoa_visivel_por_participacao(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION pessoa_visivel_por_participacao(uuid) TO authenticated, service_role;
 
 -- Mesma policy da migration 320 + a nova condição.
 DROP POLICY IF EXISTS "pessoas_empresa_select" ON pessoas;

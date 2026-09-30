@@ -17,6 +17,8 @@ BEGIN
   r := (s * 10) % 11; IF r = 10 THEN r := 0; END IF;
   RETURN r = substr(d, 11, 1)::int;
 END $$;
+REVOKE EXECUTE ON FUNCTION cpf_valido(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION cpf_valido(text) TO authenticated, service_role;
 
 -- Mesma comparação da migration 314 (telefone canônico do usuário interno ativo).
 CREATE OR REPLACE FUNCTION pessoa_e_de_operador(p_pessoa_id uuid) RETURNS boolean
@@ -32,6 +34,9 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
       )
   );
 $$;
+-- SECURITY DEFINER lê usuarios/pessoa_telefones: nunca exposto a anon (RPC pública).
+REVOKE EXECUTE ON FUNCTION pessoa_e_de_operador(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION pessoa_e_de_operador(uuid) TO authenticated, service_role;
 
 CREATE TABLE IF NOT EXISTS pessoa_relacionamentos (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

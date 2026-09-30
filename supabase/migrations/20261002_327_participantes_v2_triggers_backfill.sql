@@ -46,6 +46,7 @@ BEGIN
       renda_formal   = coalesce(renda_formal, NEW.renda_formal),
       renda_informal = coalesce(renda_informal, NEW.renda_informal)
     WHERE id = NEW.pessoa_id
+      AND NOT pessoa_e_de_operador(NEW.pessoa_id)
       AND ((renda_formal IS NULL AND NEW.renda_formal IS NOT NULL) OR (renda_informal IS NULL AND NEW.renda_informal IS NOT NULL));
   ELSIF TG_OP = 'UPDATE' AND NEW.pessoa_id IS NOT NULL THEN
     -- Renda editada no lead (tela antiga) → Pessoa (fonte nova). Coluna a coluna: não sobrescreve
@@ -55,6 +56,7 @@ BEGIN
         renda_formal   = CASE WHEN NEW.renda_formal   IS DISTINCT FROM OLD.renda_formal   THEN NEW.renda_formal   ELSE renda_formal   END,
         renda_informal = CASE WHEN NEW.renda_informal IS DISTINCT FROM OLD.renda_informal THEN NEW.renda_informal ELSE renda_informal END
       WHERE id = NEW.pessoa_id
+        AND NOT pessoa_e_de_operador(NEW.pessoa_id)
         AND ((NEW.renda_formal   IS DISTINCT FROM OLD.renda_formal   AND renda_formal   IS DISTINCT FROM NEW.renda_formal)
           OR (NEW.renda_informal IS DISTINCT FROM OLD.renda_informal AND renda_informal IS DISTINCT FROM NEW.renda_informal));
     END IF;
@@ -79,6 +81,8 @@ BEGIN
           renda_formal   = CASE WHEN NEW.conjuge_renda_formal   IS DISTINCT FROM OLD.conjuge_renda_formal   THEN NEW.conjuge_renda_formal   ELSE renda_formal   END,
           renda_informal = CASE WHEN NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal THEN NEW.conjuge_renda_informal ELSE renda_informal END
         WHERE id = v_conj
+          AND NOT pessoa_e_de_operador(v_conj)
+          AND NOT pessoa_e_de_operador(NEW.pessoa_id)
           AND ((NEW.conjuge_renda_formal   IS DISTINCT FROM OLD.conjuge_renda_formal   AND renda_formal   IS DISTINCT FROM NEW.conjuge_renda_formal)
             OR (NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal AND renda_informal IS DISTINCT FROM NEW.conjuge_renda_informal));
       END IF;
@@ -139,7 +143,7 @@ CREATE TRIGGER trg_pv2_processo_vendedores AFTER INSERT OR UPDATE OR DELETE ON p
 
 CREATE OR REPLACE FUNCTION fn_pv2_pessoas() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE r record;
+DECLARE r record; c pessoas%ROWTYPE; v_nome text; v_cpf text; v_nasc date; v_prof text; v_rf numeric; v_ri numeric;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NULL; END IF;
   IF current_setting('pv2.backfill', true) = 'on' THEN RETURN NULL; END IF;
@@ -166,8 +170,12 @@ BEGIN
 
   -- Vínculo explícito (tela antiga aponta pra um cônjuge novo/diferente): só isso recria um
   -- relacionamento encerrado — pv2_garantir_relacionamento(..., true) ignora o histórico de fim.
-  IF NEW.conjuge_pessoa_id IS NOT NULL AND NEW.conjuge_pessoa_id IS DISTINCT FROM OLD.conjuge_pessoa_id
-     AND coalesce(NEW.estado_civil, '') IN ('casado', 'uniao_estavel') THEN
+  -- Também é explícito: estado civil voltando de não-casado para casado/união estável com o MESMO
+  -- ponteiro (não nulo, inalterado) — ex.: divorciado → casado de novo com a mesma Pessoa.
+  IF NEW.conjuge_pessoa_id IS NOT NULL
+     AND coalesce(NEW.estado_civil, '') IN ('casado', 'uniao_estavel')
+     AND (NEW.conjuge_pessoa_id IS DISTINCT FROM OLD.conjuge_pessoa_id
+          OR coalesce(OLD.estado_civil, '') NOT IN ('casado', 'uniao_estavel')) THEN
     UPDATE pessoa_relacionamentos SET data_fim = current_date
     WHERE data_fim IS NULL
       AND NEW.id IN (pessoa_a_id, pessoa_b_id)
@@ -197,6 +205,73 @@ BEGIN
       AND pessoa_b_id = greatest(NEW.id, NEW.conjuge_pessoa_id);
   END IF;
 
+  -- Campos soltos do cônjuge editados na tela antiga (AbaPessoa) → Pessoa do cônjuge (C).
+  -- Por campo, só enquanto C ainda ESPELHA o valor solto antigo (campo de C nulo ou igual ao OLD):
+  -- nunca sobrescreve um dado que C recebeu por outro caminho (ex.: OCR confirmado no cadastro
+  -- dele). Só com estado civil casado/união estável: "descasar" limpa os campos soltos e não pode
+  -- apagar os dados do ex. C excluída, de outra empresa ou de operador nunca é tocada.
+  -- UM único UPDATE em C: fn_sincronizar_pessoa_conjuge (migration 190) espelha C de volta nos
+  -- campos soltos (nome/cpf/nascimento) uma vez só, já com os valores finais; o guard de
+  -- profundidade (pg_trigger_depth() > 1) impede que isso volte a disparar esta função.
+  IF NEW.conjuge_pessoa_id IS NOT NULL
+     AND coalesce(NEW.estado_civil, '') IN ('casado', 'uniao_estavel')
+     AND (NEW.conjuge_nome IS DISTINCT FROM OLD.conjuge_nome
+       OR NEW.conjuge_cpf IS DISTINCT FROM OLD.conjuge_cpf
+       OR NEW.conjuge_data_nascimento IS DISTINCT FROM OLD.conjuge_data_nascimento
+       OR NEW.conjuge_profissao IS DISTINCT FROM OLD.conjuge_profissao
+       OR NEW.conjuge_renda_formal IS DISTINCT FROM OLD.conjuge_renda_formal
+       OR NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal)
+     AND NOT pessoa_e_de_operador(NEW.conjuge_pessoa_id) THEN
+    SELECT * INTO c FROM pessoas
+    WHERE id = NEW.conjuge_pessoa_id AND deleted_at IS NULL AND empresa_id = NEW.empresa_id;
+    IF FOUND THEN
+      v_nome := c.nome; v_cpf := c.cpf; v_nasc := c.data_nascimento; v_prof := c.profissao;
+      v_rf := c.renda_formal; v_ri := c.renda_informal;
+      -- Nome: nunca grava vazio (pessoas.nome é obrigatório). 'Cônjuge sem nome' é o nome que
+      -- pv2_pessoa_de_campos_soltos dá quando o nome solto estava vazio — conta como espelho de vazio.
+      IF NEW.conjuge_nome IS DISTINCT FROM OLD.conjuge_nome AND coalesce(trim(NEW.conjuge_nome), '') <> ''
+         AND (c.nome IS NULL
+           OR upper(trim(c.nome)) = upper(trim(coalesce(OLD.conjuge_nome, '')))
+           OR (coalesce(trim(OLD.conjuge_nome), '') = '' AND c.nome = 'Cônjuge sem nome')) THEN
+        v_nome := NEW.conjuge_nome;
+      END IF;
+      -- CPF: só válido, gravado só com dígitos, e só se nenhuma OUTRA Pessoa ativa da empresa já
+      -- tiver esses dígitos (senão C fica como está — o diagnóstico mostra a divergência).
+      IF NEW.conjuge_cpf IS DISTINCT FROM OLD.conjuge_cpf AND cpf_valido(NEW.conjuge_cpf)
+         AND (c.cpf IS NULL
+           OR regexp_replace(c.cpf, '\D', '', 'g') = regexp_replace(coalesce(OLD.conjuge_cpf, ''), '\D', '', 'g'))
+         AND NOT EXISTS (
+           SELECT 1 FROM pessoas o
+           WHERE o.empresa_id = NEW.empresa_id AND o.deleted_at IS NULL AND o.id <> c.id
+             AND regexp_replace(coalesce(o.cpf, ''), '\D', '', 'g') = regexp_replace(NEW.conjuge_cpf, '\D', '', 'g')
+         ) THEN
+        v_cpf := regexp_replace(NEW.conjuge_cpf, '\D', '', 'g');
+      END IF;
+      IF NEW.conjuge_data_nascimento IS DISTINCT FROM OLD.conjuge_data_nascimento
+         AND (c.data_nascimento IS NULL OR c.data_nascimento = OLD.conjuge_data_nascimento) THEN
+        v_nasc := NEW.conjuge_data_nascimento;
+      END IF;
+      IF NEW.conjuge_profissao IS DISTINCT FROM OLD.conjuge_profissao
+         AND (c.profissao IS NULL OR c.profissao = OLD.conjuge_profissao) THEN
+        v_prof := NEW.conjuge_profissao;
+      END IF;
+      IF NEW.conjuge_renda_formal IS DISTINCT FROM OLD.conjuge_renda_formal
+         AND (c.renda_formal IS NULL OR c.renda_formal = OLD.conjuge_renda_formal) THEN
+        v_rf := NEW.conjuge_renda_formal;
+      END IF;
+      IF NEW.conjuge_renda_informal IS DISTINCT FROM OLD.conjuge_renda_informal
+         AND (c.renda_informal IS NULL OR c.renda_informal = OLD.conjuge_renda_informal) THEN
+        v_ri := NEW.conjuge_renda_informal;
+      END IF;
+      IF (v_nome, v_cpf, v_nasc, v_prof, v_rf, v_ri)
+         IS DISTINCT FROM (c.nome, c.cpf, c.data_nascimento, c.profissao, c.renda_formal, c.renda_informal) THEN
+        UPDATE pessoas SET nome = v_nome, cpf = v_cpf, data_nascimento = v_nasc, profissao = v_prof,
+                           renda_formal = v_rf, renda_informal = v_ri
+        WHERE id = c.id;
+      END IF;
+    END IF;
+  END IF;
+
   PERFORM pv2_sincronizar_relacionamento_pessoa(NEW.id);
   FOR r IN SELECT id FROM leads WHERE pessoa_id = NEW.id AND deleted_at IS NULL LOOP
     PERFORM pv2_sincronizar_lead(r.id);
@@ -217,6 +292,7 @@ END $$;
 DROP TRIGGER IF EXISTS trg_pv2_pessoas ON pessoas;
 CREATE TRIGGER trg_pv2_pessoas AFTER UPDATE OF
   conjuge_pessoa_id, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf,
+  conjuge_data_nascimento, conjuge_profissao, conjuge_renda_formal, conjuge_renda_informal,
   renda_formal, renda_informal
   ON pessoas FOR EACH ROW EXECUTE FUNCTION fn_pv2_pessoas();
 
@@ -235,6 +311,7 @@ FROM (
   ORDER BY pessoa_id, created_at DESC
 ) x
 WHERE x.pessoa_id = p.id
+  AND NOT pessoa_e_de_operador(p.id)
   AND ((p.renda_formal IS NULL AND x.renda_formal IS NOT NULL) OR (p.renda_informal IS NULL AND x.renda_informal IS NOT NULL));
 
 DO $$

@@ -4,6 +4,7 @@ DECLARE
   v_emp uuid; v_fase uuid; v_origem lead_origem; v_modal modalidade_processo;
   v_a uuid; v_b uuid; v_c uuid; v_lead uuid; v_proc uuid; n int;
   v_t uuid; v_c2 uuid; v_lead2 uuid;
+  v_t3 uuid; v_x uuid; v_t4 uuid; v_c4 uuid; v_d4 uuid; v_lead4 uuid; v_lead_c4 uuid;
 BEGIN
   SELECT id INTO v_emp FROM empresas LIMIT 1;
   SELECT id INTO v_fase FROM fases WHERE empresa_id = v_emp LIMIT 1;
@@ -115,6 +116,60 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead2 AND pessoa_id = v_c2 AND papel = 'conjuge_anuente' AND NOT compoe_renda) THEN RAISE EXCEPTION 'cônjuge sem renda deveria ter compoe_renda=false'; END IF;
   UPDATE pessoas SET renda_formal = 3000 WHERE id = v_c2;
   IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead2 AND pessoa_id = v_c2 AND papel = 'conjuge_anuente' AND compoe_renda) THEN RAISE EXCEPTION 'cônjuge com renda nova não passou a compor renda'; END IF;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════
+  -- Final fix #1 (Critical): save em 2 passos da AbaPessoa antiga — 1º UPDATE com estado civil +
+  -- nome do cônjuge (sync cria a Pessoa do cônjuge SEM CPF), 2º UPDATE só com conjuge_cpf.
+  -- O CPF (e edições seguintes dos campos soltos) tem que chegar na Pessoa do cônjuge.
+  -- ══════════════════════════════════════════════════════════════════════════════════
+  IF EXISTS (SELECT 1 FROM pessoas WHERE empresa_id = v_emp AND deleted_at IS NULL
+             AND regexp_replace(coalesce(cpf, ''), '\D', '', 'g') = '71428793860') THEN
+    RAISE EXCEPTION 'pré-condição: CPF de teste 71428793860 já existe nesta empresa — troque por outro CPF válido livre';
+  END IF;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2T T3') RETURNING id INTO v_t3;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_nome = 'PV2T X' WHERE id = v_t3;
+  SELECT conjuge_pessoa_id INTO v_x FROM pessoas WHERE id = v_t3;
+  IF v_x IS NULL THEN RAISE EXCEPTION '2 passos: sync não criou a Pessoa do cônjuge no 1º UPDATE'; END IF;
+  IF (SELECT cpf FROM pessoas WHERE id = v_x) IS NOT NULL THEN RAISE EXCEPTION '2 passos: setup inesperado, cônjuge já nasceu com CPF'; END IF;
+  UPDATE pessoas SET conjuge_cpf = '71428793860' WHERE id = v_t3;
+  IF (SELECT cpf FROM pessoas WHERE id = v_x) IS DISTINCT FROM '71428793860' THEN RAISE EXCEPTION '2 passos: CPF do cônjuge não chegou na Pessoa do cônjuge'; END IF;
+  UPDATE pessoas SET conjuge_nome = 'PV2T X2' WHERE id = v_t3;
+  IF (SELECT nome FROM pessoas WHERE id = v_x) IS DISTINCT FROM 'PV2T X2' THEN RAISE EXCEPTION '2 passos: edição do nome do cônjuge não seguiu pra Pessoa do cônjuge'; END IF;
+  UPDATE pessoas SET conjuge_renda_formal = 2500 WHERE id = v_t3;
+  IF (SELECT renda_formal FROM pessoas WHERE id = v_x) IS DISTINCT FROM 2500 THEN RAISE EXCEPTION '2 passos: renda do cônjuge não seguiu pra Pessoa do cônjuge'; END IF;
+  SELECT count(*) INTO n FROM pessoas WHERE empresa_id = v_emp AND nome IN ('PV2T X', 'PV2T X2');
+  IF n IS DISTINCT FROM 1 THEN RAISE EXCEPTION '2 passos: esperava 1 Pessoa de cônjuge, achou %', n; END IF;
+  -- dado que o cônjuge recebeu por OUTRO caminho não é sobrescrito pelo campo solto
+  UPDATE pessoas SET profissao = 'Engenheira' WHERE id = v_x;
+  UPDATE pessoas SET conjuge_profissao = 'Professora' WHERE id = v_t3;
+  IF (SELECT profissao FROM pessoas WHERE id = v_x) IS DISTINCT FROM 'Engenheira' THEN RAISE EXCEPTION '2 passos: campo solto sobrescreveu dado próprio do cônjuge'; END IF;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════
+  -- Final fix #3: divorciado → casado de novo com o MESMO ponteiro (inalterado) é vínculo
+  -- explícito e recria o relacionamento; e o ponteiro da Pessoa pra um par encerrado sem
+  -- vigente não faz o ex voltar como cônjuge no lead dele.
+  -- ══════════════════════════════════════════════════════════════════════════════════
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2T T4') RETURNING id INTO v_t4;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2T C4') RETURNING id INTO v_c4;
+  INSERT INTO leads (empresa_id, nome, telefone, fase_id, origem, pessoa_id)
+    VALUES (v_emp, 'PV2T T4 LEAD', '5544900000005', v_fase, v_origem, v_t4) RETURNING id INTO v_lead4;
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_c4 WHERE id = v_t4;
+  IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead4 AND pessoa_id = v_c4 AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'recasar: setup, C4 não entrou no lead'; END IF;
+  UPDATE pessoas SET estado_civil = 'divorciado' WHERE id = v_t4;   -- ponteiro fica
+  IF EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND v_t4 IN (pessoa_a_id, pessoa_b_id)) THEN RAISE EXCEPTION 'recasar: divórcio não encerrou'; END IF;
+  IF EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead4 AND pessoa_id = v_c4) THEN RAISE EXCEPTION 'recasar: ex continuou no lead após divórcio'; END IF;
+  UPDATE pessoas SET estado_civil = 'casado' WHERE id = v_t4;       -- mesmo ponteiro, inalterado
+  IF NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(v_t4, v_c4) AND pessoa_b_id = greatest(v_t4, v_c4)) THEN RAISE EXCEPTION 'recasar: divorciado→casado com o mesmo ponteiro não recriou o relacionamento'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead4 AND pessoa_id = v_c4 AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'recasar: C4 não voltou ao lead'; END IF;
+  -- C4 (casada, ponteiro → T4) tem lead próprio; T4 se casa com D4 → par T4/C4 encerrado.
+  UPDATE pessoas SET estado_civil = 'casado', conjuge_pessoa_id = v_t4 WHERE id = v_c4;
+  INSERT INTO leads (empresa_id, nome, telefone, fase_id, origem, pessoa_id)
+    VALUES (v_emp, 'PV2T C4 LEAD', '5544900000006', v_fase, v_origem, v_c4) RETURNING id INTO v_lead_c4;
+  IF NOT EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead_c4 AND pessoa_id = v_t4 AND papel = 'conjuge_anuente') THEN RAISE EXCEPTION 'ponteiro encerrado: setup, T4 não entrou no lead de C4'; END IF;
+  INSERT INTO pessoas (empresa_id, nome) VALUES (v_emp, 'PV2T D4') RETURNING id INTO v_d4;
+  UPDATE pessoas SET conjuge_pessoa_id = v_d4 WHERE id = v_t4;
+  IF NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(v_t4, v_d4) AND pessoa_b_id = greatest(v_t4, v_d4)) THEN RAISE EXCEPTION 'ponteiro encerrado: T4/D4 não criou relacionamento'; END IF;
+  IF EXISTS (SELECT 1 FROM participacoes WHERE lead_id = v_lead_c4 AND pessoa_id = v_t4) THEN RAISE EXCEPTION 'ponteiro encerrado: T4 continuou cônjuge no lead de C4 (pessoas(C4).conjuge_pessoa_id aponta pra par encerrado)'; END IF;
 
   RAISE NOTICE 'OK: triggers participantes v2';
 END $$;

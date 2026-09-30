@@ -104,3 +104,19 @@ JOIN pessoas p ON p.empresa_id = v.empresa_id AND p.deleted_at IS NULL
   AND regexp_replace(coalesce(p.cpf, ''), '\D', '', 'g') = regexp_replace(coalesce(v.cpf, ''), '\D', '', 'g')
   AND regexp_replace(coalesce(v.cpf, ''), '\D', '', 'g') <> ''
 WHERE v.pessoa_id IS NULL AND pessoa_e_de_operador(p.id);
+
+-- 12. Nome solto de cônjuge com cara de placeholder ("-", "X", "NÃO INFORMADO", < 3 letras...)
+-- em leads/pessoas ainda sem Pessoa de cônjuge vinculada. O backfill (pv2_sincronizar_lead /
+-- pv2_sincronizar_relacionamento_pessoa, quando o estado civil é casado/união estável) transforma
+-- esses nomes em Pessoas de verdade — limpar/corrigir o campo solto ANTES de rodar a 327.
+SELECT 'lead' AS origem, l.id, l.nome AS titular, l.estado_civil, l.conjuge_nome, l.conjuge_cpf
+FROM leads l
+WHERE l.deleted_at IS NULL AND l.conjuge_pessoa_id IS NULL AND l.conjuge_nome IS NOT NULL
+  AND (length(trim(l.conjuge_nome)) < 3
+    OR upper(trim(l.conjuge_nome)) IN ('NAO INFORMADO', 'NÃO INFORMADO', '-', '--', 'X', 'N/A', 'NA', 'SEM'))
+UNION ALL
+SELECT 'pessoa', p.id, p.nome, p.estado_civil, p.conjuge_nome, p.conjuge_cpf
+FROM pessoas p
+WHERE p.deleted_at IS NULL AND p.conjuge_pessoa_id IS NULL AND p.conjuge_nome IS NOT NULL
+  AND (length(trim(p.conjuge_nome)) < 3
+    OR upper(trim(p.conjuge_nome)) IN ('NAO INFORMADO', 'NÃO INFORMADO', '-', '--', 'X', 'N/A', 'NA', 'SEM'));

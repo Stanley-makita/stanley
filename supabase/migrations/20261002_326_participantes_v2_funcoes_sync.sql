@@ -41,8 +41,9 @@ BEGIN
       RETURN NULL;
     END IF;
   END IF;
-  INSERT INTO pessoas (empresa_id, nome, cpf, data_nascimento, profissao, renda_formal, renda_informal)
-  VALUES (p_empresa_id, coalesce(nullif(trim(p_nome), ''), 'Cônjuge sem nome'), v_cpf, p_nascimento, p_profissao, p_renda_formal, p_renda_informal)
+  -- tipo = 'cliente' igual à rota vincular-conjuge; status_identidade fica no default da tabela.
+  INSERT INTO pessoas (empresa_id, nome, cpf, data_nascimento, profissao, renda_formal, renda_informal, tipo)
+  VALUES (p_empresa_id, coalesce(nullif(trim(p_nome), ''), 'Cônjuge sem nome'), v_cpf, p_nascimento, p_profissao, p_renda_formal, p_renda_informal, 'cliente')
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;
@@ -121,6 +122,8 @@ CREATE OR REPLACE FUNCTION pv2_sincronizar_relacionamento_pessoa(p_pessoa_id uui
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE p pessoas%ROWTYPE; v_conj uuid;
 BEGIN
+  -- Pessoa de operador nunca ganha cônjuge/relacionamento pela sync (nem Pessoa nova por campos soltos).
+  IF pessoa_e_de_operador(p_pessoa_id) THEN RETURN; END IF;
   SELECT * INTO p FROM pessoas WHERE id = p_pessoa_id AND deleted_at IS NULL;
   IF NOT FOUND THEN RETURN; END IF;
   v_conj := p.conjuge_pessoa_id;
@@ -196,7 +199,7 @@ $$;
 CREATE OR REPLACE FUNCTION pv2_sincronizar_lead(p_lead_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  l leads%ROWTYPE; v_conj uuid; v_estado text; v_conj_de_campos_lead boolean := false;
+  l leads%ROWTYPE; v_conj uuid; v_estado text; v_conj_de_campos_lead boolean := false; v_titular_operador boolean := false;
   v_pessoas uuid[] := '{}'; v_papeis text[] := '{}'; v_renda boolean[] := '{}'; v_ordens int[] := '{}';
   r record; i int;
 BEGIN
@@ -208,12 +211,26 @@ BEGIN
   -- leads.conjuge_pessoa_id ainda aponte pro ex (senão a sync "recasaria" a pessoa).
   -- Relacionamento encerrado nunca é recriado implicitamente: um ponteiro de lead ou campos
   -- soltos que ainda apontam/batem com um ex são descartados, não viram cônjuge de novo.
-  IF l.pessoa_id IS NOT NULL THEN
+  -- Titular que é Pessoa de OPERADOR (lead criado pelo WhatsApp do comercial): sem derivação de
+  -- cônjuge e sem nenhuma escrita de volta (leads.conjuge_pessoa_id / pessoas.conjuge_pessoa_id);
+  -- o titular em si é filtrado por pv2_gravar_participacoes. Coparticipantes/vendedores seguem.
+  v_titular_operador := l.pessoa_id IS NOT NULL AND pessoa_e_de_operador(l.pessoa_id);
+  IF l.pessoa_id IS NOT NULL AND NOT v_titular_operador THEN
     PERFORM pv2_sincronizar_relacionamento_pessoa(l.pessoa_id);
     SELECT conjuge_pessoa_id, estado_civil INTO v_conj, v_estado FROM pessoas WHERE id = l.pessoa_id AND deleted_at IS NULL;
+    -- Mesmo critério do ponteiro do lead (abaixo): ponteiro da Pessoa para um par ENCERRADO sem
+    -- linha VIGENTE não é cônjuge (ex.: desvínculo que não limpou o ponteiro).
+    IF v_conj IS NOT NULL
+       AND EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NOT NULL AND pessoa_a_id = least(l.pessoa_id, v_conj) AND pessoa_b_id = greatest(l.pessoa_id, v_conj))
+       AND NOT EXISTS (SELECT 1 FROM pessoa_relacionamentos WHERE data_fim IS NULL AND pessoa_a_id = least(l.pessoa_id, v_conj) AND pessoa_b_id = greatest(l.pessoa_id, v_conj))
+    THEN
+      v_conj := NULL;
+    END IF;
   END IF;
   v_estado := coalesce(v_estado, l.estado_civil);
-  IF v_estado IN ('casado', 'uniao_estavel') THEN
+  IF v_titular_operador THEN
+    v_conj := NULL;
+  ELSIF v_estado IN ('casado', 'uniao_estavel') THEN
     IF v_conj IS NULL AND l.conjuge_pessoa_id IS NOT NULL THEN
       v_conj := l.conjuge_pessoa_id;
       -- Só descarta o ponteiro do lead quando o par está de fato ENCERRADO (existe linha com

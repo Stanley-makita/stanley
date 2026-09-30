@@ -297,10 +297,11 @@ export function AbaPessoa({ lead }: Props) {
         await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
       }
 
-      // 1. Atualizar pessoas (CPF separado para não bloquear em UNIQUE)
+      // 1. Atualizar pessoas (CPF do TITULAR separado para não bloquear em UNIQUE).
+      // conjuge_cpf NÃO tem UNIQUE e vai no mesmo UPDATE de conjuge_nome/estado_civil: se fosse
+      // separado, a sync (fn_pv2_pessoas) criaria a Pessoa do cônjuge sem CPF no 1º UPDATE.
       const payloadSemCpf = { ...payload } as Record<string, unknown>
       delete payloadSemCpf['cpf']
-      delete payloadSemCpf['conjuge_cpf']
 
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
@@ -308,10 +309,6 @@ export function AbaPessoa({ lead }: Props) {
       if (payload.cpf) {
         const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
         if (errCpf) console.warn('[aba-pessoa] CPF não salvo (conflito):', errCpf.message)
-      }
-      if (payload.conjuge_cpf) {
-        const { error: errCpfC } = await supabase.from('pessoas').update({ conjuge_cpf: payload.conjuge_cpf }).eq('id', pessoaId)
-        if (errCpfC) console.warn('[aba-pessoa] CPF cônjuge não salvo (conflito):', errCpfC.message)
       }
 
       // 2. Propagar para leads
