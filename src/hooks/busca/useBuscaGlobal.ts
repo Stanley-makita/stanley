@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { ROTULO_PAPEL, type PapelParticipacao } from '@/lib/participantes/tipos'
 
 export type SituacaoPessoa = 'minha_carteira' | 'ativo_outro_comercial' | 'sem_atendimento_ativo'
 
@@ -114,13 +115,16 @@ export function useBuscaGlobal() {
           buscaPessoas,
         ])
 
-        // Busca via cônjuge — requer migration 094 aplicada no Supabase
-        const { data: conjugeData } = await supabase
-          .from('leads')
-          .select('id, nome, telefone, cpf, fase:fases!fase_id(nome, cor), conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf)')
+        // Leads onde a pessoa buscada é participante não-titular (coparticipante/cônjuge) — V2.
+        // O termo filtra no banco (antes: 6 leads quaisquer com cônjuge, filtrados depois no cliente).
+        const { data: participanteData } = await supabase
+          .from('participacoes')
+          .select('papel, pessoa:pessoas!pessoa_id!inner(id, nome, cpf, deleted_at), lead:leads!lead_id!inner(id, nome, deleted_at, fase:fases!fase_id(nome, cor))')
           .eq('empresa_id', empresa)
-          .is('deleted_at', null)
-          .not('conjuge_pessoa_id', 'is', null)
+          .in('papel', ['coparticipante', 'conjuge_anuente'])
+          .is('pessoa.deleted_at', null)
+          .is('lead.deleted_at', null)
+          .or(`nome.ilike.${q},cpf.ilike.${q}`, { referencedTable: 'pessoa' })
           .limit(6)
           .then(r => r.error ? { data: null } : r)
 
@@ -206,36 +210,33 @@ export function useBuscaGlobal() {
           }
         })
 
-        // Leads encontrados via cônjuge: filtrar client-side pelo termo
-        const termoLower = termo.toLowerCase()
-        const leadsViaConjuge: ResultadoBusca[] = (conjugeData ?? [])
-          .filter((l: any) => {
-            const c = Array.isArray(l.conjuge_pessoa) ? l.conjuge_pessoa[0] : l.conjuge_pessoa
-            if (!c) return false
-            return (
-              c.nome?.toLowerCase().includes(termoLower) ||
-              c.cpf?.includes(termo.replace(/\D/g, ''))
-            )
-          })
-          .filter((l: any) => {
-            const faseNome = Array.isArray(l.fase) ? l.fase[0]?.nome : l.fase?.nome
+        // Leads encontrados via participante (coparticipante/cônjuge)
+        const leadsViaConjuge: ResultadoBusca[] = (participanteData ?? [])
+          .map((row: any) => ({
+            papel: row.papel as PapelParticipacao,
+            pessoa: Array.isArray(row.pessoa) ? row.pessoa[0] : row.pessoa,
+            lead: Array.isArray(row.lead) ? row.lead[0] : row.lead,
+          }))
+          .filter(({ pessoa, lead }) => {
+            if (!pessoa || !lead) return false
+            const faseNome = Array.isArray(lead.fase) ? lead.fase[0]?.nome : lead.fase?.nome
             return !faseExcluida(faseNome)
           })
-          .map((l: any) => {
-            const c = Array.isArray(l.conjuge_pessoa) ? l.conjuge_pessoa[0] : l.conjuge_pessoa
-            const faseNome = Array.isArray(l.fase) ? l.fase[0]?.nome : l.fase?.nome
-            const faseCor  = Array.isArray(l.fase) ? l.fase[0]?.cor  : l.fase?.cor
-            // Não duplicar com leads já encontrados pela query principal
+          .map(({ papel, pessoa, lead }) => {
+            const faseNome = Array.isArray(lead.fase) ? lead.fase[0]?.nome : lead.fase?.nome
+            const faseCor  = Array.isArray(lead.fase) ? lead.fase[0]?.cor  : lead.fase?.cor
             return {
               tipo:      'lead' as const,
-              id:        l.id,
-              titulo:    l.nome,
-              subtitulo: `via cônjuge: ${c?.nome ?? ''}`,
+              id:        lead.id,
+              titulo:    lead.nome,
+              subtitulo: `via ${ROTULO_PAPEL[papel].toLowerCase()}: ${pessoa.nome ?? ''}`,
               fase:      faseNome,
               faseCor,
             }
           })
-          .filter((r: ResultadoBusca) => !leads.find(l => l.id === r.id))
+          // Não duplicar com leads já encontrados pela query principal, nem o mesmo lead 2x (2 participantes batendo)
+          .filter((r: ResultadoBusca, i: number, arr: ResultadoBusca[]) =>
+            !leads.find(l => l.id === r.id) && arr.findIndex(x => x.id === r.id) === i)
 
         // Corretor / Imobiliária-Construtora / Parceiro comercial: acha a
         // entidade pelo nome, depois todos os leads/processos vinculados a
