@@ -50,44 +50,29 @@ beforeEach(() => {
 })
 
 describe('buscarDadosFormulario (processo)', () => {
-  it('campos não-nulos das linhas antigas vencem os da Pessoa; nulos/vazios não apagam', async () => {
+  it('dados de compradores e vendedores vêm só da Pessoa; linhas antigas são ignoradas', async () => {
     const { buscarDadosFormulario } = await import('../dados')
     const d = await buscarDadosFormulario('p1')
 
     expect(d.compradores).toHaveLength(1)
-    expect(d.compradores[0].email).toBe('heitor@antigo')          // antigo vence
-    expect(d.compradores[0].telefone).toBe('44911111111')          // antigo nulo → Pessoa
+    expect(d.compradores[0].email).toBe('heitor@pessoa')
+    expect(d.compradores[0].telefone).toBe('44911111111')
 
     expect(d.vendedores).toHaveLength(1)
     const v = d.vendedores[0]
-    expect(v.banco).toBe('Caixa')         // antigo vence
-    expect(v.agencia).toBe('0001')        // antigo nulo → Pessoa
-    expect(v.conta).toBe('123')
-    expect(v.email).toBe('vend@antigo')
-    expect(v.telefone).toBe('44922222222')
-    expect(v.estado_civil).toBe('casado')
-    expect(v.conjuge_nome).toBe('Ana')
-    expect(v.conjuge_cpf).toBeNull()      // '' não sobrescreve
+    expect(v.banco).toBe('Itaú')
+    expect(v.agencia).toBe('0001')
+    expect(v.conta).toBe('999')
+    expect(v.email).toBeNull()
+    expect(v.estado_civil).toBe('solteiro')
+    expect(v.conjuge_nome).toBeNull()
   })
 
-  it('linha antiga de outra Pessoa não vaza', async () => {
-    estado.tabelas.processo_vendedores = [{ processo_id: 'p1', pessoa_id: 'outra', banco: 'BB', email: 'x@x' }]
+  it('não consulta as tabelas antigas (erro nelas não afeta o formulário)', async () => {
+    estado.erros.processo_compradores = 'não deveria ser lida'
+    estado.erros.processo_vendedores = 'não deveria ser lida'
     const { buscarDadosFormulario } = await import('../dados')
-    const d = await buscarDadosFormulario('p1')
-    expect(d.vendedores[0].banco).toBe('Itaú')
-    expect(d.vendedores[0].email).toBeNull()
-  })
-
-  it('erro em processo_vendedores lança', async () => {
-    estado.erros.processo_vendedores = 'falhou vend'
-    const { buscarDadosFormulario } = await import('../dados')
-    await expect(buscarDadosFormulario('p1')).rejects.toMatchObject({ message: 'falhou vend' })
-  })
-
-  it('erro em processo_compradores lança', async () => {
-    estado.erros.processo_compradores = 'falhou comp'
-    const { buscarDadosFormulario } = await import('../dados')
-    await expect(buscarDadosFormulario('p1')).rejects.toMatchObject({ message: 'falhou comp' })
+    await expect(buscarDadosFormulario('p1')).resolves.toMatchObject({ id: 'p1' })
   })
 
   it('erro em pessoa_fgts_contas lança (antes era engolido)', async () => {
