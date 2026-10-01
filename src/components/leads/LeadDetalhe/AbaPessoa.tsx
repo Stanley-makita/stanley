@@ -130,11 +130,41 @@ export function AbaPessoa({ lead }: { lead: Lead }) {
   if (isLoading) {
     return <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-fonti-primary" /></div>
   }
-  // Sem participações (ex.: titular que é Pessoa de operador, nunca vira participante): só o formulário.
+  const modalBusca = (
+    <AdicionarParticipanteModal
+      aberto={!!busca}
+      onFechar={() => setBusca(null)}
+      titulo={busca?.titulo ?? ''}
+      textoConfirmar={busca?.textoConfirmar ?? 'Confirmar'}
+      excluirIds={[lead.pessoa_id, ...compra.map(p => p.pessoa.id)]}
+      onConfirmar={async (e) => { if (busca) await busca.aoEscolher(e) }}
+    />
+  )
+  // O principal do lead não entra como participante quando o cadastro dele é visto como "da equipe"
+  // (telefone de usuário e sem CPF válido — pessoa_e_de_operador, migration 334). Nunca some calado.
+  const avisoSemTitular = !compra.some(p => p.papel === 'titular') && (
+    <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      <strong>{lead.nome || 'O principal'}</strong> não aparece como participante: o cadastro tem o telefone de um
+      usuário da equipe e não tem CPF. Informe o CPF ou corrija o telefone abaixo — ao salvar, a proposta se atualiza.
+    </div>
+  )
+
+  // Sem nenhuma participação: aviso + formulário do principal, e incluir participante continua disponível.
   if (!atual) {
     return (
       <div className="-mx-3 -my-4 bg-gray-50 px-3 py-4 pb-8 sm:-mx-5 sm:px-5">
+        {avisoSemTitular}
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={abrirInclusao}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-dashed border-fonti-primary px-4 text-sm font-semibold text-fonti-primary hover:bg-fonti-surface-warm"
+          >
+            <Plus className="h-4 w-4" /> Participante
+          </button>
+        </div>
         <FormularioPessoa key={lead.pessoa_id} pessoaId={lead.pessoa_id} participantesDaProposta={[]} onSujoChange={onSujoChange} />
+        {modalBusca}
       </div>
     )
   }
@@ -143,6 +173,7 @@ export function AbaPessoa({ lead }: { lead: Lead }) {
 
   return (
     <div className="-mx-3 -my-4 bg-gray-50 px-3 py-4 pb-8 sm:-mx-5 sm:px-5">
+      {avisoSemTitular}
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-fonti-primary">Participantes da proposta</h2>
       </div>
@@ -238,14 +269,7 @@ export function AbaPessoa({ lead }: { lead: Lead }) {
         <span className="text-lg font-bold">{moeda(renda.total)}</span>
       </div>
 
-      <AdicionarParticipanteModal
-        aberto={!!busca}
-        onFechar={() => setBusca(null)}
-        titulo={busca?.titulo ?? ''}
-        textoConfirmar={busca?.textoConfirmar ?? 'Confirmar'}
-        excluirIds={compra.map(p => p.pessoa.id)}
-        onConfirmar={async (e) => { if (busca) await busca.aoEscolher(e) }}
-      />
+      {modalBusca}
     </div>
   )
 }

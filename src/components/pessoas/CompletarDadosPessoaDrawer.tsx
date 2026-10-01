@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
 import { DocumentosIdentidadeSection } from './DocumentosIdentidadeSection'
 import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
+import { confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
 
 const ESTADOS_CIVIS = [
   { value: 'solteiro',      label: 'Solteiro(a)' },
@@ -260,6 +261,13 @@ export function CompletarDadosPessoaDrawer({
       // propaga pra compradores/vendedores/leads vinculados e grava o log
       // de auditoria em pessoas_alteracoes.
       const telefoneVal = form.telefone.trim()
+      {
+        const telsAtuais = ((pessoa as unknown as { pessoa_telefones?: Array<{ telefone: string; principal: boolean; ativo: boolean }> } | undefined)?.pessoa_telefones ?? []).filter(t => t.ativo)
+        const anterior = (telsAtuais.find(t => t.principal) ?? telsAtuais[0])?.telefone
+        if (usuario?.empresa_id && !(await confirmarTelefoneDaEquipe(usuario.empresa_id, telefoneVal, anterior))) {
+          throw new Error('Salvamento cancelado: confira o telefone.')
+        }
+      }
       if (telefoneVal) {
         const { error: errTel } = await supabase.rpc('atualizar_telefone_pessoa', {
           p_pessoa_id: pessoaId,

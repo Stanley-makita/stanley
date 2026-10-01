@@ -159,10 +159,10 @@ function KanbanCard({ processo, arrastavel, overlay }: { processo: Processo; arr
       <div className="flex items-start gap-1 mb-0.5">
         <User className="h-3 w-3 text-fonti-primary mt-0.5 shrink-0" />
         <p className="text-xs font-semibold text-fonti-primary line-clamp-1 leading-tight">
-          {comprador ?? processo.nome_imovel}
+          {comprador ?? <span className="italic text-amber-700">Sem comprador</span>}
         </p>
       </div>
-      {comprador && (
+      {processo.nome_imovel && (
         <p className="text-[10px] text-gray-400 line-clamp-1 pl-4 mb-1.5 leading-tight">
           {processo.nome_imovel}
         </p>

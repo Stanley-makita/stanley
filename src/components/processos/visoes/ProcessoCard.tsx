@@ -67,12 +67,12 @@ export function ProcessoCard({ processo }: Props) {
       <div className="flex items-start gap-2 mb-1">
         <User className="h-4 w-4 text-fonti-primary mt-0.5 shrink-0" />
         <p className="text-sm font-semibold text-fonti-primary leading-snug line-clamp-1">
-          {compradorPrincipal ?? processo.nome_imovel}
+          {compradorPrincipal ?? <span className="italic text-amber-700">Sem comprador</span>}
         </p>
       </div>
 
       {/* Nome do imóvel (secundário) */}
-      {compradorPrincipal && processo.nome_imovel && (
+      {processo.nome_imovel && (
         <div className="flex items-start gap-2 mb-3 pl-6">
           <Building2 className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />
           <p className="text-xs text-gray-400 leading-snug line-clamp-1">{processo.nome_imovel}</p>

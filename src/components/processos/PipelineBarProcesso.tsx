@@ -87,7 +87,8 @@ export function PipelineBarProcesso({ processo, fases, itensObrigatoriosPendente
 
   const nomeDisplay = processo.compradores?.find((c) => c.principal)?.nome
     ?? processo.compradores?.[0]?.nome
-    ?? processo.nome_imovel
+    // Sem comprador: deixa claro em vez de mostrar o imóvel como se fosse o nome do cliente.
+    ?? (processo.nome_imovel ? `Sem comprador · ${processo.nome_imovel}` : 'Sem comprador')
 
   return (
     <>
