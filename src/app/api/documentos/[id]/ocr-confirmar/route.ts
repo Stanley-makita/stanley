@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
-import { resolverPessoaConjuge } from '@/lib/pessoa'
 import { cpfValido } from '@/lib/cpf'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
@@ -137,13 +136,27 @@ export async function POST(
     }
     pessoaId = alvoId
   } else if (alvo === 'conjuge') {
-    // Caminho antigo (antes do "De quem é"): Pessoa própria do cônjuge do dono atual.
-    pessoaId = await resolverPessoaConjuge(
-      empresa_id,
-      doc.pessoa_id as string,
-      (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge',
-      camposFiltrados['cpf'] as string | undefined,
-    )
+    // Caminho antigo (antes do "De quem é"): Pessoa própria do cônjuge do dono atual — V2 (B2c): pelo
+    // serviço único (reaproveita por CPF, nunca operador) e casamento registrado nos dois lados.
+    const { data: titular, error: eTit } = await supabase.from('pessoas')
+      .select('estado_civil, conjuge_pessoa_id, regime_casamento, data_casamento')
+      .eq('id', doc.pessoa_id as string).eq('empresa_id', empresa_id).maybeSingle()
+    if (eTit || !titular) return NextResponse.json({ error: 'Erro ao carregar o dono do documento.' }, { status: 500 })
+    if (titular.conjuge_pessoa_id) {
+      pessoaId = titular.conjuge_pessoa_id as string
+    } else {
+      const r = await pessoaPorCpfOuNovaServico(supabase, empresa_id,
+        (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge', camposFiltrados['cpf'] as string | undefined)
+      if ('erro' in r) return NextResponse.json({ error: r.erro }, { status: r.status })
+      if (r.id === doc.pessoa_id) return NextResponse.json({ error: 'O cônjuge não pode ser o próprio dono do documento.' }, { status: 422 })
+      pessoaId = r.id
+      const c = await registrarCasamento(supabase, empresa_id, doc.pessoa_id as string, r.id, {
+        estadoCivil: titular.estado_civil === 'uniao_estavel' ? 'uniao_estavel' : 'casado',
+        regime: (titular.regime_casamento as string | null) ?? null, data: (titular.data_casamento as string | null) ?? null,
+      })
+      if ('erro' in c) return NextResponse.json({ error: c.erro }, { status: c.status })
+      if ('confirmar' in c) console.warn('[ocr-confirmar] cônjuge já casado com outra pessoa — casamento não registrado:', r.id)
+    }
   } else {
     pessoaId = doc.pessoa_id as string  // já validado acima (400 se null)
   }

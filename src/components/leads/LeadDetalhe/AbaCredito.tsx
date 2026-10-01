@@ -420,8 +420,12 @@ function BlocoParticipantes({ lead, participantes, onCompletarPessoa, onAbrirCon
   )
 
   function salvarRendaConjuge() {
+    // V2: sem cônjuge cadastrado, salvar a renda cria o cadastro dele (serviço único) — precisa da identidade.
     editar.mutate({
       id: lead.id,
+      conjuge_nome:            lead.conjuge_nome ?? null,
+      conjuge_cpf:             lead.conjuge_cpf ?? null,
+      conjuge_data_nascimento: lead.conjuge_data_nascimento ?? null,
       conjuge_renda_formal:   conjFormalNum || null,
       conjuge_renda_informal: conjInformalNum || null,
     }, { onSuccess: () => setConjDirty(false) })
@@ -1766,6 +1770,8 @@ function ConjugeEditarDialog({ lead, onClose, onCriarPessoa }: {
       conjuge_nome:            form.conjuge_nome || null,
       conjuge_cpf:             form.conjuge_cpf.replace(/\D/g, '') || null,
       conjuge_data_nascimento: form.conjuge_data_nascimento || null,
+      conjuge_renda_formal:    lead.conjuge_renda_formal ?? null,
+      conjuge_renda_informal:  lead.conjuge_renda_informal ?? null,
     }, { onSuccess: onClose })
   }
   return (
