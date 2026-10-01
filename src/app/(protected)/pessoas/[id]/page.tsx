@@ -462,21 +462,6 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         renda_informal:          payload.renda_informal,
       }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
 
-      // Propagar nome, cpf, email para compradores vinculados
-      await supabase.from('processo_compradores').update({
-        nome:  payload.nome,
-        cpf:   payload.cpf,
-        email: payload.email,
-      }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
-
-      // Propagar para vendedores vinculados
-      await supabase.from('processo_vendedores').update({
-        nome:         payload.nome,
-        cpf:          payload.cpf,
-        email:        payload.email,
-        estado_civil: payload.estado_civil,
-      }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
-
       // Registrar auditoria — calcular diff
       if (pessoa) {
         const anteriores: Record<string, unknown> = {}

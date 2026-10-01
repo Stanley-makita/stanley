@@ -9,7 +9,7 @@ vi.mock('@/lib/supabase/admin', async () => {
   return {
     supabaseAdmin: {
       from: (t: string) => {
-        const db = criarFakeDb(estado.tabelas, { unicos: { lead_coparticipantes: ['lead_id', 'pessoa_id'] } }).from(t) as Record<string, unknown>
+        const db = criarFakeDb(estado.tabelas).from(t) as Record<string, unknown>
         // Simula o índice leads_pessoa_aberto_unico: novo titular já é titular de outro lead aberto.
         if (t === 'leads' && estado.conflitoLead) {
           const original = db.update as (p: Row) => unknown
@@ -26,6 +26,7 @@ vi.mock('@/lib/supabase/admin', async () => {
         }
         return db
       },
+      rpc: async () => ({ data: false, error: null }), // pessoa_e_de_operador / pv2_sincronizar_lead (não simulada)
     },
   }
 })
@@ -41,11 +42,10 @@ beforeEach(() => {
     leads: [{ id: 'l1', empresa_id: 'e1', pessoa_id: 'heitor', nome: 'Heitor', cpf: '52998224725', data_nascimento: '1996-03-14',
       telefone: '44999990000', conjuge_pessoa_id: 'carla', conjuge_nome: 'Carla', conjuge_cpf: null, deleted_at: null }],
     participacoes: [
-      { id: 'p-h', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'heitor', papel: 'titular', compoe_renda: true, compoe_renda_manual: null },
-      { id: 'p-c', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'carla', papel: 'conjuge_anuente', compoe_renda: false, compoe_renda_manual: null },
-      { id: 'p-a', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'afranio', papel: 'coparticipante', compoe_renda: true, compoe_renda_manual: null },
+      { id: 'p-h', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'heitor', papel: 'titular', compoe_renda: true, compoe_renda_manual: null, explicita: true },
+      { id: 'p-c', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'carla', papel: 'conjuge_anuente', compoe_renda: false, compoe_renda_manual: null, explicita: false },
+      { id: 'p-a', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'afranio', papel: 'coparticipante', compoe_renda: true, compoe_renda_manual: null, explicita: true },
     ],
-    lead_coparticipantes: [{ id: 'lc-a', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'afranio' }],
     pessoas: [
       { id: 'heitor', nome: 'Heitor', cpf: '52998224725', data_nascimento: '1996-03-14', deleted_at: null },
       { id: 'afranio', nome: 'Afrânio Souza', cpf: '11144477735', data_nascimento: '1964-08-02', deleted_at: null },
@@ -60,7 +60,8 @@ const req = (body: unknown) => new NextRequest('http://localhost/api/leads/l1/ti
 })
 const ctx = { params: { id: 'l1' } }
 const lead = () => estado.tabelas.leads[0]
-const copart = () => estado.tabelas.lead_coparticipantes.map(c => c.pessoa_id).sort()
+// Incluídos de propósito que não são o titular (o ponteiro do lead) = coparticipantes depois da sincronização.
+const copart = () => estado.tabelas.participacoes.filter(p => p.explicita && p.pessoa_id !== lead().pessoa_id).map(p => p.pessoa_id).sort()
 
 describe('POST /api/leads/[id]/titular', () => {
   it('troca o principal: antigo e o cônjuge dele ficam como participantes; lead acompanha a identidade do novo', async () => {

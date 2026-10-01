@@ -13,7 +13,7 @@ vi.mock('@/lib/supabase/admin', async () => {
   const { criarFakeDb } = await import('@/lib/documentos/__tests__/helpers/fakeDb')
   return {
     supabaseAdmin: {
-      from: (t: string) => criarFakeDb(estado.tabelas, { unicos: { lead_coparticipantes: ['lead_id', 'pessoa_id'] } }).from(t),
+      from: (t: string) => criarFakeDb(estado.tabelas).from(t),
       rpc: async (_nome: string, args: { p_pessoa_id: string }) => ({ data: estado.operador.includes(args.p_pessoa_id), error: null }),
     },
   }
@@ -46,7 +46,7 @@ beforeEach(() => {
       { id: 'operador', empresa_id: 'e1', nome: 'Comercial', cpf: '39053344705', deleted_at: null },
     ],
     leads: [{ id: 'l1', empresa_id: 'e1', pessoa_id: 'heitor', deleted_at: null }],
-    lead_coparticipantes: [],
+    participacoes: [],
     pessoa_documentos_identificacao: [],
   }
 })
@@ -86,7 +86,7 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     }), ctx)
     expect(res.status).toBe(200)
     expect(estado.tabelas.pessoas).toHaveLength(4)
-    expect(estado.tabelas.lead_coparticipantes).toEqual([expect.objectContaining({ lead_id: 'l1', pessoa_id: 'maria-existente' })])
+    expect(estado.tabelas.participacoes).toEqual([expect.objectContaining({ lead_id: 'l1', pessoa_id: 'maria-existente', explicita: true })])
     expect(doc().pessoa_id).toBe('maria-existente')
   })
 
@@ -98,7 +98,7 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     expect(res.status).toBe(200)
     const novo = estado.tabelas.pessoas.find(p => p.nome === 'Carlos Pereira')
     expect(novo).toBeTruthy()
-    expect(estado.tabelas.lead_coparticipantes[0]).toMatchObject({ lead_id: 'l1', pessoa_id: novo!.id })
+    expect(estado.tabelas.participacoes[0]).toMatchObject({ lead_id: 'l1', pessoa_id: novo!.id })
     expect(doc().pessoa_id).toBe(novo!.id)
   })
 
@@ -109,7 +109,7 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
       campos: { nome: 'Comercial' }, novo_participante: { nome: 'Comercial', cpf: '390.533.447-05' }, lead_id: 'l1',
     }), ctx)
     expect(res.status).toBe(422)
-    expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
     expect(doc().pessoa_id).toBe('heitor')
   })
 
@@ -118,7 +118,7 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     const { POST } = await import('../route')
     const res = await POST(req({ campos: { nome: 'Carlos' }, novo_participante: { nome: 'Carlos' }, lead_id: 'l1' }), ctx)
     expect(res.status).toBe(403)
-    expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
   })
 
   it('certidão de casamento: registra o casamento dos dois lados com data e regime (universal → total)', async () => {

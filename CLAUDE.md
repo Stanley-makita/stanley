@@ -653,3 +653,21 @@ antigas é copiado para a Pessoa pelo trigger (migration 329: só preenche vazio
 é por participação: `interessado_id` = `participacoes.id` e `comunicacao_relacionamentos.participacao_id`
 (migration 330). **B3:** `comunicacao_relacionamentos.processo_comprador_id` é `ON DELETE CASCADE` — zerar
 antes de apagar `processo_compradores`, senão o histórico de comunicação some.
+
+## Participantes V2 — C2: a virada (migration 333) — `participacoes` é a fonte
+
+Depois da 333, **`participacoes` é a única fonte de "quem participa"**. `lead_coparticipantes`, `lead_vendedores`,
+`processo_compradores` e `processo_vendedores` estão **somente leitura** (trigger recusa INSERT/UPDATE com
+`tabela_antiga_somente_leitura`; DELETE em cascata continua). Regras:
+- **Incluir/remover participante só pelos serviços** `escritaServidor.ts` (lead) e `escritaNegocio.ts` (negócio).
+  Eles marcam `participacoes.explicita = true` (incluído de propósito) e chamam `pv2_sincronizar_lead/_processo`,
+  que **deriva** o resto: titular do lead pelo `leads.pessoa_id`, cônjuge anuente/cônjuge do vendedor pelo
+  casamento registrado, ordem e compõe renda. Linha com `explicita = false` é derivada — apagar à mão não adianta
+  (a sincronização devolve); para tirar, ajuste o casamento.
+- Abas Compradores/Vendedores do negócio: cada linha é uma participação (`id` = `participacoes.id`), dados da
+  Pessoa (`linhasNegocio.ts`). Nome/CPF/telefone/conta bancária/renda são da Pessoa — nunca grave cópia em linha.
+- Lead: `lead.coparticipantes`/`lead.vendedores` vêm de `participacoes` (`useLead`); remover vendedor usa o id
+  da participação e limpa `leads.vendedor_pessoa_id` (senão a sincronização devolve).
+- `merge_pessoas` libera a trava só na própria transação (`pv2.legado`) para repontar as linhas antigas.
+- Reverter: `supabase/2026-10-06_reverter_333.sql` (reconstrói as tabelas antigas a partir das participações
+  explícitas e religa a Fase A) + revert do PR do C2.

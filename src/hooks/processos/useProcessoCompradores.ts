@@ -5,20 +5,21 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoComprador } from '@/types/processos'
 import { toast } from 'sonner'
+import { SELECT_LINHAS_NEGOCIO, comoCompradores, type LinhaParticipacao } from '@/lib/participantes/linhasNegocio'
 import { editarNoNegocio, incluirNoNegocio, removerDoNegocio } from '@/lib/participantes/negocioCliente'
 
 export function useProcessoCompradores(processoId: string) {
   return useQuery({
     queryKey: ['processos', processoId, 'compradores'],
     queryFn: async (): Promise<ProcessoComprador[]> => {
+      // V2 C2: cada linha é uma participação; dados da Pessoa (linhasNegocio.ts)
       const { data, error } = await supabase
-        .from('processo_compradores')
-        .select('*, pessoa:pessoas(rg, registro_cnh, profissao, nacionalidade, data_nascimento, data_emissao, orgao_emissor, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep)')
+        .from('participacoes')
+        .select(SELECT_LINHAS_NEGOCIO)
         .eq('processo_id', processoId)
-        .order('principal', { ascending: false })
-        .order('created_at', { ascending: true })
+        .in('papel', ['titular', 'coparticipante', 'conjuge_anuente'])
       if (error) throw error
-      return data
+      return comoCompradores((data ?? []) as unknown as LinhaParticipacao[])
     },
     enabled: !!processoId,
   })
@@ -49,7 +50,7 @@ export function useEditarComprador(processoId: string) {
 
   return useMutation({
     mutationFn: async ({ id, pessoa_id, telefone, ...input }: Partial<ProcessoComprador> & { id: string; pessoa_id?: string | null }) => {
-      // V2 (B2c-C1c): linha pelo serviço único; ele vincula a Pessoa pelo CPF se ainda não houver
+      // V2: linha (participação) pelo serviço único — principal, renda e cônjuge do vendedor
       const r = await editarNoNegocio(processoId, 'compradores', id, input as Record<string, unknown>)
       const resolvedPessoaId = pessoa_id ?? r.pessoa_id ?? null
 
@@ -67,8 +68,6 @@ export function useEditarComprador(processoId: string) {
             p_origem: 'processos',
           })
           if (errTel) throw errTel
-        } else {
-          await editarNoNegocio(processoId, 'compradores', id, { telefone: telefoneVal || null })
         }
       }
 

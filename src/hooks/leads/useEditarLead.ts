@@ -126,18 +126,6 @@ export function useEditarLead() {
 
           await supabase.from('pessoas').update(pessoaPayload).eq('id', data.pessoa_id)
 
-          // Propagar nome/cpf/email para compradores e vendedores vinculados
-          const compradorPayload: Record<string, unknown> = {}
-          if (pessoaPayload.nome  !== undefined) compradorPayload.nome  = pessoaPayload.nome
-          if (pessoaPayload.cpf   !== undefined) compradorPayload.cpf   = pessoaPayload.cpf
-          if (pessoaPayload.email !== undefined) compradorPayload.email  = pessoaPayload.email
-          if (Object.keys(compradorPayload).length > 0) {
-            await supabase.from('processo_compradores')
-              .update(compradorPayload).eq('pessoa_id', data.pessoa_id)
-            await supabase.from('processo_vendedores')
-              .update(compradorPayload).eq('pessoa_id', data.pessoa_id)
-          }
-
           // Registrar auditoria — só campos que realmente mudaram
           const anteriores: Record<string, unknown> = {}
           const novos: Record<string, unknown> = {}

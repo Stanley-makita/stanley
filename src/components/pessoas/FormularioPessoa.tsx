@@ -307,7 +307,6 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
             telefone: telefoneVal, principal: true, whatsapp: true, ativo: true,
           })
         }
-        await supabase.from('processo_compradores').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
         await supabase.from('leads').update({ telefone: telefoneVal }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
       }
 
@@ -335,21 +334,6 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
         estado_civil:            payload.estado_civil,
         renda_formal:            payload.renda_formal,
         renda_informal:          payload.renda_informal,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
-      // 3. Propagar para compradores
-      await supabase.from('processo_compradores').update({
-        nome:  payload.nome,
-        cpf:   payload.cpf,
-        email: payload.email,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
-      // 4. Propagar para vendedores
-      await supabase.from('processo_vendedores').update({
-        nome:         payload.nome,
-        cpf:          payload.cpf,
-        email:        payload.email,
-        estado_civil: payload.estado_civil,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
       // V2: casamento é do casal — regime/data/estado civil alterados aqui valem para os dois
