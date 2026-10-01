@@ -5,23 +5,23 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoVendedor } from '@/types/processos'
 import { toast } from 'sonner'
+import { SELECT_LINHAS_NEGOCIO, comoVendedores, type LinhaParticipacao } from '@/lib/participantes/linhasNegocio'
 import { editarNoNegocio, incluirNoNegocio, removerDoNegocio } from '@/lib/participantes/negocioCliente'
-import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
 
-const PESSOA_SELECT = 'rg, registro_cnh, profissao, nacionalidade, data_nascimento, data_emissao, orgao_emissor, estado_civil, regime_casamento, data_casamento, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep'
 
 
 export function useProcessoVendedores(processoId: string) {
   return useQuery({
     queryKey: ['processos', processoId, 'vendedores'],
     queryFn: async (): Promise<ProcessoVendedor[]> => {
+      // V2 C2: cada linha é uma participação; dados da Pessoa (linhasNegocio.ts)
       const { data, error } = await supabase
-        .from('processo_vendedores')
-        .select(`*, pessoa:pessoas(${PESSOA_SELECT})`)
+        .from('participacoes')
+        .select(SELECT_LINHAS_NEGOCIO)
         .eq('processo_id', processoId)
-        .order('created_at', { ascending: true })
+        .in('papel', ['vendedor'])
       if (error) throw error
-      return data
+      return comoVendedores((data ?? []) as unknown as LinhaParticipacao[])
     },
     enabled: !!processoId,
   })
@@ -51,7 +51,7 @@ export function useEditarVendedor(processoId: string) {
 
   return useMutation({
     mutationFn: async ({ id, pessoa_id, telefone, ...input }: Partial<ProcessoVendedor> & { id: string; pessoa_id?: string | null }) => {
-      // V2 (B2c-C1c): linha pelo serviço único; ele vincula a Pessoa pelo CPF se ainda não houver
+      // V2: linha (participação) pelo serviço único — principal, renda e cônjuge do vendedor
       const r = await editarNoNegocio(processoId, 'vendedores', id, input as Record<string, unknown>)
       const resolvedPessoaId = pessoa_id ?? r.pessoa_id ?? null
 
@@ -68,8 +68,6 @@ export function useEditarVendedor(processoId: string) {
             p_origem: 'processos',
           })
           if (errTel) throw errTel
-        } else {
-          await editarNoNegocio(processoId, 'vendedores', id, { telefone: telefoneVal || null })
         }
       }
 
@@ -100,24 +98,7 @@ export function useEditarVendedor(processoId: string) {
             })
           }
         }
-
-        // Cônjuge do vendedor (V2 B2c): nunca campos soltos conjuge_* na Pessoa — Pessoa própria + casamento.
-        const casado = input.estado_civil === 'casado' || input.estado_civil === 'uniao_estavel'
-        if (casado && input.conjuge_nome?.trim()) {
-          const { data: atual, error: eAt } = await supabase.from('pessoas')
-            .select('conjuge_pessoa_id, regime_casamento, data_casamento').eq('id', resolvedPessoaId).maybeSingle()
-          if (eAt) throw eAt
-          const r = await salvarCasamentoDoFormulario({
-            pessoaId: resolvedPessoaId, casado: true, estadoCivil: input.estado_civil as string,
-            conjugeCadastradoId: atual?.conjuge_pessoa_id ?? null,
-            regime: atual?.regime_casamento ?? null, data: atual?.data_casamento ?? null,
-            digitado: {
-              nome: input.conjuge_nome, cpf: input.conjuge_cpf ?? '', data_nascimento: input.conjuge_data_nasc ?? '',
-              telefone: '', profissao: '', renda_formal: '', renda_informal: '',
-            },
-          })
-          if ('erro' in r) toast.warning(`Vendedor salvo, mas o cônjuge não: ${r.erro}`, { duration: 10000 })
-        }
+        // Cônjuge do vendedor: o serviço (editarNoNegocio) já registrou — Pessoa própria + casamento.
       }
     },
     onSuccess: () => {

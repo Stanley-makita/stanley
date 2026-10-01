@@ -306,21 +306,6 @@ export function CompletarDadosPessoaDrawer({
         renda_informal:          payload.renda_informal,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
-      // 3. Propagar para compradores
-      await supabase.from('processo_compradores').update({
-        nome:  payload.nome,
-        cpf:   payload.cpf,
-        email: payload.email,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
-      // 4. Propagar para vendedores
-      await supabase.from('processo_vendedores').update({
-        nome:         payload.nome,
-        cpf:          payload.cpf,
-        email:        payload.email,
-        estado_civil: payload.estado_civil,
-      }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
-
       // 5. Auditoria
       await supabase.from('pessoas_alteracoes').insert({
         pessoa_id:          pessoaId,

@@ -26,8 +26,7 @@ beforeEach(() => {
       { id: 'heitor', empresa_id: 'e1', nome: 'Heitor', cpf: null, deleted_at: null },
       { id: 'maria', empresa_id: 'e1', nome: 'Maria', cpf: '11144477735', deleted_at: null },
     ],
-    lead_coparticipantes: [],
-    lead_vendedores: [],
+    participacoes: [],
   }
 })
 
@@ -42,10 +41,10 @@ describe('/api/leads/[id]/participantes', () => {
     const r1 = await POST(req('/api/leads/l1/participantes', 'POST', { pessoa_id: 'maria' }), ctx)
     expect(r1.status).toBe(200)
     expect(await r1.json()).toEqual({ ok: true, pessoa_id: 'maria' })
-    expect(estado.tabelas.lead_coparticipantes).toEqual([expect.objectContaining({ lead_id: 'l1', pessoa_id: 'maria' })])
+    expect(estado.tabelas.participacoes).toEqual([expect.objectContaining({ lead_id: 'l1', pessoa_id: 'maria', papel: 'coparticipante', explicita: true })])
     const r2 = await DELETE(req('/api/leads/l1/participantes', 'DELETE', { pessoa_id: 'maria' }), ctx)
     expect(r2.status).toBe(200)
-    expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
   })
   it('POST com nome/CPF: reaproveita pelo CPF', async () => {
     const { POST } = await import('../route')
@@ -57,7 +56,7 @@ describe('/api/leads/[id]/participantes', () => {
     estado.negado = true
     const { POST } = await import('../route')
     expect((await POST(req('/api/leads/l1/participantes', 'POST', { pessoa_id: 'maria' }), ctx)).status).toBe(403)
-    expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
   })
   it('pedido sem pessoa nem nome: 400', async () => {
     const { POST } = await import('../route')
@@ -70,10 +69,10 @@ describe('/api/leads/[id]/vendedores', () => {
     const { POST, DELETE } = await import('../../vendedores/route')
     const r1 = await POST(req('/api/leads/l1/vendedores', 'POST', { pessoa_id: 'maria' }), ctx)
     expect(r1.status).toBe(200)
-    const vinc = estado.tabelas.lead_vendedores[0]
-    expect(vinc).toMatchObject({ lead_id: 'l1', pessoa_id: 'maria' })
+    const vinc = estado.tabelas.participacoes[0]
+    expect(vinc).toMatchObject({ lead_id: 'l1', pessoa_id: 'maria', papel: 'vendedor', explicita: true })
     const r2 = await DELETE(req('/api/leads/l1/vendedores', 'DELETE', { vinculo_id: vinc.id }), ctx)
     expect(r2.status).toBe(200)
-    expect(estado.tabelas.lead_vendedores).toHaveLength(0)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
   })
 })

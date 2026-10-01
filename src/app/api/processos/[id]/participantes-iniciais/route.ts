@@ -20,12 +20,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (!processo) return NextResponse.json({ error: 'Negócio não encontrado.' }, { status: 404 })
 
   // Só um negócio novo (sem nenhum participante ainda) — evita duplicar ao repetir a chamada.
-  const [{ count: nc, error: e1 }, { count: nv, error: e2 }] = await Promise.all([
-    supabase.from('processo_compradores').select('id', { count: 'exact', head: true }).eq('processo_id', params.id),
-    supabase.from('processo_vendedores').select('id', { count: 'exact', head: true }).eq('processo_id', params.id),
-  ])
-  if (e1 || e2) return NextResponse.json({ error: 'Erro ao verificar o negócio.' }, { status: 500 })
-  if ((nc ?? 0) + (nv ?? 0) > 0) return NextResponse.json({ error: 'Este negócio já tem participantes.' }, { status: 409 })
+  const { count: n, error: eN } = await supabase.from('participacoes')
+    .select('id', { count: 'exact', head: true }).eq('processo_id', params.id)
+  if (eN) return NextResponse.json({ error: 'Erro ao verificar o negócio.' }, { status: 500 })
+  if ((n ?? 0) > 0) return NextResponse.json({ error: 'Este negócio já tem participantes.' }, { status: 409 })
 
   const body = await request.json().catch(() => ({})) as { lead_id?: string | null; titular?: TitularNovoNegocio | null; vendedores?: VendedorEscolhido[] | null }
   if (body.lead_id) {

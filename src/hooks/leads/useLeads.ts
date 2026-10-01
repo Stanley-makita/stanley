@@ -68,6 +68,11 @@ export function useComerciaisAtivos() {
   })
 }
 
+type ParticipacaoLead = {
+  id: string; papel: string; ordem: number; explicita: boolean; pessoa_id: string
+  pessoa: { id: string; nome: string; cpf: string | null; renda_formal: number | null; renda_informal: number | null; deleted_at: string | null } | null
+}
+
 export function useLead(leadId: string) {
   const { usuario } = useAuth()
 
@@ -85,8 +90,7 @@ export function useLead(leadId: string) {
           conjuge_pessoa:pessoas!conjuge_pessoa_id(id, nome, cpf, renda_formal, renda_informal),
           vendedor_pessoa:pessoas!vendedor_pessoa_id(id, nome, cpf),
           parceiro:parceiros!parceiro_id(id, nome, imobiliaria, tipo_parceiro),
-          coparticipantes:lead_coparticipantes(id, pessoa_id, papel, pessoa:pessoas(id, nome, cpf, renda_formal, renda_informal)),
-          vendedores:lead_vendedores(id, pessoa_id, pessoa:pessoas(id, nome, cpf))
+          participantes:participacoes(id, papel, ordem, explicita, pessoa_id, pessoa:pessoas!pessoa_id(id, nome, cpf, renda_formal, renda_informal, deleted_at))
         `)
         .eq('id', leadId)
         .eq('empresa_id', usuario!.empresa_id)
@@ -94,7 +98,17 @@ export function useLead(leadId: string) {
         .single()
 
       if (error) throw error
-      return data
+      // V2 C2: coparticipantes/vendedores vêm de participacoes (lead_coparticipantes/lead_vendedores congelaram);
+      // id = participação (remover vendedor usa esse id).
+      const { participantes, ...lead } = data as unknown as Record<string, unknown> & { participantes?: ParticipacaoLead[] | null }
+      const vivas: ParticipacaoLead[] = (participantes ?? []).filter(pa => pa.pessoa && !pa.pessoa.deleted_at).sort((a, b) => a.ordem - b.ordem)
+      return {
+        ...lead,
+        coparticipantes: vivas.filter(pa => pa.papel === 'coparticipante')
+          .map(pa => ({ id: pa.id, pessoa_id: pa.pessoa_id, papel: pa.papel, pessoa: pa.pessoa })),
+        vendedores: vivas.filter(pa => pa.papel === 'vendedor')
+          .map(pa => ({ id: pa.id, pessoa_id: pa.pessoa_id, pessoa: pa.pessoa && { id: pa.pessoa.id, nome: pa.pessoa.nome, cpf: pa.pessoa.cpf } })),
+      } as unknown as Lead
     },
     enabled: !!usuario && !!leadId,
   })
