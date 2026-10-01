@@ -671,3 +671,40 @@ Depois da 333, **`participacoes` é a única fonte de "quem participa"**. `lead_
 - `merge_pessoas` libera a trava só na própria transação (`pv2.legado`) para repontar as linhas antigas.
 - Reverter: `supabase/2026-10-06_reverter_333.sql` (reconstrói as tabelas antigas a partir das participações
   explícitas e religa a Fase A) + revert do PR do C2.
+
+## Participantes V2 — lições da B2c/C2 e do go-live (30/09–01/10/2026)
+
+O que deu certo (repetir):
+- **Virar em duas etapas.** C1 = todas as escritas passam por UM serviço, ainda gravando no modelo antigo
+  (sem migration, PRs pequenos #362–#366); C2 = só o miolo do serviço muda + uma migration (#367/333). A virada
+  em si foi pequena porque a C1 já tinha juntado os ~15 escritores espalhados.
+- **Motor SQL reaproveitado, não reescrito**: em vez de portar para TypeScript a regra de cônjuge/ordem/compõe
+  renda, a C2 só trocou a FONTE da sincronização (tabelas antigas → `participacoes.explicita`).
+- **Diagnóstico "dry run" antes de liberar** (`supabase/2026-10-06_diagnostico_c2.sql`): ressincroniza tudo e
+  mostra o que mudaria. Resultado real: só 2 mudanças (cônjuge do vendedor), 3 conferências em 0.
+- **Trava de somente leitura** nas tabelas antigas: caminho esquecido falha com mensagem clara em vez de perder
+  dado em silêncio. Reversão pronta junto (`2026-10-06_reverter_333.sql`).
+
+Dificuldades (não repetir):
+- **Merge de pessoas estava quebrado havia meses** (achado na C1-d, #365): a rota movia 6 de 24 colunas que
+  apontam para `pessoas`, não checava erro e `pessoas_alteracoes` é `ON DELETE RESTRICT` — com histórico, o
+  DELETE falhava calado e a tela dizia "mescladas com sucesso". Agora é `merge_pessoas` (332), transação única.
+  Para achar TODAS as FKs para uma tabela, pergunte ao banco (OpenAPI do PostgREST com service role lista
+  "Foreign Key to `pessoas.id`"), não confie em grep de migrations.
+- **SQL Editor do Supabase só mostra o resultado do ÚLTIMO comando** — um diagnóstico que termina em `ROLLBACK`
+  não mostra nada. Padrão: tudo num `DO $$` que termina em `RAISE EXCEPTION` com o relatório no texto
+  (o erro desfaz tudo e o texto aparece inteiro).
+- **Upsert do supabase-js não funciona com índice único PARCIAL** (`participacoes (lead_id, pessoa_id) WHERE
+  lead_id IS NOT NULL`): fazer SELECT → INSERT (23505 = já existe) → UPDATE, como `marcarExplicita()`.
+- **Ordem migration × código**: a 333 foi rodada antes do merge do #367 (07:16 do go-live); entre os dois, o
+  código antigo bateu na trava. Na próxima virada: migration e merge no mesmo minuto, fora do horário.
+- **Código que depende de coluna nova não roda antes da migration** — nem em localhost (o `.env.local` aponta
+  para o banco de produção). O Preview da Vercel tem credenciais antigas do Supabase (login falha); testar no
+  localhost depois da migration.
+- Funções `pv2_*` copiadas de migration anterior: gerar a nova versão por script a partir da ÚLTIMA definição
+  (ex.: `pv2_gravar_participacoes` está na 331, não na 326), nunca reescrever de memória.
+
+Go-live 01/10/2026: banco limpo (`2026-08-01_zerar_dados_teste.sql`, rodado pelo usuário) + 761 arquivos do
+Storage apagados (`scripts/limpar-storage-teste.mjs`). **A partir daqui os dados são reais — nunca mais rodar
+purga.** Próximo: B3 (apagar tabelas antigas e campos soltos `conjuge_*`/`vendedor_*`) só depois de semanas estável;
+antes de apagar `processo_compradores`, zerar `comunicacao_relacionamentos.processo_comprador_id` (CASCADE).
