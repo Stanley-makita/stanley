@@ -132,6 +132,21 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
   const dono = donoManual ?? donoSugerido
   const donoNome = dono === NOVO ? (novoNome ?? campos.nome ?? '') : participantes.find(p => p.pessoaId === dono)?.nome ?? ''
 
+  // Certidão de casamento: com quem o dono do documento é casado (sugestão pelo 2º cônjuge extraído).
+  const SEM_CASAMENTO = ''
+  const [conjugeManual, setConjugeManual] = useState<string | null>(null)
+  const [conjugeNovoNome, setConjugeNovoNome] = useState<string | null>(null)
+  const ehCertidao = tipoSelecionado === 'certidao_casamento' && modoParticipantes
+  const conjuge2Nome = typeof ocrRaw?.conjuge2_nome === 'string' ? ocrRaw.conjuge2_nome : ''
+  const conjuge2Cpf = typeof ocrRaw?.conjuge2_cpf === 'string' ? ocrRaw.conjuge2_cpf : ''
+  const outrosParticipantes = participantes.filter(p => p.pessoaId !== dono)
+  const sugestaoConjuge = (conjuge2Nome || conjuge2Cpf)
+    ? sugerirDonoDocumento({ cpf: conjuge2Cpf, nome: conjuge2Nome }, outrosParticipantes, null)
+    : null
+  const conjugeSugerido = sugestaoConjuge?.tipo === 'participante' ? sugestaoConjuge.pessoaId
+    : sugestaoConjuge?.tipo === 'novo' ? NOVO : SEM_CASAMENTO
+  const conjuge = conjugeManual ?? conjugeSugerido
+
   const [salvando, setSalvando] = useState(false)
   const [docUrl, setDocUrl] = useState<string | null>(null)
   const [carregandoUrl, setCarregandoUrl] = useState(false)
@@ -181,6 +196,11 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                 ? { novo_participante: { nome: (novoNome ?? campos.nome ?? '').trim(), cpf: novoCpf ?? campos.cpf ?? '' }, lead_id: leadId }
                 : { pessoa_alvo_id: dono })
             : { titular: ehConjuge ? 'conjuge' : 'principal' }),
+          ...(ehCertidao && conjuge !== SEM_CASAMENTO
+            ? { casamento: conjuge === NOVO
+                ? { novo: { nome: (conjugeNovoNome ?? conjuge2Nome).trim(), cpf: conjuge2Cpf } }
+                : { conjuge_pessoa_id: conjuge } }
+            : {}),
         }),
       })
       if (!res.ok) {
@@ -194,7 +214,32 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
         cpf_invalido?: boolean
         alvo?: string
         alvo_nome?: string | null
+        alvo_pessoa_id?: string
+        casamento?: 'registrado' | 'confirmar' | 'erro' | null
+        casamento_encerra?: Array<{ nome: string }>
+        casamento_erro?: string | null
+        casamento_conjuge_id?: string | null
       }
+      // Certidão: o cônjuge escolhido já tinha outro casamento registrado — pergunta antes de encerrar.
+      if (result.casamento === 'confirmar' && result.alvo_pessoa_id && result.casamento_conjuge_id) {
+        const nomes = (result.casamento_encerra ?? []).map(x => x.nome).join(' e ')
+        if (window.confirm(`${nomes} já tem outro casamento registrado. Encerrar esse casamento e registrar o desta certidão?`)) {
+          const resCas = await fetch(`/api/pessoas/${result.alvo_pessoa_id}/conjuge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              conjuge_pessoa_id: result.casamento_conjuge_id, estado_civil: 'casado',
+              regime_casamento: camposFiltrados.regime_casamento ?? null,
+              data_casamento: camposFiltrados.data_casamento ?? null, confirmar_encerrar: true,
+            }),
+          })
+          if (resCas.ok) result.casamento = 'registrado'
+          else toast.error('Os dados foram salvos, mas o casamento não foi registrado. Ajuste na aba Pessoa.')
+        }
+      } else if (result.casamento === 'erro') {
+        toast.warning(`Os dados foram salvos, mas o casamento não foi registrado: ${result.casamento_erro ?? 'erro'}. Ajuste na aba Pessoa.`, { duration: 12000 })
+      }
+      if (result.casamento === 'registrado') toast.success('Casamento registrado nos dois cadastros.')
       // CPF não gravado é aviso em amarelo e demorado — um toast verde de "sucesso"
       // passava despercebido e o CPF errado ficava no cadastro.
       if (result.cpf_divergente) {
@@ -306,6 +351,33 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                   </p>
                 </div>
               )}
+              {ehCertidao && (
+                <div className="mt-3 border-t border-fonti-accent/40 pt-3">
+                  <label className="mb-1 block text-xs font-semibold text-fonti-primary" htmlFor="conjuge-certidao">
+                    Casado(a) com
+                  </label>
+                  <select
+                    id="conjuge-certidao"
+                    value={conjuge}
+                    onChange={e => setConjugeManual(e.target.value)}
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
+                  >
+                    <option value={SEM_CASAMENTO}>Não registrar o casamento agora</option>
+                    {outrosParticipantes.map(p => <option key={p.pessoaId} value={p.pessoaId}>{p.nome}</option>)}
+                    <option value={NOVO}>Outra pessoa (nova ou já cadastrada pelo CPF)…</option>
+                  </select>
+                  {conjuge2Nome && (
+                    <p className="mt-1 text-xs text-gray-500">Na certidão: {conjuge2Nome}{conjuge2Cpf ? ` (CPF ${conjuge2Cpf})` : ''}</p>
+                  )}
+                  {conjuge === NOVO && (
+                    <label className="mt-2 block text-xs text-gray-600">Nome do cônjuge
+                      <input value={conjugeNovoNome ?? conjuge2Nome} onChange={e => setConjugeNovoNome(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                    </label>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">Data e regime da certidão valem para os dois. Para incluir o cônjuge na proposta, use “+ Participante” na aba Pessoa.</p>
+                </div>
+              )}
               {dono !== NOVO && documento.pessoa_id && dono !== documento.pessoa_id && (
                 <p className="mt-1 text-xs text-amber-800">Ao confirmar, o documento passa a ser de {donoNome}.</p>
               )}
@@ -415,7 +487,8 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
               onClick={handleConfirmar}
               disabled={salvando
                 || (!modoParticipantes && pessoaDivergente && !ehConjuge && !cienteDivergencia)
-                || (modoParticipantes && dono === NOVO && !(novoNome ?? campos.nome ?? '').trim())}
+                || (modoParticipantes && dono === NOVO && !(novoNome ?? campos.nome ?? '').trim())
+                || (ehCertidao && conjuge === NOVO && !(conjugeNovoNome ?? conjuge2Nome).trim())}
             >
               {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar dados'}
             </Button>

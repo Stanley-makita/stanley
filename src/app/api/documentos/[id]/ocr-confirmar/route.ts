@@ -355,6 +355,7 @@ export async function POST(
   let casamento: 'registrado' | 'confirmar' | 'erro' | null = null
   let casamento_encerra: Array<{ id: string; nome: string }> = []
   let casamento_erro: string | null = null
+  let casamento_conjuge_id: string | null = null
   if (tipo_confirmado === 'certidao_casamento' && (body.casamento?.conjuge_pessoa_id || body.casamento?.novo?.nome?.trim())) {
     let conjugeId: string | null = null
     if (body.casamento.conjuge_pessoa_id) {
@@ -367,6 +368,7 @@ export async function POST(
       if ('erro' in r) casamento_erro = r.erro
       else conjugeId = r.id
     }
+    casamento_conjuge_id = conjugeId
     if (conjugeId) {
       const r = await registrarCasamento(supabase, empresa_id, pessoaId, conjugeId, {
         estadoCivil: 'casado',
@@ -412,6 +414,7 @@ export async function POST(
     casamento,
     casamento_encerra,
     casamento_erro,
+    casamento_conjuge_id,
     alvo_nome: (alvoPessoa?.nome as string | undefined) ?? null,
     cpf_divergente,
     cpf_pertence_a,
