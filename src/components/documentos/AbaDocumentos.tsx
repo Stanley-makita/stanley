@@ -147,6 +147,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   const [docOcrRevisao, setDocOcrRevisao] = useState<DocumentoCliente | null>(null)
   const [docFgtsRevisao, setDocFgtsRevisao] = useState<DocumentoCliente | null>(null)
   const [docCompartilhando, setDocCompartilhando] = useState<DocumentoCliente | null>(null)
+  // V2: "Mover para outro participante" — troca o dono do documento dentro da proposta.
+  const [docMovendo, setDocMovendo] = useState<DocumentoCliente | null>(null)
+  const [destinoMover, setDestinoMover] = useState('')
   const [ocrModalAberto, setOcrModalAberto] = useState(false)
   const [analiseAberta, setAnaliseAberta] = useState(false)
   const [extracaoAberta, setExtracaoAberta] = useState(false)
@@ -327,6 +330,27 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   })
 
   const { data: etiquetas } = useEtiquetasVinculo(documentos.map(d => d.id), contexto === 'pessoa')
+
+  const moverDono = useMutation({
+    mutationFn: async ({ docId, pessoaDestino }: { docId: string; pessoaDestino: string }) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/documentos/${docId}/dono`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+        body: JSON.stringify({ entidade_tipo: contexto, entidade_id: entidadeId, pessoa_id: pessoaDestino }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? 'Não foi possível mover o documento.')
+    },
+    onSuccess: () => {
+      const nome = opcoesDonoDocumento.find(p => p.pessoaId === destinoMover)?.nome ?? 'o participante'
+      toast.success(`Documento movido para ${nome}.`)
+      setDocMovendo(null)
+      queryClient.invalidateQueries({ queryKey })
+      queryClient.invalidateQueries({ queryKey: ['pessoa-completa'] })
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Não foi possível mover o documento.'),
+  })
 
   const excluir = useMutation({
     mutationFn: async (id: string) => {
@@ -1086,6 +1110,16 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                 >
                   <Download className="h-3.5 w-3.5" />
                 </button>
+                {contexto !== 'pessoa' && opcoesDonoDocumento.length >= 2 && !!doc.pessoa_id && (
+                  <button
+                    onClick={() => { setDocMovendo(doc); setDestinoMover(opcoesDonoDocumento.find(p => p.pessoaId !== doc.pessoa_id)?.pessoaId ?? '') }}
+                    title="Mover para outro participante"
+                    aria-label="Mover para outro participante"
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-fonti-primary hover:bg-gray-100 transition-colors"
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => setDocCompartilhando(doc)}
                   title="Compartilhar via WhatsApp"
@@ -1133,6 +1167,43 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           sugestoes={ocrSugestoes}
           onFechar={() => setOcrModalAberto(false)}
         />
+      )}
+
+      {docMovendo && (
+        <Dialog open onOpenChange={v => { if (!v && !moverDono.isPending) setDocMovendo(null) }}>
+          <DialogContent className="w-[calc(100vw-1rem)] max-w-md p-6">
+            <h2 className="text-base font-semibold text-fonti-primary">Mover para outro participante</h2>
+            <p className="mt-1 truncate text-xs text-gray-500">{docMovendo.nome_exibicao ?? docMovendo.nome_original}</p>
+            <p className="mt-3 text-sm text-gray-700">
+              Hoje é de: <strong>{opcoesDonoDocumento.find(p => p.pessoaId === docMovendo.pessoa_id)?.nome ?? 'outra pessoa'}</strong>
+            </p>
+            <label className="mt-3 block text-xs font-medium text-gray-600" htmlFor="destino-mover">Passa a ser de</label>
+            <select
+              id="destino-mover"
+              value={destinoMover}
+              onChange={e => setDestinoMover(e.target.value)}
+              className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"
+            >
+              {opcoesDonoDocumento.filter(p => p.pessoaId !== docMovendo.pessoa_id).map(p => (
+                <option key={p.pessoaId} value={p.pessoaId}>{p.nome}</option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-gray-500">
+              Dados já extraídos deste documento continuam no cadastro de quem os recebeu — se estavam na pessoa errada, corrija na aba Pessoa.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDocMovendo(null)} disabled={moverDono.isPending}>Cancelar</Button>
+              <Button
+                size="sm"
+                className="bg-fonti-primary text-white hover:bg-fonti-primary-hover"
+                disabled={!destinoMover || moverDono.isPending}
+                onClick={() => moverDono.mutate({ docId: docMovendo.id, pessoaDestino: destinoMover })}
+              >
+                {moverDono.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Mover'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {docOcrRevisao && (
