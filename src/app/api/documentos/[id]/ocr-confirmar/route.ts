@@ -4,6 +4,7 @@ import { resolverPessoaConjuge } from '@/lib/pessoa'
 import { cpfValido } from '@/lib/cpf'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
+import { normalizarRegime, registrarCasamento } from '@/lib/participantes/casamentoServidor'
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -59,6 +60,8 @@ export async function POST(
     /** V2: "Novo participante" — reaproveita a Pessoa pelo CPF ou cria; inclui no lead. */
     novo_participante?: { nome?: string; cpf?: string }
     lead_id?: string
+    /** V2: certidão de casamento — com quem a Pessoa alvo é casada (participante/Pessoa existente ou nova). */
+    casamento?: { conjuge_pessoa_id?: string; novo?: { nome?: string; cpf?: string } }
   }
   const { campos, tipo_confirmado } = body
   const alvo = body.titular === 'conjuge' ? 'conjuge' : 'principal'
@@ -91,7 +94,35 @@ export async function POST(
     }
     if (DATA_FIELDS.includes(k) && !DATA_REGEX.test(s)) continue
     if (k === 'estado_civil' && !ESTADO_CIVIL_VALIDOS.includes(s)) continue
+    if (k === 'regime_casamento') {
+      const regime = normalizarRegime(s)  // OCR devolve comunhao_universal; o cadastro usa comunhao_total
+      if (!regime) continue
+      s = regime
+    }
     camposFiltrados[k] = s
+  }
+
+  // Reaproveita a Pessoa pelo CPF (válido) ou cria só com o nome. Invariante 1 do CLAUDE.md: Pessoa de
+  // usuário interno nunca vira participante, cônjuge de cliente nem dona de documento de cliente.
+  async function pessoaPorCpfOuNova(nome: string, cpfBruto: string | undefined): Promise<{ id: string } | { erro: string; status: number }> {
+    const cpf = (cpfBruto ?? '').replace(/\D/g, '')
+    if (cpfValido(cpf)) {
+      const { data: existente, error: eEx } = await supabase.from('pessoas').select('id')
+        .eq('empresa_id', empresa_id).eq('cpf', cpf).is('deleted_at', null).maybeSingle()
+      if (eEx) return { erro: 'Erro ao buscar a pessoa pelo CPF.', status: 500 }
+      if (existente?.id) {
+        const { data: ehOperador, error: eOp } = await supabase.rpc('pessoa_e_de_operador', { p_pessoa_id: existente.id })
+        if (eOp) return { erro: 'Erro ao verificar a pessoa.', status: 500 }
+        if (ehOperador) return { erro: 'Esse CPF pertence ao cadastro de um usuário da equipe — não pode ser usado aqui.', status: 422 }
+        return { id: existente.id as string }
+      }
+    }
+    const novoId = crypto.randomUUID()
+    const { error: eNova } = await supabase.from('pessoas').insert({
+      id: novoId, empresa_id, nome, tipo: 'cliente', ...(cpfValido(cpf) ? { cpf } : {}),
+    })
+    if (eNova) return { erro: 'Não foi possível criar a pessoa.', status: 500 }
+    return { id: novoId }
   }
 
   // Pessoa que recebe os dados (e passa a ser a dona do documento). Ordem: participante escolhido
@@ -116,29 +147,9 @@ export async function POST(
     if (eLead) return NextResponse.json({ error: 'Erro ao verificar o lead.' }, { status: 500 })
     if (!leadVisivel) return NextResponse.json({ error: 'Lead não encontrado.' }, { status: 404 })
 
-    const cpfNovo = (body.novo_participante.cpf ?? '').replace(/\D/g, '')
-    let alvoId: string | null = null
-    if (cpfValido(cpfNovo)) {
-      const { data: existente, error: eEx } = await supabase.from('pessoas').select('id')
-        .eq('empresa_id', empresa_id).eq('cpf', cpfNovo).is('deleted_at', null).maybeSingle()
-      if (eEx) return NextResponse.json({ error: 'Erro ao buscar a pessoa pelo CPF.' }, { status: 500 })
-      alvoId = (existente?.id as string | undefined) ?? null
-    }
-    if (alvoId) {
-      // Invariante 1 do CLAUDE.md: Pessoa de usuário interno nunca vira participante nem dona de documento de cliente.
-      const { data: ehOperador, error: eOp } = await supabase.rpc('pessoa_e_de_operador', { p_pessoa_id: alvoId })
-      if (eOp) return NextResponse.json({ error: 'Erro ao verificar a pessoa.' }, { status: 500 })
-      if (ehOperador) {
-        return NextResponse.json({ error: 'Esse CPF pertence ao cadastro de um usuário da equipe — não pode ser participante.' }, { status: 422 })
-      }
-    } else {
-      const novoId = crypto.randomUUID()
-      const { error: eNova } = await supabase.from('pessoas').insert({
-        id: novoId, empresa_id, nome: nomeNovo, tipo: 'cliente', ...(cpfValido(cpfNovo) ? { cpf: cpfNovo } : {}),
-      })
-      if (eNova) return NextResponse.json({ error: 'Não foi possível criar a pessoa.', detail: eNova.message }, { status: 500 })
-      alvoId = novoId
-    }
+    const resolvida = await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf)
+    if ('erro' in resolvida) return NextResponse.json({ error: resolvida.erro }, { status: resolvida.status })
+    const alvoId = resolvida.id
     if (alvoId !== leadVisivel.pessoa_id) {
       const { error: eCop } = await supabase.from('lead_coparticipantes')
         .insert({ empresa_id, lead_id: body.lead_id, pessoa_id: alvoId })
@@ -338,6 +349,37 @@ export async function POST(
     }
   }
 
+  // Certidão de casamento (V2): registra o casamento da Pessoa alvo com o cônjuge escolhido, nos dois
+  // lados, com data e regime da certidão. Casamento de terceiros só com confirmação — os outros dados
+  // já foram salvos; a tela pergunta e conclui pela rota de casamento.
+  let casamento: 'registrado' | 'confirmar' | 'erro' | null = null
+  let casamento_encerra: Array<{ id: string; nome: string }> = []
+  let casamento_erro: string | null = null
+  if (tipo_confirmado === 'certidao_casamento' && (body.casamento?.conjuge_pessoa_id || body.casamento?.novo?.nome?.trim())) {
+    let conjugeId: string | null = null
+    if (body.casamento.conjuge_pessoa_id) {
+      const { data: visivel } = await clienteDoUsuario(token)
+        .from('pessoas').select('id').eq('id', body.casamento.conjuge_pessoa_id).is('deleted_at', null).maybeSingle()
+      if (visivel) conjugeId = body.casamento.conjuge_pessoa_id
+      else casamento_erro = 'Cônjuge escolhido não encontrado.'
+    } else {
+      const r = await pessoaPorCpfOuNova(body.casamento.novo!.nome!.trim(), body.casamento.novo!.cpf)
+      if ('erro' in r) casamento_erro = r.erro
+      else conjugeId = r.id
+    }
+    if (conjugeId) {
+      const r = await registrarCasamento(supabase, empresa_id, pessoaId, conjugeId, {
+        estadoCivil: 'casado',
+        regime: (camposFiltrados['regime_casamento'] as string | undefined) ?? null,
+        data: (camposFiltrados['data_casamento'] as string | undefined) ?? null,
+      })
+      if ('ok' in r) casamento = 'registrado'
+      else if ('confirmar' in r) { casamento = 'confirmar'; casamento_encerra = r.confirmar }
+      else casamento_erro = r.erro
+    }
+    if (casamento_erro) casamento = 'erro'
+  }
+
   // Marca documento como revisado, atualizando classificacao se o usuário confirmou o tipo.
   // Se é do cônjuge, o documento passa a pertencer de fato à Pessoa do cônjuge
   // (não mais ao titular) — reflete a real dona da identidade no documento.
@@ -367,6 +409,9 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     alvo_pessoa_id: pessoaId,
+    casamento,
+    casamento_encerra,
+    casamento_erro,
     alvo_nome: (alvoPessoa?.nome as string | undefined) ?? null,
     cpf_divergente,
     cpf_pertence_a,
