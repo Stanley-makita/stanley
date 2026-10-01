@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { Check, Loader2 } from 'lucide-react'
 import { DocumentosIdentidadeSection } from '@/components/pessoas/DocumentosIdentidadeSection'
 import { useDefinirConjuge } from '@/hooks/participantes/useMutacoesParticipantes'
+import { confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -292,6 +293,13 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
 
       // 0. Telefone principal
       const telefoneVal = form.telefone.trim()
+      {
+        const telsAtuais = ((pessoa as unknown as { pessoa_telefones?: Array<{ telefone: string; principal: boolean; ativo: boolean }> } | undefined)?.pessoa_telefones ?? []).filter(t => t.ativo)
+        const anterior = (telsAtuais.find(t => t.principal) ?? telsAtuais[0])?.telefone
+        if (usuario?.empresa_id && !(await confirmarTelefoneDaEquipe(usuario.empresa_id, telefoneVal, anterior))) {
+          throw new Error('Salvamento cancelado: confira o telefone.')
+        }
+      }
       if (telefoneVal) {
         const p = pessoa as any
         const tels = p?.pessoa_telefones ?? []
