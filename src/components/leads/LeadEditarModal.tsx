@@ -130,9 +130,10 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
         ...(data.renda_informal ? { renda_informal: data.renda_informal }  : {}),
         ...(data.produto_interesse ? { produto_interesse: data.produto_interesse } : {}),
         ...(data.modalidade        ? { modalidade: data.modalidade }               : {}),
-        ...(temConjuge && data.conjuge_nome            ? { conjuge_nome: data.conjuge_nome }                       : {}),
-        ...(temConjuge && data.conjuge_cpf             ? { conjuge_cpf: data.conjuge_cpf }                         : {}),
-        ...(temConjuge && data.conjuge_data_nascimento ? { conjuge_data_nascimento: data.conjuge_data_nascimento } : {}),
+        // V2: com cônjuge cadastrado, os dados pessoais dele ficam no cadastro dele (só o regime vai daqui)
+        ...(temConjuge && !lead.conjuge_pessoa_id && data.conjuge_nome            ? { conjuge_nome: data.conjuge_nome }                       : {}),
+        ...(temConjuge && !lead.conjuge_pessoa_id && data.conjuge_cpf             ? { conjuge_cpf: data.conjuge_cpf }                         : {}),
+        ...(temConjuge && !lead.conjuge_pessoa_id && data.conjuge_data_nascimento ? { conjuge_data_nascimento: data.conjuge_data_nascimento } : {}),
         ...(temConjuge && data.regime_casamento        ? { regime_casamento: data.regime_casamento }               : {}),
       })
       onFechar()
@@ -270,7 +271,11 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
               {temConjuge && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cônjuge / Companheiro(a)</p>
+                  {lead.conjuge_pessoa_id && (
+                    <p className="text-xs text-gray-500">Os dados pessoais do cônjuge ficam no cadastro dele. Aqui, só o regime do casal.</p>
+                  )}
                   <div className="grid gap-4 sm:grid-cols-2">
+                    {!lead.conjuge_pessoa_id && (<>
                     <FormField control={form.control} name="conjuge_nome" render={({ field }) => (
                       <FormItem className="col-span-2">
                         <FormLabel>Nome</FormLabel>
@@ -294,6 +299,7 @@ export function LeadEditarModal({ aberto, onFechar, lead }: Props) {
                         <FormMessage />
                       </FormItem>
                     )} />
+                    </>)}
 
                     <FormField control={form.control} name="regime_casamento" render={({ field }) => (
                       <FormItem className="col-span-2">

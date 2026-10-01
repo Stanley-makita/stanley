@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { type Lead } from '@/types/leads'
 import { toast } from 'sonner'
 import { temContatoObrigatorioParaCredito } from '@/components/leads/leadContactValidation'
+import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
 
 interface EditarLeadInput {
   id: string
@@ -84,7 +85,15 @@ export function useEditarLead() {
   const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ id, ...campos }: EditarLeadInput): Promise<Lead> => {
+    mutationFn: async ({
+      id, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_renda_formal, conjuge_renda_informal,
+      ...campos
+    }: EditarLeadInput): Promise<Lead> => {
+      // V2 (B2c): os campos soltos conjuge_* nunca são gravados no lead nem na Pessoa — o cônjuge vai pelo
+      // serviço único (Pessoa própria + casamento nos dois lados). regime_casamento continua espelhado no
+      // lead só para exibição (não dispara a sincronização).
+      const conjugeInformado = [conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_renda_formal, conjuge_renda_informal]
+        .some(v => v !== undefined)
       const { data, error } = await supabase
         .from('leads')
         .update(campos)
@@ -106,16 +115,12 @@ export function useEditarLead() {
         if (campos.estado_civil !== undefined) pessoaPayload.estado_civil    = campos.estado_civil || null
         if (campos.renda_formal !== undefined) pessoaPayload.renda_formal    = campos.renda_formal ?? null
         if (campos.renda_informal !== undefined) pessoaPayload.renda_informal = campos.renda_informal ?? null
-        if (campos.conjuge_nome !== undefined) pessoaPayload.conjuge_nome    = campos.conjuge_nome ?? null
-        if (campos.conjuge_cpf  !== undefined) pessoaPayload.conjuge_cpf     = campos.conjuge_cpf ?? null
-        if (campos.conjuge_data_nascimento !== undefined) pessoaPayload.conjuge_data_nascimento = campos.conjuge_data_nascimento ?? null
-        if (campos.regime_casamento !== undefined) pessoaPayload.regime_casamento = campos.regime_casamento ?? null
 
         if (Object.keys(pessoaPayload).length > 0) {
           // Buscar dados atuais da pessoa para calcular diff real no audit
           const { data: pessoaAtual } = await supabase
             .from('pessoas')
-            .select('nome,email,cpf,data_nascimento,rg,profissao,estado_civil,renda_formal,renda_informal,conjuge_nome,conjuge_cpf,conjuge_data_nascimento,regime_casamento')
+            .select('nome,email,cpf,data_nascimento,rg,profissao,estado_civil,renda_formal,renda_informal')
             .eq('id', data.pessoa_id)
             .single()
 
@@ -159,6 +164,29 @@ export function useEditarLead() {
               origem: 'leads',
             })
           }
+        }
+
+        if (conjugeInformado || campos.regime_casamento !== undefined) {
+          const { data: titular, error: eTit } = await supabase.from('pessoas')
+            .select('estado_civil, conjuge_pessoa_id, regime_casamento, data_casamento')
+            .eq('id', data.pessoa_id).maybeSingle()
+          if (eTit || !titular) throw new Error('Não foi possível carregar a pessoa do lead para salvar o cônjuge.')
+          const estado = campos.estado_civil ?? titular.estado_civil
+          const r = await salvarCasamentoDoFormulario({
+            pessoaId: data.pessoa_id,
+            casado: true,
+            estadoCivil: estado === 'uniao_estavel' ? 'uniao_estavel' : 'casado',
+            conjugeCadastradoId: titular.conjuge_pessoa_id ?? null,
+            regime: campos.regime_casamento !== undefined ? (campos.regime_casamento ?? null) : (titular.regime_casamento ?? null),
+            data: titular.data_casamento ?? null,
+            digitado: conjugeInformado ? {
+              nome: conjuge_nome ?? '', cpf: conjuge_cpf ?? '', data_nascimento: conjuge_data_nascimento ?? '',
+              telefone: '', profissao: '',
+              renda_formal: conjuge_renda_formal != null ? String(conjuge_renda_formal) : '',
+              renda_informal: conjuge_renda_informal != null ? String(conjuge_renda_informal) : '',
+            } : null,
+          })
+          if ('erro' in r) toast.warning(`Lead salvo, mas o cônjuge não: ${r.erro}`, { duration: 10000 })
         }
       }
 

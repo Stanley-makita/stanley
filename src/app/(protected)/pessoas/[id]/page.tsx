@@ -30,6 +30,7 @@ import { LeadFormDrawer } from '@/components/leads/LeadFormDrawer'
 import { NovoProcessoModal, type PessoaMinima } from '@/components/leads/NovoProcessoModal'
 import { processosDaPessoa } from '@/lib/participantes/consultas'
 import { PAPEIS_COMPRA, PAPEIS_VENDA } from '@/lib/participantes/tipos'
+import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
 
 interface PessoaTelefone {
   id: string
@@ -158,6 +159,8 @@ interface Pessoa {
   conjuge_renda_formal: number | null
   conjuge_renda_informal: number | null
   regime_casamento: string | null
+  conjuge_pessoa_id: string | null
+  data_casamento: string | null
 }
 
 const REGIME_LABELS: Record<string, string> = {
@@ -279,7 +282,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
             rg, profissao, estado_civil, renda_formal, renda_informal, nacionalidade,
             endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
             conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
-            conjuge_renda_formal, conjuge_renda_informal, regime_casamento,
+            conjuge_renda_formal, conjuge_renda_informal, regime_casamento, conjuge_pessoa_id, data_casamento,
             pessoa_telefones(id, telefone, principal, whatsapp, ativo, created_at)`)
           .eq('id', params.id)
           .eq('empresa_id', usuario!.empresa_id)
@@ -383,8 +386,6 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
     'nome','email','cpf','data_nascimento','observacoes','tipo',
     'rg','profissao','estado_civil','renda_formal','renda_informal','nacionalidade',
     'endereco_rua','endereco_numero','endereco_bairro','endereco_cidade','endereco_uf','endereco_cep',
-    'conjuge_nome','conjuge_cpf','conjuge_data_nascimento','conjuge_telefone','conjuge_profissao',
-    'conjuge_renda_formal','conjuge_renda_informal','regime_casamento',
   ] as const
 
   const eCasadoForm = form.estado_civil === 'casado' || form.estado_civil === 'uniao_estavel'
@@ -411,14 +412,6 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         endereco_cidade:         dados.endereco_cidade.trim() || null,
         endereco_uf:             dados.endereco_uf.trim() || null,
         endereco_cep:            dados.endereco_cep.trim() || null,
-        conjuge_nome:            eCasadoForm ? (dados.conjuge_nome.trim() || null) : null,
-        conjuge_cpf:             eCasadoForm ? (dados.conjuge_cpf.trim() || null) : null,
-        conjuge_data_nascimento: eCasadoForm ? (dados.conjuge_data_nascimento || null) : null,
-        conjuge_telefone:        eCasadoForm ? (dados.conjuge_telefone.trim() || null) : null,
-        conjuge_profissao:       eCasadoForm ? (dados.conjuge_profissao.trim() || null) : null,
-        conjuge_renda_formal:    eCasadoForm && dados.conjuge_renda_formal ? Number(dados.conjuge_renda_formal) : null,
-        conjuge_renda_informal:  eCasadoForm && dados.conjuge_renda_informal ? Number(dados.conjuge_renda_informal) : null,
-        regime_casamento:        eCasadoForm ? (dados.regime_casamento || null) : null,
       }
 
       // Atualizar telefone principal — via RPC (SECURITY DEFINER) pra
@@ -442,6 +435,19 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         .eq('empresa_id', usuario!.empresa_id)
       if (error) throw error
 
+      // Casamento (V2 B2c): nunca campos soltos conjuge_* — cônjuge cadastrado ou criado pelo serviço único.
+      const casamento = await salvarCasamentoDoFormulario({
+        pessoaId: params.id, casado: eCasadoForm, estadoCivil: dados.estado_civil,
+        conjugeCadastradoId: pessoa?.conjuge_pessoa_id ?? null,
+        regime: dados.regime_casamento || null, data: pessoa?.data_casamento ?? null,
+        digitado: {
+          nome: dados.conjuge_nome, cpf: dados.conjuge_cpf, data_nascimento: dados.conjuge_data_nascimento,
+          telefone: dados.conjuge_telefone, profissao: dados.conjuge_profissao,
+          renda_formal: dados.conjuge_renda_formal, renda_informal: dados.conjuge_renda_informal,
+        },
+      })
+      if ('erro' in casamento) toast.warning(`Dados salvos, mas o casamento não: ${casamento.erro}`, { duration: 10000 })
+
       // Propagar todos os campos compartilhados para leads vinculados
       await supabase.from('leads').update({
         nome:                    payload.nome,
@@ -453,10 +459,6 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         estado_civil:            payload.estado_civil,
         renda_formal:            payload.renda_formal,
         renda_informal:          payload.renda_informal,
-        conjuge_nome:            payload.conjuge_nome,
-        conjuge_cpf:             payload.conjuge_cpf,
-        conjuge_data_nascimento: payload.conjuge_data_nascimento,
-        regime_casamento:        payload.regime_casamento,
       }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
 
       // Propagar nome, cpf, email para compradores vinculados
@@ -472,8 +474,6 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         cpf:          payload.cpf,
         email:        payload.email,
         estado_civil: payload.estado_civil,
-        conjuge_nome: payload.conjuge_nome,
-        conjuge_cpf:  payload.conjuge_cpf,
       }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
 
       // Registrar auditoria — calcular diff
@@ -867,7 +867,11 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                 {eCasadoForm && (
                   <div className="mt-3 p-3 bg-fonti-accent-hover/20 border border-fonti-accent/40 rounded-xl space-y-3">
                     <p className="text-xs font-semibold text-fonti-primary">Cônjuge / Companheiro(a)</p>
+                    {pessoa?.conjuge_pessoa_id && (
+                      <p className="text-xs text-gray-500">{pessoa.conjuge_nome ? `${pessoa.conjuge_nome}: o` : 'O'}s dados pessoais do cônjuge ficam no cadastro dele. Aqui, só o regime do casal.</p>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {!pessoa?.conjuge_pessoa_id && (<>
                       <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>
                         <Input value={form.conjuge_nome} onChange={(e) => setForm((f) => ({ ...f, conjuge_nome: e.target.value }))} placeholder="Nome do cônjuge" />
@@ -896,6 +900,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Informal (R$)</label>
                         <Input type="number" value={form.conjuge_renda_informal} onChange={(e) => setForm((f) => ({ ...f, conjuge_renda_informal: e.target.value }))} placeholder="0" />
                       </div>
+                      </>)}
                       <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Regime de Bens</label>
                         <select

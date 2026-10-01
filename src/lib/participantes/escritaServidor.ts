@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cpfValido } from '@/lib/cpf'
 import { registrarCasamento } from './casamentoServidor'
+import { variantesTelefoneBR } from '@/lib/telefone'
 
 /**
  * Serviço ÚNICO de escrita de "quem participa" (Participantes V2, B2c).
@@ -209,4 +210,66 @@ export async function definirConjugeTitularLead(
   const { error } = await sb.from('leads').update({ conjuge_pessoa_id: conjugeId }).eq('id', leadId).eq('empresa_id', empresaId)
   if (error) return { erro: 'Erro ao atualizar o cônjuge no lead.', status: 500 }
   return { ok: true }
+}
+
+export interface DadosNovoConjuge {
+  nome: string
+  cpf?: string | null
+  data_nascimento?: string | null
+  telefone?: string | null
+  profissao?: string | null
+  renda_formal?: number | null
+  renda_informal?: number | null
+}
+
+/**
+ * Cônjuge digitado num formulário (seção "Cônjuge" de quem ainda não tem cônjuge cadastrado): reaproveita
+ * a Pessoa pelo CPF ou cria; preenche só campos VAZIOS dela (nunca sobrescreve um cadastro existente);
+ * telefone só se ela não tiver nenhum e não for de usuário da equipe; registra o casamento nos dois lados.
+ * Substitui a gravação dos campos soltos conjuge_* (que a sincronização da Fase A convertia).
+ */
+export async function casarComNovoConjuge(
+  sb: SupabaseClient, empresaId: string, pessoaId: string, dados: DadosNovoConjuge,
+  casamento: { estadoCivil: string; regime: string | null; data: string | null; confirmarEncerrar?: boolean },
+): Promise<{ ok: true; conjugeId: string } | { confirmar: Array<{ id: string; nome: string }>; conjugeId: string } | { erro: string; status: number }> {
+  const r = await pessoaPorCpfOuNova(sb, empresaId, dados.nome, dados.cpf)
+  if ('erro' in r) return r
+  const conjugeId = r.id
+  if (conjugeId === pessoaId) return { erro: 'O cônjuge não pode ser a própria pessoa.', status: 422 }
+
+  const { data: atual, error: eAt } = await sb.from('pessoas')
+    .select('data_nascimento, profissao, renda_formal, renda_informal').eq('id', conjugeId).maybeSingle()
+  if (eAt) return { erro: 'Erro ao carregar o cônjuge.', status: 500 }
+  const preencher: Record<string, unknown> = {}
+  const dataOk = dados.data_nascimento && /^\d{4}-\d{2}-\d{2}$/.test(dados.data_nascimento)
+  if (dataOk && !atual?.data_nascimento) preencher.data_nascimento = dados.data_nascimento
+  if (dados.profissao?.trim() && !atual?.profissao) preencher.profissao = dados.profissao.trim()
+  if (dados.renda_formal != null && atual?.renda_formal == null) preencher.renda_formal = dados.renda_formal
+  if (dados.renda_informal != null && atual?.renda_informal == null) preencher.renda_informal = dados.renda_informal
+  if (Object.keys(preencher).length) {
+    const { error } = await sb.from('pessoas').update(preencher).eq('id', conjugeId)
+    if (error) return { erro: 'Erro ao gravar os dados do cônjuge.', status: 500 }
+  }
+
+  const tel = dados.telefone?.trim()
+  if (tel) {
+    const { data: tels } = await sb.from('pessoa_telefones').select('id').eq('pessoa_id', conjugeId).eq('ativo', true)
+    const variantes = variantesTelefoneBR(tel)
+    const [{ data: u1 }, { data: u2 }] = await Promise.all([
+      sb.from('usuarios').select('id').eq('empresa_id', empresaId).eq('ativo', true).in('telefone_whatsapp', variantes),
+      sb.from('usuarios').select('id').eq('empresa_id', empresaId).eq('ativo', true).in('telefone', variantes),
+    ])
+    const ehDaEquipe = (u1 ?? []).length > 0 || (u2 ?? []).length > 0
+    if (!(tels ?? []).length && !ehDaEquipe) {
+      const { error } = await sb.from('pessoa_telefones').insert({
+        pessoa_id: conjugeId, empresa_id: empresaId, telefone: tel, principal: true, whatsapp: true, ativo: true,
+      })
+      if (error && error.code !== '23505') console.error('[casarComNovoConjuge] telefone não gravado:', error.message)
+    }
+  }
+
+  const c = await registrarCasamento(sb, empresaId, pessoaId, conjugeId, casamento)
+  if ('erro' in c) return c
+  if ('confirmar' in c) return { confirmar: c.confirmar, conjugeId }
+  return { ok: true, conjugeId }
 }
