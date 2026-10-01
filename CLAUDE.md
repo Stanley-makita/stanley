@@ -715,3 +715,22 @@ fixa quebra sozinho na virada do mês (achado real 01/10/2026: 18 testes falhara
 falhavam desde julho pelo mesmo motivo e eram tratados como "falha pré-existente"). Todo teste novo do simulador ou
 de workflow que simule chama `fixarHoje('AAAA-MM-DD')` (`src/lib/simuladorFinanciamento/__tests__/helpers/dataFixa.ts`)
 com a data em que o valor esperado foi conferido. Desde o PR #370 a suíte é 100% verde — falha = regressão real.
+
+## Go-live 01/10 à tarde — 3 regras que nasceram de problemas reais da equipe
+
+- **Usuário da equipe pode ser cliente** (PR #369, migration 334). `pessoa_e_de_operador` = telefone de usuário
+  ativo **e sem CPF válido** (só a Pessoa-âncora que o bot cria para a conversa do comercial). Antes, qualquer
+  cadastro com telefone da equipe sumia da proposta em silêncio (cliente de teste com o telefone do Marcio).
+  Telefone mudou → `trg_pv2_pessoa_telefones` ressincroniza as propostas da Pessoa. Salvar telefone da equipe num
+  cliente pergunta antes (`confirmarTelefoneDaEquipe`); principal fora da proposta = aviso na aba Pessoa.
+- **CPF recusado nunca some calado** (PR #371). CPF é UNIQUE: se já é de outro cadastro, `avisarCpfDeOutroCadastro`
+  mostra o dono e orienta "Mesclar"; o CPF não é copiado para o lead. Casamento (`registrarCasamento`) atualiza o
+  ponteiro antigo `leads.conjuge_pessoa_id` (a aba Crédito ainda lê ele); `useLead` completa pela participação.
+- **OCR: nome parecido não cria cadastro novo** (PR #372). "De quem é este documento?" reconhece nome parecido
+  (`nomesParecidos`: mesmo 1º nome + até 2 letras de diferença, ou nomes contidos) — caso real "COPULLA" x
+  "COPPULA" virou duplicado e travou o CPF. "Novo participante" sempre com aviso; o servidor (`ocr-confirmar`)
+  devolve 409 `parecido` antes de criar e só segue com `confirmar_novo`.
+
+Dados de teste depois do go-live: **nunca** purga geral (já há clientes reais). Apagar teste = levantamento por ID
+(lead, negócios, documentos, arquivos), checar se a Pessoa não está em proposta real, script em transação, conferir
+contagens. A Pessoa "Novo contato" (âncora do WhatsApp do Marcio) não é teste — não apagar.
