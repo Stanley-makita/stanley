@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { criarFakeDb, type Row } from '@/lib/documentos/__tests__/helpers/fakeDb'
 import {
   pessoaPorCpfOuNova, incluirParticipanteLead, removerParticipanteLead, incluirVendedorLead, removerVendedorLead,
-  definirConjugeTitularLead,
+  definirConjugeTitularLead, casarComNovoConjuge,
 } from '../escritaServidor'
 
 let tabelas: Record<string, Row[]>
@@ -34,6 +34,8 @@ beforeEach(() => {
     ],
     lead_coparticipantes: [],
     lead_vendedores: [],
+    pessoa_telefones: [],
+    usuarios: [{ id: 'u1', empresa_id: 'e1', ativo: true, telefone_whatsapp: '5544999990000', telefone: null }],
   }
 })
 
@@ -97,5 +99,28 @@ describe('cônjuge do titular do lead', () => {
   it('recusa Pessoa de operador como cônjuge', async () => {
     operadores = ['op']
     expect(await definirConjugeTitularLead(sb(), 'e1', 'l1', 'op')).toMatchObject({ status: 422 })
+  })
+})
+
+describe('casarComNovoConjuge', () => {
+  const casamento = { estadoCivil: 'casado', regime: 'comunhao_parcial', data: '1990-05-12' }
+  it('cria o cônjuge com os dados digitados e registra o casamento nos dois lados', async () => {
+    const r = await casarComNovoConjuge(sb(), 'e1', 'heitor',
+      { nome: 'Joana', data_nascimento: '1992-01-02', profissao: 'Professora', telefone: '44988887777', renda_formal: 3000 }, casamento)
+    expect('ok' in r).toBe(true)
+    const joana = tabelas.pessoas.find(p => p.nome === 'Joana')!
+    expect(joana).toMatchObject({ data_nascimento: '1992-01-02', profissao: 'Professora', renda_formal: 3000, conjuge_pessoa_id: 'heitor' })
+    expect(tabelas.pessoas.find(p => p.id === 'heitor')).toMatchObject({ conjuge_pessoa_id: joana.id, regime_casamento: 'comunhao_parcial' })
+    expect(tabelas.pessoa_telefones).toEqual([expect.objectContaining({ pessoa_id: joana.id, telefone: '44988887777' })])
+  })
+  it('CPF já cadastrado: reaproveita e NUNCA sobrescreve dado existente', async () => {
+    tabelas.pessoas.find(p => p.id === 'maria')!.profissao = 'Advogada'
+    const r = await casarComNovoConjuge(sb(), 'e1', 'heitor', { nome: 'Maria X', cpf: '11144477735', profissao: 'Outra' }, casamento)
+    expect(r).toMatchObject({ ok: true, conjugeId: 'maria' })
+    expect(tabelas.pessoas.find(p => p.id === 'maria')!.profissao).toBe('Advogada')
+  })
+  it('telefone de usuário da equipe não vai para o cônjuge', async () => {
+    await casarComNovoConjuge(sb(), 'e1', 'heitor', { nome: 'Joana', telefone: '(44) 99999-0000' }, casamento)
+    expect(tabelas.pessoa_telefones).toHaveLength(0)
   })
 })

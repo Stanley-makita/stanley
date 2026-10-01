@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
 import { DocumentosIdentidadeSection } from './DocumentosIdentidadeSection'
+import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
 
 const ESTADOS_CIVIS = [
   { value: 'solteiro',      label: 'Solteiro(a)' },
@@ -204,6 +205,7 @@ export function CompletarDadosPessoaDrawer({
   }, [pessoa, open])
 
   const eCasado = form.estado_civil === 'casado' || form.estado_civil === 'uniao_estavel'
+  const temConjugeCadastrado = !!(pessoa as { conjuge_pessoa_id?: string | null } | undefined)?.conjuge_pessoa_id
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -241,15 +243,6 @@ export function CompletarDadosPessoaDrawer({
         pep:                     selectParaBool(form.pep),
         autoriza_oferta_marketing: selectParaBool(form.autoriza_oferta_marketing),
         patrimonio_total:        form.patrimonio_total ? Number(form.patrimonio_total) : null,
-        conjuge_nome:            eCasado ? (form.conjuge_nome.trim() || null) : null,
-        conjuge_cpf:             eCasado ? (normalizarCpf(form.conjuge_cpf) ?? null) : null,
-        conjuge_data_nascimento: eCasado ? (form.conjuge_data_nascimento || null) : null,
-        conjuge_telefone:        eCasado ? (form.conjuge_telefone.trim() || null) : null,
-        conjuge_profissao:       eCasado ? (form.conjuge_profissao.trim() || null) : null,
-        conjuge_renda_formal:    eCasado && form.conjuge_renda_formal ? Number(form.conjuge_renda_formal) : null,
-        conjuge_renda_informal:  eCasado && form.conjuge_renda_informal ? Number(form.conjuge_renda_informal) : null,
-        regime_casamento:        eCasado ? (form.regime_casamento || null) : null,
-        data_casamento:          eCasado ? (form.data_casamento || null) : null,
         empresa_nome:            form.empresa_nome.trim() || null,
         empresa_cnpj:            form.empresa_cnpj.trim() || null,
         municipio_trabalho:      form.municipio_trabalho.trim() || null,
@@ -279,7 +272,6 @@ export function CompletarDadosPessoaDrawer({
       // 1. Atualizar pessoas — CPF separado para não bloquear em caso de conflito UNIQUE
       const payloadSemCpf = { ...payload }
       delete (payloadSemCpf as Record<string, unknown>)['cpf']
-      delete (payloadSemCpf as Record<string, unknown>)['conjuge_cpf']
 
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
@@ -288,10 +280,18 @@ export function CompletarDadosPessoaDrawer({
         const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
         if (errCpf) console.warn('[completar-dados] CPF não salvo (conflito):', errCpf.message)
       }
-      if (payload.conjuge_cpf) {
-        const { error: errCpfC } = await supabase.from('pessoas').update({ conjuge_cpf: payload.conjuge_cpf }).eq('id', pessoaId)
-        if (errCpfC) console.warn('[completar-dados] CPF cônjuge não salvo (conflito):', errCpfC.message)
-      }
+      // Casamento (V2 B2c): nunca campos soltos conjuge_* — cônjuge cadastrado ou criado pelo serviço único.
+      const conjugeCadastradoId = (pessoa as { conjuge_pessoa_id?: string | null } | undefined)?.conjuge_pessoa_id ?? null
+      const casamento = await salvarCasamentoDoFormulario({
+        pessoaId, casado: eCasado, estadoCivil: form.estado_civil, conjugeCadastradoId,
+        regime: form.regime_casamento || null, data: form.data_casamento || null,
+        digitado: {
+          nome: form.conjuge_nome, cpf: form.conjuge_cpf, data_nascimento: form.conjuge_data_nascimento,
+          telefone: form.conjuge_telefone, profissao: form.conjuge_profissao,
+          renda_formal: form.conjuge_renda_formal, renda_informal: form.conjuge_renda_informal,
+        },
+      })
+      if ('erro' in casamento) toast.warning(`Dados salvos, mas o casamento não: ${casamento.erro}`, { duration: 10000 })
 
       // 2. Propagar para leads
       await supabase.from('leads').update({
@@ -304,10 +304,6 @@ export function CompletarDadosPessoaDrawer({
         estado_civil:            payload.estado_civil,
         renda_formal:            payload.renda_formal,
         renda_informal:          payload.renda_informal,
-        conjuge_nome:            payload.conjuge_nome,
-        conjuge_cpf:             payload.conjuge_cpf,
-        conjuge_data_nascimento: payload.conjuge_data_nascimento,
-        regime_casamento:        payload.regime_casamento,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
       // 3. Propagar para compradores
@@ -323,8 +319,6 @@ export function CompletarDadosPessoaDrawer({
         cpf:          payload.cpf,
         email:        payload.email,
         estado_civil: payload.estado_civil,
-        conjuge_nome: payload.conjuge_nome,
-        conjuge_cpf:  payload.conjuge_cpf,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
       // 5. Auditoria
@@ -533,7 +527,11 @@ export function CompletarDadosPessoaDrawer({
                       </div>
                     )
                   })()}
+                  {temConjugeCadastrado && (
+                    <p className="text-xs text-gray-500">Os dados pessoais do cônjuge ficam no cadastro dele. Aqui, só a data e o regime do casal.</p>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {!temConjugeCadastrado && (<>
                     <div className="sm:col-span-2">
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Nome completo</label>
                       <Input value={form.conjuge_nome} onChange={(e) => f({ conjuge_nome: e.target.value })} placeholder="Nome do cônjuge" />
@@ -562,6 +560,7 @@ export function CompletarDadosPessoaDrawer({
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Renda Informal (R$)</label>
                       <InputMoeda value={form.conjuge_renda_informal} onChange={(v) => f({ conjuge_renda_informal: v })} />
                     </div>
+                    </>)}
                     <div>
                       <label className="text-xs font-medium text-gray-500 mb-1 block">Data do Casamento/União</label>
                       <Input type="date" value={form.data_casamento} onChange={(e) => f({ data_casamento: e.target.value })} />
