@@ -5,6 +5,7 @@ import { cpfValido } from '@/lib/cpf'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
 import { normalizarRegime, registrarCasamento } from '@/lib/participantes/casamentoServidor'
+import { incluirParticipanteLead, pessoaPorCpfOuNova as pessoaPorCpfOuNovaServico } from '@/lib/participantes/escritaServidor'
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -102,28 +103,8 @@ export async function POST(
     camposFiltrados[k] = s
   }
 
-  // Reaproveita a Pessoa pelo CPF (válido) ou cria só com o nome. Invariante 1 do CLAUDE.md: Pessoa de
-  // usuário interno nunca vira participante, cônjuge de cliente nem dona de documento de cliente.
-  async function pessoaPorCpfOuNova(nome: string, cpfBruto: string | undefined): Promise<{ id: string } | { erro: string; status: number }> {
-    const cpf = (cpfBruto ?? '').replace(/\D/g, '')
-    if (cpfValido(cpf)) {
-      const { data: existente, error: eEx } = await supabase.from('pessoas').select('id')
-        .eq('empresa_id', empresa_id).eq('cpf', cpf).is('deleted_at', null).maybeSingle()
-      if (eEx) return { erro: 'Erro ao buscar a pessoa pelo CPF.', status: 500 }
-      if (existente?.id) {
-        const { data: ehOperador, error: eOp } = await supabase.rpc('pessoa_e_de_operador', { p_pessoa_id: existente.id })
-        if (eOp) return { erro: 'Erro ao verificar a pessoa.', status: 500 }
-        if (ehOperador) return { erro: 'Esse CPF pertence ao cadastro de um usuário da equipe — não pode ser usado aqui.', status: 422 }
-        return { id: existente.id as string }
-      }
-    }
-    const novoId = crypto.randomUUID()
-    const { error: eNova } = await supabase.from('pessoas').insert({
-      id: novoId, empresa_id, nome, tipo: 'cliente', ...(cpfValido(cpf) ? { cpf } : {}),
-    })
-    if (eNova) return { erro: 'Não foi possível criar a pessoa.', status: 500 }
-    return { id: novoId }
-  }
+  // Reaproveita pelo CPF ou cria (nunca Pessoa de operador) — serviço único de escrita (B2c).
+  const pessoaPorCpfOuNova = (nome: string, cpf: string | undefined) => pessoaPorCpfOuNovaServico(supabase, empresa_id, nome, cpf)
 
   // Pessoa que recebe os dados (e passa a ser a dona do documento). Ordem: participante escolhido
   // ("De quem é este documento?") → novo participante → cônjuge (caminho antigo) → dono atual.
@@ -151,11 +132,8 @@ export async function POST(
     if ('erro' in resolvida) return NextResponse.json({ error: resolvida.erro }, { status: resolvida.status })
     const alvoId = resolvida.id
     if (alvoId !== leadVisivel.pessoa_id) {
-      const { error: eCop } = await supabase.from('lead_coparticipantes')
-        .insert({ empresa_id, lead_id: body.lead_id, pessoa_id: alvoId })
-      if (eCop && eCop.code !== '23505') {
-        return NextResponse.json({ error: 'Não foi possível incluir o participante.', detail: eCop.message }, { status: 500 })
-      }
+      const inc = await incluirParticipanteLead(supabase, empresa_id, body.lead_id, alvoId)
+      if ('erro' in inc) return NextResponse.json({ error: inc.erro }, { status: inc.status })
     }
     pessoaId = alvoId
   } else if (alvo === 'conjuge') {

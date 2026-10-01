@@ -100,3 +100,84 @@ export async function removerVendedorLead(sb: SupabaseClient, empresaId: string,
   if (!data?.length) return { erro: 'Vendedor não encontrado neste lead.', status: 404 }
   return { ok: true }
 }
+
+/**
+ * Troca o titular do lead ("Tornar principal"). C1: modelo antigo, ordem pensada para a sincronização:
+ *  1. congela o "compõe renda" atual de todos (compoe_renda_manual);
+ *  2. o antigo titular e o cônjuge dele entram em lead_coparticipantes;
+ *  3. leads.pessoa_id = novo; nome/CPF/nascimento acompanham; o cônjuge do antigo é desligado do lead
+ *     (conjuge_pessoa_id/nome/CPF/nascimento — NUNCA conjuge_renda_*: fn_pv2_leads copiaria o nulo para a
+ *     renda da Pessoa do cônjuge); telefone/e-mail de contato do lead não mudam;
+ *  4. o novo titular sai de lead_coparticipantes.
+ * Novo titular já titular de outro lead aberto (leads_pessoa_aberto_unico) → 409, passo 2 desfeito.
+ */
+export async function trocarTitularLead(
+  sb: SupabaseClient, empresaId: string, leadId: string, novoId: string,
+): Promise<{ ok: true; alterado: boolean; antigoNome: string | null; novoNome: string } | { erro: string; status: number }> {
+  const { data: lead, error: eLead } = await sb.from('leads').select('id, pessoa_id')
+    .eq('id', leadId).eq('empresa_id', empresaId).is('deleted_at', null).maybeSingle()
+  if (eLead) return { erro: 'Erro ao carregar o lead.', status: 500 }
+  if (!lead) return { erro: 'Lead não encontrado.', status: 404 }
+  const antigoId = (lead.pessoa_id as string | null) ?? null
+  if (antigoId === novoId) return { ok: true, alterado: false, antigoNome: null, novoNome: '' }
+
+  const { data: parts, error: eParts } = await sb.from('participacoes')
+    .select('id, pessoa_id, papel, compoe_renda, compoe_renda_manual').eq('lead_id', leadId).eq('empresa_id', empresaId)
+  if (eParts) return { erro: 'Erro ao carregar os participantes.', status: 500 }
+  const lista = (parts ?? []) as Array<{ id: string; pessoa_id: string; papel: string; compoe_renda: boolean; compoe_renda_manual: boolean | null }>
+  if (!lista.some(p => p.pessoa_id === novoId && ['coparticipante', 'conjuge_anuente'].includes(p.papel))) {
+    return { erro: 'Essa pessoa não participa da compra nesta proposta.', status: 422 }
+  }
+
+  const { data: novo, error: eNovo } = await sb.from('pessoas').select('id, nome, cpf, data_nascimento')
+    .eq('id', novoId).is('deleted_at', null).maybeSingle()
+  if (eNovo) return { erro: 'Erro ao carregar a pessoa.', status: 500 }
+  if (!novo) return { erro: 'Pessoa não encontrada.', status: 404 }
+
+  for (const p of lista.filter(x => x.compoe_renda_manual === null || x.compoe_renda_manual === undefined)) {
+    const { error } = await sb.from('participacoes').update({ compoe_renda_manual: p.compoe_renda }).eq('id', p.id)
+    if (error) return { erro: 'Erro ao preservar o compõe renda.', status: 500 }
+  }
+
+  const { data: copartAtuais, error: eCop } = await sb.from('lead_coparticipantes').select('pessoa_id').eq('lead_id', leadId)
+  if (eCop) return { erro: 'Erro ao carregar os coparticipantes.', status: 500 }
+  const jaCopart = new Set(((copartAtuais ?? []) as Array<{ pessoa_id: string }>).map(c => c.pessoa_id))
+  const manter = [
+    ...(antigoId ? [antigoId] : []),
+    ...lista.filter(p => p.papel === 'conjuge_anuente').map(p => p.pessoa_id),
+  ].filter(id => id !== novoId && !jaCopart.has(id))
+  const inseridos: string[] = []
+  const desfazer = async () => {
+    if (!inseridos.length) return
+    const { error } = await sb.from('lead_coparticipantes').delete().eq('lead_id', leadId).in('pessoa_id', inseridos)
+    if (error) console.error('[trocarTitularLead] não desfez coparticipantes:', error.message)
+  }
+  for (const pessoaId of manter) {
+    const { error } = await sb.from('lead_coparticipantes')
+      .insert({ id: crypto.randomUUID(), empresa_id: empresaId, lead_id: leadId, pessoa_id: pessoaId })
+    if (error && error.code !== '23505') { await desfazer(); return { erro: 'Erro ao manter o antigo principal na proposta.', status: 500 } }
+    if (!error) inseridos.push(pessoaId)
+  }
+
+  const { data: trocado, error: eTroca } = await sb.from('leads')
+    .update({
+      pessoa_id: novoId, nome: novo.nome, cpf: novo.cpf ?? null, data_nascimento: novo.data_nascimento ?? null,
+      conjuge_pessoa_id: null, conjuge_nome: null, conjuge_cpf: null, conjuge_data_nascimento: null,
+    })
+    .eq('id', leadId).eq('empresa_id', empresaId).select('id')
+  if (eTroca || !trocado?.length) {
+    await desfazer()
+    if (eTroca?.code === '23505') return { erro: `${novo.nome} já é o principal de outro lead aberto — conclua ou junte os leads antes.`, status: 409 }
+    return { erro: 'Não foi possível trocar o principal.', status: 500 }
+  }
+
+  const { error: eDel } = await sb.from('lead_coparticipantes').delete().eq('lead_id', leadId).eq('pessoa_id', novoId)
+  if (eDel) console.error('[trocarTitularLead] coparticipante não removido:', eDel.message)
+
+  let antigoNome: string | null = null
+  if (antigoId) {
+    const { data: antigo } = await sb.from('pessoas').select('nome').eq('id', antigoId).maybeSingle()
+    antigoNome = (antigo?.nome as string | undefined) ?? null
+  }
+  return { ok: true, alterado: true, antigoNome, novoNome: novo.nome as string }
+}
