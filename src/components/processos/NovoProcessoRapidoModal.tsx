@@ -12,9 +12,11 @@ import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { PessoaBuscaCombobox, type PessoaOpcao } from './PessoaBuscaCombobox'
 import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
 import type { ModalidadeProcesso } from '@/types/processos'
+import { gravarParticipantesIniciais } from '@/lib/participantes/negocioCliente'
 
 type Modulo = 'financiamento' | 'consorcio' | 'contrato' | 'registro'
 
@@ -113,16 +115,15 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
     })
 
     if (pessoa) {
-      await supabase.from('processo_compradores').insert({
-        processo_id: processo.id,
-        empresa_id:  processo.empresa_id,
-        pessoa_id:   pessoa.id,
-        nome:        pessoa.nome,
-        cpf:         pessoa.cpf,
-        email:       pessoa.email,
-        telefone:    pessoa.telefone,
-        principal:   true,
-      })
+      // V2 (B2c-C1c): comprador principal pelo serviço único
+      try {
+        await gravarParticipantesIniciais(processo.id, {
+          lead_id: null,
+          titular: { pessoa_id: pessoa.id, nome: pessoa.nome, cpf: pessoa.cpf ?? null, email: pessoa.email ?? null, telefone: pessoa.telefone ?? null },
+        })
+      } catch (e) {
+        toast.error(`Negócio criado, mas o comprador não foi gravado: ${(e as Error).message}`, { duration: 10000 })
+      }
     }
 
     router.push(`/processos/${processo.id}`)

@@ -27,6 +27,7 @@ import {
   type StatusValidade,
 } from '@/lib/documentos'
 import { chamarApiVinculos } from '@/hooks/documentos/useVinculosDocumento'
+import { gravarParticipantesIniciais } from '@/lib/participantes/negocioCliente'
 import { SeletorImovelProcesso, type ImovelSelecionado } from '@/components/leads/SeletorImovelProcesso'
 import { PessoaBuscaCombobox, type PessoaOpcao } from '@/components/processos/PessoaBuscaCombobox'
 import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
@@ -151,37 +152,6 @@ async function marcarLeadConvertido(leadId: string) {
   await supabase.rpc('marcar_lead_convertido', { p_lead_id: leadId })
 }
 
-// Espelha o(s) vendedor(es) do Lead para processo_vendedores na conversão
-// Lead→Processo — mesmo bug de "esquecer de copiar o dado" já corrigido para
-// processo_compradores.pessoa_id nesta sessão. Sem isso, o vendedor sempre se
-// perdia ao virar Processo. lead.vendedores (lead_vendedores, migration 276)
-// permite mais de um vendedor vinculado — vira uma linha por vendedor. Se a
-// lista vier vazia (query sem o join, ou lead sem vendedor vinculado a uma
-// Pessoa), cai no fallback dos campos avulsos vendedor_nome/cpf/telefone.
-async function criarVendedorDoLead(processoId: string, empresaId: string, lead: Lead | null) {
-  const vendedores = lead?.vendedores ?? []
-  if (vendedores.length > 0) {
-    await supabase.from('processo_vendedores').insert(
-      vendedores.map(v => ({
-        processo_id: processoId,
-        empresa_id:  empresaId,
-        nome:        v.pessoa?.nome?.trim() || '(a definir)',
-        cpf:         v.pessoa?.cpf?.trim() || null,
-        pessoa_id:   v.pessoa_id,
-      })),
-    )
-    return
-  }
-  if (!lead?.vendedor_nome?.trim() && !lead?.vendedor_pessoa_id) return
-  await supabase.from('processo_vendedores').insert({
-    processo_id: processoId,
-    empresa_id:  empresaId,
-    nome:        lead.vendedor_nome?.trim() || '(a definir)',
-    cpf:         lead.vendedor_cpf?.trim() || null,
-    telefone:    lead.vendedor_telefone?.trim() || null,
-    pessoa_id:   lead.vendedor_pessoa_id ?? null,
-  })
-}
 
 // Espelha Corretor/Imobiliária/Parceiro Comercial vinculados ao Lead (aba
 // Crédito, cards de Parceiros) para as tabelas equivalentes do Processo —
@@ -219,55 +189,6 @@ async function copiarParceirosDoLead(processoId: string, leadId: string | null |
   }
 }
 
-// Espelha Cônjuge + Coparticipantes do Lead (aba Crédito, bloco de
-// Participantes) como compradores adicionais (não-principais) em
-// processo_compradores — na conversão Lead→Processo só o comprador
-// principal virava linha lá, cônjuge e coparticipantes se perdiam mesmo
-// já vinculados no Lead. A aba Resumo/Compradores do Processo já lista
-// todo mundo em processo_compradores, sem precisar mudar nada ali.
-async function copiarCompradoresAdicionaisDoLead(processoId: string, empresaId: string, lead: Lead | null) {
-  if (!lead) return
-
-  function renda(f: number | null | undefined, i: number | null | undefined): number | null {
-    const total = (f ?? 0) + (i ?? 0)
-    return total > 0 ? total : null
-  }
-
-  const linhas: { processo_id: string; empresa_id: string; nome: string; cpf: string | null; pessoa_id: string | null; renda_mensal: number | null; principal: boolean }[] = []
-
-  const conjugeNome = lead.conjuge_pessoa?.nome ?? lead.conjuge_nome
-  if (conjugeNome?.trim()) {
-    linhas.push({
-      processo_id: processoId,
-      empresa_id:  empresaId,
-      nome:        conjugeNome.trim(),
-      cpf:         (lead.conjuge_pessoa?.cpf ?? lead.conjuge_cpf) || null,
-      pessoa_id:   lead.conjuge_pessoa_id ?? null,
-      renda_mensal: renda(
-        lead.conjuge_pessoa?.renda_formal   ?? lead.conjuge_renda_formal,
-        lead.conjuge_pessoa?.renda_informal ?? lead.conjuge_renda_informal,
-      ),
-      principal: false,
-    })
-  }
-
-  for (const c of lead.coparticipantes ?? []) {
-    if (!c.pessoa?.nome) continue
-    linhas.push({
-      processo_id: processoId,
-      empresa_id:  empresaId,
-      nome:        c.pessoa.nome,
-      cpf:         c.pessoa.cpf ?? null,
-      pessoa_id:   c.pessoa_id,
-      renda_mensal: renda(c.pessoa.renda_formal, c.pessoa.renda_informal),
-      principal: false,
-    })
-  }
-
-  if (linhas.length > 0) {
-    await supabase.from('processo_compradores').insert(linhas)
-  }
-}
 
 function parseMoeda(v: string): number {
   return Number(v.replace(/[^\d,]/g, '').replace(',', '.')) || 0
@@ -789,34 +710,19 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
     }
     await copiarParceirosDoLead(processo.id, lead?.id)
 
-    if (nome.trim()) {
-      await supabase.from('processo_compradores').insert({
-        processo_id: processo.id,
-        empresa_id:  processo.empresa_id,
-        nome:        nome.trim(),
-        cpf:         cpf.trim() || null,
-        email:       email.trim() || null,
-        telefone:    telefone.trim() || null,
-        principal:   true,
-        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
+    // V2 (B2c-C1c): comprador principal + demais participantes do lead + vendedores pelo serviço único.
+    // Vendedor(es) escolhido(s)/confirmado(s) no modal têm prioridade; sem nenhum, copia do lead.
+    try {
+      await gravarParticipantesIniciais(processo.id, {
+        lead_id: lead?.id ?? null,
+        titular: nome.trim() ? {
+          pessoa_id: lead?.pessoa_id ?? pessoa?.id ?? null, nome: nome.trim(), cpf: cpf.trim() || null,
+          email: email.trim() || null, telefone: telefone.trim() || null,
+        } : null,
+        vendedores: vendedores.map(v => ({ pessoa_id: v.id, nome: v.nome, cpf: v.cpf })),
       })
-    }
-    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
-
-    // Vendedor(es) escolhido(s)/confirmado(s) no modal têm prioridade; sem
-    // nenhum, mantém o comportamento anterior (copia do Lead).
-    if (vendedores.length > 0) {
-      await supabase.from('processo_vendedores').insert(
-        vendedores.map(v => ({
-          processo_id: processo.id,
-          empresa_id:  processo.empresa_id,
-          nome:        v.nome,
-          cpf:         v.cpf,
-          pessoa_id:   v.id,
-        })),
-      )
-    } else {
-      await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
+    } catch (e) {
+      toast.error(`Negócio criado, mas os participantes não foram gravados: ${(e as Error).message}`, { duration: 10000 })
     }
 
     if (lead) await marcarLeadConvertido(lead.id)
@@ -1182,20 +1088,18 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
     }
     await copiarParceirosDoLead(processo.id, lead?.id)
 
-    if (clienteNome) {
-      await supabase.from('processo_compradores').insert({
-        processo_id: processo.id,
-        empresa_id:  processo.empresa_id,
-        nome:        clienteNome,
-        cpf:         clienteCpf,
-        email:       lead?.email ?? pessoa?.email ?? null,
-        telefone:    lead?.telefone ?? pessoa?.telefone ?? null,
-        principal:   true,
-        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
+    // V2 (B2c-C1c): comprador principal + demais participantes e vendedores do lead pelo serviço único.
+    try {
+      await gravarParticipantesIniciais(processo.id, {
+        lead_id: lead?.id ?? null,
+        titular: clienteNome ? {
+          pessoa_id: lead?.pessoa_id ?? pessoa?.id ?? null, nome: clienteNome, cpf: clienteCpf,
+          email: lead?.email ?? pessoa?.email ?? null, telefone: lead?.telefone ?? pessoa?.telefone ?? null,
+        } : null,
       })
+    } catch (e) {
+      toast.error(`Negócio criado, mas os participantes não foram gravados: ${(e as Error).message}`, { duration: 10000 })
     }
-    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
-    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
 
@@ -1385,20 +1289,18 @@ function FormContrato({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
     }
     await copiarParceirosDoLead(processo.id, lead?.id)
 
-    if (clienteNome) {
-      await supabase.from('processo_compradores').insert({
-        processo_id: processo.id,
-        empresa_id:  processo.empresa_id,
-        nome:        clienteNome,
-        cpf:         clienteCpf,
-        email:       clienteEmail,
-        telefone:    clienteTelefone,
-        principal:   true,
-        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
+    // V2 (B2c-C1c): comprador principal + demais participantes e vendedores do lead pelo serviço único.
+    try {
+      await gravarParticipantesIniciais(processo.id, {
+        lead_id: lead?.id ?? null,
+        titular: clienteNome ? {
+          pessoa_id: lead?.pessoa_id ?? pessoa?.id ?? null, nome: clienteNome, cpf: clienteCpf,
+          email: clienteEmail, telefone: clienteTelefone,
+        } : null,
       })
+    } catch (e) {
+      toast.error(`Negócio criado, mas os participantes não foram gravados: ${(e as Error).message}`, { duration: 10000 })
     }
-    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
-    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     if (lead) await marcarLeadConvertido(lead.id)
 
@@ -1565,20 +1467,18 @@ function FormConsorcio({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
     }
     await copiarParceirosDoLead(processo.id, lead?.id)
 
-    if (clienteNome) {
-      await supabase.from('processo_compradores').insert({
-        processo_id: processo.id,
-        empresa_id:  processo.empresa_id,
-        nome:        clienteNome,
-        cpf:         clienteCpf,
-        email:       clienteEmail,
-        telefone:    clienteTelefone,
-        principal:   true,
-        pessoa_id:   lead?.pessoa_id ?? pessoa?.id ?? null,
+    // V2 (B2c-C1c): comprador principal + demais participantes e vendedores do lead pelo serviço único.
+    try {
+      await gravarParticipantesIniciais(processo.id, {
+        lead_id: lead?.id ?? null,
+        titular: clienteNome ? {
+          pessoa_id: lead?.pessoa_id ?? pessoa?.id ?? null, nome: clienteNome, cpf: clienteCpf,
+          email: clienteEmail, telefone: clienteTelefone,
+        } : null,
       })
+    } catch (e) {
+      toast.error(`Negócio criado, mas os participantes não foram gravados: ${(e as Error).message}`, { duration: 10000 })
     }
-    await copiarCompradoresAdicionaisDoLead(processo.id, processo.empresa_id, lead)
-    await criarVendedorDoLead(processo.id, processo.empresa_id, lead)
 
     const linhas = [
       prazo && `Prazo de contemplação: ${prazo}`,

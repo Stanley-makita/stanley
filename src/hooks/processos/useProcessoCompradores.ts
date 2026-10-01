@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoComprador } from '@/types/processos'
 import { toast } from 'sonner'
+import { editarNoNegocio, incluirNoNegocio, removerDoNegocio } from '@/lib/participantes/negocioCliente'
 
 export function useProcessoCompradores(processoId: string) {
   return useQuery({
@@ -23,18 +24,6 @@ export function useProcessoCompradores(processoId: string) {
   })
 }
 
-// Tenta encontrar uma pessoa pelo CPF usando o client público (RLS filtra por empresa)
-async function buscarPessoaIdPorCpf(cpf: string, empresaId: string): Promise<string | null> {
-  const cpfNorm = cpf.replace(/\D/g, '')
-  if (!cpfNorm) return null
-  const { data } = await supabase
-    .from('pessoas')
-    .select('id')
-    .eq('empresa_id', empresaId)
-    .or(`cpf.eq.${cpfNorm},cpf.eq.${cpf.trim()}`)
-    .maybeSingle()
-  return data?.id ?? null
-}
 
 export function useAdicionarComprador(processoId: string) {
   const queryClient = useQueryClient()
@@ -42,30 +31,15 @@ export function useAdicionarComprador(processoId: string) {
 
   return useMutation({
     mutationFn: async (input: Omit<ProcessoComprador, 'id' | 'processo_id' | 'empresa_id' | 'created_at' | 'updated_at'>) => {
-      const { data: inserted, error } = await supabase
-        .from('processo_compradores')
-        .insert({ ...input, processo_id: processoId, empresa_id: usuario!.empresa_id })
-        .select('id')
-        .single()
-      if (error) throw error
-
-      // Tentar vincular pessoa pelo CPF para habilitar sync futuro
-      if (input.cpf?.trim() && inserted?.id) {
-        const pessoaId = await buscarPessoaIdPorCpf(input.cpf, usuario!.empresa_id)
-        if (pessoaId) {
-          await supabase
-            .from('processo_compradores')
-            .update({ pessoa_id: pessoaId })
-            .eq('id', inserted.id)
-        }
-      }
+      // V2 (B2c-C1c): pelo serviço único (vincula a Pessoa pelo CPF no servidor)
+      await incluirNoNegocio(processoId, 'compradores', input as Record<string, unknown>)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
       queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
       toast.success('Comprador adicionado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
-    onError: () => toast.error('Erro ao adicionar comprador.'),
+    onError: (e: Error) => toast.error(e?.message || 'Erro ao adicionar comprador.'),
   })
 }
 
@@ -75,24 +49,9 @@ export function useEditarComprador(processoId: string) {
 
   return useMutation({
     mutationFn: async ({ id, pessoa_id, telefone, ...input }: Partial<ProcessoComprador> & { id: string; pessoa_id?: string | null }) => {
-      // Se pessoa_id não existe mas temos CPF, tentar resolver agora
-      let resolvedPessoaId = pessoa_id ?? null
-      if (!resolvedPessoaId && input.cpf?.trim() && usuario?.empresa_id) {
-        resolvedPessoaId = await buscarPessoaIdPorCpf(input.cpf, usuario.empresa_id)
-        if (resolvedPessoaId) {
-          // Persistir o vínculo para evitar nova busca na próxima edição
-          await supabase
-            .from('processo_compradores')
-            .update({ pessoa_id: resolvedPessoaId })
-            .eq('id', id)
-        }
-      }
-
-      const { error } = await supabase
-        .from('processo_compradores')
-        .update(input)
-        .eq('id', id)
-      if (error) throw error
+      // V2 (B2c-C1c): linha pelo serviço único; ele vincula a Pessoa pelo CPF se ainda não houver
+      const r = await editarNoNegocio(processoId, 'compradores', id, input as Record<string, unknown>)
+      const resolvedPessoaId = pessoa_id ?? r.pessoa_id ?? null
 
       // Telefone vai por RPC própria (qualquer usuário ativo pode corrigir,
       // não só analista/gerente/gestor/admin — a policy de UPDATE desta
@@ -109,11 +68,7 @@ export function useEditarComprador(processoId: string) {
           })
           if (errTel) throw errTel
         } else {
-          const { error: errTelFallback } = await supabase
-            .from('processo_compradores')
-            .update({ telefone: telefoneVal || null })
-            .eq('id', id)
-          if (errTelFallback) throw errTelFallback
+          await editarNoNegocio(processoId, 'compradores', id, { telefone: telefoneVal || null })
         }
       }
 
@@ -154,7 +109,7 @@ export function useEditarComprador(processoId: string) {
       queryClient.invalidateQueries({ queryKey: ['leads'] })
       toast.success('Comprador atualizado.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
-    onError: () => toast.error('Erro ao atualizar comprador.'),
+    onError: (e: Error) => toast.error(e?.message || 'Erro ao atualizar comprador.'),
   })
 }
 
@@ -163,16 +118,12 @@ export function useRemoverComprador(processoId: string) {
 
   return useMutation({
     mutationFn: async (compradorId: string) => {
-      const { error } = await supabase
-        .from('processo_compradores')
-        .delete()
-        .eq('id', compradorId)
-      if (error) throw error
+      await removerDoNegocio(processoId, 'compradores', compradorId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'compradores'] })
       queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
     },
-    onError: () => toast.error('Erro ao remover comprador.'),
+    onError: (e: Error) => toast.error(e?.message || 'Erro ao remover comprador.'),
   })
 }
