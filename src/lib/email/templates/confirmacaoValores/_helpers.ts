@@ -118,3 +118,16 @@ export function tabelaValores(linhas: [string, string][]): string {
   <tbody>${rows}</tbody>
 </table>`
 }
+
+/** Item "BOLETO ITBI": sem assessoria a Fontinhas não emite nem envia o boleto, só fica a regra do município. */
+export function itemBoletoItbi(temAssessoria: boolean): string {
+  const texto = temAssessoria
+    ? 'Será enviado após a emissão pela prefeitura e os valores apresentados até esse momento trata-se de uma estimativa. O cálculo e as alíquotas serão de acordo com as regras de cada município.'
+    : 'O cálculo e as alíquotas serão de acordo com as regras de cada município.'
+  return `<p>*<strong>BOLETO ITBI:</strong> ${texto}</p>`
+}
+
+/** Item "1ª PRESTAÇÃO": cobre os dois casos (30 dias após a emissão ou vencimento escolhido, ex.: BB). */
+export function itemPrimeiraPrestacao(conta: string): string {
+  return `<p>*<strong>1ª PRESTAÇÃO:</strong> Será debitada da sua ${conta}, 30 dias após a emissão do contrato independente da data de assinatura do mesmo, ou dependendo do Banco, na data de vencimento que você escolheu.</p>`
+}

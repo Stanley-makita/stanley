@@ -1,5 +1,5 @@
 import { DadosConfirmacaoValores } from './types'
-import { fmt, assinatura, layoutEmail, tabelaValores } from './_helpers'
+import { fmt, assinatura, layoutEmail, tabelaValores, itemBoletoItbi } from './_helpers'
 
 export function gerarEmailCaixa(dados: DadosConfirmacaoValores): { assunto: string; corpo: string } {
   const assunto = `Confirmação de Valores — ${dados.cliente_nome} — Caixa Econômica Federal`
@@ -38,7 +38,7 @@ ${dados.observacoes ? `<p><strong>Observações:</strong><br>${dados.observacoes
 
 <p>*<strong>TARIFA DO BANCO:</strong> ${tarifaTexto}, o valor total será debitado da sua conta corrente Banco: Caixa Econômica na emissão do contrato.</p>
 
-<p>*<strong>BOLETO ITBI:</strong> Será enviado após a emissão pela prefeitura e os valores apresentados até esse momento trata-se de uma estimativa. O cálculo e as alíquotas serão de acordo com as regras de cada município.</p>
+${itemBoletoItbi(dados.tem_assessoria)}
 `.trim()
 
   return {
