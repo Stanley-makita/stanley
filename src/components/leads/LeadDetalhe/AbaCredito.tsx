@@ -636,94 +636,18 @@ function BlocoParticipantes({ lead, participantes, onCompletarPessoa, onAbrirCon
 // entram como compradores no financiamento — ver migration 210.
 
 function BlocoCoparticipantes({ lead }: { lead: Lead }) {
-  const qc = useQueryClient()
-  const { usuario } = useAuth()
-  const supabaseClient = createClient()
-
-  const [buscando, setBuscando] = useState(false)
-  const [adicionando, setAdicionando] = useState(false)
-  const [termoBusca, setTermoBusca] = useState('')
-  const [resultados, setResultados] = useState<PessoaResultado[]>([])
-  const [showDropdown, setShowDropdown] = useState(false)
-  const [criandoNovo, setCriandoNovo] = useState(false)
-  const [novoNome, setNovoNome] = useState('')
-  const [novoCpf, setNovoCpf] = useState('')
+  // V2: só lista. Incluir/remover participante é na aba Pessoa (serviço único de escrita, B2c).
   const [pessoaDrawer, setPessoaDrawer] = useState<string | null>(null)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const coparticipantes = lead.coparticipantes ?? []
-  const jaVinculados = new Set([lead.pessoa_id, lead.conjuge_pessoa_id, ...coparticipantes.map(c => c.pessoa_id)].filter(Boolean))
-
-  useEffect(() => {
-    if (termoBusca.length < 2) { setResultados([]); setShowDropdown(false); return }
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(async () => {
-      if (!usuario?.empresa_id) return
-      setBuscando(true)
-      const q = `%${termoBusca}%`
-      const { data } = await supabaseClient
-        .from('pessoas')
-        .select('id, nome, cpf')
-        .eq('empresa_id', usuario.empresa_id)
-        .is('deleted_at', null)
-        .or(`nome.ilike.${q},cpf.ilike.${q}`)
-        .order('nome')
-        .limit(10)
-      setResultados((data ?? []) as PessoaResultado[])
-      setShowDropdown(true)
-      setBuscando(false)
-    }, 250)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [termoBusca, usuario?.empresa_id])
-
-  async function vincularCoparticipante(pessoaId: string) {
-    if (!usuario?.empresa_id) return
-    await supabaseClient.from('lead_coparticipantes').insert({
-      empresa_id: usuario.empresa_id,
-      lead_id: lead.id,
-      pessoa_id: pessoaId,
-    })
-    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
-    setTermoBusca('')
-    setShowDropdown(false)
-    setAdicionando(false)
-  }
-
-  async function removerCoparticipante(id: string) {
-    await supabaseClient.from('lead_coparticipantes').delete().eq('id', id)
-    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
-  }
-
-  async function criarNovoCoparticipante() {
-    if (!novoNome.trim() || !usuario?.empresa_id) return
-    setCriandoNovo(false)
-    const { data: novaPessoa } = await supabaseClient
-      .from('pessoas')
-      .insert({
-        empresa_id: usuario.empresa_id,
-        nome: novoNome.trim(),
-        cpf: novoCpf.replace(/\D/g, '') || null,
-        tipo: 'cliente',
-      })
-      .select('id')
-      .single()
-    if (novaPessoa) {
-      await vincularCoparticipante(novaPessoa.id)
-      setPessoaDrawer(novaPessoa.id)
-    }
-    setNovoNome('')
-    setNovoCpf('')
-  }
 
   return (
     <div className="bg-white border border-gray-300 rounded-xl shadow p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-bold text-fonti-primary uppercase tracking-widest">Coparticipantes</p>
-        {/* V2 B2b: incluir/remover participante é só pela aba Pessoa (uma sub-aba por participante). */}
         <span className="text-xs text-gray-500">Gerencie na aba Pessoa</span>
       </div>
 
-      {coparticipantes.length === 0 && !adicionando && (
+      {coparticipantes.length === 0 && (
         <p className="text-xs text-gray-400 italic">
           Nenhum coparticipante. Inclua pela aba Pessoa, em “+ Participante”.
         </p>
@@ -745,92 +669,6 @@ function BlocoCoparticipantes({ lead }: { lead: Lead }) {
           </div>
         </div>
       ))}
-
-      {adicionando && (
-        <div className="relative">
-          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 focus-within:border-fonti-primary transition-colors">
-            {buscando
-              ? <Loader2 className="h-3.5 w-3.5 text-gray-400 shrink-0 animate-spin" />
-              : <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-            }
-            <input
-              autoFocus
-              className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
-              placeholder="Buscar pessoa por nome ou CPF..."
-              value={termoBusca}
-              onChange={e => setTermoBusca(e.target.value)}
-              onFocus={() => { if (resultados.length > 0) setShowDropdown(true) }}
-              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-            />
-            <button onClick={() => { setAdicionando(false); setTermoBusca(''); setShowDropdown(false) }} className="text-gray-300 hover:text-gray-500 shrink-0">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          {showDropdown && (
-            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-              {resultados.filter(p => !jaVinculados.has(p.id)).length === 0 ? (
-                <div className="px-3 py-2.5 text-xs text-gray-400">Nenhum resultado encontrado</div>
-              ) : (
-                resultados.filter(p => !jaVinculados.has(p.id)).map(p => (
-                  <button
-                    key={p.id}
-                    onMouseDown={() => vincularCoparticipante(p.id)}
-                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left transition-colors"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
-                      <span className="text-[9px] font-bold text-white">{iniciais(p.nome)}</span>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-800">{p.nome}</p>
-                      {p.cpf && <p className="text-[10px] text-gray-400">{p.cpf}</p>}
-                    </div>
-                  </button>
-                ))
-              )}
-              <div className="border-t border-gray-100">
-                <button
-                  onMouseDown={() => { setShowDropdown(false); setCriandoNovo(true); setNovoNome(termoBusca) }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-fonti-primary font-medium hover:bg-gray-50 transition-colors"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Criar nova pessoa
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {criandoNovo && (
-        <Dialog open onOpenChange={v => { if (!v) setCriandoNovo(false) }}>
-          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-sm p-6">
-            <h2 className="text-base font-semibold text-fonti-primary mb-1">Novo Coparticipante</h2>
-            <p className="text-xs text-gray-500 mb-4">Dados básicos para criar o cadastro. Você poderá completar depois.</p>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs text-gray-500">Nome completo *</Label>
-                <Input className="h-8 text-sm mt-1" value={novoNome} onChange={e => setNovoNome(e.target.value)} autoFocus />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-500">CPF</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="000.000.000-00" value={novoCpf} onChange={e => setNovoCpf(e.target.value)} />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end mt-4">
-              <Button variant="outline" size="sm" onClick={() => setCriandoNovo(false)}>Cancelar</Button>
-              <Button
-                size="sm"
-                className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-                onClick={criarNovoCoparticipante}
-                disabled={!novoNome.trim()}
-              >
-                <Save className="h-3 w-3 mr-1" />
-                Salvar e completar cadastro
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       <CompletarDadosPessoaDrawer
         pessoaId={pessoaDrawer}
@@ -1604,41 +1442,39 @@ function BlocoVendedor({ lead }: { lead: Lead }) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [termoBusca, usuario?.empresa_id])
 
-  async function vincularVendedor(pessoaId: string) {
-    if (!usuario?.empresa_id) return
-    await supabaseClient.from('lead_vendedores').insert({
-      empresa_id: usuario.empresa_id,
-      lead_id: lead.id,
-      pessoa_id: pessoaId,
+  // Escrita só pelo servidor (/api/leads/[id]/vendedores → serviço único de participantes, B2c).
+  async function chamarVendedores(method: 'POST' | 'DELETE', corpo: Record<string, unknown>) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const res = await fetch(`/api/leads/${lead.id}/vendedores`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+      body: JSON.stringify(corpo),
     })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(json.error ?? 'Não foi possível salvar o vendedor.'); return null }
     qc.invalidateQueries({ queryKey: ['leads', lead.id] })
+    return json as { pessoa_id?: string }
+  }
+
+  async function vincularVendedor(pessoaId: string) {
+    await chamarVendedores('POST', { pessoa_id: pessoaId })
     setTermoBusca('')
     setShowDropdown(false)
     setAdicionando(false)
   }
 
   async function desvincularVendedor(id: string) {
-    await supabaseClient.from('lead_vendedores').delete().eq('id', id)
-    qc.invalidateQueries({ queryKey: ['leads', lead.id] })
+    await chamarVendedores('DELETE', { vinculo_id: id })
   }
 
   async function criarNovoVendedor() {
-    if (!novoNome.trim() || !usuario?.empresa_id) return
+    if (!novoNome.trim()) return
     setCriandoNovo(false)
-    const { data: novaPessoa } = await supabaseClient
-      .from('pessoas')
-      .insert({
-        empresa_id: usuario.empresa_id,
-        nome: novoNome.trim(),
-        cpf: novoCpf.replace(/\D/g, '') || null,
-        tipo: 'cliente',
-      })
-      .select('id')
-      .single()
-    if (novaPessoa) {
-      await vincularVendedor(novaPessoa.id)
-      setPessoaDrawer(novaPessoa.id)
-    }
+    const r = await chamarVendedores('POST', { nome: novoNome.trim(), cpf: novoCpf || null })
+    if (r?.pessoa_id) setPessoaDrawer(r.pessoa_id)
+    setTermoBusca('')
+    setShowDropdown(false)
+    setAdicionando(false)
     setNovoNome('')
     setNovoCpf('')
   }

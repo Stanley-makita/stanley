@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { criarFakeDb, type Row } from '@/lib/documentos/__tests__/helpers/fakeDb'
 import {
   pessoaPorCpfOuNova, incluirParticipanteLead, removerParticipanteLead, incluirVendedorLead, removerVendedorLead,
+  definirConjugeTitularLead,
 } from '../escritaServidor'
 
 let tabelas: Record<string, Row[]>
@@ -79,5 +80,22 @@ describe('vendedores do lead', () => {
     expect(vinc).toMatchObject({ lead_id: 'l1', pessoa_id: 'maria', empresa_id: 'e1' })
     expect(await removerVendedorLead(sb(), 'e1', 'l1', vinc.id as string)).toEqual({ ok: true })
     expect(tabelas.lead_vendedores).toHaveLength(0)
+  })
+})
+
+describe('cônjuge do titular do lead', () => {
+  it('liga os dois lados e o ponteiro do lead; desvincular limpa os três (a sync não religa)', async () => {
+    expect(await definirConjugeTitularLead(sb(), 'e1', 'l1', 'maria')).toEqual({ ok: true })
+    expect(tabelas.leads[0].conjuge_pessoa_id).toBe('maria')
+    expect(tabelas.pessoas.find(p => p.id === 'heitor')?.conjuge_pessoa_id).toBe('maria')
+    expect(tabelas.pessoas.find(p => p.id === 'maria')?.conjuge_pessoa_id).toBe('heitor')
+    expect(await definirConjugeTitularLead(sb(), 'e1', 'l1', null)).toEqual({ ok: true })
+    expect(tabelas.leads[0].conjuge_pessoa_id).toBeNull()
+    expect(tabelas.pessoas.find(p => p.id === 'heitor')?.conjuge_pessoa_id).toBeNull()
+    expect(tabelas.pessoas.find(p => p.id === 'maria')?.conjuge_pessoa_id).toBeNull()
+  })
+  it('recusa Pessoa de operador como cônjuge', async () => {
+    operadores = ['op']
+    expect(await definirConjugeTitularLead(sb(), 'e1', 'l1', 'op')).toMatchObject({ status: 422 })
   })
 })

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cpfValido } from '@/lib/cpf'
+import { registrarCasamento } from './casamentoServidor'
 
 /**
  * Serviço ÚNICO de escrita de "quem participa" (Participantes V2, B2c).
@@ -180,4 +181,32 @@ export async function trocarTitularLead(
     antigoNome = (antigo?.nome as string | undefined) ?? null
   }
   return { ok: true, alterado: true, antigoNome, novoNome: novo.nome as string }
+}
+
+/**
+ * Cônjuge do TITULAR do lead (aba Crédito, bloco do cônjuge — rota vincular-conjuge). Casamento pelo
+ * registrarCasamento (dois lados); o ponteiro antigo leads.conjuge_pessoa_id acompanha — sem limpá-lo no
+ * desvínculo, a sincronização religaria o cônjuge antigo pelo ponteiro do lead.
+ */
+export async function definirConjugeTitularLead(
+  sb: SupabaseClient, empresaId: string, leadId: string, conjugeId: string | null,
+): Promise<ResultadoEscrita | { confirmar: Array<{ id: string; nome: string }> }> {
+  const { data: lead, error: eLead } = await sb.from('leads').select('id, pessoa_id')
+    .eq('id', leadId).eq('empresa_id', empresaId).is('deleted_at', null).maybeSingle()
+  if (eLead) return { erro: 'Erro ao carregar o lead.', status: 500 }
+  if (!lead?.pessoa_id) return { erro: 'Lead sem pessoa vinculada.', status: 422 }
+  const titularId = lead.pessoa_id as string
+  if (conjugeId) {
+    const op = await ehOperador(sb, conjugeId)
+    if (typeof op !== 'boolean') return op
+    if (op) return { erro: 'Pessoa de usuário da equipe não pode ser cônjuge de cliente.', status: 422 }
+  }
+  const { data: titular } = await sb.from('pessoas').select('estado_civil').eq('id', titularId).maybeSingle()
+  const r = await registrarCasamento(sb, empresaId, titularId, conjugeId, {
+    estadoCivil: titular?.estado_civil === 'uniao_estavel' ? 'uniao_estavel' : 'casado', regime: null, data: null,
+  })
+  if ('erro' in r || 'confirmar' in r) return r
+  const { error } = await sb.from('leads').update({ conjuge_pessoa_id: conjugeId }).eq('id', leadId).eq('empresa_id', empresaId)
+  if (error) return { erro: 'Erro ao atualizar o cônjuge no lead.', status: 500 }
+  return { ok: true }
 }
