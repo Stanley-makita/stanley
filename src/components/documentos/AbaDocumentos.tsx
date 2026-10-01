@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { tituloDocumento, nomeExibicaoAoRenomear } from '@/lib/documentos/tituloDocumento'
 import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2, ChevronLeft, FileSpreadsheet, Calculator, Send, Users, Unlink } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
@@ -507,14 +508,14 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   }
 
   async function handleRenomear(docId: string) {
-    const nome = novoNome.trim()
     const doc = documentos.find(d => d.id === docId)
-    const nomeAtual = doc?.nome_exibicao ?? doc?.nome_original ?? ''
     setRenomeando(null)
-    if (nome === nomeAtual) return
+    if (!doc) return
+    const nomeExibicao = nomeExibicaoAoRenomear(doc, LABELS_CLASSIFICACAO[doc.classificacao ?? ''] ?? null, novoNome)
+    if (nomeExibicao === undefined) return
     const { error } = await supabase
       .from('documentos')
-      .update({ nome_exibicao: nome || null })
+      .update({ nome_exibicao: nomeExibicao })
       .eq('id', docId)
       .eq('empresa_id', usuario!.empresa_id)
     if (error) toast.error('Não foi possível renomear o arquivo.')
@@ -946,77 +947,45 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
               <span className="shrink-0 text-xl">{iconeParaMime(doc.mime_type ?? '')}</span>
               {(() => {
                 const classificacaoLabel = LABELS_CLASSIFICACAO[doc.classificacao ?? ''] ?? null
+                const titulo = tituloDocumento(doc, classificacaoLabel)
                 return (
                   <div className="flex-1 min-w-0">
-                    {classificacaoLabel ? (
-                      <>
-                        <button
-                          onClick={() => handleVisualizar(doc)}
-                          className="block w-full text-left text-sm font-semibold text-fonti-primary hover:underline sm:truncate"
-                          title="Abrir no navegador"
-                        >
-                          {classificacaoLabel}
-                        </button>
-                        <div className="flex items-center gap-1 min-w-0 mt-0.5">
-                          {renomeando === doc.id ? (
-                            <input
-                              autoFocus
-                              value={novoNome}
-                              onChange={e => setNovoNome(e.target.value)}
-                              onBlur={() => handleRenomear(doc.id)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') e.currentTarget.blur()
-                                if (e.key === 'Escape') setRenomeando(null)
-                              }}
-                              className="text-xs text-gray-400 w-full border-b border-gray-300 outline-none bg-transparent"
-                            />
-                          ) : (
-                            <>
-                              <span className="break-words text-xs text-gray-400 sm:truncate">{doc.nome_exibicao ?? doc.nome_original}</span>
-                              <button
-                                onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? doc.nome_original) }}
-                                title="Renomear arquivo"
-                                className="shrink-0 p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
-                              >
-                                <Pencil className="h-2.5 w-2.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-1 min-w-0">
-                        {renomeando === doc.id ? (
-                          <input
-                            autoFocus
-                            value={novoNome}
-                            onChange={e => setNovoNome(e.target.value)}
-                            onBlur={() => handleRenomear(doc.id)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') e.currentTarget.blur()
-                              if (e.key === 'Escape') setRenomeando(null)
-                            }}
-                            className="text-sm font-medium text-fonti-primary w-full border-b border-fonti-primary outline-none bg-transparent"
-                          />
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleVisualizar(doc)}
-                              className="block text-left text-sm font-medium text-fonti-primary hover:underline sm:truncate"
-                              title="Abrir no navegador"
-                            >
-                              {doc.nome_exibicao ?? doc.nome_original}
-                            </button>
-                            <button
-                              onClick={() => { setRenomeando(doc.id); setNovoNome(doc.nome_exibicao ?? doc.nome_original) }}
-                              title="Renomear arquivo"
-                              className="shrink-0 p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1 min-w-0">
+                      {renomeando === doc.id ? (
+                        <input
+                          autoFocus
+                          value={novoNome}
+                          onChange={e => setNovoNome(e.target.value)}
+                          onBlur={() => handleRenomear(doc.id)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') e.currentTarget.blur()
+                            if (e.key === 'Escape') setRenomeando(null)
+                          }}
+                          className="text-sm font-semibold text-fonti-primary w-full border-b border-fonti-primary outline-none bg-transparent"
+                        />
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleVisualizar(doc)}
+                            className="block text-left text-sm font-semibold text-fonti-primary hover:underline sm:truncate"
+                            title="Abrir no navegador"
+                          >
+                            {titulo}
+                          </button>
+                          <button
+                            onClick={() => { setRenomeando(doc.id); setNovoNome(titulo) }}
+                            title="Renomear documento"
+                            className="shrink-0 p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {titulo !== doc.nome_original && (
+                      <p className="mt-0.5 break-words text-xs text-gray-400 sm:truncate" title="Nome do arquivo enviado">
+                        {doc.nome_original}
+                      </p>
                     )}
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {!classificacaoLabel && <span className="text-xs text-gray-400">{labelTipo(doc.classificacao)}</span>}
