@@ -280,15 +280,6 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
         endereco_cidade:          form.endereco_cidade.trim() || null,
         endereco_uf:              form.endereco_uf.trim() || null,
         endereco_cep:             form.endereco_cep.trim() || null,
-        conjuge_nome:             eCasado ? (form.conjuge_nome.trim() || null) : null, // removidos abaixo se há cônjuge cadastrado
-        conjuge_cpf:              eCasado ? (normalizarCpf(form.conjuge_cpf) ?? null) : null,
-        conjuge_data_nascimento:  eCasado ? normalizarDataPlausivel(form.conjuge_data_nascimento) : null,
-        conjuge_telefone:         eCasado ? (form.conjuge_telefone.trim() || null) : null,
-        conjuge_profissao:        eCasado ? (form.conjuge_profissao.trim() || null) : null,
-        conjuge_renda_formal:     eCasado && form.conjuge_renda_formal ? Number(form.conjuge_renda_formal) : null,
-        conjuge_renda_informal:   eCasado && form.conjuge_renda_informal ? Number(form.conjuge_renda_informal) : null,
-        regime_casamento:         eCasado ? (form.regime_casamento || null) : null,
-        data_casamento:           eCasado ? normalizarDataPlausivel(form.data_casamento) : null,
         empresa_nome:             form.empresa_nome.trim() || null,
         empresa_cnpj:             form.empresa_cnpj.trim() || null,
         municipio_trabalho:       form.municipio_trabalho.trim() || null,
@@ -297,15 +288,6 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
         conta_bancaria_agencia:   form.conta_bancaria_agencia.trim() || null,
         conta_bancaria_numero:    form.conta_bancaria_numero.trim() || null,
         conta_bancaria_digito:    form.conta_bancaria_digito.trim() || null,
-      }
-
-      // V2: com cônjuge cadastrado (Pessoa própria), os campos soltos conjuge_* ficam como estão —
-      // o cônjuge é editado na própria sub-aba; casamento/regime/data vão pela rota de casamento.
-      if (conjugePessoaId) {
-        for (const k of ['conjuge_nome', 'conjuge_cpf', 'conjuge_data_nascimento', 'conjuge_telefone',
-          'conjuge_profissao', 'conjuge_renda_formal', 'conjuge_renda_informal'] as const) {
-          delete (payload as Record<string, unknown>)[k]
-        }
       }
 
       // 0. Telefone principal
@@ -353,12 +335,6 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
         estado_civil:            payload.estado_civil,
         renda_formal:            payload.renda_formal,
         renda_informal:          payload.renda_informal,
-        conjuge_nome:            payload.conjuge_nome,
-        conjuge_cpf:             payload.conjuge_cpf,
-        conjuge_data_nascimento: payload.conjuge_data_nascimento,
-        conjuge_renda_formal:    payload.conjuge_renda_formal,
-        conjuge_renda_informal:  payload.conjuge_renda_informal,
-        regime_casamento:        payload.regime_casamento,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
       // 3. Propagar para compradores
@@ -374,8 +350,6 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
         cpf:          payload.cpf,
         email:        payload.email,
         estado_civil: payload.estado_civil,
-        conjuge_nome: payload.conjuge_nome,
-        conjuge_cpf:  payload.conjuge_cpf,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
       // V2: casamento é do casal — regime/data/estado civil alterados aqui valem para os dois
@@ -619,6 +593,7 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
                 </select>
                 <p className="mt-1 text-xs text-gray-500">Data e regime são do casal: valem também no cadastro do cônjuge.</p>
               </div>
+              {conjugePessoaId ? (<>
               <div>
                 <L>Data do Casamento/União</L>
                 <Input type="date" value={form.data_casamento} onChange={e => f({ data_casamento: e.target.value })} />
@@ -634,6 +609,9 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
                   {REGIMES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
+              </>) : (
+                <p className="sm:col-span-2 text-xs text-gray-500">Escolha o cônjuge para registrar a data e o regime do casamento.</p>
+              )}
             </div>
             {!conjugePessoaId && form.conjuge_nome.trim() && (
               <p className="text-xs text-amber-800">
