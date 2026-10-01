@@ -1,0 +1,131 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { NextRequest, NextResponse } from 'next/server'
+import type { Row } from '@/lib/documentos/__tests__/helpers/fakeDb'
+
+const estado = vi.hoisted(() => ({
+  tabelas: {} as Record<string, Row[]>,
+  visiveis: ['heitor', 'afranio', 'maria-existente'] as string[],
+  operador: [] as string[],
+  podeEditarLead: true,
+}))
+
+vi.mock('@/lib/supabase/admin', async () => {
+  const { criarFakeDb } = await import('@/lib/documentos/__tests__/helpers/fakeDb')
+  return {
+    supabaseAdmin: {
+      from: (t: string) => criarFakeDb(estado.tabelas, { unicos: { lead_coparticipantes: ['lead_id', 'pessoa_id'] } }).from(t),
+      rpc: async (_nome: string, args: { p_pessoa_id: string }) => ({ data: estado.operador.includes(args.p_pessoa_id), error: null }),
+    },
+  }
+})
+vi.mock('@/lib/auth/resolverPermissaoServidor', () => ({ podeServidor: vi.fn(async () => estado.podeEditarLead) }))
+vi.mock('@/lib/pessoa', () => ({ resolverPessoaConjuge: vi.fn(async () => 'conjuge-antigo') }))
+vi.mock('@/lib/documentos/vinculosServidor', async () => {
+  const { criarFakeDb } = await import('@/lib/documentos/__tests__/helpers/fakeDb')
+  return {
+    autenticarRota: async () => ({ usuario: { id: 'u1', empresa_id: 'e1', perfil: 'comercial', nome: 'Ana' }, token: 't' }),
+    // Cliente do usuário: só enxerga as Pessoas em `visiveis` (RLS de carteira) e os leads.
+    clienteDoUsuario: () => criarFakeDb({
+      pessoas: estado.tabelas.pessoas.filter(p => estado.visiveis.includes(p.id as string)),
+      leads: estado.tabelas.leads,
+    }),
+  }
+})
+
+beforeEach(() => {
+  estado.visiveis = ['heitor', 'afranio', 'maria-existente']
+  estado.operador = []
+  estado.podeEditarLead = true
+  estado.tabelas = {
+    documentos: [{ id: 'd1', empresa_id: 'e1', pessoa_id: 'heitor', status_ocr: 'concluido', ocr_status: 'concluido' }],
+    extracoes_ocr: [{ documento_id: 'd1', vigente: true, dados: {}, dados_validados: null }],
+    pessoas: [
+      { id: 'heitor', empresa_id: 'e1', nome: 'Heitor', cpf: null, deleted_at: null },
+      { id: 'afranio', empresa_id: 'e1', nome: 'Afrânio', cpf: null, deleted_at: null },
+      { id: 'maria-existente', empresa_id: 'e1', nome: 'Maria Souza', cpf: '11144477735', deleted_at: null },
+      { id: 'operador', empresa_id: 'e1', nome: 'Comercial', cpf: '39053344705', deleted_at: null },
+    ],
+    leads: [{ id: 'l1', empresa_id: 'e1', pessoa_id: 'heitor', deleted_at: null }],
+    lead_coparticipantes: [],
+    pessoa_documentos_identificacao: [],
+  }
+})
+
+const req = (body: unknown) => new NextRequest('http://localhost/api/documentos/d1/ocr-confirmar', {
+  method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' }, body: JSON.stringify(body),
+})
+const ctx = { params: { id: 'd1' } }
+const pessoa = (id: string) => estado.tabelas.pessoas.find(p => p.id === id)!
+const doc = () => estado.tabelas.documentos[0]
+
+describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', () => {
+  it('participante escolhido: dados vão para ele e o documento passa a ser dele', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req({ campos: { nome: 'Afrânio Souza', data_nascimento: '1964-08-02' }, tipo_confirmado: 'rg', pessoa_alvo_id: 'afranio' }), ctx)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ alvo_pessoa_id: 'afranio', alvo_nome: 'Afrânio Souza' })
+    expect(pessoa('afranio')).toMatchObject({ nome: 'Afrânio Souza', data_nascimento: '1964-08-02' })
+    expect(pessoa('heitor').nome).toBe('Heitor')
+    expect(doc().pessoa_id).toBe('afranio')
+  })
+
+  it('participante não visível ao usuário: 404 e nada gravado', async () => {
+    estado.visiveis = ['heitor']
+    const { POST } = await import('../route')
+    const res = await POST(req({ campos: { nome: 'X' }, pessoa_alvo_id: 'afranio' }), ctx)
+    expect(res.status).toBe(404)
+    expect(pessoa('afranio').nome).toBe('Afrânio')
+    expect(doc().pessoa_id).toBe('heitor')
+  })
+
+  it('novo participante com CPF já cadastrado: reaproveita a Pessoa (não duplica) e inclui no lead', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req({
+      campos: { nome: 'Maria Souza', cpf: '111.444.777-35' }, tipo_confirmado: 'rg',
+      novo_participante: { nome: 'Maria Souza', cpf: '111.444.777-35' }, lead_id: 'l1',
+    }), ctx)
+    expect(res.status).toBe(200)
+    expect(estado.tabelas.pessoas).toHaveLength(4)
+    expect(estado.tabelas.lead_coparticipantes).toEqual([expect.objectContaining({ lead_id: 'l1', pessoa_id: 'maria-existente' })])
+    expect(doc().pessoa_id).toBe('maria-existente')
+  })
+
+  it('novo participante sem cadastro: cria a Pessoa e inclui no lead', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req({
+      campos: { nome: 'Carlos Pereira' }, novo_participante: { nome: 'Carlos Pereira' }, lead_id: 'l1',
+    }), ctx)
+    expect(res.status).toBe(200)
+    const novo = estado.tabelas.pessoas.find(p => p.nome === 'Carlos Pereira')
+    expect(novo).toBeTruthy()
+    expect(estado.tabelas.lead_coparticipantes[0]).toMatchObject({ lead_id: 'l1', pessoa_id: novo!.id })
+    expect(doc().pessoa_id).toBe(novo!.id)
+  })
+
+  it('novo participante cujo CPF é de Pessoa de operador: 422 e nada gravado', async () => {
+    estado.operador = ['operador']
+    const { POST } = await import('../route')
+    const res = await POST(req({
+      campos: { nome: 'Comercial' }, novo_participante: { nome: 'Comercial', cpf: '390.533.447-05' }, lead_id: 'l1',
+    }), ctx)
+    expect(res.status).toBe(422)
+    expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
+    expect(doc().pessoa_id).toBe('heitor')
+  })
+
+  it('novo participante sem permissão de editar o lead: 403', async () => {
+    estado.podeEditarLead = false
+    const { POST } = await import('../route')
+    const res = await POST(req({ campos: { nome: 'Carlos' }, novo_participante: { nome: 'Carlos' }, lead_id: 'l1' }), ctx)
+    expect(res.status).toBe(403)
+    expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
+  })
+
+  it('sem escolha: grava no dono atual e o documento não muda de dono (comportamento antigo)', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req({ campos: { nome: 'Heitor Almeida' } }), ctx)
+    expect(res.status).toBe(200)
+    expect(pessoa('heitor').nome).toBe('Heitor Almeida')
+    expect(doc().pessoa_id).toBe('heitor')
+  })
+})

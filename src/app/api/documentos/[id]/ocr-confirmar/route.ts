@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { resolverPessoaConjuge } from '@/lib/pessoa'
 import { cpfValido } from '@/lib/cpf'
+import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
+import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -19,10 +21,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const resolvido = await resolveUsuario(token)
-  if (!resolvido) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  const { empresa_id, usuario_id } = resolvido
+  const ctx = await autenticarRota(request)
+  if (ctx instanceof NextResponse) return ctx
+  const { token } = ctx
+  const empresa_id = ctx.usuario.empresa_id
+  const usuario_id = ctx.usuario.id
 
   const documentoId = params.id
 
@@ -51,6 +54,11 @@ export async function POST(
     campos: Record<string, unknown>
     tipo_confirmado?: string
     titular?: 'principal' | 'conjuge'
+    /** V2: "De quem é este documento?" — participante escolhido (Pessoa visível ao usuário). */
+    pessoa_alvo_id?: string
+    /** V2: "Novo participante" — reaproveita a Pessoa pelo CPF ou cria; inclui no lead. */
+    novo_participante?: { nome?: string; cpf?: string }
+    lead_id?: string
   }
   const { campos, tipo_confirmado } = body
   const alvo = body.titular === 'conjuge' ? 'conjuge' : 'principal'
@@ -86,17 +94,71 @@ export async function POST(
     camposFiltrados[k] = s
   }
 
-  // Se o documento foi marcado como sendo do cônjuge (não do titular), os
-  // dados abaixo — Pessoa e pessoa_documentos_identificacao — vão todos pra
-  // uma Pessoa própria do cônjuge, nunca pro titular (doc.pessoa_id).
-  const pessoaId = alvo === 'conjuge'
-    ? await resolverPessoaConjuge(
-        empresa_id,
-        doc.pessoa_id as string,
-        (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge',
-        camposFiltrados['cpf'] as string | undefined,
-      )
-    : (doc.pessoa_id as string)  // já validado acima (400 se null)
+  // Pessoa que recebe os dados (e passa a ser a dona do documento). Ordem: participante escolhido
+  // ("De quem é este documento?") → novo participante → cônjuge (caminho antigo) → dono atual.
+  let pessoaId: string
+  if (body.pessoa_alvo_id) {
+    const { data: visivel, error: eVis } = await clienteDoUsuario(token)
+      .from('pessoas').select('id').eq('id', body.pessoa_alvo_id).is('deleted_at', null).maybeSingle()
+    if (eVis) return NextResponse.json({ error: 'Erro ao verificar a pessoa escolhida.' }, { status: 500 })
+    if (!visivel) return NextResponse.json({ error: 'Pessoa escolhida não encontrada.' }, { status: 404 })
+    pessoaId = body.pessoa_alvo_id
+  } else if (body.novo_participante) {
+    const nomeNovo = (body.novo_participante.nome ?? '').trim()
+    if (!nomeNovo || !body.lead_id) {
+      return NextResponse.json({ error: 'Informe o nome do novo participante.' }, { status: 422 })
+    }
+    if (!(await podeServidor(usuario_id, ctx.usuario.perfil, empresa_id, 'leads.editar'))) {
+      return NextResponse.json({ error: 'Sem permissão para incluir participante neste lead.' }, { status: 403 })
+    }
+    const { data: leadVisivel, error: eLead } = await clienteDoUsuario(token)
+      .from('leads').select('id, pessoa_id').eq('id', body.lead_id).is('deleted_at', null).maybeSingle()
+    if (eLead) return NextResponse.json({ error: 'Erro ao verificar o lead.' }, { status: 500 })
+    if (!leadVisivel) return NextResponse.json({ error: 'Lead não encontrado.' }, { status: 404 })
+
+    const cpfNovo = (body.novo_participante.cpf ?? '').replace(/\D/g, '')
+    let alvoId: string | null = null
+    if (cpfValido(cpfNovo)) {
+      const { data: existente, error: eEx } = await supabase.from('pessoas').select('id')
+        .eq('empresa_id', empresa_id).eq('cpf', cpfNovo).is('deleted_at', null).maybeSingle()
+      if (eEx) return NextResponse.json({ error: 'Erro ao buscar a pessoa pelo CPF.' }, { status: 500 })
+      alvoId = (existente?.id as string | undefined) ?? null
+    }
+    if (alvoId) {
+      // Invariante 1 do CLAUDE.md: Pessoa de usuário interno nunca vira participante nem dona de documento de cliente.
+      const { data: ehOperador, error: eOp } = await supabase.rpc('pessoa_e_de_operador', { p_pessoa_id: alvoId })
+      if (eOp) return NextResponse.json({ error: 'Erro ao verificar a pessoa.' }, { status: 500 })
+      if (ehOperador) {
+        return NextResponse.json({ error: 'Esse CPF pertence ao cadastro de um usuário da equipe — não pode ser participante.' }, { status: 422 })
+      }
+    } else {
+      const novoId = crypto.randomUUID()
+      const { error: eNova } = await supabase.from('pessoas').insert({
+        id: novoId, empresa_id, nome: nomeNovo, tipo: 'cliente', ...(cpfValido(cpfNovo) ? { cpf: cpfNovo } : {}),
+      })
+      if (eNova) return NextResponse.json({ error: 'Não foi possível criar a pessoa.', detail: eNova.message }, { status: 500 })
+      alvoId = novoId
+    }
+    if (alvoId !== leadVisivel.pessoa_id) {
+      const { error: eCop } = await supabase.from('lead_coparticipantes')
+        .insert({ empresa_id, lead_id: body.lead_id, pessoa_id: alvoId })
+      if (eCop && eCop.code !== '23505') {
+        return NextResponse.json({ error: 'Não foi possível incluir o participante.', detail: eCop.message }, { status: 500 })
+      }
+    }
+    pessoaId = alvoId
+  } else if (alvo === 'conjuge') {
+    // Caminho antigo (antes do "De quem é"): Pessoa própria do cônjuge do dono atual.
+    pessoaId = await resolverPessoaConjuge(
+      empresa_id,
+      doc.pessoa_id as string,
+      (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge',
+      camposFiltrados['cpf'] as string | undefined,
+    )
+  } else {
+    pessoaId = doc.pessoa_id as string  // já validado acima (400 se null)
+  }
+  const mudouDono = pessoaId !== doc.pessoa_id
 
   // Salva todos os campos exceto CPF (para evitar que UNIQUE bloqueie tudo)
   const camposSemCpf = { ...camposFiltrados }
@@ -148,8 +210,9 @@ export async function POST(
   // o sidebar de Captação e o gate de Formulários leem de `leads`, não de `pessoas`.
   // Mesmo espelhamento que /api/leads/[id]/aplicar-ocr já fazia; esta rota não fazia,
   // e o lado esquerdo da tela ficava com o dado do *cria cliente pra sempre, mesmo
-  // após refresh (achado real, 2026-09-24). Só pro titular: dado do cônjuge não é do lead.
-  if (alvo === 'principal') {
+  // após refresh (achado real, 2026-09-24). `.eq('pessoa_id', pessoaId)` só atinge leads onde a
+  // Pessoa alvo é a titular — dado de coparticipante/cônjuge nunca vai para o lead de outro.
+  {
     const updateLead: Record<string, unknown> = {}
     if (camposFiltrados['nome']) updateLead.nome = camposFiltrados['nome']
     if (camposFiltrados['data_nascimento']) updateLead.data_nascimento = camposFiltrados['data_nascimento']
@@ -283,7 +346,7 @@ export async function POST(
     .update({
       status_ocr: 'revisado',
       ...(tipo_confirmado ? { classificacao_legado: tipo_confirmado } : {}),
-      ...(alvo === 'conjuge' ? { pessoa_id: pessoaId } : {}),
+      ...(mudouDono ? { pessoa_id: pessoaId } : {}),
     })
     .eq('id', documentoId)
 
@@ -299,8 +362,12 @@ export async function POST(
     .eq('documento_id', documentoId)
     .eq('vigente', true)
 
+  const { data: alvoPessoa } = await supabase.from('pessoas').select('nome').eq('id', pessoaId).maybeSingle()
+
   return NextResponse.json({
     ok: true,
+    alvo_pessoa_id: pessoaId,
+    alvo_nome: (alvoPessoa?.nome as string | undefined) ?? null,
     cpf_divergente,
     cpf_pertence_a,
     cpf_invalido,
