@@ -142,3 +142,22 @@ export function useDefinirConjuge() {
     },
   })
 }
+
+/** "Tornar principal" (POST /api/leads/[id]/titular). 409 = já é principal de outro lead aberto. */
+export function useTornarPrincipal(leadId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (pessoaId: string) => {
+      const res = await fetch(`/api/leads/${leadId}/titular`, {
+        method: 'POST', headers: await authHeader(), body: JSON.stringify({ pessoa_id: pessoaId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? 'Não foi possível trocar o principal.')
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] })
+      qc.invalidateQueries({ queryKey: ['relacionamentos'] })
+      qc.invalidateQueries({ queryKey: ['pessoa-completa'] })
+    },
+  })
+}
