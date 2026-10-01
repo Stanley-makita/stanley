@@ -29,3 +29,19 @@ export async function confirmarTelefoneDaEquipe(empresaId: string, telefone: str
     'Salvar mesmo assim?',
   )
 }
+
+/**
+ * CPF recusado por já pertencer a outro cadastro (UNIQUE): avisa com o nome do dono e orienta a mesclar.
+ * Achado real (01/10/2026, go-live): o OCR criou um cadastro duplicado com o CPF e o formulário engolia o erro
+ * em silêncio — a equipe tentou salvar o CPF 8 vezes sem nenhuma mensagem.
+ */
+export async function avisarCpfDeOutroCadastro(cpf: string, pessoaId: string): Promise<void> {
+  const { toast } = await import('sonner')
+  const { data } = await supabase.from('pessoas').select('id, nome').eq('cpf', cpf).neq('id', pessoaId)
+    .is('deleted_at', null).limit(1).maybeSingle()
+  const dono = data?.nome ? `"${data.nome}"` : 'outro cadastro'
+  toast.error(
+    `CPF não salvo: ele já pertence a ${dono}. É a mesma pessoa? Abra o cadastro em Pessoas e use "Mesclar" para juntar os dois.`,
+    { duration: 15000 },
+  )
+}
