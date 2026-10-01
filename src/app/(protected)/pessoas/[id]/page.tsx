@@ -376,6 +376,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         .select('id, nome, pessoa_telefones(telefone)')
         .eq('empresa_id', usuario!.empresa_id)
         .ilike('nome', `%${buscaMerge}%`)
+        .is('deleted_at', null)
         .neq('id', params.id)
         .limit(8)
       return data ?? []
@@ -591,20 +592,18 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
   const mutMerge = useMutation({
     mutationFn: async () => {
       if (!pessoaMergeId) throw new Error('Selecione uma pessoa para mesclar')
-      const { error } = await supabase.rpc('merge_pessoas' as never, {
-        p_principal: params.id,
-        p_secundaria: pessoaMergeId,
+      // Sempre pela rota (transação única no banco, merge_pessoas — V2 B2c-C1d); a função não é
+      // chamável do navegador.
+      const session = await supabase.auth.getSession()
+      const token = session.data.session?.access_token ?? ''
+      const res = await fetch(`/api/pessoas/${params.id}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pessoa_id_secundaria: pessoaMergeId }),
       })
-      // Se a RPC não existir, faz via API route
-      if (error) {
-        const session = await supabase.auth.getSession()
-        const token = session.data.session?.access_token ?? ''
-        const res = await fetch(`/api/pessoas/${params.id}/merge`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ pessoa_id_secundaria: pessoaMergeId }),
-        })
-        if (!res.ok) throw new Error('Erro ao mesclar pessoas')
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(json.error ?? 'Erro ao mesclar pessoas')
       }
     },
     onSuccess: () => {
