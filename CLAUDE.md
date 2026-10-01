@@ -708,3 +708,10 @@ Go-live 01/10/2026: banco limpo (`2026-08-01_zerar_dados_teste.sql`, rodado pelo
 Storage apagados (`scripts/limpar-storage-teste.mjs`). **A partir daqui os dados são reais — nunca mais rodar
 purga.** Próximo: B3 (apagar tabelas antigas e campos soltos `conjuge_*`/`vendedor_*`) só depois de semanas estável;
 antes de apagar `processo_compradores`, zerar `comunicacao_relacionamentos.processo_comprador_id` (CASCADE).
+## Testes do simulador: sempre fixar "hoje" (`fixarHoje`)
+
+O motor calcula idade e prazo máximo pela data atual (`hojeEmSaoPaulo`). Teste com caso-âncora ou snapshot sem data
+fixa quebra sozinho na virada do mês (achado real 01/10/2026: 18 testes falharam sem mudança de código; outros 10
+falhavam desde julho pelo mesmo motivo e eram tratados como "falha pré-existente"). Todo teste novo do simulador ou
+de workflow que simule chama `fixarHoje('AAAA-MM-DD')` (`src/lib/simuladorFinanciamento/__tests__/helpers/dataFixa.ts`)
+com a data em que o valor esperado foi conferido. Desde o PR #370 a suíte é 100% verde — falha = regressão real.

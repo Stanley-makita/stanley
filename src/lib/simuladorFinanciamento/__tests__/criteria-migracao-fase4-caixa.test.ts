@@ -24,6 +24,10 @@ import { simularBanco as simularBancoNovo, simularTodosBancos as simularTodosBan
 import { simularBanco as simularBancoAntigo, simularTodosBancos as simularTodosBancosAntigo } from './_baseline-fase4-caixa/engine'
 import type { InputFinanciamento } from '../tipos'
 import type { BancoSimOverrides } from '../criteria'
+import { fixarHoje } from '@/lib/simuladorFinanciamento/__tests__/helpers/dataFixa'
+
+// Idade/prazo dependem de "hoje": casos-âncora calibrados contra o simulador oficial em jul/2026.
+fixarHoje('2026-07-15')
 
 const BASE_INPUT: InputFinanciamento = {
   valorImovel:     500_000,
@@ -133,6 +137,8 @@ describe('Fase 4 — Caixa: simularBanco (equivalência antigo vs. novo)', () =>
 // contra o motor novo (não contra `_baseline-fase4-caixa/`, que preserva o bug antigo de
 // propósito) — ver os 3 casos removidos da lista de equivalência acima.
 describe('Fase 4 — Caixa: idade — nascidos no dia 1º do mês (correção do bug de fuso em calcularIdadeEmMeses)', () => {
+  // snapshots deste grupo foram gravados em 16/09/2026
+  fixarHoje('2026-09-16', '2026-07-15')
   it('cliente 45 anos (faixa MIP intermediária) — 1980-01-01', () => {
     const r = simularBancoNovo('caixa', { ...BASE_INPUT_EQUIV, dataNascimento: '1980-01-01' })
     expect(r).toMatchSnapshot()

@@ -33,6 +33,10 @@ function criarFakeSupabase() {
     auth: {
       getUser: async (_token: string) => ({ data: { user: { id: 'auth-user-1' } }, error: null }),
     },
+    // Conversa resolvida pela RPC atômica obter_ou_criar_conversa (resolverOuCriarConversa).
+    rpc: async (nome: string) => nome === 'obter_ou_criar_conversa'
+      ? { data: 'conversa-nova-1', error: null }
+      : { data: null, error: null },
     from(tabela: string) {
       const proxy: Record<string, unknown> = {}
       Object.assign(proxy, {
