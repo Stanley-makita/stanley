@@ -34,6 +34,7 @@ import { EnviarDocumentosModal } from '@/components/documentos/EnviarDocumentosM
 import { TrazerDocumentosModal } from '@/components/documentos/TrazerDocumentosModal'
 import { useEtiquetasVinculo, useRemoverVinculo } from '@/hooks/documentos/useVinculosDocumento'
 import { podeRemoverVinculo } from '@/lib/documentos/vinculos'
+import { useParticipantes } from '@/hooks/participantes/useParticipantes'
 import { pessoasDaProposta, titularDaProposta } from '@/lib/participantes/consultas'
 import { PAPEIS_COMPRA, PAPEIS_VENDA } from '@/lib/participantes/tipos'
 
@@ -165,6 +166,14 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   // do Lead, não se aplica a Processo/Pessoa. Hook sempre chamado (regra dos hooks),
   // mas com id vazio quando não é Lead — fica desabilitado internamente.
   const ocrSugestoes = useOcrSugestoes(contexto === 'lead' ? (leadId ?? '') : '')
+  // V2: "De quem é este documento?" no OCR — participantes da proposta (titular primeiro).
+  const { data: participantesProposta = [] } = useParticipantes(
+    contexto === 'lead' && leadId ? { tipo: 'lead', id: leadId }
+      : contexto === 'processo' && processoId ? { tipo: 'processo', id: processoId } : null,
+  )
+  const opcoesDonoDocumento = [...participantesProposta]
+    .sort((a, b) => (a.papel === 'titular' ? 0 : 1) - (b.papel === 'titular' ? 0 : 1) || a.ordem - b.ordem)
+    .map(p => ({ pessoaId: p.pessoa.id, nome: p.pessoa.nome, cpf: p.pessoa.cpf }))
   // Apuração de Renda: existe para Lead/Processo (cada operação tem sua própria renda
   // apurada); não existe rota nem sentido conceitual para Pessoa (renda é por operação).
   const { ultima: ultimaApuracao } = useApuracaoRenda(
@@ -1130,6 +1139,8 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         <DocumentoOcrRevisaoModal
           documento={docOcrRevisao}
           pessoaAtualId={contexto === 'lead' ? pessoaId : undefined}
+          participantes={opcoesDonoDocumento}
+          leadId={contexto === 'lead' ? leadId : undefined}
           onClose={() => setDocOcrRevisao(null)}
           onConfirmado={() => {
             setDocOcrRevisao(null)
@@ -1138,6 +1149,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
             // A rota também espelha nome/CPF/nascimento no Lead — o sidebar lê de lá
             queryClient.invalidateQueries({ queryKey: ['leads'] })
             if (leadId) queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+            // O dono pode ter mudado / um participante novo pode ter entrado na proposta.
+            queryClient.invalidateQueries({ queryKey: ['pessoa-completa'] })
+            if (leadId) queryClient.invalidateQueries({ queryKey: ['leads', leadId] })
+            if (processoId) queryClient.invalidateQueries({ queryKey: ['processos', processoId] })
             queryClient.invalidateQueries({ queryKey: ['ocr-sugestoes'] })
           }}
         />

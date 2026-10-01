@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { sugerirDonoDocumento } from '@/lib/participantes/donoDocumento'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -27,7 +28,13 @@ interface Props {
    * antes de confirmar — "Confirmar dados" grava sempre na Pessoa DONA do
    * documento (documentos.pessoa_id), não na deste contexto. */
   pessoaAtualId?: string | null
+  /** V2: participantes da proposta (Lead/Negócio). Com eles, a tela pergunta "De quem é este documento?". */
+  participantes?: Array<{ pessoaId: string; nome: string; cpf: string | null }>
+  /** Lead do contexto: habilita "Novo participante" (inclui no lead ao confirmar). */
+  leadId?: string
 }
+
+const NOVO = '__novo'
 
 const TIPOS_OPCOES = [
   { value: 'cnh',                   label: 'CNH' },
@@ -91,7 +98,8 @@ async function getToken(): Promise<string | null> {
   return data.session?.access_token ?? null
 }
 
-export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pessoaAtualId }: Props) {
+export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pessoaAtualId, participantes = [], leadId }: Props) {
+  const modoParticipantes = participantes.length > 0
   const ocr = documento.ocr_dados as OcrResultado | null
   const ocrRaw = ocr as unknown as Record<string, unknown> | null
 
@@ -114,6 +122,15 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
     }
     return initial
   })
+
+  // "De quem é este documento?" — sugestão automática até o usuário escolher à mão.
+  const [donoManual, setDonoManual] = useState<string | null>(null)
+  const [novoNome, setNovoNome] = useState<string | null>(null)
+  const [novoCpf, setNovoCpf] = useState<string | null>(null)
+  const sugestao = sugerirDonoDocumento({ cpf: campos.cpf, nome: campos.nome }, participantes, documento.pessoa_id ?? null)
+  const donoSugerido = sugestao.tipo === 'novo' ? (leadId ? NOVO : (participantes[0]?.pessoaId ?? '')) : sugestao.pessoaId
+  const dono = donoManual ?? donoSugerido
+  const donoNome = dono === NOVO ? (novoNome ?? campos.nome ?? '') : participantes.find(p => p.pessoaId === dono)?.nome ?? ''
 
   const [salvando, setSalvando] = useState(false)
   const [docUrl, setDocUrl] = useState<string | null>(null)
@@ -159,7 +176,11 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
         body: JSON.stringify({
           campos: camposFiltrados,
           tipo_confirmado: tipoSelecionado,
-          titular: ehConjuge ? 'conjuge' : 'principal',
+          ...(modoParticipantes
+            ? (dono === NOVO
+                ? { novo_participante: { nome: (novoNome ?? campos.nome ?? '').trim(), cpf: novoCpf ?? campos.cpf ?? '' }, lead_id: leadId }
+                : { pessoa_alvo_id: dono })
+            : { titular: ehConjuge ? 'conjuge' : 'principal' }),
         }),
       })
       if (!res.ok) {
@@ -172,6 +193,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
         cpf_pertence_a?: { id: string; nome: string | null } | null
         cpf_invalido?: boolean
         alvo?: string
+        alvo_nome?: string | null
       }
       // CPF não gravado é aviso em amarelo e demorado — um toast verde de "sucesso"
       // passava despercebido e o CPF errado ficava no cadastro.
@@ -188,6 +210,8 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
           'Os outros dados foram salvos, mas o CPF NÃO: o número não é um CPF válido (confira os dígitos no documento).',
           { duration: 15000 },
         )
+      } else if (modoParticipantes && result.alvo_nome) {
+        toast.success(`Dados confirmados e salvos no cadastro de ${result.alvo_nome}.`)
       } else if (result.alvo === 'conjuge') {
         toast.success('Dados confirmados e salvos no cadastro do cônjuge.')
       } else {
@@ -248,6 +272,47 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
 
         {/* Corpo */}
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          {modoParticipantes && (
+            <div className="mb-4 rounded-lg border border-fonti-accent/50 bg-fonti-accent-hover/20 p-3">
+              <label className="mb-1 block text-xs font-semibold text-fonti-primary" htmlFor="dono-documento">
+                De quem é este documento?
+              </label>
+              <select
+                id="dono-documento"
+                value={dono}
+                onChange={e => setDonoManual(e.target.value)}
+                className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
+              >
+                {participantes.map(p => <option key={p.pessoaId} value={p.pessoaId}>{p.nome}</option>)}
+                {leadId && <option value={NOVO}>Novo participante…</option>}
+              </select>
+              {!donoManual && sugestao.tipo === 'participante' && sugestao.motivo !== 'dono_atual' && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Sugerido pelo {sugestao.motivo === 'cpf' ? 'CPF' : 'nome'} do documento — confira.
+                </p>
+              )}
+              {dono === NOVO && (
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="text-xs text-gray-600">Nome
+                    <input value={novoNome ?? campos.nome ?? ''} onChange={e => setNovoNome(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs text-gray-600">CPF
+                    <input value={novoCpf ?? campos.cpf ?? ''} onChange={e => setNovoCpf(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  </label>
+                  <p className="text-xs text-gray-500 sm:col-span-2">
+                    Se o CPF já for de uma pessoa cadastrada, ela é reaproveitada. Entra na proposta como coparticipante; o papel e o casamento se ajustam na aba Pessoa.
+                  </p>
+                </div>
+              )}
+              {dono !== NOVO && documento.pessoa_id && dono !== documento.pessoa_id && (
+                <p className="mt-1 text-xs text-amber-800">Ao confirmar, o documento passa a ser de {donoNome}.</p>
+              )}
+            </div>
+          )}
+
+          {!modoParticipantes && (
           <div className="mb-4">
             <label className="flex items-center gap-1.5 text-xs text-gray-600">
               <input
@@ -265,8 +330,9 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
               </p>
             )}
           </div>
+          )}
 
-          {pessoaDivergente && !ehConjuge && (
+          {pessoaDivergente && !ehConjuge && !modoParticipantes && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <div className="flex-1">
@@ -347,7 +413,9 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
               size="sm"
               className="min-w-[110px] bg-fonti-primary text-white hover:bg-fonti-primary-hover"
               onClick={handleConfirmar}
-              disabled={salvando || (pessoaDivergente && !ehConjuge && !cienteDivergencia)}
+              disabled={salvando
+                || (!modoParticipantes && pessoaDivergente && !ehConjuge && !cienteDivergencia)
+                || (modoParticipantes && dono === NOVO && !(novoNome ?? campos.nome ?? '').trim())}
             >
               {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar dados'}
             </Button>
