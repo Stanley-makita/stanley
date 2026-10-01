@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sugerirDonoDocumento } from '../donoDocumento'
+import { nomesParecidos, participanteParecido, sugerirDonoDocumento } from '../donoDocumento'
 
 const ps = [
   { pessoaId: 'h', nome: 'Heitor Almeida Souza', cpf: '52998224725' },
@@ -38,5 +38,35 @@ describe('sugerirDonoDocumento', () => {
   it('CPF inválido é ignorado (cai no nome)', () => {
     expect(sugerirDonoDocumento({ cpf: '11111111111', nome: 'Heitor Almeida Souza' }, ps, 'm'))
       .toEqual({ tipo: 'participante', pessoaId: 'h', motivo: 'nome' })
+  })
+  it('caso real: RG "ANDRÉ … COPPULA" x lead "ANDRE … COPULLA" sem CPF → sugere o do lead (nome parecido)', () => {
+    const andre = [{ pessoaId: 'andre', nome: 'ANDRE LUIZ DE OLIVEIRA COPULLA', cpf: null }]
+    expect(sugerirDonoDocumento({ cpf: '064.898.399-46', nome: 'ANDRÉ LUIZ DE OLIVEIRA COPPULA' }, andre, 'andre'))
+      .toEqual({ tipo: 'participante', pessoaId: 'andre', motivo: 'nome_parecido' })
+  })
+  it('nome parecido de quem já tem OUTRO CPF → novo (é outra pessoa)', () => {
+    expect(sugerirDonoDocumento({ cpf: '39053344705', nome: 'Heitor Almeida Sousa' }, ps, 'h')).toEqual({ tipo: 'novo' })
+  })
+})
+
+describe('nomesParecidos', () => {
+  it.each([
+    ['ANDRE LUIZ DE OLIVEIRA COPULLA', 'ANDRÉ LUIZ DE OLIVEIRA COPPULA', true],
+    ['Maria Souza', 'Maria Aparecida de Souza', true],
+    ['Jose da Silva', 'José Silva', true],
+    ['Joao Pereira', 'Joana Pereira', false],
+    ['Carlos Pereira', 'Marcos Pereira', false],
+    ['Maria Souza', 'Maria Oliveira', false],
+    ['Ana', 'Ana Paula Souza', false],
+    ['Pedro Henrique Lima', 'Pedro Augusto Costa', false],
+  ])('%s x %s → %s', (a, b, esperado) => {
+    expect(nomesParecidos(a, b)).toBe(esperado)
+  })
+})
+
+describe('participanteParecido', () => {
+  it('acha quem tem nome parecido e não tem outro CPF', () => {
+    expect(participanteParecido('Afranio Sousa', '39053344705', ps)?.pessoaId).toBe('a')
+    expect(participanteParecido('Heitor Almeida Sousa', '39053344705', ps)).toBeNull()
   })
 })

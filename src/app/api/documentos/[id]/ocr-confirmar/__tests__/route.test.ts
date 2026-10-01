@@ -90,6 +90,23 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     expect(doc().pessoa_id).toBe('maria-existente')
   })
 
+  it('caso real: nome parecido com quem já está na proposta (sem CPF) → 409 pergunta; confirmar_novo cria', async () => {
+    estado.tabelas.pessoas.push({ id: 'andre', empresa_id: 'e1', nome: 'ANDRE LUIZ DE OLIVEIRA COPULLA', cpf: null, deleted_at: null })
+    estado.tabelas.participacoes.push({ id: 'pa-andre', empresa_id: 'e1', lead_id: 'l1', pessoa_id: 'andre', papel: 'titular', explicita: false,
+      pessoa: { id: 'andre', nome: 'ANDRE LUIZ DE OLIVEIRA COPULLA', cpf: null, deleted_at: null } })
+    const { POST } = await import('../route')
+    const corpo = { campos: { nome: 'ANDRÉ LUIZ DE OLIVEIRA COPPULA', cpf: '064.898.399-46' }, tipo_confirmado: 'rg',
+      novo_participante: { nome: 'ANDRÉ LUIZ DE OLIVEIRA COPPULA', cpf: '064.898.399-46' }, lead_id: 'l1' }
+    const total = estado.tabelas.pessoas.length
+    const r1 = await POST(req(corpo), ctx)
+    expect(r1.status).toBe(409)
+    expect(await r1.json()).toMatchObject({ parecido: { pessoa_id: 'andre', nome: 'ANDRE LUIZ DE OLIVEIRA COPULLA' } })
+    expect(estado.tabelas.pessoas).toHaveLength(total) // nada criado
+    const r2 = await POST(req({ ...corpo, confirmar_novo: true }), ctx)
+    expect(r2.status).toBe(200)
+    expect(estado.tabelas.pessoas).toHaveLength(total + 1)
+  })
+
   it('novo participante sem cadastro: cria a Pessoa e inclui no lead', async () => {
     const { POST } = await import('../route')
     const res = await POST(req({

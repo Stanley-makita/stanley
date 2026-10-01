@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { cpfValido } from '@/lib/cpf'
+import { participanteParecido } from '@/lib/participantes/donoDocumento'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
 import { normalizarRegime, registrarCasamento } from '@/lib/participantes/casamentoServidor'
@@ -59,6 +60,7 @@ export async function POST(
     pessoa_alvo_id?: string
     /** V2: "Novo participante" — reaproveita a Pessoa pelo CPF ou cria; inclui no lead. */
     novo_participante?: { nome?: string; cpf?: string }
+    confirmar_novo?: boolean
     lead_id?: string
     /** V2: certidão de casamento — com quem a Pessoa alvo é casada (participante/Pessoa existente ou nova). */
     casamento?: { conjuge_pessoa_id?: string; novo?: { nome?: string; cpf?: string } }
@@ -126,6 +128,35 @@ export async function POST(
       .from('leads').select('id, pessoa_id').eq('id', body.lead_id).is('deleted_at', null).maybeSingle()
     if (eLead) return NextResponse.json({ error: 'Erro ao verificar o lead.' }, { status: 500 })
     if (!leadVisivel) return NextResponse.json({ error: 'Lead não encontrado.' }, { status: 404 })
+
+    // Antes de criar cadastro NOVO: alguém da proposta com nome parecido e sem outro CPF? (achado real 01/10/2026:
+    // RG "ANDRÉ … COPPULA" x lead "ANDRE … COPULLA" virou duplicado e travou o CPF do cliente.) Só segue com
+    // confirmar_novo. CPF que já existe na empresa é reaproveitado (não cria nada), então não pergunta.
+    if (!body.confirmar_novo) {
+      const cpfNovo = (body.novo_participante.cpf ?? '').replace(/\D/g, '')
+      let cpfExiste = false
+      if (cpfValido(cpfNovo)) {
+        const { data: porCpf, error: eCpf } = await supabase.from('pessoas').select('id')
+          .eq('empresa_id', empresa_id).eq('cpf', cpfNovo).is('deleted_at', null).maybeSingle()
+        if (eCpf) return NextResponse.json({ error: 'Erro ao buscar a pessoa pelo CPF.' }, { status: 500 })
+        cpfExiste = !!porCpf
+      }
+      if (!cpfExiste) {
+        const { data: parts, error: eParts } = await supabase.from('participacoes')
+          .select('pessoa:pessoas!pessoa_id(id, nome, cpf, deleted_at)').eq('lead_id', body.lead_id)
+        if (eParts) return NextResponse.json({ error: 'Erro ao carregar os participantes.' }, { status: 500 })
+        const candidatos = ((parts ?? []) as unknown as Array<{ pessoa: { id: string; nome: string; cpf: string | null; deleted_at: string | null } | null }>)
+          .map(x => x.pessoa).filter((x): x is { id: string; nome: string; cpf: string | null; deleted_at: string | null } => !!x && !x.deleted_at)
+          .map(x => ({ pessoaId: x.id, nome: x.nome, cpf: x.cpf }))
+        const parecido = participanteParecido(nomeNovo, cpfNovo, candidatos)
+        if (parecido) {
+          return NextResponse.json({
+            error: `Parece ser ${parecido.nome}, que já está nesta proposta.`,
+            parecido: { pessoa_id: parecido.pessoaId, nome: parecido.nome },
+          }, { status: 409 })
+        }
+      }
+    }
 
     const resolvida = await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf)
     if ('erro' in resolvida) return NextResponse.json({ error: resolvida.erro }, { status: resolvida.status })
