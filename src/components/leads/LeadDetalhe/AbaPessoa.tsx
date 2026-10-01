@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { type Lead } from '@/types/leads'
 import { useParticipantes } from '@/hooks/participantes/useParticipantes'
 import {
-  useAdicionarParticipante, useAlterarCompoeRenda, useRelacionamentosDe, useRemoverParticipante,
+  useAdicionarParticipante, useAlterarCompoeRenda, useRelacionamentosDe, useRemoverParticipante, useTornarPrincipal,
 } from '@/hooks/participantes/useMutacoesParticipantes'
 import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
 import { rotuloParticipante } from '@/lib/participantes/rotulos'
@@ -41,6 +41,7 @@ export function AbaPessoa({ lead }: { lead: Lead }) {
   const adicionar = useAdicionarParticipante(lead.id)
   const remover = useRemoverParticipante(lead.id)
   const alterarCompoe = useAlterarCompoeRenda(lead.id)
+  const tornarPrincipal = useTornarPrincipal(lead.id)
 
   const atual = compra.find(p => p.pessoa.id === selecionadaId) ?? compra.find(p => p.papel === 'titular') ?? compra[0]
   const todosRotulo = compra.map(p => ({ pessoaId: p.pessoa.id, nome: p.pessoa.nome, papel: p.papel }))
@@ -91,6 +92,23 @@ export function AbaPessoa({ lead }: { lead: Lead }) {
         escolher({ pessoaId: nova.id as string, nome: e.nome })
       },
     })
+  }
+
+  async function tornarPrincipalAtual() {
+    if (!atual || atual.papel === 'titular') return
+    if (sujo) { toast.info('Salve as alterações desta pessoa antes de trocar o principal.'); return }
+    const titularAtual = compra.find(p => p.papel === 'titular')
+    if (!window.confirm(
+      `Tornar ${atual.pessoa.nome} o principal da proposta?` +
+      (titularAtual ? ` ${titularAtual.pessoa.nome} continua como participante.` : '') +
+      ' O nome e o CPF do lead passam a ser os dela; telefone e e-mail de contato do lead não mudam.',
+    )) return
+    try {
+      await tornarPrincipal.mutateAsync(atual.pessoa.id)
+      toast.success(`${primeiroNome(atual.pessoa.nome)} agora é o principal.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível trocar o principal.', { duration: 10000 })
+    }
   }
 
   async function removerAtual() {
@@ -178,6 +196,16 @@ export function AbaPessoa({ lead }: { lead: Lead }) {
             />
             Compõe renda
           </label>
+          {atual.papel !== 'titular' && (
+            <button
+              type="button"
+              onClick={() => { void tornarPrincipalAtual() }}
+              disabled={tornarPrincipal.isPending}
+              className="min-h-[44px] rounded-lg border border-fonti-primary px-3 text-sm font-semibold text-fonti-primary hover:bg-fonti-surface-warm"
+            >
+              Tornar principal
+            </button>
+          )}
           {atual.papel === 'coparticipante' && (
             <button
               type="button"
