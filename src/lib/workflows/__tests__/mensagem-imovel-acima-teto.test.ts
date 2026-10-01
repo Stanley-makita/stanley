@@ -18,6 +18,10 @@
 import { describe, it, expect } from 'vitest'
 import { executarSimulacao, montarRespostaSimulacao } from '../motor-simulacao'
 import type { DadosCaptacaoNormalizados } from '../normalizador-captacao'
+import { fixarHoje } from '@/lib/simuladorFinanciamento/__tests__/helpers/dataFixa'
+
+// Idade/prazo dependem de "hoje": caso-âncora conferido em jul/2026.
+fixarHoje('2026-07-15')
 
 function baseDados(overrides: Partial<DadosCaptacaoNormalizados>): DadosCaptacaoNormalizados {
   return {

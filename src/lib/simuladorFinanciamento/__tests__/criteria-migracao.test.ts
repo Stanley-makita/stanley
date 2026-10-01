@@ -18,6 +18,10 @@
 import { describe, it, expect } from 'vitest'
 import { simularBanco } from '../engine'
 import type { InputFinanciamento } from '../tipos'
+import { fixarHoje } from '@/lib/simuladorFinanciamento/__tests__/helpers/dataFixa'
+
+// Idade/prazo dependem de "hoje": snapshots gravados em 16/09/2026.
+fixarHoje('2026-09-16')
 
 const BASE_INPUT: InputFinanciamento = {
   valorImovel:     500_000,
