@@ -734,3 +734,25 @@ com a data em que o valor esperado foi conferido. Desde o PR #370 a suíte é 10
 Dados de teste depois do go-live: **nunca** purga geral (já há clientes reais). Apagar teste = levantamento por ID
 (lead, negócios, documentos, arquivos), checar se a Pessoa não está em proposta real, script em transação, conferir
 contagens. A Pessoa "Novo contato" (âncora do WhatsApp do Marcio) não é teste — não apagar.
+
+## Ambiente de TESTE (desde 01/10/2026) — testar aqui antes de subir para a equipe
+
+Projeto Supabase **credifon-crm-staging** (`cjsvineuakhzkqbazsmi`, sa-east-1): estrutura igual à produção,
+dados só de configuração (empresa, usuários/logins com as mesmas senhas, bancos, fases, perfis, catálogos),
+**nenhum dado de cliente**. Quem usa:
+- **Preview da Vercel** (link de cada PR): as 3 variáveis do Supabase de Preview apontam para o staging;
+  `UAZAPI_API_URL`, `SMTP_HOST` e `CLICKSIGN_API_URL` de Preview são endereços `.invalid` (nada sai para
+  cliente). As de Production são variáveis separadas — mudar uma não afeta a outra.
+- **localhost**: `npm run dev:teste` (lê `.env.teste`, fora do git). `npm run dev` continua na PRODUÇÃO.
+- Faixa amarela "AMBIENTE DE TESTE" no topo (`AvisoAmbienteTeste`, detecta pela URL do Supabase).
+
+Regras:
+- **Migration nova roda PRIMEIRO no staging** (SQL Editor do projeto staging), testa no Preview da PR, e só
+  depois na produção, no momento do merge.
+- Estrutura do staging desatualizou (migration esquecida, teste bagunçado)? Recriar do zero com
+  `scripts/sincronizar-ambiente-teste.sh` (apaga o public do staging e copia a estrutura + configuração da
+  produção). Tabela nova de CONFIGURAÇÃO precisa entrar na lista `CONFIG` do script; de cliente, nunca.
+- Bot `*fonti` e webhooks (WhatsApp/Instagram/Clicksign) NÃO funcionam no teste: o webhook da Uazapi
+  aponta para a produção e o token da instância no staging é inválido. Testar bot exige um número de
+  WhatsApp de teste com instância própria (não existe ainda).
+- Edge function `aceitar-convite` não foi publicada no staging (convite de usuário novo não funciona lá).
