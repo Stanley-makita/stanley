@@ -50,6 +50,10 @@ export interface OcrResultado {
   estado_civil?: string       // sempre 'casado' para certidão de casamento
   regime_casamento?: string   // ex: 'comunhao_parcial', 'comunhao_universal', 'separacao_total', 'participacao_final'
   data_casamento?: string     // YYYY-MM-DD
+  // Segundo cônjuge da certidão de casamento (o primeiro vai em nome/cpf/data_nascimento)
+  conjuge2_nome?: string
+  conjuge2_cpf?: string
+  conjuge2_data_nascimento?: string  // YYYY-MM-DD
   // Campos do extrato FGTS — dados gerais do trabalhador
   pis_pasep?: string
   data_extrato?: string       // YYYY-MM-DD
@@ -126,6 +130,9 @@ Para certidão de casamento:
   "nome": "nome do(a) cônjuge 1 ou null",
   "cpf": "CPF do(a) cônjuge 1, 11 dígitos sem pontos/traços ou null",
   "data_nascimento": "data de nascimento do(a) cônjuge 1, YYYY-MM-DD ou null",
+  "conjuge2_nome": "nome do(a) cônjuge 2 ou null",
+  "conjuge2_cpf": "CPF do(a) cônjuge 2, 11 dígitos sem pontos/traços ou null",
+  "conjuge2_data_nascimento": "data de nascimento do(a) cônjuge 2, YYYY-MM-DD ou null",
   "estado_civil": "casado",
   "regime_casamento": "comunhao_parcial|comunhao_universal|separacao_total|participacao_final ou null",
   "data_casamento": "YYYY-MM-DD ou null",
@@ -141,6 +148,7 @@ Regras para certidão de casamento:
   "participação final nos aquestos" → "participacao_final"
 - data_casamento: data da celebração do casamento, converter para YYYY-MM-DD
 - nome/cpf/data_nascimento: extrair dados do primeiro cônjuge listado
+- conjuge2_nome/conjuge2_cpf/conjuge2_data_nascimento: extrair dados do segundo cônjuge listado. Use o nome atual (após o casamento), se a certidão informar o nome adotado
 - estado_civil: sempre "casado" para certidão de casamento
 - campos ausentes: null (não invente)
 

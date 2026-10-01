@@ -642,6 +642,11 @@ Pessoa (participantes da proposta, ou "Novo participante" no Lead) com sugestão
 sem outro CPF; sem dado de identificação → dono atual). `ocr-confirmar` grava na Pessoa escolhida
 (`pessoa_alvo_id`, visível pelo JWT do usuário) ou reaproveita/cria (`novo_participante`, CPF existente é
 reaproveitado, Pessoa de operador é recusada) e MOVE o dono do documento (`documentos.pessoa_id`) para ela.
+**B2d-2 (2026-10):** "Mover para outro participante" na aba Documentos (`POST /api/documentos/[id]/dono`: só
+entre participantes da proposta, garante o vínculo com o lead/negócio, histórico). Certidão de casamento no OCR
+extrai os dois cônjuges e registra o casamento dos dois lados (`registrarCasamento`,
+`src/lib/participantes/casamentoServidor.ts` — a ÚNICA implementação de casamento; a rota "Casado(a) com" usa a
+mesma). Regime: o OCR devolve `comunhao_universal`, o cadastro usa `comunhao_total` — sempre `normalizarRegime`.
 **B2a (2026-10):** e-mail/telefone/estado civil/conta bancária de participante também vêm só da Pessoa
 (Clicksign, e-mail de confirmação, formulários sem overlay). O que a aba do Negócio ainda digita nas linhas
 antigas é copiado para a Pessoa pelo trigger (migration 329: só preenche vazio). Comunicação com comprador

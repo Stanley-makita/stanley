@@ -121,6 +121,43 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     expect(estado.tabelas.lead_coparticipantes).toHaveLength(0)
   })
 
+  it('certidão de casamento: registra o casamento dos dois lados com data e regime (universal → total)', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req({
+      campos: { estado_civil: 'casado', regime_casamento: 'comunhao_universal', data_casamento: '1990-05-12' },
+      tipo_confirmado: 'certidao_casamento', pessoa_alvo_id: 'afranio', casamento: { conjuge_pessoa_id: 'maria-existente' },
+    }), ctx)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ casamento: 'registrado' })
+    expect(pessoa('afranio')).toMatchObject({ conjuge_pessoa_id: 'maria-existente', regime_casamento: 'comunhao_total', data_casamento: '1990-05-12', estado_civil: 'casado' })
+    expect(pessoa('maria-existente')).toMatchObject({ conjuge_pessoa_id: 'afranio', regime_casamento: 'comunhao_total' })
+  })
+
+  it('certidão com cônjuge novo: reaproveita pelo CPF ou cria, e liga o casamento', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req({
+      campos: { estado_civil: 'casado' }, tipo_confirmado: 'certidao_casamento', pessoa_alvo_id: 'afranio',
+      casamento: { novo: { nome: 'Joana Lima' } },
+    }), ctx)
+    expect(res.status).toBe(200)
+    const joana = estado.tabelas.pessoas.find(p => p.nome === 'Joana Lima')!
+    expect(joana.conjuge_pessoa_id).toBe('afranio')
+    expect(pessoa('afranio').conjuge_pessoa_id).toBe(joana.id)
+  })
+
+  it('certidão cujo cônjuge já é casado com outra pessoa: dados salvos, casamento pendente de confirmação', async () => {
+    estado.tabelas.pessoas.push({ id: 'z', empresa_id: 'e1', nome: 'Zé', conjuge_pessoa_id: 'maria-existente', deleted_at: null })
+    pessoa('maria-existente').conjuge_pessoa_id = 'z'
+    const { POST } = await import('../route')
+    const res = await POST(req({
+      campos: { data_casamento: '1990-05-12' }, tipo_confirmado: 'certidao_casamento', pessoa_alvo_id: 'afranio',
+      casamento: { conjuge_pessoa_id: 'maria-existente' },
+    }), ctx)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ casamento: 'confirmar', casamento_encerra: expect.arrayContaining([expect.objectContaining({ id: 'z' })]) })
+    expect(pessoa('afranio').conjuge_pessoa_id ?? null).toBeNull()
+  })
+
   it('sem escolha: grava no dono atual e o documento não muda de dono (comportamento antigo)', async () => {
     const { POST } = await import('../route')
     const res = await POST(req({ campos: { nome: 'Heitor Almeida' } }), ctx)
