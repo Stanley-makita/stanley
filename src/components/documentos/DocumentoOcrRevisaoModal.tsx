@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { sugerirDonoDocumento } from '@/lib/participantes/donoDocumento'
+import { participanteParecido, sugerirDonoDocumento } from '@/lib/participantes/donoDocumento'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -182,13 +182,18 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
     }
 
     try {
-      const res = await fetch(`/api/documentos/${documento.id}/ocr-confirmar`, {
+      const enviar = (extra: Record<string, unknown>) => fetch(`/api/documentos/${documento.id}/ocr-confirmar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          ...corpo,
+          ...extra,
+        }),
+      })
+      const corpo = {
           campos: camposFiltrados,
           tipo_confirmado: tipoSelecionado,
           ...(modoParticipantes
@@ -201,8 +206,24 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                 ? { novo: { nome: (conjugeNovoNome ?? conjuge2Nome).trim(), cpf: conjuge2Cpf } }
                 : { conjuge_pessoa_id: conjuge } }
             : {}),
-        }),
-      })
+      }
+      let res = await enviar({})
+      // Servidor achou alguém da proposta com nome parecido (sem outro CPF): pergunta antes de criar cadastro novo.
+      if (res.status === 409) {
+        const conflito = await res.clone().json().catch(() => ({})) as { parecido?: { pessoa_id: string; nome: string } }
+        if (conflito.parecido) {
+          const mesma = window.confirm(
+            `Parece ser ${conflito.parecido.nome}, que já está nesta proposta (o nome no documento está escrito diferente).
+
+` +
+            `OK = é a mesma pessoa (salvar em ${conflito.parecido.nome})
+Cancelar = é outra pessoa (criar cadastro novo)`,
+          )
+          res = await enviar(mesma
+            ? { novo_participante: undefined, lead_id: undefined, pessoa_alvo_id: conflito.parecido.pessoa_id }
+            : { confirmar_novo: true })
+        }
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string; detail?: string }
         toast.error((err.error ?? 'Erro ao salvar dados.') + (err.detail ? ` (${err.detail})` : ''))
@@ -332,10 +353,34 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                 {leadId && <option value={NOVO}>Novo participante…</option>}
               </select>
               {!donoManual && sugestao.tipo === 'participante' && sugestao.motivo !== 'dono_atual' && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Sugerido pelo {sugestao.motivo === 'cpf' ? 'CPF' : 'nome'} do documento — confira.
-                </p>
+                sugestao.motivo === 'nome_parecido' ? (
+                  <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                    Sugerido pelo nome parecido — no documento está &quot;{campos.nome}&quot;. Confira se é a mesma pessoa.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Sugerido pelo {sugestao.motivo === 'cpf' ? 'CPF' : 'nome'} do documento — confira.
+                  </p>
+                )
               )}
+              {dono === NOVO && (() => {
+                // Nunca cria cadastro novo calado (achado real 01/10/2026: RG com o sobrenome digitado diferente virou
+                // um ANDRE duplicado e travou o CPF do cliente).
+                const parecido = participanteParecido(novoNome ?? campos.nome ?? '', novoCpf ?? campos.cpf, participantes)
+                return (
+                  <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                    {parecido ? (
+                      <>
+                        Parecido com <strong>{parecido.nome}</strong>, que já está na proposta. É a mesma pessoa?{' '}
+                        <button type="button" onClick={() => setDonoManual(parecido.pessoaId)}
+                          className="font-semibold text-fonti-primary underline">Usar {parecido.nome}</button>
+                      </>
+                    ) : (
+                      <>Ninguém da proposta tem esse CPF ou nome: confirmar vai criar um <strong>cadastro novo</strong>.</>
+                    )}
+                  </div>
+                )
+              })()}
               {dono === NOVO && (
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <label className="text-xs text-gray-600">Nome
