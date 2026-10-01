@@ -102,8 +102,17 @@ export function useLead(leadId: string) {
       // id = participação (remover vendedor usa esse id).
       const { participantes, ...lead } = data as unknown as Record<string, unknown> & { participantes?: ParticipacaoLead[] | null }
       const vivas: ParticipacaoLead[] = (participantes ?? []).filter(pa => pa.pessoa && !pa.pessoa.deleted_at).sort((a, b) => a.ordem - b.ordem)
+      // Cônjuge do principal: o ponteiro antigo do lead pode estar vazio (casamento registrado só nas Pessoas);
+      // a aba Crédito lê conjuge_pessoa_id/conjuge_pessoa — completa pela participação de cônjuge anuente.
+      const conjugePart = vivas.find(pa => pa.papel === 'conjuge_anuente')
+      const completaConjuge = !lead.conjuge_pessoa_id && conjugePart?.pessoa
+        ? { conjuge_pessoa_id: conjugePart.pessoa_id, conjuge_pessoa: {
+            id: conjugePart.pessoa.id, nome: conjugePart.pessoa.nome, cpf: conjugePart.pessoa.cpf,
+            renda_formal: conjugePart.pessoa.renda_formal, renda_informal: conjugePart.pessoa.renda_informal } }
+        : {}
       return {
         ...lead,
+        ...completaConjuge,
         coparticipantes: vivas.filter(pa => pa.papel === 'coparticipante')
           .map(pa => ({ id: pa.id, pessoa_id: pa.pessoa_id, papel: pa.papel, pessoa: pa.pessoa })),
         vendedores: vivas.filter(pa => pa.papel === 'vendedor')

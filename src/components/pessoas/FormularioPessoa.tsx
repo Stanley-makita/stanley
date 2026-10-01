@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { Check, Loader2 } from 'lucide-react'
 import { DocumentosIdentidadeSection } from '@/components/pessoas/DocumentosIdentidadeSection'
 import { useDefinirConjuge } from '@/hooks/participantes/useMutacoesParticipantes'
-import { confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
+import { avisarCpfDeOutroCadastro, confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -327,16 +327,22 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
 
+      // CPF de outro cadastro (UNIQUE): avisa com o nome do dono e NÃO copia o CPF para o lead.
+      let cpfSalvo: string | null | undefined = payload.cpf
       if (payload.cpf) {
         const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
-        if (errCpf) console.warn('[aba-pessoa] CPF não salvo (conflito):', errCpf.message)
+        if (errCpf) {
+          console.warn('[aba-pessoa] CPF não salvo (conflito):', errCpf.message)
+          cpfSalvo = undefined
+          await avisarCpfDeOutroCadastro(payload.cpf, pessoaId)
+        }
       }
 
       // 2. Propagar para leads
       await supabase.from('leads').update({
         nome:                    payload.nome,
         email:                   payload.email,
-        cpf:                     payload.cpf,
+        cpf:                     cpfSalvo,
         data_nascimento:         payload.data_nascimento,
         profissao:               payload.profissao,
         estado_civil:            payload.estado_civil,

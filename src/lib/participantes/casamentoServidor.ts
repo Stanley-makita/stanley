@@ -70,5 +70,15 @@ export async function registrarCasamento(
       if (error || !gravado?.length) return { erro: 'Erro ao gravar o casamento.', status: 500 }
     }
   }
+
+  // Ponteiro antigo leads.conjuge_pessoa_id acompanha o casamento nos leads em que um dos dois é o principal —
+  // a aba Crédito ainda o lê (achado real 01/10/2026: casamento registrado e o bloco "Cônjuge" vazio).
+  const envolvidos = Array.from(new Set([...plano.encerrar, ...(plano.ligar ?? [])]))
+  for (const id of envolvidos) {
+    const novo = plano.ligar ? (plano.ligar[0] === id ? plano.ligar[1] : plano.ligar[1] === id ? plano.ligar[0] : null) : null
+    const { error } = await sb.from('leads').update({ conjuge_pessoa_id: novo })
+      .eq('empresa_id', empresaId).eq('pessoa_id', id).is('deleted_at', null)
+    if (error) console.error('[registrarCasamento] ponteiro do lead não atualizado:', error.message)
+  }
   return { ok: true }
 }
