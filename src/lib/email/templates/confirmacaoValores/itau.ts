@@ -1,5 +1,5 @@
 import { DadosConfirmacaoValores } from './types'
-import { fmt, assinatura, layoutEmail, tabelaValores } from './_helpers'
+import { fmt, assinatura, layoutEmail, tabelaValores, itemBoletoItbi, itemPrimeiraPrestacao } from './_helpers'
 
 export function gerarEmailItau(dados: DadosConfirmacaoValores): { assunto: string; corpo: string } {
   const assunto = `Confirmação de Valores — ${dados.cliente_nome} — Itaú`
@@ -32,11 +32,11 @@ ${dados.observacoes ? `<p><strong>Observações:</strong><br>${dados.observacoes
 
 <p>*<strong>CRÉDITO:</strong> As condições do financiamento, inclusive a taxa de juros, até a emissão do contrato, pode ser alteradas ou canceladas a qualquer momento pelo Banco Itaú.</p>
 
-<p>*<strong>BOLETO ITBI:</strong> Será enviado após a emissão pela prefeitura e os valores apresentados até esse momento trata-se de uma estimativa. O cálculo e as alíquotas serão de acordo com as regras de cada município.</p>
+${itemBoletoItbi(dados.tem_assessoria)}
 
 <p>*<strong>TARIFA DO BANCO:</strong> ${tarifaTexto} será debitada da sua conta corrente Itaú na emissão do contrato, recomendamos a já deixar esse valor em conta, visto que, a emissão do contrato pode ocorrer a qualquer momento a partir da confirmação deste e-mail.</p>
 
-<p>*<strong>1ª PRESTAÇÃO:</strong> Será debitada da sua conta Itaú, 30 dias após a emissão do contrato, independente da data de assinatura do mesmo.</p>
+${itemPrimeiraPrestacao('conta Itaú')}
 `.trim()
 
   return {

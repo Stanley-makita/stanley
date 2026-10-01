@@ -43,7 +43,7 @@ export async function POST(
       .select(`
         id, modalidade, valor_imovel, valor_financiado, valor_entrada,
         valor_fgts, valor_recursos_proprios,
-        prazo_amortizacao_meses, sistema_amortizacao,
+        prazo_amortizacao_meses, sistema_amortizacao, tem_assessoria,
         banco:bancos!banco_id(id, nome)
       `)
       .eq('id', params.id)
@@ -138,6 +138,7 @@ export async function POST(
       taxa:                   null,
       iof:                    null,
       tarifa_banco:           tarifaBanco,
+      tem_assessoria:         (processo as any).tem_assessoria !== false,
       observacoes:            null,
       usuario_nome:           usuario.nome,
       usuario_funcao:         usuario.perfil,

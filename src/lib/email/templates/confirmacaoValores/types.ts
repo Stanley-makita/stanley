@@ -15,6 +15,8 @@ export interface DadosConfirmacaoValores {
   taxa: string | null
   iof: number | null
   tarifa_banco: number | null
+  /** processos.tem_assessoria — "Sem Assessoria" muda o texto do BOLETO ITBI */
+  tem_assessoria: boolean
   observacoes: string | null
   usuario_nome: string
   usuario_funcao: string
