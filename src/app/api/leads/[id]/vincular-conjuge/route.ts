@@ -1,126 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { autenticarRota, verificarDestino } from '@/lib/documentos/vinculosServidor'
+import { definirConjugeTitularLead, pessoaPorCpfOuNova } from '@/lib/participantes/escritaServidor'
 
-async function resolveUsuario(token: string) {
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return null
-  const { data: usuario } = await supabase
-    .from('usuarios')
-    .select('id, empresa_id')
-    .eq('auth_user_id', user.id)
-    .single()
-  return usuario
-}
-
-// POST /api/leads/[id]/vincular-conjuge
+// POST /api/leads/[id]/vincular-conjuge — cônjuge do titular (aba Crédito).
 // Body: { criar_de_lead?: boolean } | { pessoa_id: string } | { desvincular: true }
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '').trim() ?? ''
-  const usuario = await resolveUsuario(token)
-  if (!usuario) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-
+// V2 (B2c): casamento pelo serviço único (registrarCasamento, dois lados); a criação a partir dos
+// campos soltos do lead reaproveita pelo CPF e nunca usa Pessoa de operador.
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  const ctx = await autenticarRota(request)
+  if (ctx instanceof NextResponse) return ctx
   const leadId = params.id
-  const body = await request.json().catch(() => ({}))
+  const negado = await verificarDestino(ctx, 'lead', leadId)
+  if (negado) return negado
+  const empresaId = ctx.usuario.empresa_id
+  const body = await request.json().catch(() => ({})) as { criar_de_lead?: boolean; pessoa_id?: string; desvincular?: boolean }
 
-  // Buscar o lead
-  const { data: lead } = await supabase
-    .from('leads')
-    .select('id, pessoa_id, conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_pessoa_id')
-    .eq('id', leadId)
-    .eq('empresa_id', usuario.empresa_id)
-    .single()
-
-  if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
-
-  // Desvincular
+  let conjugeId: string | null
   if (body.desvincular) {
-    const conjugeAnteriorId = lead.conjuge_pessoa_id
-    await supabase.from('leads').update({ conjuge_pessoa_id: null }).eq('id', leadId)
-    // Remover vínculo bidirecional do cônjuge anterior
-    if (conjugeAnteriorId) {
-      await supabase.from('pessoas').update({ conjuge_pessoa_id: null }).eq('id', conjugeAnteriorId)
-    }
-    // Remover do proponente também
-    if (lead.pessoa_id) {
-      await supabase.from('pessoas').update({ conjuge_pessoa_id: null }).eq('id', lead.pessoa_id)
-    }
-    return NextResponse.json({ ok: true })
-  }
-
-  let conjugePessoaId: string
-
-  if (body.criar_de_lead) {
-    // Verificar se já existe pessoa com o CPF do cônjuge
-    if (lead.conjuge_cpf) {
-      const { data: existente } = await supabase
-        .from('pessoas')
-        .select('id')
-        .eq('empresa_id', usuario.empresa_id)
-        .eq('cpf', lead.conjuge_cpf)
-        .is('deleted_at', null)
-        .maybeSingle()
-
-      if (existente) {
-        conjugePessoaId = existente.id
-      } else {
-        // Criar nova pessoa com os dados do cônjuge
-        const { data: novaPessoa, error: errPessoa } = await supabase
-          .from('pessoas')
-          .insert({
-            empresa_id:      usuario.empresa_id,
-            nome:            lead.conjuge_nome ?? 'Cônjuge',
-            cpf:             lead.conjuge_cpf ?? null,
-            data_nascimento: lead.conjuge_data_nascimento ?? null,
-            tipo:            'cliente',
-          })
-          .select('id')
-          .single()
-
-        if (errPessoa || !novaPessoa) {
-          return NextResponse.json({ error: 'Erro ao criar pessoa do cônjuge' }, { status: 500 })
-        }
-        conjugePessoaId = novaPessoa.id
-      }
-    } else {
-      // Sem CPF — criar mesmo assim
-      const { data: novaPessoa, error: errPessoa } = await supabase
-        .from('pessoas')
-        .insert({
-          empresa_id:      usuario.empresa_id,
-          nome:            lead.conjuge_nome ?? 'Cônjuge',
-          cpf:             null,
-          data_nascimento: lead.conjuge_data_nascimento ?? null,
-          tipo:            'cliente',
-        })
-        .select('id')
-        .single()
-
-      if (errPessoa || !novaPessoa) {
-        return NextResponse.json({ error: 'Erro ao criar pessoa do cônjuge' }, { status: 500 })
-      }
-      conjugePessoaId = novaPessoa.id
-    }
+    conjugeId = null
   } else if (body.pessoa_id) {
-    conjugePessoaId = body.pessoa_id
+    conjugeId = body.pessoa_id
+  } else if (body.criar_de_lead) {
+    const { data: lead, error } = await supabase.from('leads')
+      .select('conjuge_nome, conjuge_cpf, conjuge_data_nascimento').eq('id', leadId).eq('empresa_id', empresaId).maybeSingle()
+    if (error || !lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
+    const r = await pessoaPorCpfOuNova(supabase, empresaId, (lead.conjuge_nome as string | null) || 'Cônjuge', lead.conjuge_cpf as string | null)
+    if ('erro' in r) return NextResponse.json({ error: r.erro }, { status: r.status })
+    conjugeId = r.id
+    if (lead.conjuge_data_nascimento) {
+      await supabase.from('pessoas').update({ data_nascimento: lead.conjuge_data_nascimento })
+        .eq('id', conjugeId).is('data_nascimento', null)
+    }
   } else {
     return NextResponse.json({ error: 'Forneça criar_de_lead ou pessoa_id' }, { status: 400 })
   }
 
-  // Salvar vínculo no lead
-  await supabase.from('leads').update({ conjuge_pessoa_id: conjugePessoaId }).eq('id', leadId)
-
-  // Vínculo bidirecional entre pessoas
-  if (lead.pessoa_id) {
-    await supabase.from('pessoas')
-      .update({ conjuge_pessoa_id: conjugePessoaId })
-      .eq('id', lead.pessoa_id)
+  const r = await definirConjugeTitularLead(supabase, empresaId, leadId, conjugeId)
+  if ('erro' in r) return NextResponse.json({ error: r.erro }, { status: r.status })
+  if ('confirmar' in r) {
+    const nomes = r.confirmar.map(x => x.nome).join(' e ')
+    return NextResponse.json({ error: `${nomes} já tem outro casamento registrado — ajuste pelo "Casado(a) com" na aba Pessoa.` }, { status: 409 })
   }
-  await supabase.from('pessoas')
-    .update({ conjuge_pessoa_id: lead.pessoa_id ?? null })
-    .eq('id', conjugePessoaId)
-
-  return NextResponse.json({ ok: true, conjuge_pessoa_id: conjugePessoaId })
+  return NextResponse.json({ ok: true, conjuge_pessoa_id: conjugeId })
 }

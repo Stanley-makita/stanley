@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/auth/useAuth'
 import { cpfValido } from '@/lib/cpf'
 
 export interface RelacionamentoResumo {
@@ -65,35 +64,23 @@ export function useAlterarCompoeRenda(leadId: string) {
   })
 }
 
-/**
- * Inclui um participante no lead pelo caminho já existente (lead_coparticipantes); a
- * sincronização da Fase A cria a participação. Com `nome`, cria antes a Pessoa (tipo cliente).
- */
+/** Inclui um participante no lead (POST /api/leads/[id]/participantes — serviço único de escrita). */
 export function useAdicionarParticipante(leadId: string) {
   const qc = useQueryClient()
-  const { usuario } = useAuth()
   return useMutation({
     mutationFn: async (entrada: { pessoaId: string } | { nome: string; cpf?: string }): Promise<string> => {
-      if (!usuario?.empresa_id) throw new Error('Sessão sem empresa.')
-      let pessoaId: string
-      if ('pessoaId' in entrada) {
-        pessoaId = entrada.pessoaId
-      } else {
-        const nome = entrada.nome.trim()
-        if (!nome) throw new Error('Informe o nome.')
+      if (!('pessoaId' in entrada)) {
         const cpf = (entrada.cpf ?? '').replace(/\D/g, '')
+        if (!entrada.nome.trim()) throw new Error('Informe o nome.')
         if (cpf && !cpfValido(cpf)) throw new Error('CPF inválido.')
-        const { data: nova, error } = await supabase.from('pessoas')
-          .insert({ empresa_id: usuario.empresa_id, nome, cpf: cpf || null, tipo: 'cliente' })
-          .select('id').single()
-        if (error?.code === '23505') throw new Error('Esse CPF já é de outra pessoa cadastrada — busque por ele.')
-        if (error || !nova) throw new Error('Não foi possível criar a pessoa.')
-        pessoaId = nova.id as string
       }
-      const { error: eVinc } = await supabase.from('lead_coparticipantes')
-        .insert({ empresa_id: usuario.empresa_id, lead_id: leadId, pessoa_id: pessoaId })
-      if (eVinc && eVinc.code !== '23505') throw new Error('Não foi possível incluir o participante.')
-      return pessoaId
+      const res = await fetch(`/api/leads/${leadId}/participantes`, {
+        method: 'POST', headers: await authHeader(),
+        body: JSON.stringify('pessoaId' in entrada ? { pessoa_id: entrada.pessoaId } : { nome: entrada.nome, cpf: entrada.cpf ?? null }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? 'Não foi possível incluir o participante.')
+      return json.pessoa_id as string
     },
     onSuccess: () => invalidarLead(qc, leadId),
   })
@@ -104,10 +91,11 @@ export function useRemoverParticipante(leadId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (pessoaId: string) => {
-      const { data, error } = await supabase.from('lead_coparticipantes')
-        .delete().eq('lead_id', leadId).eq('pessoa_id', pessoaId).select('id')
-      if (error) throw error
-      if (!data?.length) throw new Error('Não foi possível remover — verifique seu acesso ao lead.')
+      const res = await fetch(`/api/leads/${leadId}/participantes`, {
+        method: 'DELETE', headers: await authHeader(), body: JSON.stringify({ pessoa_id: pessoaId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? 'Não foi possível remover — verifique seu acesso ao lead.')
     },
     onSuccess: () => invalidarLead(qc, leadId),
   })
