@@ -636,6 +636,12 @@ pede confirmação), e "compõe renda" definido à mão é a ÚNICA escrita dire
 `PATCH /api/participacoes/[id]` → `participacoes.compoe_renda_manual` (migration 331), que a sincronização
 respeita e o negócio herda na conversão. Não criar outro caminho de incluir participante (a aba Crédito
 só lista). Negócios mantém os cards Compradores/Vendedores (decisão do usuário).
+**B2d-1 (2026-10) — OCR "De quem é este documento?":** no Lead/Negócio o modal de extração escolhe a
+Pessoa (participantes da proposta, ou "Novo participante" no Lead) com sugestão de
+`sugerirDonoDocumento` (`src/lib/participantes/donoDocumento.ts`: CPF → nome, nome só bate com participante
+sem outro CPF; sem dado de identificação → dono atual). `ocr-confirmar` grava na Pessoa escolhida
+(`pessoa_alvo_id`, visível pelo JWT do usuário) ou reaproveita/cria (`novo_participante`, CPF existente é
+reaproveitado, Pessoa de operador é recusada) e MOVE o dono do documento (`documentos.pessoa_id`) para ela.
 **B2a (2026-10):** e-mail/telefone/estado civil/conta bancária de participante também vêm só da Pessoa
 (Clicksign, e-mail de confirmação, formulários sem overlay). O que a aba do Negócio ainda digita nas linhas
 antigas é copiado para a Pessoa pelo trigger (migration 329: só preenche vazio). Comunicação com comprador
