@@ -79,36 +79,21 @@ export async function POST(
   const papel: 'comprador' | 'vendedor' = papelRecebido === 'vendedor' ? 'vendedor' : 'comprador'
 
   try {
-    if (papel === 'vendedor') {
-      const { data: existente } = await supabase
-        .from('processo_vendedores')
-        .select('pessoa_id')
-        .eq('processo_id', processoId)
-        .eq('empresa_id', empresa_id)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-      if (existente?.pessoa_id) return NextResponse.json({ pessoaId: existente.pessoa_id })
-    } else {
-      const { data: principal } = await supabase
-        .from('processo_compradores')
-        .select('pessoa_id')
-        .eq('processo_id', processoId)
-        .eq('empresa_id', empresa_id)
-        .eq('principal', true)
-        .maybeSingle()
-      if (principal?.pessoa_id) return NextResponse.json({ pessoaId: principal.pessoa_id })
-
-      const { data: qualquer } = await supabase
-        .from('processo_compradores')
-        .select('pessoa_id')
-        .eq('processo_id', processoId)
-        .eq('empresa_id', empresa_id)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-      if (qualquer?.pessoa_id) return NextResponse.json({ pessoaId: qualquer.pessoa_id })
-    }
+    // V2 (B2c): quem já participa do negócio vem de `participacoes` — titular primeiro (comprador) ou o
+    // primeiro vendedor; nunca Pessoa excluída.
+    const papeis = papel === 'vendedor' ? ['vendedor'] : ['titular', 'coparticipante', 'conjuge_anuente']
+    const { data: parts, error: eParts } = await supabase
+      .from('participacoes')
+      .select('pessoa_id, papel, ordem, pessoa:pessoas!pessoa_id(deleted_at)')
+      .eq('processo_id', processoId)
+      .eq('empresa_id', empresa_id)
+      .in('papel', papeis)
+      .order('ordem', { ascending: true })
+    if (eParts) throw new Error(eParts.message)
+    const vivas = ((parts ?? []) as unknown as Array<{ pessoa_id: string; papel: string; pessoa: { deleted_at: string | null } | null }>)
+      .filter(x => x.pessoa && !x.pessoa.deleted_at)
+    const existente = vivas.find(x => x.papel === 'titular') ?? vivas[0]
+    if (existente) return NextResponse.json({ pessoaId: existente.pessoa_id })
 
     const pessoaId = await criarPessoaEParte(empresa_id, processoId, papel)
     return NextResponse.json({ pessoaId })
