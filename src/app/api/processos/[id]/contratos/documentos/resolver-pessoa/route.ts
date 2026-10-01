@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { incluirLinhaNegocio } from '@/lib/participantes/escritaNegocio'
 
 /**
  * Resolve (ou cria) a Pessoa dona dos documentos de uma pasta fixa do
@@ -41,17 +42,11 @@ async function criarPessoaEParte(
     .single()
   if (erroPessoa || !pessoa) throw new Error(erroPessoa?.message ?? 'Erro ao criar pessoa')
 
-  const tabela = papel === 'vendedor' ? 'processo_vendedores' : 'processo_compradores'
-  const payload: Record<string, unknown> = {
-    empresa_id: empresaId,
-    processo_id: processoId,
-    pessoa_id: pessoa.id,
-    nome: nomePlaceholder,
-  }
-  if (papel === 'comprador') payload.principal = true
-
-  const { error: erroParte } = await supabase.from(tabela).insert(payload)
-  if (erroParte) throw new Error(erroParte.message)
+  // V2 (B2c-C1c): linha do negócio pelo serviço único
+  const r = await incluirLinhaNegocio(supabase, empresaId, processoId, papel === 'vendedor' ? 'vendedores' : 'compradores', {
+    pessoa_id: pessoa.id, nome: nomePlaceholder, ...(papel === 'comprador' ? { principal: true } : {}),
+  })
+  if ('erro' in r) throw new Error(r.erro)
 
   return pessoa.id as string
 }
