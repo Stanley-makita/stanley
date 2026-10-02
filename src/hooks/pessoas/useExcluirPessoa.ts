@@ -39,7 +39,7 @@ export function useExcluirPessoa() {
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'
-      toast.error(`Erro ao excluir pessoa: ${msg}`)
+      toast.error(`Não foi possível excluir: ${msg}`, { duration: 10000 })
     },
   })
 }

@@ -17,6 +17,7 @@ import { PessoaBuscaCombobox, type PessoaOpcao } from './PessoaBuscaCombobox'
 import { NovaPessoaModal, type PessoaCriada } from '@/components/pessoas/NovaPessoaModal'
 import type { ModalidadeProcesso } from '@/types/processos'
 import { gravarParticipantesIniciais } from '@/lib/participantes/negocioCliente'
+import { updateProcessoOuFalha } from '@/hooks/processos/useProcessos'
 
 type Modulo = 'financiamento' | 'consorcio' | 'contrato' | 'registro'
 
@@ -75,9 +76,10 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
   }
 
   async function handleCriar() {
-    if (!modulo) return
+    // Negócio sem cliente fica órfão (#proc-079, 02/10/2026) — cliente é obrigatório.
+    if (!modulo || !pessoa) return
     const modalidade = MODALIDADE_POR_MODULO[modulo]
-    const nomeUsado = nomeImovel.trim() || (pessoa ? `Processo de ${pessoa.nome}` : 'Novo Processo')
+    const nomeUsado = nomeImovel.trim() || `Processo de ${pessoa.nome}`
 
     // Buscar primeira fase do módulo para posicionar o processo corretamente no kanban
     const { data: primeiraFase } = await supabase
@@ -92,7 +94,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
 
     const processo = await criarProcesso.mutateAsync({
       lead_id:           null,
-      pessoa_id:         pessoa?.id ?? null,
+      pessoa_id:         pessoa.id,
       nome_imovel:       nomeUsado,
       modalidade,
       banco_id:          null,
@@ -114,16 +116,23 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
       data_inicio:       new Date().toISOString().split('T')[0],
     })
 
-    if (pessoa) {
-      // V2 (B2c-C1c): comprador principal pelo serviço único
+    // V2 (B2c-C1c): comprador principal pelo serviço único. Se falhar, desfaz o negócio —
+    // nunca deixar um negócio sem cliente.
+    try {
+      await gravarParticipantesIniciais(processo.id, {
+        lead_id: null,
+        titular: { pessoa_id: pessoa.id, nome: pessoa.nome, cpf: pessoa.cpf ?? null, email: pessoa.email ?? null, telefone: pessoa.telefone ?? null },
+      })
+    } catch (e) {
       try {
-        await gravarParticipantesIniciais(processo.id, {
-          lead_id: null,
-          titular: { pessoa_id: pessoa.id, nome: pessoa.nome, cpf: pessoa.cpf ?? null, email: pessoa.email ?? null, telefone: pessoa.telefone ?? null },
-        })
-      } catch (e) {
-        toast.error(`Negócio criado, mas o comprador não foi gravado: ${(e as Error).message}`, { duration: 10000 })
+        await updateProcessoOuFalha(processo.id, usuario!.empresa_id, { deleted_at: new Date().toISOString() })
+        toast.error(`Não foi possível gravar o cliente no negócio — nada foi criado. ${(e as Error).message}`, { duration: 10000 })
+      } catch {
+        toast.error(`O cliente não foi gravado e o negócio ${processo.numero_processo ?? ''} ficou sem cliente — exclua-o ou inclua o cliente. ${(e as Error).message}`, { duration: 15000 })
+        router.push(`/processos/${processo.id}`)
+        fechar()
       }
+      return
     }
 
     router.push(`/processos/${processo.id}`)
@@ -131,7 +140,7 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
   }
 
   const moduloInfo = modulo ? MODULOS.find(m => m.id === modulo) : null
-  const podeCriar = !!modulo && !criarProcesso.isPending
+  const podeCriar = !!modulo && !!pessoa && !criarProcesso.isPending
 
   return (
     <>
@@ -176,12 +185,17 @@ export function NovoProcessoRapidoModal({ aberto, onFechar, moduloInicial }: Pro
 
               {/* Cliente */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-500 block">Cliente</label>
+                <label className="text-xs font-medium text-gray-500 block">
+                  Cliente <span className="text-red-500">*</span>
+                </label>
                 <PessoaBuscaCombobox
                   pessoaSelecionada={pessoa}
                   onSelect={setPessoa}
                   onCriarPessoa={() => setNovaPessoaAberta(true)}
                 />
+                {!pessoa && (
+                  <p className="text-[11px] text-gray-400">Selecione ou cadastre o cliente para criar o negócio.</p>
+                )}
               </div>
 
               {/* Título do negócio */}

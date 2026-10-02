@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import type { UsuarioPerfil } from '@/types/auth'
+import { propostasAtivasDaPessoa, mensagemBloqueioExclusao } from '@/lib/participantes/bloqueioExclusaoPessoa'
 
 async function resolveUsuario(token: string) {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -148,6 +149,17 @@ export async function DELETE(
     .maybeSingle()
 
   if (!pessoa) return NextResponse.json({ error: 'Pessoa não encontrada' }, { status: 404 })
+
+  // Pessoa em lead/negócio ativo não pode sumir: a proposta ficaria sem cliente (#proc-077, 02/10).
+  let propostas
+  try {
+    propostas = await propostasAtivasDaPessoa(supabase, usuario.empresa_id, params.id)
+  } catch (e) {
+    console.error('[DELETE /api/pessoas/[id]] erro ao conferir propostas:', e)
+    return NextResponse.json({ error: 'Não foi possível conferir se a pessoa está em algum negócio. Tente de novo.' }, { status: 500 })
+  }
+  const bloqueio = mensagemBloqueioExclusao(propostas)
+  if (bloqueio) return NextResponse.json({ error: bloqueio, propostas }, { status: 409 })
 
   const { error } = await supabase
     .from('pessoas')
