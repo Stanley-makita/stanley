@@ -28,6 +28,37 @@ export type EstadoCivil =
 
 export type ProdutoInteresse = 'financiamento' | 'consorcio' | 'cgi' | 'portabilidade' | 'contrato' | 'registro'
 
+// Nome de exibição do produto — curto, igual em todas as telas (decisão 02/10/2026).
+export const PRODUTO_INTERESSE_LABELS: Record<ProdutoInteresse, string> = {
+  financiamento: 'Financiamento',
+  consorcio:     'Consórcio',
+  cgi:           'CGI',
+  portabilidade: 'Portabilidade',
+  contrato:      'Contrato',
+  registro:      'Registro',
+}
+
+// leads.produto_interesse guarda o CÓDIGO. Converte texto livre ("Financiamento Imobiliário",
+// vindo do parser do bot) para o código — todo caminho que grava o campo passa por aqui.
+export function codigoProdutoInteresse(v: string | null | undefined): ProdutoInteresse | null {
+  if (!v) return null
+  const k = v.toLowerCase()
+  if (k.includes('financ'))  return 'financiamento'
+  if (k.includes('cgi'))     return 'cgi'
+  if (k.includes('cons'))    return 'consorcio'
+  if (k.includes('port'))    return 'portabilidade'
+  if (k.includes('contrat')) return 'contrato'
+  if (k.includes('regist'))  return 'registro'
+  return null
+}
+
+// Exibição: também encurta valor antigo gravado por extenso.
+export function rotuloProdutoInteresse(v: string | null | undefined): string {
+  if (!v) return ''
+  const c = codigoProdutoInteresse(v)
+  return c ? PRODUTO_INTERESSE_LABELS[c] : v
+}
+
 /**
  * Mesmo conceito de ModalidadeProcesso (types/processos.ts) — a modalidade
  * do Lead é uma pré-classificação do que o Processo vai assumir quando o

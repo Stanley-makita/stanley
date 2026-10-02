@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { codigoProdutoInteresse } from '@/types/leads'
 import { processarMensagem } from '@/lib/bot/agente'
 import type { MensagemHistorico } from '@/lib/bot/agente'
 import { processarEstado } from '@/lib/bot/state-machine'
@@ -9,16 +10,6 @@ function parseMoeda(valor: string | number | undefined | null): number | null {
   if (valor == null || valor === '') return null
   const num = parseFloat(String(valor).replace(/[R$\s.]/g, '').replace(',', '.'))
   return isNaN(num) ? null : num
-}
-
-function mapProduto(produto: string | undefined | null): string | null {
-  if (!produto) return null
-  const p = produto.toLowerCase()
-  if (p.includes('financ')) return 'Financiamento Imobiliário'
-  if (p.includes('cons'))   return 'Consórcio'
-  if (p.includes('cgi'))    return 'CGI'
-  if (p.includes('contrat')) return 'Contrato'
-  return produto
 }
 
 export async function POST(request: NextRequest) {
@@ -140,7 +131,7 @@ export async function POST(request: NextRequest) {
           telefone: session_id,
           empresa_id,
           origem: 'site',
-          produto_interesse: mapProduto(produto),
+          produto_interesse: codigoProdutoInteresse(produto),
           valor_pretendido:  parseMoeda(valor_imovel),
           renda_formal:      parseMoeda(renda_mensal),
         }),

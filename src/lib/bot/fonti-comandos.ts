@@ -6,6 +6,7 @@
 
 import type { StatusProcesso } from '@/types/processos'
 import Anthropic from '@anthropic-ai/sdk'
+import { codigoProdutoInteresse } from '@/types/leads'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extrairProduto, extrairNumero } from './state-machine'
 import type { WorkflowPendente } from '@/lib/workflows/simula-pendente'
@@ -1424,7 +1425,7 @@ export async function processarComandoFonti(
     // Atualiza lead
     if (leadId) {
       const camposLead: Record<string, unknown> = {}
-      if (dados.produto)             camposLead.produto_interesse = dados.produto
+      if (codigoProdutoInteresse(dados.produto)) camposLead.produto_interesse = codigoProdutoInteresse(dados.produto)
       if (dados.valor_imovel)        camposLead.valor_imovel      = dados.valor_imovel
       if (dados.valor_financiamento) camposLead.valor_pretendido  = dados.valor_financiamento
       if (dados.renda)               camposLead.renda_formal      = dados.renda

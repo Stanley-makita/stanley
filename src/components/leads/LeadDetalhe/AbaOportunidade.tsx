@@ -23,7 +23,7 @@ import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useLeadChecklist } from '@/hooks/leads/useLeadChecklist'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
-import { type Lead } from '@/types/leads'
+import { type Lead, codigoProdutoInteresse } from '@/types/leads'
 import { MODALIDADE_LABELS, type ModalidadeProcesso, RESPONSAVEL_REGISTRO_LABELS, type ResponsavelRegistro } from '@/types/processos'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
@@ -54,15 +54,7 @@ type FormData = z.infer<typeof schema>
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function normalizarProduto(v: string | null | undefined): FormData['produto_interesse'] {
-  if (!v) return undefined
-  const k = v.toLowerCase()
-  if (k.includes('financ'))  return 'financiamento'
-  if (k.includes('cgi'))     return 'cgi'
-  if (k.includes('cons'))    return 'consorcio'
-  if (k.includes('port'))    return 'portabilidade'
-  if (k.includes('contrat')) return 'contrato'
-  if (k.includes('regist'))  return 'registro'
-  return undefined
+  return codigoProdutoInteresse(v) ?? undefined
 }
 
 function normalizarModalidade(v: string | null | undefined): FormData['modalidade'] {
