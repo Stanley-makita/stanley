@@ -756,3 +756,10 @@ Regras:
   aponta para a produção e o token da instância no staging é inválido. Testar bot exige um número de
   WhatsApp de teste com instância própria (não existe ainda).
 - Edge function `aceitar-convite` não foi publicada no staging (convite de usuário novo não funciona lá).
+- **Dados de teste**: `npm run semear:teste` cria 16 Pessoas fictícias (CPF válido, nomes com "TESTE"),
+  3 casais, 7 leads (fases/modalidades/status variados, coparticipante, parceiro) e 8 negócios
+  (#proc-T01…T08: SBPE, PMCMV, Pró-Cotista, CGI, SFI, Consórcio, Contrato, Registro — vendedor,
+  coparticipante, parceiro). Participantes passam pelos serviços reais (`escritaServidor`/`escritaNegocio`).
+  `npm run semear:teste -- --limpar` apaga só o que ele criou. Recusa rodar fora do staging. Depois de
+  `sincronizar-ambiente-teste.sh` (que zera o staging), rodar de novo. Negócio novo no script precisa de
+  `numero_processo` próprio: o gatilho que gera o número exige usuário logado.
