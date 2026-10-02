@@ -168,14 +168,15 @@ async function main() {
     { chave: 'julia',    fase: 'iniciado',     modalidade: 'CGI',         status: 'aguardando_documentos', origem: 'indicacao', resp: 'Luciana Fontinhas', valor: 150000, imovel: 500000, parceiro: 1 },
     { chave: 'natalia',  fase: 'Crédito',      modalidade: 'PMCMV',       status: 'reprovado',             origem: 'whatsapp',  resp: 'Andresa',          valor: 160000, imovel: 190000 },
   ]
-  for (const [i, l] of LEADS.entries()) {
+  for (let i = 0; i < LEADS.length; i++) {
+    const l = LEADS[i]
     const p = PESSOAS.find(x => x.chave === l.chave)!
     const telefone = `55449880000${String(i + 1).padStart(2, '0')}`.slice(0, 13)  // fictício, fora da equipe
     const { data, error } = await sb.from('leads').insert({
       empresa_id: empresaId, pessoa_id: pid[l.chave], nome: p.nome, cpf: p.cpf, data_nascimento: p.nasc, telefone,
       fase_id: fase('leads', l.fase), modalidade: l.modalidade, status_analise: l.status, origem: l.origem,
       responsavel_id: u(l.resp), valor_pretendido: l.valor, valor_imovel: l.imovel, entrada: l.imovel - l.valor,
-      renda_formal: p.renda ?? null, produto_interesse: l.modalidade === 'CGI' ? 'CGI' : 'Financiamento Imobiliário',
+      renda_formal: p.renda ?? null, produto_interesse: l.modalidade === 'CGI' ? 'cgi' : 'financiamento',
       cidade_imovel: 'Maringá', tipo_imovel: 'apartamento',
       parceiro_id: l.parceiro !== undefined ? parc[l.parceiro] : null,
     }).select('id').single()
@@ -202,7 +203,8 @@ async function main() {
   ]
   // Número próprio (#proc-T01…): o gatilho que gera o número exige usuário logado (auth.uid()) e só roda
   // quando o número vem vazio — e assim nunca colide com os números gerados pela tela.
-  for (const [i, n] of NEGOCIOS.entries()) {
+  for (let i = 0; i < NEGOCIOS.length; i++) {
+    const n = NEGOCIOS[i]
     const p = PESSOAS.find(x => x.chave === n.titular)!
     const { data: proc, error } = await sb.from('processos').insert({
       empresa_id: empresaId, numero_processo: `#proc-T${String(i + 1).padStart(2, '0')}`,
