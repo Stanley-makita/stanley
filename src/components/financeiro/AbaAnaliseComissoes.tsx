@@ -30,6 +30,7 @@ import {
   type FinResponsavelRegistro,
 } from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
+import { rotuloModalidade } from '@/types/processos'
 
 interface Props { mes: number; ano: number }
 
@@ -172,7 +173,7 @@ function LinhaAnaliseComissao({ linha }: { linha: FinAnaliseComissaoLinha }) {
           </span>
         ) : <span className="text-gray-400 text-sm">—</span>}
       </TableCell>
-      <TableCell className="text-sm text-gray-600">{linha.modalidade ?? '—'}</TableCell>
+      <TableCell className="text-sm text-gray-600">{rotuloModalidade(linha.modalidade) || '—'}</TableCell>
       <TableCell className="text-right text-sm font-mono">
         {linha.valor_financiado != null ? formatarMoeda(linha.valor_financiado) : '—'}
       </TableCell>

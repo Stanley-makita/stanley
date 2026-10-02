@@ -11,6 +11,7 @@ import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseS
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import type { Lead, LeadAnaliseCredito, StatusAnaliseCredito } from '@/types/leads'
+import { rotuloProdutoInteresse } from '@/types/leads'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -183,7 +184,7 @@ export function AbaCredito({ lead }: Props) {
           icone={<TrendingUp className="h-3.5 w-3.5" />}
           label="Valor Pretendido"
           valor={lead.valor_pretendido}
-          sub={lead.produto_interesse ?? undefined}
+          sub={rotuloProdutoInteresse(lead.produto_interesse) || undefined}
           cor="gold"
         />
         <KpiMetrica

@@ -21,7 +21,7 @@ import { TableShell } from '@/components/ui/table-shell'
 import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, fmtData, normalizarTexto } from '@/lib/utils'
-import { type StatusProcesso, type Processo } from '@/types/processos'
+import { type StatusProcesso, type Processo, rotuloModalidade } from '@/types/processos'
 import { nomesParceirosDoNegocio } from '@/lib/processos/parceirosDoNegocio'
 
 // Registro e Financiamento seguem um fluxo por fase (não por status_processo
@@ -116,7 +116,7 @@ function corLinhaFinanciamento(p: Processo): string {
 const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Operacional:  (p) => p.operacional?.nome ?? '',
   Cliente:      (p) => p.compradores?.find(c => c.principal)?.nome ?? p.compradores?.[0]?.nome ?? '',
-  Modalidade:   (p) => p.modalidade,
+  Modalidade:   (p) => rotuloModalidade(p.modalidade),
   Proposta:     (p) => p.numero_proposta ?? '',
   Fase:         (p) => p.fase_atual?.nome ?? '',
   Banco:        (p) => p.banco?.nome ?? '',
@@ -841,7 +841,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.operacional?.nome ?? '—'}</TableCell>
                           <TableCell className="text-xs font-medium text-fonti-primary whitespace-nowrap max-w-[160px] truncate">{comprador?.nome ?? '—'}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap font-mono text-xs">{formatarCpf(comprador?.cpf ?? null)}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{p.modalidade}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className="text-xs whitespace-nowrap">{rotuloModalidade(p.modalidade)}</Badge></TableCell>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{modalidadeProdutoMap[p.modalidade] ?? p.modalidade}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">{p.numero_proposta ?? '—'}</TableCell>
                           <TableCell>

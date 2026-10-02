@@ -16,7 +16,7 @@ import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useMembrosAtivos } from '@/hooks/dashboard/useDashboard'
 import { ApuracaoRendaCard } from '@/components/leads/ApuracaoRendaCard'
-import { type Lead } from '@/types/leads'
+import { type Lead, codigoProdutoInteresse } from '@/types/leads'
 import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -529,15 +529,7 @@ function Opcional() {
 }
 
 function normalizarProduto(v: string | null | undefined): FormData['produto_interesse'] {
-  if (!v) return undefined
-  const k = v.toLowerCase()
-  if (k.includes('financ'))  return 'financiamento'
-  if (k.includes('cgi'))     return 'cgi'
-  if (k.includes('cons'))    return 'consorcio'
-  if (k.includes('port'))    return 'portabilidade'
-  if (k.includes('contrat')) return 'contrato'
-  if (k.includes('regist'))  return 'registro'
-  return undefined
+  return codigoProdutoInteresse(v) ?? undefined
 }
 
 function normalizarModalidade(v: string | null | undefined): FormData['modalidade'] {

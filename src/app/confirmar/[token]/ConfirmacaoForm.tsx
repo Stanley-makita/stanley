@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { rotuloModalidade } from '@/types/processos'
 
 interface DadosJson {
   engenharia_laudo?: number | null
@@ -57,7 +58,7 @@ function linhasTabela(d: DadosJson, template: string): [string, string][] {
     ['Despesas Financiadas',   fmt(d.despesas_financiadas)],
     ['Valor Total Financiado', fmt(d.valor_total_financiado)],
     ['Prazo',                  d.prazo_meses ? `${d.prazo_meses} meses` : '—'],
-    ['Modalidade',             d.modalidade ?? '—'],
+    ['Modalidade',             rotuloModalidade(d.modalidade) || '—'],
     ['Amortização',            d.amortizacao ?? '—'],
     ['Taxa',                   d.taxa ?? '—'],
   )

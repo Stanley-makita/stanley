@@ -13,7 +13,7 @@ import { usePermissao } from '@/hooks/auth/usePermissao'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { TableShell } from '@/components/ui/table-shell'
-import { type Lead, type ProdutoInteresse } from '@/types/leads'
+import { type Lead, type ProdutoInteresse, rotuloProdutoInteresse } from '@/types/leads'
 import { MODALIDADE_LABELS, type ModalidadeProcesso } from '@/types/processos'
 import { ChanceBadge } from '@/components/processos/ChanceBadge'
 import { fmtCpf } from '@/lib/formularios/helpers'
@@ -60,18 +60,8 @@ function chanceLabel(v: Lead['chance_emissao']): string {
   return CHANCE_LABELS[v] ?? v
 }
 
-const PRODUTO_LABELS: Record<ProdutoInteresse, string> = {
-  financiamento: 'Financiamento',
-  consorcio: 'Consórcio',
-  cgi: 'CGI',
-  portabilidade: 'Portabilidade',
-  contrato: 'Contrato',
-  registro: 'Registro',
-}
-
 function produtoLabel(v: ProdutoInteresse | null): string {
-  if (!v) return ''
-  return PRODUTO_LABELS[v] ?? v
+  return rotuloProdutoInteresse(v)
 }
 
 function modalidadeLabel(v: string | null): string {

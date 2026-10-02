@@ -16,15 +16,7 @@ import { InputMoeda } from '@/components/ui/input-moeda'
 import { toast } from 'sonner'
 import { useParticipantes } from '@/hooks/participantes/useParticipantes'
 import { ROTULO_PAPEL } from '@/lib/participantes/tipos'
-
-const PRODUTO_LABELS: Record<string, string> = {
-  financiamento: 'Financiamento',
-  consorcio:     'Consórcio',
-  cgi:           'CGI',
-  portabilidade: 'Portabilidade',
-  contrato:      'Contrato',
-  registro:      'Registro',
-}
+import { rotuloProdutoInteresse } from '@/types/leads'
 
 const ESTADO_CIVIL_LABELS: Record<string, string> = {
   solteiro:      'Solteiro(a)',
@@ -168,7 +160,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           icone={<TrendingUp className="h-4 w-4" />}
           label="Valor Pretendido"
           valor={fmtMoeda(lead.valor_pretendido)}
-          sub={lead.produto_interesse ? PRODUTO_LABELS[lead.produto_interesse] ?? lead.produto_interesse : 'Produto não informado'}
+          sub={rotuloProdutoInteresse(lead.produto_interesse) || 'Produto não informado'}
           cor="gold"
           onClick={() => abrirEdicaoValor('valor_pretendido')}
         />
