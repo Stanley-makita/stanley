@@ -181,6 +181,8 @@ export interface Processo {
   compradores?: ParticipanteLista[]
   vendedores?:  ParticipanteLista[]
   parceiro?: { id: string; nome: string; tipo_parceiro: string | null; imobiliaria: string | null } | null
+  // Lista do card "Parceiro Comercial" (processo_parceiros) — ler junto com `parceiro` via nomesParceirosDoNegocio.
+  parceiros_vinculados?: { parceiro?: { id: string; nome: string } | null }[]
   corretores?:  { id: string; papel: string; principal: boolean; corretor?: { id: string; nome: string } | null }[]
   imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]
 }

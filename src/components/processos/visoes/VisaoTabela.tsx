@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, fmtData, normalizarTexto } from '@/lib/utils'
 import { type StatusProcesso, type Processo } from '@/types/processos'
+import { nomesParceirosDoNegocio } from '@/lib/processos/parceirosDoNegocio'
 
 // Registro e Financiamento seguem um fluxo por fase (não por status_processo
 // genérico) — filtros rápidos ficam nos nomes literais das fases de cada módulo.
@@ -126,7 +127,7 @@ const EXTRACTORS_BASE: Record<string, (p: Processo) => string> = {
   Vendedor:     (p) => p.vendedores?.[0]?.nome ?? '',
   Corretor:     (p) => (p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '',
   Imobiliaria:  (p) => p.imobiliarias?.[0]?.imobiliaria?.nome ?? '',
-  Parceiro:     (p) => p.parceiro?.nome ?? '',
+  Parceiro:     (p) => nomesParceirosDoNegocio(p),
 }
 
 // Status de negócios de Contrato: Assinado tem prioridade (vem do Clicksign,
@@ -816,7 +817,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                               {statusConsorcio(p.status_emissao)}
                             </StatusBadge>
                           </TableCell>
-                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.parceiro?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{nomesParceirosDoNegocio(p) || '—'}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">
                             {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
                           </TableCell>
@@ -879,7 +880,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                             {(p.corretores?.find(c => c.principal) ?? p.corretores?.[0])?.corretor?.nome ?? '—'}
                           </TableCell>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.imobiliarias?.[0]?.imobiliaria?.nome ?? '—'}</TableCell>
-                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.parceiro?.nome ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-gray-600 whitespace-nowrap">{nomesParceirosDoNegocio(p) || '—'}</TableCell>
                           <TableCell className="text-xs text-gray-500 whitespace-nowrap">
                             {p.data_emissao ? fmtData(p.data_emissao) : <span className="text-gray-300">—</span>}
                           </TableCell>

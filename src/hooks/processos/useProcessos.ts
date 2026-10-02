@@ -61,7 +61,8 @@ export function useProcessos(filtros: FiltrosProcessos = {}) {
           ${EMBED_PARTICIPANTES},
           corretores:processo_corretores(id, papel, principal, corretor:corretores(id, nome)),
           imobiliarias:processo_imobiliarias(id, papel, imobiliaria:imobiliarias(id, nome)),
-          parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria)
+          parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria),
+          parceiros_vinculados:processo_parceiros(parceiro:parceiros(id, nome))
         `)
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
