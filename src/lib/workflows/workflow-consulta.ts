@@ -19,6 +19,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarPedidoSimulacao } from './normalizador-captacao'
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
+import { ehIaIndisponivel, MSG_IA_INDISPONIVEL } from './iaIndisponivel'
 import {
   validarParaSimulacao, executarSimulacao, executarSimulacaoComparativaPrazos, montarRespostaSimulacao,
   gerarPdfSimulacao, tipoSimulacaoParaPersistencia,
@@ -88,7 +89,13 @@ export async function executarWorkflowConsulta(
   const { empresa_id, usuario_id, usuario_nome, supabase } = ctx
 
   // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
-  let dados = await normalizarPedidoSimulacao(textoBruto)
+  let dados: DadosCaptacaoNormalizados
+  try {
+    dados = await normalizarPedidoSimulacao(textoBruto)
+  } catch (err) {
+    if (ehIaIndisponivel(err)) return MSG_IA_INDISPONIVEL
+    throw err
+  }
 
   // Mescla dados pré-normalizados de workflow pendente (campos já capturados).
   if (ctx.dados_pre_normalizados) {

@@ -1977,7 +1977,15 @@ export async function processarRespostaPendente(
   const textoParaParsear = pendenteRelido.texto_acumulado ?? texto
   const { normalizarPedidoSimulacao, extrairDataNascimentoDeterministica } = await import('@/lib/workflows/normalizador-captacao')
   const dataDeterministica = extrairDataNascimentoDeterministica(textoParaParsear)
-  const novosParsed = await normalizarPedidoSimulacao(textoParaParsear)
+  let novosParsed: Awaited<ReturnType<typeof normalizarPedidoSimulacao>>
+  try {
+    novosParsed = await normalizarPedidoSimulacao(textoParaParsear)
+  } catch (err) {
+    // IA fora: o texto já foi acumulado na pendência — avisar e não mexer nos dados capturados.
+    const { ehIaIndisponivel, MSG_IA_INDISPONIVEL } = await import('@/lib/workflows/iaIndisponivel')
+    if (ehIaIndisponivel(err)) return MSG_IA_INDISPONIVEL
+    throw err
+  }
   if (dataDeterministica && !novosParsed.data_nascimento) {
     console.warn('[fonti] LLM não capturou data isolada; usando fallback determinístico:', dataDeterministica)
     novosParsed.data_nascimento = dataDeterministica

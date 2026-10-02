@@ -16,6 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarPedidoSimulacao, extrairCpfBrutoDoTexto } from './normalizador-captacao'
 import type { DadosCaptacaoNormalizados } from './normalizador-captacao'
+import { ehIaIndisponivel, MSG_IA_INDISPONIVEL } from './iaIndisponivel'
 import {
   validarParaSimulacao, deveDispararSimulacao, executarSimulacao, executarSimulacaoComparativaPrazos,
   montarRespostaSimulacao, gerarPdfSimulacao,
@@ -245,7 +246,13 @@ export async function executarWorkflowCaptacao(
   const { empresa_id, usuario_id, usuario_nome, usuario_perfil, supabase } = ctx
 
   // ── Etapas 1+2: Parser → Normalizador (pipeline único compartilhado) ───────
-  const dados = await normalizarPedidoSimulacao(textoBruto)
+  let dados: DadosCaptacaoNormalizados
+  try {
+    dados = await normalizarPedidoSimulacao(textoBruto)
+  } catch (err) {
+    if (ehIaIndisponivel(err)) return MSG_IA_INDISPONIVEL
+    throw err
+  }
 
   // Mescla dados do lead existente (contexto do *simula com lead aberto).
   // Preenche apenas campos nulos — dados novos do texto têm prioridade.
