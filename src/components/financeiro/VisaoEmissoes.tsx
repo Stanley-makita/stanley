@@ -15,6 +15,7 @@ import {
 import { Search, UserCheck, UserX } from 'lucide-react'
 import { type FinFechamentoProcesso } from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
+import { rotuloModalidade } from '@/types/processos'
 
 interface Props {
   processos: FinFechamentoProcesso[]
@@ -122,7 +123,7 @@ export function VisaoEmissoes({ processos, isLoading, vazioAoVivo }: Props) {
                       <span className="text-gray-400 text-sm">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">{proc.modalidade ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-gray-600">{rotuloModalidade(proc.modalidade) || '—'}</TableCell>
                   <TableCell className="text-right text-sm font-mono">
                     {proc.valor_financiado != null ? formatarMoeda(proc.valor_financiado) : '—'}
                   </TableCell>

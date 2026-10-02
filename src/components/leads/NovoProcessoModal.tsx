@@ -96,8 +96,8 @@ const PRODUTOS = [
 
 const MODALIDADES = [
   { value: 'SBPE', label: 'SBPE' },
-  { value: 'PMCMV', label: 'PMCMV - Minha Casa Minha Vida' },
-  { value: 'Pro_Cotista', label: 'Pró-Cotista FGTS' },
+  { value: 'PMCMV', label: 'PMCMV' },
+  { value: 'Pro_Cotista', label: 'Pró-Cotista' },
   { value: 'SFI', label: 'SFI' },
 ]
 

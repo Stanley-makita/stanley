@@ -5,6 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { podeExecutar } from '@/lib/auth/permissions'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { titularDaProposta } from '@/lib/participantes/consultas'
+import { rotuloModalidade } from '@/types/processos'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
@@ -133,7 +134,7 @@ export async function POST(
       despesas_financiadas:   null,
       valor_total_financiado: (processo as any).valor_financiado,
       prazo_meses:            (processo as any).prazo_amortizacao_meses,
-      modalidade:             (processo as any).modalidade,
+      modalidade:             rotuloModalidade((processo as any).modalidade),
       amortizacao:            (processo as any).sistema_amortizacao,
       taxa:                   null,
       iof:                    null,

@@ -6,15 +6,7 @@ import { exportarCsv } from '@/lib/exportarCsv'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { PeriodoRelatorio } from '@/types/relatorios'
-
-const LABEL_MODALIDADE: Record<string, string> = {
-  sfi: 'SFI',
-  sbpe: 'SBPE',
-  pmcmv: 'PMCMV',
-  pro_cotista: 'Pró-Cotista',
-  cgi: 'CGI',
-  contrato: 'Contrato',
-}
+import { rotuloModalidade } from '@/types/processos'
 
 interface AbaRelPorModalidadeProps {
   periodo: PeriodoRelatorio
@@ -24,14 +16,14 @@ export function AbaRelPorModalidade({ periodo }: AbaRelPorModalidadeProps) {
   const { data = [], isLoading } = useRelatorioPorModalidade(periodo.dataInicio, periodo.dataFim)
 
   const dadosGrafico = data.map((d) => ({
-    modalidade: LABEL_MODALIDADE[d.modalidade] ?? d.modalidade,
+    modalidade: rotuloModalidade(d.modalidade),
     'Valor Total': d.valor_total,
     'Nº Contratos': d.num_contratos,
   }))
 
   function handleExportar() {
     const rows = data.map((d) => ({
-      Modalidade: LABEL_MODALIDADE[d.modalidade] ?? d.modalidade,
+      Modalidade: rotuloModalidade(d.modalidade),
       'Nº Contratos': d.num_contratos,
       'Valor Total (R$)': d.valor_total.toFixed(2),
       '% do Total': `${d.pct_total.toFixed(1)}%`,
@@ -96,7 +88,7 @@ export function AbaRelPorModalidade({ periodo }: AbaRelPorModalidadeProps) {
             <tbody>
               {data.map((d) => (
                 <tr key={d.modalidade} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 font-medium">{LABEL_MODALIDADE[d.modalidade] ?? d.modalidade}</td>
+                  <td className="px-4 py-2 font-medium">{rotuloModalidade(d.modalidade)}</td>
                   <td className="px-4 py-2 text-right">{d.num_contratos}</td>
                   <td className="px-4 py-2 text-right">
                     {d.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

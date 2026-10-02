@@ -6,12 +6,20 @@ export type ModalidadeProcesso =
 export const MODALIDADE_LABELS: Record<ModalidadeProcesso, string> = {
   SFI:         'SFI',
   SBPE:        'SBPE',
-  PMCMV:       'PMCMV - Minha Casa Minha Vida',
-  Pro_Cotista: 'Pró-Cotista FGTS',
+  PMCMV:       'PMCMV',
+  Pro_Cotista: 'Pró-Cotista',
   CGI:         'CGI',
   Contrato:    'Contrato',
   Consorcio:   'Consórcio',
   Registro:    'Registro',
+}
+
+// Nome de exibição da modalidade — curto e igual em todas as telas (decisão 02/10/2026).
+// Use sempre isto em vez de mostrar processo.modalidade cru. Aceita o código em minúsculas.
+export function rotuloModalidade(v: string | null | undefined): string {
+  if (!v) return ''
+  const chave = (Object.keys(MODALIDADE_LABELS) as ModalidadeProcesso[]).find(k => k.toLowerCase() === v.toLowerCase())
+  return chave ? MODALIDADE_LABELS[chave] : v
 }
 
 export type ResponsavelRegistro = 'fontinhas' | 'cliente' | 'corretor'

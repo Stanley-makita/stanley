@@ -28,7 +28,7 @@ import { toast } from 'sonner'
 import { differenceInDays } from 'date-fns'
 import { useState, useMemo, useEffect } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
-import { RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
+import { RESPONSAVEL_REGISTRO_LABELS, rotuloModalidade } from '@/types/processos'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
@@ -288,7 +288,7 @@ export default function ProcessoDetalhePage() {
               </Button>
             )}
             {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
-            <Badge variant="outline" className="text-xs">{processo.modalidade}</Badge>
+            <Badge variant="outline" className="text-xs">{rotuloModalidade(processo.modalidade)}</Badge>
             {processo.tem_assessoria && (
               <Badge className="text-xs bg-fonti-accent-hover text-fonti-primary border-fonti-accent">
                 Assessoria
@@ -850,7 +850,7 @@ function AbaResumo({
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-            <Campo label="Modalidade" valor={processo.modalidade} />
+            <Campo label="Modalidade" valor={rotuloModalidade(processo.modalidade)} />
             {processo.modalidade === 'Consorcio' ? (
               <>
                 <Campo label="Operadora"       valor={processo.banco?.nome ?? '—'} />

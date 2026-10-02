@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useRouter } from 'next/navigation'
 import { FolderOpen, ExternalLink, Building2 } from 'lucide-react'
-import { type StatusProcesso } from '@/types/processos'
+import { type StatusProcesso, rotuloModalidade } from '@/types/processos'
 
 interface ProcessoResumido {
   id: string
@@ -92,7 +92,7 @@ export function AbaProcessos({ leadId }: Props) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-mono text-gray-400">{p.numero_processo}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.cor}`}>{status.label}</span>
-                  <span className="text-xs text-gray-400">{p.modalidade}</span>
+                  <span className="text-xs text-gray-400">{rotuloModalidade(p.modalidade)}</span>
                 </div>
                 <p className="text-sm font-medium text-fonti-primary truncate">{p.nome_imovel}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
