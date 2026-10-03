@@ -82,6 +82,9 @@ async function limpar(empresaId: string) {
     if (error) throw new Error(`limpar ${t}: ${error.message}`)
   }
   await del('processo_parceiros', 'processo_id', procs)
+  await del('financeiro_consorcio_receber', 'processo_id', procs)
+  await del('financeiro_consorcio_comercial_pagar', 'processo_id', procs)
+  await del('processo_cotas', 'processo_id', procs)
   await del('processo_fases_historico', 'processo_id', procs)
   await del('comunicacao_relacionamentos', 'processo_id', procs)
   await del('participacoes', 'processo_id', procs)
@@ -228,6 +231,15 @@ async function main() {
     if (n.vendedor) {
       const v = PESSOAS.find(x => x.chave === n.vendedor)!
       falhou(await incluirLinhaNegocio(sb, empresaId, proc.id, 'vendedores', { nome: v.nome, cpf: v.cpf }), `vendedor ${proc.numero_processo}`)
+    }
+    if (n.modalidade === 'Consorcio') {
+      // Consórcio: crédito e administradora moram nas cotas (uma cancelada, que não entra no total).
+      const { error: eC } = await sb.from('processo_cotas').insert([
+        { empresa_id: empresaId, processo_id: proc.id, administradora_nome: 'Itaú', grupo: '40205', cota: '1001', tipo_bem: 'Imóvel', valor_carta: 300000, status_cota: 'ativo', status_pagamento: 'em_dia', tipo_parcela: 'reduzida' },
+        { empresa_id: empresaId, processo_id: proc.id, administradora_nome: 'Itaú', grupo: '40205', cota: '1002', tipo_bem: 'Imóvel', valor_carta: 200000, status_cota: 'ativo', status_pagamento: 'em_dia', tipo_parcela: 'linear' },
+        { empresa_id: empresaId, processo_id: proc.id, administradora_nome: 'Itaú', grupo: '40205', cota: '1003', tipo_bem: 'Imóvel', valor_carta: 150000, status_cota: 'cancelado', status_pagamento: 'em_dia', tipo_parcela: 'linear' },
+      ])
+      if (eC) throw new Error(`cotas ${proc.numero_processo}: ${eC.message}`)
     }
     if (n.parceiro !== undefined) {
       const { error: eP } = await sb.from('processo_parceiros').insert({ processo_id: proc.id, parceiro_id: parc[n.parceiro] })

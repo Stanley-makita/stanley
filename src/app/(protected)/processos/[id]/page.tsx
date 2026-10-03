@@ -60,6 +60,7 @@ import { NovaTarefaDialog } from '@/components/processos/detalhe/NovaTarefaDialo
 import { ModalConfirmacaoValores } from '@/components/processos/ModalConfirmacaoValores'
 import { EmailConfirmacaoBadge } from '@/components/processos/EmailConfirmacaoBadge'
 import { ROTULO_PAPEL } from '@/lib/participantes/tipos'
+import { creditoConsorcio, administradorasConsorcio } from '@/lib/processos/consorcioCotas'
 
 const MODALIDADES_COM_CUSTAS = ['SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI'] as const
 
@@ -470,7 +471,7 @@ export default function ProcessoDetalhePage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">{processo.modalidade === 'Consorcio' ? 'Valor do Crédito' : 'Valor do Imóvel'}</p>
-                  <p className="text-sm font-bold text-fonti-primary">{formatarMoeda(processo.valor_imovel)}</p>
+                  <p className="text-sm font-bold text-fonti-primary">{formatarMoeda(processo.modalidade === 'Consorcio' ? creditoConsorcio(processo) : processo.valor_imovel)}</p>
                 </div>
               </div>
 
@@ -853,8 +854,8 @@ function AbaResumo({
             <Campo label="Modalidade" valor={rotuloModalidade(processo.modalidade)} />
             {processo.modalidade === 'Consorcio' ? (
               <>
-                <Campo label="Operadora"       valor={processo.banco?.nome ?? '—'} />
-                <Campo label="Valor do Crédito" valor={fmtMoeda(processo.valor_financiado)} />
+                <Campo label="Operadora"       valor={administradorasConsorcio(processo) || '—'} />
+                <Campo label="Valor do Crédito" valor={fmtMoeda(creditoConsorcio(processo))} />
                 <Campo label="Lance Estimado"  valor={fmtMoeda(processo.valor_entrada)} />
               </>
             ) : (

@@ -90,7 +90,7 @@ export function useAdicionarCota(processoId: string) {
       return data as ProcessoCota
     },
     onSuccess: async (cota) => {
-      queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'cotas'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })  // inclui as cotas e o crédito/administradora do negócio
       await registrarEventoCota(processoId, usuario!.empresa_id, `Cota adicionada (${identificacaoCota(cota)}).`)
       toast.success('Cota adicionada.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
@@ -109,7 +109,7 @@ export function useEditarCota(processoId: string) {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'cotas'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })  // inclui as cotas e o crédito/administradora do negócio
       toast.success('Cota atualizada.', { className: 'border-l-4 border-l-fonti-accent bg-fonti-accent-hover text-fonti-primary' })
     },
     onError: () => toast.error('Erro ao atualizar cota.'),
@@ -132,7 +132,7 @@ export function useAlterarStatusCota(processoId: string) {
       return payload
     },
     onSuccess: async ({ cota, novoStatus }) => {
-      queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'cotas'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })  // inclui as cotas e o crédito/administradora do negócio
       const rotulo: Record<StatusCota, string> = {
         ativo: 'reativada', contemplado: 'contemplada', cancelado: 'cancelada', substituido: 'substituída',
       }
@@ -186,7 +186,7 @@ export function useExcluirCotaEngano(processoId: string) {
       return cota
     },
     onSuccess: async (cota) => {
-      queryClient.invalidateQueries({ queryKey: ['processos', processoId, 'cotas'] })
+      queryClient.invalidateQueries({ queryKey: ['processos', processoId] })  // inclui as cotas e o crédito/administradora do negócio
       await registrarEventoCota(processoId, usuario!.empresa_id, `Cota (${identificacaoCota(cota)}) removida — cadastrada por engano.`)
       toast.success('Cota removida.')
     },

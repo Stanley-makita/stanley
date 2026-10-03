@@ -191,6 +191,8 @@ export interface Processo {
   parceiro?: { id: string; nome: string; tipo_parceiro: string | null; imobiliaria: string | null } | null
   // Lista do card "Parceiro Comercial" (processo_parceiros) — ler junto com `parceiro` via nomesParceirosDoNegocio.
   parceiros_vinculados?: { parceiro?: { id: string; nome: string } | null }[]
+  // Consórcio: crédito e administradora vêm das cotas — ler via creditoConsorcio/administradorasConsorcio.
+  cotas?: { valor_carta: number | null; administradora_nome: string | null; status_cota: string | null }[]
   corretores?:  { id: string; papel: string; principal: boolean; corretor?: { id: string; nome: string } | null }[]
   imobiliarias?: { id: string; papel: string; imobiliaria?: { id: string; nome: string } | null }[]
 }
