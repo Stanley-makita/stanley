@@ -26,6 +26,7 @@ import { nomesParceirosDoNegocio } from '@/lib/processos/parceirosDoNegocio'
 import { creditoConsorcio, administradorasConsorcio } from '@/lib/processos/consorcioCotas'
 import { linhasExportacaoConsorcio } from '@/lib/processos/exportarConsorcio'
 import { exportarCsv } from '@/lib/exportarCsv'
+import { useComissoesConsorcio } from '@/hooks/consorcio/useComissoesConsorcio'
 
 // Registro e Financiamento seguem um fluxo por fase (não por status_processo
 // genérico) — filtros rápidos ficam nos nomes literais das fases de cada módulo.
@@ -454,6 +455,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
 
   const processoIds = useMemo(() => processos.map((p) => p.id), [processos])
   const { data: assinaturaPorProcesso = {} } = useAssinaturaPorProcesso(processoIds, isContrato)
+  const { data: comissoesConsorcio = {} } = useComissoesConsorcio(processoIds, isConsorcio && isGestor)
 
   const EXTRACTORS = useMemo<Record<string, (p: Processo) => string>>(() => ({
     ...EXTRACTORS_BASE,
@@ -832,14 +834,15 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                           </TableCell>
                           {isGestor && (
                             <>
+                              {/* Consórcio: comissão vem do fluxo financeiro (comissoesConsorcio.ts), não das funções do financiamento */}
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_comercial_calculada != null
-                                  ? <span className="text-fonti-primary font-medium">{formatarMoeda(p.comissao_comercial_calculada)}</span>
+                                {comissoesConsorcio[p.id]
+                                  ? <span className="text-fonti-primary font-medium">{formatarMoeda(comissoesConsorcio[p.id].comercial)}</span>
                                   : <span className="text-text-muted">—</span>}
                               </TableCell>
                               <TableCell className="text-xs whitespace-nowrap">
-                                {p.comissao_empresa_calculada != null
-                                  ? <span className="text-fonti-primary font-semibold">{formatarMoeda(p.comissao_empresa_calculada)}</span>
+                                {comissoesConsorcio[p.id]
+                                  ? <span className="text-fonti-primary font-semibold">{formatarMoeda(comissoesConsorcio[p.id].empresa)}</span>
                                   : <span className="text-text-muted">—</span>}
                               </TableCell>
                             </>
