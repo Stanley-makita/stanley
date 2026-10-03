@@ -766,3 +766,16 @@ Regras:
   `npm run semear:teste -- --limpar` apaga só o que ele criou. Recusa rodar fora do staging. Depois de
   `sincronizar-ambiente-teste.sh` (que zera o staging), rodar de novo. Negócio novo no script precisa de
   `numero_processo` próprio: o gatilho que gera o número exige usuário logado.
+
+## Comissão de consórcio: fluxo financeiro, não comissao_*_calculada (03/10/2026)
+
+- Negócios › Consórcio › Tabela: "Comissão Comercial/Empresa" = soma do fluxo do consórcio
+  (`financeiro_consorcio_comercial_pagar` / `_receber`, hook `useComissoesConsorcio`, paginado — o PostgREST
+  corta em 1000 linhas sem avisar). `comissao_*_calculada` são do financiamento e sempre nulas no consórcio.
+- `gerar_fluxo_financeiro_consorcio`: empresa = % de Configurações › Comissões Consórcio (administradora +
+  tipo de bem + tipo de parcela + vigência; sem linha própria → "Padrão/Geral"; sem ela → fixo 4%/1%/13x).
+  Comercial = regra de Consórcio do RH (funcionário → cargo, faixa pelo valor da carta, com vigência);
+  sem regra → % comercial da configuração. Os dois lugares se complementam, não conflitam.
+- Administradora/tipo de bem comparados por `normalizar_texto_config` (migration 337): antes "itau" ≠ "Itaú"
+  e NENHUMA cota achava a configuração. Tipo de parcela conta (decisão do Marcio). Mudou configuração?
+  Recalcular: `supabase/2026-10-09_recalcular_fluxos_consorcio.sql` (só parcelas 'prevista').
