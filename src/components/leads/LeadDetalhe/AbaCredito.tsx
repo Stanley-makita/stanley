@@ -12,6 +12,9 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import type { Lead, LeadAnaliseCredito, StatusAnaliseCredito } from '@/types/leads'
 import { rotuloProdutoInteresse } from '@/types/leads'
+import { useBancos } from '@/hooks/useBancos'
+import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
+import { NomeBanco } from '@/components/bancos/NomeBanco'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -69,10 +72,6 @@ interface PessoaResultado {
 
 // ── Constantes ────────────────────────────────────────────────
 
-export const BANCOS = [
-  'Caixa Econômica Federal', 'Bradesco', 'Itaú', 'Santander', 'Banco do Brasil',
-  'BTG Pactual', 'Sicredi', 'Inter', 'C6 Bank', 'Pan', 'Outro',
-]
 export const FINALIDADES = [
   { value: 'residencial',  label: 'Residencial' },
   { value: 'comercial',    label: 'Comercial' },
@@ -983,7 +982,7 @@ export function AnaliseCard({
         <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
           <p className="text-xs font-semibold text-gray-700 shrink-0">{analise.nome}</p>
           {analise.banco_pretendido && (
-            <p className="text-xs text-gray-500 truncate">{analise.banco_pretendido}</p>
+            <p className="text-xs text-gray-500 truncate"><NomeBanco texto={analise.banco_pretendido} /></p>
           )}
           {!expandido && (
             <>
@@ -1058,7 +1057,7 @@ export function AnaliseCard({
             {analise.banco_pretendido && (
               <div>
                 <p className="text-[10px] text-gray-400">Banco</p>
-                <p className="text-xs font-medium text-gray-800">{analise.banco_pretendido}</p>
+                <p className="text-xs font-medium text-gray-800"><NomeBanco texto={analise.banco_pretendido} /></p>
               </div>
             )}
             {analise.valor_imovel != null && (
@@ -1167,6 +1166,10 @@ export function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }
   const defaultNome = inicial?.nome ?? `Análise ${numero ?? ''}`
   const [nome, setNome]               = useState(inicial?.nome ?? defaultNome)
   const [banco, setBanco]             = useState(inicial?.banco_pretendido ?? '')
+  // Bancos de Configurações › Bancos (antes: lista fixa no código). Texto antigo ("Caixa Econômica Federal")
+  // aparece já como o banco do cadastro e é gravado com o nome do cadastro ao salvar.
+  const { data: bancosCadastro = [] } = useBancos()
+  const bancoSelecionado = bancoDoCadastro(banco, bancosCadastro)?.nome ?? banco
   // Valor decimal simples ("500000.00"), formato que InputMoeda recebe/emite — nada de
   // string formatada pt-BR guardada em estado, só na exibição do próprio InputMoeda.
   const [valorImovel, setValorImovel] = useState(inicial?.valor_imovel != null ? String(inicial.valor_imovel) : '')
@@ -1225,7 +1228,7 @@ export function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }
   async function handleSalvar() {
     await onSalvar({
       nome:             nome.trim() || defaultNome,
-      banco_pretendido: banco || null,
+      banco_pretendido: bancoSelecionado || null,
       valor_imovel:     paraNumero(valorImovel),
       valor_pretendido: paraNumero(valorFin),
       entrada:          paraNumero(entrada),
@@ -1251,10 +1254,13 @@ export function AnaliseForm({ inicial, numero, onSalvar, onCancelar, isPending }
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div className="sm:col-span-2">
           <Label className="text-xs text-gray-500">Banco Pretendido</Label>
-          <Select value={banco} onValueChange={setBanco}>
+          <Select value={bancoSelecionado} onValueChange={setBanco}>
             <SelectTrigger className="h-7 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
             <SelectContent>
-              {BANCOS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              {bancosCadastro.map(b => <SelectItem key={b.id} value={b.nome}>{b.nome}</SelectItem>)}
+              {bancoSelecionado && !bancosCadastro.some(b => b.nome === bancoSelecionado) && (
+                <SelectItem value={bancoSelecionado}>{bancoSelecionado} (fora do cadastro)</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -1360,7 +1366,7 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wide leading-none mb-0.5">Banco Definido</p>
                 <p className="text-sm font-bold text-green-800 truncate leading-tight">
-                  {analiseDefinida.banco_pretendido ?? analiseDefinida.nome}
+                  {analiseDefinida.banco_pretendido ? <NomeBanco texto={analiseDefinida.banco_pretendido} /> : analiseDefinida.nome}
                 </p>
               </div>
               {analiseDefinida.valor_pretendido != null && (

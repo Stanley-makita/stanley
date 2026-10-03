@@ -6,6 +6,8 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Filter, X, Phone, Mail, CalendarDays, DollarSign, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useBancos } from '@/hooks/useBancos'
+import { nomeBancoExibicao } from '@/lib/bancos/bancoDoCadastro'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
 import { useLeadsInativos } from '@/hooks/leads/useLeadsDashboard'
 import { useFases } from '@/hooks/configuracoes/useFases'
@@ -184,9 +186,15 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
 
   const isLoading = isInativos ? carregandoInativos : carregandoTodos
 
-  const leadsBase = isInativos
+  const leadsBrutos = isInativos
     ? leadsInativos.filter(l => !busca || l.nome.toLowerCase().includes(busca.toLowerCase()) || l.telefone?.includes(busca))
     : faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
+  // Banco com o nome de Configurações › Bancos em coluna, filtro e ordenação ("Caixa Econômica Federal" → "Caixa").
+  const { data: bancosCadastro = [] } = useBancos()
+  const leadsBase = useMemo(() => leadsBrutos.map(l => !l.analises_credito?.length ? l : {
+    ...l,
+    analises_credito: l.analises_credito.map(a => a.banco_pretendido ? { ...a, banco_pretendido: nomeBancoExibicao(a.banco_pretendido, bancosCadastro) } : a),
+  }), [leadsBrutos, bancosCadastro])
 
   const leadsFiltrados = applyFilters(leadsBase, colFilters, fases)
     .filter(l => dentroDoRange(l.created_at, criadoEmRange))
