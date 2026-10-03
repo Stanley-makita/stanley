@@ -12,7 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, X, Check, RefreshCw } from 'lucide-react'
-import { TIPOS_BEM, LABEL_TIPO_PARCELA, type TipoParcela } from '@/types/consorcio'
+import { TIPOS_BEM, LABEL_TIPO_PARCELA, LABEL_TIPO_LANCE, type TipoParcela, type TipoLance } from '@/types/consorcio'
+import { SeletorTipoLance } from './SeletorTipoLance'
 import { useAuth } from '@/hooks/auth/useAuth'
 
 const LABEL_STATUS_COTA: Record<StatusCota, string> = {
@@ -53,6 +54,7 @@ interface FormCotaState {
   proxima_assembleia_em: string
   alerta_em: string
   informacao_adicional: string
+  tipo_lance: TipoLance | null
 }
 
 const FORM_VAZIO: FormCotaState = {
@@ -61,6 +63,7 @@ const FORM_VAZIO: FormCotaState = {
   valor_carta: '', valor_parcela: '', parcela_reduzida_percentual: '',
   prazo_cota_meses: '', prazo_grupo_meses: '', status_pagamento: 'em_dia',
   data_vencimento: '', proxima_assembleia_em: '', alerta_em: '', informacao_adicional: '',
+  tipo_lance: null,
 }
 
 function paraNumero(v: string): number | null {
@@ -91,6 +94,7 @@ function paraPayload(f: FormCotaState) {
     alerta_em: f.alerta_em || null,
     alerta_enviado_em: null,
     informacao_adicional: f.informacao_adicional || null,
+    tipo_lance: f.tipo_lance,
   }
 }
 
@@ -143,6 +147,7 @@ export function ListaCotas({ processoId }: { processoId: string }) {
       proxima_assembleia_em: cota.proxima_assembleia_em ?? '',
       alerta_em: cota.alerta_em ?? '',
       informacao_adicional: cota.informacao_adicional ?? '',
+      tipo_lance: cota.tipo_lance ?? null,
     })
     setEditandoId(cota.id)
     setExibirForm(true)
@@ -239,6 +244,10 @@ export function ListaCotas({ processoId }: { processoId: string }) {
               <label className="text-xs text-gray-500">Valor da carta</label>
               <Input type="number" step="0.01" className="h-9 text-sm" value={form.valor_carta} onChange={(e) => setForm((f) => ({ ...f, valor_carta: e.target.value }))} />
             </div>
+            <div className="space-y-1 col-span-2">
+              <label className="text-xs text-gray-500">Tipo de lance</label>
+              <SeletorTipoLance valor={form.tipo_lance} onChange={(v) => setForm((f) => ({ ...f, tipo_lance: v }))} />
+            </div>
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Valor da parcela</label>
               <Input type="number" step="0.01" className="h-9 text-sm" value={form.valor_parcela} onChange={(e) => setForm((f) => ({ ...f, valor_parcela: e.target.value }))} />
@@ -303,6 +312,7 @@ export function ListaCotas({ processoId }: { processoId: string }) {
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Grupo/Cota</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Tipo do bem</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Valor da carta</th>
+              <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Lance</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Status da cota</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Informação</th>
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Status pagto</th>
@@ -313,10 +323,10 @@ export function ListaCotas({ processoId }: { processoId: string }) {
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {isLoading && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-gray-400">Carregando...</td></tr>
             )}
             {!isLoading && cotas.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-300 italic">Nenhuma cota cadastrada ainda.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-gray-300 italic">Nenhuma cota cadastrada ainda.</td></tr>
             )}
             {cotas.map((c) => (
               <tr key={c.id} className="hover:bg-gray-50">
@@ -326,6 +336,7 @@ export function ListaCotas({ processoId }: { processoId: string }) {
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">{c.tipo_bem ?? '—'}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtMoeda(c.valor_carta)}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{c.tipo_lance ? LABEL_TIPO_LANCE[c.tipo_lance] : '—'}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${COR_STATUS_COTA[c.status_cota]}`}>
                     {LABEL_STATUS_COTA[c.status_cota]}

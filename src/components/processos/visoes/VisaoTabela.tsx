@@ -24,6 +24,8 @@ import { cn, fmtData, normalizarTexto } from '@/lib/utils'
 import { type StatusProcesso, type Processo, rotuloModalidade } from '@/types/processos'
 import { nomesParceirosDoNegocio } from '@/lib/processos/parceirosDoNegocio'
 import { creditoConsorcio, administradorasConsorcio } from '@/lib/processos/consorcioCotas'
+import { linhasExportacaoConsorcio } from '@/lib/processos/exportarConsorcio'
+import { exportarCsv } from '@/lib/exportarCsv'
 
 // Registro e Financiamento seguem um fluxo por fase (não por status_processo
 // genérico) — filtros rápidos ficam nos nomes literais das fases de cada módulo.
@@ -617,10 +619,16 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
           </button>
         )}
 
-        <Button variant="outline" size="sm" className="gap-1.5 text-gray-600 h-7 text-xs ml-auto">
-          <Download className="h-3.5 w-3.5" />
-          Exportar
-        </Button>
+        {isConsorcio && (
+          <Button
+            variant="outline" size="sm" className="gap-1.5 text-gray-600 h-7 text-xs ml-auto"
+            disabled={filteredProcessos.length === 0}
+            onClick={() => exportarCsv(linhasExportacaoConsorcio(filteredProcessos), `consorcios-${new Date().toISOString().slice(0, 10)}`)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar
+          </Button>
+        )}
       </div>
 
       {totalFiltrosAtivos > 0 && (

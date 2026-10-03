@@ -12,8 +12,9 @@ describe('consórcio pelas cotas', () => {
     expect(creditoConsorcio({ cotas: [cota(420000), cota(420000, 'Itaú', 'contemplado'), cota(100000, 'Itaú', 'cancelado'), cota(5, 'Itaú', 'substituido')] }))
       .toBe(840000)
   })
-  it('sem cota válida → crédito desejado do negócio', () => {
+  it('sem cota válida → carta de Dados da Carta, depois crédito desejado', () => {
     expect(creditoConsorcio({ cotas: [], credito_desejado: 500000 })).toBe(500000)
+    expect(creditoConsorcio({ cotas: [], valor_carta: 1680000, credito_desejado: 500000 })).toBe(1680000)
     expect(creditoConsorcio({ cotas: [cota(1, 'Itaú', 'cancelado')] })).toBeNull()
   })
   it('administradoras distintas das cotas válidas; sem cota → campo do negócio', () => {

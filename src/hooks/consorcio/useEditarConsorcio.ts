@@ -17,6 +17,7 @@ interface DadosConsorcio {
   bem_referencia_descricao?: string | null
   parcela_reduzida_percentual?: number | null
   prazo_grupo_meses?: number | null
+  tipo_lance?: 'fixo' | 'livre' | null
 }
 
 export function useEditarConsorcio() {
