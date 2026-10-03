@@ -669,6 +669,9 @@ Depois da 333, **`participacoes` é a única fonte de "quem participa"**. `lead_
 - Lead: `lead.coparticipantes`/`lead.vendedores` vêm de `participacoes` (`useLead`); remover vendedor usa o id
   da participação e limpa `leads.vendedor_pessoa_id` (senão a sincronização devolve).
 - `merge_pessoas` libera a trava só na própria transação (`pv2.legado`) para repontar as linhas antigas.
+- **Cônjuge do comprador principal no negócio é derivado** (migration 335, 02/10/2026): casamento vigente do titular →
+  `conjuge_anuente` (compõe renda se tiver renda), igual ao lead e ao cônjuge do vendedor. Não entra se já estiver no
+  negócio (comprador/vendedor), excluído ou de operador. Para tirar: encerrar o casamento.
 - Reverter: `supabase/2026-10-06_reverter_333.sql` (reconstrói as tabelas antigas a partir das participações
   explícitas e religa a Fase A) + revert do PR do C2.
 
