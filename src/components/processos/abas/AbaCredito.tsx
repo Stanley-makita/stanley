@@ -13,6 +13,8 @@
  */
 
 import { useState } from 'react'
+import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
+import { NomeBanco } from '@/components/bancos/NomeBanco'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -148,7 +150,7 @@ export function AbaCredito({ processoId, processo }: Props) {
     // diferente do banco já registrado no processo — se for o mesmo banco
     // (ex: crédito venceu e precisou reaprovar), não há nada pra sincronizar.
     if (analiseBase?.banco_pretendido) {
-      const bancoAnalise = bancos.find((b) => b.nome === analiseBase.banco_pretendido)
+      const bancoAnalise = bancoDoCadastro(analiseBase.banco_pretendido, bancos)
       const bancoMudou = bancoAnalise && bancoAnalise.id !== (processo.banco_id ?? null)
       if (bancoMudou) {
         const sincronizar = window.confirm(
@@ -312,7 +314,7 @@ export function AbaCredito({ processoId, processo }: Props) {
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] text-green-600 font-semibold uppercase tracking-wide leading-none mb-0.5">Banco Definido</p>
                   <p className="text-sm font-bold text-green-800 truncate leading-tight">
-                    {analiseDefinida.banco_pretendido ?? analiseDefinida.nome}
+                    {analiseDefinida.banco_pretendido ? <NomeBanco texto={analiseDefinida.banco_pretendido} /> : analiseDefinida.nome}
                   </p>
                 </div>
                 {analiseDefinida.numero_proposta && (

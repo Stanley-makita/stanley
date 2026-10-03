@@ -13,15 +13,13 @@ import {
 import { toast } from 'sonner'
 import type { Lead } from '@/types/leads'
 import { cn } from '@/lib/utils'
+import { useBancos } from '@/hooks/useBancos'
+import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
 
 interface Props {
   lead: Lead
 }
 
-const BANCOS = [
-  'Caixa Econômica Federal', 'Bradesco', 'Itaú', 'Santander', 'Banco do Brasil',
-  'BTG Pactual', 'Sicredi', 'Inter', 'C6 Bank', 'Pan', 'Outro',
-]
 
 type FormDef = { nomeArquivo: string; label: string }
 
@@ -65,6 +63,10 @@ export function AbaFormularios({ lead }: Props) {
   const dadosBloqueados = camposFaltando.length > 0
 
   const [banco, setBanco] = useState<string>(lead.banco_pretendido ?? '')
+  // Bancos de Configurações › Bancos (antes: lista fixa). A rota de formulários normaliza o nome
+  // ("Caixa", "Itau" funcionam igual a "Caixa Econômica Federal", "Itaú").
+  const { data: bancosCadastro = [] } = useBancos()
+  const bancoSelecionado = bancoDoCadastro(banco, bancosCadastro)?.nome ?? banco
   const [formularios, setFormularios] = useState<FormDef[]>([])
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
   const [carregandoLista, setCarregandoLista] = useState(false)
@@ -169,14 +171,17 @@ export function AbaFormularios({ lead }: Props) {
         <div className={cn('flex gap-3 items-end', dadosBloqueados && 'opacity-40 pointer-events-none select-none')}>
           <div className="flex-1 space-y-1.5">
             <label className="text-xs text-gray-500">Banco</label>
-            <Select value={banco} onValueChange={handleBancoChange} disabled={dadosBloqueados}>
+            <Select value={bancoSelecionado} onValueChange={handleBancoChange} disabled={dadosBloqueados}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder="Selecionar banco..." />
               </SelectTrigger>
               <SelectContent>
-                {BANCOS.map((b) => (
-                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                {bancosCadastro.map((b) => (
+                  <SelectItem key={b.id} value={b.nome}>{b.nome}</SelectItem>
                 ))}
+                {bancoSelecionado && !bancosCadastro.some(b => b.nome === bancoSelecionado) && (
+                  <SelectItem value={bancoSelecionado}>{bancoSelecionado} (fora do cadastro)</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>

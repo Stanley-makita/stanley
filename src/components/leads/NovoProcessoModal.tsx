@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Home, Clock, CreditCard, FileText, Building, ChevronRight, MessageCircle, Loader2, User, Link2, SkipForward, Eye, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NomeBanco } from '@/components/bancos/NomeBanco'
+import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
 import { type Lead, type LeadAnaliseCredito } from '@/types/leads'
 import { type TipoContrato, TIPO_CONTRATO_LABELS, type ResponsavelRegistro, RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
@@ -458,7 +460,7 @@ function SeletorAnalise({ analises, onSelecionar, onVoltar }: {
               <p className="text-sm font-medium text-fonti-primary">{analise.nome}</p>
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
                 {analise.banco_pretendido && (
-                  <span className="text-xs text-gray-500">{analise.banco_pretendido}</span>
+                  <span className="text-xs text-gray-500"><NomeBanco texto={analise.banco_pretendido} /></span>
                 )}
                 {analise.valor_pretendido != null && (
                   <span className="text-xs text-gray-500">Financiar: {fmtMoeda(analise.valor_pretendido)}</span>
@@ -586,10 +588,9 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
   useEffect(() => {
     const bancoPretendido = fonte?.banco_pretendido
     if (bancos.length > 0 && !bancoId && bancoPretendido) {
-      const q = bancoPretendido.toLowerCase()
-      const match = bancos.find(b =>
-        b.nome.toLowerCase().includes(q) || q.includes(b.nome.toLowerCase())
-      )
+      // Sem diferenciar maiúscula/acento: "Itaú" do lead = "Itau" do cadastro (antes não casava e o
+      // negócio nascia sem banco e sem comissão).
+      const match = bancoDoCadastro(bancoPretendido, bancos)
       if (match) {
         setBancoId(match.id)
         const cp = comissoesPadrao.find(c => c.banco_id === match.id)
@@ -750,7 +751,7 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
             {analise ? `Dados da análise: ${analise.nome}` : 'Dados de crédito herdados do Lead'}
           </p>
           <div className="space-y-0.5 text-blue-600">
-            {fonte.banco_pretendido  && <p>Banco pretendido: <span className="font-medium">{fonte.banco_pretendido}</span></p>}
+            {fonte.banco_pretendido  && <p>Banco pretendido: <span className="font-medium"><NomeBanco texto={fonte.banco_pretendido} /></span></p>}
             {fonte.valor_imovel      && <p>Valor do imóvel: <span className="font-medium">{fmtN(fonte.valor_imovel)}</span></p>}
             {fonte.valor_pretendido  && <p>Valor a financiar: <span className="font-medium">{fmtN(fonte.valor_pretendido)}</span></p>}
             {fonte.entrada           && <p>Entrada: <span className="font-medium">{fmtN(fonte.entrada)}</span></p>}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { NomeBanco } from '@/components/bancos/NomeBanco'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   DialogDescription,
@@ -47,7 +48,7 @@ export function ExcluirAnaliseCreditoDialog({ analise, onFechar, onConfirmar, is
           <DialogDescription>
             Tem certeza que deseja excluir a análise{' '}
             <span className="font-semibold text-gray-900">
-              {analise?.banco_pretendido ?? analise?.nome}
+              {analise?.banco_pretendido ? <NomeBanco texto={analise.banco_pretendido} /> : analise?.nome}
             </span>?
             <br />
             Essa ação não pode ser desfeita. O motivo fica registrado no histórico do processo.
