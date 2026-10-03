@@ -11,6 +11,8 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 
+import { IaIndisponivelError } from './iaIndisponivel'
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export interface DadosCaptacaoRaw {
@@ -247,13 +249,21 @@ REGRAS DE CONSISTÊNCIA PRAZO:
 - "120 240 360 meses e prazo máximo" → prazo_meses=null, prazos_detectados=[120,240,360], prazo_maximo=true`
 
 export async function parsearTextoCaptacao(texto: string): Promise<DadosCaptacaoRaw> {
+  // Falha na CHAMADA (sem crédito, fora do ar) ≠ resposta ilegível: a primeira vira IaIndisponivelError
+  // para o bot avisar; a segunda continua devolvendo {} (o normalizador/fallbacks seguem).
+  let response: Anthropic.Message
   try {
-    const response = await anthropic.messages.create({
+    response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 800,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: texto }],
     })
+  } catch (err) {
+    console.error('[parser-captacao] IA indisponível:', err)
+    throw new IaIndisponivelError(err)
+  }
+  try {
 
     const bloco = response.content[0]
     if (bloco?.type !== 'text') return {}

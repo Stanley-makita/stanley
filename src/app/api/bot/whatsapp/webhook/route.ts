@@ -1262,10 +1262,15 @@ export async function POST(request: NextRequest) {
         if (textoNatural.length > 15 && /\d/.test(textoNatural)) {
           const { normalizarPedidoSimulacao } = await import('@/lib/workflows/normalizador-captacao')
           const { deveDispararSimulacao } = await import('@/lib/workflows/motor-simulacao')
-          const dadosCandidatos = await normalizarPedidoSimulacao(textoNatural)
-          const decisao = deveDispararSimulacao(dadosCandidatos)
+          // Mensagem solta (sem comando): com a IA fora, não dá pra saber se era pedido — segue sem simular.
+          const { ehIaIndisponivel } = await import('@/lib/workflows/iaIndisponivel')
+          const dadosCandidatos = await normalizarPedidoSimulacao(textoNatural).catch((err: unknown) => {
+            if (ehIaIndisponivel(err)) return null
+            throw err
+          })
+          const decisao = dadosCandidatos ? deveDispararSimulacao(dadosCandidatos) : null
 
-          if (dadosCandidatos.nome && decisao.deveSimular) {
+          if (dadosCandidatos?.nome && decisao?.deveSimular) {
             const { executarWorkflowCaptacao } = await import('@/lib/workflows/workflow-captacao')
             const resposta = await executarWorkflowCaptacao('', {
               empresa_id,
