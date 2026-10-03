@@ -23,6 +23,7 @@ import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, C
 import { cn, fmtData, normalizarTexto } from '@/lib/utils'
 import { type StatusProcesso, type Processo, rotuloModalidade } from '@/types/processos'
 import { nomesParceirosDoNegocio } from '@/lib/processos/parceirosDoNegocio'
+import { creditoConsorcio, administradorasConsorcio } from '@/lib/processos/consorcioCotas'
 
 // Registro e Financiamento seguem um fluxo por fase (não por status_processo
 // genérico) — filtros rápidos ficam nos nomes literais das fases de cada módulo.
@@ -456,7 +457,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
     ...EXTRACTORS_BASE,
     Produto: (p: Processo) => modalidadeProdutoMap[p.modalidade] ?? p.modalidade,
     ...(isContrato ? { Status: (p: Processo) => statusContrato(p, assinaturaPorProcesso[p.id]).label } : {}),
-    ...(isConsorcio ? { Status: (p: Processo) => statusConsorcio(p.status_emissao) } : {}),
+    ...(isConsorcio ? { Status: (p: Processo) => statusConsorcio(p.status_emissao), Banco: (p: Processo) => administradorasConsorcio(p) } : {}),
   }), [modalidadeProdutoMap, isContrato, assinaturaPorProcesso, isConsorcio])
 
   const filteredProcessos = useMemo(() => {
@@ -481,8 +482,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters, entradaRange, emissaoRange])
 
   const totalValorFinanciado = useMemo(
-    () => filteredProcessos.reduce((sum, p) => sum + (p.valor_financiado ?? 0), 0),
-    [filteredProcessos],
+    () => filteredProcessos.reduce((sum, p) => sum + ((isConsorcio ? creditoConsorcio(p) : p.valor_financiado) ?? 0), 0),
+    [filteredProcessos, isConsorcio],
   )
   const totalValorContrato = useMemo(
     () => filteredProcessos.reduce((sum, p) => sum + (p.valor_contrato ?? 0), 0),
@@ -804,10 +805,10 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                               ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.fase_atual.cor ?? 'var(--fonti-accent)' }} /><span className="text-xs whitespace-nowrap">{p.fase_atual.nome}</span></div>
                               : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
-                          <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(p.valor_financiado)}</TableCell>
+                          <TableCell className="text-xs font-medium whitespace-nowrap">{formatarMoeda(creditoConsorcio(p))}</TableCell>
                           <TableCell>
-                            {p.banco
-                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{p.banco.nome}</span></div>
+                            {administradorasConsorcio(p)
+                              ? <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full shrink-0 bg-gray-400" /><span className="text-xs whitespace-nowrap">{administradorasConsorcio(p)}</span></div>
                               : <span className="text-text-muted text-xs">—</span>}
                           </TableCell>
                           <TableCell className="text-xs text-gray-600 whitespace-nowrap">{p.comercial?.nome ?? '—'}</TableCell>
