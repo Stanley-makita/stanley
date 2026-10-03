@@ -32,6 +32,7 @@ export interface ProcessoCota {
   data_vencimento: string | null
   proxima_assembleia_em: string | null
   informacao_adicional: string | null
+  tipo_lance: 'fixo' | 'livre' | null
   alerta_em: string | null
   alerta_enviado_em: string | null
   created_at: string

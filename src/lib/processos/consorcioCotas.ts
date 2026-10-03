@@ -1,14 +1,15 @@
 // Consórcio: o crédito e a administradora moram nas COTAS (processo_cotas), não em
 // processos.valor_financiado/banco_id (campos do financiamento — sempre vazios no consórcio).
 // Caso real 03/10/2026: tabela de Negócios › Consórcio com "Valor do Crédito" e "Administradora" em branco.
-// Cota cancelada/substituída não conta; sem cota válida, cai nos campos do próprio negócio.
+// Cota cancelada/substituída não conta; sem cota válida, cai nos campos do próprio negócio
+// (valor da carta de "Dados da Carta", depois crédito desejado).
 export type CotaResumo = { valor_carta: number | null; administradora_nome: string | null; status_cota: string | null }
 
 const VALIDA = (c: CotaResumo) => c.status_cota !== 'cancelado' && c.status_cota !== 'substituido'
 
-export function creditoConsorcio(p: { cotas?: CotaResumo[] | null; credito_desejado?: number | null }): number | null {
+export function creditoConsorcio(p: { cotas?: CotaResumo[] | null; valor_carta?: number | null; credito_desejado?: number | null }): number | null {
   const validas = (p.cotas ?? []).filter(VALIDA)
-  if (validas.length === 0) return p.credito_desejado ?? null
+  if (validas.length === 0) return p.valor_carta ?? p.credito_desejado ?? null
   return validas.reduce((s, c) => s + (c.valor_carta ?? 0), 0)
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useEditarConsorcio } from '@/hooks/consorcio/useEditarConsorcio'
 import { type Processo } from '@/types/processos'
 import { Loader2 } from 'lucide-react'
+import { SeletorTipoLance } from './SeletorTipoLance'
 
 const numField = z.number().or(z.nan()).nullable()
 
@@ -28,6 +29,7 @@ const schema = z.object({
   bem_referencia_descricao:    z.string().nullable(),
   parcela_reduzida_percentual: numField,
   prazo_grupo_meses:           numField,
+  tipo_lance:                  z.enum(['fixo', 'livre']).nullable(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -46,7 +48,7 @@ interface Props {
 export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
   const editar = useEditarConsorcio()
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       administradora:      processo.administradora ?? null,
@@ -61,11 +63,17 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
       bem_referencia_descricao:    processo.bem_referencia_descricao ?? null,
       parcela_reduzida_percentual: processo.parcela_reduzida_percentual ?? null,
       prazo_grupo_meses:           processo.prazo_grupo_meses ?? null,
+      tipo_lance:                  processo.tipo_lance ?? null,
     },
   })
 
+  // Reset só quando o modal ABRE — refetch em segundo plano do negócio (foco na aba, edição de cota)
+  // não pode apagar o que está sendo digitado (regra do CLAUDE.md, mesmo padrão de EditarProcessoDrawer).
+  const processoRef = useRef(processo)
+  processoRef.current = processo
   useEffect(() => {
     if (aberto) {
+      const processo = processoRef.current
       reset({
         administradora:      processo.administradora ?? null,
         grupo_consorcio:     processo.grupo_consorcio ?? null,
@@ -79,9 +87,10 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
         bem_referencia_descricao:    processo.bem_referencia_descricao ?? null,
         parcela_reduzida_percentual: processo.parcela_reduzida_percentual ?? null,
         prazo_grupo_meses:           processo.prazo_grupo_meses ?? null,
+        tipo_lance:                  processo.tipo_lance ?? null,
       })
     }
-  }, [aberto, processo, reset])
+  }, [aberto, reset])
 
   async function onSubmit(data: FormData) {
     await editar.mutateAsync({
@@ -99,6 +108,7 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
         bem_referencia_descricao:    data.bem_referencia_descricao || null,
         parcela_reduzida_percentual: normNum(data.parcela_reduzida_percentual),
         prazo_grupo_meses:           normNum(data.prazo_grupo_meses),
+        tipo_lance:                  data.tipo_lance ?? null,
       },
     })
     onFechar()
@@ -153,6 +163,14 @@ export function EditarConsorcioDrawer({ aberto, onFechar, processo }: Props) {
                   {...register('parcela_consorcio', { valueAsNumber: true })}
                   placeholder="0,00"
                 />
+              </div>
+              <div className="space-y-1.5 col-span-2 sm:col-span-3">
+                <Label>Tipo de lance</Label>
+                <SeletorTipoLance
+                  valor={watch('tipo_lance') ?? null}
+                  onChange={(v) => setValue('tipo_lance', v, { shouldDirty: true })}
+                />
+                <p className="text-[11px] text-gray-400">Padrão do negócio — cada cota pode ter o seu na Lista de Cotas.</p>
               </div>
             </div>
 
