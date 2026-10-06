@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Calculator, Clock, Download, Eye, Printer, Save, Send } from 'lucide-react'
+import { Calculator, Check, Clock, Download, Eye, Printer, Save, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { calcularCustas, calcIofVisivel, calcularIof } from '@/lib/simulador/calcular'
 import { useItbiConfig, useCustasConfig } from '@/hooks/simulador/useSimuladorConfig'
@@ -395,21 +395,49 @@ export function SimuladorCustas({
 
   const linhasVisiveis = resultado?.linhas.filter((l) => l.visivel) ?? []
 
+  // Registro do histórico que corresponde aos valores atuais. Salvar, Imprimir
+  // e Compartilhar reaproveitam o mesmo registro enquanto os valores não mudam
+  // (antes cada botão gravava uma cópia nova). Mudou algum valor → é outra
+  // simulação, e a próxima ação grava um registro novo.
+  const temVinculo = !!(processoId || leadId)
+  const chaveAtual = resultado ? JSON.stringify(resultado.entrada) : null
+  const [registroSalvo, setRegistroSalvo] = useState<{ id: string; chave: string } | null>(null)
+  // Simulação já existente (aberta pelo histórico): os valores carregados já
+  // são esse registro — referência marcada no primeiro cálculo.
+  useEffect(() => {
+    if (simulacaoExistenteId && chaveAtual && !registroSalvo) {
+      setRegistroSalvo({ id: simulacaoExistenteId, chave: chaveAtual })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulacaoExistenteId, chaveAtual])
+  const jaSalva = !!registroSalvo && registroSalvo.chave === chaveAtual
+
+  /** Id do registro dos valores atuais, gravando só se ainda não existir. */
+  async function garantirSalva(opcoes: { exigeVinculo: boolean }): Promise<string | null> {
+    if (!resultado || !chaveAtual) return null
+    if (jaSalva) return registroSalvo!.id
+    if (opcoes.exigeVinculo && !temVinculo) return null
+    const salvo = await salvar.mutateAsync({ processoId, leadId, resultado })
+    setRegistroSalvo({ id: salvo.id, chave: chaveAtual })
+    return salvo.id
+  }
+
   async function salvarSimulacao() {
     if (!resultado) return
-    await salvar.mutateAsync({ processoId, leadId, resultado })
+    if (jaSalva) {
+      toast.info('Esta simulação já está salva no histórico.')
+      return
+    }
+    await garantirSalva({ exigeVinculo: true })
     toast.success('Simulação salva no histórico')
     onSalvo?.()
   }
 
   async function baixarPDF() {
     if (!resultado) return
-    // Auto-salva no histórico antes de gerar o PDF — só na primeira vez
-    // (simulação nova). Se já é uma simulação existente (ex.: "Ver simulação"
-    // no histórico), não salva de novo — evita duplicar a cada Imprimir.
-    if (!simulacaoExistenteId && (processoId || leadId)) {
-      await salvar.mutateAsync({ processoId, leadId, resultado })
-    }
+    // Salva no histórico antes de gerar o PDF — só se estes valores ainda não
+    // estiverem salvos (não duplica a cada Imprimir).
+    await garantirSalva({ exigeVinculo: true })
     const { gerarPDFSimulacao } = await import('./gerarPDF')
     await gerarPDFSimulacao(resultado, {
       numero,
@@ -422,20 +450,14 @@ export function SimuladorCustas({
 
   async function compartilharSimulacao() {
     if (!resultado) return
-    // Se já é uma simulação existente, reaproveita o ID em vez de salvar uma
-    // cópia nova a cada Compartilhar (mesmo motivo do baixarPDF acima).
-    if (simulacaoExistenteId) {
-      setModalCompartilhar({
-        id: simulacaoExistenteId,
-        nome: `Simulação de Custas${resultado.entrada.banco ? ` — ${resultado.entrada.banco}` : ''}`,
-      })
-      return
-    }
+    // O envio monta o PDF a partir do registro salvo — reaproveita o dos
+    // valores atuais (não duplica) ou grava um novo se os valores mudaram.
     setEnviando(true)
     try {
-      const salvo = await salvar.mutateAsync({ processoId, leadId, resultado })
+      const id = await garantirSalva({ exigeVinculo: false })
+      if (!id) return
       setModalCompartilhar({
-        id: salvo.id,
+        id,
         nome: `Simulação de Custas${resultado.entrada.banco ? ` — ${resultado.entrada.banco}` : ''}`,
       })
     } catch {
@@ -709,15 +731,20 @@ export function SimuladorCustas({
               )}
             </div>
             <div className="flex gap-2 shrink-0">
-              {!modoAvulso && (
+              {/* Salvar aparece sempre que há lead/negócio para guardar (Captação
+                  inclusive). "✓ Salva" = estes valores já estão no histórico. */}
+              {temVinculo && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover gap-1"
+                  className={jaSalva
+                    ? 'h-7 text-xs border-green-600 text-green-700 hover:bg-green-50 gap-1'
+                    : 'h-7 text-xs border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover gap-1'}
                   onClick={salvarSimulacao}
                   disabled={!resultado || salvar.isPending}
+                  title={jaSalva ? 'Estes valores já estão salvos no histórico' : 'Salvar no histórico'}
                 >
-                  <Save className="h-3 w-3" /> Salvar
+                  {jaSalva ? <><Check className="h-3 w-3" /> Salva</> : <><Save className="h-3 w-3" /> Salvar</>}
                 </Button>
               )}
               <Button
