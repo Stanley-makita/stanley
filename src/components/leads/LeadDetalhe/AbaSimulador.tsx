@@ -87,7 +87,6 @@ export function AbaSimulador({ leadId }: Props) {
             valorFinanciadoInicial={lead?.valor_pretendido ?? 0}
             clienteNome={lead?.nome}
             modoAvulso
-            onSalvo={() => setSubAba('historico')}
           />
         )}
 
@@ -129,7 +128,7 @@ export function AbaSimulador({ leadId }: Props) {
 
         {subAba === 'historico' && (
           <div className="h-full overflow-y-auto">
-            <HistoricoSimulacoesLead leadId={leadId} />
+            <HistoricoSimulacoesLead leadId={leadId} clienteNome={lead?.nome} />
           </div>
         )}
       </div>

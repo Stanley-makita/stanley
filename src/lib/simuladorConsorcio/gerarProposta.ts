@@ -428,7 +428,10 @@ export async function gerarPropostaConsorcio(
     } else {
       // Sem janela pré-aberta: tenta abrir agora (pode ser bloqueado pelo
       // navegador já que estamos depois de vários `await`).
-      const win = window.open(url, '_blank', 'noopener,noreferrer')
+      // Sem 'noopener' no window.open: com ele o navegador SEMPRE devolve null (mesmo abrindo
+      // a aba), e o código tratava como pop-up bloqueado. O opener é cortado à mão logo abaixo.
+      const win = window.open(url, '_blank')
+      if (win) win.opener = null
       if (!win) {
         throw new Error('POPUP_BLOQUEADO')
       }

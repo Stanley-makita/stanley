@@ -20,6 +20,7 @@ export function AbaCustas({ processoId }: Props) {
   return (
     <SimuladorCustas
       processoId={processoId}
+      leadOrigemId={processo?.lead_id}
       numero={processo?.numero_processo}
       bancoNomeInicial={processo?.banco?.nome ?? ''}
       valorCVInicial={processo?.valor_imovel ?? 0}
