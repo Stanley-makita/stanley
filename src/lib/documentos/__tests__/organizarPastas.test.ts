@@ -21,6 +21,25 @@ describe('inferirPastaSugerida com pastaDoLeadCodigo', () => {
   })
 })
 
+describe('inferirPastaSugerida com subpastas do comprador', () => {
+  const base = { pessoasCompradorasIds: ['c1'], pessoasVendedorasIds: ['v1'], pastaDoLeadCodigo: null }
+  it('documento do comprador vai para a subpasta do tipo', () => {
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'c1', pastaSugeridaCodigoDoTipo: 'comprador_renda' })).toBe('comprador_renda')
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'c1', pastaSugeridaCodigoDoTipo: 'comprador_fgts' })).toBe('comprador_fgts')
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'c1', pastaSugeridaCodigoDoTipo: 'comprador_pessoais' })).toBe('comprador_pessoais')
+  })
+  it('comprador com tipo sem subpasta (ou desconhecido) fica na raiz de 01 Comprador', () => {
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'c1', pastaSugeridaCodigoDoTipo: 'imovel' })).toBe('comprador')
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'c1', pastaSugeridaCodigoDoTipo: null })).toBe('comprador')
+  })
+  it('vendedor não tem subpastas', () => {
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'v1', pastaSugeridaCodigoDoTipo: 'comprador_renda' })).toBe('vendedor')
+  })
+  it('sem papel, vale a pasta do tipo', () => {
+    expect(inferirPastaSugerida({ ...base, documentoPessoaId: 'x', pastaSugeridaCodigoDoTipo: 'comprador_pessoais' })).toBe('comprador_pessoais')
+  })
+})
+
 describe('precisaClassificar', () => {
   it('nulo, vazio e auto precisam', () => {
     expect(precisaClassificar(null)).toBe(true)

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { calcularStatusValidade, LABELS_VALIDADE, ICONES_VALIDADE, CORES_VALIDADE, inferirPastaSugerida } from '@/lib/documentos'
 import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
+import { ABA_DA_PASTA, idsDaArvore, pastasParaSelecao, pastasPrincipais, rotuloPasta, subpastasDe } from '@/lib/documentos/pastas'
 import { uploadDocumentoParaPasta } from '@/hooks/documentos/useUploadDocumentoPasta'
 import { useMoverDocumentoParaPasta } from '@/hooks/documentos/useMoverDocumentoParaPasta'
 import { DocumentoOcrRevisaoModal } from '@/components/documentos/DocumentoOcrRevisaoModal'
@@ -86,13 +87,6 @@ interface DocumentoCliente {
   pessoa_id?: string | null
   pasta_id?: string | null
 }
-
-/** "04 Formulários" e "13 Simulações" continuam abas próprias — entram no grid
- * de navegação só como atalho (sem contador, sem drill-down). */
-const PASTAS_ATALHO = [
-  { codigo: 'formularios', nome: '04 Formulários', aba: 'formularios' as const },
-  { codigo: 'simulacoes',  nome: '13 Simulações',  aba: 'simulador' as const },
-]
 
 const LABELS_CLASSIFICACAO: Record<string, string> = {
   rg:                   'RG / Doc. de Identidade',
@@ -685,19 +679,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     )
   }
 
-  // Grid de navegação estilo Explorer — 13 posições sempre visíveis (mesma numeração
-  // usada há anos na rede), mesmo que 04/13 só sejam atalhos pra outras abas do sistema.
-  const pastasGrid = useMemo(() => {
-    if (!usaPastas) return []
-    const atalhos = [
-      { codigo: 'formularios', nome: '04 Formulários', ordem_exibicao: 40, aba: 'formularios' as const },
-      { codigo: 'simulacoes',  nome: '13 Simulações',  ordem_exibicao: 130, aba: 'simulador' as const },
-    ]
-    return [
-      ...catalogoPastas.map(p => ({ codigo: p.codigo, nome: p.nome, ordem_exibicao: p.ordem_exibicao, aba: undefined })),
-      ...atalhos,
-    ].sort((a, b) => a.ordem_exibicao - b.ordem_exibicao)
-  }, [usaPastas, catalogoPastas])
+  // Grid de navegação estilo Explorer — pastas principais (mesma numeração da
+  // rede). Subpastas (hoje só as de "01 Comprador") aparecem ao abrir a mãe.
+  // "04 Formulários"/"13 Simulações" guardam arquivos e têm botão para a aba do sistema.
+  const pastasGrid = useMemo(() => (usaPastas ? pastasPrincipais(catalogoPastas) : []), [usaPastas, catalogoPastas])
 
   const pastaAtivaInfo = pastaAtiva && pastaAtiva !== 'todos' ? catalogoPastas.find(p => p.codigo === pastaAtiva) ?? null : null
 
@@ -735,10 +720,10 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     }
   }
 
+  /** Arquivos da pasta + das subpastas dela. */
   function contarDocsNaPasta(codigo: string): number {
-    const pastaId = catalogoPastas.find(p => p.codigo === codigo)?.id
-    if (!pastaId) return 0
-    return documentos.filter(d => d.pasta_id === pastaId).length
+    const ids = idsDaArvore(codigo, catalogoPastas)
+    return documentos.filter(d => d.pasta_id && ids.has(d.pasta_id)).length
   }
 
   // Sugestão de pasta pra um documento JÁ enviado (prioridade completa de 3 níveis —
@@ -754,7 +739,7 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     })
     if (!codigo) return null
     const pasta = catalogoPastas.find(p => p.codigo === codigo)
-    return pasta ? { codigo: pasta.codigo, nome: pasta.nome } : null
+    return pasta ? { codigo: pasta.codigo, nome: rotuloPasta(pasta, catalogoPastas) } : null
   }
 
   const total = arquivosSelecionados.length
@@ -841,20 +826,18 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           {pastasGrid.map(p => (
             <button
               key={p.codigo}
-              onClick={() => p.aba ? onNavegarParaAba?.(p.aba) : setPastaAtiva(p.codigo)}
+              onClick={() => setPastaAtiva(p.codigo)}
               className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-3 py-3 text-center transition-colors hover:bg-gray-50"
             >
-              {p.aba === 'formularios'
+              {p.codigo === 'formularios'
                 ? <FileSpreadsheet className="h-6 w-6 text-fonti-primary/60" />
-                : p.aba === 'simulador'
+                : p.codigo === 'simulacoes'
                   ? <Calculator className="h-6 w-6 text-fonti-primary/60" />
                   : <Folder className="h-6 w-6 text-gray-400" />}
               <span className="text-xs font-medium text-gray-700">{p.nome}</span>
-              {!p.aba && (
-                <span className="text-[10px] text-gray-400">
-                  {contarDocsNaPasta(p.codigo)} arquivo{contarDocsNaPasta(p.codigo) !== 1 ? 's' : ''}
-                </span>
-              )}
+              <span className="text-[10px] text-gray-400">
+                {contarDocsNaPasta(p.codigo)} arquivo{contarDocsNaPasta(p.codigo) !== 1 ? 's' : ''}
+              </span>
             </button>
           ))}
         </div>
@@ -862,12 +845,45 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
 
       {usaPastas && pastaAtiva && (
         <button
-          onClick={() => setPastaAtiva(null)}
+          // Subpasta volta para a pasta mãe; pasta principal volta para o grid.
+          onClick={() => setPastaAtiva(pastaAtivaInfo?.pai_codigo ?? null)}
           className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-fonti-primary transition-colors"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
-          Documentos / {pastaAtiva === 'todos' ? 'Todos' : pastaAtiva === 'sem_pasta' ? 'Sem pasta' : pastaAtivaInfo?.nome ?? pastaAtiva}
+          Documentos / {pastaAtiva === 'todos' ? 'Todos' : pastaAtiva === 'sem_pasta' ? 'Sem pasta' : pastaAtivaInfo ? rotuloPasta(pastaAtivaInfo, catalogoPastas).replace(' › ', ' / ') : pastaAtiva}
         </button>
+      )}
+
+      {usaPastas && pastaAtivaInfo && subpastasDe(pastaAtivaInfo.codigo, catalogoPastas).length > 0 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {subpastasDe(pastaAtivaInfo.codigo, catalogoPastas).map(sp => (
+            <button
+              key={sp.codigo}
+              onClick={() => setPastaAtiva(sp.codigo)}
+              className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-3 py-3 text-center transition-colors hover:bg-gray-50"
+            >
+              <Folder className="h-6 w-6 text-gray-400" />
+              <span className="text-xs font-medium text-gray-700">{sp.nome}</span>
+              <span className="text-[10px] text-gray-400">
+                {contarDocsNaPasta(sp.codigo)} arquivo{contarDocsNaPasta(sp.codigo) !== 1 ? 's' : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {usaPastas && pastaAtivaInfo && ABA_DA_PASTA[pastaAtivaInfo.codigo] && onNavegarParaAba && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 w-full text-xs sm:w-auto"
+          onClick={() => onNavegarParaAba(ABA_DA_PASTA[pastaAtivaInfo.codigo].aba)}
+        >
+          {ABA_DA_PASTA[pastaAtivaInfo.codigo].aba === 'formularios'
+            ? <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+            : <Calculator className="h-3.5 w-3.5 mr-1.5" />}
+          {ABA_DA_PASTA[pastaAtivaInfo.codigo].rotulo}
+        </Button>
       )}
 
       {contexto === 'lead' && documentosSemPasta.length > 0 && (
@@ -1057,9 +1073,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__nenhuma__" className="text-xs">Sem pasta</SelectItem>
-                      {catalogoPastas.map(p => (
+                      {pastasParaSelecao(catalogoPastas).map(p => (
                         <SelectItem key={p.codigo} value={p.codigo} className="text-xs">
-                          {p.nome}
+                          {rotuloPasta(p, catalogoPastas)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1305,9 +1321,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__nenhuma__" className="text-xs">Sem pasta</SelectItem>
-                        {catalogoPastas.map(p => (
+                        {pastasParaSelecao(catalogoPastas).map(p => (
                           <SelectItem key={p.codigo} value={p.codigo} className="text-xs">
-                            {p.nome}
+                            {rotuloPasta(p, catalogoPastas)}
                           </SelectItem>
                         ))}
                       </SelectContent>

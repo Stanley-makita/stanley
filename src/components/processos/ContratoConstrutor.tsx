@@ -121,8 +121,13 @@ function useDocumentosPorPasta(processoId: string) {
         lista.push({ id: v.documento_id, nome: doc.nome_original, storagePath: doc.storage_path })
         porPastaId.set(v.pasta_id, lista)
       }
+      // Subpasta conta como a pasta mãe (ex.: "01 Comprador › 02 Comprovação de
+      // Renda" aparece em "Documentos do Comprador").
       const porCodigo: Record<string, DocumentoDaPasta[]> = {}
-      for (const pasta of catalogoPastas) porCodigo[pasta.codigo] = porPastaId.get(pasta.id) ?? []
+      for (const pasta of catalogoPastas) {
+        const codigo = pasta.pai_codigo ?? pasta.codigo
+        porCodigo[codigo] = [...(porCodigo[codigo] ?? []), ...(porPastaId.get(pasta.id) ?? [])]
+      }
       return porCodigo
     },
   })

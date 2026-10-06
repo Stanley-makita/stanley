@@ -106,6 +106,10 @@ export function preSelecionar(doc: {
   return true // ok, expirando
 }
 
+/** Subpastas de "01 Comprador" (migration 340) — o tipo do documento escolhe a
+ * subpasta quando o dono é comprador. Vendedor não tem subpastas. */
+export const SUBPASTAS_COMPRADOR = new Set(['comprador_pessoais', 'comprador_renda', 'comprador_fgts'])
+
 /**
  * Sugestão de pasta pra um documento dentro de um Processo específico —
  * nunca obrigatória, sempre sobrescrevível pelo operador. Prioridade de 4
@@ -113,7 +117,7 @@ export function preSelecionar(doc: {
  *   1. Pasta já escolhida pelo operador na Captação (pastaDoLeadCodigo) —
  *      decisão humana, máxima prioridade.
  *   2. Papel da pessoa dona do documento *neste* processo (comprador/cônjuge
- *      → "01 Comprador", vendedor → "03 Vendedor") — vale pra qualquer tipo
+ *      → "01 Comprador" ou a subpasta do tipo, vendedor → "03 Vendedor") — vale pra qualquer tipo
  *      de documento pessoal, a pessoa manda mais que o tipo.
  *   3. Tipo documental (catalogo_tipos_documento.pasta_sugerida_codigo) — só
  *      quando a regra 1 não se aplica (documento não é de uma pessoa com
@@ -134,7 +138,13 @@ export function inferirPastaSugerida(input: {
   if (pastaDoLeadCodigo) return pastaDoLeadCodigo
 
   if (documentoPessoaId) {
-    if (pessoasCompradorasIds.includes(documentoPessoaId)) return 'comprador'
+    if (pessoasCompradorasIds.includes(documentoPessoaId)) {
+      // Comprador: subpasta pelo tipo (RG → Documentos Pessoais, holerite →
+      // Comprovação de Renda, extrato FGTS → FGTS); sem tipo conhecido, raiz.
+      return pastaSugeridaCodigoDoTipo && SUBPASTAS_COMPRADOR.has(pastaSugeridaCodigoDoTipo)
+        ? pastaSugeridaCodigoDoTipo
+        : 'comprador'
+    }
     if (pessoasVendedorasIds.includes(documentoPessoaId))  return 'vendedor'
   }
 

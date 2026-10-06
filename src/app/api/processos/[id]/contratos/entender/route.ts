@@ -63,12 +63,14 @@ async function executar(
         .in('documento_id', documentoIds)
         .eq('vigente', true),
       pastaIds.length > 0
-        ? supabase.from('catalogo_pastas_processo').select('id, codigo').in('id', pastaIds)
-        : Promise.resolve({ data: [] as { id: string; codigo: string }[] }),
+        ? supabase.from('catalogo_pastas_processo').select('id, codigo, pai_codigo').in('id', pastaIds)
+        : Promise.resolve({ data: [] as { id: string; codigo: string; pai_codigo: string | null }[] }),
     ])
 
     const ocrPorDocumento = new Map((extracoes ?? []).map((e) => [e.documento_id, e.dados_validados ?? e.dados ?? null]))
-    const codigoPorPastaId = new Map((pastas ?? []).map((p) => [p.id, p.codigo]))
+    // Subpasta → código da pasta mãe: a IA só conhece "comprador", "vendedor",
+    // "imovel", "terceiros", "certidoes" (ver entenderNegociacao).
+    const codigoPorPastaId = new Map((pastas ?? []).map((p) => [p.id, (p.pai_codigo as string | null) ?? p.codigo]))
     const pastaCodigoPorDocumento = new Map(
       (vinculos ?? []).map((v) => [v.documento_id, v.pasta_id ? codigoPorPastaId.get(v.pasta_id) ?? null : null]),
     )

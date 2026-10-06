@@ -807,3 +807,16 @@ traz tudo do lead (notas, fases, simulações, documentos, solicitações) junto
   usa `'acao_operacional'` (simulação/documento enviados, resumo do `*cria cliente`, indicação em lead existente —
   migration 339 reclassificou os antigos). `useLeadHistorico(id, ['comentario'])` ainda traz simulações/documentos
   (o filtro `tipos` só vale para `lead_historico`) — para notas use `useNotasLead`/`ehNotaDigitada`.
+
+## Pastas de documentos: subpastas do Comprador + Formulários/Simulações/Aprovação (2026-10-06)
+
+`catalogo_pastas_processo.pai_codigo` (migration 340) = um nível de subpasta. Só **01 Comprador** tem subpastas
+(`comprador_pessoais`, `comprador_renda`, `comprador_fgts`; vendedor não tem — decisão do Marcio). "04 Formulários" e
+"13 Simulações" viraram pastas de verdade (antes só atalho para a aba; o botão da aba fica dentro da pasta,
+`ABA_DA_PASTA`) e entrou "05B Aprovação". Árvore em `src/lib/documentos/pastas.ts` (grid mostra só principais,
+contador soma subpastas, seletores usam `pastasParaSelecao`/`rotuloPasta`).
+- `inferirPastaSugerida`: documento de comprador vai para a subpasta do tipo (`SUBPASTAS_COMPRADOR`), senão raiz.
+- **Quem lê pasta por código para saber de quem é o documento precisa subir para a mãe** (`pai_codigo ?? codigo`):
+  a IA do contrato (`contratos/entender`) só conhece comprador/vendedor/imovel/terceiros/certidoes, e o
+  `ContratoConstrutor` soma as subpastas em "Documentos do Comprador". Código novo que filtre por `'comprador'`
+  tem que incluir as subpastas.
