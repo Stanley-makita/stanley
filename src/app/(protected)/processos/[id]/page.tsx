@@ -487,7 +487,7 @@ export default function ProcessoDetalhePage() {
               </div>
 
               {/* Validade Crédito — sempre visível */}
-              <ValidadeCard processoId={id} tipo="credito" label="Validade Crédito" data={(processo as any).validade_credito} />
+              <ValidadeCard processoId={id} tipo="credito" label="Validade Crédito" data={(processo as any).validade_credito} dataBase={(processo as any).data_credito} />
 
               {/* Validade Matrícula — só na fase Engenharia ou se já preenchido */}
               {temMatricula && (
@@ -800,6 +800,7 @@ export default function ProcessoDetalhePage() {
           processoId={id}
           faseId={processo.fase_atual_id}
           bancoId={processo.banco_id}
+          dataAprovacaoCredito={(processo as any).data_credito}
           onPendenciasChange={setItensObrigatoriosPendentes}
         />
         <PainelPendencias
