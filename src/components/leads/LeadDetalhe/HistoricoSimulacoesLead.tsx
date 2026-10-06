@@ -5,10 +5,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calculator, Home, Landmark, Clock, ChevronDown, ChevronUp, Eye, Trash2 } from 'lucide-react'
+import { Calculator, Home, Landmark, Clock, ChevronDown, ChevronUp, Eye, Trash2, Pencil, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { SimuladorFinanciamento } from '@/components/simuladorFinanciamento/SimuladorFinanciamento'
 import { SimuladorCustas } from '@/components/simulador/SimuladorCustas'
 import { SimuladorCgi } from '@/components/simuladorCgi/SimuladorCgi'
@@ -214,9 +215,14 @@ function DetalheCgi({ json }: { json: Record<string, unknown> }) {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 
-interface Props { leadId: string }
+interface Props {
+  leadId: string
+  /** Nome do cliente no PDF ("Ver PDF" da simulação de custas). */
+  clienteNome?: string
+}
 
-export function HistoricoSimulacoesLead({ leadId }: Props) {
+export function HistoricoSimulacoesLead({ leadId, clienteNome }: Props) {
+  const { usuario } = useAuth()
   const [expandido, setExpandido] = useState<string | null>(null)
   const [verSim, setVerSim] = useState<SimItem | null>(null)
   const [excluirSim, setExcluirSim] = useState<SimItem | null>(null)
@@ -381,8 +387,35 @@ export function HistoricoSimulacoesLead({ leadId }: Props) {
                     className="h-7 text-xs gap-1 border-fonti-accent text-fonti-primary hover:bg-fonti-accent-hover"
                     onClick={() => setVerSim(sim)}
                   >
-                    <Eye className="w-3 h-3" /> Ver simulação
+                    <Pencil className="w-3 h-3" /> Editar simulação
                   </Button>
+                  {/* PDF montado de novo a partir dos dados salvos — mesmos valores
+                      enviados ao cliente (mesmo gerador do "Ver" em Negócios › Custas). */}
+                  {sim.tipo === 'custas' && sim.resultado_json && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-fonti-primary text-fonti-primary hover:bg-fonti-accent-hover"
+                      onClick={async () => {
+                        const res = sim.resultado_json as unknown as ResultadoSimulador
+                        try {
+                          const { gerarPDFSimulacao } = await import('@/components/simulador/gerarPDF')
+                          await gerarPDFSimulacao(res, {
+                            clienteNome,
+                            responsavelNome: usuario?.nome,
+                            valorAssessoria: res.entrada.servicoRegistro,
+                            valorContratoServico: res.entrada.contratoParticular,
+                            mode: 'preview',
+                          })
+                        } catch (err) {
+                          console.error('[historico-simulacoes-lead] erro ao gerar PDF:', err)
+                          toast.error('Não foi possível abrir o PDF.')
+                        }
+                      }}
+                    >
+                      <FileText className="w-3 h-3" /> Ver PDF
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"

@@ -97,6 +97,8 @@ const FORM_VAZIO: FormState = {
 interface Props {
   processoId?: string
   leadId?: string
+  /** Negócio: lead de origem — o Histórico mostra também as simulações da Captação. */
+  leadOrigemId?: string | null
   numero?: string
   bancoNomeInicial?: string
   valorCVInicial?: number
@@ -186,10 +188,13 @@ function PainelHistorico({
   historico,
   clienteNome,
   responsavelNome,
+  processoId,
 }: {
   historico: ReturnType<typeof useHistoricoSimulacoes>['data']
   clienteNome?: string
   responsavelNome?: string
+  /** Negócio: simulação sem este processo_id veio da Captação (lead de origem). */
+  processoId?: string
 }) {
   if (!historico || historico.length === 0) {
     return <p className="text-center text-gray-400 text-sm py-10">Nenhuma simulação salva ainda.</p>
@@ -204,6 +209,11 @@ function PainelHistorico({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">{sim.banco_nome}</Badge>
+                {processoId && sim.processo_id !== processoId && (
+                  <Badge className="text-xs bg-fonti-accent-hover text-fonti-primary" title="Simulação feita na fase de Lead (Captação)">
+                    Captação
+                  </Badge>
+                )}
                 <span className="text-xs text-gray-400">{sim.municipio}</span>
               </div>
               <span className="text-xs text-gray-400">
@@ -268,6 +278,7 @@ function PainelHistorico({
 export function SimuladorCustas({
   processoId,
   leadId,
+  leadOrigemId,
   numero,
   bancoNomeInicial = '',
   valorCVInicial = 0,
@@ -282,7 +293,7 @@ export function SimuladorCustas({
 }: Props) {
   const { data: itbiConfigs = [] } = useItbiConfig()
   const { data: custasConfigs = [] } = useCustasConfig()
-  const { data: historico = [] } = useHistoricoSimulacoes(processoId, leadId)
+  const { data: historico = [] } = useHistoricoSimulacoes(processoId, leadId, leadOrigemId)
   const salvar = useSalvarSimulacao()
 
   const [form, setForm] = useState<FormState>(() => ({
@@ -463,7 +474,7 @@ export function SimuladorCustas({
       </div>
 
       {!modoAvulso && abaAtiva === 'historico' && (
-        <PainelHistorico historico={historico} clienteNome={clienteNome} responsavelNome={responsavelNome} />
+        <PainelHistorico historico={historico} clienteNome={clienteNome} responsavelNome={responsavelNome} processoId={processoId} />
       )}
 
       {abaAtiva === 'simulador' && (

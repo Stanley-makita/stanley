@@ -5,9 +5,14 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import type { ProcessoCustasSimulacao, ResultadoSimulador } from '@/types/simulador'
 
-export function useHistoricoSimulacoes(processoId?: string, leadId?: string) {
+/**
+ * Histórico de simulações de custas. No Negócio, `leadOrigemId` (processos.lead_id)
+ * traz junto as simulações feitas na Captação — elas não têm processo_id e antes
+ * não acompanhavam o cliente na conversão.
+ */
+export function useHistoricoSimulacoes(processoId?: string, leadId?: string, leadOrigemId?: string | null) {
   return useQuery({
-    queryKey: ['custas-simulacoes', processoId, leadId],
+    queryKey: ['custas-simulacoes', processoId, leadId, leadOrigemId ?? null],
     queryFn: async (): Promise<ProcessoCustasSimulacao[]> => {
       let query = supabase
         .from('processo_custas_simulacoes')
@@ -15,7 +20,8 @@ export function useHistoricoSimulacoes(processoId?: string, leadId?: string) {
         .order('created_at', { ascending: false })
         .limit(20)
 
-      if (processoId) query = query.eq('processo_id', processoId)
+      if (processoId && leadOrigemId) query = query.or(`processo_id.eq.${processoId},lead_id.eq.${leadOrigemId}`)
+      else if (processoId) query = query.eq('processo_id', processoId)
       else if (leadId) query = query.eq('lead_id', leadId)
 
       const { data, error } = await query
