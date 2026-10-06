@@ -128,6 +128,9 @@ export function AbaCredito({ lead }: Props) {
   // condição mais estrita que a de exibição do card acima (só banco_definido).
   const exigeAprovacao = analises.some(a => a.banco_definido && a.status === 'aprovado')
   const [gatilhoValidade, setGatilhoValidade] = useState(0)
+  // Data da Aprovação recém-salva — base do cálculo de dias da validade. Não
+  // depende do refetch do lead ter chegado quando o modal abre sozinho.
+  const [dataAprovacaoSalva, setDataAprovacaoSalva] = useState<string | null>(null)
   const [completarPessoaAberto, setCompletarPessoaAberto] = useState(false)
   const [conjugePessoaDrawer, setConjugePessoaDrawer] = useState<string | null>(null)
   const [conjugeDialogAberto, setConjugeDialogAberto] = useState(false)
@@ -206,7 +209,8 @@ export function AbaCredito({ lead }: Props) {
           data={lead.validade_credito}
           onSalvar={async (data) => { await editar.mutateAsync({ id: lead.id, validade_credito: data }) }}
           isPending={editar.isPending}
-          atalho={{ texto: '+90 dias (padrão crédito)', dias: 90 }}
+          tipo="credito"
+          dataBase={dataAprovacaoSalva ?? lead.data_credito}
           abrirGatilho={gatilhoValidade}
         />
         <BlocoProduto lead={lead} />
@@ -234,7 +238,7 @@ export function AbaCredito({ lead }: Props) {
         lead={lead}
         analiseDefinida={analiseDefinida}
         exigeAprovacao={exigeAprovacao}
-        onSalvo={() => { if (!lead.validade_credito) setGatilhoValidade((g) => g + 1) }}
+        onSalvo={(data) => { setDataAprovacaoSalva(data); if (!lead.validade_credito) setGatilhoValidade((g) => g + 1) }}
       />
 
       {/* 5+6. Imóvel e Vendedor lado a lado */}
@@ -1338,7 +1342,7 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
   lead: Lead
   analiseDefinida: LeadAnaliseCredito | null
   exigeAprovacao: boolean
-  onSalvo: () => void
+  onSalvo: (data: string) => void
 }) {
   const editar = useEditarLead()
   const [dataCredito, setDataCredito] = useState(lead.data_credito ?? '')
@@ -1348,7 +1352,7 @@ function BlocoAprovacaoCredito({ lead, analiseDefinida, exigeAprovacao, onSalvo 
     const valor = dataCredito || null
     if (valor !== lead.data_credito) {
       editar.mutate({ id: lead.id, data_credito: valor }, {
-        onSuccess: () => { if (valor) onSalvo() },
+        onSuccess: () => { if (valor) onSalvo(valor) },
       })
     }
   }

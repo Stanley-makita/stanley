@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { CalendarClock, Pencil } from 'lucide-react'
-import { format, differenceInDays, parseISO, addDays } from 'date-fns'
+import { format, differenceInDays, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useSalvarEngenharia } from '@/hooks/processos/useSalvarEngenharia'
+import { CampoValidadePorDias, erroCampoValidade } from '@/components/processos/detalhe/CampoValidadePorDias'
 
 function formatarMoeda(v: number | null | undefined) {
   if (!v) return null
@@ -107,14 +108,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
           <div className="space-y-3 py-1">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Data de vencimento <span className="text-red-500">*</span></label>
-              <button
-                type="button"
-                onClick={() => setNovaData(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors block"
-              >
-                + 180 dias (prazo padrão)
-              </button>
-              <Input type="date" value={novaData} onChange={(e) => setNovaData(e.target.value)} className="text-sm" />
+              <CampoValidadePorDias tipo="engenharia" valor={novaData} onChange={setNovaData} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Valor avaliado pelo banco (R$) <span className="text-red-500">*</span></label>
@@ -134,7 +128,7 @@ export function EngenhariaCard({ processoId, validadeEngenharia, valorEngenharia
             <Button
               size="sm"
               className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-              disabled={salvar.isPending || !novaData || !novoValor}
+              disabled={salvar.isPending || !novaData || !novoValor || !!erroCampoValidade('engenharia', novaData)}
               onClick={handleSalvar}
             >
               Salvar

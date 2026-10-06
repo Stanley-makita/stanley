@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { CalendarClock, Pencil } from 'lucide-react'
-import { format, differenceInDays, parseISO, addDays } from 'date-fns'
+import { format, differenceInDays, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useSalvarValidadeProcesso } from '@/hooks/processos/useSalvarValidadeProcesso'
 import type { TipoValidade } from '@/hooks/processos/useSalvarValidadeProcesso'
+import { CampoValidadePorDias, erroCampoValidade } from '@/components/processos/detalhe/CampoValidadePorDias'
 
 interface Props {
   processoId?: string
@@ -19,8 +19,9 @@ interface Props {
   /** Quando fornecido, substitui o save via processoId+tipo (uso no Lead) */
   onSalvar?: (data: string | null) => Promise<void>
   isPending?: boolean
-  /** Botão de atalho "+X dias" exibido no dialog de edição */
-  atalho?: { texto: string; dias: number }
+  /** Data a partir da qual os dias são contados (crédito: Data da Aprovação).
+   * Omitida/vazia = hoje. */
+  dataBase?: string | null
   /** Quando incrementado pelo pai, abre o editor automaticamente (ex: logo
    * após outro campo relacionado ser preenchido). Não afeta o uso normal
    * (clique manual no card) quando omitido. */
@@ -35,9 +36,8 @@ function badgeDias(dias: number) {
   return { texto: `${dias}d restantes`, cor: 'bg-green-100 text-green-700' }
 }
 
-export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPending: isPendingExt, atalho, abrirGatilho }: Props) {
+export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPending: isPendingExt, dataBase, abrirGatilho }: Props) {
   const [aberto, setAberto] = useState(false)
-  const [novaData, setNovaData] = useState('')
   // Estado local garante atualização imediata sem depender do re-render do pai
   const [localData, setLocalData] = useState<string | null>(data ?? null)
   const salvarProcesso = useSalvarValidadeProcesso()
@@ -61,12 +61,10 @@ export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPendin
   const isPending = isPendingExt ?? salvarProcesso.isPending
 
   function abrirEditor() {
-    setNovaData(localData ?? '')
     setAberto(true)
   }
 
-  async function handleSalvar() {
-    const valorSalvar = novaData || null
+  async function handleSalvar(valorSalvar: string | null) {
     try {
       if (onSalvar) {
         await onSalvar(valorSalvar)
@@ -110,60 +108,86 @@ export function ValidadeCard({ processoId, tipo, label, data, onSalvar, isPendin
         </div>
       </button>
 
-      <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle className="text-fonti-primary">Validade — {label}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-1">
-            <p className="text-sm text-gray-600">Informe a data de vencimento da validade do {label.toLowerCase()}:</p>
-            {tipo === 'matricula' && (
-              <button
-                type="button"
-                onClick={() => setNovaData(format(addDays(new Date(), 30), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
-              >
-                + 30 dias (padrão matrícula nova)
-              </button>
-            )}
-            {tipo === 'engenharia' && (
-              <button
-                type="button"
-                onClick={() => setNovaData(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
-              >
-                + 180 dias (prazo padrão engenharia)
-              </button>
-            )}
-            {atalho && (
-              <button
-                type="button"
-                onClick={() => setNovaData(format(addDays(new Date(), atalho.dias), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
-              >
-                {atalho.texto}
-              </button>
-            )}
-            <Input
-              type="date"
-              value={novaData}
-              onChange={(e) => setNovaData(e.target.value)}
-              className="text-sm"
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setAberto(false)}>Cancelar</Button>
-            <Button
-              size="sm"
-              className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
-              disabled={isPending}
-              onClick={handleSalvar}
-            >
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ValidadeDialog
+        aberto={aberto}
+        onOpenChange={setAberto}
+        label={label}
+        tipo={tipo ?? 'credito'}
+        dataInicial={localData}
+        dataBase={dataBase}
+        isPending={isPending}
+        onSalvar={handleSalvar}
+      />
+    </>
+  )
+}
+
+interface ValidadeDialogProps {
+  aberto: boolean
+  onOpenChange: (aberto: boolean) => void
+  label: string
+  tipo: TipoValidade
+  dataInicial: string | null
+  /** Só usada no crédito (Data da Aprovação). Vazia = hoje. */
+  dataBase?: string | null
+  isPending?: boolean
+  onSalvar: (data: string | null) => Promise<void> | void
+}
+
+/**
+ * Modal de validade com o campo "Válido por [__] dias" (CampoValidadePorDias).
+ * Usado pelo ValidadeCard e pela aba Crédito do Negócio (ao salvar a Data da
+ * Aprovação).
+ */
+export function ValidadeDialog({ aberto, onOpenChange, label, tipo, dataInicial, dataBase, isPending, onSalvar }: ValidadeDialogProps) {
+  return (
+    <Dialog open={aberto} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle className="text-fonti-primary">{label}</DialogTitle>
+        </DialogHeader>
+        {/* Corpo separado: monta a cada abertura (estado inicial = valor atual). */}
+        {aberto && (
+          <CorpoValidadeDialog
+            tipo={tipo}
+            dataInicial={dataInicial}
+            dataBase={dataBase}
+            isPending={isPending}
+            onCancelar={() => onOpenChange(false)}
+            onSalvar={onSalvar}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CorpoValidadeDialog({ tipo, dataInicial, dataBase, isPending, onCancelar, onSalvar }: {
+  tipo: TipoValidade
+  dataInicial: string | null
+  dataBase?: string | null
+  isPending?: boolean
+  onCancelar: () => void
+  onSalvar: (data: string | null) => Promise<void> | void
+}) {
+  const [novaData, setNovaData] = useState(dataInicial ?? '')
+  const erro = erroCampoValidade(tipo, novaData, dataBase)
+  return (
+    <>
+      <div className="py-1">
+        <CampoValidadePorDias tipo={tipo} valor={novaData} onChange={setNovaData} dataBase={dataBase} autoFocus />
+      </div>
+      <DialogFooter className="gap-2">
+        <Button variant="outline" size="sm" onClick={onCancelar}>Cancelar</Button>
+        <Button
+          size="sm"
+          className="bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+          disabled={isPending || !!erro}
+          onClick={() => onSalvar(novaData || null)}
+        >
+          Salvar
+        </Button>
+      </DialogFooter>
     </>
   )
 }

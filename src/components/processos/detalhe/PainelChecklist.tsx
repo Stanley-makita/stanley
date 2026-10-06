@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ClipboardCheck, User } from 'lucide-react'
-import { format, addDays } from 'date-fns'
+import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import {
@@ -18,11 +18,14 @@ import { useSalvarEngenharia } from '@/hooks/processos/useSalvarEngenharia'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CampoValidadePorDias, erroCampoValidade } from '@/components/processos/detalhe/CampoValidadePorDias'
 
 interface Props {
   processoId: string
   faseId: string | null | undefined
   bancoId?: string | null
+  /** Data da Aprovação do crédito — base do "Válido por X dias" da validade do crédito. */
+  dataAprovacaoCredito?: string | null
   onPendenciasChange: (hasPendencias: boolean) => void
 }
 
@@ -32,7 +35,7 @@ function tipoValidadeDeAcao(acao: string | null | undefined): TipoValidade | nul
   return ['credito', 'engenharia', 'matricula'].includes(tipo) ? tipo : null
 }
 
-export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChange }: Props) {
+export function PainelChecklist({ processoId, faseId, bancoId, dataAprovacaoCredito, onPendenciasChange }: Props) {
   const { data: tmpl, isLoading: tmplLoading } = useChecklistTemplate(faseId, bancoId)
   const { data: execucoes = [], isLoading: execLoading } = useChecklistExecucoes(processoId)
   const marcar          = useMarcarChecklistItem(processoId)
@@ -230,33 +233,17 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
           </DialogHeader>
           <div className="space-y-3 py-1">
             <p className="text-sm text-gray-600">
-              Informe a data de vencimento da validade do {tipoModal ? LABEL_VALIDADE[tipoModal].toLowerCase() : ''}:
+              Por quantos dias vale a validade do {tipoModal ? LABEL_VALIDADE[tipoModal].toLowerCase() : ''}?
             </p>
-            {tipoModal === 'matricula' && (
-              <button
-                type="button"
-                onClick={() => setDataValidade(format(addDays(new Date(), 30), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
-              >
-                + 30 dias (padrão matrícula nova)
-              </button>
+            {tipoModal && (
+              <CampoValidadePorDias
+                tipo={tipoModal}
+                valor={dataValidade}
+                onChange={setDataValidade}
+                dataBase={dataAprovacaoCredito}
+                autoFocus
+              />
             )}
-            {tipoModal === 'engenharia' && (
-              <button
-                type="button"
-                onClick={() => setDataValidade(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors"
-              >
-                + 180 dias (prazo padrão engenharia)
-              </button>
-            )}
-            <Input
-              type="date"
-              value={dataValidade}
-              onChange={(e) => setDataValidade(e.target.value)}
-              className="text-sm"
-              autoFocus
-            />
             <p className="text-xs text-text-muted">Deixe em branco para marcar o item sem registrar data.</p>
           </div>
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
@@ -266,7 +253,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
             <Button
               size="sm"
               className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
-              disabled={marcar.isPending || salvarValidade.isPending}
+              disabled={marcar.isPending || salvarValidade.isPending || (!!tipoModal && !!erroCampoValidade(tipoModal, dataValidade, dataAprovacaoCredito))}
               onClick={handleConfirmarValidade}
             >
               Confirmar
@@ -287,20 +274,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
           <div className="space-y-3 py-1">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Vencimento da engenharia <span className="text-red-500">*</span></label>
-              <button
-                type="button"
-                onClick={() => setDataEngenharia(format(addDays(new Date(), 180), 'yyyy-MM-dd'))}
-                className="text-xs bg-fonti-accent-hover/60 hover:bg-fonti-accent-hover text-fonti-primary font-medium px-3 py-1.5 rounded-lg transition-colors block"
-              >
-                + 180 dias (prazo padrão)
-              </button>
-              <Input
-                type="date"
-                value={dataEngenharia}
-                onChange={(e) => setDataEngenharia(e.target.value)}
-                className="text-sm"
-                autoFocus
-              />
+              <CampoValidadePorDias tipo="engenharia" valor={dataEngenharia} onChange={setDataEngenharia} autoFocus />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Valor avaliado pelo banco (R$) <span className="text-red-500">*</span></label>
@@ -322,7 +296,7 @@ export function PainelChecklist({ processoId, faseId, bancoId, onPendenciasChang
             <Button
               size="sm"
               className="w-full bg-fonti-primary text-white hover:bg-fonti-primary-hover sm:w-auto"
-              disabled={marcar.isPending || salvarEngenharia.isPending || !dataEngenharia || !valorEngenharia}
+              disabled={marcar.isPending || salvarEngenharia.isPending || !dataEngenharia || !valorEngenharia || !!erroCampoValidade('engenharia', dataEngenharia)}
               onClick={async () => {
                 if (!itemPendenteEng || !dataEngenharia || !valorEngenharia) return
                 const valor = parseFloat(valorEngenharia.replace(/\./g, '').replace(',', '.'))

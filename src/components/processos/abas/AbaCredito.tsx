@@ -12,7 +12,7 @@
  * de fases/status, então esta aba só registra as análises em si.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
 import { NomeBanco } from '@/components/bancos/NomeBanco'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -29,6 +29,7 @@ import {
   AnaliseCard, AnaliseForm, type AnaliseFormInput,
 } from '@/components/leads/LeadDetalhe/AbaCredito'
 import { ExcluirAnaliseCreditoDialog } from '@/components/processos/abas/ExcluirAnaliseCreditoDialog'
+import { ValidadeDialog } from '@/components/processos/detalhe/ValidadeCard'
 import type { StatusAnaliseCredito, LeadAnaliseCredito } from '@/types/leads'
 import type { Processo } from '@/types/processos'
 
@@ -87,6 +88,43 @@ export function AbaCredito({ processoId, processo }: Props) {
   const [dataAprovacao, setDataAprovacao] = useState(processo.data_credito ?? '')
   const atualizarDataCredito = useAtualizarDataCreditoProcesso(processoId)
   const salvarValidade = useSalvarValidadeProcesso()
+  // Modal "Válido por X dias" aberto depois de salvar a Data da Aprovação —
+  // salvarDataESincronizar espera ele fechar (salvar ou cancelar) antes de
+  // perguntar sobre os Dados da Operação.
+  const [validadeBase, setValidadeBase] = useState<string | null>(null)
+  const aoFecharValidadeRef = useRef<(() => void) | null>(null)
+
+  function pedirValidade(dataBase: string): Promise<void> {
+    return new Promise((resolve) => {
+      aoFecharValidadeRef.current = resolve
+      setValidadeBase(dataBase)
+    })
+  }
+
+  function fecharValidade() {
+    setValidadeBase(null)
+    aoFecharValidadeRef.current?.()
+    aoFecharValidadeRef.current = null
+  }
+
+  async function salvarValidadeDoDialog(data: string | null) {
+    if (!data || data === (processo.validade_credito ?? null)) {
+      fecharValidade()
+      return
+    }
+    try {
+      await salvarValidade.mutateAsync({ processoId, tipo: 'credito', data })
+    } catch {
+      toast.error('Não foi possível atualizar a validade. Tente novamente.')
+      return
+    }
+    comentar.mutate({
+      tipo: 'alteracao',
+      texto: `Validade do Crédito atualizada para ${fmtData(data)}.`,
+      notificar_cliente: false,
+    })
+    fecharValidade()
+  }
   const sincronizarOperacao = useSincronizarOperacaoComAnalise(processoId)
   const { data: bancos = [] } = useBancos()
   const comentar = useAdicionarComentario(processoId)
@@ -127,24 +165,9 @@ export function AbaCredito({ processoId, processo }: Props) {
 
     if (!novaData) return
 
-    const substituir = window.confirm(
-      'Deseja atualizar também a Validade do Crédito (+90 dias a partir de hoje) com base nesta nova aprovação?\n\nSe preferir manter a validade já em vigor, clique em Cancelar — a data de aprovação é salva de qualquer forma.',
-    )
-    if (substituir) {
-      const novaValidade = new Date()
-      novaValidade.setDate(novaValidade.getDate() + 90)
-      const dataValidade = novaValidade.toISOString().slice(0, 10)
-      await salvarValidade.mutateAsync({
-        processoId,
-        tipo: 'credito',
-        data: dataValidade,
-      })
-      comentar.mutate({
-        tipo: 'alteracao',
-        texto: `Validade do Crédito atualizada para ${fmtData(dataValidade)}.`,
-        notificar_cliente: false,
-      })
-    }
+    // Validade conta a partir da Data da Aprovação ("Válido por X dias").
+    // Cancelar mantém a validade em vigor — a data de aprovação já foi salva.
+    await pedirValidade(novaData)
 
     // Só pergunta sobre os Dados da Operação quando o banco da análise base é
     // diferente do banco já registrado no processo — se for o mesmo banco
@@ -343,6 +366,18 @@ export function AbaCredito({ processoId, processo }: Props) {
           </div>
         </div>
       </div>
+
+      <ValidadeDialog
+        aberto={validadeBase !== null}
+        onOpenChange={(aberto) => { if (!aberto) fecharValidade() }}
+        label="Validade do Crédito"
+        tipo="credito"
+        // Nova aprovação: começa vazio ("60" em cinza); Cancelar mantém a validade atual.
+        dataInicial={null}
+        dataBase={validadeBase}
+        isPending={salvarValidade.isPending}
+        onSalvar={salvarValidadeDoDialog}
+      />
 
       <ExcluirAnaliseCreditoDialog
         analise={excluindoAnalise}
