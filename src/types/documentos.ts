@@ -40,8 +40,9 @@ export interface CatalogoTipoDocumento {
 /**
  * Pasta do Processo (estrutura 01-13 já usada na rede da empresa) —
  * dimensão ortogonal a CatalogoTipoDocumento (tipo é pra OCR/UX de upload,
- * pasta é organização visual dentro do Processo). "04 Formulários" e
- * "13 Simulações" não têm linha aqui — continuam abas próprias do sistema.
+ * pasta é organização visual dentro do Processo). Desde a migration 340,
+ * "04 Formulários" e "13 Simulações" são pastas de verdade (com botão para a
+ * aba do sistema) e "01 Comprador" tem subpastas (pai_codigo).
  */
 export interface CatalogoPastaProcesso {
   id: string
@@ -49,6 +50,8 @@ export interface CatalogoPastaProcesso {
   nome: string
   ordem_exibicao: number
   ativo: boolean
+  /** Pasta mãe (migration 340) — null = pasta principal. Só "01 Comprador" tem subpastas. */
+  pai_codigo?: string | null
 }
 
 export interface UploadProgresso {

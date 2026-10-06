@@ -8,6 +8,7 @@ import { Loader2, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useCatalogoPastasProcesso } from '@/hooks/documentos/useCatalogoPastasProcesso'
+import { pastasParaSelecao, rotuloPasta } from '@/lib/documentos/pastas'
 
 interface DocParaOrganizar {
   id: string
@@ -189,7 +190,7 @@ export function OrganizarArquivosModal({ leadId, documentos, onFechar, onConclui
                   <SelectTrigger className="h-8 w-full text-xs sm:w-56"><SelectValue placeholder="Pasta" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__nenhuma__" className="text-xs">Deixar sem pasta</SelectItem>
-                    {catalogoPastas.map(p => <SelectItem key={p.codigo} value={p.codigo} className="text-xs">{p.nome}</SelectItem>)}
+                    {pastasParaSelecao(catalogoPastas).map(p => <SelectItem key={p.codigo} value={p.codigo} className="text-xs">{rotuloPasta(p, catalogoPastas)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
