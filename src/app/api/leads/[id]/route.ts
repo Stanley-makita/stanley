@@ -61,5 +61,14 @@ export async function DELETE(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Exclusão é soft delete — sem isto a conversa continuava presa ao lead
+  // excluído ("Ver lead" quebrado, sem o botão de vincular/criar outro lead).
+  const { error: erroConversas } = await supabaseAdmin
+    .from('conversas')
+    .update({ lead_id: null })
+    .eq('lead_id', leadId)
+    .eq('empresa_id', usuario.empresa_id)
+  if (erroConversas) console.error('[DELETE /api/leads/[id]] erro ao desvincular conversas:', erroConversas)
+
   return NextResponse.json({ ok: true })
 }

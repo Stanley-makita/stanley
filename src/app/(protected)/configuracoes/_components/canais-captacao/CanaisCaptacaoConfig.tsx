@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Globe, Instagram, Handshake, Power } from 'lucide-react'
+import { Globe, Instagram, Handshake, Power, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 interface CanaisConfigRow {
@@ -39,8 +39,8 @@ const CANAIS: Array<{
     campo: 'instagram_ativo',
     icon: Instagram,
     label: 'Instagram (DM)',
-    descricaoAtivo: 'Mensagens diretas do Instagram viram Lead e Conversa automaticamente.',
-    descricaoInativo: 'Mensagens diretas do Instagram são ignoradas — não criam Lead nem Conversa.',
+    descricaoAtivo: 'Mensagens diretas do Instagram entram em Conversas. Quem atende decide se vira Lead.',
+    descricaoInativo: 'Mensagens diretas do Instagram são ignoradas — não criam Conversa.',
   },
   {
     campo: 'indicacao_ativo',
@@ -145,6 +145,103 @@ export function CanaisCaptacaoConfig() {
           </section>
         )
       })}
+
+      <AtendentesInstagram />
     </div>
+  )
+}
+
+/**
+ * Quem recebe o aviso (sino + toast) de mensagem do Instagram em conversa que
+ * ainda não tem dono. Depois que alguém responde, cria ou vincula o Lead (ou
+ * recebe a conversa por transferência), só essa pessoa é avisada. Lista vazia =
+ * admin e gestor recebem. Regra em src/lib/instagram/destinatariosAviso.ts.
+ */
+function AtendentesInstagram() {
+  const { usuario } = useAuth()
+  const qc = useQueryClient()
+  const empresa_id = usuario?.empresa_id
+
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ['usuarios-ativos-empresa', empresa_id],
+    enabled: !!empresa_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('id, nome')
+        .eq('empresa_id', empresa_id!)
+        .eq('ativo', true)
+        .order('nome')
+      if (error) throw error
+      return (data ?? []) as { id: string; nome: string }[]
+    },
+  })
+
+  const { data: selecionados = [], isLoading } = useQuery({
+    queryKey: ['canais_leads_config', empresa_id, 'instagram_atendentes'],
+    enabled: !!empresa_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('canais_leads_config')
+        .select('instagram_atendentes')
+        .eq('empresa_id', empresa_id!)
+        .maybeSingle()
+      if (error) throw error
+      return ((data?.instagram_atendentes as string[] | null) ?? [])
+    },
+  })
+
+  const salvar = useMutation({
+    mutationFn: async (lista: string[]) => {
+      if (!empresa_id) throw new Error('Empresa não identificada')
+      const { data, error } = await supabase
+        .from('canais_leads_config')
+        .upsert({ empresa_id, instagram_atendentes: lista }, { onConflict: 'empresa_id' })
+        .select('id')
+      if (error) throw error
+      if (!data?.length) throw new Error('Sem permissão para alterar esta configuração')
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['canais_leads_config', empresa_id] }),
+    onError: (err: Error) => toast.error(`Erro: ${err.message}`),
+  })
+
+  function alternar(id: string) {
+    const lista = selecionados.includes(id) ? selecionados.filter((x) => x !== id) : [...selecionados, id]
+    qc.setQueryData(['canais_leads_config', empresa_id, 'instagram_atendentes'], lista)
+    salvar.mutate(lista)
+  }
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <Bell className="w-5 h-5 text-fonti-accent shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Quem atende o Instagram</p>
+          <p className="text-xs text-gray-500">
+            Recebem o aviso (sino e destaque na tela) de mensagem nova no Instagram. Quando alguém
+            responde a conversa ou cria o Lead, só essa pessoa continua recebendo os avisos daquela
+            conversa. Sem ninguém marcado, admin e gestor recebem.
+          </p>
+        </div>
+      </div>
+      {isLoading ? (
+        <p className="text-xs text-gray-400">Carregando...</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {usuarios.map((u) => (
+            <label key={u.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-3.5 h-3.5 accent-fonti-primary"
+                checked={selecionados.includes(u.id)}
+                disabled={salvar.isPending}
+                onChange={() => alternar(u.id)}
+              />
+              <span className="text-sm text-gray-700">{u.nome}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }

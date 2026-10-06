@@ -571,7 +571,13 @@ export default function ConversasPage() {
       // de quem está atendendo — transferir só troca o responsável (atendente_id).
       const { error } = await supabase
         .from('conversas')
-        .update({ atendente_id: atendenteId, transferencia_pendente: true })
+        .update({
+          atendente_id: atendenteId,
+          transferencia_pendente: true,
+          // Instagram: os avisos de mensagem nova passam a ir só para quem recebeu
+          // a conversa (ver src/lib/instagram/destinatariosAviso.ts).
+          ...(conversaSelecionada!.canal === 'instagram' ? { responsavel_avisos_id: atendenteId } : {}),
+        })
         .eq('id', conversaSelecionada!.id)
       if (error) throw error
       const nomeAtendente = atendentes.find((a) => a.id === atendenteId)?.nome ?? 'outro atendente'
@@ -1783,7 +1789,9 @@ export default function ConversasPage() {
                   <div>
                     <p className="text-sm font-semibold text-gray-800">Criar novo lead</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Abre o formulário pré-preenchido com nome e telefone desta conversa
+                      {conversaSelecionada?.canal === 'instagram'
+                        ? 'Abre o formulário com o nome desta conversa — peça o telefone ao cliente'
+                        : 'Abre o formulário pré-preenchido com nome e telefone desta conversa'}
                     </p>
                   </div>
                 </button>
@@ -1838,7 +1846,7 @@ export default function ConversasPage() {
                     </div>
                   )}
 
-                  {leadSelecionado && conversaSelecionada?.contato_telefone && (
+                  {leadSelecionado && conversaSelecionada?.contato_telefone && conversaSelecionada.canal !== 'instagram' && (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1872,11 +1880,18 @@ export default function ConversasPage() {
           <LeadFormDrawer
             aberto={drawerCriarLead}
             onFechar={() => setDrawerCriarLead(false)}
-            initialValues={{
-              nome:     conversaSelecionada.contato_nome     ?? '',
-              telefone: conversaSelecionada.contato_telefone ?? '',
-              origem:   'whatsapp',
-            }}
+            initialValues={
+              // Instagram: contato_telefone é o ID interno do Instagram, não
+              // telefone — o campo vem vazio e o atendente pede o número ao
+              // cliente (telefone continua obrigatório).
+              conversaSelecionada.canal === 'instagram'
+                ? { nome: conversaSelecionada.contato_nome ?? '', telefone: '', origem: 'instagram' }
+                : {
+                    nome:     conversaSelecionada.contato_nome     ?? '',
+                    telefone: conversaSelecionada.contato_telefone ?? '',
+                    origem:   'whatsapp',
+                  }
+            }
             onCriado={(lead: Lead) => {
               redirectAposVincularRef.current = `/leads?open=${lead.id}`
               vincularLead.mutate({ lead_id: lead.id, salvar: false })

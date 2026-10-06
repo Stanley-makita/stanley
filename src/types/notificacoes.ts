@@ -3,7 +3,7 @@ import {
   CheckSquare, ArrowRight, UserPlus, FileCheck, CreditCard, MessageSquare,
   Bell, UserPlus2, RefreshCcw, FileText, ScanLine, ScanEye, Phone,
   UserRound, StickyNote, ListTodo, Clock, AlertTriangle, DatabaseBackup,
-  RefreshCw, Wifi, ShieldAlert, CalendarClock,
+  RefreshCw, Wifi, ShieldAlert, CalendarClock, Instagram,
 } from 'lucide-react'
 
 /**
@@ -50,6 +50,7 @@ export type TipoNotificacao =
   | 'ocr_concluido'
   | 'ocr_com_erro'
   | 'mensagem_whatsapp'
+  | 'mensagem_instagram'
   | 'novo_cliente'
   | 'nova_observacao'
   | 'nova_tarefa'
@@ -122,6 +123,7 @@ export const NOTIFICACAO_META: Record<TipoNotificacao, NotificacaoMeta> = {
   ocr_concluido:       { icon: ScanLine,      cor: 'text-green-600',    severidadePadrao: 'success', prioridadePadrao: 'normal', label: 'OCR Concluído' },
   ocr_com_erro:        { icon: ScanEye,       cor: 'text-red-500',      severidadePadrao: 'error',   prioridadePadrao: 'high',   label: 'OCR com Erro' },
   mensagem_whatsapp:   { icon: Phone,         cor: 'text-green-500',    severidadePadrao: 'info',    prioridadePadrao: 'normal', label: 'Mensagem WhatsApp' },
+  mensagem_instagram:  { icon: Instagram,     cor: 'text-pink-500',     severidadePadrao: 'info',    prioridadePadrao: 'high',   label: 'Mensagem Instagram' },
   novo_cliente:        { icon: UserRound,     cor: 'text-green-600',    severidadePadrao: 'info',    prioridadePadrao: 'normal', label: 'Novo Cliente' },
   nova_observacao:     { icon: StickyNote,    cor: 'text-yellow-600',   severidadePadrao: 'info',    prioridadePadrao: 'low',    label: 'Nova Observação' },
   nova_tarefa:         { icon: ListTodo,      cor: 'text-blue-500',     severidadePadrao: 'info',    prioridadePadrao: 'normal', label: 'Nova Tarefa' },

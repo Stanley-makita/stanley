@@ -15,8 +15,9 @@ import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
  * solicitacao_atribuida, solicitacao_concluida) — e qualquer tipo novo que
  * ganhe um trigger no futuro, sem precisar mexer em código nenhum de novo.
  *
- * `mensagem_whatsapp` (nova mensagem, Fase 3) é ignorado aqui de propósito:
- * o push dela já é enviado direto pelo webhook do WhatsApp via
+ * `mensagem_whatsapp` (nova mensagem, Fase 3) e `mensagem_instagram` são
+ * ignorados aqui de propósito: o push deles já é enviado direto pelo webhook
+ * (WhatsApp/Instagram) via
  * NotificationService.notify() — se este dispatcher também reagisse a ela,
  * o usuário receberia duas notificações pra uma mensagem só.
  *
@@ -24,7 +25,7 @@ import { resolverRotaNotificacao } from '@/lib/notificacoes/navegarNotificacao'
  * quem chama é o próprio Postgres/Supabase, não um navegador).
  */
 
-const TIPOS_JA_TRATADOS_EM_OUTRO_LUGAR = new Set(['mensagem_whatsapp'])
+const TIPOS_JA_TRATADOS_EM_OUTRO_LUGAR = new Set(['mensagem_whatsapp', 'mensagem_instagram'])
 
 interface NotificacaoWebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE'
