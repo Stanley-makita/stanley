@@ -779,3 +779,19 @@ Regras:
 - Administradora/tipo de bem comparados por `normalizar_texto_config` (migration 337): antes "itau" ≠ "Itaú"
   e NENHUMA cota achava a configuração. Tipo de parcela conta (decisão do Marcio). Mudou configuração?
   Recalcular: `supabase/2026-10-09_recalcular_fluxos_consorcio.sql` (só parcelas 'prevista').
+
+## Instagram: DM vira só Conversa, nunca Lead automático (2026-10-06)
+
+Qualquer "parabéns"/emoji/palminha no Instagram virava Lead em Captação (fase "iniciado", sem comercial, com o
+ID interno do Instagram gravado como telefone da Pessoa). Agora o webhook (`src/app/api/instagram/webhook/route.ts`)
+só cria a Conversa e grava as mensagens — **nunca Lead nem Pessoa**. Quem atende decide pela tela de Conversas
+("Vincular lead" → "Criar novo lead": origem Instagram, telefone vazio e obrigatório — `contato_telefone` de
+conversa do Instagram é o ID do Instagram, nunca salvar como telefone).
+- **Aviso (sino + toast + push, tipo `mensagem_instagram`)**: `src/lib/instagram/destinatariosAviso.ts` — dono da
+  conversa (`conversas.responsavel_avisos_id`) → senão `canais_leads_config.instagram_atendentes` (Configurações ›
+  Canais de Captação) → senão admin/gestor ativos. Dono = quem responde primeiro, cria/vincula o Lead ou recebe por
+  transferência (`assumirAvisosConversaInstagram`, só quando ainda não tem dono).
+- `responsavel_avisos_id` **não é `atendente_id` de propósito**: `atendente_id` restringe a visibilidade da conversa
+  pela RLS; os outros deixariam de ver a conversa.
+- Excluir lead (soft delete) desvincula as conversas (`conversas.lead_id = null`) — senão a conversa ficava presa ao
+  lead excluído, sem como vincular outro. Migration 338.

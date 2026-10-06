@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enviarMensagemInstagram } from '@/lib/comunicacao/enviarMensagemInstagram'
 import { supabaseAdmin as supabaseService } from '@/lib/supabase/admin'
+import { assumirAvisosConversaInstagram } from '@/lib/instagram/destinatariosAviso'
 
 // Espelha src/app/api/bot/whatsapp/send/route.ts, mas pra Instagram
 // (chamado pelo PainelComposicao quando conversaSelecionada.canal === 'instagram').
@@ -54,6 +55,10 @@ export async function POST(request: NextRequest) {
   if (!resultado.ok) {
     return NextResponse.json({ error: resultado.error }, { status: resultado.status })
   }
+
+  // Quem responde primeiro passa a ser o dono da conversa pros avisos de
+  // mensagem nova (os outros da lista param de receber).
+  await assumirAvisosConversaInstagram(supabaseService, conversa_id, usuario.id)
 
   return NextResponse.json({ ok: true, message_id: resultado.messageId, mensagem_id: resultado.mensagemId })
 }

@@ -1,11 +1,20 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { NotificationService } from '@/lib/notificacoes/notificationService'
+import { buscarDestinatariosAviso } from '@/lib/instagram/destinatariosAviso'
 
 // Recebe DMs do Instagram via Meta Graph API (webhook de "Instagram messaging").
-// Escopo atual: apenas REGISTRA a conversa e cria/atualiza o Lead — não há bot
-// respondendo automaticamente aqui (diferente do WhatsApp/site). Um humano
-// responde pela tela de Conversas do CRM.
+// Escopo: só REGISTRA a conversa e as mensagens e avisa quem atende — NÃO cria
+// Lead nem Pessoa. Decisão (06/10/2026): qualquer "parabéns"/emoji/palminha
+// virava Lead em Captação; agora quem atende lê a conversa e, se for cliente,
+// cria o Lead pela tela de Conversas ("Vincular lead" → "Criar novo lead").
+// Não há bot respondendo aqui (diferente do WhatsApp/site).
+//
+// Aviso (sino + toast + push): ver src/lib/instagram/destinatariosAviso.ts —
+// dono da conversa, senão a lista de Configurações › Canais de Captação,
+// senão admin/gestor.
 //
 // URL de callback a cadastrar no Meta for Developers:
 //   https://fonti.app.br/api/instagram/webhook?empresa_id=<uuid da empresa>
@@ -65,7 +74,7 @@ function assinaturaValida(rawBody: string, assinaturaHeader: string | null): boo
   return a.length === b.length && timingSafeEqual(a, b)
 }
 
-// Best-effort: busca nome/username do perfil pra não criar o lead como
+// Best-effort: busca nome/username do perfil pra não mostrar a conversa como
 // "Contato Instagram" genérico. Se não tiver token configurado ainda (setup
 // em andamento) ou a chamada falhar, segue com o nome placeholder.
 async function buscarNomePerfil(senderId: string): Promise<string | null> {
@@ -76,7 +85,7 @@ async function buscarNomePerfil(senderId: string): Promise<string | null> {
     // ver enviarMensagemInstagram.ts). O token gerado nesse fluxo não é
     // reconhecido em graph.facebook.com.
     const url = `https://graph.instagram.com/v21.0/${senderId}?fields=name,username&access_token=${INSTAGRAM_PAGE_ACCESS_TOKEN}`
-    const res = await fetch(url)
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
       console.error('[instagram-webhook] Falha ao buscar perfil:', res.status, await res.text())
       return null
@@ -111,7 +120,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Kill switch em Configurações > Canais de Captação — se desativado, não
-  // cria conversa nem lead nenhum (evita poluir a tela em caso de spam).
+  // cria conversa nenhuma (evita poluir a tela em caso de spam).
   const { data: canaisConfig } = await supabase
     .from('canais_leads_config')
     .select('instagram_ativo')
@@ -151,20 +160,31 @@ export async function POST(request: NextRequest) {
 }
 
 async function registrarMensagemInstagram(empresa_id: string, senderId: string, texto: string, referral?: InstagramReferral) {
-  const { data: conversaExistente } = await supabase
+  const { data: conversaExistente, error: erroBusca } = await supabase
     .from('conversas')
-    .select('id')
+    .select('id, contato_nome, responsavel_avisos_id')
     .eq('empresa_id', empresa_id)
     .eq('canal', 'instagram')
     .eq('contato_telefone', senderId)
     .maybeSingle()
 
+  // Erro na busca (ex.: migration 338 não rodada) NÃO pode cair no "conversa
+  // nova" — criaria uma conversa duplicada pro mesmo contato a cada mensagem.
+  if (erroBusca) {
+    console.error('[instagram-webhook] Erro ao buscar conversa:', erroBusca)
+    return
+  }
+
   let conversaId: string
+  let nomeContato: string | null
+  let responsavelAvisosId: string | null = null
 
   if (conversaExistente) {
     conversaId = conversaExistente.id
+    nomeContato = conversaExistente.contato_nome
+    responsavelAvisosId = conversaExistente.responsavel_avisos_id
   } else {
-    const nomePerfil = await buscarNomePerfil(senderId)
+    nomeContato = await buscarNomePerfil(senderId)
 
     const { data: novaConversa, error } = await supabase
       .from('conversas')
@@ -172,7 +192,7 @@ async function registrarMensagemInstagram(empresa_id: string, senderId: string, 
         empresa_id,
         canal: 'instagram',
         contato_telefone: senderId,
-        contato_nome: nomePerfil,
+        contato_nome: nomeContato,
         bot_ativo: false,
         status: 'humano',
       })
@@ -184,34 +204,6 @@ async function registrarMensagemInstagram(empresa_id: string, senderId: string, 
       return
     }
     conversaId = novaConversa.id
-
-    // Primeira mensagem desse contato: cria o Lead via o webhook central
-    // (mesma dedup por pessoa/telefone usada por WhatsApp/site/Facebook),
-    // usando o sender_id do Instagram no lugar do telefone real — mesma
-    // convenção já usada pelo chat do site com session_id.
-    const webhookUrl = new URL('/api/leads/webhook', process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
-    webhookUrl.searchParams.set('source', 'instagram')
-
-    const resposta = await fetch(webhookUrl.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-webhook-secret': WEBHOOK_SECRET },
-      body: JSON.stringify({
-        nome: nomePerfil ?? 'Contato Instagram',
-        telefone: senderId,
-        empresa_id,
-        origem: 'instagram',
-        observacoes: `Primeira mensagem via Instagram: "${texto}"`,
-      }),
-    })
-
-    if (resposta.ok) {
-      const { lead_id } = (await resposta.json()) as { lead_id?: string }
-      if (lead_id) {
-        await supabase.from('conversas').update({ lead_id }).eq('id', conversaId)
-      }
-    } else {
-      console.error('[instagram-webhook] Erro ao criar lead:', await resposta.text())
-    }
   }
 
   await supabase.from('mensagens').insert({
@@ -220,6 +212,41 @@ async function registrarMensagemInstagram(empresa_id: string, senderId: string, 
     conteudo: texto,
     metadata: referral ? { referral_anuncio: referral } : null,
   })
+
+  // Aviso fora do caminho da resposta à Meta: falha aqui nunca afeta a
+  // mensagem já gravada acima.
+  waitUntil(avisarMensagemInstagram(empresa_id, conversaId, nomeContato, responsavelAvisosId))
+}
+
+async function avisarMensagemInstagram(
+  empresa_id: string,
+  conversaId: string,
+  nomeContato: string | null,
+  responsavelAvisosId: string | null,
+) {
+  try {
+    const destinatarios = await buscarDestinatariosAviso(supabase, empresa_id, responsavelAvisosId)
+    const titulo = `Instagram: nova mensagem de ${nomeContato ?? 'contato'}`
+    await Promise.all(
+      destinatarios.map((usuarioId) =>
+        NotificationService.notify(
+          {
+            usuarioId,
+            tipo: 'mensagem_instagram',
+            titulo,
+            mensagem: titulo,
+            entidade: 'conversa',
+            entidadeId: conversaId,
+            origem: 'webhook-instagram',
+            viaServiceRole: true,
+          },
+          supabase,
+        ),
+      ),
+    )
+  } catch (err) {
+    console.error('[instagram-webhook] erro ao avisar nova mensagem (mensagem já foi salva normalmente):', err)
+  }
 }
 
 // GET para validação de webhook (Meta exige isso ao cadastrar a URL de callback)

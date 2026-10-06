@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { assumirAvisosConversaInstagram } from '@/lib/instagram/destinatariosAviso'
 
 export async function POST(
   request: NextRequest,
@@ -14,7 +15,7 @@ export async function POST(
 
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('empresa_id')
+    .select('id, empresa_id')
     .eq('auth_user_id', user.id)
     .single()
   if (!usuario) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 403 })
@@ -31,7 +32,7 @@ export async function POST(
   // Verifica que a conversa pertence à empresa do usuário
   const { data: conversa } = await supabase
     .from('conversas')
-    .select('id, contato_telefone, empresa_id')
+    .select('id, contato_telefone, empresa_id, canal')
     .eq('id', conversa_id)
     .eq('empresa_id', usuario.empresa_id)
     .single()
@@ -56,8 +57,15 @@ export async function POST(
     return NextResponse.json({ error: 'Erro ao vincular' }, { status: 500 })
   }
 
+  // Instagram: quem cria/vincula o Lead passa a ser o dono da conversa pros
+  // avisos de mensagem nova (se ninguém tinha pegado ainda).
+  if (conversa.canal === 'instagram') {
+    await assumirAvisosConversaInstagram(supabase, conversa_id, usuario.id)
+  }
+
   // Se solicitado, salva o telefone da conversa como contato do lead
-  if (salvar_telefone && conversa.contato_telefone) {
+  // Instagram: contato_telefone é o ID interno do Instagram, não telefone.
+  if (salvar_telefone && conversa.contato_telefone && conversa.canal !== 'instagram') {
     await supabase.from('lead_telefones').upsert(
       {
         lead_id,
