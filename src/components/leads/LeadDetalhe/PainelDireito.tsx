@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useLeadHistorico, type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
+import { useNotasLead, type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
 import { useRegistrarInteracao } from '@/hooks/leads/useRegistrarInteracao'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useAnexosPendentes } from '@/hooks/documentos/useAnexosPendentes'
@@ -81,7 +81,7 @@ function ListaNotas({ notas }: { notas: LeadTimelineItem[] }) {
 }
 
 function SecaoNotas({ leadId, pessoaId }: { leadId: string; pessoaId: string | null }) {
-  const { data: notas = [] } = useLeadHistorico(leadId, ['comentario'])
+  const { data: notas = [] } = useNotasLead(leadId)
   const registrar = useRegistrarInteracao(leadId)
   const { usuario } = useAuth()
   const qc = useQueryClient()

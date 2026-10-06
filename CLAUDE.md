@@ -795,3 +795,15 @@ conversa do Instagram é o ID do Instagram, nunca salvar como telefone).
   pela RLS; os outros deixariam de ver a conversa.
 - Excluir lead (soft delete) desvincula as conversas (`conversas.lead_id = null`) — senão a conversa ficava presa ao
   lead excluído, sem como vincular outro. Migration 338.
+
+## Histórico da Captação acompanha o Negócio; Notas = só texto digitado (2026-10-06)
+
+Converter lead em negócio não apaga nada — `lead_historico` continua no lead —, mas o Negócio não mostrava. Agora o
+Negócio LÊ (não copia) o lead de origem (`processos.lead_id`): painel Comentários traz as notas digitadas da Captação
+(etiqueta "Captação", só leitura; `useNotasLead`) e a aba **Histórico** (antes "Timeline", value `timeline` mantido)
+traz tudo do lead (notas, fases, simulações, documentos, solicitações) junto com os eventos do negócio
+(`ConteudoEventoLead`, `src/components/leads/LeadDetalhe/EventoLead.tsx` — mesmo desenho do Histórico da Captação).
+- **Nota = `lead_historico.tipo = 'comentario'` digitada por alguém.** Registro automático NUNCA usa `'comentario'`:
+  usa `'acao_operacional'` (simulação/documento enviados, resumo do `*cria cliente`, indicação em lead existente —
+  migration 339 reclassificou os antigos). `useLeadHistorico(id, ['comentario'])` ainda traz simulações/documentos
+  (o filtro `tipos` só vale para `lead_historico`) — para notas use `useNotasLead`/`ehNotaDigitada`.

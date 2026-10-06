@@ -716,7 +716,7 @@ export async function executarWorkflowCaptacao(
   }
   await supabase.from('lead_historico').insert({
     lead_id, empresa_id, usuario_id,
-    tipo:      'comentario',
+    tipo:      'acao_operacional', // resumo automático — não é nota digitada
     descricao: linhasResumo.join('\n'),
   })
 

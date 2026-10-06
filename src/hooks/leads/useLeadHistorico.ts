@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { type LeadHistorico } from '@/types/leads'
@@ -152,4 +153,21 @@ export function useLeadHistorico(leadId: string, tipos?: string[]) {
     enabled: !!leadId,
     refetchInterval: 30000,
   })
+}
+/**
+ * Nota digitada por alguém (lead_historico tipo 'comentario'). Registros
+ * automáticos (simulação/documento enviados, resumo do *fonti, indicação) usam
+ * 'acao_operacional' e ficam só no Histórico. Com `tipos`, useLeadHistorico
+ * continua trazendo simulações/documentos/solicitações — por isso o filtro de
+ * `kind` aqui.
+ */
+export function ehNotaDigitada(item: LeadTimelineItem): boolean {
+  return item.kind === 'historico' && item.tipo === 'comentario'
+}
+
+/** Só as notas digitadas do lead (painel de Notas da Captação e do Negócio). */
+export function useNotasLead(leadId: string | null | undefined) {
+  const query = useLeadHistorico(leadId ?? '', ['comentario'])
+  const notas = useMemo(() => (query.data ?? []).filter(ehNotaDigitada), [query.data])
+  return { ...query, data: notas }
 }

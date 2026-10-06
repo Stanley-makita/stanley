@@ -1,6 +1,9 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useProcessoTimeline } from '@/hooks/processos/useProcessoTimeline'
+import { useLeadHistorico, type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
+import { ConteudoEventoLead, iconeEventoLead } from '@/components/leads/LeadDetalhe/EventoLead'
 import { type TimelineItem, type ProcessoComentario, type ProcessoFaseHistorico, type ProcessoTarefa } from '@/types/processos'
 import { Badge } from '@/components/ui/badge'
 import { MessageSquare, ArrowRight, CheckSquare, Clock } from 'lucide-react'
@@ -70,16 +73,36 @@ function ItemTarefa({ item }: { item: TimelineItem & { tipo: 'tarefa_criada' | '
   )
 }
 
-interface Props { processoId: string }
+interface Props {
+  processoId: string
+  /** Lead de origem: tudo o que aconteceu na Captação entra na mesma linha do tempo. */
+  leadId?: string | null
+}
 
-export function AbaTimeline({ processoId }: Props) {
+type ItemHistorico =
+  | { fonte: 'negocio'; data: string; item: TimelineItem }
+  | { fonte: 'captacao'; data: string; evento: LeadTimelineItem }
+
+/**
+ * Aba "Histórico" do Negócio (antes "Timeline"): eventos do negócio
+ * (comentários, fases, tarefas) + tudo do lead de origem na Captação (notas,
+ * mudanças de fase, simulações, documentos, solicitações), em ordem de data,
+ * com a etiqueta "Captação" nos eventos do lead.
+ */
+export function AbaTimeline({ processoId, leadId }: Props) {
   const { data: items = [], isLoading } = useProcessoTimeline(processoId)
+  const { data: eventosLead = [], isLoading: carregandoLead } = useLeadHistorico(leadId ?? '')
 
-  if (isLoading) {
+  const historico = useMemo<ItemHistorico[]>(() => [
+    ...items.map((item) => ({ fonte: 'negocio' as const, data: item.data, item })),
+    ...(leadId ? eventosLead : []).map((evento) => ({ fonte: 'captacao' as const, data: evento.created_at, evento })),
+  ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()), [items, eventosLead, leadId])
+
+  if (isLoading || (leadId && carregandoLead)) {
     return <div className="space-y-4">{[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-xl" />)}</div>
   }
 
-  if (items.length === 0) {
+  if (historico.length === 0) {
     return <p className="text-sm text-gray-400 text-center py-8">Nenhum evento registrado.</p>
   }
 
@@ -87,7 +110,27 @@ export function AbaTimeline({ processoId }: Props) {
     <div className="relative">
       <div className="absolute left-4 top-4 bottom-4 w-px bg-gray-200" />
       <div className="space-y-4">
-        {items.map((item, idx) => {
+        {historico.map((h, idx) => {
+          if (h.fonte === 'captacao') {
+            const Icone = iconeEventoLead(h.evento)
+            return (
+              <div key={`lead-${h.evento.kind}-${h.evento.id}`} className="relative flex gap-4 pl-10">
+                <div className="absolute left-2.5 -translate-x-1/2 w-6 h-6 rounded-full flex items-center justify-center bg-fonti-accent-hover text-fonti-primary">
+                  <Icone className="h-3 w-3" />
+                </div>
+                <div className="flex-1 bg-white border border-gray-100 rounded-xl p-4">
+                  <div className="mb-2">
+                    <Badge variant="outline" className="text-xs bg-fonti-accent-hover text-fonti-primary" title="Registrado na fase de Lead (Captação)">
+                      Captação
+                    </Badge>
+                  </div>
+                  <ConteudoEventoLead item={h.evento} />
+                </div>
+              </div>
+            )
+          }
+
+          const item = h.item
           const config = TIPO_CONFIG[item.tipo]
           const Icone = config.icone
 

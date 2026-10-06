@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProcessoComentarios, useAdicionarComentario } from '@/hooks/processos/useProcessoComentarios'
 import { type ProcessoComentario } from '@/types/processos'
+import { useNotasLead, type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useAnexosPendentes } from '@/hooks/documentos/useAnexosPendentes'
 import { anexarDocumentoEntidade } from '@/lib/documentos/anexoEntidade'
@@ -30,12 +31,50 @@ const TIPOS_COMENTARIO: Record<ProcessoComentario['tipo'], { label: string; clas
   comunicacao_cliente: { label: 'Mensagem ao cliente', className: 'bg-green-100 text-green-700' },
 }
 
-interface Props { processoId: string }
+interface Props {
+  processoId: string
+  /** Lead de origem: as notas digitadas na Captação aparecem junto (só leitura, etiqueta "Captação"). */
+  leadId?: string | null
+}
 
-function ListaComentarios({ comentarios }: { comentarios: ProcessoComentario[] }) {
+type ItemPainel =
+  | { origem: 'negocio'; data: string; comentario: ProcessoComentario }
+  | { origem: 'captacao'; data: string; nota: LeadTimelineItem }
+
+function NotaCaptacao({ nota }: { nota: LeadTimelineItem }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-fonti-primary">{nota.usuario?.nome ?? 'Sistema'}</span>
+          <Badge className="text-xs px-1.5 py-0 bg-fonti-accent-hover text-fonti-primary" title="Nota registrada na fase de Lead (Captação)">
+            Captação
+          </Badge>
+        </div>
+        <span className="text-xs text-text-muted shrink-0">
+          {formatDistanceToNow(new Date(nota.created_at), { addSuffix: true, locale: ptBR })}
+        </span>
+      </div>
+      {!(nota.descricao === 'Anexo' && nota.anexos && nota.anexos.length > 0) && (
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5 whitespace-pre-wrap">{nota.descricao}</p>
+      )}
+      {nota.anexos && nota.anexos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {nota.anexos.map((anexo) => (
+            <AnexoChipEnviado key={anexo.id} anexo={anexo} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ListaComentarios({ itens }: { itens: ItemPainel[] }) {
   return (
     <div className="space-y-3">
-      {comentarios.map((c) => {
+      {itens.map((item) => {
+        if (item.origem === 'captacao') return <NotaCaptacao key={`lead-${item.nota.id}`} nota={item.nota} />
+        const c = item.comentario
         const config = TIPOS_COMENTARIO[c.tipo]
         const comunicacaoParsed = c.tipo === 'comunicacao_cliente' ? parseCabecalhoComunicacao(c.texto) : null
         const label = comunicacaoParsed
@@ -212,8 +251,14 @@ function FormComentario({
   )
 }
 
-export function PainelComentarios({ processoId }: Props) {
-  const { data: comentarios = [] } = useProcessoComentarios(processoId)
+export function PainelComentarios({ processoId, leadId }: Props) {
+  const { data: comentariosNegocio = [] } = useProcessoComentarios(processoId)
+  const { data: notasCaptacao = [] } = useNotasLead(leadId)
+  // Notas do Negócio + notas digitadas na Captação (lead de origem), por data.
+  const comentarios = useMemo<ItemPainel[]>(() => [
+    ...comentariosNegocio.map((c) => ({ origem: 'negocio' as const, data: c.created_at, comentario: c })),
+    ...notasCaptacao.map((n) => ({ origem: 'captacao' as const, data: n.created_at, nota: n })),
+  ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()), [comentariosNegocio, notasCaptacao])
   const [dialogAberto, setDialogAberto] = useState(false)
 
   return (
@@ -231,7 +276,7 @@ export function PainelComentarios({ processoId }: Props) {
 
       {/* Lista com altura limitada */}
       <div className="max-h-[260px] overflow-y-auto">
-        <ListaComentarios comentarios={comentarios} />
+        <ListaComentarios itens={comentarios} />
       </div>
 
       {/* Botão ver todos — aparece a partir de 1 comentário, não só quando a lista já não cabe */}
@@ -257,7 +302,7 @@ export function PainelComentarios({ processoId }: Props) {
           <div className="space-y-4">
             <FormComentario processoId={processoId} />
             <div className="max-h-[60vh] overflow-y-auto pr-1">
-              <ListaComentarios comentarios={comentarios} />
+              <ListaComentarios itens={comentarios} />
             </div>
           </div>
         </DialogContent>

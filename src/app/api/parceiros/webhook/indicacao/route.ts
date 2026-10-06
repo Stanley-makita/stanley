@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('lead_historico').insert({
         lead_id:   leadExistente.id,
         empresa_id,
-        tipo:      'comentario',
+        tipo:      'acao_operacional', // registro automático — não é nota digitada
         descricao: [
           'Nova indicação recebida via QR Code (lead já existia)',
           `Parceiro: ${nome_parceiro}${imobiliaria ? ` (${imobiliaria})` : ''}`,
