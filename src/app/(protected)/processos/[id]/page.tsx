@@ -552,7 +552,7 @@ export default function ProcessoDetalhePage() {
               ...((mostrarAbaCredito || analisesCreditoProcesso.length > 0) && FINANCIAMENTO_MODALIDADES.has(processo.modalidade)
                 ? [['credito','Crédito']] as [string,string][]
                 : []),
-              ['timeline','Timeline'],['solicitacoes','Solicitações'],
+              ['timeline','Histórico'],['solicitacoes','Solicitações'],
             ] as [string,string][]).map(([value, label]) => (
               <TabsTrigger
                 key={value}
@@ -623,7 +623,7 @@ export default function ProcessoDetalhePage() {
               <AbaCredito processoId={id} processo={processo} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
-              <AbaTimeline processoId={id} />
+              <AbaTimeline processoId={id} leadId={processo.lead_id} />
             </TabsContent>
             <TabsContent value="solicitacoes" className="m-0">
               <AbaSolicitacoes
@@ -808,7 +808,7 @@ export default function ProcessoDetalhePage() {
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
         />
         <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
-        <PainelComentarios processoId={id} />
+        <PainelComentarios processoId={id} leadId={processo.lead_id} />
       </div>
     </div>
   )

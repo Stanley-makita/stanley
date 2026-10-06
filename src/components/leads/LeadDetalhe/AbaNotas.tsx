@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
+import { useNotasLead } from '@/hooks/leads/useLeadHistorico'
 import { useRegistrarInteracao } from '@/hooks/leads/useRegistrarInteracao'
 import { supabase } from '@/lib/supabase'
 import { formatDistanceToNow } from 'date-fns'
@@ -15,7 +15,7 @@ interface Props { leadId: string }
 
 export function AbaNotas({ leadId }: Props) {
   const queryClient = useQueryClient()
-  const { data: notas = [], isLoading } = useLeadHistorico(leadId, ['comentario'])
+  const { data: notas = [], isLoading } = useNotasLead(leadId)
   const registrar = useRegistrarInteracao(leadId)
   const [texto, setTexto] = useState('')
 

@@ -1,26 +1,8 @@
 'use client'
 
 import { useLeadHistorico } from '@/hooks/leads/useLeadHistorico'
-import { buildTimelineSummary, getTimelineBadge } from './timelineUtils'
-import { formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { ArrowRight, GitBranch, Plus, Edit, History, MessageSquare, Calculator, FileText, ClipboardList, Bell, CheckCircle2, XCircle, Send } from 'lucide-react'
-import { parseCabecalhoComunicacao, LABEL_TIPO_INTERESSADO_TIMELINE } from '@/lib/comunicacao/parseCabecalhoComunicacao'
-
-const ICONES = {
-  historico: Edit,
-  simulacao: Calculator,
-  documento: FileText,
-  solicitacao: ClipboardList,
-  criacao: Plus,
-  fase_mudanca: GitBranch,
-  comentario: MessageSquare,
-  followup_iniciado: Bell,
-  followup_notificacao: Bell,
-  followup_resposta: CheckCircle2,
-  followup_encerrado: XCircle,
-  comunicacao: Send,
-}
+import { History } from 'lucide-react'
+import { ConteudoEventoLead, iconeEventoLead } from './EventoLead'
 
 interface Props { leadId: string }
 
@@ -56,70 +38,14 @@ export function AbaHistorico({ leadId }: Props) {
 
           <div className="space-y-3">
             {eventos.map((item) => {
-              const tipoIcone = (item.kind === 'historico' ? item.tipo : item.kind) as keyof typeof ICONES
-              const Icone = ICONES[tipoIcone] ?? Edit
-              const comunicacaoParsed = item.kind === 'historico' && item.tipo === 'comunicacao'
-                ? parseCabecalhoComunicacao(item.descricao)
-                : null
-              const titulo = item.kind === 'historico' && item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova
-                ? 'Mudança de fase'
-                : item.kind === 'historico' && item.tipo === 'criacao'
-                  ? 'Lead criado'
-                  : item.kind === 'historico' && item.tipo === 'comentario'
-                    ? 'Comentário'
-                    : item.kind === 'historico' && item.tipo === 'followup_iniciado'
-                      ? 'Acompanhamento iniciado'
-                      : item.kind === 'historico' && item.tipo === 'followup_notificacao'
-                        ? 'Follow-up enviado'
-                        : item.kind === 'historico' && item.tipo === 'followup_resposta'
-                          ? 'Resposta do comercial'
-                          : item.kind === 'historico' && item.tipo === 'followup_encerrado'
-                            ? 'Acompanhamento encerrado'
-                            : item.kind === 'historico' && item.tipo === 'comunicacao'
-                              ? (comunicacaoParsed
-                                  ? `Mensagem enviada ao ${LABEL_TIPO_INTERESSADO_TIMELINE[comunicacaoParsed.tipo]} — ${comunicacaoParsed.nome}`
-                                  : 'Mensagem enviada ao cliente')
-                              : item.kind === 'simulacao'
-                              ? 'Simulação salva'
-                              : item.kind === 'documento'
-                                ? 'Documento anexado'
-                                : item.kind === 'solicitacao'
-                                  ? 'Solicitação operacional'
-                                  : 'Evento'
-
+              const Icone = iconeEventoLead(item)
               return (
-                <div key={item.id} className="flex gap-3 relative">
+                <div key={`${item.kind}-${item.id}`} className="flex gap-3 relative">
                   <div className="w-7 h-7 rounded-full border-2 bg-white border-gray-200 flex items-center justify-center shrink-0 z-10">
                     <Icone className="h-3 w-3 text-fonti-primary" />
                   </div>
-
                   <div className="flex-1 pb-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-gray-700">{titulo}</p>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                        {getTimelineBadge(item.kind, item)}
-                      </span>
-                    </div>
-
-                    {item.kind === 'historico' && item.tipo === 'fase_mudanca' && item.fase_anterior && item.fase_nova ? (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Movido de{' '}
-                        <span className="font-medium text-fonti-primary">{item.fase_anterior.nome}</span>
-                        {' '}
-                        <ArrowRight className="inline h-3 w-3 text-gray-400" />
-                        {' '}
-                        <span className="font-medium text-fonti-primary">{item.fase_nova.nome}</span>
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-600 mt-1">
-                        {comunicacaoParsed ? comunicacaoParsed.mensagem : buildTimelineSummary(item.kind, item)}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-gray-400 mt-1">
-                      {item.usuario?.nome ?? 'Sistema'} ·{' '}
-                      {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ptBR })}
-                    </p>
+                    <ConteudoEventoLead item={item} />
                   </div>
                 </div>
               )

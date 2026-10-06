@@ -267,7 +267,7 @@ export async function POST(
       lead_id:    leadId,
       empresa_id: usuario.empresa_id,
       usuario_id: usuario.id,
-      tipo:       'comentario',
+      tipo:       'acao_operacional', // registro automático — não é nota digitada
       descricao:  textoHistorico,
     })
   }

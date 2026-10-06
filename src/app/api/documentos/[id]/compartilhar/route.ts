@@ -187,7 +187,7 @@ export async function POST(
         lead_id:    v.entidade_id,
         empresa_id: usuario.empresa_id,
         usuario_id: usuario.id,
-        tipo:       'comentario',
+        tipo:       'acao_operacional', // registro automático — não é nota digitada
         descricao:  textoHistorico,
       })
     } else if (v.entidade_tipo === 'processo') {

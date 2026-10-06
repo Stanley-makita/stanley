@@ -35,7 +35,7 @@ const ABAS = [
   ['simulacoes',   'Simulações'],
   ['fases',        'Fases'],
   ['documentos',   'Documentos'],
-  ['timeline',     'Timeline'],
+  ['timeline',     'Histórico'],
   ['solicitacoes', 'Solicitações'],
 ] as const
 
@@ -207,7 +207,7 @@ export default function ConsorcioDetalhePage() {
               <AbaDocumentos contexto="processo" processoId={id} />
             </TabsContent>
             <TabsContent value="timeline" className="m-0">
-              <AbaTimeline processoId={id} />
+              <AbaTimeline processoId={id} leadId={processo.lead_id} />
             </TabsContent>
             <TabsContent value="solicitacoes" className="m-0">
               <AbaSolicitacoes processoId={id} contexto={contexto} />
@@ -229,7 +229,7 @@ export default function ConsorcioDetalhePage() {
           onIrParaSolicitacoes={() => setAbaAtiva('solicitacoes')}
         />
         <PainelTarefas processoId={id} onNovaTarefa={() => setNovaTarefaAberta(true)} />
-        <PainelComentarios processoId={id} />
+        <PainelComentarios processoId={id} leadId={processo.lead_id} />
       </div>
 
       {/* ── Drawers e modais ── */}
