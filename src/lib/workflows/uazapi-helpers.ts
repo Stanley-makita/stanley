@@ -33,6 +33,22 @@ export async function resolverInstanceToken(supabase: SupabaseClient, conversaId
 }
 
 /**
+ * Token da instância ativa da empresa (fallback: variável de ambiente) — para
+ * avisos internos à equipe que não nascem de uma conversa (ex.: aviso de status
+ * de análise de crédito ao comercial).
+ */
+export async function buscarInstanciaTokenEmpresa(supabase: SupabaseClient, empresaId: string): Promise<string> {
+  const { data } = await supabase
+    .from('instancias')
+    .select('token')
+    .eq('empresa_id', empresaId)
+    .eq('ativo', true)
+    .limit(1)
+    .maybeSingle()
+  return data?.token ?? process.env.UAZAPI_INSTANCE_TOKEN ?? ''
+}
+
+/**
  * Envia um Buffer PDF como documento via Uazapi.
  * Normaliza o telefone (adiciona DDI 55 para números nacionais).
  * Lança erro se a API retornar status não-OK.

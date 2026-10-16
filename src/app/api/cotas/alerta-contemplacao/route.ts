@@ -18,6 +18,8 @@ async function enviarWhatsApp(telefone: string, texto: string, instanciaToken: s
     method: 'POST',
     headers: { 'Content-Type': 'application/json', token: instanciaToken },
     body: JSON.stringify({ number: telEnvio, text: texto, delay: 800 }),
+    // Timeout obrigatório em fetch à Uazapi (ver CLAUDE.md): sem ele o cron trava até o teto da Vercel.
+    signal: AbortSignal.timeout(15000),
   })
   if (!res.ok) throw new Error(`Uazapi ${res.status}: ${await res.text()}`)
   return res.json()
