@@ -10,6 +10,23 @@ import { toast } from 'sonner'
 // análise sem voltar o cliente pra fase de Lead — ver AbaCreditoProcesso.tsx).
 export type DonoAnaliseCredito = { leadId: string } | { processoId: string }
 
+// Pede ao servidor o aviso de status ao comercial do cliente (WhatsApp + sino,
+// 1 minuto depois — ver /api/analises-credito/[id]/aviso-status). Não bloqueia
+// nem falha o salvar: aviso perdido não pode impedir de gravar a análise.
+async function pedirAvisoStatus(analise: Pick<LeadAnaliseCredito, 'id' | 'status'>) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    await fetch(`/api/analises-credito/${analise.id}/aviso-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+      body: JSON.stringify({ status: analise.status }),
+      keepalive: true,
+    })
+  } catch (err) {
+    console.error('[useAnalisesCredito] aviso de status não pedido:', err)
+  }
+}
+
 function colunaEId(dono: DonoAnaliseCredito): { coluna: 'lead_id' | 'processo_id'; id: string } {
   return 'leadId' in dono
     ? { coluna: 'lead_id', id: dono.leadId }
@@ -48,7 +65,7 @@ export function useAnalisesCredito(dono: DonoAnaliseCredito) {
       if (error) throw error
       return data as LeadAnaliseCredito
     },
-    onSuccess: invalidar,
+    onSuccess: (analise) => { void pedirAvisoStatus(analise); invalidar() },
     onError: (e: any) => toast.error(`Erro ao criar análise: ${e?.message ?? 'Tente novamente'}`),
   })
 
@@ -63,7 +80,11 @@ export function useAnalisesCredito(dono: DonoAnaliseCredito) {
       if (error) throw error
       return data as LeadAnaliseCredito
     },
-    onSuccess: invalidar,
+    onSuccess: (analise, variaveis) => {
+      // Só quando o status foi gravado; mudança de outros campos não avisa.
+      if (variaveis.status !== undefined) void pedirAvisoStatus(analise)
+      invalidar()
+    },
     onError: (e: any) => toast.error(`Erro ao salvar análise: ${e?.message ?? 'Tente novamente'}`),
   })
 

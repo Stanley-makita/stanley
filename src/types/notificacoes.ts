@@ -64,6 +64,7 @@ export type TipoNotificacao =
   | 'chamada_recebida'
   | 'compromisso_criado'
   | 'compromisso_recepcao'
+  | 'analise_credito_status'
 
 export type EntidadeNotificacao = 'processo' | 'lead' | 'tarefa' | 'lead_tarefa' | 'solicitacao' | 'compromisso' | 'conversa'
 
@@ -137,6 +138,7 @@ export const NOTIFICACAO_META: Record<TipoNotificacao, NotificacaoMeta> = {
   chamada_recebida:    { icon: Phone,         cor: 'text-green-500',    severidadePadrao: 'info',    prioridadePadrao: 'high',   label: 'Ligação Recebida' },
   compromisso_criado:   { icon: CalendarClock, cor: 'text-fonti-primary', severidadePadrao: 'info', prioridadePadrao: 'normal', label: 'Novo Compromisso' },
   compromisso_recepcao: { icon: CalendarClock, cor: 'text-amber-600',    severidadePadrao: 'info', prioridadePadrao: 'normal', label: 'Compromisso na Sede' },
+  analise_credito_status: { icon: FileCheck,   cor: 'text-fonti-primary', severidadePadrao: 'info', prioridadePadrao: 'high',   label: 'Status da Análise de Crédito' },
 }
 
 /** Tempo de permanência do toast por severidade. `critical` não fecha sozinho. */
