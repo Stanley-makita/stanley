@@ -6,6 +6,7 @@ import { podeExecutar } from '@/lib/auth/permissions'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { titularDaProposta } from '@/lib/participantes/consultas'
 import { rotuloModalidade } from '@/types/processos'
+import { fmtTaxaAnual } from '@/lib/email/templates/confirmacaoValores/_helpers'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
@@ -45,6 +46,7 @@ export async function POST(
         id, modalidade, valor_imovel, valor_financiado, valor_entrada,
         valor_fgts, valor_recursos_proprios,
         prazo_amortizacao_meses, sistema_amortizacao, tem_assessoria,
+        valor_engenharia, taxa_juros,
         banco:bancos!banco_id(id, nome)
       `)
       .eq('id', params.id)
@@ -125,7 +127,8 @@ export async function POST(
     const dados: DadosConfirmacaoValores = {
       cliente_nome:           compradorPrincipal?.nome ?? 'Cliente',
       banco_nome:             bancoNome,
-      engenharia_laudo:       (processo as any).valor_imovel,
+      // Laudo = valor avaliado pelo banco (card "Validade Engenharia"), nunca o valor de compra e venda.
+      engenharia_laudo:       (processo as any).valor_engenharia ?? null,
       compra_venda:           (processo as any).valor_imovel,
       entrada:                (processo as any).valor_entrada,
       fgts:                   (processo as any).valor_fgts,
@@ -136,7 +139,7 @@ export async function POST(
       prazo_meses:            (processo as any).prazo_amortizacao_meses,
       modalidade:             rotuloModalidade((processo as any).modalidade),
       amortizacao:            (processo as any).sistema_amortizacao,
-      taxa:                   null,
+      taxa:                   fmtTaxaAnual((processo as any).taxa_juros),
       iof:                    null,
       tarifa_banco:           tarifaBanco,
       tem_assessoria:         (processo as any).tem_assessoria !== false,
