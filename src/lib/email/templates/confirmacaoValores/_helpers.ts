@@ -3,6 +3,14 @@ export function fmt(v: number | null): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
 
+/** Taxa anual do negócio (`processos.taxa_juros`, em % a.a.) → "12,49% a.a."; sem taxa → null (template mostra "—"). */
+export function fmtTaxaAnual(v: number | string | null | undefined): string | null {
+  if (v == null || v === '') return null
+  const n = Number(v)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return `${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(n)}% a.a.`
+}
+
 export function assinatura(nome: string, funcao: string, email: string, tel: string | null): string {
   return `
 <table cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;border-top:2px solid #C2AA6A;padding-top:12px;font-family:Arial,sans-serif;font-size:13px;color:#253B29;">
