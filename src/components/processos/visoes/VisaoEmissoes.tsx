@@ -9,6 +9,7 @@ import { useBancos } from '@/hooks/useBancos'
 import { ChevronLeft, ChevronRight, BarChart2, TrendingUp, Package, CheckCircle2, Clock } from 'lucide-react'
 import { fmtData } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { FINANCIAMENTO_MODALIDADES } from '@/lib/processos/fasesConfig'
 import { type ResumoEstoque, type EmissaoSemana } from '@/types/processos'
 
 function fmt(v: number) {
@@ -57,7 +58,8 @@ export function VisaoEmissoes() {
         .select('banco_id, valor_financiado')
         .eq('empresa_id', usuario!.empresa_id)
         .is('deleted_at', null)
-        .neq('modalidade', 'Contrato')
+        // Só financiamento + CGI — consórcio/registro/contrato têm telas próprias.
+        .in('modalidade', Array.from(FINANCIAMENTO_MODALIDADES))
         .eq('status_emissao', 'emitido')
         .not('data_emissao', 'is', null)
         .gte('data_emissao', inicioMes)

@@ -820,3 +820,11 @@ contador soma subpastas, seletores usam `pastasParaSelecao`/`rotuloPasta`).
   a IA do contrato (`contratos/entender`) só conhece comprador/vendedor/imovel/terceiros/certidoes, e o
   `ContratoConstrutor` soma as subpastas em "Documentos do Comprador". Código novo que filtre por `'comprador'`
   tem que incluir as subpastas.
+
+## Telas e relatórios de Financiamento: filtrar por `FINANCIAMENTO_MODALIDADES`, nunca `!= 'Contrato'` (2026-10-06)
+
+Emissões de Financiamento (`emissoes_por_semana`, `performance_por_banco`, `resumo_estoque`, `VisaoEmissoes.tsx`) excluíam
+só `'Contrato'` — Consórcio e Registro entravam (26 "emitidos" de R$ 0 = cartas de consórcio). Migration 341: só
+SFI/SBPE/PMCMV/Pro_Cotista/CGI (`FINANCIAMENTO_MODALIDADES`, `src/lib/processos/fasesConfig.ts`). Qualquer consulta nova
+"de financiamento" usa a lista positiva — modalidade nova (ex.: outra de consórcio) não pode entrar sozinha.
+Tela equivalente de Consórcio (cartas em prospecção/fechadas por administradora) ainda não existe — pedido adiado.
