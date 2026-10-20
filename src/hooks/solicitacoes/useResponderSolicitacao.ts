@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import type { StatusSolicitacao } from '@/types/solicitacoes-operacionais'
+import { pedirAvisoSolicitacao } from './pedirAvisoSolicitacao'
 
 interface ResponderParams {
   id: string
@@ -26,6 +27,7 @@ export function useResponderSolicitacao() {
       if (error) throw error
     },
     onSuccess: (_, variables) => {
+      void pedirAvisoSolicitacao(variables.id)
       qc.invalidateQueries({ queryKey: ['solicitacoes'] })
       qc.invalidateQueries({ queryKey: ['solicitacao-mensagens', variables.id] })
       toast.success('Retorno salvo.', {

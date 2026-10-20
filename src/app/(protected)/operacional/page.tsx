@@ -6,6 +6,7 @@ import { useSolicitacaoMensagens } from '@/hooks/solicitacoes/useSolicitacaoMens
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { montarColunasFila } from '@/lib/solicitacoes/colunasFila'
+import { formatarPedidoEm } from '@/lib/solicitacoes/pedidoEm'
 import { SolicitacaoPrioridadeBadge } from '@/components/solicitacoes/SolicitacaoPrioridadeBadge'
 import { SolicitacaoStatusBadge } from '@/components/solicitacoes/SolicitacaoStatusBadge'
 import { SlaCountdown } from '@/components/solicitacoes/SlaCountdown'
@@ -18,7 +19,7 @@ import {
 } from '@/types/solicitacoes-operacionais'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, ExternalLink, MessageSquare, Building2, User, LayoutList } from 'lucide-react'
+import { Plus, ExternalLink, MessageSquare, Building2, User, LayoutList, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { format, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -51,13 +52,19 @@ function KanbanCard({ s, onResponder }: {
       {/* título */}
       <p className="text-xs font-medium text-fonti-primary line-clamp-2 leading-snug mb-2">{s.titulo}</p>
 
-      {/* solicitante */}
-      {s.solicitante && (
-        <div className="flex items-center gap-1 mb-1.5">
-          <User className="h-3 w-3 text-gray-400 shrink-0" />
-          <span className="text-[10px] text-gray-500 truncate">{s.solicitante.nome.split(' ')[0]}</span>
-        </div>
-      )}
+      {/* quem pediu → para quem, e quando */}
+      <div className="flex items-center gap-1 mb-1">
+        <User className="h-3 w-3 text-gray-400 shrink-0" />
+        <span className="text-[10px] text-gray-500 truncate">
+          <span className="font-medium">{s.solicitante?.nome.split(' ')[0] ?? '—'}</span>
+          {' → '}
+          <span className="font-medium">{s.responsavel?.nome.split(' ')[0] ?? 'sem responsável'}</span>
+        </span>
+      </div>
+      <div className="flex items-center gap-1 mb-1.5">
+        <Clock className="h-3 w-3 text-gray-300 shrink-0" />
+        <span className="text-[10px] text-gray-400">Pedido em {formatarPedidoEm(s.created_at)}</span>
+      </div>
 
       {/* vínculo */}
       {(s.lead || s.processo) && (

@@ -10,10 +10,13 @@ import { SolicitacaoStatusBadge } from './SolicitacaoStatusBadge'
 import { SlaCountdown } from './SlaCountdown'
 import { NovaSolicitacaoDrawer } from './NovaSolicitacaoDrawer'
 import { MensagemBubble } from './MensagemBubble'
+import { ResponderSolicitacaoDrawer } from './ResponderSolicitacaoDrawer'
+import { nomeAutorMensagem } from '@/lib/solicitacoes/autorMensagem'
+import { formatarPedidoEm } from '@/lib/solicitacoes/pedidoEm'
 import { TIPO_LABELS, type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, ClipboardList, ChevronDown, ChevronRight, Paperclip, Send, MessageCircle } from 'lucide-react'
+import { Plus, ClipboardList, ChevronDown, ChevronRight, Paperclip, Send, MessageCircle, MessageSquareReply } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { SolicitacaoOperacional } from '@/types/solicitacoes-operacionais'
@@ -41,6 +44,8 @@ function useSolicitacoes({ leadId, processoId, conversaId }: Omit<Props, 'pessoa
 export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, compacto, contexto }: Props) {
   const [drawerAberto, setDrawerAberto] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // Qualquer usuário pode dar o retorno daqui (a RPC grava quem respondeu).
+  const [respondendoId, setRespondendoId] = useState<string | null>(null)
   const { data: solicitacoes = [], isLoading } = useSolicitacoes({ leadId, processoId, conversaId })
 
   const limite = compacto ? 3 : undefined
@@ -96,7 +101,7 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
                 <th className="w-6 px-3 py-2" />
                 <th className="text-left px-3 py-2 text-gray-500 font-medium">Tipo</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium">Título</th>
-                <th className="text-left px-3 py-2 text-gray-500 font-medium hidden sm:table-cell">Responsável</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium hidden sm:table-cell">Pedido → Responsável</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium">Status</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-medium hidden md:table-cell">SLA</th>
                 <th className="w-6 px-3 py-2" />
@@ -109,6 +114,7 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
                   solicitacao={s}
                   expanded={expandedId === s.id}
                   onToggle={() => toggleExpand(s.id)}
+                  onResponder={() => setRespondendoId(s.id)}
                 />
               ))}
             </tbody>
@@ -121,6 +127,11 @@ export function AbaSolicitacoes({ leadId, processoId, conversaId, pessoaId, comp
           +{solicitacoes.length - 3} mais → ver em Operacional
         </p>
       )}
+
+      <ResponderSolicitacaoDrawer
+        solicitacao={solicitacoes.find((s) => s.id === respondendoId) ?? null}
+        onFechar={() => setRespondendoId(null)}
+      />
 
       <NovaSolicitacaoDrawer
         aberto={drawerAberto}
@@ -141,9 +152,10 @@ interface SolicitacaoRowProps {
   solicitacao: SolicitacaoOperacional
   expanded: boolean
   onToggle: () => void
+  onResponder: () => void
 }
 
-function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowProps) {
+function SolicitacaoRow({ solicitacao: s, expanded, onToggle, onResponder }: SolicitacaoRowProps) {
   const { usuario } = useAuth()
   const [textoMensagem, setTextoMensagem] = useState('')
   const [respondendo, setRespondendo] = useState(false)
@@ -155,15 +167,6 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
   const temRespostaNova = !concluido && !!ultimaMensagem && ultimaMensagem.autor_id !== usuario?.id
   const temRetorno = !!s.retorno_operacional
   const totalMensagens = mensagens.length + (s.replica_comercial && mensagens.length === 0 ? 1 : 0)
-
-  function nomeAutor(autorId: string) {
-    const nome = autorId === s.responsavel?.id
-      ? (s.responsavel.nome)
-      : autorId === s.solicitante?.id
-        ? (s.solicitante?.nome ?? 'Usuário')
-        : 'Usuário'
-    return autorId === usuario?.id ? `${nome} (você)` : nome
-  }
 
   async function abrirAnexo() {
     if (!s.anexo_retorno_path) return
@@ -221,9 +224,12 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
           <SolicitacaoPrioridadeBadge prioridade={s.prioridade} />
         </td>
 
-        {/* Responsável */}
+        {/* Quem pediu → responsável, e quando */}
         <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap hidden sm:table-cell">
-          {s.responsavel?.nome ?? '—'}
+          <div>
+            {s.solicitante?.nome.split(' ')[0] ?? '—'} → <span className="font-medium text-gray-600">{s.responsavel?.nome.split(' ')[0] ?? '—'}</span>
+          </div>
+          <div className="text-[10px] text-gray-400">{formatarPedidoEm(s.created_at)}</div>
         </td>
 
         {/* Status */}
@@ -250,6 +256,17 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
         <tr className="border-b border-gray-100 last:border-0">
           <td colSpan={7} className="px-4 pb-4 pt-0 bg-fonti-accent-hover/10">
             <div className="border-l-2 border-fonti-accent pl-3 ml-2 space-y-3">
+
+              {!concluido && (
+                <Button
+                  size="sm"
+                  className="h-7 gap-1 text-xs bg-fonti-primary hover:bg-fonti-primary-hover text-white"
+                  onClick={(e) => { e.stopPropagation(); onResponder() }}
+                >
+                  <MessageSquareReply className="h-3 w-3" />
+                  Responder solicitação
+                </Button>
+              )}
 
               {/* Descrição */}
               {s.descricao && (
@@ -295,7 +312,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
                     <MensagemBubble
                       key={m.id}
                       texto={m.texto}
-                      autorNome={nomeAutor(m.autor_id)}
+                      autorNome={nomeAutorMensagem(m, s, usuario?.id)}
                       isPropio={m.autor_id === usuario?.id}
                       isResponsavel={m.autor_id === s.responsavel?.id}
                       createdAt={m.created_at}
@@ -310,7 +327,7 @@ function SolicitacaoRow({ solicitacao: s, expanded, onToggle }: SolicitacaoRowPr
                   onClick={(e) => { e.stopPropagation(); setRespondendo(true) }}
                   className="text-xs text-fonti-primary font-medium underline underline-offset-2 hover:text-fonti-accent transition-colors"
                 >
-                  {mensagens.length > 0 || s.replica_comercial ? 'Responder novamente' : 'Responder ao retorno'}
+                  {mensagens.length > 0 || s.replica_comercial ? 'Enviar mensagem' : 'Comentar o retorno'}
                 </button>
               )}
 

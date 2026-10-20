@@ -35,6 +35,9 @@ export interface SolicitacaoOperacional {
   replica_em: string | null
   sla_at: string | null
   concluido_em: string | null
+  // Quem deu o último retorno (migration 343) — pode não ser nem quem pediu nem o responsável.
+  respondido_por_id?: string | null
+  respondido_em?: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
