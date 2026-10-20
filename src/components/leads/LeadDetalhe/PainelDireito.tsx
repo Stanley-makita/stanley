@@ -31,14 +31,18 @@ interface Props {
   lead: Lead
   /** Chamado quando o checklist avança o lead automaticamente para Documentação. */
   onAbrirDocumentos?: () => void
+  /** Lead perdido: Notas só para leitura; Tarefas e Checklist travados. */
+  somenteLeitura?: boolean
 }
 
-export function PainelDireitoLead({ lead, onAbrirDocumentos }: Props) {
+export function PainelDireitoLead({ lead, onAbrirDocumentos, somenteLeitura }: Props) {
   return (
     <div className="h-full flex flex-col overflow-y-auto divide-y divide-gray-200">
-      <SecaoNotas leadId={lead.id} pessoaId={lead.pessoa_id} />
-      <SecaoTarefas leadId={lead.id} />
-      <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} onAbrirDocumentos={onAbrirDocumentos} />
+      <SecaoNotas leadId={lead.id} pessoaId={lead.pessoa_id} somenteLeitura={somenteLeitura} />
+      <div className={cn('divide-y divide-gray-200', somenteLeitura && 'pointer-events-none select-none opacity-60')}>
+        <SecaoTarefas leadId={lead.id} />
+        <SecaoChecklist leadId={lead.id} faseId={lead.fase_id} onAbrirDocumentos={onAbrirDocumentos} />
+      </div>
     </div>
   )
 }
@@ -80,7 +84,7 @@ function ListaNotas({ notas }: { notas: LeadTimelineItem[] }) {
   )
 }
 
-function SecaoNotas({ leadId, pessoaId }: { leadId: string; pessoaId: string | null }) {
+function SecaoNotas({ leadId, pessoaId, somenteLeitura }: { leadId: string; pessoaId: string | null; somenteLeitura?: boolean }) {
   const { data: notas = [] } = useNotasLead(leadId)
   const registrar = useRegistrarInteracao(leadId)
   const { usuario } = useAuth()
@@ -134,7 +138,7 @@ function SecaoNotas({ leadId, pessoaId }: { leadId: string; pessoaId: string | n
         )}
       </div>
 
-      <div className="bg-fonti-surface-warm rounded-lg border border-fonti-accent-hover p-2.5">
+      {!somenteLeitura && <div className="bg-fonti-surface-warm rounded-lg border border-fonti-accent-hover p-2.5">
         <Textarea
           placeholder="Registre uma nota... (cole um print ou anexe um arquivo)"
           value={texto}
@@ -191,7 +195,7 @@ function SecaoNotas({ leadId, pessoaId }: { leadId: string; pessoaId: string | n
             Enviar
           </Button>
         </div>
-      </div>
+      </div>}
 
       {notas.length === 0 ? (
         <p className="text-[10px] text-gray-400 text-center py-1">Nenhuma nota ainda</p>
