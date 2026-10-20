@@ -921,14 +921,14 @@ function LeadRow({
       </td>
 
       {/* Status */}
-      <td className="px-3 py-1.5">
+      <td className="px-3 py-1.5 whitespace-nowrap">
         {lead.perdido_em ? (
-          <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600">
+          <span className="inline-flex items-center whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600">
             Perdido
           </span>
         ) : lead.status ? (
           <span
-            className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border"
+            className="inline-flex items-center whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full border"
             style={{
               backgroundColor: lead.status.cor ? `${lead.status.cor}18` : '#f3f4f6',
               borderColor:     lead.status.cor ? `${lead.status.cor}40` : '#e5e7eb',
