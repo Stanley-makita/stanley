@@ -30,6 +30,7 @@ import { useLeadChecklist, useCompletarChecklistItem } from '@/hooks/leads/useLe
 import { NovoProcessoModal } from './NovoProcessoModal'
 import { ModalConcluirLead } from './ModalConcluirLead'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
+import { ModalReativarLead } from './ModalReativarLead'
 import { LeadEditarModal } from './LeadEditarModal'
 import { LeadOrigemBadge } from './LeadOrigemBadge'
 import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosPessoaDrawer'
@@ -43,8 +44,9 @@ import { ptBR } from 'date-fns/locale'
 import {
   Plus, MessageCircle, Loader2, Trash2,
   Phone, Mail, CreditCard, DollarSign, Calendar, ClipboardList, ArrowLeft, Send,
-  CheckCircle2, AlertCircle,
+  CheckCircle2, AlertCircle, RotateCcw,
 } from 'lucide-react'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { ExcluirLeadDialog } from './ExcluirLeadDialog'
 import { useFases } from '@/hooks/configuracoes/useFases'
@@ -100,6 +102,9 @@ const CAMPANHA_LABEL: Record<string, string> = {
 
 // Abas que ficam no painel direito — não precisam aparecer no menu de abas superior
 const ABAS_PAINEL_DIREITO = new Set(['notas', 'tarefas', 'operacional'])
+// Lead perdido: abas que continuam interativas (só leitura por natureza); as demais ficam travadas.
+const ABAS_LEITURA_PERDIDO = new Set<string>(['resumo', 'historico'])
+const TRAVADO = 'pointer-events-none select-none opacity-60'
 
 interface Props {
   leadId: string | null
@@ -119,6 +124,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const [excluirAberto, setExcluirAberto] = useState(false)
   const [concluirAberto, setConcluirAberto] = useState(false)
   const [marcarPerdidoAberto, setMarcarPerdidoAberto] = useState(false)
+  const [reativarAberto, setReativarAberto] = useState(false)
   const [iniciarConversaAberto, setIniciarConversaAberto] = useState(false)
   const [atualizarClienteAberto, setAtualizarClienteAberto] = useState(false)
   const [msgInicial, setMsgInicial] = useState('')
@@ -127,6 +133,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const queryClient = useQueryClient()
 
   const { data: lead, isLoading } = useLead(leadId ?? '')
+  // Lead perdido: leitura liberada (navegar nas abas; Resumo, Histórico e Notas abertos),
+  // edição travada; só admin reativa (decisão 20/10/2026).
+  const perdido = !!lead?.perdido_em
+  const { usuario } = useAuth()
+  const ehAdmin = usuario?.perfil === 'admin'
   const { data: conversaDoLead } = useConversaDoLead(leadId ?? undefined)
   const iniciarConversa = useIniciarConversa()
   const { data: fases = [] } = useFases('leads')
@@ -177,14 +188,15 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
         <div className={cn(
           'flex flex-1 flex-col',
           pageMode ? 'lg:min-h-0 lg:overflow-hidden' : 'min-h-0 overflow-hidden',
-          lead.perdido_em && 'pointer-events-none select-none opacity-60',
         )}>
           {/* ── Barra de Fases ── */}
-          <PipelineBarLead
-            lead={lead}
-            fases={fases}
-            onConcluido={() => setConcluirAberto(true)}
-          />
+          <div className={cn(perdido && TRAVADO)}>
+            <PipelineBarLead
+              lead={lead}
+              fases={fases}
+              onConcluido={() => setConcluirAberto(true)}
+            />
+          </div>
 
           <div className={cn(
             'flex flex-col lg:flex-row',
@@ -194,7 +206,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
               {/* ── Painel Esquerdo: Dados do Lead ── */}
               <div className={cn(
                 'flex w-full shrink-0 flex-col border-b border-gray-100 bg-fonti-surface-warm lg:max-h-none lg:w-64 lg:border-b-0 lg:border-r',
-                pageMode ? 'lg:overflow-hidden' : 'max-h-[38svh] overflow-hidden'
+                pageMode ? 'lg:overflow-hidden' : 'max-h-[38svh] overflow-hidden',
+                perdido && TRAVADO,
               )}>
 
                 {/* Identidade + ações rápidas */}
@@ -434,6 +447,8 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       <button
                         key={aba.id}
                         onClick={() => {
+                          // Lead perdido: só navega para ler (as abas de edição ficam travadas).
+                          if (perdido) { setAbaAtiva(aba.id as Aba); return }
                           if (bloqueado) {
                             const LABELS: Record<string, string> = { telefone: 'Telefone válido', email: 'E-mail com @', data_nascimento: 'Data de nascimento' }
                             toast.warning('Campos obrigatórios pendentes', {
@@ -485,6 +500,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       <p className="mt-0.5 text-xs text-amber-600">Não é necessário para a consulta de restritivos, mas é importante para envio de propostas e contratos.</p>
                     </div>
                   )}
+                  <div className={cn(perdido && !ABAS_LEITURA_PERDIDO.has(abaAtiva) && TRAVADO)}>
                   {abaAtiva === 'resumo'       && <AbaResumo       lead={lead} onMudarAba={(aba) => setAbaAtiva(aba as Aba)} />}
                   {abaAtiva === 'pessoa'       && <AbaPessoa       lead={lead} />}
                   {abaAtiva === 'oportunidade' && <AbaOportunidade  lead={lead} />}
@@ -510,6 +526,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                       onNavegarParaAba={(aba) => setAbaAtiva(aba)}
                     />
                   )}
+                  </div>
                 </div>
               </div>
 
@@ -518,7 +535,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                 'w-72 shrink-0 overflow-y-auto border-l border-gray-100 bg-white',
                 pageMode ? 'hidden lg:block' : 'hidden xl:block'
               )}>
-                <PainelDireitoLead lead={lead} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
+                <PainelDireitoLead lead={lead} somenteLeitura={perdido} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
               </div>
 
             </div>
@@ -544,6 +561,11 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
         lead={{ id: lead.id, nome: lead.nome, empresa_id: lead.empresa_id, responsavel_id: lead.responsavel_id }}
         onCriarProcesso={() => { setConcluirAberto(false); setNovoProcessoAberto(true) }}
         onAindaNao={() => setConcluirAberto(false)}
+      />
+      <ModalReativarLead
+        aberto={reativarAberto}
+        lead={{ id: lead.id, nome: lead.nome }}
+        onFechar={() => setReativarAberto(false)}
       />
       <ModalMarcarPerdido
         aberto={marcarPerdidoAberto}
@@ -778,25 +800,30 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
                 Marcar como perdido
               </Button>
             )}
+            {lead?.perdido_em && ehAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 gap-1.5 text-xs text-fonti-primary border-fonti-primary/30 hover:bg-fonti-accent-hover"
+                onClick={() => setReativarAberto(true)}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reativar lead
+              </Button>
+            )}
           </div>
           {lead?.perdido_em && (
             <div className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-1.5 text-xs font-medium text-red-700">
-              Lead perdido em {format(new Date(lead.perdido_em), 'dd/MM/yyyy', { locale: ptBR })} — somente visualização
+              Lead perdido em {format(new Date(lead.perdido_em), 'dd/MM/yyyy', { locale: ptBR })} — somente visualização (Resumo, Histórico e Notas abertos para leitura)
             </div>
           )}
-          <div className={cn(
-            'flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden',
-            lead?.perdido_em && 'pointer-events-none select-none opacity-60',
-          )}>
+          <div className="flex flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
             {innerContent}
           </div>
           {/* Mobile-only: Notas + Tarefas + Checklist (painel direito oculto em telas menores que lg) */}
           {lead && (
-            <div className={cn(
-              'lg:hidden shrink-0 border-t border-gray-200 bg-white',
-              lead.perdido_em && 'pointer-events-none select-none opacity-60',
-            )}>
-              <PainelDireitoLead lead={lead} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
+            <div className="lg:hidden shrink-0 border-t border-gray-200 bg-white">
+              <PainelDireitoLead lead={lead} somenteLeitura={!!lead.perdido_em} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
             </div>
           )}
         </div>
@@ -812,7 +839,7 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
           {innerContent}
           {lead && (
             <div className="xl:hidden shrink-0 max-h-[40svh] overflow-y-auto border-t border-gray-200 bg-white">
-              <PainelDireitoLead lead={lead} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
+              <PainelDireitoLead lead={lead} somenteLeitura={!!lead.perdido_em} onAbrirDocumentos={() => setAbaAtiva('documentos')} />
             </div>
           )}
         </DialogContent>
