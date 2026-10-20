@@ -5,6 +5,7 @@ import { useSolicitacoesFila, useSolicitacoesConcluidasFila } from '@/hooks/soli
 import { useSolicitacaoMensagens } from '@/hooks/solicitacoes/useSolicitacaoMensagens'
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { montarColunasFila } from '@/lib/solicitacoes/colunasFila'
 import { SolicitacaoPrioridadeBadge } from '@/components/solicitacoes/SolicitacaoPrioridadeBadge'
 import { SolicitacaoStatusBadge } from '@/components/solicitacoes/SolicitacaoStatusBadge'
 import { SlaCountdown } from '@/components/solicitacoes/SlaCountdown'
@@ -21,22 +22,6 @@ import { Plus, ExternalLink, MessageSquare, Building2, User, LayoutList } from '
 import { useRouter } from 'next/navigation'
 import { format, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-
-// ─── Mapeamento status → índice de fase (por ordem) ──────────────────────────
-
-const STATUS_POR_COLUNA: string[][] = [
-  ['pendente', 'em_andamento'],
-  ['aguardando_resposta'],
-  ['aguardando_cliente'],
-  ['concluido', 'cancelado'],
-]
-
-const COLUNAS_PADRAO = [
-  { label: 'Em andamento',       cor: '#3B82F6' },
-  { label: 'Aguardando resposta', cor: '#A855F7' },
-  { label: 'Aguardando cliente',  cor: '#F97316' },
-  { label: 'Concluído hoje',      cor: '#22C55E' },
-]
 
 // ─── Card compacto ────────────────────────────────────────────────────────────
 
@@ -249,23 +234,10 @@ export default function OperacionalPage() {
   const urgentes = ativas.filter((s) => s.prioridade === 'urgente').length
   const vencidas = ativas.filter((s) => s.sla_at && new Date(s.sla_at) < new Date()).length
 
-  // Definir colunas: usa fases do Configurações (cor + nome) mapeadas por ordem
-  const colunas = STATUS_POR_COLUNA.map((statuses, idx) => {
-    const fase = fasesConfig[idx]
-    const padrao = COLUNAS_PADRAO[idx]
-    const isUltima = idx === STATUS_POR_COLUNA.length - 1
-    return {
-      label: fase ? (isUltima ? `${fase.nome} (hoje)` : fase.nome) : padrao.label,
-      cor: fase?.cor ?? padrao.cor,
-      statuses,
-      isUltima,
-    }
-  })
-
-  // Agrupar por coluna
-  const porColuna = colunas.map((col) => ({
+  // Uma coluna por status; nome e cor vêm das fases de Configurações, casadas pelo nome
+  const porColuna = montarColunasFila(fasesConfig).map((col) => ({
     ...col,
-    items: col.isUltima
+    items: col.concluidas
       ? concluidasHoje
       : ativas.filter((s) => col.statuses.includes(s.status)),
   }))
@@ -364,14 +336,14 @@ export default function OperacionalPage() {
         <TabsContent value="fila" className="flex-1 min-h-0 m-0">
           {isLoading ? (
             <div className="flex gap-3 h-full">
-              {COLUNAS_PADRAO.map((c) => (
-                <div key={c.label} className="flex-1 min-w-[200px] animate-pulse bg-gray-100 rounded-xl" />
+              {porColuna.map((c) => (
+                <div key={c.chave} className="flex-1 min-w-[200px] animate-pulse bg-gray-100 rounded-xl" />
               ))}
             </div>
           ) : (
             <div className="flex gap-3 h-full overflow-x-auto pb-4">
               {porColuna.map((col) => (
-                <KanbanColuna key={col.label} label={col.label} cor={col.cor}
+                <KanbanColuna key={col.chave} label={col.label} cor={col.cor}
                   items={col.items} onResponder={setSelecionada} />
               ))}
             </div>
