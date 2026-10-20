@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -36,7 +36,7 @@ import { CompletarDadosPessoaDrawer } from '@/components/pessoas/CompletarDadosP
 import { AbaSolicitacoes } from '@/components/solicitacoes/AbaSolicitacoes'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { type ContextoSolicitacao } from '@/types/solicitacoes-operacionais'
-import { cn, normalizarTexto } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -134,41 +134,10 @@ export function LeadDetalheModal({ leadId, onFechar, pageMode }: Props) {
   const { data: itensChecklist = [] } = useLeadChecklist(leadId ?? '', lead?.fase_id)
   const completarItem = useCompletarChecklistItem()
 
-  // Ao abrir um lead na fase "Novo", avança automaticamente para a próxima
-  // fase do pipeline (a de ordem seguinte) e abre a aba Oportunidade para o
-  // atendente completar os dados — fluxo pedido pelo usuário 2026-07-13.
-  // `disparadoParaLeadRef` evita repetir o efeito em re-renders do mesmo lead
-  // (só dispara uma vez por leadId).
-  //
-  // Usa a posição na lista ordenada por `ordem` (ex.: fase seguinte a "Novo"),
-  // não um nome de fase fixo — um nome hardcoded ("Atendimento Iniciado")
-  // quebrou silenciosamente quando essa fase foi recriada como "Iniciado" em
-  // Configurações > Fases, deixando os leads presos em "Novo" pra sempre.
-  const disparadoParaLeadRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!lead || fases.length === 0) return
-    if (disparadoParaLeadRef.current === lead.id) return
-
-    // Não usar lead.fase?.nome (join) — segue o mesmo padrão já comprovado em
-    // PipelineBarLead/handleConfirmar, que sempre cruza fases (lista, sempre
-    // populada) com lead.fase_id (coluna crua), nunca o objeto do join.
-    const faseAtualIndex = fases.findIndex(f => f.id === lead.fase_id)
-    if (faseAtualIndex === -1 || normalizarTexto(fases[faseAtualIndex].nome) !== normalizarTexto('Novo')) return
-
-    const faseAtendimento = fases[faseAtualIndex + 1]
-    if (!faseAtendimento) return
-
-    disparadoParaLeadRef.current = lead.id
-    editarLead.mutate(
-      { id: lead.id, fase_id: faseAtendimento.id },
-      {
-        onSuccess: () => {
-          toast.success('Atendimento iniciado')
-          setAbaAtiva('oportunidade')
-        },
-      }
-    )
-  }, [lead, fases])
+  // Lead em "Novo" fica em "Novo" até alguém mudar a fase na barra de etapas (decisão
+  // 20/10/2026). Antes, só ABRIR o lead já movia para a fase seguinte — qualquer pessoa
+  // que só olhava (gestor, assistente atendendo uma solicitação) "iniciava o atendimento",
+  // pulava o checklist obrigatório da fase e o contador "Novos" ficava sempre em 0.
 
   const restritivosNoChecklist = itensChecklist.filter(i => i.tipo === 'restritivos')
   const consultaRestritivosRespondido =
