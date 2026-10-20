@@ -52,12 +52,17 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
   // Sincroniza state quando a solicitação selecionada muda
   useEffect(() => {
     if (!s) return
-    setRetorno(s.retorno_operacional ?? '')
+    // Sempre em branco: o retorno anterior já está na Conversa; reabrir com ele preenchido
+    // fazia concluir reenviar a mesma mensagem (conversa, histórico e WhatsApp).
+    setRetorno('')
     setStatus(STATUS_OPCOES.some((o) => o.value === s.status) ? s.status : '')
     setArquivo(null)
   }, [s?.id])
 
   if (!s) return null
+
+  // Sem texto novo e sem mudar o status não há o que gravar.
+  const nadaMudou = !retorno.trim() && status === s.status
 
   async function handleSalvar() {
     if (!s || !status) return
@@ -74,7 +79,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
       }
       await responder.mutateAsync({
         id: s.id,
-        retorno_operacional: retorno,
+        retorno_operacional: retorno.trim(),
         status: status as StatusSolicitacao,
         ...(anexoPath !== undefined && { anexo_retorno_path: anexoPath }),
       })
@@ -233,7 +238,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
             <Textarea
               value={retorno}
               onChange={(e) => setRetorno(e.target.value)}
-              placeholder="Resultado da simulação, análise, pendência resolvida..."
+              placeholder="Novo retorno (os anteriores estão na Conversa acima). Em branco = só muda o status."
               rows={5}
             />
           </div>
@@ -295,7 +300,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
           <Button
             className="flex-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={handleSalvar}
-            disabled={salvando || !status}
+            disabled={salvando || !status || nadaMudou}
           >
             {salvando ? 'Salvando...' : 'Salvar Retorno'}
           </Button>
