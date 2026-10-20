@@ -1,4 +1,4 @@
-export type TimelineEventKind = 'historico' | 'simulacao' | 'documento' | 'solicitacao' | 'comentario' | 'criacao' | 'fase' | 'default'
+export type TimelineEventKind = 'historico' | 'simulacao' | 'documento' | 'solicitacao' | 'solicitacao_resposta' | 'comentario' | 'criacao' | 'fase' | 'default'
 
 interface TimelineContext {
   tipo?: string
@@ -57,6 +57,8 @@ export function getTimelineBadge(kind: TimelineEventKind, context: TimelineConte
   if (kind === 'solicitacao') {
     return context.status ? `Solicitação • ${context.status}` : 'Solicitação'
   }
+
+  if (kind === 'solicitacao_resposta') return 'Solicitação • resposta'
 
   return 'Evento'
 }

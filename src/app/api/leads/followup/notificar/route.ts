@@ -159,7 +159,10 @@ async function processar(req: NextRequest) {
         lead_id:    fu.lead_id,
         empresa_id: fu.empresa_id,
         tipo:       'followup_notificacao',
-        descricao:  `Follow-up automático enviado ao comercial ${responsavel?.nome ?? ''} — ${novoDias} dias${ehRecusadoRetry ? ' com crédito recusado' : ' sem Processo'}.`,
+        // Mesmo texto do registro dos outros avisos ao comercial (registrarAvisoWhatsappComercial).
+        descricao:  telComercial
+          ? `Comercial notificado via WhatsApp — ${responsavel?.nome ?? 'comercial'}: follow-up automático, ${novoDias} dias${ehRecusadoRetry ? ' com crédito recusado' : ' sem Processo'}.`
+          : `Follow-up automático enviado ao comercial ${responsavel?.nome ?? ''} — ${novoDias} dias${ehRecusadoRetry ? ' com crédito recusado' : ' sem Processo'}.`,
       })
 
       // Agenda próxima notificação daqui a `intervalo` dias

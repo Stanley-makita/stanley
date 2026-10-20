@@ -5,6 +5,7 @@ import { autenticarRota } from '@/lib/documentos/vinculosServidor'
 import { titularDaProposta } from '@/lib/participantes/consultas'
 import { NotificationService } from '@/lib/notificacoes/notificationService'
 import { buscarInstanciaTokenEmpresa, enviarTextoUazapi } from '@/lib/workflows/uazapi-helpers'
+import { registrarAvisoWhatsappComercial } from '@/lib/historico/registrarAvisoComercial'
 import {
   ESPERA_AVISO_MS, STATUS_ENCERRADOS, decidirAvisoSolicitacao, destinatariosDoAviso,
   montarMensagemAvisoSolicitacao, type MensagemNova,
@@ -141,8 +142,16 @@ async function processarAviso(solicitacaoId: string) {
         hora: horaSaoPaulo(m.created_at),
       })),
     })
-    await enviarTextoUazapi(tel, texto, token)
-      .catch(err => console.error(`[solicitacoes/aviso] WhatsApp para ${d.usuarioId}:`, err))
+    const enviado = await enviarTextoUazapi(tel, texto, token)
+    if (enviado) {
+      await registrarAvisoWhatsappComercial(supabase, {
+        empresaId: s.empresa_id,
+        leadId: s.lead_id,
+        processoId: s.processo_id,
+        comercial: { id: d.usuarioId, nome: (u?.nome as string | undefined) ?? null },
+        assunto: `solicitação ${TIPO_LABELS[s.tipo] ?? s.tipo} — ${d.mensagens.length} ${d.mensagens.length > 1 ? 'novas respostas' : 'nova resposta'}, status ${STATUS_LABELS[s.status] ?? s.status}`,
+      })
+    }
   }
 }
 

@@ -7,8 +7,7 @@ import { ConteudoEventoLead, iconeEventoLead } from '@/components/leads/LeadDeta
 import { type TimelineItem, type ProcessoComentario, type ProcessoFaseHistorico, type ProcessoTarefa } from '@/types/processos'
 import { Badge } from '@/components/ui/badge'
 import { MessageSquare, ArrowRight, CheckSquare, Clock } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatarDataHistorico } from '@/lib/historico/dataHistorico'
 import { parseCabecalhoComunicacao, LABEL_TIPO_INTERESSADO_TIMELINE } from '@/lib/comunicacao/parseCabecalhoComunicacao'
 
 const TIPO_CONFIG = {
@@ -143,7 +142,7 @@ export function AbaTimeline({ processoId, leadId }: Props) {
                 <div className="flex items-start justify-between mb-2">
                   <Badge variant="outline" className={`text-xs ${config.cor}`}>{config.label}</Badge>
                   <span className="text-xs text-gray-400">
-                    {formatDistanceToNow(new Date(item.data), { addSuffix: true, locale: ptBR })}
+                    {formatarDataHistorico(item.data)}
                   </span>
                 </div>
 

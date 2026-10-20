@@ -97,10 +97,11 @@ export async function enviarTextoUazapi(
   telefone: string,
   texto: string,
   token: string,
-): Promise<void> {
+): Promise<boolean> {
   const telRaw   = telefone.replace(/\D/g, '')
   const telEnvio = telRaw.length <= 11 && !telRaw.startsWith('55') ? `55${telRaw}` : telRaw
 
+  // Devolve se a Uazapi aceitou (o histórico só registra "comercial notificado" quando saiu).
   try {
     // Timeout explícito — mesmo motivo de enviarPDFUazapi acima.
     const res = await fetch(`${process.env.UAZAPI_API_URL}/send/text`, {
@@ -116,8 +117,11 @@ export async function enviarTextoUazapi(
     })
     if (!res.ok) {
       console.error('[uazapi-helpers] enviarTextoUazapi falhou:', res.status, await res.text())
+      return false
     }
+    return true
   } catch (err) {
     console.error('[uazapi-helpers] enviarTextoUazapi exceção:', err)
+    return false
   }
 }

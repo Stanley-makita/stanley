@@ -1,10 +1,9 @@
 'use client'
 
-import { formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatarDataHistorico } from '@/lib/historico/dataHistorico'
 import {
   ArrowRight, GitBranch, Plus, Edit, MessageSquare, Calculator, FileText, ClipboardList, Bell,
-  CheckCircle2, XCircle, Send, Zap,
+  CheckCircle2, XCircle, Send, Zap, MessageSquareReply,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { type LeadTimelineItem } from '@/hooks/leads/useLeadHistorico'
@@ -21,6 +20,7 @@ const ICONES: Record<string, LucideIcon> = {
   simulacao: Calculator,
   documento: FileText,
   solicitacao: ClipboardList,
+  solicitacao_resposta: MessageSquareReply,
   criacao: Plus,
   fase_mudanca: GitBranch,
   comentario: MessageSquare,
@@ -43,6 +43,13 @@ const TITULOS_HISTORICO: Record<string, string> = {
   followup_encerrado: 'Acompanhamento encerrado',
 }
 
+// Registro gravado por registrarAvisoWhatsappComercial (lead_historico 'acao_operacional').
+const PREFIXO_AVISO_COMERCIAL = 'Comercial notificado via WhatsApp — '
+function avisoWhatsappComercial(item: LeadTimelineItem): boolean {
+  return item.kind === 'historico' && item.tipo === 'acao_operacional'
+    && !!item.descricao?.startsWith(PREFIXO_AVISO_COMERCIAL)
+}
+
 export function iconeEventoLead(item: LeadTimelineItem): LucideIcon {
   const chave = item.kind === 'historico' ? item.tipo : item.kind
   return ICONES[chave] ?? Edit
@@ -52,7 +59,9 @@ function tituloEventoLead(item: LeadTimelineItem): string {
   if (item.kind === 'simulacao') return 'Simulação salva'
   if (item.kind === 'documento') return 'Documento anexado'
   if (item.kind === 'solicitacao') return 'Solicitação operacional'
+  if (item.kind === 'solicitacao_resposta') return 'Resposta da solicitação'
   if (item.tipo === 'fase_mudanca') return 'Mudança de fase'
+  if (avisoWhatsappComercial(item)) return 'Comercial notificado via WhatsApp'
   if (item.tipo === 'comunicacao') {
     const parsed = parseCabecalhoComunicacao(item.descricao)
     return parsed
@@ -79,6 +88,15 @@ export function ConteudoEventoLead({ item }: { item: LeadTimelineItem }) {
     )
   } else if (item.kind === 'documento' && item.titulo) {
     conteudo = <>{item.titulo} · {buildTimelineSummary(item.kind, item)}</>
+  } else if (avisoWhatsappComercial(item)) {
+    conteudo = item.descricao!.slice(PREFIXO_AVISO_COMERCIAL.length)
+  } else if (item.kind === 'solicitacao_resposta') {
+    conteudo = (
+      <>
+        {item.titulo && <span className="block text-xs text-gray-400">{item.titulo}</span>}
+        {item.descricao}
+      </>
+    )
   } else if (comunicacao) {
     conteudo = comunicacao.mensagem
   } else {
@@ -100,8 +118,7 @@ export function ConteudoEventoLead({ item }: { item: LeadTimelineItem }) {
         </div>
       )}
       <p className="text-xs text-gray-400 mt-1">
-        {item.usuario?.nome ?? 'Sistema'} ·{' '}
-        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ptBR })}
+        {item.usuario?.nome ?? 'Sistema'} · {formatarDataHistorico(item.created_at)}
       </p>
     </div>
   )
