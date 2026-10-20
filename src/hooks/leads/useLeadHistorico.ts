@@ -8,7 +8,7 @@ import { type AnexoEntidade } from '@/lib/documentos/anexoEntidade'
 
 export interface LeadTimelineItem {
   id: string
-  kind: 'historico' | 'simulacao' | 'documento' | 'solicitacao'
+  kind: 'historico' | 'simulacao' | 'documento' | 'solicitacao' | 'solicitacao_resposta'
   tipo: string
   created_at: string
   descricao: string | null
@@ -20,6 +20,38 @@ export interface LeadTimelineItem {
   fase_anterior?: { nome: string } | null
   fase_nova?: { nome: string } | null
   anexos?: AnexoEntidade[]
+}
+
+// Respostas/mensagens das solicitações do lead (pedido 20/10/2026: o retorno aparece no
+// Histórico, não só no sino). Lidas da conversa da solicitação na hora de montar a linha
+// do tempo — nada é copiado para lead_historico.
+async function respostasDasSolicitacoes(
+  solicitacoes: Array<{ id: string; titulo: string | null }>,
+): Promise<LeadTimelineItem[]> {
+  if (solicitacoes.length === 0) return []
+  const { data, error } = await supabase
+    .from('solicitacao_mensagens')
+    .select('id, solicitacao_id, autor_id, texto, created_at')
+    .in('solicitacao_id', solicitacoes.map((s) => s.id))
+  if (error) throw error
+  const mensagens = data ?? []
+  if (mensagens.length === 0) return []
+
+  // autor_id aponta pra auth.users (sem embed pra usuarios): nomes numa 2ª consulta.
+  const ids = Array.from(new Set(mensagens.map((m) => m.autor_id as string)))
+  const { data: usuarios } = await supabase.from('usuarios').select('id, nome').in('id', ids)
+  const nomes = new Map((usuarios ?? []).map((u) => [u.id as string, u.nome as string]))
+  const titulos = new Map(solicitacoes.map((s) => [s.id, s.titulo]))
+
+  return mensagens.map((m) => ({
+    id: m.id as string,
+    kind: 'solicitacao_resposta' as const,
+    tipo: 'solicitacao_resposta',
+    created_at: m.created_at as string,
+    titulo: titulos.get(m.solicitacao_id as string) ?? null,
+    descricao: (m.texto as string)?.trim() || 'Retorno registrado (sem texto)',
+    usuario: nomes.has(m.autor_id as string) ? { nome: nomes.get(m.autor_id as string)! } : null,
+  }))
 }
 
 export function useLeadHistorico(leadId: string, tipos?: string[]) {
@@ -118,12 +150,13 @@ export function useLeadHistorico(leadId: string, tipos?: string[]) {
         (async () => {
           const { data, error } = await supabase
             .from('solicitacoes_operacionais')
-            .select('id, titulo, status, created_at')
+            .select('id, titulo, status, created_at, solicitante:usuarios!solicitante_id(nome)')
             .eq('lead_id', leadId)
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
 
           if (error) throw error
-          return (data ?? []).map((item) => ({
+          const solicitacoes = (data ?? []).map((item) => ({
             id: item.id,
             kind: 'solicitacao' as const,
             tipo: 'solicitacao',
@@ -131,7 +164,11 @@ export function useLeadHistorico(leadId: string, tipos?: string[]) {
             titulo: item.titulo,
             descricao: 'Solicitação operacional',
             status: item.status,
+            usuario: (Array.isArray(item.solicitante) ? item.solicitante[0] : item.solicitante) ?? null,
           }))
+          // Painel de Notas (com `tipos`) não mostra solicitações: não busca as respostas.
+          const respostas = tipos && tipos.length > 0 ? [] : await respostasDasSolicitacoes(solicitacoes)
+          return [...solicitacoes, ...respostas]
         })(),
       ])
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
+import { registrarAvisoWhatsappComercial } from '@/lib/historico/registrarAvisoComercial'
 
 // Dispara o alerta de "Alerta em" das cotas de Consórcio: no dia estimado de
 // contemplação (processo_cotas.alerta_em), avisa o comercial responsável
@@ -115,6 +116,13 @@ async function processar(req: NextRequest) {
             `A data estimada de contemplação chegou. Vale entrar em contato com o cliente.`,
           ].join('\n')
           await enviarWhatsApp(telComercial, msg, instanciaToken)
+          await registrarAvisoWhatsappComercial(supabase, {
+            empresaId: c.empresa_id,
+            leadId: null,
+            processoId: c.processo_id,
+            comercial: { id: processo.comercial_id, nome: processo.comercial?.nome ?? null },
+            assunto: `alerta de contemplação do consórcio — ${cotaLabel}`,
+          })
         }
       }
 

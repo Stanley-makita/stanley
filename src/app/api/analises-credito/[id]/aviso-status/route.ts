@@ -6,6 +6,7 @@ import { titularDaProposta } from '@/lib/participantes/consultas'
 import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
 import { NotificationService } from '@/lib/notificacoes/notificationService'
 import { buscarInstanciaTokenEmpresa, enviarTextoUazapi } from '@/lib/workflows/uazapi-helpers'
+import { registrarAvisoWhatsappComercial } from '@/lib/historico/registrarAvisoComercial'
 import {
   ESPERA_AVISO_MS, ROTULO_STATUS_ANALISE, decidirAviso, montarMensagemAviso, statusAnaliseValido,
 } from '@/lib/analisesCredito/avisoStatus'
@@ -115,7 +116,16 @@ async function processarAviso(analiseId: string, statusPedido: StatusAnaliseCred
   const tel = comercial.data?.telefone_whatsapp ?? comercial.data?.telefone
   if (!tel) return
   const token = await buscarInstanciaTokenEmpresa(supabase, analise.empresa_id)
-  await enviarTextoUazapi(tel, montarMensagemAviso({ clienteNome, bancoNome, status: analise.status, alteradoPor: ator.nome }), token)
+  const enviado = await enviarTextoUazapi(tel, montarMensagemAviso({ clienteNome, bancoNome, status: analise.status, alteradoPor: ator.nome }), token)
+  if (enviado) {
+    await registrarAvisoWhatsappComercial(supabase, {
+      empresaId: analise.empresa_id,
+      leadId: analise.lead_id,
+      processoId: analise.processo_id,
+      comercial: { id: comercialId!, nome: (comercial.data?.nome as string | undefined) ?? null },
+      assunto: `análise de crédito${bancoNome ? ` ${bancoNome}` : ''} — ${rotulo}`,
+    })
+  }
 }
 
 async function comercialDoCliente(a: Analise): Promise<string | null> {
