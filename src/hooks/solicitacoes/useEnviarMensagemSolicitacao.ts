@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { pedirAvisoSolicitacao } from './pedirAvisoSolicitacao'
 
 export function useEnviarMensagemSolicitacao() {
   const queryClient = useQueryClient()
@@ -16,6 +17,7 @@ export function useEnviarMensagemSolicitacao() {
       if (error) throw error
     },
     onSuccess: (_, variables) => {
+      void pedirAvisoSolicitacao(variables.solicitacaoId)
       queryClient.invalidateQueries({ queryKey: ['solicitacoes'] })
       queryClient.invalidateQueries({ queryKey: ['solicitacao-mensagens', variables.solicitacaoId] })
       toast.success('Mensagem enviada.', {

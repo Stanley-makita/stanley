@@ -4,9 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, isToday, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Send } from 'lucide-react'
+import { ExternalLink, MessageSquareReply, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMinhasSolicitacoes, type SolicitacaoPainel } from '@/hooks/solicitacoes/useMinhasSolicitacoes'
+import { useSolicitacaoPorId } from '@/hooks/solicitacoes/useSolicitacoesEntidade'
+import { formatarPedidoEm } from '@/lib/solicitacoes/pedidoEm'
+import { ResponderSolicitacaoDrawer } from './ResponderSolicitacaoDrawer'
 import { PRIORIDADE_CORES, STATUS_CORES, STATUS_LABELS, TIPO_LABELS } from '@/types/solicitacoes-operacionais'
 
 // Onde a solicitação está ligada — o painel mostra tudo, independente do módulo em que o
@@ -33,10 +36,13 @@ export function SolicitacoesPainel({ todasDaEmpresa = false, onAbrirLead }: Prop
   const router = useRouter()
   const { isLoading, todas, paraMim, quePedi } = useMinhasSolicitacoes(todasDaEmpresa)
   const [aba, setAba] = useState<Aba>('paraMim')
+  // Solicitação aberta no painel de resposta, sem sair da tela.
+  const [abertaId, setAbertaId] = useState<string | null>(null)
+  const { data: aberta = [] } = useSolicitacaoPorId(abertaId)
 
   const itens = todasDaEmpresa ? todas : aba === 'paraMim' ? paraMim : quePedi
 
-  function abrir(s: SolicitacaoPainel) {
+  function abrirOrigem(s: SolicitacaoPainel) {
     if (s.processo_id) {
       router.push(`/processos/${s.processo_id}?aba=solicitacoes`)
     } else if (s.lead_id) {
@@ -97,18 +103,19 @@ export function SolicitacoesPainel({ todasDaEmpresa = false, onAbrirLead }: Prop
             const prazo = s.sla_at ? parseISO(s.sla_at) : null
             const slaVencido = !!prazo && prazo < new Date()
             const slaHoje = !!prazo && isToday(prazo)
-            const clicavel = !!(s.processo_id || s.lead_id)
+            const temOrigem = !!(s.processo_id || s.lead_id)
             return (
-              <button
+              <div
                 key={s.id}
-                onClick={() => abrir(s)}
-                disabled={!clicavel}
+                role="button"
+                tabIndex={0}
+                onClick={() => setAbertaId(s.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter') setAbertaId(s.id) }}
                 className={cn(
-                  'w-full flex items-start gap-3 px-4 py-3 rounded-lg text-left transition-colors',
+                  'w-full flex items-start gap-3 px-4 py-3 rounded-lg text-left transition-colors cursor-pointer',
                   slaVencido ? 'bg-red-50 border-l-4 border-red-400 hover:bg-red-100'
                     : slaHoje ? 'bg-amber-50 border-l-4 border-amber-400 hover:bg-amber-100'
                       : 'bg-gray-50 hover:bg-gray-100',
-                  !clicavel && 'cursor-default',
                 )}
               >
                 <div className="flex-1 min-w-0">
@@ -127,13 +134,33 @@ export function SolicitacoesPainel({ todasDaEmpresa = false, onAbrirLead }: Prop
                   </div>
                   <p className="text-sm font-semibold text-gray-800 truncate mt-1">{origem?.nome ?? s.titulo}</p>
                   <p className="text-xs text-gray-500 truncate">{s.titulo}</p>
-                  {(s.solicitante?.nome || s.responsavel?.nome) && (
-                    <p className="text-[11px] text-gray-400 truncate">
-                      {s.solicitante?.nome && <>Pedido por <span className="text-gray-500 font-medium">{s.solicitante.nome}</span></>}
-                      {s.solicitante?.nome && s.responsavel?.nome && ' · '}
-                      {s.responsavel?.nome && <>Para <span className="text-gray-500 font-medium">{s.responsavel.nome}</span></>}
-                    </p>
-                  )}
+                  <p className="text-[11px] text-gray-400 truncate">
+                    {s.solicitante?.nome && <>Pedido por <span className="text-gray-500 font-medium">{s.solicitante.nome}</span></>}
+                    {s.solicitante?.nome && s.responsavel?.nome && ' · '}
+                    {s.responsavel?.nome && <>Para <span className="text-gray-500 font-medium">{s.responsavel.nome}</span></>}
+                    {(s.solicitante?.nome || s.responsavel?.nome) && ' · '}
+                    {formatarPedidoEm(s.created_at)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setAbertaId(s.id) }}
+                      className="inline-flex items-center gap-1 rounded-md bg-fonti-primary px-2 py-1 text-[11px] font-medium text-white hover:bg-fonti-primary-hover"
+                    >
+                      <MessageSquareReply className="h-3 w-3" />
+                      Abrir solicitação
+                    </button>
+                    {temOrigem && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); abrirOrigem(s) }}
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {s.processo_id ? 'Ver negócio' : 'Ver lead'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1">
                   <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap', PRIORIDADE_CORES[s.prioridade])}>
@@ -149,11 +176,13 @@ export function SolicitacoesPainel({ todasDaEmpresa = false, onAbrirLead }: Prop
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             )
           })}
         </div>
       )}
+
+      <ResponderSolicitacaoDrawer solicitacao={abertaId ? (aberta[0] ?? null) : null} onFechar={() => setAbertaId(null)} />
     </div>
   )
 }

@@ -6,6 +6,8 @@ import { useDocumentosConversa } from '@/hooks/solicitacoes/useDocumentosConvers
 import { useSolicitacaoMensagens } from '@/hooks/solicitacoes/useSolicitacaoMensagens'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { MensagemBubble } from './MensagemBubble'
+import { nomeAutorMensagem } from '@/lib/solicitacoes/autorMensagem'
+import { formatarPedidoEm } from '@/lib/solicitacoes/pedidoEm'
 import { SolicitacaoPrioridadeBadge } from './SolicitacaoPrioridadeBadge'
 import { SolicitacaoStatusBadge } from './SolicitacaoStatusBadge'
 import { SlaCountdown } from './SlaCountdown'
@@ -109,6 +111,16 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
                 <span className="font-medium text-gray-700">{s.solicitante.nome}</span>
               </div>
             )}
+            {s.responsavel && (
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
+                <span className="text-gray-400">Responsável</span>
+                <span className="font-medium text-gray-700">{s.responsavel.nome}</span>
+              </div>
+            )}
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
+              <span className="text-gray-400">Pedido em</span>
+              <span className="font-medium text-gray-700">{formatarPedidoEm(s.created_at)}</span>
+            </div>
             {s.lead && (
               <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-gray-400">Lead</span>
@@ -201,21 +213,16 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
                     createdAt={s.replica_em ?? undefined}
                   />
                 )}
-                {mensagens.map((m) => {
-                  const nome = m.autor_id === s.responsavel?.id
-                    ? s.responsavel.nome
-                    : (s.solicitante?.nome ?? 'Comercial')
-                  return (
-                    <MensagemBubble
-                      key={m.id}
-                      texto={m.texto}
-                      autorNome={m.autor_id === usuario?.id ? `${nome} (você)` : nome}
-                      isPropio={m.autor_id === usuario?.id}
-                      isResponsavel={m.autor_id === s.responsavel?.id}
-                      createdAt={m.created_at}
-                    />
-                  )
-                })}
+                {mensagens.map((m) => (
+                  <MensagemBubble
+                    key={m.id}
+                    texto={m.texto}
+                    autorNome={nomeAutorMensagem(m, s, usuario?.id)}
+                    isPropio={m.autor_id === usuario?.id}
+                    isResponsavel={m.autor_id === s.responsavel?.id}
+                    createdAt={m.created_at}
+                  />
+                ))}
               </div>
             </div>
           )}

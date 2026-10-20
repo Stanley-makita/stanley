@@ -67,3 +67,9 @@ export function useSolicitacoesPorConversa(conversaId: string | null | undefined
     !!conversaId
   )
 }
+
+// Uma solicitação completa (para abrir o ResponderSolicitacaoDrawer a partir de um painel
+// que só carrega o resumo).
+export function useSolicitacaoPorId(id: string | null | undefined) {
+  return useSolicitacoesBase(id ? { id } : {}, ['id', id], !!id)
+}
