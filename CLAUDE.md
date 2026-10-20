@@ -828,3 +828,40 @@ só `'Contrato'` — Consórcio e Registro entravam (26 "emitidos" de R$ 0 = car
 SFI/SBPE/PMCMV/Pro_Cotista/CGI (`FINANCIAMENTO_MODALIDADES`, `src/lib/processos/fasesConfig.ts`). Qualquer consulta nova
 "de financiamento" usa a lista positiva — modalidade nova (ex.: outra de consórcio) não pode entrar sozinha.
 Tela equivalente de Consórcio (cartas em prospecção/fechadas por administradora) ainda não existe — pedido adiado.
+
+## Solicitações: qualquer um responde, campo de retorno em branco, aviso por WhatsApp (2026-10-20)
+
+- **Qualquer usuário da empresa responde** (módulo, painel da Captação/Negócios e aba Solicitações do lead/negócio —
+  todos abrem o MESMO `ResponderSolicitacaoDrawer`; não criar outro formulário de resposta). `responder_solicitacao`
+  grava `respondido_por_id`/`respondido_em` (migration 343); terceiro (nem quem pediu nem o responsável) notifica os
+  dois no sino e aparece na conversa como "Fulano (no lugar de X)" (`nomeAutorMensagem`).
+- **O campo de retorno abre SEMPRE vazio** (os anteriores estão na Conversa). Reabrir com o último retorno preenchido
+  fazia concluir reenviar a mesma mensagem (conversa, Histórico e WhatsApp). Migration 344: retorno em branco mantém
+  `retorno_operacional`; só mudança de status grava "Status alterado para X" na conversa; nada mudou → nada gravado.
+- **Aviso por WhatsApp** (`/api/solicitacoes/[id]/aviso`, regras puras em `src/lib/solicitacoes/avisoWhatsapp.ts`):
+  quem pediu + comercial do lead/negócio (uma vez só se forem a mesma pessoa), só mensagens que ele não escreveu,
+  1 minuto sem novidade = um aviso, para depois de avisar Concluído/Cancelado. Controle em `aviso_whatsapp_ate`/
+  `aviso_status_avisado`. **Todo caminho novo que grave mensagem/resposta de solicitação chama
+  `pedirAvisoSolicitacao(id)`** depois de gravar (as duas mutations atuais já chamam) — senão o comercial não é avisado.
+
+## Histórico: respostas de solicitação, "Comercial notificado via WhatsApp" e data exata (2026-10-20)
+
+- As respostas das solicitações do lead aparecem no Histórico (`kind: 'solicitacao_resposta'`), lidas de
+  `solicitacao_mensagens` na hora — nada é copiado para `lead_historico`.
+- **Todo WhatsApp automático ao comercial sobre um lead/negócio chama `registrarAvisoWhatsappComercial()`**
+  (`src/lib/historico/registrarAvisoComercial.ts`) só quando o envio saiu — `enviarTextoUazapi` devolve `boolean`
+  pra isso. Lead → `lead_historico` `acao_operacional` com o prefixo "Comercial notificado via WhatsApp — " (o
+  EventoLead reconhece o prefixo e mostra o título); negócio → `processo_comentarios` (`usuario_id` = comercial, coluna
+  obrigatória). Hoje: aviso de solicitação, status de análise de crédito, contemplação do consórcio, follow-up.
+- Data dos eventos do Histórico (lead e negócio): `formatarDataHistorico` → "14/10/2026 14:00 · 6 dias".
+
+## Lead: "Novo" não avança sozinho; lead perdido é leitura + reativar só admin (2026-10-20)
+
+- Abrir um lead em **Novo** NÃO muda mais a fase (automação de 13/07 removida, PR #397): ela "iniciava" o atendimento
+  quando qualquer pessoa só olhava, pulava o checklist obrigatório e zerava o contador "Novos". Não reintroduzir
+  mudança de fase em `useEffect` de abertura de tela.
+- **Lead perdido** (`perdido_em`): abas navegam; Resumo e Histórico interativos (`ABAS_LEITURA_PERDIDO`), Notas só
+  leitura (`PainelDireitoLead somenteLeitura`), resto travado com `TRAVADO` (pointer-events-none — rolar continua
+  funcionando). Aba nova que seja só leitura pode entrar na lista; aba que edita, nunca.
+- **Reativar** (`ModalReativarLead`, só perfil admin): motivo obrigatório → nota `LEAD REATIVADO - motivo` +
+  `perdido_em = null` (lead volta na fase em que estava). Não religa o follow-up encerrado.
