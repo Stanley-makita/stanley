@@ -3,7 +3,7 @@ import { type Acao, type UsuarioPerfil } from '@/types/auth'
 const TODAS_ACOES: Acao[] = [
   'leads.ver', 'leads.criar', 'leads.editar', 'leads.excluir',
   'leads.ver_todas', 'leads.redistribuir',
-  'processos.ver', 'processos.criar', 'processos.editar', 'processos.retroceder_fase', 'processos.reabrir',
+  'processos.ver', 'processos.criar', 'processos.editar', 'processos.retroceder_fase', 'processos.reabrir', 'processos.excluir',
   'financeiro.ver', 'financeiro.editar',
   'rh.ver', 'rh.editar',
   'configuracoes.ver', 'configuracoes.editar',
@@ -26,8 +26,9 @@ const TODAS_ACOES: Acao[] = [
 export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
   admin: TODAS_ACOES, // garantido também em código (ver usePerfilPermissoes), nunca só por esta lista
 
+  // processos.excluir: só admin por padrão — o admin libera pro gestor em Perfis de Acesso.
   gestor: TODAS_ACOES.filter(
-    (a) => !(['rh.editar', 'usuarios.desativar', 'instancias.gerenciar'] as Acao[]).includes(a)
+    (a) => !(['rh.editar', 'usuarios.desativar', 'instancias.gerenciar', 'processos.excluir'] as Acao[]).includes(a)
   ),
 
   comercial: [
@@ -84,7 +85,7 @@ export const PERMISSOES_PADRAO: Record<UsuarioPerfil, Acao[]> = {
   // Perfis legados — fora do formulário de cadastro hoje (PERFIS_ATIVOS não os inclui).
   // Mantidos como estavam, sem redesenho: não fazem parte do escopo da matriz oficial.
   gerente: TODAS_ACOES.filter(
-    (a) => !(['rh.editar', 'usuarios.desativar', 'instancias.gerenciar'] as Acao[]).includes(a)
+    (a) => !(['rh.editar', 'usuarios.desativar', 'instancias.gerenciar', 'processos.excluir'] as Acao[]).includes(a)
   ),
   analista: [
     'dashboard.ver', 'notificacoes.ver',

@@ -16,6 +16,13 @@ describe('PERMISSOES_PADRAO — matriz oficial', () => {
     expect(PERMISSOES_PADRAO.gestor).toContain('biblioteca.ver')
   })
 
+  it('processos.excluir: só admin por padrão — gestor depende de liberação em Perfis de Acesso', () => {
+    expect(podeExecutarPadrao('admin', 'processos.excluir')).toBe(true)
+    for (const perfil of ['gestor', 'gerente', 'comercial', 'operacional', 'juridico', 'assistente'] as const) {
+      expect(podeExecutarPadrao(perfil, 'processos.excluir')).toBe(false)
+    }
+  })
+
   it('comercial tem pessoas.editar (fluxo real diário confirmado), mas não merge/excluir', () => {
     expect(PERMISSOES_PADRAO.comercial).toContain('pessoas.ver')
     expect(PERMISSOES_PADRAO.comercial).toContain('pessoas.editar')
