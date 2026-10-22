@@ -865,3 +865,13 @@ Tela equivalente de Consórcio (cartas em prospecção/fechadas por administrado
   funcionando). Aba nova que seja só leitura pode entrar na lista; aba que edita, nunca.
 - **Reativar** (`ModalReativarLead`, só perfil admin): motivo obrigatório → nota `LEAD REATIVADO - motivo` +
   `perdido_em = null` (lead volta na fase em que estava). Não religa o follow-up encerrado.
+
+## Excluir processo duplicado: `excluir_processo` (migration 345, 2026-10-22)
+
+Processo aberto por engano (caso real: mesmo cliente com 2 processos iguais) é excluído pela RPC
+`excluir_processo(p_processo_id, p_motivo)` — soft delete (`deleted_at`, `excluido_por`,
+`motivo_exclusao`), justificativa obrigatória (mín. 10 caracteres), registro em `lead_historico`.
+Pessoa, documentos, lead e participações NÃO são tocados. Processo emitido não pode ser excluído.
+Permissão `processos.excluir`: admin sempre; gestor e demais só com liberação em Configurações >
+Perfis de Acesso (fora do padrão do gestor de propósito). Leitor novo de `processos` com service role
+precisa filtrar `deleted_at IS NULL` — a RLS só protege quem lê com o JWT do usuário.

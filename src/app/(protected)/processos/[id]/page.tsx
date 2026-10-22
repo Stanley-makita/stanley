@@ -15,7 +15,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { usePermissao } from '@/hooks/auth/usePermissao'
 import { useReabrirProcesso } from '@/hooks/processos/useReabrirProcesso'
-import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle, Lock } from 'lucide-react'
+import { useExcluirProcesso } from '@/hooks/processos/useExcluirProcesso'
+import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle, Lock, Trash2 } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
@@ -88,6 +89,22 @@ export default function ProcessoDetalhePage() {
   const reabrirProcesso = useReabrirProcesso(id)
   const { pode } = usePermissao()
   const podeReabrir = pode('processos.reabrir')
+  const [excluirAberto, setExcluirAberto] = useState(false)
+  const [motivoExclusao, setMotivoExclusao] = useState('')
+  const excluirProcesso = useExcluirProcesso(id)
+  const podeExcluir = pode('processos.excluir')
+  const motivoExclusaoValido = motivoExclusao.trim().length >= 10
+
+  async function confirmarExclusao() {
+    if (!motivoExclusaoValido) return
+    try {
+      await excluirProcesso.mutateAsync(motivoExclusao.trim())
+      setExcluirAberto(false)
+      router.push('/processos')
+    } catch {
+      // Erro já exibido via onError de useExcluirProcesso — mantém o dialog aberto.
+    }
+  }
 
   async function confirmarReabertura() {
     if (!motivoReabertura.trim()) return
@@ -286,6 +303,16 @@ export default function ProcessoDetalhePage() {
                 onClick={() => setReabrirAberto(true)}
               >
                 Reabrir
+              </Button>
+            )}
+            {podeExcluir && processo.status_emissao !== 'emitido' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => setExcluirAberto(true)}
+              >
+                <Trash2 className="h-3 w-3 mr-1" /> Excluir
               </Button>
             )}
             {!processo.fase_atual && <ProcessoStatusBadge status={processo.status_processo} />}
@@ -786,6 +813,52 @@ export default function ProcessoDetalhePage() {
               onClick={confirmarReabertura}
             >
               {reabrirProcesso.isPending ? 'Reabrindo...' : 'Confirmar reabertura'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir processo aberto por engano — admin ou perfil liberado (podeExcluir) */}
+      <Dialog open={excluirAberto} onOpenChange={(o) => { if (!o) { setExcluirAberto(false); setMotivoExclusao('') } }}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Excluir este processo?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500">
+            Use para processo aberto por engano (ex.: duplicado). Só o processo é excluído:
+            o cliente, os documentos dele e o lead continuam como estão. A exclusão e a
+            justificativa ficam registradas.
+          </p>
+          <div className="space-y-1.5">
+            <Label>Justificativa <span className="text-red-500">*</span></Label>
+            <Textarea
+              value={motivoExclusao}
+              onChange={(e) => setMotivoExclusao(e.target.value)}
+              placeholder="Ex.: processo aberto em duplicidade, o correto é o 351.239.517..."
+              rows={3}
+              className="resize-none"
+            />
+            {motivoExclusao.trim().length > 0 && !motivoExclusaoValido && (
+              <p className="text-xs text-red-500">Mínimo de 10 caracteres.</p>
+            )}
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => { setExcluirAberto(false); setMotivoExclusao('') }}
+              disabled={excluirProcesso.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              disabled={!motivoExclusaoValido || excluirProcesso.isPending}
+              onClick={confirmarExclusao}
+            >
+              {excluirProcesso.isPending ? 'Excluindo...' : 'Excluir processo'}
             </Button>
           </DialogFooter>
         </DialogContent>
