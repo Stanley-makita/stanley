@@ -31,17 +31,49 @@ export async function confirmarTelefoneDaEquipe(empresaId: string, telefone: str
 }
 
 /**
- * CPF recusado por já pertencer a outro cadastro (UNIQUE): avisa com o nome do dono e orienta a mesclar.
- * Achado real (01/10/2026, go-live): o OCR criou um cadastro duplicado com o CPF e o formulário engolia o erro
- * em silêncio — a equipe tentou salvar o CPF 8 vezes sem nenhuma mensagem.
+ * CPF recusado por já pertencer a outro cadastro (UNIQUE). Se o outro é um duplicado solto (nome parecido,
+ * fora de qualquer lead/negócio), pergunta e junta os dois neste cadastro (/api/pessoas/[id]/trazer-cpf);
+ * senão avisa com o nome do dono. true = o CPF ficou gravado neste cadastro.
+ * Achados reais: 01/10/2026 (o formulário engolia o erro em silêncio) e 23–27/10/2026 (o OCR criava o
+ * duplicado com o CPF e o comercial/operacional, sem permissão de Mesclar, não tinha como resolver).
  */
-export async function avisarCpfDeOutroCadastro(cpf: string, pessoaId: string): Promise<void> {
+export async function resolverCpfDeOutroCadastro(cpf: string, pessoaId: string): Promise<boolean> {
   const { toast } = await import('sonner')
-  const { data } = await supabase.from('pessoas').select('id, nome').eq('cpf', cpf).neq('id', pessoaId)
-    .is('deleted_at', null).limit(1).maybeSingle()
-  const dono = data?.nome ? `"${data.nome}"` : 'outro cadastro'
+  const { data: sessao } = await supabase.auth.getSession()
+  const token = sessao.session?.access_token
+  const rota = `/api/pessoas/${pessoaId}/trazer-cpf`
+  const headers = { Authorization: `Bearer ${token ?? ''}`, 'Content-Type': 'application/json' }
+
+  const res = await fetch(`${rota}?cpf=${encodeURIComponent(cpf)}`, { headers }).catch(() => null)
+  const info = res?.ok
+    ? await res.json().catch(() => null) as { dono: { nome: string } | null; pode_juntar: boolean; motivo: string | null } | null
+    : null
+  const dono = info?.dono?.nome ? `"${info.dono.nome}"` : 'outro cadastro'
+
+  if (info?.pode_juntar) {
+    const juntar = window.confirm(
+      `Esse CPF já está em outro cadastro: ${dono}, que não está em nenhum lead ou negócio (cadastro duplicado).\n\n` +
+      'Juntar os dois neste cadastro? Documentos e dados do outro passam para cá e ele deixa de existir.',
+    )
+    if (!juntar) {
+      toast.info('CPF não salvo. O outro cadastro continua com ele.')
+      return false
+    }
+    const r = await fetch(rota, { method: 'POST', headers, body: JSON.stringify({ cpf }) }).catch(() => null)
+    if (r?.ok) {
+      toast.success(`Cadastros juntados. CPF salvo.`)
+      return true
+    }
+    const err = await r?.json().catch(() => null) as { error?: string } | null
+    toast.error(err?.error ?? 'Não foi possível juntar os cadastros.', { duration: 15000 })
+    return false
+  }
+
   toast.error(
-    `CPF não salvo: ele já pertence a ${dono}. É a mesma pessoa? Abra o cadastro em Pessoas e use "Mesclar" para juntar os dois.`,
+    info?.motivo === 'nome_diferente'
+      ? `CPF não salvo: ele já pertence a ${dono}, com outro nome. Confira o CPF digitado.`
+      : `CPF não salvo: ele já pertence a ${dono}. É a mesma pessoa? Abra o cadastro em Pessoas e use "Mesclar" para juntar os dois.`,
     { duration: 15000 },
   )
+  return false
 }

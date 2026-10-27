@@ -26,7 +26,7 @@ async function ehOperador(sb: SupabaseClient, pessoaId: string): Promise<boolean
  */
 export async function pessoaPorCpfOuNova(
   sb: SupabaseClient, empresaId: string, nome: string, cpfBruto: string | undefined | null,
-): Promise<{ id: string } | { erro: string; status: number }> {
+): Promise<{ id: string; criada?: true } | { erro: string; status: number }> {
   const cpf = (cpfBruto ?? '').replace(/\D/g, '')
   if (cpfValido(cpf)) {
     const { data: existente, error } = await sb.from('pessoas').select('id')
@@ -46,7 +46,7 @@ export async function pessoaPorCpfOuNova(
     id, empresa_id: empresaId, nome: nomeLimpo, tipo: 'cliente', ...(cpfValido(cpf) ? { cpf } : {}),
   })
   if (error) return { erro: 'Não foi possível criar a pessoa.', status: 500 }
-  return { id }
+  return { id, criada: true }
 }
 
 const PAPEIS_COMPRA = ['titular', 'coparticipante', 'conjuge_anuente']

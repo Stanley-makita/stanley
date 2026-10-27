@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { Check, Loader2 } from 'lucide-react'
 import { DocumentosIdentidadeSection } from '@/components/pessoas/DocumentosIdentidadeSection'
 import { useDefinirConjuge } from '@/hooks/participantes/useMutacoesParticipantes'
-import { avisarCpfDeOutroCadastro, confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
+import { resolverCpfDeOutroCadastro, confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -327,14 +327,13 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
 
-      // CPF de outro cadastro (UNIQUE): avisa com o nome do dono e NÃO copia o CPF para o lead.
+      // CPF de outro cadastro (UNIQUE): junta o duplicado solto (perguntando) ou avisa; só copia o CPF para o lead se ficou salvo.
       let cpfSalvo: string | null | undefined = payload.cpf
       if (payload.cpf) {
         const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
         if (errCpf) {
           console.warn('[aba-pessoa] CPF não salvo (conflito):', errCpf.message)
-          cpfSalvo = undefined
-          await avisarCpfDeOutroCadastro(payload.cpf, pessoaId)
+          cpfSalvo = (await resolverCpfDeOutroCadastro(payload.cpf, pessoaId)) ? payload.cpf : undefined
         }
       }
 
