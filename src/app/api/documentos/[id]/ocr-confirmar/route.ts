@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { cpfValido } from '@/lib/cpf'
-import { participanteParecido } from '@/lib/participantes/donoDocumento'
+import { participanteMesmoNome, participanteParecido } from '@/lib/participantes/donoDocumento'
 import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
 import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
 import { normalizarRegime, registrarCasamento } from '@/lib/participantes/casamentoServidor'
 import { incluirParticipanteLead, pessoaPorCpfOuNova as pessoaPorCpfOuNovaServico } from '@/lib/participantes/escritaServidor'
+
+type Candidato = { pessoaId: string; nome: string; cpf: string | null }
+
+/** Pessoas (não excluídas) que participam destes leads/negócios. */
+async function participantesDasPropostas(
+  coluna: 'lead_id' | 'processo_id', ids: string[],
+): Promise<Candidato[] | { erro: string }> {
+  const { data, error } = await supabase.from('participacoes')
+    .select('pessoa:pessoas!pessoa_id(id, nome, cpf, deleted_at)').in(coluna, ids)
+  if (error) return { erro: 'Erro ao carregar os participantes.' }
+  return ((data ?? []) as unknown as Array<{ pessoa: { id: string; nome: string; cpf: string | null; deleted_at: string | null } | null }>)
+    .map(x => x.pessoa).filter((x): x is { id: string; nome: string; cpf: string | null; deleted_at: string | null } => !!x && !x.deleted_at)
+    .map(x => ({ pessoaId: x.id, nome: x.nome, cpf: x.cpf }))
+}
 
 async function resolveUsuario(token: string): Promise<{ empresa_id: string; usuario_id: string } | null> {
   const { data: { user }, error } = await supabase.auth.getUser(token)
@@ -132,6 +146,7 @@ export async function POST(
     // Antes de criar cadastro NOVO: alguém da proposta com nome parecido e sem outro CPF? (achado real 01/10/2026:
     // RG "ANDRÉ … COPPULA" x lead "ANDRE … COPULLA" virou duplicado e travou o CPF do cliente.) Só segue com
     // confirmar_novo. CPF que já existe na empresa é reaproveitado (não cria nada), então não pergunta.
+    let mesmoNomeId: string | null = null
     if (!body.confirmar_novo) {
       const cpfNovo = (body.novo_participante.cpf ?? '').replace(/\D/g, '')
       let cpfExiste = false
@@ -142,13 +157,12 @@ export async function POST(
         cpfExiste = !!porCpf
       }
       if (!cpfExiste) {
-        const { data: parts, error: eParts } = await supabase.from('participacoes')
-          .select('pessoa:pessoas!pessoa_id(id, nome, cpf, deleted_at)').eq('lead_id', body.lead_id)
-        if (eParts) return NextResponse.json({ error: 'Erro ao carregar os participantes.' }, { status: 500 })
-        const candidatos = ((parts ?? []) as unknown as Array<{ pessoa: { id: string; nome: string; cpf: string | null; deleted_at: string | null } | null }>)
-          .map(x => x.pessoa).filter((x): x is { id: string; nome: string; cpf: string | null; deleted_at: string | null } => !!x && !x.deleted_at)
-          .map(x => ({ pessoaId: x.id, nome: x.nome, cpf: x.cpf }))
-        const parecido = participanteParecido(nomeNovo, cpfNovo, candidatos)
+        const candidatos = await participantesDasPropostas('lead_id', [body.lead_id])
+        if ('erro' in candidatos) return NextResponse.json({ error: candidatos.erro }, { status: 500 })
+        // MESMO nome e sem outro CPF = é quem já está na proposta: usa esse cadastro sem perguntar (caso real
+        // 27/10/2026: certidão de casamento criou um 2º Roberto com o CPF e o titular não recebia mais o CPF).
+        mesmoNomeId = participanteMesmoNome(nomeNovo, cpfNovo, candidatos)?.pessoaId ?? null
+        const parecido = mesmoNomeId ? null : participanteParecido(nomeNovo, cpfNovo, candidatos)
         if (parecido) {
           return NextResponse.json({
             error: `Parece ser ${parecido.nome}, que já está nesta proposta.`,
@@ -158,12 +172,17 @@ export async function POST(
       }
     }
 
-    const resolvida = await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf)
+    const resolvida = mesmoNomeId ? { id: mesmoNomeId } : await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf)
     if ('erro' in resolvida) return NextResponse.json({ error: resolvida.erro }, { status: resolvida.status })
     const alvoId = resolvida.id
     if (alvoId !== leadVisivel.pessoa_id) {
       const inc = await incluirParticipanteLead(supabase, empresa_id, body.lead_id, alvoId)
-      if ('erro' in inc) return NextResponse.json({ error: inc.erro }, { status: inc.status })
+      if ('erro' in inc) {
+        // Cadastro criado agora e não incluído: apaga, senão fica solto segurando o CPF (era assim que o CPF
+        // "sumia" do titular — o duplicado sem proposta nenhuma ficava com ele).
+        if ('criada' in resolvida && resolvida.criada) await supabase.from('pessoas').delete().eq('id', alvoId)
+        return NextResponse.json({ error: inc.erro }, { status: inc.status })
+      }
     }
     pessoaId = alvoId
   } else if (alvo === 'conjuge') {
@@ -386,9 +405,25 @@ export async function POST(
       if (visivel) conjugeId = body.casamento.conjuge_pessoa_id
       else casamento_erro = 'Cônjuge escolhido não encontrado.'
     } else {
-      const r = await pessoaPorCpfOuNova(body.casamento.novo!.nome!.trim(), body.casamento.novo!.cpf)
-      if ('erro' in r) casamento_erro = r.erro
-      else conjugeId = r.id
+      // Cônjuge que já está numa proposta do dono (mesmo nome, sem outro CPF) é reaproveitado, não duplicado.
+      const nomeConjuge = body.casamento.novo!.nome!.trim()
+      const { data: propostas } = await supabase.from('participacoes').select('lead_id, processo_id').eq('pessoa_id', pessoaId)
+      const leads = (propostas ?? []).map(p => p.lead_id as string | null).filter((x): x is string => !!x)
+      const processos = (propostas ?? []).map(p => p.processo_id as string | null).filter((x): x is string => !!x)
+      const lista = async (coluna: 'lead_id' | 'processo_id', ids: string[]) => {
+        if (!ids.length) return []
+        const r = await participantesDasPropostas(coluna, ids)
+        return 'erro' in r ? [] : r
+      }
+      const cands = [...await lista('lead_id', leads), ...await lista('processo_id', processos)]
+        .filter(c => c.pessoaId !== pessoaId)
+      const existente = participanteMesmoNome(nomeConjuge, body.casamento.novo!.cpf, cands)
+      if (existente) conjugeId = existente.pessoaId
+      else {
+        const r = await pessoaPorCpfOuNova(nomeConjuge, body.casamento.novo!.cpf)
+        if ('erro' in r) casamento_erro = r.erro
+        else conjugeId = r.id
+      }
     }
     casamento_conjuge_id = conjugeId
     if (conjugeId) {

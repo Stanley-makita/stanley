@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
 import { DocumentosIdentidadeSection } from './DocumentosIdentidadeSection'
 import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
-import { avisarCpfDeOutroCadastro, confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
+import { resolverCpfDeOutroCadastro, confirmarTelefoneDaEquipe } from '@/lib/participantes/telefoneDaEquipe'
 
 const ESTADOS_CIVIS = [
   { value: 'solteiro',      label: 'Solteiro(a)' },
@@ -284,14 +284,13 @@ export function CompletarDadosPessoaDrawer({
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
 
-      // CPF de outro cadastro (UNIQUE): avisa com o nome do dono e NÃO copia o CPF para o lead.
+      // CPF de outro cadastro (UNIQUE): junta o duplicado solto (perguntando) ou avisa; só copia o CPF para o lead se ficou salvo.
       let cpfSalvo: string | null | undefined = payload.cpf
       if (payload.cpf) {
         const { error: errCpf } = await supabase.from('pessoas').update({ cpf: payload.cpf }).eq('id', pessoaId)
         if (errCpf) {
           console.warn('[completar-dados] CPF não salvo (conflito):', errCpf.message)
-          cpfSalvo = undefined
-          await avisarCpfDeOutroCadastro(payload.cpf, pessoaId)
+          cpfSalvo = (await resolverCpfDeOutroCadastro(payload.cpf, pessoaId)) ? payload.cpf : undefined
         }
       }
       // Casamento (V2 B2c): nunca campos soltos conjuge_* — cônjuge cadastrado ou criado pelo serviço único.

@@ -80,6 +80,18 @@ export function sugerirDonoDocumento(
 }
 
 /** Participante com nome parecido e sem outro CPF — para avisar antes de criar um cadastro novo. */
+/**
+ * Participante com o MESMO nome (sem acento/caixa) e sem outro CPF — é a mesma pessoa, reaproveitar sem
+ * perguntar. Nome só parecido continua passando pela pergunta (participanteParecido).
+ */
+export function participanteMesmoNome(nome: string, cpf: string | null | undefined, participantes: Participante[]): Participante | null {
+  const alvo = normalizarNome(nome)
+  const doc = (cpf ?? '').replace(/\D/g, '')
+  if (!alvo) return null
+  return participantes.find(x => normalizarNome(x.nome) === alvo
+    && (!doc || !(x.cpf ?? '').replace(/\D/g, '') || (x.cpf ?? '').replace(/\D/g, '') === doc)) ?? null
+}
+
 export function participanteParecido(nome: string, cpf: string | null | undefined, participantes: Participante[]): Participante | null {
   const doc = (cpf ?? '').replace(/\D/g, '')
   return participantes.find(x => nomesParecidos(x.nome, nome)

@@ -884,3 +884,15 @@ Perfil de acesso não diz quem vende: Luciana (perfil admin, cargo "Consultor Co
 Agora usa `responsavelDaCaptacao()` (`src/lib/workflows/responsavel-captacao.ts`). Qualquer regra nova de
 "se quem fez é comercial" deve reaproveitar `cargoEhComercial()`/`responsavelDaCaptacao()`, nunca comparar
 só o perfil.
+## Pessoa duplicada segurando o CPF (27/10/2026)
+
+Casos reais 23–27/10 (Francisco, Mayerlin, Rebeca, Roberto/Martha, vendedores Sandra/Luiz): um 2º cadastro da
+mesma pessoa nascia fora de qualquer proposta COM o CPF, e o titular nunca mais aceitava o CPF (UNIQUE). Origens:
+o diálogo do OCR "Cancelar = criar cadastro novo", "Novo participante"/certidão de casamento que não reaproveitava
+quem já estava na proposta, e cadastro criado antes de uma inclusão que falhava. Regras:
+- CPF recusado num formulário → `resolverCpfDeOutroCadastro()` → `/api/pessoas/[id]/trazer-cpf`: duplicado SOLTO
+  (nome parecido, sem participação nem lead) é juntado com `merge_pessoas` só com `pessoas.editar`; em proposta,
+  só o Mesclar (`pessoas.merge`). Dono do CPF é buscado pelo service role (a RLS de carteira escondia o nome).
+- OCR: mesmo nome (`participanteMesmoNome`) e sem outro CPF = reaproveita sem perguntar; nome só parecido
+  pergunta, e desistir NUNCA cria cadastro. Pessoa criada (`pessoaPorCpfOuNova` → `criada: true`) cuja inclusão
+  falha é apagada na hora.

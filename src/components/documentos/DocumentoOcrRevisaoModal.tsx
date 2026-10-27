@@ -212,16 +212,22 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
       if (res.status === 409) {
         const conflito = await res.clone().json().catch(() => ({})) as { parecido?: { pessoa_id: string; nome: string } }
         if (conflito.parecido) {
+          // Duas perguntas: Cancelar/Esc NUNCA cria cadastro. Antes "Cancelar = criar cadastro novo" — quem
+          // desistia criava o duplicado com o CPF e o CPF não entrava mais no titular (casos reais 23–27/10/2026).
           const mesma = window.confirm(
-            `Parece ser ${conflito.parecido.nome}, que já está nesta proposta (o nome no documento está escrito diferente).
-
-` +
-            `OK = é a mesma pessoa (salvar em ${conflito.parecido.nome})
-Cancelar = é outra pessoa (criar cadastro novo)`,
+            `Parece ser ${conflito.parecido.nome}, que já está nesta proposta.\n\n` +
+            `É a mesma pessoa? OK = sim, salvar em ${conflito.parecido.nome}.`,
           )
-          res = await enviar(mesma
-            ? { novo_participante: undefined, lead_id: undefined, pessoa_alvo_id: conflito.parecido.pessoa_id }
-            : { confirmar_novo: true })
+          if (mesma) {
+            res = await enviar({ novo_participante: undefined, lead_id: undefined, pessoa_alvo_id: conflito.parecido.pessoa_id })
+          } else {
+            const criar = window.confirm(
+              `Criar um cadastro NOVO, separado de ${conflito.parecido.nome}?\n\n` +
+              'Só confirme se for outra pessoa de verdade. Cancelar = voltar sem salvar nada.',
+            )
+            if (!criar) return
+            res = await enviar({ confirmar_novo: true })
+          }
         }
       }
       if (!res.ok) {
