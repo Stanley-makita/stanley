@@ -26,6 +26,7 @@ import { buscarPessoaPorCpf, buscarPessoaPorTelefone, buscarOuCriarPessoa, confi
 import { obterOrdemTopo } from '@/lib/leads/ordem'
 import { enviarPDFUazapi as _enviarPDFUazapiShared, enviarTextoUazapi } from './uazapi-helpers'
 import { variantesTelefoneBR } from '@/lib/telefone'
+import { responsavelDaCaptacao } from './responsavel-captacao'
 
 export interface WorkflowCaptacaoContexto {
   empresa_id: string
@@ -414,6 +415,7 @@ export async function executarWorkflowCaptacao(
       }
 
       const ordemTopo = await obterOrdemTopo(supabase, empresa_id, primeiraFase.id)
+      const responsavel_id = await responsavelDaCaptacao(supabase, usuario_id, usuario_perfil)
 
       const { data: novoLead, error: leadErr } = await supabase
         .from('leads')
@@ -426,10 +428,10 @@ export async function executarWorkflowCaptacao(
           ordem_kanban:     ordemTopo,
           pessoa_id,
           data_nascimento:  dados.data_nascimento    ?? null,
-          // Se quem disparou o *cria cliente é um comercial, a captação já
-          // nasce na própria carteira. Se for recepção/gestor/admin criando
-          // em nome de terceiros, fica sem dono até ser distribuída.
-          responsavel_id:   usuario_perfil === 'comercial' ? usuario_id : null,
+          // Se quem disparou o *cria cliente é comercial (perfil OU cargo do RH),
+          // a captação já nasce na própria carteira. Se for recepção/gestor/admin
+          // criando em nome de terceiros, fica sem dono até ser distribuída.
+          responsavel_id,
           valor_imovel:     dados.valor_imovel     ?? null,
           valor_pretendido: dados.valor_financiado  ?? null,
           entrada:          dados.valor_entrada     ?? null,

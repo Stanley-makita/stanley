@@ -58,6 +58,7 @@ vi.mock('../simula-pendente', async (importOriginal) => {
 function makeChain(overrides: Partial<Record<string, unknown>> = {}): any {
   const chain: any = {
     eq: () => chain, is: () => chain, in: () => chain, gte: () => chain, not: () => chain,
+    abortSignal: () => chain,
     order: () => chain, limit: () => chain, select: () => chain,
     insert: () => chain, update: () => chain, upsert: () => chain, delete: () => chain,
     maybeSingle: () => Promise.resolve({ data: null, error: null }),
