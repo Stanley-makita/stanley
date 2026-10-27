@@ -875,3 +875,12 @@ Pessoa, documentos, lead e participações NÃO são tocados. Processo emitido n
 Permissão `processos.excluir`: admin sempre; gestor e demais só com liberação em Configurações >
 Perfis de Acesso (fora do padrão do gestor de propósito). Leitor novo de `processos` com service role
 precisa filtrar `deleted_at IS NULL` — a RLS só protege quem lê com o JWT do usuário.
+
+## Quem é comercial: perfil `comercial` OU cargo do RH com "comercial" (27/10/2026)
+
+Perfil de acesso não diz quem vende: Luciana (perfil admin, cargo "Consultor Comercial"), Alison (admin,
+"Comercial interno") e os externos com perfil customizado ("Comercial Externo") também são comerciais. O
+`*cria cliente` checava só `usuario_perfil === 'comercial'` e os leads deles nasciam sem responsável.
+Agora usa `responsavelDaCaptacao()` (`src/lib/workflows/responsavel-captacao.ts`). Qualquer regra nova de
+"se quem fez é comercial" deve reaproveitar `cargoEhComercial()`/`responsavelDaCaptacao()`, nunca comparar
+só o perfil.
