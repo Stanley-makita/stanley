@@ -391,7 +391,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   const router = useRouter()
   const { usuario } = useAuth()
 
-  const ROWS_PER_PAGE = 15
+  const ROWS_PER_PAGE = 150
   const isRegistro = produtoFixo === 'registro'
   const isFinanciamento = produtoFixo === 'financiamento'
   const isContrato = produtoFixo === 'contrato'
