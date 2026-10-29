@@ -16,6 +16,8 @@ import { PRIORIDADE_CORES, STATUS_CORES, STATUS_LABELS, TIPO_LABELS } from '@/ty
 // negócio está, então cada linha diz de onde vem e leva pro lugar certo.
 function origemDaSolicitacao(s: SolicitacaoPainel): { rotulo: string; nome: string } | null {
   if (s.processo_id) {
+    // Nome do proponente principal; sem participante, cai no número + imóvel.
+    if (s.processo?.titular) return { rotulo: 'Negócio', nome: s.processo.titular }
     const numero = s.processo?.numero_processo ?? 'Negócio'
     return { rotulo: 'Negócio', nome: s.processo?.nome_imovel ? `${numero} · ${s.processo.nome_imovel}` : numero }
   }

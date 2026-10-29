@@ -4,6 +4,7 @@ import { useEffect, useId } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { EMBED_PARTICIPANTES, nomeTitular, type ParticipacaoEmbed } from '@/lib/participantes/resumo'
 import type { PrioridadeSolicitacao, StatusSolicitacao, TipoSolicitacao } from '@/types/solicitacoes-operacionais'
 
 // Solicitação como aparece nos painéis iniciais (Captação e Negócios): "Para mim" e "Que pedi".
@@ -20,7 +21,8 @@ export interface SolicitacaoPainel {
   responsavel_id: string | null
   solicitante_id: string
   lead: { id: string; nome: string } | null
-  processo: { id: string; numero_processo: string | null; nome_imovel: string | null } | null
+  // `titular` = nome do proponente principal (participações), resolvido no hook.
+  processo: { id: string; numero_processo: string | null; nome_imovel: string | null; titular: string | null } | null
   solicitante: { id: string; nome: string } | null
   responsavel: { id: string; nome: string } | null
 }
@@ -58,10 +60,18 @@ export function classificarSolicitacoes(rows: SolicitacaoPainel[], usuarioId: st
   }
 }
 
+type ProcessoEmbed = Omit<NonNullable<SolicitacaoPainel['processo']>, 'titular'> & { participantes?: ParticipacaoEmbed[] | null }
+
+function comTitular(p: ProcessoEmbed | null): SolicitacaoPainel['processo'] {
+  if (!p) return null
+  const { participantes, ...resto } = p
+  return { ...resto, titular: nomeTitular(participantes) }
+}
+
 const SELECT = `
   id, titulo, tipo, prioridade, status, sla_at, created_at, lead_id, processo_id, responsavel_id, solicitante_id,
   lead:leads!lead_id(id, nome),
-  processo:processos!processo_id(id, numero_processo, nome_imovel),
+  processo:processos!processo_id(id, numero_processo, nome_imovel, ${EMBED_PARTICIPANTES}),
   solicitante:usuarios!solicitante_id(id, nome),
   responsavel:usuarios!responsavel_id(id, nome)
 `
@@ -119,7 +129,7 @@ export function useMinhasSolicitacoes(todasDaEmpresa = false) {
       return ((data ?? []) as unknown as Array<Record<string, unknown>>).map((r) => ({
         ...(r as unknown as SolicitacaoPainel),
         lead: um(r.lead as SolicitacaoPainel['lead'] | SolicitacaoPainel['lead'][]),
-        processo: um(r.processo as SolicitacaoPainel['processo'] | SolicitacaoPainel['processo'][]),
+        processo: comTitular(um(r.processo as ProcessoEmbed | ProcessoEmbed[])),
         solicitante: um(r.solicitante as SolicitacaoPainel['solicitante'] | SolicitacaoPainel['solicitante'][]),
         responsavel: um(r.responsavel as SolicitacaoPainel['responsavel'] | SolicitacaoPainel['responsavel'][]),
       }))
