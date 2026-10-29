@@ -288,9 +288,13 @@ export interface ProcessoFinanceiro {
   descricao: string
   valor: number
   tipo: 'receita_empresa' | 'custo_empresa' | 'repasse_cliente' | 'deposito_cliente'
-  situacao: 'pendente' | 'pago' | 'cancelado'
+  // recebido = cliente pagou a empresa (gera recibo); pago = empresa pagou o cliente.
+  situacao: 'pendente' | 'recebido' | 'pago' | 'cancelado'
   pago_em: string | null
   observacao: string | null
+  recibo_numero: number | null
+  recibo_nome: string | null
+  recibo_cpf: string | null
   criado_por: string | null
   created_at: string
   updated_at: string
