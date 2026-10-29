@@ -15,19 +15,6 @@ export interface ReciboCarregado {
   reciboCpf: string | null
 }
 
-async function logoComoDataUrl(url: string | null): Promise<string | null> {
-  if (!url) return null
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-    if (!res.ok) return null
-    const tipo = res.headers.get('content-type') ?? 'image/png'
-    if (!/image\/(png|jpe?g)/.test(tipo)) return null
-    return `data:${tipo};base64,${Buffer.from(await res.arrayBuffer()).toString('base64')}`
-  } catch {
-    return null
-  }
-}
-
 async function telefoneDaPessoa(pessoaId: string): Promise<string | null> {
   const { data } = await supabase
     .from('pessoa_telefones')
@@ -66,17 +53,14 @@ export async function carregarRecibo(
     supabase.from('processos').select('numero_processo').eq('id', processoId)
       .abortSignal(AbortSignal.timeout(TIMEOUT_QUERY)).maybeSingle(),
     supabase.from('empresas')
-      .select('nome, razao_social, cnpj, telefone, email, logo_url, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep')
+      .select('nome, razao_social, cnpj, telefone, email, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep')
       .eq('id', lanc.empresa_id)
       .abortSignal(AbortSignal.timeout(TIMEOUT_QUERY)).maybeSingle(),
     titularDaProposta(supabase, { tipo: 'processo', id: processoId }, { timeoutMs: TIMEOUT_QUERY }).catch(() => null),
   ])
   if (!empresa) return NextResponse.json({ error: 'Empresa não encontrada.' }, { status: 500 })
 
-  const [logoDataUrl, telefoneTitular] = await Promise.all([
-    logoComoDataUrl((empresa as { logo_url: string | null }).logo_url),
-    titular ? telefoneDaPessoa(titular.pessoa_id) : Promise.resolve(null),
-  ])
+  const telefoneTitular = titular ? await telefoneDaPessoa(titular.pessoa_id) : null
 
   const reciboNome = (lanc.recibo_nome as string | null)?.trim() || null
   const reciboCpf = (lanc.recibo_cpf as string | null)?.trim() || null
@@ -97,7 +81,6 @@ export async function carregarRecibo(
       pagadorCpf: reciboNome ? reciboCpf : (reciboCpf ?? titular?.cpf ?? null),
       processoNumero: (processo as { numero_processo: string | null } | null)?.numero_processo ?? null,
       empresa: empresa as unknown as EmpresaRecibo,
-      logoDataUrl,
     },
   }
 }

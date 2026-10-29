@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { valorPorExtenso } from '@/lib/contratos/substituirVariaveis'
+import { LOGO_RECIBO } from './logoRecibo'
 
 // Recibo de um lançamento do Financeiro do negócio com situação 'recebido' (cliente pagou
 // a empresa). Quem pagou = nome/CPF salvos no lançamento ou, vazio, o proponente principal.
@@ -29,7 +30,7 @@ export interface DadosRecibo {
   pagadorCpf: string | null
   processoNumero: string | null
   empresa: EmpresaRecibo
-  /** data URL (PNG/JPEG) da logo da empresa; sem logo o cabeçalho fica só com o nome. */
+  /** data URL (PNG/JPEG) da logo; padrão = logo da Fontinhas (LOGO_RECIBO). null = sem logo. */
   logoDataUrl?: string | null
 }
 
@@ -90,14 +91,15 @@ export async function gerarReciboPdf(d: DadosRecibo): Promise<Buffer> {
 
   // Cabeçalho: logo à esquerda, dados da empresa à direita
   let logoAltura = 0
-  if (d.logoDataUrl) {
+  const logo = d.logoDataUrl === undefined ? LOGO_RECIBO : d.logoDataUrl
+  if (logo) {
     try {
-      const props = doc.getImageProperties(d.logoDataUrl)
+      const props = doc.getImageProperties(logo)
       const proporcao = props.width / props.height
       let h = 18
       let w = proporcao * h
       if (w > 60) { w = 60; h = w / proporcao }
-      doc.addImage(d.logoDataUrl, props.fileType, mL, y, w, h)
+      doc.addImage(logo, props.fileType, mL, y, w, h)
       logoAltura = h
     } catch {
       logoAltura = 0
@@ -167,20 +169,17 @@ export async function gerarReciboPdf(d: DadosRecibo): Promise<Buffer> {
   doc.setTextColor(40, 40, 40)
   doc.text(pdf(localEData(d)), mR, y, { align: 'right' })
 
-  // Assinatura
-  y += 32
-  doc.setDrawColor(120, 120, 120)
-  doc.setLineWidth(0.3)
-  doc.line(W / 2 - 45, y, W / 2 + 45, y)
+  // No lugar da assinatura (o recibo não é assinado à mão): só nome da empresa + CNPJ.
+  y += 24
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
+  doc.setFontSize(11)
   doc.setTextColor(...VERDE)
-  doc.text(pdf(e.razao_social || e.nome), W / 2, y + 5, { align: 'center' })
+  doc.text(pdf(e.razao_social || e.nome), W / 2, y, { align: 'center' })
   if (e.cnpj) {
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
+    doc.setFontSize(9.5)
     doc.setTextColor(...CINZA)
-    doc.text(`CNPJ ${e.cnpj}`, W / 2, y + 10, { align: 'center' })
+    doc.text(`CNPJ ${e.cnpj}`, W / 2, y + 5.5, { align: 'center' })
   }
 
   return Buffer.from(doc.output('arraybuffer'))
