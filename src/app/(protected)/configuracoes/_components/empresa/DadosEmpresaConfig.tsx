@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { LogoDocumentosConfig } from './LogoDocumentosConfig'
 
 // Dados cadastrais da empresa — usados no recibo do Financeiro (e em qualquer documento
-// futuro que precise de razão social/CNPJ/endereço). A logo continua em Logo & Marca.
+// futuro que precise de razão social/CNPJ/endereço). A logo dos documentos fica aqui; a do
+// sistema (sidebar/login) continua em Logo & Marca.
 
 const CAMPOS = [
   'nome', 'razao_social', 'cnpj', 'telefone', 'email', 'site',
@@ -86,6 +88,8 @@ export function DadosEmpresaConfig() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <LogoDocumentosConfig />
+
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-fonti-primary">Identificação</h3>
         <div className="grid gap-3 sm:grid-cols-2">
