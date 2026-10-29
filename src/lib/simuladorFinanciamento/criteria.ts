@@ -108,7 +108,7 @@ export interface SimulationCriteria {
   taxaAnualCorrentista: number
   /**
    * Taxa própria do PRICE, quando diferente da taxa do SAC (hoje: exclusivo do Bradesco —
-   * 12,3% travado, vs. 11,90% do SAC; piso de mercado é 11,70% mas travamos mais alto por
+   * travado acima do piso de mercado (11,70%) por
    * segurança, mesmo critério já usado pro piso do SAC deste banco). Omitir cai em
    * `taxaAnualBase`/`taxaAnualCorrentista` (mesma taxa pros dois sistemas — comportamento
    * de todos os outros bancos).

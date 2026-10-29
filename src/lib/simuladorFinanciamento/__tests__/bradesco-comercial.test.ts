@@ -57,11 +57,11 @@ describe('Bradesco Comercial PF', () => {
   })
 
   it('comprometimento de renda PRICE usa 15%, mais restritivo que o SAC', () => {
-    // Faixa de renda calibrada pro cenário base (financiado R$350.000, 240 meses): SAC
-    // primeira parcela ~R$4.916 (30% de R$18.000 = R$5.400, passa); PRICE ~R$3.934 (15% de
-    // R$18.000 = R$2.700, não passa) — prova que os dois limiares são aplicados de fato,
-    // não só copiados um do outro.
-    const rendaMensal = 18_000
+    // Faixa de renda calibrada pro cenário base (financiado R$350.000, 240 meses, sem taxa
+    // comercial configurada → usa a residencial de 15% a.a.): SAC primeira parcela ~R$5.600
+    // (30% de R$22.000 = R$6.600, passa); PRICE ~R$4.400 (15% de R$22.000 = R$3.300, não
+    // passa) — prova que os dois limiares são aplicados de fato, não só copiados um do outro.
+    const rendaMensal = 22_000
     const sac   = simularBanco('bradesco', { ...BASE_COMERCIAL, rendaMensal, tipoAmortizacao: 'SAC' })
     const price = simularBanco('bradesco', { ...BASE_COMERCIAL, rendaMensal, tipoAmortizacao: 'PRICE' })
     expect(sac.elegivel).toBe(true)
