@@ -35,6 +35,7 @@ const TIPO_LABEL: Record<TipoSolicitacao, string> = {
   reanalise:          'Reanálise',
   engenharia:         'Engenharia',
   custas:             'Custas',
+  certidoes:          'Certidões',
   documentos:         'Documentos',
   formalizacao:       'Formalização',
   registro:           'Registro',

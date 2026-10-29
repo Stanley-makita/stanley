@@ -1,5 +1,5 @@
 export type TipoSolicitacao =
-  | 'simulacao' | 'analise_credito' | 'reanalise' | 'engenharia' | 'custas'
+  | 'simulacao' | 'analise_credito' | 'reanalise' | 'engenharia' | 'custas' | 'certidoes'
   | 'documentos' | 'formalizacao' | 'registro' | 'pendencia' | 'atendimento_cliente' | 'outros'
 
 export type StatusSolicitacao =
@@ -69,6 +69,7 @@ export const TIPO_LABELS: Record<TipoSolicitacao, string> = {
   reanalise: 'Reanálise',
   engenharia: 'Engenharia',
   custas: 'Custas',
+  certidoes: 'Certidões',
   documentos: 'Documentos',
   formalizacao: 'Formalização',
   registro: 'Registro',
@@ -135,6 +136,7 @@ export const SLA_HORAS_PADRAO: Record<TipoSolicitacao, number> = {
   reanalise:          48,
   engenharia:         72,
   custas:             24,
+  certidoes:          48,
   documentos:         24,
   formalizacao:       48,
   registro:           72,
