@@ -16,7 +16,7 @@ export interface BancoConfig {
   maxLtvCorrentista: number    // LTV com relacionamento (alguns bancos diferem)
   maxLtvPrice?: number         // LTV máximo PRICE — Caixa = 70% (doc seção 3.1), Bradesco = 80%
   comprometimentoMaxPrice?: number // comprometimento máximo renda PRICE — Caixa = 25%, Bradesco = 15%
-  taxaAnualPrice?: number      // taxa própria do PRICE quando diferente do SAC — Bradesco = 12,3% travado
+  taxaAnualPrice?: number      // taxa própria do PRICE quando diferente do SAC — ex.: Bradesco
   suportaPrice?: boolean       // banco oferece modalidade PRICE (padrão: false)
   maxValorImovel: number       // 0 = sem limite
   prazoMaximoMeses: number     // prazo máximo independente de idade
@@ -56,8 +56,9 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     nome: 'Itaú',
     cor: '#EC7000',
     corTexto: '#ffffff',
-    taxaAnualBase:        0.1190, // 11,90% a.a. (mínimo praticado jun/2026 — fonte: simulador Itaú + site oficial)
-    taxaAnualCorrentista: 0.1190, // taxa varia por rating/CPF (11,90%–13,99%), não por correntista
+    // Out/2026: piso "a partir de 12,95%" informado pelo usuário (antes 11,90%, jun/2026).
+    taxaAnualBase:        0.1295, // 12,95% a.a. — piso assumido (taxa real varia por CPF/rating)
+    taxaAnualCorrentista: 0.1295, // taxa varia por rating/CPF, não por correntista
     programa: 'SBPE',
     indexador: 'TR',
     maxLtv: 0.80,
@@ -79,18 +80,20 @@ export const BANCOS_CONFIG: Record<BancoId, BancoConfig> = {
     corTexto: '#ffffff',
     // Ajustado jul/2026: a taxa real do Bradesco varia por CPF/rating de crédito (igual
     // Itaú/Santander), não por correntista/segmento — não temos como replicar esse scoring,
-    // então assumimos o piso praticado (11,90%) como premissa de calibração, sabendo que o
+    // então assumimos o piso praticado como premissa de calibração, sabendo que o
     // resultado real pode vir mais alto para um CPF específico.
-    taxaAnualBase:        0.1190, // 11,90% a.a. — piso assumido (taxa real varia por CPF/rating)
-    taxaAnualCorrentista: 0.1190,
-    // PRICE (ago/2026): piso de mercado praticado é 11,70% a.a., mas travamos em 12,3% por
+    // Out/2026: piso "a partir de 15,00%" informado pelo usuário, igual pra SAC e PRICE
+    // (antes 11,90% SAC / 12,30% PRICE).
+    taxaAnualBase:        0.1500, // 15,00% a.a. — piso assumido (taxa real varia por CPF/rating)
+    taxaAnualCorrentista: 0.1500,
+    // PRICE (ago/2026): piso de mercado praticado é 11,70% a.a., mas travamos acima disso por
     // segurança — mesmo critério já usado pro piso do SAC deste banco (taxa real varia por
     // CPF/rating, sem como replicar esse scoring). Prazo máximo (420, limitado pela idade),
     // LTV (80%) e comprometimento de renda (15%, contra 30% do SAC) confirmados com o
     // usuário; MIP/DFI reaproveitam o já calibrado do SAC deste banco (BRADESCO_DFI_RATE +
     // MIP_RATES genérica) — não achamos tabela pública de MIP do Bradesco por idade nem
     // nada que contradissesse o já calibrado.
-    taxaAnualPrice: 0.1230,
+    taxaAnualPrice: 0.1500,
     maxLtvPrice: 0.80,
     comprometimentoMaxPrice: 0.15,
     suportaPrice: true,

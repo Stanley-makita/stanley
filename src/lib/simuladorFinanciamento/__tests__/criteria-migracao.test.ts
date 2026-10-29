@@ -129,16 +129,16 @@ describe('Bancos genéricos (Fase 1) — regressão antes/depois da migração',
   }
 })
 
-// PRICE do Bradesco (ago/2026) — taxa própria travada em 12,3% (piso de mercado 11,70%,
-// mesmo critério de segurança já usado pro piso do SAC deste banco), LTV 80%,
+// PRICE do Bradesco (ago/2026) — taxa 15,00% igual ao SAC desde out/2026 (piso informado
+// pelo usuário), LTV 80%,
 // comprometimento de renda 15% (vs. 30% do SAC). MIP/DFI reaproveitam o já calibrado do
 // SAC (BRADESCO_DFI_RATE + MIP_RATES genérica) — sem tabela pública de MIP por idade
 // específica do Bradesco disponível pra calibrar uma própria.
 describe('Bradesco — PRICE (taxa própria, ago/2026)', () => {
-  it('PRICE elegível com taxa própria de 12,3% (diferente dos 11,90% do SAC)', () => {
+  it('PRICE elegível com taxa de 15,00%', () => {
     const r = simularBanco('bradesco', { ...BASE_INPUT, tipoAmortizacao: 'PRICE' })
     expect(r.elegivel).toBe(true)
-    expect(r.taxaAnual).toBeCloseTo(0.123, 4)
+    expect(r.taxaAnual).toBeCloseTo(0.15, 4)
     expect(r).toMatchSnapshot()
   })
 
