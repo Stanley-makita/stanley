@@ -39,7 +39,7 @@ export function useCriarLancamento(processoId: string) {
           empresa_id:  usuario!.empresa_id,
           processo_id: processoId,
           criado_por:  (await supabase.auth.getUser()).data.user?.id ?? null,
-          pago_em: payload.situacao === 'pago' ? new Date().toISOString() : null,
+          pago_em: payload.situacao === 'pago' || payload.situacao === 'recebido' ? new Date().toISOString() : null,
           ...payload,
         })
         .select()
@@ -63,20 +63,26 @@ export function useAtualizarLancamento(processoId: string) {
       situacao?: ProcessoFinanceiro['situacao']
       observacao?: string | null
       pago_em?: string | null
+      recibo_nome?: string | null
+      recibo_cpf?: string | null
     }) => {
       const { id, ...rest } = payload
       const update: Record<string, unknown> = { ...rest, updated_at: new Date().toISOString() }
 
-      // Se marcando como pago e pago_em não foi explicitamente passado, define agora
+      // Se marcando como pago e pago_em não foi explicitamente passado, define agora.
+      // 'recebido' fica com o trigger do banco (mantém a data já gravada — é a data do recibo).
       if (rest.situacao === 'pago' && !('pago_em' in rest)) {
         update.pago_em = new Date().toISOString()
       }
 
-      const { error } = await supabase
+      // RLS que barra o UPDATE não dá erro — confere a linha afetada.
+      const { data, error } = await supabase
         .from('processo_financeiro')
         .update(update)
         .eq('id', id)
+        .select('id')
       if (error) throw error
+      if (!data?.length) throw new Error('Sem permissão para alterar este lançamento.')
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['processo-financeiro', processoId] }),
   })

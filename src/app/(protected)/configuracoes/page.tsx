@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import {
   Settings, Building2, Users, Layers, Smartphone, Calculator,
   Landmark, ClipboardCheck, Bot, LayoutTemplate, Percent, Target,
-  Package, ChevronRight, ArrowLeft, ShieldCheck, Handshake, CalendarClock, Radio, Tag,
+  Package, ChevronRight, ArrowLeft, ShieldCheck, Handshake, CalendarClock, Radio, Tag, Briefcase,
 } from 'lucide-react'
 import { FasesLista } from './_components/fases/FasesLista'
 import { BancosLista } from './_components/bancos/BancosLista'
@@ -26,6 +26,7 @@ import { ParceirosComerciaisConfig } from './_components/parceiros-comerciais/Pa
 import { RecepcaoConfig } from './_components/agenda/RecepcaoConfig'
 import { CanaisCaptacaoConfig } from './_components/canais-captacao/CanaisCaptacaoConfig'
 import { OrigensLeadConfig } from './_components/origens-lead/OrigensLeadConfig'
+import { DadosEmpresaConfig } from './_components/empresa/DadosEmpresaConfig'
 
 interface ConfigItem {
   key: string
@@ -40,6 +41,12 @@ interface ConfigGrupo {
 }
 
 const GRUPOS: ConfigGrupo[] = [
+  {
+    titulo: 'Empresa',
+    itens: [
+      { key: 'dados-empresa', label: 'Dados da Empresa', descricao: 'Razão social, CNPJ, endereço e contato usados nos recibos', icon: Briefcase },
+    ],
+  },
   {
     titulo: 'Pipeline',
     itens: [
@@ -118,6 +125,7 @@ function renderConteudo(key: string) {
     case 'comissoes-banco':  return wrap('Comissões por Banco', 'Configure o percentual por banco e modalidade, com piso e teto por operação.', <AbaComissoesPadrao />)
     case 'comissoes-consorcio': return wrap('Comissões por Administradora de Consórcio', 'Configure o percentual de comissão da empresa e a fatia do comercial, por administradora.', <AbaConfigConsorcio />)
     case 'metas':            return wrap('Metas da Equipe', 'Metas mensais de valor financiado e número de contratos.', <AbaMetas />)
+    case 'dados-empresa':    return wrap('Dados da Empresa', 'Dados cadastrais que aparecem nos recibos e documentos gerados pelo sistema.', <DadosEmpresaConfig />)
     case 'identidade':       return wrap('Logo & Marca', 'Logo exibida no sidebar e na tela de login. Documentos e PDFs gerados pelo sistema mantêm sua própria identidade visual.', <IdentidadeVisualConfig />)
     case 'recepcao':         return wrap('Agenda & Recepção', 'Defina quem recebe o aviso de compromissos agendados na Sede Fontinhas.', <RecepcaoConfig />)
     case 'canais-captacao':  return wrap('Canais de Captação', 'Ligue ou desligue o recebimento automático de leads por canal.', <CanaisCaptacaoConfig />)

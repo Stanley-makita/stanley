@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Check, Pencil, X, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Check, Pencil, X, Trash2, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import {
   useProcessoFinanceiro, useCriarLancamento, useAtualizarLancamento, useExcluirLancamento,
 } from '@/hooks/processos/useProcessoFinanceiro'
 import type { ProcessoFinanceiro } from '@/types/processos'
+import { ReciboModal } from './ReciboModal'
 
 // ─── Configurações visuais ───────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ const TIPO_CFG: Record<ProcessoFinanceiro['tipo'], { label: string; cls: string 
 
 const SITUACAO_CFG: Record<ProcessoFinanceiro['situacao'], { label: string; cls: string }> = {
   pendente:  { label: 'Pendente',  cls: 'bg-amber-100 text-amber-700' },
+  recebido:  { label: 'Recebido',  cls: 'bg-emerald-100 text-emerald-700' },
   pago:      { label: 'Pago',      cls: 'bg-green-100 text-green-700' },
   cancelado: { label: 'Cancelado', cls: 'bg-gray-100 text-gray-400' },
 }
@@ -45,6 +47,15 @@ const FILTROS: { id: Filtro; label: string }[] = [
   { id: 'repasse',   label: 'Repasse Cliente' },
   { id: 'deposito',  label: 'Depósito' },
 ]
+
+// Dinheiro que o cliente manda para a empresa (receita, ou custo que ele reembolsa) — somado
+// no card "Recebido" quando a situação é 'recebido'.
+const TIPOS_RECEBIDO: ProcessoFinanceiro['tipo'][] = ['receita_empresa', 'custo_empresa']
+
+// Situação da baixa rápida: repasse é a empresa pagando o cliente; o resto é dinheiro entrando.
+function situacaoDeBaixa(tipo: ProcessoFinanceiro['tipo']): 'pago' | 'recebido' {
+  return tipo === 'repasse_cliente' ? 'pago' : 'recebido'
+}
 
 function fmtMoeda(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -78,10 +89,14 @@ interface ModalLancamentoProps {
 
 function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: ModalLancamentoProps) {
   const [form, setForm] = useState<FormState>(FORM_VAZIO)
+  const editandoRef = useRef(editando)
+  editandoRef.current = editando
 
-  // Sincroniza quando abre
-  useState(() => {
+  // Sincroniza só quando abre (nunca por refetch com o modal aberto — ver CLAUDE.md).
+  // Antes era um useState(() => ...), que só rodava na montagem: editar abria em branco.
+  useEffect(() => {
     if (aberto) {
+      const editando = editandoRef.current
       setForm(editando ? {
         descricao:  editando.descricao,
         tipo:       editando.tipo,
@@ -90,7 +105,7 @@ function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: Mo
         observacao: editando.observacao ?? '',
       } : FORM_VAZIO)
     }
-  })
+  }, [aberto])
 
   function set<K extends keyof FormState>(k: K, v: FormState[K]) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -146,7 +161,8 @@ function ModalLancamento({ aberto, onFechar, editando, onSalvar, isPending }: Mo
               <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="recebido">Recebido (gera recibo)</SelectItem>
+                <SelectItem value="pago">Pago (empresa pagou o cliente)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -202,12 +218,13 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
   const [filtro, setFiltro]         = useState<Filtro>('todos')
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando]     = useState<ProcessoFinanceiro | null>(null)
+  const [reciboDe, setReciboDe]     = useState<ProcessoFinanceiro | null>(null)
 
   // ── Cálculo dos cards (excluir cancelados) ─────────────────────────────────
   const ativos = lancamentos.filter((l) => l.situacao !== 'cancelado')
 
   const aReceber    = ativos.filter((l) => l.tipo === 'receita_empresa'  && l.situacao === 'pendente').reduce((s, l) => s + l.valor, 0)
-  const recebido    = ativos.filter((l) => l.tipo === 'receita_empresa'  && l.situacao === 'pago').reduce((s, l) => s + l.valor, 0)
+  const recebido    = ativos.filter((l) => TIPOS_RECEBIDO.includes(l.tipo) && l.situacao === 'recebido').reduce((s, l) => s + l.valor, 0)
   const depositos   = ativos.filter((l) => l.tipo === 'deposito_cliente').reduce((s, l) => s + l.valor, 0)
   const repassess   = ativos.filter((l) => l.tipo === 'repasse_cliente') .reduce((s, l) => s + l.valor, 0)
   const saldoCliente = depositos - repassess
@@ -218,7 +235,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
     if (l.situacao === 'cancelado') return false
     if (filtro === 'todos')     return true
     if (filtro === 'a_receber') return l.tipo === 'receita_empresa'  && l.situacao === 'pendente'
-    if (filtro === 'recebido')  return l.tipo === 'receita_empresa'  && l.situacao === 'pago'
+    if (filtro === 'recebido')  return TIPOS_RECEBIDO.includes(l.tipo) && l.situacao === 'recebido'
     if (filtro === 'repasse')   return l.tipo === 'repasse_cliente'
     if (filtro === 'deposito')  return l.tipo === 'deposito_cliente'
     return true
@@ -252,7 +269,7 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
         })
         toast.success('Lançamento atualizado')
       } else {
-        await criar.mutateAsync({
+        const novo = await criar.mutateAsync({
           descricao:  form.descricao.trim(),
           tipo:       form.tipo,
           valor,
@@ -260,6 +277,8 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
           observacao: form.observacao.trim() || null,
         })
         toast.success('Lançamento criado')
+        // Recebido já nasce com recibo: abre direto para conferir, baixar ou enviar.
+        if (form.situacao === 'recebido') setReciboDe(novo as ProcessoFinanceiro)
       }
       setModalAberto(false)
     } catch (e: unknown) {
@@ -267,10 +286,11 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
     }
   }
 
-  async function marcarPago(id: string) {
+  async function darBaixa(l: ProcessoFinanceiro) {
+    const situacao = situacaoDeBaixa(l.tipo)
     try {
-      await atualizar.mutateAsync({ id, situacao: 'pago' })
-      toast.success('Marcado como pago')
+      await atualizar.mutateAsync({ id: l.id, situacao })
+      toast.success(situacao === 'recebido' ? 'Marcado como recebido — recibo gerado' : 'Marcado como pago')
     } catch { toast.error('Erro ao atualizar') }
   }
 
@@ -370,10 +390,10 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                       variant="outline"
                       size="sm"
                       className="h-8 text-xs text-green-700"
-                      onClick={() => marcarPago(l.id)}
+                      onClick={() => darBaixa(l)}
                     >
                       <Check className="mr-1 h-3.5 w-3.5" />
-                      Pago
+                      {situacaoDeBaixa(l.tipo) === 'recebido' ? 'Recebido' : 'Pago'}
                     </Button>
                   )}
                   <Button
@@ -385,6 +405,17 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
+                  {l.situacao === 'recebido' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-gray-400 hover:text-fonti-primary"
+                      title="Ver recibo"
+                      onClick={() => setReciboDe(l)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -446,8 +477,8 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                     variant="ghost"
                     size="sm"
                     className="h-7 w-7 p-0 text-gray-400 hover:text-green-600"
-                    title="Marcar como pago"
-                    onClick={() => marcarPago(l.id)}
+                    title={situacaoDeBaixa(l.tipo) === 'recebido' ? 'Marcar como recebido' : 'Marcar como pago'}
+                    onClick={() => darBaixa(l)}
                   >
                     <Check className="h-3.5 w-3.5" />
                   </Button>
@@ -461,6 +492,17 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
+                {l.situacao === 'recebido' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-gray-400 hover:text-fonti-primary"
+                    title="Ver recibo"
+                    onClick={() => setReciboDe(l)}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -484,6 +526,10 @@ export function AbaFinanceiro({ processoId }: { processoId: string }) {
         onSalvar={salvar}
         isPending={criar.isPending || atualizar.isPending}
       />
+
+      {reciboDe && (
+        <ReciboModal processoId={processoId} lancamento={reciboDe} onFechar={() => setReciboDe(null)} />
+      )}
     </div>
   )
 }
