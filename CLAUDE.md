@@ -907,3 +907,24 @@ coluna vale qualquer valor marcado (OU), entre colunas todas (E): `passaEmTodosO
 Cancelar, aplica só no OK). Botões do topo (fases da Captação; fases/produtos/status de Negócios) também são listas
 (`alternarItem`, vazio = "Todos"); o status de Negócios é filtrado no cliente (`useProcessos` recebe `'todos'`).
 Tabela nova ou coluna nova com filtro de lista reaproveita essas peças, nunca um dropdown de valor único próprio.
+
+## Cadastro duplicado pelo "Extrair dados" e lista do `*salva` (10/11/2026)
+
+Caso real: 3 "JAQUELINE CORDEIRO..." em Pessoas, só uma era cliente. As duas extras nasceram em 28/10 no modal
+"Revisar dados extraídos" de um holerite e de um extrato: tipo fora da lista abria como **CNH** (campos de CNH
+lidos do holerite, empregador como "órgão emissor", documento regravado como CNH), o nome do extrato vinha
+abreviado ("R. DE MACENA") e o modal já vinha com **"Novo participante"** marcado. Depois, o `*salva Jaqueline`
+listou as 3 sem diferença e o comercial escolheu um duplicado — 8 documentos ficaram fora do lead.
+- **Só RG/CNH/CPF/certidão criam participante novo** (`TIPOS_IDENTIDADE` no modal, `TIPOS_IDENTIDADE_NOVO_PARTICIPANTE`
+  em `ocr-confirmar`, 422). Tipo desconhecido abre como "Outro (sem dados de cadastro)": não grava campo, não muda a
+  classificação, só marca revisado e (opcional) troca o dono entre participantes.
+- **Sem CPF válido, nome que não bate nunca sugere cadastro novo** (`sugerirDonoDocumento` → dono atual, motivo
+  `nome_diferente`, aviso amarelo). `nomesParecidos` aceita inicial ("R." = "Ribeiro").
+- **Lista do `*salva` ambíguo** (`ordenarCandidatosSalva`/`formatarListaCandidatosSalva`, `fonti-comandos.ts`): quem tem
+  lead vem primeiro, depois quem tem CPF; cada linha mostra "CPF final 449-63 · Lead: etapa" e avisa quando há
+  "sem CPF · sem lead". Lead vem de `participacoes` (titular ou coparticipante), nunca de `leads.pessoa_id` sozinho.
+- **Autoria da criação** (migration 349): `pessoas.criado_por`/`criado_origem`, trigger preenche com o usuário do JWT;
+  rota com service role passa `autoria` em `pessoaPorCpfOuNova(..., { usuarioId, origem })` — senão fica
+  `sem_usuario`. Caminho novo que cria Pessoa no servidor deve passar a autoria. A tela da Pessoa mostra
+  "Cadastrado há X por Fulano (origem)".
+- Ainda não feito: remover participante não oferece mesclar/apagar o cadastro que ficou solto.

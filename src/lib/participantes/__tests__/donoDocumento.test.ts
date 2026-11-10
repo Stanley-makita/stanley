@@ -26,8 +26,16 @@ describe('sugerirDonoDocumento', () => {
   it('CPF válido de ninguém e nome desconhecido → novo participante', () => {
     expect(sugerirDonoDocumento({ cpf: '39053344705', nome: 'Carlos Pereira' }, ps, 'h')).toEqual({ tipo: 'novo' })
   })
-  it('nome que não bate com ninguém → novo participante', () => {
-    expect(sugerirDonoDocumento({ nome: 'Carlos Pereira' }, ps, 'h')).toEqual({ tipo: 'novo' })
+  it('nome que não bate com ninguém, SEM CPF → fica com o dono atual (nunca sugere cadastro novo só pelo nome)', () => {
+    // Caso real 28/10/2026: holerite/extrato com "JAQUELINE CORDEIRO R. DE MACENA" sugeriu "Novo participante"
+    // e criou 2 cadastros duplicados da cliente.
+    expect(sugerirDonoDocumento({ nome: 'Carlos Pereira' }, ps, 'a'))
+      .toEqual({ tipo: 'participante', pessoaId: 'a', motivo: 'nome_diferente' })
+  })
+  it('caso real: "JAQUELINE CORDEIRO R. DE MACENA" (abreviado, sem CPF) → a Jaqueline da proposta', () => {
+    const jaq = [{ pessoaId: 'j', nome: 'JAQUELINE CORDEIRO RIBEIRO DE MACENA', cpf: '06808744963' }]
+    expect(sugerirDonoDocumento({ nome: 'JAQUELINE CORDEIRO R. DE MACENA' }, jaq, 'j'))
+      .toEqual({ tipo: 'participante', pessoaId: 'j', motivo: 'nome_parecido' })
   })
   it('sem nome nem CPF (ex.: comprovante de endereço) → dono atual', () => {
     expect(sugerirDonoDocumento({}, ps, 'a')).toEqual({ tipo: 'participante', pessoaId: 'a', motivo: 'dono_atual' })
@@ -59,6 +67,10 @@ describe('nomesParecidos', () => {
     ['Maria Souza', 'Maria Oliveira', false],
     ['Ana', 'Ana Paula Souza', false],
     ['Pedro Henrique Lima', 'Pedro Augusto Costa', false],
+    ['JAQUELINE CORDEIRO R. DE MACENA', 'JAQUELINE CORDEIRO RIBEIRO DE MACENA', true],
+    ['Maria A. Souza', 'Maria Aparecida de Souza', true],
+    ['Maria B. Souza', 'Maria Aparecida de Souza', false],
+    ['J. Silva', 'Joao Silva', false],
   ])('%s x %s → %s', (a, b, esperado) => {
     expect(nomesParecidos(a, b)).toBe(esperado)
   })

@@ -110,7 +110,7 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
   it('novo participante sem cadastro: cria a Pessoa e inclui no lead', async () => {
     const { POST } = await import('../route')
     const res = await POST(req({
-      campos: { nome: 'Carlos Pereira' }, novo_participante: { nome: 'Carlos Pereira' }, lead_id: 'l1',
+      campos: { nome: 'Carlos Pereira' }, tipo_confirmado: 'rg', novo_participante: { nome: 'Carlos Pereira' }, lead_id: 'l1',
     }), ctx)
     expect(res.status).toBe(200)
     const novo = estado.tabelas.pessoas.find(p => p.nome === 'Carlos Pereira')
@@ -123,9 +123,24 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     estado.operador = ['operador']
     const { POST } = await import('../route')
     const res = await POST(req({
-      campos: { nome: 'Comercial' }, novo_participante: { nome: 'Comercial', cpf: '390.533.447-05' }, lead_id: 'l1',
+      campos: { nome: 'Comercial' }, tipo_confirmado: 'rg', novo_participante: { nome: 'Comercial', cpf: '390.533.447-05' }, lead_id: 'l1',
     }), ctx)
     expect(res.status).toBe(422)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
+    expect(doc().pessoa_id).toBe('heitor')
+  })
+
+  it('caso real 28/10: holerite/extrato (sem tipo de identidade) nunca cria participante novo — 422, nada gravado', async () => {
+    const { POST } = await import('../route')
+    const total = estado.tabelas.pessoas.length
+    for (const tipo of [undefined, 'comprovante_endereco', 'comprovante_renda']) {
+      const res = await POST(req({
+        campos: { nome: 'JAQUELINE CORDEIRO R. DE MACENA' }, ...(tipo ? { tipo_confirmado: tipo } : {}),
+        novo_participante: { nome: 'JAQUELINE CORDEIRO R. DE MACENA' }, lead_id: 'l1',
+      }), ctx)
+      expect(res.status).toBe(422)
+    }
+    expect(estado.tabelas.pessoas).toHaveLength(total)
     expect(estado.tabelas.participacoes).toHaveLength(0)
     expect(doc().pessoa_id).toBe('heitor')
   })
@@ -133,7 +148,7 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
   it('novo participante sem permissão de editar o lead: 403', async () => {
     estado.podeEditarLead = false
     const { POST } = await import('../route')
-    const res = await POST(req({ campos: { nome: 'Carlos' }, novo_participante: { nome: 'Carlos' }, lead_id: 'l1' }), ctx)
+    const res = await POST(req({ campos: { nome: 'Carlos' }, tipo_confirmado: 'rg', novo_participante: { nome: 'Carlos' }, lead_id: 'l1' }), ctx)
     expect(res.status).toBe(403)
     expect(estado.tabelas.participacoes).toHaveLength(0)
   })

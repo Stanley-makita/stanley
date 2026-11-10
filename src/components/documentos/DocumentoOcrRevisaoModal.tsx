@@ -35,6 +35,10 @@ interface Props {
 }
 
 const NOVO = '__novo'
+/** Holerite, extrato, IR… — não é documento de cadastro: não grava campos nem muda a classificação. */
+const SEM_CADASTRO = '__sem_cadastro'
+/** Só documento de identificação pode trazer uma Pessoa nova para a proposta. */
+const TIPOS_IDENTIDADE = new Set(['cnh', 'rg', 'cpf', 'certidao_nascimento', 'certidao_casamento'])
 
 const TIPOS_OPCOES = [
   { value: 'cnh',                   label: 'CNH' },
@@ -43,6 +47,7 @@ const TIPOS_OPCOES = [
   { value: 'certidao_casamento',    label: 'Certidão de Casamento' },
   { value: 'certidao_nascimento',   label: 'Certidão de Nascimento' },
   { value: 'comprovante_endereco',  label: 'Comprovante de Residência' },
+  { value: SEM_CADASTRO,            label: 'Outro (sem dados de cadastro)' },
 ]
 
 const TIPOS_VALIDOS = new Set(TIPOS_OPCOES.map(t => t.value))
@@ -60,6 +65,7 @@ const CAMPOS_POR_TIPO: Record<string, string[]> = {
   certidao_casamento:   ['estado_civil', 'regime_casamento', 'data_casamento'],
   certidao_nascimento:  ['nome', 'cpf', 'data_nascimento', 'cidade_nascimento', 'estado_nascimento', 'filiacao_mae', 'filiacao_pai', 'data_emissao', 'orgao_emissor'],
   comprovante_endereco: ['endereco_rua', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_uf', 'endereco_cep'],
+  [SEM_CADASTRO]: [],
 }
 
 const CAMPOS_LABELS: Record<string, string> = {
@@ -110,7 +116,10 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
   const [ehConjuge, setEhConjuge] = useState(false)
 
   const tipoDetectado = ocr?.tipo_documento ?? ''
-  const tipoInicial = TIPOS_VALIDOS.has(tipoDetectado) ? tipoDetectado : 'cnh'
+  // Tipo fora da lista (holerite, extrato, IR…) abria como CNH: mostrava nome/órgão emissor lidos do holerite
+  // (ex.: empregador como "órgão emissor"), regravava o documento como CNH e sugeria "Novo participante"
+  // — caso real 28/10/2026, 2 cadastros duplicados da cliente. Agora abre como "sem dados de cadastro".
+  const tipoInicial = TIPOS_VALIDOS.has(tipoDetectado) ? tipoDetectado : SEM_CADASTRO
 
   const [tipoSelecionado, setTipoSelecionado] = useState(tipoInicial)
   const [campos, setCampos] = useState<Record<string, string>>(() => {
@@ -127,9 +136,13 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
   const [donoManual, setDonoManual] = useState<string | null>(null)
   const [novoNome, setNovoNome] = useState<string | null>(null)
   const [novoCpf, setNovoCpf] = useState<string | null>(null)
-  const sugestao = sugerirDonoDocumento({ cpf: campos.cpf, nome: campos.nome }, participantes, documento.pessoa_id ?? null)
-  const donoSugerido = sugestao.tipo === 'novo' ? (leadId ? NOVO : (participantes[0]?.pessoaId ?? '')) : sugestao.pessoaId
-  const dono = donoManual ?? donoSugerido
+  const ehIdentidade = TIPOS_IDENTIDADE.has(tipoSelecionado)
+  const permiteNovo = !!leadId && ehIdentidade
+  const sugestao = sugerirDonoDocumento(
+    ehIdentidade ? { cpf: campos.cpf, nome: campos.nome } : {}, participantes, documento.pessoa_id ?? null,
+  )
+  const donoSugerido = sugestao.tipo === 'novo' ? (permiteNovo ? NOVO : (participantes[0]?.pessoaId ?? '')) : sugestao.pessoaId
+  const dono = donoManual === NOVO && !permiteNovo ? donoSugerido : (donoManual ?? donoSugerido)
   const donoNome = dono === NOVO ? (novoNome ?? campos.nome ?? '') : participantes.find(p => p.pessoaId === dono)?.nome ?? ''
 
   // Certidão de casamento: com quem o dono do documento é casado (sugestão pelo 2º cônjuge extraído).
@@ -195,7 +208,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
       })
       const corpo = {
           campos: camposFiltrados,
-          tipo_confirmado: tipoSelecionado,
+          tipo_confirmado: tipoSelecionado === SEM_CADASTRO ? undefined : tipoSelecionado,
           ...(modoParticipantes
             ? (dono === NOVO
                 ? { novo_participante: { nome: (novoNome ?? campos.nome ?? '').trim(), cpf: novoCpf ?? campos.cpf ?? '' }, lead_id: leadId }
@@ -356,10 +369,15 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                 className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
               >
                 {participantes.map(p => <option key={p.pessoaId} value={p.pessoaId}>{p.nome}</option>)}
-                {leadId && <option value={NOVO}>Novo participante…</option>}
+                {permiteNovo && <option value={NOVO}>Novo participante…</option>}
               </select>
               {!donoManual && sugestao.tipo === 'participante' && sugestao.motivo !== 'dono_atual' && (
-                sugestao.motivo === 'nome_parecido' ? (
+                sugestao.motivo === 'nome_diferente' ? (
+                  <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                    No documento está &quot;{campos.nome}&quot;, que não bate com ninguém da proposta. Ficou com o dono atual
+                    — confira. Só escolha &quot;Novo participante&quot; se for outra pessoa de verdade.
+                  </p>
+                ) : sugestao.motivo === 'nome_parecido' ? (
                   <p className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">
                     Sugerido pelo nome parecido — no documento está &quot;{campos.nome}&quot;. Confira se é a mesma pessoa.
                   </p>
@@ -492,6 +510,13 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
             </button>
           </div>
 
+          {tipoSelecionado === SEM_CADASTRO && (
+            <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+              Este documento não é de identificação nem comprovante de residência — não há dados de cadastro para
+              salvar. Confirmar só marca como revisado{modoParticipantes ? ' (e passa para a pessoa escolhida acima)' : ''}.
+              Se for RG, CNH ou certidão, escolha o tipo certo no alto.
+            </p>
+          )}
           {camposVisiveis.map((key) => {
             const label = CAMPOS_LABELS[key]
             if (!label) return null

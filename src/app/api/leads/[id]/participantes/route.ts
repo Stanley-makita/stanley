@@ -21,7 +21,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (temPessoa) {
     pessoaId = body.pessoa_id as string
   } else {
-    const r = await pessoaPorCpfOuNova(supabase, empresaId, body.nome as string, typeof body.cpf === 'string' ? body.cpf : null)
+    const r = await pessoaPorCpfOuNova(supabase, empresaId, body.nome as string, typeof body.cpf === 'string' ? body.cpf : null,
+      { usuarioId: ctx.usuario.id, origem: 'participante_lead' })
     if ('erro' in r) return NextResponse.json({ error: r.erro }, { status: r.status })
     pessoaId = r.id
   }
