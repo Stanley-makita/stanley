@@ -21,6 +21,8 @@ import { TableShell } from '@/components/ui/table-shell'
 import { useRouter } from 'next/navigation'
 import { Download, Search, ChevronDown, Filter, X, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, fmtData, normalizarTexto } from '@/lib/utils'
+import { passaEmTodosOsFiltros, rotuloDoFiltro, alternarItem, type FiltrosMultiplos } from '@/lib/filtroMultiplo'
+import { FiltroListaMultipla } from '@/components/ui/filtro-lista-multipla'
 import { type StatusProcesso, type Processo, rotuloModalidade } from '@/types/processos'
 import { nomesParceirosDoNegocio } from '@/lib/processos/parceirosDoNegocio'
 import { creditoConsorcio, administradorasConsorcio } from '@/lib/processos/consorcioCotas'
@@ -181,8 +183,8 @@ function FilterHead({
   col, colFilters, setColFilters, openFilter, setOpenFilter, dropdownPos, setDropdownPos, allProcessos, extractors, children,
 }: {
   col: string
-  colFilters: Record<string, string>
-  setColFilters: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  colFilters: FiltrosMultiplos
+  setColFilters: React.Dispatch<React.SetStateAction<FiltrosMultiplos>>
   openFilter: string | null
   setOpenFilter: (col: string | null) => void
   dropdownPos: DropdownPos | null
@@ -191,7 +193,8 @@ function FilterHead({
   extractors: Record<string, (p: Processo) => string>
   children: React.ReactNode
 }) {
-  const isActive = !!colFilters[col]
+  const selecionados = colFilters[col] ?? []
+  const isActive = selecionados.length > 0
   const isOpen = openFilter === col
   const btnRef = useRef<HTMLButtonElement>(null)
   const unique = useMemo(() => getUniqueValues(col, allProcessos, extractors), [col, allProcessos, extractors])
@@ -203,20 +206,24 @@ function FilterHead({
       setDropdownPos(null)
     } else {
       const rect = btnRef.current?.getBoundingClientRect()
-      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - 256)) })
       setOpenFilter(col)
     }
   }
 
-  function select(val: string) {
-    setColFilters(prev => ({ ...prev, [col]: val }))
+  function fechar() {
     setOpenFilter(null)
     setDropdownPos(null)
   }
 
+  function aplicar(valores: string[]) {
+    setColFilters(prev => ({ ...prev, [col]: valores }))
+    fechar()
+  }
+
   function clearFilter(e: React.MouseEvent) {
     e.stopPropagation()
-    setColFilters(prev => ({ ...prev, [col]: '' }))
+    setColFilters(prev => ({ ...prev, [col]: [] }))
   }
 
   return (
@@ -227,7 +234,7 @@ function FilterHead({
         className={`flex items-center gap-1 transition-colors ${isActive ? 'text-fonti-accent' : 'text-white hover:text-fonti-accent'}`}
       >
         {isActive && <Filter className="h-3 w-3 shrink-0" />}
-        <span className="max-w-[120px] truncate">{isActive ? colFilters[col] : children}</span>
+        <span className="max-w-[120px] truncate">{isActive ? rotuloDoFiltro(typeof children === 'string' ? children : col, selecionados) : children}</span>
         {isActive
           ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={clearFilter} />
           : <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
@@ -238,31 +245,10 @@ function FilterHead({
       {isOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
         <div
           style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
-          className="min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
+          className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="max-h-56 overflow-y-auto py-1">
-            <button
-              onClick={() => select('')}
-              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${!colFilters[col] ? 'text-fonti-primary font-semibold' : 'text-gray-500'}`}
-            >
-              Todos
-            </button>
-            {unique.length === 0
-              ? <p className="px-3 py-2 text-xs text-text-muted">Sem opções</p>
-              : unique.map(val => (
-                <button
-                  key={val}
-                  onClick={() => select(val)}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-fonti-accent-hover/40 transition-colors ${
-                    colFilters[col] === val ? 'text-fonti-primary font-semibold bg-fonti-accent-hover/30' : 'text-gray-700'
-                  }`}
-                >
-                  {val || '—'}
-                </button>
-              ))
-            }
-          </div>
+          <FiltroListaMultipla opcoes={unique} selecionados={selecionados} onAplicar={aplicar} onCancelar={fechar} />
         </div>,
         document.body
       )}
@@ -318,7 +304,7 @@ function DateRangeHead({
       setDropdownPos(null)
     } else {
       const rect = btnRef.current?.getBoundingClientRect()
-      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - 256)) })
       setOpenFilter(col)
     }
   }
@@ -410,11 +396,12 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
           ? FASES_CONSORCIO_FILTROS
           : null
 
-  const [statusFiltro, setStatusFiltro] = useState<StatusProcesso | 'todos'>('todos')
-  const [faseFiltro, setFaseFiltro] = useState<string>('todos')
-  const [produtoQuickFiltro, setProdutoQuickFiltro] = useState<string>('todos')
+  // Botões do topo aceitam várias opções marcadas ao mesmo tempo — vazio = Todos.
+  const [statusFiltro, setStatusFiltro] = useState<StatusProcesso[]>([])
+  const [faseFiltro, setFaseFiltro] = useState<string[]>([])
+  const [produtoQuickFiltro, setProdutoQuickFiltro] = useState<string[]>([])
   const [busca, setBusca] = useState('')
-  const [colFilters, setColFilters] = useState<Record<string, string>>({})
+  const [colFilters, setColFilters] = useState<FiltrosMultiplos>({})
   const [openFilter, setOpenFilter] = useState<string | null>(null)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
   const [pagina, setPagina] = useState(1)
@@ -430,7 +417,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
   }, [openFilter])
 
   const { data: processos = [], isLoading } = useProcessos({
-    status: fasesFiltroAtivo ? 'todos' : statusFiltro,
+    status: 'todos',
     produto: produtoFixo ?? 'todos',
     chance: 'todos',
     busca,
@@ -466,21 +453,20 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
 
   const filteredProcessos = useMemo(() => {
     return processos.filter(p => {
-      if (fasesFiltroAtivo && faseFiltro !== 'todos' && normalizarTexto(p.fase_atual?.nome) !== normalizarTexto(faseFiltro)) {
+      if (fasesFiltroAtivo && faseFiltro.length > 0 && !faseFiltro.some(f => normalizarTexto(f) === normalizarTexto(p.fase_atual?.nome))) {
         return false
       }
-      if (mostrarFiltroProduto && produtoQuickFiltro !== 'todos' && produtoQuickDoProcesso(p.modalidade) !== produtoQuickFiltro) {
+      if (mostrarFiltroProduto && produtoQuickFiltro.length > 0 && !produtoQuickFiltro.includes(produtoQuickDoProcesso(p.modalidade))) {
+        return false
+      }
+      if (!fasesFiltroAtivo && !mostrarFiltroProduto && statusFiltro.length > 0 && !statusFiltro.includes(p.status_processo)) {
         return false
       }
       if (!dentroDoRange(p.data_inicio, entradaRange)) return false
       if (!dentroDoRange(p.data_emissao, emissaoRange)) return false
-      return Object.entries(colFilters).every(([col, val]) => {
-        if (!val) return true
-        const ext = EXTRACTORS[col]
-        return ext ? ext(p) === val : true
-      })
+      return passaEmTodosOsFiltros(colFilters, col => EXTRACTORS[col]?.(p) ?? null)
     })
-  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro, entradaRange, emissaoRange])
+  }, [processos, colFilters, EXTRACTORS, fasesFiltroAtivo, faseFiltro, mostrarFiltroProduto, produtoQuickFiltro, statusFiltro, entradaRange, emissaoRange])
 
   // Reset página ao mudar filtros
   useEffect(() => { setPagina(1) }, [busca, statusFiltro, faseFiltro, produtoQuickFiltro, colFilters, entradaRange, emissaoRange])
@@ -505,7 +491,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
     return acc
   }, {} as Record<string, number>)
 
-  const activeFilters = Object.entries(colFilters).filter(([, v]) => !!v)
+  const activeFilters = Object.entries(colFilters).filter(([, v]) => v.length > 0)
 
   function formatarRange(range: DateRange): string {
     if (range.de && range.ate) return `${fmtData(range.de)} — ${fmtData(range.ate)}`
@@ -536,13 +522,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
       <div className="flex items-center gap-1.5 flex-wrap">
         {fasesFiltroAtivo ? (
           <>
-            <FilterChip active={faseFiltro === 'todos'} count={processos.length} onClick={() => setFaseFiltro('todos')}>
+            <FilterChip active={faseFiltro.length === 0} count={processos.length} onClick={() => setFaseFiltro([])}>
               Todos
             </FilterChip>
             {fasesFiltroAtivo.map((nome) => {
               const count = processos.filter(p => normalizarTexto(p.fase_atual?.nome) === normalizarTexto(nome)).length
               return (
-                <FilterChip key={nome} active={faseFiltro === nome} count={count} onClick={() => setFaseFiltro(nome)}>
+                <FilterChip key={nome} active={faseFiltro.includes(nome)} count={count} onClick={() => setFaseFiltro(prev => alternarItem(prev, nome))}>
                   {nome}
                 </FilterChip>
               )
@@ -550,13 +536,13 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
           </>
         ) : mostrarFiltroProduto ? (
           <>
-            <FilterChip active={produtoQuickFiltro === 'todos'} count={processos.length} onClick={() => setProdutoQuickFiltro('todos')}>
+            <FilterChip active={produtoQuickFiltro.length === 0} count={processos.length} onClick={() => setProdutoQuickFiltro([])}>
               Todos
             </FilterChip>
             {PRODUTO_QUICK_FILTROS.map((f) => {
               const count = processos.filter(p => produtoQuickDoProcesso(p.modalidade) === f.value).length
               return (
-                <FilterChip key={f.value} active={produtoQuickFiltro === f.value} count={count} onClick={() => setProdutoQuickFiltro(f.value)}>
+                <FilterChip key={f.value} active={produtoQuickFiltro.includes(f.value)} count={count} onClick={() => setProdutoQuickFiltro(prev => alternarItem(prev, f.value))}>
                   {f.label}
                 </FilterChip>
               )
@@ -573,9 +559,9 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
           return (
             <FilterChip
               key={f.value}
-              active={statusFiltro === f.value}
+              active={f.value === 'todos' ? statusFiltro.length === 0 : statusFiltro.includes(f.value)}
               count={count}
-              onClick={() => setStatusFiltro(f.value)}
+              onClick={() => setStatusFiltro(prev => f.value === 'todos' ? [] : alternarItem(prev, f.value))}
             >
               {f.label}
             </FilterChip>
@@ -596,8 +582,8 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
 
         {activeFilters.map(([col, val]) => (
           <span key={col} className="flex items-center gap-1 px-2 py-0.5 bg-fonti-accent-hover text-fonti-primary text-xs rounded-full border border-fonti-accent">
-            <span className="opacity-60">{col}:</span> {val}
-            <button onClick={() => setColFilters(prev => ({ ...prev, [col]: '' }))} className="ml-0.5 hover:text-red-500">
+            <span className="opacity-60">{col}:</span> {val.join(', ')}
+            <button onClick={() => setColFilters(prev => ({ ...prev, [col]: [] }))} className="ml-0.5 hover:text-red-500">
               <X className="h-3 w-3" />
             </button>
           </span>
@@ -923,7 +909,7 @@ export function VisaoTabela({ produtoFixo, responsavelId, mostrarFiltroProduto }
                   colSpan={isConsorcio ? 4 : 7}
                   className="px-2.5 py-2 text-right text-xs font-semibold text-gray-500 whitespace-nowrap"
                 >
-                  {totalFiltrosAtivos > 0 || busca || statusFiltro !== 'todos' ? 'Total filtrado' : 'Total geral'}
+                  {totalFiltrosAtivos > 0 || busca || statusFiltro.length > 0 || faseFiltro.length > 0 || produtoQuickFiltro.length > 0 ? 'Total filtrado' : 'Total geral'}
                 </td>
                 <td className="px-2.5 py-2 text-xs font-bold text-fonti-primary whitespace-nowrap">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(isContrato ? totalValorContrato : totalValorFinanciado)}
