@@ -30,6 +30,7 @@ import { differenceInDays } from 'date-fns'
 import { useState, useMemo, useEffect } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { RESPONSAVEL_REGISTRO_LABELS, rotuloModalidade } from '@/types/processos'
+import { descreverDespesasResumo, rotuloTipoImovelPretendido } from '@/lib/oportunidade/tipoEDespesas'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
@@ -948,6 +949,14 @@ function AbaResumo({
             )}
             {processo.modalidade !== 'Consorcio' && processo.valor_fgts != null && (
               <Campo label="FGTS" valor={fmtMoeda(processo.valor_fgts)} />
+            )}
+            {processo.modalidade !== 'Consorcio' && (
+              <>
+                <Campo label="Tipo de Imóvel" valor={rotuloTipoImovelPretendido(processo.tipo_imovel) ?? '—'} />
+                <Campo label="Despesas financiadas" valor={descreverDespesasResumo(
+                  processo.financiar_despesas_cartorariais ?? false, processo.valor_despesas_financiadas, processo.valor_imovel,
+                )} />
+              </>
             )}
           </div>
         </div>

@@ -947,3 +947,22 @@ Caso real (Sergio Crozatti, 09/11): o comercial que pediu respondeu e a operacio
   (`prazoSugeridoParaInput`: horas fixas de `SLA_HORAS_PADRAO` por tipo, próxima hora cheia) é o valor que vai
   para o banco. Depois de criada, quem pediu ou a gestão altera em "Prazo → Alterar" (`PrazoSolicitacaoEditavel`,
   UPDATE com `.select('id')` conferindo a linha).
+
+## Tipo de imóvel PRETENDIDO x imóvel CADASTRADO, e despesas financiadas (10/11/2026)
+
+Dois campos de "tipo de imóvel", independentes de propósito (decisão do usuário):
+- **Pretendido** — `leads.tipo_imovel` / `processos.tipo_imovel` (casa, apartamento, comercial, terreno, rural): o que o
+  cliente quer financiar. Campo na Oportunidade e em "Dados do Negócio"; copiado do lead na conversão; aparece nos
+  Resumos (`rotuloTipoImovelPretendido`). Vazio + imóvel cadastrado vinculado → sugerido por
+  `comTipoPretendidoSugerido` (sobrado→casa, barracão→comercial), nunca sobrescreve o escolhido.
+- **Cadastrado** — `imoveis.tipo`, copiado em `*.imovel_tipo` (apartamento, casa, sobrado, terreno, barracão): dado de
+  registro do imóvel vinculado. Não misturar os dois num campo só.
+- O bot NÃO grava o tipo pretendido: o "novo/usado" do `*cria cliente` virava sempre 'apartamento' (46 leads limpos na
+  migration 351). "novo/usado" continua só no simulador (`DadosCaptacaoNormalizados.tipo_imovel`).
+
+Despesas (custas) financiadas junto — até 5% do valor do imóvel:
+- Lead: `financiar_despesas_cartorariais` (NULL = não definido) + `valor_despesas_financiadas`; negócio: a chave que já
+  existia (`processos.financiar_despesas_cartorariais`, 068) + `valor_despesas_financiadas`. Copiados na conversão.
+- Tela única `CampoDespesasFinanciadas`: ao marcar "Vai financiar" sugere 5% (`sugerirValorDespesas`), editável; valor
+  diferente mostra o percentual e acima de 5% avisa. Vai para o formulário de proposta (lead e negócio) e para o e-mail
+  de confirmação de valores ("Despesas Financiadas", somado no "Valor total financiado").

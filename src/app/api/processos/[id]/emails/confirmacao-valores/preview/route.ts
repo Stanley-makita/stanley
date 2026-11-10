@@ -46,7 +46,7 @@ export async function POST(
         id, modalidade, valor_imovel, valor_financiado, valor_entrada,
         valor_fgts, valor_recursos_proprios,
         prazo_amortizacao_meses, sistema_amortizacao, tem_assessoria,
-        valor_engenharia, taxa_juros,
+        valor_engenharia, taxa_juros, financiar_despesas_cartorariais, valor_despesas_financiadas,
         banco:bancos!banco_id(id, nome)
       `)
       .eq('id', params.id)
@@ -124,6 +124,13 @@ export async function POST(
       }
     }
 
+    // Despesas (custas) financiadas junto — Oportunidade/Dados do Negócio (migration 351). Entram no total financiado.
+    const despesasFinanciadas = (processo as any).financiar_despesas_cartorariais
+      ? ((processo as any).valor_despesas_financiadas as number | null) ?? null
+      : null
+    const valorFinanciado = (processo as any).valor_financiado as number | null
+    const totalFinanciado = valorFinanciado != null && despesasFinanciadas ? valorFinanciado + despesasFinanciadas : valorFinanciado
+
     const dados: DadosConfirmacaoValores = {
       cliente_nome:           compradorPrincipal?.nome ?? 'Cliente',
       banco_nome:             bancoNome,
@@ -134,8 +141,8 @@ export async function POST(
       fgts:                   (processo as any).valor_fgts,
       subsidio:               null,
       valor_financiado:       (processo as any).valor_financiado,
-      despesas_financiadas:   null,
-      valor_total_financiado: (processo as any).valor_financiado,
+      despesas_financiadas:   despesasFinanciadas,
+      valor_total_financiado: totalFinanciado,
       prazo_meses:            (processo as any).prazo_amortizacao_meses,
       modalidade:             rotuloModalidade((processo as any).modalidade),
       amortizacao:            (processo as any).sistema_amortizacao,

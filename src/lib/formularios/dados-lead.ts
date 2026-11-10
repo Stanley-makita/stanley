@@ -9,7 +9,7 @@ export async function buscarDadosFormularioLead(leadId: string): Promise<DadosPr
   const sb = supabaseAdmin
   const { data: lead, error: errLead } = await sb
     .from('leads')
-    .select('id, empresa_id, banco_pretendido, valor_imovel, valor_pretendido, entrada, prazo_meses, cidade_imovel, tipo_imovel')
+    .select('id, empresa_id, banco_pretendido, valor_imovel, valor_pretendido, entrada, prazo_meses, cidade_imovel, tipo_imovel, financiar_despesas_cartorariais')
     .eq('id', leadId)
     .single()
   if (errLead) throw errLead
@@ -44,7 +44,7 @@ export async function buscarDadosFormularioLead(leadId: string): Promise<DadosPr
     dia_vencimento_parcela:          null,
     sistema_amortizacao:             null,
     indexador:                       null,
-    financiar_despesas_cartorariais: false,
+    financiar_despesas_cartorariais: lead.financiar_despesas_cartorariais === true,
     compradores,
     vendedores:                      montarVendedores(participantes),
     imovel: {
