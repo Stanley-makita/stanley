@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useCriarSolicitacao } from '@/hooks/solicitacoes/useCriarSolicitacao'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import {
-  TIPO_LABELS, SLA_HORAS_PADRAO,
+  TIPO_LABELS,
   type TipoSolicitacao, type PrioridadeSolicitacao, type ContextoSolicitacao,
 } from '@/types/solicitacoes-operacionais'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,8 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { addHours, format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { prazoSugeridoParaInput, prazoInputParaIso } from '@/lib/solicitacoes/prazo'
 
 interface Props {
   aberto: boolean
@@ -97,6 +96,10 @@ export function NovaSolicitacaoDrawer({
   const [descricao, setDescricao] = useState('')
   const [prioridade, setPrioridade] = useState<PrioridadeSolicitacao>('normal')
   const [responsavelId, setResponsavelId] = useState<string>('none')
+  // Prazo (data e hora de término): vem sugerido pelo tipo e quem cria pode mudar. Depois de mexer à mão,
+  // trocar o tipo não sobrescreve mais.
+  const [prazo, setPrazo] = useState('')
+  const [prazoEditado, setPrazoEditado] = useState(false)
 
   // Inicializa ao abrir; limpa ao fechar (após animação para evitar flash)
   useEffect(() => {
@@ -107,6 +110,8 @@ export function NovaSolicitacaoDrawer({
         setDescricao('')
         setPrioridade('normal')
         setResponsavelId('none')
+        setPrazo('')
+        setPrazoEditado(false)
       }, 200)
       return () => clearTimeout(timer)
     }
@@ -116,6 +121,8 @@ export function NovaSolicitacaoDrawer({
     setDescricao(gerarDescricao(contexto))
     setPrioridade('normal')
     setResponsavelId(contexto?.responsavelSugeridoId ?? 'none')
+    setPrazo(prazoSugeridoParaInput(tipoInicial))
+    setPrazoEditado(false)
   }, [aberto]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Atualiza só o prefixo [TIPO] quando o tipo muda, mantém o restante
@@ -126,16 +133,15 @@ export function NovaSolicitacaoDrawer({
       const semPrefixo = prev.replace(/^\[.*?\]\s*/, '')
       return prefixo + semPrefixo
     })
+    if (!prazoEditado) setPrazo(prazoSugeridoParaInput(tipo))
   }, [tipo]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const prazoEstimado = format(
-    addHours(new Date(), SLA_HORAS_PADRAO[tipo]),
-    "dd/MM 'às' HH'h'",
-    { locale: ptBR }
-  )
+  const prazoIso = prazoInputParaIso(prazo)
+  const prazoNoPassado = !!prazoIso && new Date(prazoIso).getTime() <= Date.now()
+  const prazoInvalido = !prazoIso || prazoNoPassado
 
   async function handleSubmit() {
-    if (!titulo.trim() || responsavelId === 'none') return
+    if (!titulo.trim() || responsavelId === 'none' || prazoInvalido) return
     try {
       await criar.mutateAsync({
         tipo,
@@ -147,6 +153,7 @@ export function NovaSolicitacaoDrawer({
         processo_id: processoId,
         conversa_id: conversaId,
         pessoa_id: pessoaId,
+        sla_at: prazoIso,
       })
       onFechar()
     } catch (err) {
@@ -191,7 +198,26 @@ export function NovaSolicitacaoDrawer({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-400">Prazo sugerido: {prazoEstimado}</p>
+          </div>
+
+          {/* Prazo */}
+          <div className="space-y-1.5">
+            <Label htmlFor="prazo-solicitacao">Prazo de término <span className="text-red-500">*</span></Label>
+            <Input
+              id="prazo-solicitacao"
+              type="datetime-local"
+              value={prazo}
+              onChange={(e) => { setPrazo(e.target.value); setPrazoEditado(true) }}
+            />
+            {prazoNoPassado ? (
+              <p className="text-xs text-red-600">O prazo precisa ser depois de agora.</p>
+            ) : !prazoIso ? (
+              <p className="text-xs text-red-600">Informe a data e a hora de término.</p>
+            ) : (
+              <p className="text-xs text-gray-400">
+                {prazoEditado ? 'Prazo definido por você.' : 'Sugerido pelo tipo de solicitação — pode alterar.'}
+              </p>
+            )}
           </div>
 
           {/* Título */}
@@ -238,7 +264,7 @@ export function NovaSolicitacaoDrawer({
           <Button
             className="flex-1 bg-fonti-primary hover:bg-fonti-primary-hover text-white"
             onClick={handleSubmit}
-            disabled={!titulo.trim() || responsavelId === 'none' || criar.isPending}
+            disabled={!titulo.trim() || responsavelId === 'none' || prazoInvalido || criar.isPending}
           >
             {criar.isPending ? 'Criando...' : 'Criar Solicitação'}
           </Button>

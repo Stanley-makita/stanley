@@ -928,3 +928,22 @@ listou as 3 sem diferença e o comercial escolheu um duplicado — 8 documentos 
   `sem_usuario`. Caminho novo que cria Pessoa no servidor deve passar a autoria. A tela da Pessoa mostra
   "Cadastrado há X por Fulano (origem)".
 - Ainda não feito: remover participante não oferece mesclar/apagar o cadastro que ficou solto.
+
+## Solicitações: resposta notifica o outro lado, push imediato, busca/período e prazo editável (10/11/2026)
+
+Caso real (Sergio Crozatti, 09/11): o comercial que pediu respondeu e a operacional responsável não recebeu nada
+(nem sininho nem push) — o processo parou. Regras:
+- **Quem responde notifica os outros dois papéis** (solicitante e responsável), nunca a si mesmo
+  (`responder_solicitacao`, migration 350; `enviar_mensagem_solicitacao` já fazia). O trigger antigo
+  `trg_sol_op_retorno` (038) foi removido: notificava o próprio autor e duplicava a notificação da RPC.
+- **Push**: notificação criada no banco não tem push automático (Fase 5 pausada). A tela chama
+  `POST /api/solicitacoes/[id]/push` depois de responder/mandar mensagem/criar (`pedirPushSolicitacao`), que manda o
+  push das notificações dos últimos 5 min da solicitação ainda sem `dados_json.push_enviado` (reserva por UPDATE
+  condicional — nunca em dobro). Fluxo novo de solicitação que gere notificação deve chamar essa rota.
+- **Busca/período** (`src/lib/solicitacoes/buscaFila.ts`): busca na tela por título, lead, pessoa, nº do processo e
+  compradores (participações — `EMBED_PARTICIPANTES` no JOIN da fila); período filtra `created_at` no banco. Com
+  busca ou período, Concluídas traz até 1000 (sem filtro, as 50 mais recentes).
+- **Prazo**: `criar_solicitacao_operacional(..., p_sla_at)` grava o prazo escolhido; a sugestão da tela
+  (`prazoSugeridoParaInput`: horas fixas de `SLA_HORAS_PADRAO` por tipo, próxima hora cheia) é o valor que vai
+  para o banco. Depois de criada, quem pediu ou a gestão altera em "Prazo → Alterar" (`PrazoSolicitacaoEditavel`,
+  UPDATE com `.select('id')` conferindo a linha).

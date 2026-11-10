@@ -11,6 +11,7 @@ import { formatarPedidoEm } from '@/lib/solicitacoes/pedidoEm'
 import { SolicitacaoPrioridadeBadge } from './SolicitacaoPrioridadeBadge'
 import { SolicitacaoStatusBadge } from './SolicitacaoStatusBadge'
 import { SlaCountdown } from './SlaCountdown'
+import { PrazoSolicitacaoEditavel } from './PrazoSolicitacaoEditavel'
 import { TIPO_LABELS, type SolicitacaoOperacional, type StatusSolicitacao } from '@/types/solicitacoes-operacionais'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,9 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [salvando, setSalvando] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Prazo alterado aqui vale na hora (a lista recarrega depois).
+  const [slaAtual, setSlaAtual] = useState<string | null>(null)
+  useEffect(() => { setSlaAtual(s?.sla_at ?? null) }, [s?.id, s?.sla_at])
 
   // Sincroniza state quando a solicitação selecionada muda
   useEffect(() => {
@@ -102,7 +106,7 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
             <span className="text-xs text-gray-500 font-medium">{TIPO_LABELS[s.tipo]}</span>
             <SolicitacaoPrioridadeBadge prioridade={s.prioridade} />
             <SolicitacaoStatusBadge status={s.status} />
-            <SlaCountdown slaAt={s.sla_at} concluido={s.status === 'concluido'} />
+            <SlaCountdown slaAt={slaAtual} concluido={s.status === 'concluido'} />
           </div>
           <DialogTitle className="text-fonti-primary mt-1">{s.titulo}</DialogTitle>
         </DialogHeader>
@@ -122,6 +126,13 @@ export function ResponderSolicitacaoDrawer({ solicitacao: s, onFechar }: Props) 
                 <span className="font-medium text-gray-700">{s.responsavel.nome}</span>
               </div>
             )}
+            <PrazoSolicitacaoEditavel
+              solicitacaoId={s.id}
+              slaAt={slaAtual}
+              podeEditar={s.status !== 'concluido' && s.status !== 'cancelado' && (
+                usuario?.id === s.solicitante_id || ['admin', 'gerente', 'gestor'].includes(usuario?.perfil ?? ''))}
+              onAlterado={setSlaAtual}
+            />
             <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
               <span className="text-gray-400">Pedido em</span>
               <span className="font-medium text-gray-700">{formatarPedidoEm(s.created_at)}</span>

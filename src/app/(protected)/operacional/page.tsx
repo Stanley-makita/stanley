@@ -7,6 +7,8 @@ import { useFases } from '@/hooks/configuracoes/useFases'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { montarColunasFila } from '@/lib/solicitacoes/colunasFila'
 import { formatarPedidoEm } from '@/lib/solicitacoes/pedidoEm'
+import { PERIODOS_FILA, filtrarPorBusca, inicioDoPeriodo, type PeriodoFila } from '@/lib/solicitacoes/buscaFila'
+import { Input } from '@/components/ui/input'
 import { SolicitacaoPrioridadeBadge } from '@/components/solicitacoes/SolicitacaoPrioridadeBadge'
 import { SolicitacaoStatusBadge } from '@/components/solicitacoes/SolicitacaoStatusBadge'
 import { SlaCountdown } from '@/components/solicitacoes/SlaCountdown'
@@ -19,7 +21,7 @@ import {
 } from '@/types/solicitacoes-operacionais'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, ExternalLink, MessageSquare, Building2, User, LayoutList, Clock } from 'lucide-react'
+import { Plus, Search, ExternalLink, MessageSquare, Building2, User, LayoutList, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { format, isToday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -216,6 +218,8 @@ export default function OperacionalPage() {
   const [filtroTipo, setFiltroTipo] = useState<TipoSolicitacao | 'all'>('all')
   const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeSolicitacao | 'all'>('all')
   const [soMinhaFila, setSoMinhaFila] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [periodo, setPeriodo] = useState<PeriodoFila>('todos')
   // "Para mim" = o que eu preciso atender; "Que pedi" = o que eu pedi a outras pessoas.
   const [visao, setVisao] = useState<'paraMim' | 'quePedi'>('paraMim')
   const quePedi = visao === 'quePedi'
@@ -227,10 +231,15 @@ export default function OperacionalPage() {
     prioridade: filtroPrioridade !== 'all' ? filtroPrioridade : undefined,
     todasDaEmpresa: isGestor && !quePedi ? !soMinhaFila : false,
     quePedi,
+    desde: inicioDoPeriodo(periodo),
+    buscando: busca.trim().length > 0,
   }
 
-  const { data: ativas = [], isLoading } = useSolicitacoesFila(filtrosBase)
-  const { data: concluidas = [], isLoading: loadingConcluidas } = useSolicitacoesConcluidasFila(filtrosBase)
+  const { data: ativasTodas = [], isLoading } = useSolicitacoesFila(filtrosBase)
+  const { data: concluidasTodas = [], isLoading: loadingConcluidas } = useSolicitacoesConcluidasFila(filtrosBase)
+  const ativas = filtrarPorBusca(ativasTodas, busca)
+  const concluidas = filtrarPorBusca(concluidasTodas, busca)
+  const temFiltro = filtroTipo !== 'all' || filtroPrioridade !== 'all' || periodo !== 'todos' || busca.trim() !== ''
   const { data: fasesConfig = [] } = useFases('fila_operacional')
 
   // Concluídas do dia corrente para a coluna do Kanban
@@ -298,6 +307,26 @@ export default function OperacionalPage() {
 
       {/* ── Filtros ── */}
       <div className="flex gap-2 flex-wrap mb-3 shrink-0">
+        <div className="relative w-full sm:w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar cliente, título ou nº do processo"
+            aria-label="Buscar solicitações"
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+
+        <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoFila)}>
+          <SelectTrigger className="h-8 text-xs w-40" aria-label="Período"><SelectValue placeholder="Período" /></SelectTrigger>
+          <SelectContent>
+            {PERIODOS_FILA.map((p) => (
+              <SelectItem key={p.valor} value={p.valor}>{p.rotulo}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as TipoSolicitacao | 'all')}>
           <SelectTrigger className="h-8 text-xs w-44"><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
@@ -319,9 +348,9 @@ export default function OperacionalPage() {
           </SelectContent>
         </Select>
 
-        {(filtroTipo !== 'all' || filtroPrioridade !== 'all') && (
+        {temFiltro && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-400"
-            onClick={() => { setFiltroTipo('all'); setFiltroPrioridade('all') }}>
+            onClick={() => { setFiltroTipo('all'); setFiltroPrioridade('all'); setPeriodo('todos'); setBusca('') }}>
             Limpar
           </Button>
         )}
