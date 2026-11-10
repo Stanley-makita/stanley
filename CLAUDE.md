@@ -896,3 +896,14 @@ quem já estava na proposta, e cadastro criado antes de uma inclusão que falhav
 - OCR: mesmo nome (`participanteMesmoNome`) e sem outro CPF = reaproveita sem perguntar; nome só parecido
   pergunta, e desistir NUNCA cria cadastro. Pessoa criada (`pessoaPorCpfOuNova` → `criada: true`) cuja inclusão
   falha é apagada na hora.
+
+## Filtros de coluna das tabelas: seleção múltipla estilo Excel (PR #414, 2026-11-10)
+
+Captação (`LeadListView.tsx`) e Negócios (`VisaoTabela.tsx`), visão Tabela: o filtro de cada coluna guarda uma
+LISTA de valores (`FiltrosMultiplos = Record<string, string[]>`, `src/lib/filtroMultiplo.ts`). Lista vazia = sem
+filtro; marcar todas as opções também vira lista vazia (`normalizarSelecao`), para um valor novo não sumir. Dentro da
+coluna vale qualquer valor marcado (OU), entre colunas todas (E): `passaEmTodosOsFiltros`. O dropdown é sempre
+`FiltroListaMultipla` (`src/components/ui/filtro-lista-multipla.tsx`: pesquisa, "(Selecionar tudo)", checkbox, OK/
+Cancelar, aplica só no OK). Botões do topo (fases da Captação; fases/produtos/status de Negócios) também são listas
+(`alternarItem`, vazio = "Todos"); o status de Negócios é filtrado no cliente (`useProcessos` recebe `'todos'`).
+Tabela nova ou coluna nova com filtro de lista reaproveita essas peças, nunca um dropdown de valor único próprio.
