@@ -6,6 +6,8 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Filter, X, Phone, Mail, CalendarDays, DollarSign, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { passaEmTodosOsFiltros, rotuloDoFiltro, alternarItem, type FiltrosMultiplos } from '@/lib/filtroMultiplo'
+import { FiltroListaMultipla } from '@/components/ui/filtro-lista-multipla'
 import { useBancos } from '@/hooks/useBancos'
 import { nomeBancoExibicao } from '@/lib/bancos/bancoDoCadastro'
 import { useLeadsTodos } from '@/hooks/leads/useLeads'
@@ -22,8 +24,9 @@ import { fmtCpf } from '@/lib/formularios/helpers'
 
 interface Props {
   busca: string
-  faseId?: string
-  onFaseChange: (faseId?: string) => void
+  /** Fases marcadas nos botões do topo — vazio = todas. */
+  faseIds: string[]
+  onFaseIdsChange: (faseIds: string[]) => void
   onAbrirLead: (id: string) => void
   filtroEspecial?: 'inativos'
 }
@@ -144,13 +147,8 @@ function getUniqueValues(leads: Lead[], col: ColKey, fases: FaseAtiva[]): string
   return Array.from(values).sort()
 }
 
-function applyFilters(leads: Lead[], colFilters: Record<string, string>, fases: FaseAtiva[]): Lead[] {
-  return leads.filter(lead =>
-    Object.entries(colFilters).every(([col, val]) => {
-      if (!val) return true
-      return getColValue(lead, col as ColKey, fases) === val
-    })
-  )
+function applyFilters(leads: Lead[], colFilters: FiltrosMultiplos, fases: FaseAtiva[]): Lead[] {
+  return leads.filter(lead => passaEmTodosOsFiltros(colFilters, col => getColValue(lead, col as ColKey, fases)))
 }
 
 type DropdownPos = { top: number; left: number }
@@ -167,16 +165,24 @@ function dentroDoRange(dataIso: string | null | undefined, range: DateRange): bo
   return true
 }
 
-export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroEspecial }: Props) {
+export function LeadListView({ busca, faseIds, onFaseIdsChange, onAbrirLead, filtroEspecial }: Props) {
   const { pode } = usePermissao()
   const podeExcluir = pode('leads.excluir')
   const [leadParaExcluir, setLeadParaExcluir] = useState<{ id: string; faseId: string; nome: string } | null>(null)
   const [sortCol, setSortCol] = useState<ColKey>('criado_em')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [colFilters, setColFilters] = useState<Record<string, string>>({})
+  const [colFilters, setColFilters] = useState<FiltrosMultiplos>({})
   const [openFilter, setOpenFilter] = useState<ColKey | null>(null)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
   const [criadoEmRange, setCriadoEmRange] = useState<DateRange>({ de: '', ate: '' })
+
+  // Fechar dropdown ao clicar fora (o painel do filtro barra a propagação do clique)
+  useEffect(() => {
+    if (!openFilter) return
+    function handleClick() { setOpenFilter(null); setDropdownPos(null) }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [openFilter])
 
   const isInativos = filtroEspecial === 'inativos'
 
@@ -188,7 +194,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
 
   const leadsBrutos = isInativos
     ? leadsInativos.filter(l => !busca || l.nome.toLowerCase().includes(busca.toLowerCase()) || l.telefone?.includes(busca))
-    : faseId ? todosLeads.filter(l => l.fase_id === faseId) : todosLeads
+    : faseIds.length > 0 ? todosLeads.filter(l => faseIds.includes(l.fase_id)) : todosLeads
   // Banco com o nome de Configurações › Bancos em coluna, filtro e ordenação ("Caixa Econômica Federal" → "Caixa").
   const { data: bancosCadastro = [] } = useBancos()
   const leadsBase = useMemo(() => leadsBrutos.map(l => !l.analises_credito?.length ? l : {
@@ -206,7 +212,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
     return acc
   }, {})
 
-  const hasFilters = Object.values(colFilters).some(v => !!v) || !!(criadoEmRange.de || criadoEmRange.ate)
+  const hasFilters = Object.values(colFilters).some(v => v.length > 0) || !!(criadoEmRange.de || criadoEmRange.ate)
 
   function handleSort(col: ColKey) {
     if (sortCol === col) {
@@ -236,10 +242,10 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
       {/* Filtros por fase */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
         <button
-          onClick={() => onFaseChange(undefined)}
+          onClick={() => onFaseIdsChange([])}
           className={cn(
             'px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
-            !faseId
+            faseIds.length === 0
               ? 'bg-fonti-primary text-white border-fonti-primary'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
           )}
@@ -250,18 +256,18 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
         {fases.map((f) => (
           <button
             key={f.id}
-            onClick={() => onFaseChange(f.id === faseId ? undefined : f.id)}
+            onClick={() => onFaseIdsChange(alternarItem(faseIds, f.id))}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
-              faseId === f.id
+              faseIds.includes(f.id)
                 ? 'text-white border-transparent'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
             )}
-            style={faseId === f.id ? { backgroundColor: f.cor ?? 'var(--fonti-primary)', borderColor: f.cor ?? 'var(--fonti-primary)' } : undefined}
+            style={faseIds.includes(f.id) ? { backgroundColor: f.cor ?? 'var(--fonti-primary)', borderColor: f.cor ?? 'var(--fonti-primary)' } : undefined}
           >
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.cor ?? '#94a3b8' }} />
             {f.nome}
-            <span className={cn('ml-0.5', faseId === f.id ? 'opacity-80' : 'opacity-50')}>
+            <span className={cn('ml-0.5', faseIds.includes(f.id) ? 'opacity-80' : 'opacity-50')}>
               {totalPorFase[f.id] ?? 0}
             </span>
           </button>
@@ -407,7 +413,7 @@ export function LeadListView({ busca, faseId, onFaseChange, onAbrirLead, filtroE
                 <tfoot>
                   <tr className="border-t border-fonti-accent bg-fonti-accent/30">
                     <td colSpan={3} className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
-                      Total{hasFilters || faseId ? ' (filtrado)' : ''} · {leads.length} captaç{leads.length === 1 ? 'ão' : 'ões'}
+                      Total{hasFilters || faseIds.length > 0 ? ' (filtrado)' : ''} · {leads.length} captaç{leads.length === 1 ? 'ão' : 'ões'}
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-bold text-fonti-primary">
                       {fmtValor(totalValorPretendido)}
@@ -588,8 +594,8 @@ function ColHeader({
   onSort: (col: ColKey) => void
   align?: 'left' | 'right'
   filterable?: boolean
-  colFilters?: Record<string, string>
-  setColFilters?: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  colFilters?: FiltrosMultiplos
+  setColFilters?: React.Dispatch<React.SetStateAction<FiltrosMultiplos>>
   openFilter?: ColKey | null
   setOpenFilter?: (col: ColKey | null) => void
   dropdownPos?: DropdownPos | null
@@ -601,8 +607,8 @@ function ColHeader({
   const btnRef = useRef<HTMLButtonElement>(null)
   const unique = useMemo(() => getUniqueValues(allLeads, col, fases), [allLeads, col, fases])
 
-  const activeVal = colFilters?.[col] ?? ''
-  const isFiltered = !!activeVal
+  const selecionados = colFilters?.[col] ?? []
+  const isFiltered = selecionados.length > 0
   const isOpen = openFilter === col
 
   const handleOpen = (e: React.MouseEvent) => {
@@ -613,21 +619,24 @@ function ColHeader({
       setDropdownPos(null)
     } else {
       const rect = btnRef.current?.getBoundingClientRect()
-      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - 256)) })
       setOpenFilter(col)
     }
   }
 
-  const handleSelect = (val: string) => {
-    if (!setColFilters || !setOpenFilter || !setDropdownPos) return
-    setColFilters(prev => ({ ...prev, [col]: val }))
-    setOpenFilter(null)
-    setDropdownPos(null)
+  const fechar = () => {
+    setOpenFilter?.(null)
+    setDropdownPos?.(null)
+  }
+
+  const handleAplicar = (valores: string[]) => {
+    setColFilters?.(prev => ({ ...prev, [col]: valores }))
+    fechar()
   }
 
   const handleClearFilter = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setColFilters?.(prev => ({ ...prev, [col]: '' }))
+    setColFilters?.(prev => ({ ...prev, [col]: [] }))
   }
 
   if (filterable) {
@@ -642,7 +651,7 @@ function ColHeader({
           )}
         >
           {isFiltered && <Filter className="h-3 w-3 shrink-0" />}
-          <span className="max-w-[120px] truncate">{isFiltered ? activeVal : label}</span>
+          <span className="max-w-[120px] truncate">{rotuloDoFiltro(label, selecionados)}</span>
           {isFiltered
             ? <X className="h-3 w-3 shrink-0 ml-0.5" onClick={handleClearFilter} />
             : <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
@@ -652,35 +661,15 @@ function ColHeader({
         {isOpen && dropdownPos && typeof document !== 'undefined' && createPortal(
           <div
             style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
-            className="min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
+            className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="max-h-56 overflow-y-auto py-1">
-              <button
-                onClick={() => handleSelect('')}
-                className={cn(
-                  'w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors',
-                  !activeVal ? 'text-fonti-primary font-semibold' : 'text-gray-500',
-                )}
-              >
-                Todos
-              </button>
-              {unique.length === 0
-                ? <p className="px-3 py-2 text-xs text-gray-400">Sem opções</p>
-                : unique.map(val => (
-                  <button
-                    key={val}
-                    onClick={() => handleSelect(val)}
-                    className={cn(
-                      'w-full text-left px-3 py-2 text-xs hover:bg-fonti-primary/5 transition-colors',
-                      activeVal === val ? 'text-fonti-primary font-semibold bg-fonti-primary/5' : 'text-gray-700',
-                    )}
-                  >
-                    {val || '—'}
-                  </button>
-                ))
-              }
-            </div>
+            <FiltroListaMultipla
+              opcoes={unique}
+              selecionados={selecionados}
+              onAplicar={handleAplicar}
+              onCancelar={fechar}
+            />
           </div>,
           document.body,
         )}
@@ -747,7 +736,7 @@ function DateRangeColHeader({
       setDropdownPos(null)
     } else {
       const rect = btnRef.current?.getBoundingClientRect()
-      if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      if (rect) setDropdownPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - 256)) })
       setOpenFilter(col)
     }
   }

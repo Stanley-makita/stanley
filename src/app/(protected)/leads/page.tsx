@@ -44,7 +44,7 @@ function LeadsContent() {
   const [modalAberto, setModalAberto] = useState(false)
   const [faseIdNovo, setFaseIdNovo] = useState<string | undefined>()
   const [busca, setBusca] = useState('')
-  const [faseIdFiltro, setFaseIdFiltro] = useState<string | undefined>()
+  const [faseIdsFiltro, setFaseIdsFiltro] = useState<string[]>([])
 
   // Redireciona ?open=ID para a página dedicada (compatibilidade com links do bot)
   useEffect(() => {
@@ -151,8 +151,8 @@ function LeadsContent() {
       {visao === 'lista' && (
         <LeadListView
           busca={busca}
-          faseId={faseIdFiltro}
-          onFaseChange={setFaseIdFiltro}
+          faseIds={faseIdsFiltro}
+          onFaseIdsChange={setFaseIdsFiltro}
           onAbrirLead={abrirDetalhe}
           filtroEspecial={filtroLista}
         />
