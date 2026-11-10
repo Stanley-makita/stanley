@@ -11,6 +11,7 @@ import { useFaseStatuses } from '@/app/(protected)/configuracoes/_hooks/useFaseS
 import { useFases } from '@/hooks/configuracoes/useFases'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import type { Lead, LeadAnaliseCredito, StatusAnaliseCredito } from '@/types/leads'
+import { rotuloTipoImovelPretendido } from '@/lib/oportunidade/tipoEDespesas'
 import { rotuloProdutoInteresse } from '@/types/leads'
 import { useBancos } from '@/hooks/useBancos'
 import { bancoDoCadastro } from '@/lib/bancos/bancoDoCadastro'
@@ -179,7 +180,7 @@ export function AbaCredito({ lead }: Props) {
           icone={<Home className="h-3.5 w-3.5" />}
           label="Valor do Imóvel"
           valor={lead.valor_imovel}
-          sub={lead.tipo_imovel ?? undefined}
+          sub={rotuloTipoImovelPretendido(lead.tipo_imovel) ?? undefined}
           cor="blue"
         />
         <KpiMetrica

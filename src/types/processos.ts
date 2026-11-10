@@ -104,6 +104,10 @@ export interface Processo {
   // Quem cuida do registro deste processo — independente de ter ou não
   // assessoria, usado pra apuração de pagamento por processo (ver migration 288)
   responsavel_registro?: ResponsavelRegistro | null
+  /** Tipo de imóvel PRETENDIDO, copiado do lead (migration 351) — independente de imovel_tipo (cadastrado). */
+  tipo_imovel?: string | null
+  financiar_despesas_cartorariais?: boolean | null
+  valor_despesas_financiadas?: number | null
   comissao_comercial: number | null
   comissao_empresa: number | null
   comissao_juridico?: number | null

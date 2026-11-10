@@ -17,6 +17,7 @@ import { type TipoContrato, TIPO_CONTRATO_LABELS, type ResponsavelRegistro, RESP
 import { useAnalisesCredito } from '@/hooks/leads/useAnalisesCredito'
 import { useBancos } from '@/hooks/useBancos'
 import { useCriarProcesso } from '@/hooks/processos/useCriarProcesso'
+import { tipoPretendidoDoImovelCadastrado } from '@/lib/oportunidade/tipoEDespesas'
 import { useComissoesPadrao } from '@/hooks/configuracoes/useComissoesPadrao'
 import { useUsuariosEmpresa } from '@/hooks/useUsuariosEmpresa'
 import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
@@ -678,6 +679,10 @@ function FormFinanciamento({ lead, pessoa, analise, onVoltar, onFechar, onProces
       tem_assessoria:   assessoria === true,
       valor_assessoria: assessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
       responsavel_registro: responsavelRegistro,
+      // Oportunidade → negócio (migration 351): tipo pretendido (ou sugerido pelo imóvel cadastrado) e despesas
+      tipo_imovel:      lead?.tipo_imovel ?? tipoPretendidoDoImovelCadastrado(imovel?.imovel_tipo),
+      financiar_despesas_cartorariais: lead?.financiar_despesas_cartorariais === true,
+      valor_despesas_financiadas: lead?.financiar_despesas_cartorariais ? (lead.valor_despesas_financiadas ?? null) : null,
       comissao_comercial: comissaoComercial,
       comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId,
@@ -1071,6 +1076,9 @@ function FormCGI({ lead, pessoa, onVoltar, onFechar, onProcessoCriado }: {
       tem_assessoria:   temAssessoria,
       valor_assessoria: temAssessoria && valorAssessoria ? parseMoeda(valorAssessoria) : null,
       responsavel_registro: responsavelRegistro,
+      tipo_imovel:      lead?.tipo_imovel ?? tipoPretendidoDoImovelCadastrado(lead?.imovel_tipo),
+      financiar_despesas_cartorariais: lead?.financiar_despesas_cartorariais === true,
+      valor_despesas_financiadas: lead?.financiar_despesas_cartorariais ? (lead.valor_despesas_financiadas ?? null) : null,
       comissao_comercial: comissaoComercial,
       comissao_empresa:   comissaoEmpresa,
       operacional_id:   operacionalId && operacionalId !== '__nenhum' ? operacionalId : null,

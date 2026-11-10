@@ -20,6 +20,8 @@ import { useBancos } from '@/hooks/useBancos'
 import { useAtualizarDadosProcesso } from '@/hooks/processos/useProcessos'
 import type { Processo, ResponsavelRegistro } from '@/types/processos'
 import { RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
+import { CampoDespesasFinanciadas } from '@/components/oportunidade/CampoDespesasFinanciadas'
+import { TIPOS_IMOVEL_PRETENDIDO, TIPO_IMOVEL_PRETENDIDO_LABELS, type TipoImovelPretendido } from '@/lib/oportunidade/tipoEDespesas'
 
 const MODALIDADES = [
   'SFI', 'SBPE', 'PMCMV', 'Pro_Cotista', 'CGI', 'Contrato', 'Consorcio',
@@ -57,6 +59,8 @@ const schema = z.object({
   sistema_amortizacao:             z.enum(['SAC', 'PRICE']),
   indexador:                       z.enum(['TR', 'IPCA']).nullable(),
   financiar_despesas_cartorariais: z.boolean(),
+  valor_despesas_financiadas:      z.number().min(0).nullable(),
+  tipo_imovel:                     z.enum(TIPOS_IMOVEL_PRETENDIDO).nullable(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -104,6 +108,9 @@ function buildDefaults(proc: Processo): Partial<FormData> {
     sistema_amortizacao:             pa.sistema_amortizacao as ('SAC' | 'PRICE') | undefined,
     indexador:                       pa.indexador as ('TR' | 'IPCA') | null ?? null,
     financiar_despesas_cartorariais: pa.financiar_despesas_cartorariais ?? false,
+    valor_despesas_financiadas:      pa.valor_despesas_financiadas ?? null,
+    tipo_imovel:                     (TIPOS_IMOVEL_PRETENDIDO as readonly string[]).includes(pa.tipo_imovel ?? '')
+                                       ? pa.tipo_imovel as TipoImovelPretendido : null,
   }
 }
 
@@ -228,6 +235,8 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
         sistema_amortizacao:            dados.sistema_amortizacao,
         indexador:                      dados.indexador ?? null,
         financiar_despesas_cartorariais: dados.financiar_despesas_cartorariais,
+        valor_despesas_financiadas:     dados.financiar_despesas_cartorariais ? (dados.valor_despesas_financiadas ?? null) : null,
+        tipo_imovel:                    dados.tipo_imovel ?? null,
       })
       toast.success('Dados financeiros atualizados com sucesso.')
       onFechar()
@@ -331,6 +340,26 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
                     <p className="text-xs text-red-500">{errors.taxa_juros.message}</p>
                   )}
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Tipo de Imóvel</Label>
+                <Controller
+                  control={form.control}
+                  name="tipo_imovel"
+                  render={({ field }) => (
+                    <Select value={field.value ?? '__nenhum__'} onValueChange={(v) => field.onChange(v === '__nenhum__' ? null : v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__nenhum__">Não informado</SelectItem>
+                        {TIPOS_IMOVEL_PRETENDIDO.map((t) => (
+                          <SelectItem key={t} value={t}>{TIPO_IMOVEL_PRETENDIDO_LABELS[t]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <p className="text-xs text-gray-400">O que o cliente quer financiar — independente do imóvel cadastrado.</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -591,12 +620,19 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3">
-                  <Label>Financiar despesas cartorárias</Label>
-                  <Switch
-                    checked={form.watch('financiar_despesas_cartorariais')}
-                    onCheckedChange={(v) => form.setValue('financiar_despesas_cartorariais', v)}
+                <div className="space-y-1.5">
+                  <Label>Financiar despesas (custas)</Label>
+                  <CampoDespesasFinanciadas
+                    permitirNaoDefinido={false}
+                    financiar={form.watch('financiar_despesas_cartorariais')}
+                    valor={form.watch('valor_despesas_financiadas') ?? null}
+                    valorImovel={form.watch('valor_imovel')}
+                    onChange={(financiar, valor) => {
+                      form.setValue('financiar_despesas_cartorariais', financiar === true, { shouldDirty: true })
+                      form.setValue('valor_despesas_financiadas', valor, { shouldDirty: true })
+                    }}
                   />
+                  <p className="text-xs text-gray-400">Até 5% do valor do imóvel, junto com o financiamento.</p>
                 </div>
               </div>
             </div>

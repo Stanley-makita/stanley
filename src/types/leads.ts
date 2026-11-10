@@ -113,6 +113,7 @@ export interface Lead {
   entrada: number | null
   prazo_meses: number | null
   finalidade: string | null
+  /** Tipo de imóvel PRETENDIDO (Oportunidade) — independente de imovel_tipo (imóvel cadastrado). */
   tipo_imovel: string | null
   cidade_imovel: string | null
   renda_considerada: number | null
@@ -161,6 +162,9 @@ export interface Lead {
   tem_assessoria:        boolean | null
   valor_assessoria:      number | null
   responsavel_registro:  ResponsavelRegistro | null
+  // Despesas (custas) financiadas junto — NULL = não definido (migration 351). Vão para o negócio.
+  financiar_despesas_cartorariais?: boolean | null
+  valor_despesas_financiadas?:      number | null
   // Joins
   responsavel?: { id: string; nome: string } | null
   responsavel_operacional?: { id: string; nome: string } | null

@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { useParticipantes } from '@/hooks/participantes/useParticipantes'
 import { ROTULO_PAPEL } from '@/lib/participantes/tipos'
 import { rotuloProdutoInteresse } from '@/types/leads'
+import { descreverDespesasResumo, rotuloTipoImovelPretendido } from '@/lib/oportunidade/tipoEDespesas'
 
 const ESTADO_CIVIL_LABELS: Record<string, string> = {
   solteiro:      'Solteiro(a)',
@@ -152,7 +153,7 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           icone={<Home className="h-4 w-4" />}
           label="Valor do Imóvel"
           valor={fmtMoeda(lead.valor_imovel)}
-          sub={lead.tipo_imovel ?? 'Não informado'}
+          sub={rotuloTipoImovelPretendido(lead.tipo_imovel) ?? 'Tipo não informado'}
           cor="blue"
           onClick={() => abrirEdicaoValor('valor_imovel')}
         />
@@ -171,6 +172,14 @@ export function AbaResumo({ lead, onMudarAba }: Props) {
           sub={rendaTotal > 0 ? `Formal: ${fmtMoeda(lead.renda_formal)} + Inf: ${fmtMoeda(lead.renda_informal)}` : 'Não informado'}
           cor="gray"
         />
+      </div>
+
+      {/* Despesas financiadas (Oportunidade) — acompanha o negócio */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm">
+        <span className="text-gray-500">Despesas (custas) financiadas</span>
+        <span className="font-medium text-fonti-primary">
+          {descreverDespesasResumo(lead.financiar_despesas_cartorariais, lead.valor_despesas_financiadas, lead.valor_imovel)}
+        </span>
       </div>
 
       {/* Pipeline de fases removido — agora exibido na barra superior (PipelineBarLead) */}

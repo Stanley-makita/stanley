@@ -78,6 +78,8 @@ interface EditarLeadInput {
   tem_assessoria?: boolean | null
   valor_assessoria?: number | null
   responsavel_registro?: Lead['responsavel_registro']
+  financiar_despesas_cartorariais?: boolean | null
+  valor_despesas_financiadas?: number | null
 }
 
 export function useEditarLead() {

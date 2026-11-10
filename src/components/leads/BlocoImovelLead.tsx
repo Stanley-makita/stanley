@@ -6,6 +6,7 @@ import type { Lead } from '@/types/leads'
 import type { Imovel } from '@/types/imoveis'
 import { ImovelVinculoCard } from '@/components/imoveis/ImovelVinculoCard'
 import type { ImovelSelecionado } from '@/components/leads/SeletorImovelProcesso'
+import { comTipoPretendidoSugerido } from '@/lib/oportunidade/tipoEDespesas'
 
 interface Props {
   lead: Lead
@@ -33,7 +34,8 @@ export function BlocoImovelLead({ lead }: Props) {
   }
 
   function salvar(patch: Partial<ImovelSelecionado>) {
-    editar.mutate({ id: lead.id, ...patch })
+    // Tipo pretendido vazio → sugerido pelo imóvel cadastrado (nunca sobrescreve o escolhido).
+    editar.mutate({ id: lead.id, ...comTipoPretendidoSugerido(patch, lead.tipo_imovel) })
   }
 
   function handleVincular(imovel: Imovel) {

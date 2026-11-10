@@ -6,6 +6,7 @@ import type { Imovel } from '@/types/imoveis'
 import { ImovelVinculoCard } from './ImovelVinculoCard'
 import { AvaliacoesEngenhariaImovel } from './AvaliacoesEngenhariaImovel'
 import type { ImovelSelecionado } from '@/components/leads/SeletorImovelProcesso'
+import { comTipoPretendidoSugerido } from '@/lib/oportunidade/tipoEDespesas'
 
 interface Props {
   processo: Processo
@@ -13,8 +14,10 @@ interface Props {
   isPending?: boolean
 }
 
-export function BlocoImovel({ processo, onUpdate, isPending }: Props) {
+export function BlocoImovel({ processo, onUpdate: onUpdateBruto, isPending }: Props) {
   const { data: registros = [] } = useRegistrosImoveis()
+  // Tipo pretendido vazio → sugerido pelo imóvel cadastrado (nunca sobrescreve o escolhido).
+  const onUpdate: Props['onUpdate'] = (campos) => onUpdateBruto(comTipoPretendidoSugerido(campos, processo.tipo_imovel))
 
   const snapshot: ImovelSelecionado = {
     imovel_id: processo.imovel_id ?? null,

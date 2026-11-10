@@ -436,7 +436,8 @@ export async function executarWorkflowCaptacao(
           valor_pretendido: dados.valor_financiado  ?? null,
           entrada:          dados.valor_entrada     ?? null,
           cidade_imovel:    dados.cidade_imovel     ?? null,
-          tipo_imovel:      mapTipoImovelLead(dados.tipo_imovel),
+          // tipo_imovel (Casa/Apartamento/Comercial/Terreno/Rural) NÃO vem do bot: o "novo/usado" que o comercial
+          // escreve é outra coisa e virava sempre 'apartamento' (corrigido 10/11/2026, migration 351).
           renda_considerada: dados.renda_formal ?? dados.renda_informal ?? null,
           banco_pretendido:  dados.bancos_ids[0] ?? null,
           status_analise:   'aguardando_documentos',
@@ -490,7 +491,6 @@ export async function executarWorkflowCaptacao(
     if (dados.valor_financiado) { camposLead.valor_pretendido = dados.valor_financiado; camposAtualizados.push('valor financiado') }
     if (dados.valor_entrada)  { camposLead.entrada          = dados.valor_entrada; camposAtualizados.push('entrada') }
     if (dados.cidade_imovel)  { camposLead.cidade_imovel   = dados.cidade_imovel }
-    if (dados.tipo_imovel)    { camposLead.tipo_imovel     = mapTipoImovelLead(dados.tipo_imovel) }
     if (dados.data_nascimento) { camposLead.data_nascimento = dados.data_nascimento; camposAtualizados.push('nascimento') }
     const rendaNova = dados.renda_formal ?? dados.renda_informal
     if (rendaNova)            { camposLead.renda_considerada = rendaNova;          camposAtualizados.push('renda') }
@@ -1075,8 +1075,3 @@ function montarAvisoCpf(pessoaCriada: boolean, dados: DadosCaptacaoNormalizados)
   return pessoaCriada && !dados.cpf ? '\n⚠️ Pessoa criada sem CPF. Verifique possível duplicidade.' : ''
 }
 
-function mapTipoImovelLead(tipo: 'novo' | 'usado' | null): string | null {
-  if (tipo === 'novo') return 'apartamento'
-  if (tipo === 'usado') return 'apartamento'
-  return null
-}

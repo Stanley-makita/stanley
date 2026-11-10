@@ -9,6 +9,7 @@ interface InputMoedaProps {
   placeholder?: string
   className?: string
   disabled?: boolean
+  id?: string
 }
 
 function paraExibicao(valor: string): string {
@@ -19,7 +20,7 @@ function paraExibicao(valor: string): string {
 /** Input de moeda com mascara BRL (digita da direita pra esquerda, ultimos
  * 2 digitos sao centavos). Recebe/emite valor como string decimal simples
  * (ex: "1000.00"), compativel com o Number(...) ja usado nos formularios. */
-export function InputMoeda({ value, onChange, placeholder, className, disabled }: InputMoedaProps) {
+export function InputMoeda({ value, onChange, placeholder, className, disabled, id }: InputMoedaProps) {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digitos = e.target.value.replace(/\D/g, '')
     const centavos = digitos ? parseInt(digitos, 10) : 0
@@ -30,6 +31,7 @@ export function InputMoeda({ value, onChange, placeholder, className, disabled }
     <div className="relative">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">R$</span>
       <Input
+        id={id}
         type="text"
         inputMode="numeric"
         value={value ? paraExibicao(value) : ''}

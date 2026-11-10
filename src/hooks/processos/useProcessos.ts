@@ -211,6 +211,8 @@ export interface DadosProcessoUpdate {
   sistema_amortizacao?: string | null
   indexador?: string | null
   financiar_despesas_cartorariais?: boolean
+  valor_despesas_financiadas?: number | null
+  tipo_imovel?: string | null
   numero_proposta?: string | null
 }
 
@@ -270,6 +272,7 @@ export interface ImovelProcessoUpdate {
   imovel_registro_id?: string | null
   nome_imovel?: string | null
   valor_imovel?: number | null
+  tipo_imovel?: string | null
 }
 
 export function useAtualizarImovelProcesso() {

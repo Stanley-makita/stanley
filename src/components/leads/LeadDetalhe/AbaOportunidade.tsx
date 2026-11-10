@@ -26,6 +26,8 @@ import { useOrigensLead } from '@/hooks/leads/useOrigensLead'
 import { type Lead, codigoProdutoInteresse } from '@/types/leads'
 import { MODALIDADE_LABELS, type ModalidadeProcesso, RESPONSAVEL_REGISTRO_LABELS, type ResponsavelRegistro } from '@/types/processos'
 import { cn } from '@/lib/utils'
+import { CampoDespesasFinanciadas } from '@/components/oportunidade/CampoDespesasFinanciadas'
+import { TIPOS_IMOVEL_PRETENDIDO, TIPO_IMOVEL_PRETENDIDO_LABELS } from '@/lib/oportunidade/tipoEDespesas'
 import { Loader2 } from 'lucide-react'
 
 // ── schema ────────────────────────────────────────────────────────────────────
@@ -47,6 +49,10 @@ const schema = z.object({
   tem_assessoria:       z.boolean().nullable().optional(),
   valor_assessoria:     z.coerce.number().min(0).optional(),
   responsavel_registro: z.enum(['fontinhas', 'cliente', 'corretor']).nullable().optional(),
+  // Tipo de imóvel pretendido e despesas financiadas — migration 351
+  tipo_imovel:                     z.enum(TIPOS_IMOVEL_PRETENDIDO).nullable().optional(),
+  financiar_despesas_cartorariais: z.boolean().nullable().optional(),
+  valor_despesas_financiadas:      z.coerce.number().min(0).nullable().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -80,6 +86,10 @@ function leadParaForm(lead: Lead): FormData {
     tem_assessoria:             lead.tem_assessoria ?? null,
     valor_assessoria:           lead.valor_assessoria ?? undefined,
     responsavel_registro:       lead.responsavel_registro ?? null,
+    tipo_imovel:                (TIPOS_IMOVEL_PRETENDIDO as readonly string[]).includes(lead.tipo_imovel ?? '')
+                                  ? lead.tipo_imovel as FormData['tipo_imovel'] : null,
+    financiar_despesas_cartorariais: lead.financiar_despesas_cartorariais ?? null,
+    valor_despesas_financiadas:      lead.valor_despesas_financiadas ?? null,
   }
 }
 
@@ -165,6 +175,9 @@ export function AbaOportunidade({ lead }: Props) {
       tem_assessoria:             data.tem_assessoria ?? null,
       valor_assessoria:           data.tem_assessoria ? (data.valor_assessoria ?? null) : null,
       responsavel_registro:       data.responsavel_registro ?? null,
+      tipo_imovel:                data.tipo_imovel ?? null,
+      financiar_despesas_cartorariais: data.financiar_despesas_cartorariais ?? null,
+      valor_despesas_financiadas:      data.financiar_despesas_cartorariais ? (data.valor_despesas_financiadas ?? null) : null,
     })
     // Lembrete pós-salvar — a consulta em si é feita marcando o item
     // obrigatório "Consulta CPF" no checklist da fase (painel direito), que
@@ -312,6 +325,25 @@ export function AbaOportunidade({ lead }: Props) {
               </FormItem>
             )} />
 
+            <FormField control={form.control} name="tipo_imovel" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo de Imóvel <Opc /></FormLabel>
+                <Select onValueChange={v => field.onChange(v === '__nenhum__' ? null : v)} value={field.value ?? ''}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="__nenhum__">Não informado</SelectItem>
+                    {TIPOS_IMOVEL_PRETENDIDO.map(t => (
+                      <SelectItem key={t} value={t}>{TIPO_IMOVEL_PRETENDIDO_LABELS[t]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-400">O que o cliente quer financiar — independente do imóvel cadastrado.</p>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <FormField control={form.control} name="valor_imovel" render={({ field }) => (
               <FormItem>
                 <FormLabel>Valor do Imóvel <Opc /></FormLabel>
@@ -411,6 +443,23 @@ export function AbaOportunidade({ lead }: Props) {
                   </FormItem>
                 )} />
               ) : <div className="hidden sm:block" />}
+
+              <FormField control={form.control} name="financiar_despesas_cartorariais" render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Financiar despesas (custas) <Opc /></FormLabel>
+                  <CampoDespesasFinanciadas
+                    financiar={field.value ?? null}
+                    valor={form.watch('valor_despesas_financiadas') ?? null}
+                    valorImovel={form.watch('valor_imovel')}
+                    onChange={(financiar, valor) => {
+                      field.onChange(financiar)
+                      form.setValue('valor_despesas_financiadas', valor, { shouldDirty: true })
+                    }}
+                  />
+                  <p className="text-xs text-gray-400">Até 5% do valor do imóvel, junto com o financiamento.</p>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               <FormField control={form.control} name="responsavel_registro" render={({ field }) => (
                 <FormItem className="sm:col-span-2">
