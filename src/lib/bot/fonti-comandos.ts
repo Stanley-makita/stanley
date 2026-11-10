@@ -769,9 +769,90 @@ interface EntidadeEncontrada {
   lead_id?: string
 }
 
+export interface CandidatoSalva {
+  id: string
+  nome: string
+  /** Ex.: "CPF final 449-63 · Lead: Documentação" — pra o comercial saber qual escolher. */
+  detalhe?: string
+}
+
 interface EntidadeAmbigua {
   tipo: 'ambiguo'
-  candidatos: { id: string; nome: string }[]
+  candidatos: CandidatoSalva[]
+}
+
+export interface InfoCandidato { cpf: string | null; temLead: boolean; faseLead: string | null }
+
+/**
+ * Lista do `*salva` ambíguo: quem tem lead aberto vem primeiro, depois quem tem CPF; cada linha diz CPF (só o
+ * final) e lead. Caso real 09/11/2026: 3 "JAQUELINE CORDEIRO..." na lista, a cliente de verdade (com CPF e lead)
+ * era a 3ª, o comercial escolheu a 1ª — um cadastro duplicado sem nada — e os documentos ficaram fora do lead.
+ */
+export function ordenarCandidatosSalva(
+  candidatos: CandidatoSalva[], info: Map<string, InfoCandidato>, referencia: string,
+): CandidatoSalva[] {
+  const ref = referencia.trim().toLowerCase()
+  const peso = (c: CandidatoSalva) => {
+    const i = info.get(c.id)
+    return (c.nome.trim().toLowerCase() === ref ? 4 : 0) + (i?.temLead ? 2 : 0) + (i?.cpf ? 1 : 0)
+  }
+  return candidatos
+    .map((c, ordem) => ({ c, ordem, p: peso(c) }))
+    .sort((a, b) => b.p - a.p || a.ordem - b.ordem)
+    .map(({ c }) => {
+      const i = info.get(c.id)
+      if (!i) return c
+      const cpf = i.cpf ? `CPF final ${i.cpf.slice(6, 9)}-${i.cpf.slice(9, 11)}` : 'sem CPF'
+      const lead = i.temLead ? `Lead${i.faseLead ? `: ${i.faseLead}` : ''}` : 'sem lead'
+      return { ...c, detalhe: `${cpf} · ${lead}` }
+    })
+}
+
+export function formatarListaCandidatosSalva(candidatos: CandidatoSalva[], referencia: string): string {
+  const linhas = candidatos.map((c, i) => `${i + 1}. ${c.nome}${c.detalhe ? `\n   _${c.detalhe}_` : ''}`).join('\n')
+  const temSolto = candidatos.some(c => c.detalhe === 'sem CPF · sem lead')
+  const aviso = temSolto ? '\n\n_"sem CPF · sem lead" costuma ser cadastro duplicado — confira antes de escolher._' : ''
+  return `⚠️ Encontrei ${candidatos.length} clientes com "${referencia}":\n\n${linhas}${aviso}\n\nResponda com o número:\n*fonti salva 1`
+}
+
+/** CPF e lead de cada candidato (via participações, então vale para titular e coparticipante). Falha = sem detalhe. */
+async function infoCandidatosSalva(
+  supabase: SupabaseClient, empresa_id: string, candidatos: CandidatoSalva[],
+): Promise<Map<string, InfoCandidato>> {
+  const ids = candidatos.map(c => c.id)
+  const info = new Map<string, InfoCandidato>()
+  const [{ data: pessoas, error: eP }, { data: parts, error: eL }] = await Promise.all([
+    supabase.from('pessoas').select('id, cpf').eq('empresa_id', empresa_id).in('id', ids)
+      .abortSignal(AbortSignal.timeout(10000)),
+    supabase.from('participacoes')
+      .select('pessoa_id, lead:leads!lead_id!inner(deleted_at, created_at, fase:fases!fase_id(nome))')
+      .eq('empresa_id', empresa_id).in('pessoa_id', ids).not('lead_id', 'is', null)
+      .in('papel', ['titular', 'coparticipante', 'conjuge_anuente'])
+      .is('lead.deleted_at', null)
+      .abortSignal(AbortSignal.timeout(10000)),
+  ])
+  if (eP || eL) {
+    console.error('[*salva] detalhes dos candidatos:', eP?.message ?? eL?.message)
+    return info
+  }
+  for (const p of (pessoas ?? []) as Array<{ id: string; cpf: string | null }>) {
+    info.set(p.id, { cpf: p.cpf && /^\d{11}$/.test(p.cpf) ? p.cpf : null, temLead: false, faseLead: null })
+  }
+  type Lead = { created_at: string; fase: { nome: string } | { nome: string }[] | null }
+  const maisRecente = new Map<string, Lead>()
+  for (const x of (parts ?? []) as unknown as Array<{ pessoa_id: string; lead: Lead | Lead[] | null }>) {
+    const lead = Array.isArray(x.lead) ? x.lead[0] : x.lead
+    if (!lead) continue
+    const atual = maisRecente.get(x.pessoa_id)
+    if (!atual || lead.created_at > atual.created_at) maisRecente.set(x.pessoa_id, lead)
+  }
+  for (const [pessoaId, lead] of Array.from(maisRecente)) {
+    const i = info.get(pessoaId)
+    if (!i) continue
+    const fase = Array.isArray(lead.fase) ? lead.fase[0] : lead.fase
+    info.set(pessoaId, { ...i, temLead: true, faseLead: fase?.nome ?? null })
+  }
+  return info
 }
 
 export async function buscarEntidade(
@@ -887,7 +968,9 @@ export async function buscarEntidade(
   if (pessoas && pessoas.length >= 1) {
     // Ambiguidade: múltiplos clientes com o mesmo nome parcial
     if (pessoas.length > 1) {
-      return { tipo: 'ambiguo', candidatos: pessoas }
+      const candidatos = pessoas.map(p => ({ id: p.id, nome: p.nome }))
+      const info = await infoCandidatosSalva(supabase, empresa_id, candidatos).catch(() => new Map<string, InfoCandidato>())
+      return { tipo: 'ambiguo', candidatos: ordenarCandidatosSalva(candidatos, info, ref) }
     }
 
     const escolhido = pessoas[0]
@@ -1311,8 +1394,7 @@ export async function processarComandoFonti(
       if (!gravou) {
         return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${referencia}", mas não consegui registrar a lista. Envie *salva ${referencia} de novo.`
       }
-      const linhas = entidade.candidatos.map((c, i) => `${i + 1}. ${c.nome}`).join('\n')
-      return `⚠️ Encontrei ${entidade.candidatos.length} clientes com "${referencia}":\n\n${linhas}\n\nResponda com o número:\n*fonti salva 1`
+      return formatarListaCandidatosSalva(entidade.candidatos, referencia)
     }
 
     const marcaAtSalva = await obterMarcaInicio(supabase, empresa_id, telefoneConversaSalva)

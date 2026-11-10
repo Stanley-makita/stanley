@@ -20,12 +20,16 @@ async function ehOperador(sb: SupabaseClient, pessoaId: string): Promise<boolean
   return !!data
 }
 
+/** Quem criou e por qual caminho (migration 349) — `sb` é service role, o trigger não sabe o usuário. */
+export type AutoriaCriacao = { usuarioId: string | null; origem: string }
+
 /**
  * Reaproveita a Pessoa pelo CPF (válido) ou cria só com o nome (tipo cliente). Invariante 1 do
  * CLAUDE.md: Pessoa de usuário interno nunca é reaproveitada para cliente.
  */
 export async function pessoaPorCpfOuNova(
   sb: SupabaseClient, empresaId: string, nome: string, cpfBruto: string | undefined | null,
+  autoria?: AutoriaCriacao,
 ): Promise<{ id: string; criada?: true } | { erro: string; status: number }> {
   const cpf = (cpfBruto ?? '').replace(/\D/g, '')
   if (cpfValido(cpf)) {
@@ -44,6 +48,7 @@ export async function pessoaPorCpfOuNova(
   const id = crypto.randomUUID()
   const { error } = await sb.from('pessoas').insert({
     id, empresa_id: empresaId, nome: nomeLimpo, tipo: 'cliente', ...(cpfValido(cpf) ? { cpf } : {}),
+    ...(autoria ? { criado_por: autoria.usuarioId, criado_origem: autoria.origem } : {}),
   })
   if (error) return { erro: 'Não foi possível criar a pessoa.', status: 500 }
   return { id, criada: true }

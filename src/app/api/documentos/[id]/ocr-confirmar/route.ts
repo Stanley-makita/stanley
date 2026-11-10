@@ -33,6 +33,9 @@ async function resolveUsuario(token: string): Promise<{ empresa_id: string; usua
   return { empresa_id: usuario.empresa_id, usuario_id: usuario.id }
 }
 
+// Tipos que podem trazer uma Pessoa nova para a proposta ("Novo participante").
+const TIPOS_IDENTIDADE_NOVO_PARTICIPANTE = ['rg', 'cnh', 'cpf', 'certidao_nascimento', 'certidao_casamento']
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
@@ -119,7 +122,8 @@ export async function POST(
   }
 
   // Reaproveita pelo CPF ou cria (nunca Pessoa de operador) — serviço único de escrita (B2c).
-  const pessoaPorCpfOuNova = (nome: string, cpf: string | undefined) => pessoaPorCpfOuNovaServico(supabase, empresa_id, nome, cpf)
+  const pessoaPorCpfOuNova = (nome: string, cpf: string | undefined, origem: string) =>
+    pessoaPorCpfOuNovaServico(supabase, empresa_id, nome, cpf, { usuarioId: usuario_id, origem })
 
   // Pessoa que recebe os dados (e passa a ser a dona do documento). Ordem: participante escolhido
   // ("De quem é este documento?") → novo participante → cônjuge (caminho antigo) → dono atual.
@@ -134,6 +138,13 @@ export async function POST(
     const nomeNovo = (body.novo_participante.nome ?? '').trim()
     if (!nomeNovo || !body.lead_id) {
       return NextResponse.json({ error: 'Informe o nome do novo participante.' }, { status: 422 })
+    }
+    // Só documento de identificação traz Pessoa nova (caso real 28/10/2026: holerite e extrato aberto como "CNH"
+    // criaram 2 cadastros duplicados da cliente).
+    if (!tipo_confirmado || !TIPOS_IDENTIDADE_NOVO_PARTICIPANTE.includes(tipo_confirmado)) {
+      return NextResponse.json({
+        error: 'Só RG, CNH, CPF ou certidão podem criar um participante novo. Escolha alguém da proposta.',
+      }, { status: 422 })
     }
     if (!(await podeServidor(usuario_id, ctx.usuario.perfil, empresa_id, 'leads.editar'))) {
       return NextResponse.json({ error: 'Sem permissão para incluir participante neste lead.' }, { status: 403 })
@@ -172,7 +183,7 @@ export async function POST(
       }
     }
 
-    const resolvida = mesmoNomeId ? { id: mesmoNomeId } : await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf)
+    const resolvida = mesmoNomeId ? { id: mesmoNomeId } : await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf, 'ocr_novo_participante')
     if ('erro' in resolvida) return NextResponse.json({ error: resolvida.erro }, { status: resolvida.status })
     const alvoId = resolvida.id
     if (alvoId !== leadVisivel.pessoa_id) {
@@ -195,8 +206,8 @@ export async function POST(
     if (titular.conjuge_pessoa_id) {
       pessoaId = titular.conjuge_pessoa_id as string
     } else {
-      const r = await pessoaPorCpfOuNovaServico(supabase, empresa_id,
-        (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge', camposFiltrados['cpf'] as string | undefined)
+      const r = await pessoaPorCpfOuNova(
+        (camposFiltrados['nome'] as string | undefined) ?? 'Cônjuge', camposFiltrados['cpf'] as string | undefined, 'ocr_conjuge')
       if ('erro' in r) return NextResponse.json({ error: r.erro }, { status: r.status })
       if (r.id === doc.pessoa_id) return NextResponse.json({ error: 'O cônjuge não pode ser o próprio dono do documento.' }, { status: 422 })
       pessoaId = r.id
@@ -420,7 +431,7 @@ export async function POST(
       const existente = participanteMesmoNome(nomeConjuge, body.casamento.novo!.cpf, cands)
       if (existente) conjugeId = existente.pessoaId
       else {
-        const r = await pessoaPorCpfOuNova(nomeConjuge, body.casamento.novo!.cpf)
+        const r = await pessoaPorCpfOuNova(nomeConjuge, body.casamento.novo!.cpf, 'ocr_certidao_casamento')
         if ('erro' in r) casamento_erro = r.erro
         else conjugeId = r.id
       }

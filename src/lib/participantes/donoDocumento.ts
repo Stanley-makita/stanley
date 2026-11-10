@@ -3,11 +3,16 @@ import { cpfValido } from '@/lib/cpf'
 type Participante = { pessoaId: string; nome: string; cpf: string | null }
 
 export type SugestaoDono =
-  | { tipo: 'participante'; pessoaId: string; motivo: 'cpf' | 'nome' | 'nome_parecido' | 'dono_atual' }
+  | { tipo: 'participante'; pessoaId: string; motivo: 'cpf' | 'nome' | 'nome_parecido' | 'dono_atual' | 'nome_diferente' }
   | { tipo: 'novo' }
 
+// Pontuação vira espaço ("R." → "r"), pra abreviação poder bater com o nome inteiro.
 const normalizarNome = (s: string) =>
-  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+
+/** Mesmo nome ou abreviação dele ("r" x "ribeiro"). */
+const mesmoToken = (a: string, b: string) =>
+  a === b || (a.length === 1 && b.startsWith(a)) || (b.length === 1 && a.startsWith(b))
 
 const PARTICULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e'])
 
@@ -30,6 +35,8 @@ function distancia(a: string, b: string): number {
  * x lead "ANDRE LUIZ DE OLIVEIRA COPULLA" não batia e virou cadastro duplicado. Parecido = mesmo 1º nome e
  * (até 2 letras de diferença por nome, com o mesmo número de nomes; ou todos os nomes do mais curto — 2+ —
  * presentes no mais longo, ex.: "Maria Souza" x "Maria Aparecida Souza"). Partículas (de/da/dos…) não contam.
+ * Inicial conta como o nome inteiro (caso real 28/10/2026: extrato com "JAQUELINE CORDEIRO R. DE MACENA" x
+ * cadastro "JAQUELINE CORDEIRO RIBEIRO DE MACENA" não batia e virou 2 cadastros duplicados).
  */
 export function nomesParecidos(a: string, b: string): boolean {
   const na = normalizarNome(a), nb = normalizarNome(b)
@@ -39,18 +46,20 @@ export function nomesParecidos(a: string, b: string): boolean {
   const tb = nb.split(' ').filter(t => !PARTICULAS.has(t))
   if (!ta.length || !tb.length || ta[0] !== tb[0]) return false
   if (ta.length === tb.length) {
-    const diferentes = ta.map((t, i) => distancia(t, tb[i])).filter(d => d > 0)
+    const diferentes = ta.map((t, i) => (mesmoToken(t, tb[i]) ? 0 : distancia(t, tb[i]))).filter(d => d > 0)
     const total = diferentes.reduce((s, d) => s + d, 0)
     if (total <= 2 && diferentes.length <= 2) return true
   }
   const [curto, longo] = ta.length <= tb.length ? [ta, tb] : [tb, ta]
-  return curto.length >= 2 && curto.every(t => longo.includes(t))
+  return curto.length >= 2 && curto.every(t => longo.some(l => mesmoToken(t, l)))
 }
 
 /**
  * "De quem é este documento?" (spec §3): CPF extraído válido = participante → esse; senão nome igual (sem
  * acento/caixa) → esse, se o participante não tiver outro CPF; senão nome PARECIDO de participante sem outro CPF
- * → esse (motivo 'nome_parecido' — a tela pede para conferir); havia CPF ou nome e nada bateu → novo participante;
+ * → esse (motivo 'nome_parecido' — a tela pede para conferir); CPF válido que ninguém tem → novo participante;
+ * só nome, sem CPF, e nada bateu → dono atual com motivo 'nome_diferente' (a tela avisa, mas NUNCA sugere criar
+ * cadastro só pelo nome — holerite/extrato abreviam ou erram o nome; caso real 28/10/2026);
  * documento sem dado de identificação (ex.: comprovante de endereço) → dono atual (ou o 1º participante).
  */
 export function sugerirDonoDocumento(
@@ -74,9 +83,10 @@ export function sugerirDonoDocumento(
     const parecido = participantes.find(x => nomesParecidos(x.nome, nome) && semOutroCpf(x))
     if (parecido) return { tipo: 'participante', pessoaId: parecido.pessoaId, motivo: 'nome_parecido' }
   }
-  if (temCpf || nome) return { tipo: 'novo' }
+  if (temCpf) return { tipo: 'novo' }
   const dono = participantes.find(x => x.pessoaId === donoAtualId) ?? participantes[0]
-  return dono ? { tipo: 'participante', pessoaId: dono.pessoaId, motivo: 'dono_atual' } : { tipo: 'novo' }
+  if (!dono) return { tipo: 'novo' }
+  return { tipo: 'participante', pessoaId: dono.pessoaId, motivo: nome ? 'nome_diferente' : 'dono_atual' }
 }
 
 /** Participante com nome parecido e sem outro CPF — para avisar antes de criar um cadastro novo. */

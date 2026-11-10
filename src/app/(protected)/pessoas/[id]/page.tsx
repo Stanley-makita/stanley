@@ -32,6 +32,22 @@ import { processosDaPessoa } from '@/lib/participantes/consultas'
 import { PAPEIS_COMPRA, PAPEIS_VENDA } from '@/lib/participantes/tipos'
 import { salvarCasamentoDoFormulario } from '@/lib/participantes/casamentoCliente'
 
+// Autoria da criação (migration 349) — cadastros antigos não têm.
+const ORIGEM_CRIACAO: Record<string, string> = {
+  ocr_novo_participante: 'Extrair dados → novo participante',
+  ocr_conjuge: 'Extrair dados → cônjuge',
+  ocr_certidao_casamento: 'Extrair dados → certidão de casamento',
+  participante_lead: 'incluído como participante no lead',
+  vendedor_lead: 'incluído como vendedor no lead',
+  sem_usuario: 'pelo sistema (WhatsApp/automação)',
+}
+function descreverAutoria(p: { criado_origem?: string | null; criador?: { nome: string } | { nome: string }[] | null }): string {
+  const criador = Array.isArray(p.criador) ? p.criador[0] : p.criador
+  const origem = p.criado_origem && p.criado_origem !== 'tela' ? ORIGEM_CRIACAO[p.criado_origem] ?? p.criado_origem : null
+  if (!criador?.nome && !origem) return ''
+  return `${criador?.nome ? ` por ${criador.nome}` : ''}${origem ? ` (${origem})` : ''}`
+}
+
 interface PessoaTelefone {
   id: string
   telefone: string
@@ -136,6 +152,8 @@ interface Pessoa {
   observacoes: string | null
   tipo: string | null
   created_at: string
+  criado_origem?: string | null
+  criador?: { nome: string } | { nome: string }[] | null
   updated_at: string
   pessoa_telefones: PessoaTelefone[]
   // Dados expandidos
@@ -279,6 +297,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         supabase
           .from('pessoas')
           .select(`id, nome, cpf, email, data_nascimento, observacoes, tipo, created_at, updated_at,
+            criado_origem, criador:usuarios!criado_por(nome),
             rg, profissao, estado_civil, renda_formal, renda_informal, nacionalidade,
             endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep,
             conjuge_nome, conjuge_cpf, conjuge_data_nascimento, conjuge_telefone, conjuge_profissao,
@@ -680,6 +699,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
               <h1 className="text-base font-semibold text-gray-900 truncate">{pessoa.nome}</h1>
               <p className="text-xs text-gray-400">
                 Cadastrado {formatDistanceToNow(new Date(pessoa.created_at), { addSuffix: true, locale: ptBR })}
+                {descreverAutoria(pessoa)}
               </p>
             </div>
           </div>
