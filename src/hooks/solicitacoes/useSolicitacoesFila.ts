@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import type { SolicitacaoOperacional, StatusSolicitacao, TipoSolicitacao, PrioridadeSolicitacao } from '@/types/solicitacoes-operacionais'
+import { EMBED_PARTICIPANTES } from '@/lib/participantes/resumo'
 
 interface FiltrosFila {
   tipo?: TipoSolicitacao
@@ -15,6 +16,10 @@ interface FiltrosFila {
   // "Que pedi": solicitações que EU criei e que outra pessoa atende (a que pedi pra mim
   // mesmo continua em "Para mim"). Tem precedência sobre todasDaEmpresa.
   quePedi?: boolean
+  /** Só as criadas a partir desta data (ISO) — filtro "Período" da tela. */
+  desde?: string
+  /** Busca ativa: a aba Concluídas traz mais que as 50 mais recentes (a busca filtra na tela). */
+  buscando?: boolean
 }
 
 const JOINS = `
@@ -22,7 +27,7 @@ const JOINS = `
   responsavel:usuarios!responsavel_id(id, nome),
   solicitante:usuarios!solicitante_id(id, nome),
   lead:leads!lead_id(id, nome),
-  processo:processos!processo_id(id, nome_imovel, numero_processo, modalidade, banco:bancos!banco_id(nome)),
+  processo:processos!processo_id(id, nome_imovel, numero_processo, modalidade, banco:bancos!banco_id(nome), ${EMBED_PARTICIPANTES}),
   pessoa:pessoas!pessoa_id(id, nome)
 `
 
@@ -66,6 +71,7 @@ export function useSolicitacoesFila(filtros: FiltrosFila = {}) {
       if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
       if (filtros.status) query = query.eq('status', filtros.status)
       if (filtros.prioridade) query = query.eq('prioridade', filtros.prioridade)
+      if (filtros.desde) query = query.gte('created_at', filtros.desde)
 
       query = query.order('created_at', { ascending: false })
 
@@ -103,10 +109,12 @@ export function useSolicitacoesConcluidasFila(filtros: Omit<FiltrosFila, 'inclui
 
       if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
       if (filtros.prioridade) query = query.eq('prioridade', filtros.prioridade)
+      if (filtros.desde) query = query.gte('created_at', filtros.desde)
 
+      // Sem filtro: as 50 mais recentes. Com período ou busca, o histórico do período inteiro (a busca é na tela).
       query = query.order('concluido_em', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(filtros.desde || filtros.buscando ? 1000 : 50)
 
       const { data, error } = await query
       if (error) throw error

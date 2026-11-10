@@ -51,6 +51,8 @@ export interface SolicitacaoOperacional {
     numero_processo: string
     modalidade?: string | null
     banco?: { nome: string } | null
+    /** Participações (só na fila) — nome do cliente para a busca. */
+    participantes?: import('@/lib/participantes/resumo').ParticipacaoEmbed[] | null
   } | null
   pessoa?: { id: string; nome: string } | null
 }
