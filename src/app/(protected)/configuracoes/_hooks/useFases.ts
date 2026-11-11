@@ -78,6 +78,7 @@ export function useCriarFase() {
       cor?: string
       ordem?: number
       prazo_dias?: number | null
+      alerta_parado_dias?: number | null
       modulo: string
       descricao?: string
       notificar_cliente?: boolean
@@ -93,6 +94,7 @@ export function useCriarFase() {
           cor: fase.cor ?? 'var(--fonti-accent)',
           ordem: fase.ordem ?? 999,
           prazo_dias: fase.prazo_dias ?? null,
+          alerta_parado_dias: fase.alerta_parado_dias ?? null,
           modulo: fase.modulo,
           ativo: true,
         })

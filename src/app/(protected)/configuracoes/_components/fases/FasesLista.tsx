@@ -252,6 +252,9 @@ function FaseItem({ fase, confirmandoExclusao, onEditar, onExcluir }: {
         {fase.prazo_dias != null && (
           <p className="text-xs text-gray-400">SLA: {fase.prazo_dias} dias</p>
         )}
+        {fase.alerta_parado_dias != null && (
+          <p className="text-xs text-amber-600">⏰ Avisa se parado há mais de {fase.alerta_parado_dias} dias</p>
+        )}
       </div>
 
       {!editandoNome && (

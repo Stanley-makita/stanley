@@ -54,6 +54,8 @@ function calcularAlertas(
 export function useAlertasVencimento(
   processoId: string,
   validades: { validade_credito?: string | null; validade_engenharia?: string | null; validade_matricula?: string | null },
+  /** Contrato já emitido: crédito, engenharia e matrícula não importam mais — nenhum aviso (pedido da equipe, 11/11/2026). */
+  contratoEmitido = false,
 ) {
   const { usuario } = useAuth()
   const { data: usuarioCompleto } = useUsuarioAtual()
@@ -74,7 +76,7 @@ export function useAlertasVencimento(
 
   const lidosSet = new Set(lidos.map(r => `${r.tipo}__${r.validade_data}`))
 
-  const alertasPendentes = calcularAlertas(
+  const alertasPendentes = contratoEmitido ? [] : calcularAlertas(
     { credito: validades.validade_credito, engenharia: validades.validade_engenharia, matricula: validades.validade_matricula },
     lidosSet,
   )

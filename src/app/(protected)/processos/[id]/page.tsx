@@ -19,6 +19,7 @@ import { useExcluirProcesso } from '@/hooks/processos/useExcluirProcesso'
 import { ArrowLeft, Building2, Calendar, ClipboardList, User, DollarSign, CheckCircle2, AlertCircle, Plus, Download, Mail, MessageCircle, Banknote, XCircle, Lock, Trash2 } from 'lucide-react'
 import { ComunicarPartesProcessoModal } from '@/components/processos/ComunicarPartesProcessoModal'
 import { ValidadeCard } from '@/components/processos/detalhe/ValidadeCard'
+import { EmissaoCard } from '@/components/processos/detalhe/DataEmissao'
 import { EngenhariaCard } from '@/components/processos/detalhe/EngenhariaCard'
 import { AlertaVencimentoModal } from '@/components/processos/detalhe/AlertaVencimentoModal'
 import { useAlertasVencimento } from '@/hooks/processos/useAlertasVencimento'
@@ -192,7 +193,7 @@ export default function ProcessoDetalhePage() {
     validade_credito:    (processo as any)?.validade_credito,
     validade_engenharia: (processo as any)?.validade_engenharia,
     validade_matricula:  (processo as any)?.validade_matricula,
-  })
+  }, processo?.status_emissao === 'emitido')
   const { data: fasesHistorico = [] } = useProcessoFasesHistorico(id)
   const modulo = processo ? (MODULO_POR_MODALIDADE[processo.modalidade] ?? 'processos') : 'processos'
   const { data: fases = [] } = useFases(modulo)
@@ -488,8 +489,9 @@ export default function ProcessoDetalhePage() {
           const jaPasoiEngenharia = fasesHistorico.some(h => h.fase?.nome?.toLowerCase().includes('engenharia'))
           const temEngenharia = faseEng || jaPasoiEngenharia || Boolean((processo as any).validade_engenharia || (processo as any).valor_engenharia)
           const temMatricula  = faseEng || jaPasoiEngenharia || Boolean((processo as any).validade_matricula)
-          const numCards = 3 + (temMatricula ? 1 : 0) + (temEngenharia ? 1 : 0)
-          const gridColsClass = numCards <= 3 ? 'md:grid-cols-3' : numCards === 4 ? 'md:grid-cols-4' : 'md:grid-cols-5'
+          const emitido = processo.status_emissao === 'emitido'
+          const numCards = 3 + (emitido ? 1 : 0) + (temMatricula ? 1 : 0) + (temEngenharia ? 1 : 0)
+          const gridColsClass = numCards <= 3 ? 'md:grid-cols-3' : numCards === 4 ? 'md:grid-cols-4' : numCards === 5 ? 'md:grid-cols-5' : 'md:grid-cols-3 xl:grid-cols-6'
           return (
             <div className={cn(`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridColsClass}`, lockClass)}>
               {/* Valor do Imóvel */}
@@ -513,6 +515,9 @@ export default function ProcessoDetalhePage() {
                   <p className="text-sm font-bold text-fonti-primary">{diasEmAndamento} dias</p>
                 </div>
               </div>
+
+              {/* Contrato Emitido — data informada pela equipe (pode ser outro dia que o da marcação) */}
+              {emitido && <EmissaoCard processoId={id} dataEmissao={(processo as any).data_emissao} />}
 
               {/* Validade Crédito — sempre visível */}
               <ValidadeCard processoId={id} tipo="credito" label="Validade Crédito" data={(processo as any).validade_credito} dataBase={(processo as any).data_credito} />
