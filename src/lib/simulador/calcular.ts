@@ -115,6 +115,25 @@ function calcItbiComDesconto(e: EntradaSimulador, cfg?: SimuladorItbiConfig): nu
   return arredondar(e.valorCV * 0.02)
 }
 
+// ── Tarifa Banco ──────────────────────────────────────────────────────────────
+
+/**
+ * PMCMV e Pró-Cotista têm a tarifa fixada pela regra do produto (Ministério das Cidades):
+ * 1,5% do valor financiado, em qualquer banco — a tarifa de Configurações > Simulador
+ * vale só para os demais produtos (SBPE).
+ */
+export const TARIFA_PRODUTO_PERCENTUAL = 0.015
+
+export function calcTarifaBanco(
+  e: Pick<EntradaSimulador, 'produto' | 'valorFinanciado'>,
+  cfg: SimuladorCustasConfig | undefined,
+): number {
+  if (e.produto === 'PMCMV' || e.produto === 'Pro_Cotista') {
+    return arredondar(e.valorFinanciado * TARIFA_PRODUTO_PERCENTUAL)
+  }
+  return cfg?.valor ?? 0
+}
+
 // ── FunRejus ──────────────────────────────────────────────────────────────────
 
 function calcFunRejus(e: EntradaSimulador): number {
@@ -217,7 +236,7 @@ export function calcularCustas(
   custasConfig: SimuladorCustasConfig | undefined,
 ): ResultadoSimulador {
   const bancoEhCaixa = isCaixa(entrada.banco)
-  const tarifa = custasConfig?.valor ?? 0
+  const tarifa = calcTarifaBanco(entrada, custasConfig)
 
   const itbiSem = calcItbiSemDesconto(entrada, itbiConfig)
   const itbiCom = calcItbiComDesconto(entrada, itbiConfig)
