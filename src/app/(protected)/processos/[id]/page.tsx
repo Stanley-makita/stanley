@@ -978,15 +978,21 @@ function AbaResumo({
           {(processo.compradores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.compradores!.map((c) => (
-                <div key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
-                  <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                  <span className="text-fonti-primary font-medium">{c.nome}</span>
-                  {c.cpf && <span className="text-xs text-text-muted">{c.cpf}</span>}
-                  {c.principal ? (
-                    <span className="text-[10px] bg-fonti-primary text-white px-1.5 py-0.5 rounded-full">Principal</span>
-                  ) : c.papel !== 'coparticipante' && (
-                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">{ROTULO_PAPEL[c.papel]}</span>
-                  )}
+                <div key={c.id} className="text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                    <span className="text-fonti-primary font-medium">{c.nome}</span>
+                    {c.cpf && <span className="text-xs text-text-muted">{c.cpf}</span>}
+                    {c.principal ? (
+                      <span className="text-[10px] bg-fonti-primary text-white px-1.5 py-0.5 rounded-full">Principal</span>
+                    ) : c.papel !== 'coparticipante' && (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">{ROTULO_PAPEL[c.papel]}</span>
+                    )}
+                  </div>
+                  <div className="ml-5 mt-0.5 flex flex-col gap-0.5 text-xs text-text-muted sm:flex-row sm:flex-wrap sm:gap-x-4">
+                    <span className="break-all">E-mail: {c.email || '—'}</span>
+                    <span>Nascimento: {dataBr(c.data_nascimento)}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1022,10 +1028,18 @@ function AbaResumo({
           {(processo.vendedores?.length ?? 0) > 0 ? (
             <div className="space-y-1.5">
               {processo.vendedores!.map((v) => (
-                <div key={v.id} className="flex flex-wrap items-center gap-2 text-sm">
-                  <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                  <span className="text-fonti-primary font-medium">{v.nome}</span>
-                  {v.cpf && <span className="text-xs text-text-muted">{v.cpf}</span>}
+                <div key={v.id} className="text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                    <span className="text-fonti-primary font-medium">{v.nome}</span>
+                    {v.cpf && <span className="text-xs text-text-muted">{v.cpf}</span>}
+                  </div>
+                  <div className="ml-5 mt-0.5 flex flex-col gap-0.5 text-xs text-text-muted">
+                    <span className="break-all">E-mail: {v.email || '—'}</span>
+                    <span>
+                      Conta: {[v.banco, v.agencia && `Ag. ${v.agencia}`, v.conta && `Conta ${v.conta}`].filter(Boolean).join(' · ') || '—'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1090,6 +1104,12 @@ function AbaResumo({
       )}
     </div>
   )
+}
+
+/** 'AAAA-MM-DD' → 'DD/MM/AAAA' sem passar por Date (evita voltar 1 dia pelo fuso). */
+function dataBr(iso: string | null | undefined): string {
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '—'
 }
 
 function Campo({ label, valor }: { label: string; valor: string }) {

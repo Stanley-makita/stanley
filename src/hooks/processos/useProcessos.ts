@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Processo, type StatusProcesso } from '@/types/processos'
-import { EMBED_PARTICIPANTES, comListasDeParticipantes, type ParticipacaoEmbed } from '@/lib/participantes/resumo'
+import { EMBED_PARTICIPANTES, EMBED_PARTICIPANTES_CONTATO, comListasDeParticipantes, type ParticipacaoEmbed } from '@/lib/participantes/resumo'
 import { PAPEIS_COMPRA } from '@/lib/participantes/tipos'
 
 export type ProdutoFiltro = 'todos' | 'consorcio' | 'cgi' | 'financiamento' | 'contrato' | 'registro'
@@ -153,7 +153,7 @@ export function useProcesso(processoId: string) {
           comercial:usuarios!comercial_id(id, nome, email),
           juridico:usuarios!juridico_id(id, nome, email),
           fase_atual:fases!fase_atual_id(id, nome, cor),
-          ${EMBED_PARTICIPANTES},
+          ${EMBED_PARTICIPANTES_CONTATO},
           parceiro:parceiros!parceiro_id(id, nome, tipo_parceiro, imobiliaria),
           cotas:processo_cotas(valor_carta, administradora_nome, status_cota, grupo, cota, tipo_lance)
         `)
