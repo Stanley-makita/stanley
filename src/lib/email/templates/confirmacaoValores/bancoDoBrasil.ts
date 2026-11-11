@@ -1,5 +1,6 @@
 import { DadosConfirmacaoValores } from './types'
 import { fmt, assinatura, layoutEmail, tabelaValores, itemBoletoItbi, itemPrimeiraPrestacao } from './_helpers'
+import { linhasEntradaFgts } from './entradaFgts'
 
 export function gerarEmailBancoDoBrasil(dados: DadosConfirmacaoValores): { assunto: string; corpo: string } {
   const assunto = `Confirmação de Valores — ${dados.cliente_nome} — Banco do Brasil`
@@ -7,8 +8,7 @@ export function gerarEmailBancoDoBrasil(dados: DadosConfirmacaoValores): { assun
   const linhas: [string, string][] = [
     ['Engenharia (Laudo de Avaliação Banco)', fmt(dados.engenharia_laudo)],
     ['Compra e Venda (Escritura)', fmt(dados.compra_venda)],
-    ['Entrada', fmt(dados.entrada)],
-    ['FGTS', fmt(dados.fgts)],
+    ...linhasEntradaFgts(dados),
     ['Valor Financiado', fmt(dados.valor_financiado)],
     ['Despesas Financiadas', fmt(dados.despesas_financiadas)],
     ['Valor Total Financiado', fmt(dados.valor_total_financiado)],

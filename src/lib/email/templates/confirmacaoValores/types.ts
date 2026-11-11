@@ -5,6 +5,8 @@ export interface DadosConfirmacaoValores {
   compra_venda: number | null
   entrada: number | null
   fgts: number | null
+  /** Recursos próprios (entrada sem o FGTS) — é o que a linha "Entrada (recursos próprios)" mostra. */
+  recursos_proprios?: number | null
   subsidio: number | null
   valor_financiado: number | null
   despesas_financiadas: number | null

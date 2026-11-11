@@ -8,6 +8,7 @@ import { titularDaProposta } from '@/lib/participantes/consultas'
 import { rotuloModalidade } from '@/types/processos'
 import { fmtTaxaAnual } from '@/lib/email/templates/confirmacaoValores/_helpers'
 import { calcTarifaBanco } from '@/lib/simulador/calcular'
+import { calcularRecursosProprios } from '@/lib/email/templates/confirmacaoValores/entradaFgts'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
@@ -150,6 +151,11 @@ export async function POST(
       compra_venda:           (processo as any).valor_imovel,
       entrada:                (processo as any).valor_entrada,
       fgts:                   (processo as any).valor_fgts,
+      recursos_proprios:      calcularRecursosProprios({
+        recursosProprios: (processo as any).valor_recursos_proprios,
+        entrada: (processo as any).valor_entrada,
+        fgts: (processo as any).valor_fgts,
+      }),
       subsidio:               null,
       valor_financiado:       (processo as any).valor_financiado,
       despesas_financiadas:   despesasFinanciadas,
