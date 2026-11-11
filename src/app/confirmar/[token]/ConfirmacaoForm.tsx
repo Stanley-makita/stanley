@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 import { rotuloModalidade } from '@/types/processos'
+import { linhasEntradaFgts } from '@/lib/email/templates/confirmacaoValores/entradaFgts'
 
 interface DadosJson {
   engenharia_laudo?: number | null
   compra_venda?: number | null
   entrada?: number | null
   fgts?: number | null
+  recursos_proprios?: number | null
   subsidio?: number | null
   valor_financiado?: number | null
   despesas_financiadas?: number | null
@@ -47,8 +49,7 @@ function linhasTabela(d: DadosJson, template: string): [string, string][] {
   const linhas: [string, string][] = [
     ['Engenharia (Laudo de Avaliação Banco)', fmt(d.engenharia_laudo)],
     ['Compra e Venda (Escritura)',            fmt(d.compra_venda)],
-    ['Entrada',                              fmt(d.entrada)],
-    ['FGTS',                                 fmt(d.fgts)],
+    ...linhasEntradaFgts(d),
   ]
   if (template === 'caixa' && d.subsidio != null) {
     linhas.push(['Subsídio', fmt(d.subsidio)])

@@ -1,5 +1,6 @@
 import { DadosConfirmacaoValores } from './types'
 import { fmt, assinatura, layoutEmail, tabelaValores, itemBoletoItbi } from './_helpers'
+import { linhasEntradaFgts } from './entradaFgts'
 
 export function gerarEmailCaixa(dados: DadosConfirmacaoValores): { assunto: string; corpo: string } {
   const assunto = `Confirmação de Valores — ${dados.cliente_nome} — Caixa Econômica Federal`
@@ -7,8 +8,7 @@ export function gerarEmailCaixa(dados: DadosConfirmacaoValores): { assunto: stri
   const linhas: [string, string][] = [
     ['Engenharia (Laudo de Avaliação Banco)', fmt(dados.engenharia_laudo)],
     ['Compra e Venda (Escritura)', fmt(dados.compra_venda)],
-    ['Entrada', fmt(dados.entrada)],
-    ['FGTS', fmt(dados.fgts)],
+    ...linhasEntradaFgts(dados),
     ['Subsidio', fmt(dados.subsidio)],
     ['Valor Financiado', fmt(dados.valor_financiado)],
     ['Despesas Financiadas', fmt(dados.despesas_financiadas)],
