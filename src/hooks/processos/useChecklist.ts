@@ -3,6 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { hojeLocalIso } from '@/lib/processos/dataEmissao'
+import { updateProcessoOuFalha } from '@/hooks/processos/useProcessos'
 
 export interface ChecklistItemDB {
   id: string
@@ -107,7 +109,12 @@ export function useMarcarChecklistItem(processoId: string) {
   const { usuario } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ item, marcado }: { item: ChecklistItemDB; marcado: boolean }) => {
+    mutationFn: async ({ item, marcado, dataEmissao }: {
+      item: ChecklistItemDB
+      marcado: boolean
+      /** "Contrato Emitido": data informada na janela do checklist (AAAA-MM-DD). Sem ela, hoje. */
+      dataEmissao?: string
+    }) => {
       const { error } = await supabase
         .from('checklist_execucoes')
         .upsert(
@@ -124,14 +131,11 @@ export function useMarcarChecklistItem(processoId: string) {
       if (error) throw error
 
       if (marcado && item.acao_ao_completar === 'emitido') {
-        const { error: errP } = await supabase
-          .from('processos')
-          .update({
-            status_emissao: 'emitido',
-            data_emissao: new Date().toISOString().slice(0, 10),
-          })
-          .eq('id', processoId)
-        if (errP) throw errP
+        // Checa linhas afetadas: UPDATE barrado pela RLS não dá erro (ver CLAUDE.md).
+        await updateProcessoOuFalha(processoId, usuario!.empresa_id, {
+          status_emissao: 'emitido',
+          data_emissao: dataEmissao ?? hojeLocalIso(),
+        })
       }
 
       // "assinado" é dedicado (não reaproveita status_emissao, que é enum de 2

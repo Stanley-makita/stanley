@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CampoValidadePorDias, erroCampoValidade } from '@/components/processos/detalhe/CampoValidadePorDias'
+import { DataEmissaoDialog } from '@/components/processos/detalhe/DataEmissao'
 
 interface Props {
   processoId: string
@@ -49,6 +50,9 @@ export function PainelChecklist({ processoId, faseId, bancoId, dataAprovacaoCred
   const [itemPendenteEng, setItemPendenteEng] = useState<ChecklistItemDB | null>(null)
   const [dataEngenharia, setDataEngenharia]   = useState('')
   const [valorEngenharia, setValorEngenharia] = useState('')
+
+  // "Contrato Emitido": pergunta a data de emissão antes de marcar (pode ser outro dia que hoje).
+  const [itemPendenteEmissao, setItemPendenteEmissao] = useState<ChecklistItemDB | null>(null)
 
   const itens = tmpl?.itens ?? []
   const marcadosSet = new Set(execucoes.filter(e => e.marcado).map(e => e.item_id))
@@ -142,6 +146,10 @@ export function PainelChecklist({ processoId, faseId, bancoId, dataAprovacaoCred
                           setItemPendenteEng(item)
                           return
                         }
+                        if (novoMarcado && item.acao_ao_completar === 'emitido') {
+                          setItemPendenteEmissao(item)
+                          return
+                        }
                         if (novoMarcado && tipoVal) {
                           setDataValidade('')
                           setItemPendente(item)
@@ -151,11 +159,6 @@ export function PainelChecklist({ processoId, faseId, bancoId, dataAprovacaoCred
                           { item, marcado: novoMarcado },
                           {
                             onSuccess: async () => {
-                              if (novoMarcado && item.acao_ao_completar === 'emitido') {
-                                const { default: confetti } = await import('canvas-confetti')
-                                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
-                                toast.success('🎉 Emissão confirmada! Processo marcado como Emitido.')
-                              }
                               if (novoMarcado && item.acao_ao_completar === 'assinado') {
                                 toast.success('✍️ Contrato assinado! Botão "Enviar para Fluxo Registro" liberado.')
                               }
@@ -261,6 +264,26 @@ export function PainelChecklist({ processoId, faseId, bancoId, dataAprovacaoCred
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal da data de emissão (item "Contrato Emitido") */}
+      <DataEmissaoDialog
+        aberto={Boolean(itemPendenteEmissao)}
+        onOpenChange={(o) => { if (!o) setItemPendenteEmissao(null) }}
+        isPending={marcar.isPending}
+        onConfirmar={(dataEmissao) => {
+          if (!itemPendenteEmissao) return
+          marcar.mutate({ item: itemPendenteEmissao, marcado: true, dataEmissao }, {
+            onSuccess: async () => {
+              setItemPendenteEmissao(null)
+              const { default: confetti } = await import('canvas-confetti')
+              confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
+              const [a, m, d] = dataEmissao.split('-')
+              toast.success(`🎉 Emissão confirmada em ${d}/${m}/${a}! Processo marcado como Emitido.`)
+            },
+            onError: () => toast.error('Não foi possível marcar a emissão. Tente novamente.'),
+          })
+        }}
+      />
 
       {/* Modal de engenharia: vencimento + valor (ambos obrigatórios) */}
       <Dialog

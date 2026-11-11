@@ -22,6 +22,7 @@ const schema = z.object({
   descricao:         z.string().optional(),
   cor:               z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida — use formato hex #RRGGBB'),
   prazo_dias:        z.number().int().positive().optional().nullable(),
+  alerta_parado_dias: z.number().int().positive('Use um número maior que zero').optional().nullable(),
   modulo:            z.string().min(1, 'Selecione o módulo'),
   notificar_cliente: z.boolean(),
   mensagem_cliente:  z.string().optional(),
@@ -29,6 +30,11 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
+
+// Aviso de parado vale para fases de negócio (tabela processos); Leads e Fila Operacional não.
+function moduloComAvisoParado(modulo: string | undefined): boolean {
+  return !!modulo && modulo !== 'leads' && modulo !== 'fila_operacional'
+}
 
 interface FaseFormDrawerProps {
   aberto: boolean
@@ -60,6 +66,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
         descricao:         '',
         cor:               fase.cor ?? 'var(--fonti-accent)',
         prazo_dias:        fase.prazo_dias,
+        alerta_parado_dias: fase.alerta_parado_dias ?? null,
         modulo:            fase.modulo ?? moduloInicial,
         notificar_cliente: false,
         mensagem_cliente:  '',
@@ -78,6 +85,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
           nome: values.nome,
           cor: values.cor,
           prazo_dias: values.prazo_dias ?? null,
+          alerta_parado_dias: moduloComAvisoParado(values.modulo) ? (values.alerta_parado_dias ?? null) : null,
           modulo: values.modulo,
           e_fase_final_consorcio: values.modulo === 'consorcio' ? values.e_fase_final_consorcio : false,
         })
@@ -87,6 +95,7 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
           nome:             values.nome,
           cor:              values.cor,
           prazo_dias:       values.prazo_dias ?? null,
+          alerta_parado_dias: moduloComAvisoParado(values.modulo) ? (values.alerta_parado_dias ?? null) : null,
           modulo:           values.modulo,
           ordem:            999,
         })
@@ -176,6 +185,25 @@ export function FaseFormDrawer({ aberto, onFechar, fase, moduloInicial = 'leads'
               {...register('prazo_dias', { valueAsNumber: true })}
             />
           </div>
+
+          {/* Aviso de negócio parado (migration 352) — cron diário avisa o operacional (ou o comercial) */}
+          {moduloComAvisoParado(moduloAtual) && (
+            <div className="space-y-1.5">
+              <Label htmlFor="alerta_parado_dias">Avisar se o negócio ficar parado nesta fase por mais de (dias)</Label>
+              <Input
+                id="alerta_parado_dias"
+                type="number"
+                min={1}
+                placeholder="Vazio = não avisa"
+                {...register('alerta_parado_dias', { setValueAs: (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v)) })}
+              />
+              <p className="text-xs text-text-muted">
+                O operacional do negócio (ou o comercial, se não houver operacional) recebe um aviso no sininho quando
+                passar do prazo, e um lembrete a cada 5 dias enquanto continuar nesta fase.
+              </p>
+              {errors.alerta_parado_dias && <p className="text-xs text-red-500">{errors.alerta_parado_dias.message}</p>}
+            </div>
+          )}
 
           {/* Fase final do Consórcio — dispara o fluxo financeiro (a receber/a pagar) */}
           {moduloAtual === 'consorcio' && (

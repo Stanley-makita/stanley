@@ -65,6 +65,8 @@ export type Database = {
           cor: string | null
           ordem: number
           prazo_dias: number | null
+          /** Migration 352: avisar se o negócio ficar parado mais de X dias nesta fase (NULL = não avisa). */
+          alerta_parado_dias: number | null
           modulo: string
           ativo: boolean
           e_fase_final_consorcio: boolean
