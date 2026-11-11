@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { titularDaProposta } from '@/lib/participantes/consultas'
 import { rotuloModalidade } from '@/types/processos'
 import { fmtTaxaAnual } from '@/lib/email/templates/confirmacaoValores/_helpers'
+import { calcTarifaBanco } from '@/lib/simulador/calcular'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
@@ -122,6 +123,16 @@ export async function POST(
           tarifaBanco = TARIFAS_DEFAULT[dfChave]
         }
       }
+    }
+
+    // PMCMV/Pró-Cotista: tarifa fixada pela regra do produto (1,5% do financiado) — mesma regra do simulador de custas.
+    const produtoNegocio = String((processo as any).modalidade ?? '').toLowerCase()
+    const valorFinanciadoBase = (processo as any).valor_financiado as number | null
+    if ((produtoNegocio === 'pmcmv' || produtoNegocio === 'pro_cotista') && valorFinanciadoBase) {
+      tarifaBanco = calcTarifaBanco(
+        { produto: produtoNegocio === 'pmcmv' ? 'PMCMV' : 'Pro_Cotista', valorFinanciado: valorFinanciadoBase },
+        undefined,
+      )
     }
 
     // Despesas (custas) financiadas junto — Oportunidade/Dados do Negócio (migration 351). Entram no total financiado.
