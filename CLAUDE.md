@@ -966,3 +966,28 @@ Despesas (custas) financiadas junto — até 5% do valor do imóvel:
 - Tela única `CampoDespesasFinanciadas`: ao marcar "Vai financiar" sugere 5% (`sugerirValorDespesas`), editável; valor
   diferente mostra o percentual e acima de 5% avisa. Vai para o formulário de proposta (lead e negócio) e para o e-mail
   de confirmação de valores ("Despesas Financiadas", somado no "Valor total financiado").
+
+## Pedidos da equipe de 11/11/2026 (PRs #419–#422) — regras que ficam
+
+- **Tarifa do banco em PMCMV/Pró-Cotista = 1,5% do valor financiado** (regra do Ministério das Cidades, sem teto),
+  fixa no código e NÃO o valor de Configurações > Simulador. Fonte única: `calcTarifaBanco()`
+  (`src/lib/simulador/calcular.ts`), usada por `calcularCustas()` (tela, `*custas`, PDF) e pela prévia do e-mail de
+  confirmação. A Reciprocidade da Caixa compara com essa tarifa. Caminho novo que mostre tarifa usa essa função.
+- **Confirmação de valores: "Entrada (recursos próprios)" + FGTS separado.** Os 5 templates de banco e a página
+  `/confirmar` montam as linhas por `linhasEntradaFgts()` (`templates/confirmacaoValores/entradaFgts.ts`). Snapshot
+  antigo sem a chave `recursos_proprios` continua mostrando "Entrada"/"FGTS" como era — não remover esse ramo.
+  Template de banco novo usa o helper, nunca as linhas à mão.
+- **Resumo do Negócio com contato do participante**: e-mail/nascimento/conta vêm da Pessoa pelo embed
+  `EMBED_PARTICIPANTES_CONTATO` (`resumo.ts`) — o `EMBED_PARTICIPANTES` comum não traz esses campos (de propósito,
+  para listas leves). Nunca ler de `processo_compradores/vendedores`.
+- **Data de emissão** (migration 352): marcar "Contrato Emitido" no checklist pede a data (`DataEmissaoDialog`,
+  validada por `erroDataEmissao`: 1 ano atrás até 6 meses à frente) e grava via `updateProcessoOuFalha`; o card
+  "Contrato Emitido" corrige depois. Corrigir a data move a comissão **a receber** para o mês certo
+  (trigger `trg_sincronizar_data_emissao_comissao`) — comissão já recebida não muda. Depois de emitido,
+  `useAlertasVencimento(..., contratoEmitido)` não mostra mais vencimento de crédito/engenharia/matrícula.
+- **Aviso de negócio parado na fase**: configurado por fase em `fases.alerta_parado_dias` (Configurações > Fases;
+  só Coleta de Documentos = 5 no início). **Não usar `fases.prazo_dias`** ("SLA"): está preenchido com valores
+  soltos em ~35 fases e nunca foi usado — ligá-lo dispararia aviso em quase tudo. Cron diário
+  `/api/processos/alerta-parados` (12:00 UTC): avisa 1x ao passar do prazo e lembra a cada 5 dias na mesma fase
+  (`decidirAvisoParado`, controle em `processo_avisos_parado`); destinatário = operacional ativo, senão comercial;
+  reentrar na fase recomeça a contagem (entrada = último `processo_fases_historico` daquela fase).
