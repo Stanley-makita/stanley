@@ -36,6 +36,12 @@ export interface ParticipanteLista {
   papel: PapelParticipacao
   /** true só para o titular (equivale ao antigo processo_compradores.principal). */
   principal: boolean
+  /** Contato da Pessoa — presentes só quando carregado com EMBED_PARTICIPANTES_CONTATO. */
+  email?: string | null
+  data_nascimento?: string | null
+  banco?: string | null
+  agencia?: string | null
+  conta?: string | null
 }
 
 export const ROTULO_PAPEL: Record<PapelParticipacao, string> = {

@@ -9,7 +9,18 @@ import { PAPEIS_COMPRA, type PapelParticipacao, type ParticipanteLista } from '.
 export const EMBED_PARTICIPANTES =
   'participantes:participacoes(id, papel, ordem, pessoa:pessoas!pessoa_id(id, nome, cpf, deleted_at))'
 
-type PessoaEmbed = { id: string; nome: string | null; cpf: string | null; deleted_at?: string | null }
+/**
+ * Mesmo embed com e-mail, nascimento e conta bancária da Pessoa — só para a tela do negócio
+ * (`useProcesso`, cards do Resumo). As listas continuam com o embed enxuto.
+ */
+export const EMBED_PARTICIPANTES_CONTATO =
+  'participantes:participacoes(id, papel, ordem, pessoa:pessoas!pessoa_id(id, nome, cpf, deleted_at, email, data_nascimento, conta_bancaria_banco, conta_bancaria_agencia, conta_bancaria_numero))'
+
+type PessoaEmbed = {
+  id: string; nome: string | null; cpf: string | null; deleted_at?: string | null
+  email?: string | null; data_nascimento?: string | null
+  conta_bancaria_banco?: string | null; conta_bancaria_agencia?: string | null; conta_bancaria_numero?: string | null
+}
 
 export type ParticipacaoEmbed = {
   id: string
@@ -36,6 +47,14 @@ function lista(parts: ParticipacaoEmbed[] | null | undefined, papeis: readonly P
       cpf: pessoa.cpf ?? null,
       papel: pa.papel,
       principal: pa.papel === 'titular',
+      // Só com EMBED_PARTICIPANTES_CONTATO: o embed enxuto não traz esses campos.
+      ...('email' in pessoa ? {
+        email: pessoa.email || null,
+        data_nascimento: pessoa.data_nascimento || null,
+        banco: pessoa.conta_bancaria_banco || null,
+        agencia: pessoa.conta_bancaria_agencia || null,
+        conta: pessoa.conta_bancaria_numero || null,
+      } : {}),
     }))
 }
 

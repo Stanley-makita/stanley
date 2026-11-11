@@ -71,3 +71,26 @@ describe('comoLeadVendedores', () => {
     expect(comoLeadVendedores([])).toEqual([])
   })
 })
+
+describe('contato do participante (EMBED_PARTICIPANTES_CONTATO — Resumo do Negócio)', () => {
+  const comContato: ParticipacaoEmbed = {
+    id: 'pa6', papel: 'vendedor', ordem: 1,
+    pessoa: p('vc', 'Vânia', {
+      email: 'vania@ex.com', data_nascimento: '1980-05-02',
+      conta_bancaria_banco: 'Caixa', conta_bancaria_agencia: '1234', conta_bancaria_numero: '5678-9',
+    }),
+  }
+  it('repassa e-mail, nascimento e conta bancária quando o embed traz esses campos', () => {
+    expect(vendedoresDaProposta([comContato])[0]).toMatchObject({
+      email: 'vania@ex.com', data_nascimento: '1980-05-02', banco: 'Caixa', agencia: '1234', conta: '5678-9',
+    })
+  })
+  it('campos vazios viram null', () => {
+    const semDados: ParticipacaoEmbed = { id: 'pa7', papel: 'titular', ordem: 1,
+      pessoa: p('t', 'Tadeu', { email: null, data_nascimento: null, conta_bancaria_banco: null, conta_bancaria_agencia: null, conta_bancaria_numero: null }) }
+    expect(compradoresDaProposta([semDados])[0]).toMatchObject({ email: null, data_nascimento: null, banco: null, agencia: null, conta: null })
+  })
+  it('embed enxuto (listas) não ganha os campos de contato', () => {
+    expect(Object.keys(compradoresDaProposta([heitor])[0])).not.toContain('email')
+  })
+})
