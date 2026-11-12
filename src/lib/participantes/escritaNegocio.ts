@@ -79,7 +79,7 @@ async function preencherPessoa(sb: SupabaseClient, empresaId: string, pessoaId: 
   return { ok: true }
 }
 
-async function sincronizarProcesso(sb: SupabaseClient, processoId: string): Promise<ResultadoEscrita> {
+export async function sincronizarProcesso(sb: SupabaseClient, processoId: string): Promise<ResultadoEscrita> {
   const { error } = await sb.rpc('pv2_sincronizar_processo', { p_processo_id: processoId })
   if (error) return { erro: 'Erro ao atualizar os participantes do negócio.', status: 500 }
   return { ok: true }
@@ -132,6 +132,21 @@ async function conjugeDoVendedor(
     if (eDel) return { erro: 'Erro ao atualizar o cônjuge do vendedor.', status: 500 }
   }
   return { ok: true }
+}
+
+/**
+ * Inclui uma Pessoa JÁ resolvida no negócio (ex.: OCR "Novo participante") — comprador (coparticipante) ou
+ * vendedor. Pessoa de operador é recusada; lado oposto (já vende x já compra) também (marcarExplicita).
+ */
+export async function incluirParticipanteNegocio(
+  sb: SupabaseClient, empresaId: string, processoId: string, pessoaId: string, papel: 'coparticipante' | 'vendedor',
+): Promise<ResultadoEscrita> {
+  const op = await ehOperador(sb, pessoaId)
+  if (typeof op !== 'boolean') return op
+  if (op) return { erro: 'Pessoa de usuário da equipe não pode ser participante.', status: 422 }
+  const r = await marcarExplicita(sb, empresaId, { coluna: 'processo_id', id: processoId }, pessoaId, papel)
+  if ('erro' in r) return r
+  return sincronizarProcesso(sb, processoId)
 }
 
 export async function incluirLinhaNegocio(
