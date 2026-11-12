@@ -30,7 +30,7 @@ export interface UploadDocumentoInput {
 export async function uploadDocumentoParaPasta(input: UploadDocumentoInput): Promise<string> {
   const {
     empresaId, entidadeTipo, entidadeId, pessoaIdUpload, pastaId,
-    arquivo, tipoArquivo = 'auto', token, extrairAposUpload = true,
+    arquivo, tipoArquivo = 'auto', token, extrairAposUpload = false,
   } = input
 
   const ext = arquivo.name.split('.').pop() ?? 'bin'
@@ -144,6 +144,9 @@ export function useUploadDocumentoPasta(processoId: string, pastaCodigo: 'compra
         pastaId,
         arquivo,
         token: session?.access_token,
+        // Construtor de Contratos mantém a leitura automática (decisão de 12/11:
+        // só o upload da aba Documentos e o *fonti atualiza deixaram de ler).
+        extrairAposUpload: true,
       })
     },
     onSuccess: () => {

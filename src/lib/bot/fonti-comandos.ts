@@ -1527,7 +1527,6 @@ export async function processarComandoFonti(
     const telefoneConversaAtualiza = ctx.telefone_cliente ?? ctx.telefone_remetente
     const marcaAtAtualiza = await obterMarcaInicio(supabase, empresa_id, telefoneConversaAtualiza)
     let docsAtualizaCount = 0
-    let docsAtualizaIds: string[] = []
     if (marcaAtAtualiza) {
       const pessoaSessaoAtualiza = (await obterSessaoCompleta(supabase, empresa_id, telefoneConversaAtualiza))?.pessoa_id ?? null
       const res = await vincularDocumentosRecentesPorTelefone(
@@ -1535,7 +1534,6 @@ export async function processarComandoFonti(
         undefined, pessoaSessaoAtualiza,
       )
       docsAtualizaCount = res.count
-      docsAtualizaIds = res.ids
       await limparMarca(supabase, empresa_id, telefoneConversaAtualiza)
     }
 
@@ -1547,18 +1545,8 @@ export async function processarComandoFonti(
       )
     }
 
-    // Dispara OCR nos docs recém-vinculados (sequencial, máx 10)
-    if (docsAtualizaIds.length > 0) {
-      const LIMITE_OCR_AUTO = 10
-      const idsParaOcr = docsAtualizaIds.slice(0, LIMITE_OCR_AUTO)
-      import('@/lib/documentos/ocr').then(({ processarOcrDocumento }) => {
-        ;(async () => {
-          for (const id of idsParaOcr) {
-            await processarOcrDocumento(supabase, id, empresa_id).catch(console.error)
-          }
-        })()
-      }).catch(console.error)
-    }
+    // Sem OCR automático (decisão de 12/11/2026, economia de IA): o atendente
+    // escolhe na tela, em "Extrair dados", quais documentos ler.
 
     // Monta resposta
     const camposNomes: Record<string, string> = {

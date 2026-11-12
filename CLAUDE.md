@@ -1007,3 +1007,11 @@ Despesas (custas) financiadas junto — até 5% do valor do imóvel:
   `casamento_encerra` → `confirmar_encerrar`). Atenção ao reusar `registrarCasamento(pessoa, conjuge)`: o casamento
   anterior de `pessoa` conta como "dela" e é encerrado SEM confirmação — só o de terceiros pede. Por isso a rota checa
   os dois lados antes.
+
+## OCR só quando o atendente pede (economia de IA, 12/11/2026)
+
+O OCR (classificação Haiku + extração Sonnet com effort high) é o maior custo de IA do sistema. Upload na aba
+Documentos e `*fonti atualiza` **não disparam mais OCR**: o documento fica `status_ocr = 'pendente'` e o atendente
+escolhe quais ler em "Extrair dados" (IR, recibos e extratos não precisam de leitura). `uploadDocumentoParaPasta`
+tem `extrairAposUpload = false` por padrão; só o Construtor de Contratos passa `true` (ainda não conferido se a
+análise do contrato depende da leitura). Nenhum caminho novo deve ler documento automaticamente sem decisão do usuário.
