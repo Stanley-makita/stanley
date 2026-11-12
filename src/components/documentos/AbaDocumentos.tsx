@@ -12,7 +12,7 @@ import {
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { tituloDocumento, nomeExibicaoAoRenomear } from '@/lib/documentos/tituloDocumento'
-import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Clock, Link2, ChevronLeft, FileSpreadsheet, Calculator, Send, Users, Unlink } from 'lucide-react'
+import { Upload, Download, Trash2, Loader2, FolderOpen, Folder, ExternalLink, Sparkles, AlertCircle, Share2, Pencil, Link2, ChevronLeft, FileSpreadsheet, Calculator, Send, Users, Unlink } from 'lucide-react'
 import { formatarTamanho, iconeParaMime } from '@/lib/formatarTamanho'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -148,7 +148,6 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
   const [ocrModalAberto, setOcrModalAberto] = useState(false)
   const [analiseAberta, setAnaliseAberta] = useState(false)
   const [extracaoAberta, setExtracaoAberta] = useState(false)
-  const [extrairAposUpload, setExtrairAposUpload] = useState(true)
   const [renomeando, setRenomeando] = useState<string | null>(null)
   const [novoNome, setNovoNome] = useState('')
   const [organizarAberto, setOrganizarAberto] = useState(false)
@@ -461,7 +460,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
       arquivo,
       tipoArquivo,
       token,
-      extrairAposUpload,
+      // Upload nunca dispara OCR: o atendente escolhe depois, em "Extrair dados",
+      // quais documentos ler (IR, recibos e extratos não precisam de leitura).
+      extrairAposUpload: false,
     })
   }
 
@@ -668,7 +669,9 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
         </button>
       )
     }
-    if (isImage && (doc.ocr_status === 'pendente' || doc.ocr_status === 'ignorado' || !doc.ocr_status)) {
+    // Upload não lê mais sozinho: documento 'pendente' (imagem ou PDF) só é lido
+    // quando o atendente pede — por isso o botão, e não "Aguardando leitura".
+    if (doc.ocr_status === 'pendente' || (isImage && (doc.ocr_status === 'ignorado' || !doc.ocr_status))) {
       return (
         <button
           onClick={() => handleRetryOcr(doc.id)}
@@ -678,14 +681,6 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           <Sparkles className="h-3 w-3" />
           Extrair dados
         </button>
-      )
-    }
-    if (doc.ocr_status === 'pendente') {
-      return (
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200">
-          <Clock className="h-3 w-3" />
-          Aguardando leitura
-        </span>
       )
     }
     return null
@@ -1357,19 +1352,6 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
                 </div>
               )
             })}
-          </div>
-
-          <div className="shrink-0 border-t border-gray-100 px-4 py-3 sm:px-6">
-            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={extrairAposUpload}
-                onChange={e => setExtrairAposUpload(e.target.checked)}
-                disabled={fazendoUpload}
-                className="rounded"
-              />
-              Tentar extrair dados automaticamente após o upload
-            </label>
           </div>
 
           <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-100 px-4 pb-5 pt-3 sm:flex-row sm:justify-end sm:px-6">
