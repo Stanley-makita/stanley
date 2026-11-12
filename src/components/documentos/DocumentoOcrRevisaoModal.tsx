@@ -10,6 +10,7 @@ import { Loader2, ExternalLink, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { OcrResultado } from '@/lib/documentos/ocr'
 import { cpfValido } from '@/lib/cpf'
+import { PAPEIS_VENDA, ROTULO_PAPEL, type PapelParticipacao } from '@/lib/participantes/tipos'
 
 interface DocumentoOcrProps {
   id: string
@@ -28,10 +29,34 @@ interface Props {
    * antes de confirmar — "Confirmar dados" grava sempre na Pessoa DONA do
    * documento (documentos.pessoa_id), não na deste contexto. */
   pessoaAtualId?: string | null
-  /** V2: participantes da proposta (Lead/Negócio). Com eles, a tela pergunta "De quem é este documento?". */
-  participantes?: Array<{ pessoaId: string; nome: string; cpf: string | null }>
+  /** V2: participantes da proposta (Lead/Negócio). Com eles, a tela pergunta "De quem é este documento?".
+   *  `papel` agrupa a lista (compra x venda); `conjugeNome` = casamento vigente (cônjuge do vendedor). */
+  participantes?: ParticipanteOpcao[]
   /** Lead do contexto: habilita "Novo participante" (inclui no lead ao confirmar). */
   leadId?: string
+  /** Negócio do contexto: habilita "Novo participante" (inclui no negócio ao confirmar). */
+  processoId?: string
+}
+
+export type ParticipanteOpcao = {
+  pessoaId: string
+  nome: string
+  cpf: string | null
+  papel?: PapelParticipacao
+  conjugeNome?: string | null
+}
+
+/** Lado em que a Pessoa nova entra na proposta — a tela obriga a escolher (nada vem marcado). */
+type PapelNovo = 'comprador' | 'vendedor' | 'conjuge_vendedor'
+const PAPEIS_NOVO: Array<{ value: PapelNovo; label: string }> = [
+  { value: 'comprador', label: 'Comprador' },
+  { value: 'vendedor', label: 'Vendedor' },
+  { value: 'conjuge_vendedor', label: 'Cônjuge do vendedor' },
+]
+const TEXTO_PAPEL_NOVO: Record<PapelNovo, string> = {
+  comprador: 'Entra na proposta como coparticipante da compra; o papel e o casamento se ajustam na aba Pessoa.',
+  vendedor: 'Entra na proposta como vendedor.',
+  conjuge_vendedor: 'O casamento com o vendedor escolhido é registrado nos dois cadastros e a pessoa entra como cônjuge do vendedor.',
 }
 
 const NOVO = '__novo'
@@ -104,7 +129,7 @@ async function getToken(): Promise<string | null> {
   return data.session?.access_token ?? null
 }
 
-export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pessoaAtualId, participantes = [], leadId }: Props) {
+export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pessoaAtualId, participantes = [], leadId, processoId }: Props) {
   const modoParticipantes = participantes.length > 0
   const ocr = documento.ocr_dados as OcrResultado | null
   const ocrRaw = ocr as unknown as Record<string, unknown> | null
@@ -137,7 +162,12 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
   const [novoNome, setNovoNome] = useState<string | null>(null)
   const [novoCpf, setNovoCpf] = useState<string | null>(null)
   const ehIdentidade = TIPOS_IDENTIDADE.has(tipoSelecionado)
-  const permiteNovo = !!leadId && ehIdentidade
+  const permiteNovo = (!!leadId || !!processoId) && ehIdentidade
+  const [papelNovo, setPapelNovo] = useState<PapelNovo | null>(null)
+  const [vendedorDoConjuge, setVendedorDoConjuge] = useState<string>('')
+  const compradores = participantes.filter(p => !p.papel || !PAPEIS_VENDA.includes(p.papel))
+  const vendedoresProposta = participantes.filter(p => p.papel === 'vendedor')
+  const rotulo = (p: ParticipanteOpcao) => (p.papel ? `${p.nome} — ${ROTULO_PAPEL[p.papel]}` : p.nome)
   const sugestao = sugerirDonoDocumento(
     ehIdentidade ? { cpf: campos.cpf, nome: campos.nome } : {}, participantes, documento.pessoa_id ?? null,
   )
@@ -181,6 +211,11 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
     }
   }
 
+  const confirmarEncerrarCasamento = (encerra: Array<{ nome: string }>) => window.confirm(
+    `Já existe um casamento registrado com ${encerra.map(x => x.nome).join(' e ')}.\n\n` +
+    'OK = encerrar esse casamento e registrar o novo. Cancelar = voltar sem salvar nada.',
+  )
+
   async function handleConfirmar() {
     const token = await getToken()
     if (!token) return
@@ -211,7 +246,13 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
           tipo_confirmado: tipoSelecionado === SEM_CADASTRO ? undefined : tipoSelecionado,
           ...(modoParticipantes
             ? (dono === NOVO
-                ? { novo_participante: { nome: (novoNome ?? campos.nome ?? '').trim(), cpf: novoCpf ?? campos.cpf ?? '' }, lead_id: leadId }
+                ? {
+                    novo_participante: {
+                      nome: (novoNome ?? campos.nome ?? '').trim(), cpf: novoCpf ?? campos.cpf ?? '', papel: papelNovo,
+                      ...(papelNovo === 'conjuge_vendedor' ? { vendedor_pessoa_id: vendedorDoConjuge } : {}),
+                    },
+                    ...(processoId ? { processo_id: processoId } : { lead_id: leadId }),
+                  }
                 : { pessoa_alvo_id: dono })
             : { titular: ehConjuge ? 'conjuge' : 'principal' }),
           ...(ehCertidao && conjuge !== SEM_CASAMENTO
@@ -223,8 +264,15 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
       let res = await enviar({})
       // Servidor achou alguém da proposta com nome parecido (sem outro CPF): pergunta antes de criar cadastro novo.
       if (res.status === 409) {
-        const conflito = await res.clone().json().catch(() => ({})) as { parecido?: { pessoa_id: string; nome: string } }
-        if (conflito.parecido) {
+        const conflito = await res.clone().json().catch(() => ({})) as {
+          parecido?: { pessoa_id: string; nome: string }
+          casamento_encerra?: Array<{ nome: string }>
+        }
+        if (conflito.casamento_encerra?.length) {
+          // Cônjuge do vendedor: o vendedor (ou esta pessoa) já tem outro casamento registrado — nada foi gravado.
+          if (!confirmarEncerrarCasamento(conflito.casamento_encerra)) return
+          res = await enviar({ confirmar_encerrar: true })
+        } else if (conflito.parecido) {
           // Duas perguntas: Cancelar/Esc NUNCA cria cadastro. Antes "Cancelar = criar cadastro novo" — quem
           // desistia criava o duplicado com o CPF e o CPF não entrava mais no titular (casos reais 23–27/10/2026).
           const mesma = window.confirm(
@@ -240,6 +288,13 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
             )
             if (!criar) return
             res = await enviar({ confirmar_novo: true })
+            if (res.status === 409) {
+              const c2 = await res.clone().json().catch(() => ({})) as { casamento_encerra?: Array<{ nome: string }> }
+              if (c2.casamento_encerra?.length) {
+                if (!confirmarEncerrarCasamento(c2.casamento_encerra)) return
+                res = await enviar({ confirmar_novo: true, confirmar_encerrar: true })
+              }
+            }
           }
         }
       }
@@ -255,6 +310,7 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
         alvo?: string
         alvo_nome?: string | null
         alvo_pessoa_id?: string
+        novo_papel?: PapelNovo | null
         casamento?: 'registrado' | 'confirmar' | 'erro' | null
         casamento_encerra?: Array<{ nome: string }>
         casamento_erro?: string | null
@@ -296,7 +352,10 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
           { duration: 15000 },
         )
       } else if (modoParticipantes && result.alvo_nome) {
-        toast.success(`Dados confirmados e salvos no cadastro de ${result.alvo_nome}.`)
+        const comoPapel = result.novo_papel === 'vendedor' ? ', como vendedor'
+          : result.novo_papel === 'conjuge_vendedor' ? ', como cônjuge do vendedor'
+          : result.novo_papel === 'comprador' ? ', como comprador' : ''
+        toast.success(`Dados confirmados e salvos no cadastro de ${result.alvo_nome}${comoPapel}.`)
       } else if (result.alvo === 'conjuge') {
         toast.success('Dados confirmados e salvos no cadastro do cônjuge.')
       } else {
@@ -368,7 +427,17 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                 onChange={e => setDonoManual(e.target.value)}
                 className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-fonti-primary/20"
               >
-                {participantes.map(p => <option key={p.pessoaId} value={p.pessoaId}>{p.nome}</option>)}
+                {participantes.some(p => p.papel && PAPEIS_VENDA.includes(p.papel)) ? (
+                  <>
+                    <optgroup label="Compra">
+                      {compradores.map(p => <option key={p.pessoaId} value={p.pessoaId}>{rotulo(p)}</option>)}
+                    </optgroup>
+                    <optgroup label="Venda">
+                      {participantes.filter(p => p.papel && PAPEIS_VENDA.includes(p.papel))
+                        .map(p => <option key={p.pessoaId} value={p.pessoaId}>{rotulo(p)}</option>)}
+                    </optgroup>
+                  </>
+                ) : participantes.map(p => <option key={p.pessoaId} value={p.pessoaId}>{rotulo(p)}</option>)}
                 {permiteNovo && <option value={NOVO}>Novo participante…</option>}
               </select>
               {!donoManual && sugestao.tipo === 'participante' && sugestao.motivo !== 'dono_atual' && (
@@ -415,8 +484,43 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                     <input value={novoCpf ?? campos.cpf ?? ''} onChange={e => setNovoCpf(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                   </label>
+                  <fieldset className="sm:col-span-2">
+                    <legend className="mb-1 text-xs font-semibold text-fonti-primary">Entra como</legend>
+                    <div className="flex flex-wrap gap-2" role="radiogroup">
+                      {PAPEIS_NOVO.map(op => {
+                        const semVendedor = op.value === 'conjuge_vendedor' && vendedoresProposta.length === 0
+                        const ativo = papelNovo === op.value
+                        return (
+                          <button key={op.value} type="button" role="radio" aria-checked={ativo} disabled={semVendedor}
+                            title={semVendedor ? 'Inclua o vendedor na proposta primeiro.' : undefined}
+                            onClick={() => setPapelNovo(op.value)}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                              ativo ? 'border-fonti-primary bg-fonti-primary text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-fonti-primary/50'}`}>
+                            {op.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {!papelNovo && <p className="mt-1 text-xs text-amber-800">Escolha o papel para poder confirmar.</p>}
+                    {vendedoresProposta.length === 0 && (
+                      <p className="mt-1 text-xs text-gray-500">Cônjuge do vendedor: inclua o vendedor na proposta primeiro.</p>
+                    )}
+                  </fieldset>
+                  {papelNovo === 'conjuge_vendedor' && (
+                    <label className="text-xs text-gray-600 sm:col-span-2">De qual vendedor?
+                      <select value={vendedorDoConjuge} onChange={e => setVendedorDoConjuge(e.target.value)}
+                        className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                        <option value="">Escolha o vendedor…</option>
+                        {vendedoresProposta.map(v => (
+                          <option key={v.pessoaId} value={v.pessoaId} disabled={!!v.conjugeNome}>
+                            {v.nome}{v.conjugeNome ? ` — já casado(a) com ${v.conjugeNome}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <p className="text-xs text-gray-500 sm:col-span-2">
-                    Se o CPF já for de uma pessoa cadastrada, ela é reaproveitada. Entra na proposta como coparticipante; o papel e o casamento se ajustam na aba Pessoa.
+                    Se o CPF já for de uma pessoa cadastrada, ela é reaproveitada.{papelNovo ? ` ${TEXTO_PAPEL_NOVO[papelNovo]}` : ''}
                   </p>
                 </div>
               )}
@@ -444,7 +548,12 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
                         className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                     </label>
                   )}
-                  <p className="mt-1 text-xs text-gray-500">Data e regime da certidão valem para os dois. Para incluir o cônjuge na proposta, use “+ Participante” na aba Pessoa.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Data e regime da certidão valem para os dois.{' '}
+                    {participantes.find(p => p.pessoaId === dono)?.papel === 'vendedor'
+                      ? 'Como é vendedor, o cônjuge entra na proposta sozinho, como cônjuge do vendedor.'
+                      : 'Para incluir o cônjuge na proposta, use “+ Participante” na aba Pessoa.'}
+                  </p>
                 </div>
               )}
               {dono !== NOVO && documento.pessoa_id && dono !== documento.pessoa_id && (
@@ -564,6 +673,8 @@ export function DocumentoOcrRevisaoModal({ documento, onClose, onConfirmado, pes
               disabled={salvando
                 || (!modoParticipantes && pessoaDivergente && !ehConjuge && !cienteDivergencia)
                 || (modoParticipantes && dono === NOVO && !(novoNome ?? campos.nome ?? '').trim())
+                || (modoParticipantes && dono === NOVO && !papelNovo)
+                || (modoParticipantes && dono === NOVO && papelNovo === 'conjuge_vendedor' && !vendedorDoConjuge)
                 || (ehCertidao && conjuge === NOVO && !(conjugeNovoNome ?? conjuge2Nome).trim())}
             >
               {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar dados'}

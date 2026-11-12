@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin as supabase } from '@/lib/supabase/admin'
 import { cpfValido } from '@/lib/cpf'
 import { participanteMesmoNome, participanteParecido } from '@/lib/participantes/donoDocumento'
-import { podeServidor } from '@/lib/auth/resolverPermissaoServidor'
-import { autenticarRota, clienteDoUsuario } from '@/lib/documentos/vinculosServidor'
+import { autenticarRota, clienteDoUsuario, verificarDestino } from '@/lib/documentos/vinculosServidor'
 import { normalizarRegime, registrarCasamento } from '@/lib/participantes/casamentoServidor'
-import { incluirParticipanteLead, pessoaPorCpfOuNova as pessoaPorCpfOuNovaServico } from '@/lib/participantes/escritaServidor'
+import {
+  incluirParticipanteLead, incluirVendedorLead, pessoaPorCpfOuNova as pessoaPorCpfOuNovaServico, sincronizarLead,
+} from '@/lib/participantes/escritaServidor'
+import { incluirParticipanteNegocio, sincronizarProcesso } from '@/lib/participantes/escritaNegocio'
 
 type Candidato = { pessoaId: string; nome: string; cpf: string | null }
 
@@ -35,6 +37,9 @@ async function resolveUsuario(token: string): Promise<{ empresa_id: string; usua
 
 // Tipos que podem trazer uma Pessoa nova para a proposta ("Novo participante").
 const TIPOS_IDENTIDADE_NOVO_PARTICIPANTE = ['rg', 'cnh', 'cpf', 'certidao_nascimento', 'certidao_casamento']
+// Lado em que a Pessoa nova entra na proposta.
+type PapelNovoParticipante = 'comprador' | 'vendedor' | 'conjuge_vendedor'
+const PAPEIS_NOVO_PARTICIPANTE: PapelNovoParticipante[] = ['comprador', 'vendedor', 'conjuge_vendedor']
 
 export async function POST(
   request: NextRequest,
@@ -75,10 +80,14 @@ export async function POST(
     titular?: 'principal' | 'conjuge'
     /** V2: "De quem é este documento?" — participante escolhido (Pessoa visível ao usuário). */
     pessoa_alvo_id?: string
-    /** V2: "Novo participante" — reaproveita a Pessoa pelo CPF ou cria; inclui no lead. */
-    novo_participante?: { nome?: string; cpf?: string }
+    /** V2: "Novo participante" — reaproveita a Pessoa pelo CPF ou cria; inclui no lead/negócio no papel escolhido
+     *  (cônjuge do vendedor: casamento com `vendedor_pessoa_id`, que tem de vender nesta proposta). */
+    novo_participante?: { nome?: string; cpf?: string; papel?: PapelNovoParticipante; vendedor_pessoa_id?: string }
     confirmar_novo?: boolean
+    /** Cônjuge do vendedor: encerra o casamento anterior registrado (depois de a tela perguntar). */
+    confirmar_encerrar?: boolean
     lead_id?: string
+    processo_id?: string
     /** V2: certidão de casamento — com quem a Pessoa alvo é casada (participante/Pessoa existente ou nova). */
     casamento?: { conjuge_pessoa_id?: string; novo?: { nome?: string; cpf?: string } }
   }
@@ -128,6 +137,7 @@ export async function POST(
   // Pessoa que recebe os dados (e passa a ser a dona do documento). Ordem: participante escolhido
   // ("De quem é este documento?") → novo participante → cônjuge (caminho antigo) → dono atual.
   let pessoaId: string
+  let novoPapel: PapelNovoParticipante | null = null
   if (body.pessoa_alvo_id) {
     const { data: visivel, error: eVis } = await clienteDoUsuario(token)
       .from('pessoas').select('id').eq('id', body.pessoa_alvo_id).is('deleted_at', null).maybeSingle()
@@ -136,8 +146,16 @@ export async function POST(
     pessoaId = body.pessoa_alvo_id
   } else if (body.novo_participante) {
     const nomeNovo = (body.novo_participante.nome ?? '').trim()
-    if (!nomeNovo || !body.lead_id) {
+    // Proposta onde a Pessoa entra: negócio (processo_id) ou lead (lead_id).
+    const proposta = body.processo_id ? { tipo: 'processo' as const, id: body.processo_id }
+      : body.lead_id ? { tipo: 'lead' as const, id: body.lead_id } : null
+    if (!nomeNovo || !proposta) {
       return NextResponse.json({ error: 'Informe o nome do novo participante.' }, { status: 422 })
+    }
+    // Sem papel = comprador (o que a tela mandava antes de existir a escolha; a tela atual sempre manda).
+    const papelNovo = body.novo_participante.papel ?? 'comprador'
+    if (!PAPEIS_NOVO_PARTICIPANTE.includes(papelNovo)) {
+      return NextResponse.json({ error: 'Escolha se a pessoa entra como comprador, vendedor ou cônjuge do vendedor.' }, { status: 422 })
     }
     // Só documento de identificação traz Pessoa nova (caso real 28/10/2026: holerite e extrato aberto como "CNH"
     // criaram 2 cadastros duplicados da cliente).
@@ -146,13 +164,30 @@ export async function POST(
         error: 'Só RG, CNH, CPF ou certidão podem criar um participante novo. Escolha alguém da proposta.',
       }, { status: 422 })
     }
-    if (!(await podeServidor(usuario_id, ctx.usuario.perfil, empresa_id, 'leads.editar'))) {
-      return NextResponse.json({ error: 'Sem permissão para incluir participante neste lead.' }, { status: 403 })
+    // leads.editar/processos.editar + proposta visível pela RLS do usuário.
+    const negado = await verificarDestino(ctx, proposta.tipo, proposta.id)
+    if (negado) return negado
+    const coluna = proposta.tipo === 'lead' ? 'lead_id' : 'processo_id'
+
+    let titularLeadId: string | null = null
+    if (proposta.tipo === 'lead') {
+      const { data: lead, error: eLead } = await supabase.from('leads').select('pessoa_id')
+        .eq('id', proposta.id).eq('empresa_id', empresa_id).is('deleted_at', null).maybeSingle()
+      if (eLead) return NextResponse.json({ error: 'Erro ao verificar o lead.' }, { status: 500 })
+      if (!lead) return NextResponse.json({ error: 'Lead não encontrado.' }, { status: 404 })
+      titularLeadId = (lead.pessoa_id as string | null) ?? null
     }
-    const { data: leadVisivel, error: eLead } = await clienteDoUsuario(token)
-      .from('leads').select('id, pessoa_id').eq('id', body.lead_id).is('deleted_at', null).maybeSingle()
-    if (eLead) return NextResponse.json({ error: 'Erro ao verificar o lead.' }, { status: 500 })
-    if (!leadVisivel) return NextResponse.json({ error: 'Lead não encontrado.' }, { status: 404 })
+
+    // Cônjuge do vendedor: o vendedor escolhido tem de vender NESTA proposta.
+    let vendedorId: string | null = null
+    if (papelNovo === 'conjuge_vendedor') {
+      vendedorId = body.novo_participante.vendedor_pessoa_id ?? null
+      if (!vendedorId) return NextResponse.json({ error: 'Escolha de qual vendedor é o cônjuge.' }, { status: 422 })
+      const { data: pv, error: ePv } = await supabase.from('participacoes').select('id')
+        .eq(coluna, proposta.id).eq('pessoa_id', vendedorId).eq('papel', 'vendedor').eq('empresa_id', empresa_id).maybeSingle()
+      if (ePv) return NextResponse.json({ error: 'Erro ao carregar os vendedores.' }, { status: 500 })
+      if (!pv) return NextResponse.json({ error: 'Esse vendedor não está nesta proposta.' }, { status: 422 })
+    }
 
     // Antes de criar cadastro NOVO: alguém da proposta com nome parecido e sem outro CPF? (achado real 01/10/2026:
     // RG "ANDRÉ … COPPULA" x lead "ANDRE … COPULLA" virou duplicado e travou o CPF do cliente.) Só segue com
@@ -168,7 +203,7 @@ export async function POST(
         cpfExiste = !!porCpf
       }
       if (!cpfExiste) {
-        const candidatos = await participantesDasPropostas('lead_id', [body.lead_id])
+        const candidatos = await participantesDasPropostas(coluna, [proposta.id])
         if ('erro' in candidatos) return NextResponse.json({ error: candidatos.erro }, { status: 500 })
         // MESMO nome e sem outro CPF = é quem já está na proposta: usa esse cadastro sem perguntar (caso real
         // 27/10/2026: certidão de casamento criou um 2º Roberto com o CPF e o titular não recebia mais o CPF).
@@ -186,16 +221,68 @@ export async function POST(
     const resolvida = mesmoNomeId ? { id: mesmoNomeId } : await pessoaPorCpfOuNova(nomeNovo, body.novo_participante.cpf, 'ocr_novo_participante')
     if ('erro' in resolvida) return NextResponse.json({ error: resolvida.erro }, { status: resolvida.status })
     const alvoId = resolvida.id
-    if (alvoId !== leadVisivel.pessoa_id) {
-      const inc = await incluirParticipanteLead(supabase, empresa_id, body.lead_id, alvoId)
-      if ('erro' in inc) {
-        // Cadastro criado agora e não incluído: apaga, senão fica solto segurando o CPF (era assim que o CPF
-        // "sumia" do titular — o duplicado sem proposta nenhuma ficava com ele).
-        if ('criada' in resolvida && resolvida.criada) await supabase.from('pessoas').delete().eq('id', alvoId)
-        return NextResponse.json({ error: inc.erro }, { status: inc.status })
+    // Cadastro criado agora e não incluído: apaga, senão fica solto segurando o CPF (era assim que o CPF
+    // "sumia" do titular — o duplicado sem proposta nenhuma ficava com ele).
+    const desfazerCriacao = async () => {
+      if (!('criada' in resolvida && resolvida.criada)) return
+      const { error } = await supabase.from('pessoas').delete().eq('id', alvoId)
+      if (error) console.error('[ocr-confirmar] cadastro novo não desfeito:', alvoId, error.message)
+    }
+
+    let inc: { ok: true } | { erro: string; status: number } = { ok: true }
+    if (papelNovo === 'conjuge_vendedor') {
+      // Casamento registrado nos dois lados; a sincronização põe o cônjuge na proposta como cônjuge do vendedor.
+      if (alvoId === vendedorId) {
+        await desfazerCriacao()
+        return NextResponse.json({ error: 'O cônjuge não pode ser o próprio vendedor.' }, { status: 422 })
       }
+      const { data: par, error: ePar } = await supabase.from('pessoas').select('id, estado_civil, conjuge_pessoa_id')
+        .in('id', [alvoId, vendedorId as string])
+      if (ePar) { await desfazerCriacao(); return NextResponse.json({ error: 'Erro ao carregar o vendedor.' }, { status: 500 }) }
+      const linhaPar = (par ?? []) as Array<{ id: string; estado_civil: string | null; conjuge_pessoa_id: string | null }>
+      const vend = linhaPar.find(p => p.id === vendedorId)
+      // Vendedor OU a pessoa do documento (reaproveitada pelo CPF) já casados com outra pessoa: registrarCasamento
+      // encerraria o casamento "da própria pessoa" sem perguntar — aqui sempre pergunta. Nada fica gravado.
+      const outrosConjuges = linhaPar.map(p => p.conjuge_pessoa_id)
+        .filter((x): x is string => !!x && x !== alvoId && x !== vendedorId)
+      if (outrosConjuges.length && body.confirmar_encerrar !== true) {
+        await desfazerCriacao()
+        const { data: nomes } = await supabase.from('pessoas').select('id, nome').in('id', outrosConjuges)
+        const encerra = ((nomes ?? []) as Array<{ id: string; nome: string }>)
+        return NextResponse.json({
+          error: `Já existe casamento registrado com ${encerra.map(x => x.nome).join(' e ')}.`, casamento_encerra: encerra,
+        }, { status: 409 })
+      }
+      const c = await registrarCasamento(supabase, empresa_id, alvoId, vendedorId as string, {
+        estadoCivil: vend?.estado_civil === 'uniao_estavel' ? 'uniao_estavel' : 'casado',
+        regime: null, data: null, confirmarEncerrar: body.confirmar_encerrar === true,
+      })
+      if ('confirmar' in c) {
+        await desfazerCriacao()
+        return NextResponse.json({
+          error: `Já existe casamento registrado com ${c.confirmar.map(x => x.nome).join(' e ')}.`, casamento_encerra: c.confirmar,
+        }, { status: 409 })
+      }
+      if ('erro' in c) inc = c
+      else {
+        // Casamento já gravado: um erro aqui não desfaz o cadastro (o vendedor já aponta para ele).
+        const sync = proposta.tipo === 'lead' ? await sincronizarLead(supabase, proposta.id)
+          : await sincronizarProcesso(supabase, proposta.id)
+        if ('erro' in sync) return NextResponse.json({ error: sync.erro }, { status: sync.status })
+      }
+    } else if (proposta.tipo === 'lead') {
+      if (papelNovo === 'vendedor') inc = await incluirVendedorLead(supabase, empresa_id, proposta.id, alvoId)
+      else if (alvoId !== titularLeadId) inc = await incluirParticipanteLead(supabase, empresa_id, proposta.id, alvoId)
+    } else {
+      inc = await incluirParticipanteNegocio(supabase, empresa_id, proposta.id, alvoId,
+        papelNovo === 'vendedor' ? 'vendedor' : 'coparticipante')
+    }
+    if ('erro' in inc) {
+      await desfazerCriacao()
+      return NextResponse.json({ error: inc.erro }, { status: inc.status })
     }
     pessoaId = alvoId
+    novoPapel = papelNovo
   } else if (alvo === 'conjuge') {
     // Caminho antigo (antes do "De quem é"): Pessoa própria do cônjuge do dono atual — V2 (B2c): pelo
     // serviço único (reaproveita por CPF, nunca operador) e casamento registrado nos dois lados.
@@ -484,6 +571,7 @@ export async function POST(
     casamento_erro,
     casamento_conjuge_id,
     alvo_nome: (alvoPessoa?.nome as string | undefined) ?? null,
+    novo_papel: novoPapel,
     cpf_divergente,
     cpf_pertence_a,
     cpf_invalido,

@@ -38,7 +38,7 @@ import { useEtiquetasVinculo, useRemoverVinculo } from '@/hooks/documentos/useVi
 import { podeRemoverVinculo } from '@/lib/documentos/vinculos'
 import { useParticipantes } from '@/hooks/participantes/useParticipantes'
 import { pessoasDaProposta, titularDaProposta } from '@/lib/participantes/consultas'
-import { PAPEIS_COMPRA, PAPEIS_VENDA } from '@/lib/participantes/tipos'
+import { PAPEIS_COMPRA, PAPEIS_VENDA, type PapelParticipacao } from '@/lib/participantes/tipos'
 
 const BUCKET = 'documentos-clientes'
 const LIMITE_ARQUIVOS_UPLOAD = 30
@@ -169,9 +169,31 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
     contexto === 'lead' && leadId ? { tipo: 'lead', id: leadId }
       : contexto === 'processo' && processoId ? { tipo: 'processo', id: processoId } : null,
   )
+  // Cônjuge (casamento registrado) de cada vendedor: no OCR, "Cônjuge do vendedor" não oferece quem já é casado.
+  const idsVendedores = participantesProposta.filter(p => p.papel === 'vendedor').map(p => p.pessoa.id).sort()
+  const { data: conjugeDosVendedores = {} } = useQuery({
+    queryKey: ['ocr-conjuge-vendedores', idsVendedores.join(',')],
+    enabled: idsVendedores.length > 0,
+    queryFn: async (): Promise<Record<string, string>> => {
+      const { data, error } = await supabase.from('pessoas').select('id, conjuge_pessoa_id').in('id', idsVendedores)
+      if (error) throw error
+      const pares = (data ?? []).filter(p => p.conjuge_pessoa_id) as Array<{ id: string; conjuge_pessoa_id: string }>
+      if (!pares.length) return {}
+      const { data: conjuges, error: eC } = await supabase.from('pessoas').select('id, nome')
+        .in('id', pares.map(p => p.conjuge_pessoa_id)).is('deleted_at', null)
+      if (eC) throw eC
+      const nomes = new Map((conjuges ?? []).map(c => [c.id as string, c.nome as string]))
+      // Cônjuge fora da carteira do usuário (RLS) continua contando como casado.
+      return Object.fromEntries(pares.map(p => [p.id, nomes.get(p.conjuge_pessoa_id) ?? 'outra pessoa']))
+    },
+  })
+  const ordemLado = (papel: PapelParticipacao) => (papel === 'titular' ? 0 : PAPEIS_VENDA.includes(papel) ? 2 : 1)
   const opcoesDonoDocumento = [...participantesProposta]
-    .sort((a, b) => (a.papel === 'titular' ? 0 : 1) - (b.papel === 'titular' ? 0 : 1) || a.ordem - b.ordem)
-    .map(p => ({ pessoaId: p.pessoa.id, nome: p.pessoa.nome, cpf: p.pessoa.cpf }))
+    .sort((a, b) => ordemLado(a.papel) - ordemLado(b.papel) || a.ordem - b.ordem)
+    .map(p => ({
+      pessoaId: p.pessoa.id, nome: p.pessoa.nome, cpf: p.pessoa.cpf, papel: p.papel,
+      conjugeNome: p.papel === 'vendedor' ? (conjugeDosVendedores[p.pessoa.id] ?? null) : null,
+    }))
   // Apuração de Renda: existe para Lead/Processo (cada operação tem sua própria renda
   // apurada); não existe rota nem sentido conceitual para Pessoa (renda é por operação).
   const { ultima: ultimaApuracao } = useApuracaoRenda(
@@ -1197,9 +1219,12 @@ export function AbaDocumentos({ contexto, leadId, processoId, pessoaId, onNavega
           pessoaAtualId={contexto === 'lead' ? pessoaId : undefined}
           participantes={opcoesDonoDocumento}
           leadId={contexto === 'lead' ? leadId : undefined}
+          processoId={contexto === 'processo' ? processoId : undefined}
           onClose={() => setDocOcrRevisao(null)}
           onConfirmado={() => {
             setDocOcrRevisao(null)
+            queryClient.invalidateQueries({ queryKey: ['ocr-conjuge-vendedores'] })
+            if (processoId) queryClient.invalidateQueries({ queryKey: ['processo-papeis-pessoas', processoId] })
             queryClient.invalidateQueries({ queryKey })
             if (pessoaId) queryClient.refetchQueries({ queryKey: ['pessoa-completa', pessoaId] })
             // A rota também espelha nome/CPF/nascimento no Lead — o sidebar lê de lá

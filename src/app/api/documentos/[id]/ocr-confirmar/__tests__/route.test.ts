@@ -29,6 +29,13 @@ vi.mock('@/lib/documentos/vinculosServidor', async () => {
       pessoas: estado.tabelas.pessoas.filter(p => estado.visiveis.includes(p.id as string)),
       leads: estado.tabelas.leads,
     }),
+    // leads.editar/processos.editar + proposta visível (RLS): o teste controla pelos dois.
+    verificarDestino: async (_ctx: unknown, tipo: 'lead' | 'processo', id: string) => {
+      const { NextResponse: R } = await import('next/server')
+      const linhas = (tipo === 'lead' ? estado.tabelas.leads : estado.tabelas.processos) ?? []
+      if (!estado.podeEditarLead || !linhas.some(l => l.id === id)) return R.json({ error: 'negado' }, { status: 403 })
+      return null
+    },
   }
 })
 
@@ -46,6 +53,7 @@ beforeEach(() => {
       { id: 'operador', empresa_id: 'e1', nome: 'Comercial', cpf: '39053344705', deleted_at: null },
     ],
     leads: [{ id: 'l1', empresa_id: 'e1', pessoa_id: 'heitor', deleted_at: null }],
+    processos: [{ id: 'p1', empresa_id: 'e1', deleted_at: null }],
     participacoes: [],
     pessoa_documentos_identificacao: [],
   }
@@ -196,5 +204,142 @@ describe('POST /api/documentos/[id]/ocr-confirmar — de quem é o documento', (
     expect(res.status).toBe(200)
     expect(pessoa('heitor').nome).toBe('Heitor Almeida')
     expect(doc().pessoa_id).toBe('heitor')
+  })
+})
+
+describe('POST /api/documentos/[id]/ocr-confirmar — novo participante com papel (vendedor / cônjuge do vendedor)', () => {
+  const rg = (nome: string, extra: Record<string, unknown>) => ({ campos: { nome }, tipo_confirmado: 'rg', ...extra })
+  const vendedorNoNegocio = (pessoaId: string) => estado.tabelas.participacoes.push(
+    { id: `pa-${pessoaId}`, empresa_id: 'e1', processo_id: 'p1', pessoa_id: pessoaId, papel: 'vendedor', explicita: true })
+
+  it('negócio: novo vendedor entra como vendedor (explícito) e o documento passa a ser dele', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('Adenildo Madureira', {
+      novo_participante: { nome: 'Adenildo Madureira', cpf: '301.409.439-00', papel: 'vendedor' }, processo_id: 'p1',
+    })), ctx)
+    expect(res.status).toBe(200)
+    const novo = estado.tabelas.pessoas.find(p => p.nome === 'Adenildo Madureira')!
+    expect(await res.json()).toMatchObject({ novo_papel: 'vendedor', alvo_pessoa_id: novo.id })
+    expect(estado.tabelas.participacoes).toEqual([
+      expect.objectContaining({ processo_id: 'p1', pessoa_id: novo.id, papel: 'vendedor', explicita: true }),
+    ])
+    expect(doc().pessoa_id).toBe(novo.id)
+  })
+
+  it('lead: novo vendedor entra como vendedor do lead', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('Adenildo', { novo_participante: { nome: 'Adenildo', papel: 'vendedor' }, lead_id: 'l1' })), ctx)
+    expect(res.status).toBe(200)
+    const novo = estado.tabelas.pessoas.find(p => p.nome === 'Adenildo')!
+    expect(estado.tabelas.participacoes).toEqual([
+      expect.objectContaining({ lead_id: 'l1', pessoa_id: novo.id, papel: 'vendedor', explicita: true }),
+    ])
+  })
+
+  it('negócio: novo comprador entra como coparticipante', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('Carla', { novo_participante: { nome: 'Carla', papel: 'comprador' }, processo_id: 'p1' })), ctx)
+    expect(res.status).toBe(200)
+    expect(estado.tabelas.participacoes).toEqual([expect.objectContaining({ processo_id: 'p1', papel: 'coparticipante', explicita: true })])
+  })
+
+  it('cônjuge do vendedor: cria a Pessoa e registra o casamento com o vendedor nos dois lados', async () => {
+    vendedorNoNegocio('afranio')
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('Maria Madureira', {
+      novo_participante: { nome: 'Maria Madureira', papel: 'conjuge_vendedor', vendedor_pessoa_id: 'afranio' }, processo_id: 'p1',
+    })), ctx)
+    expect(res.status).toBe(200)
+    const conj = estado.tabelas.pessoas.find(p => p.nome === 'Maria Madureira')!
+    expect(conj.conjuge_pessoa_id).toBe('afranio')
+    expect(pessoa('afranio')).toMatchObject({ conjuge_pessoa_id: conj.id, estado_civil: 'casado' })
+    expect(doc().pessoa_id).toBe(conj.id)
+  })
+
+  it('cônjuge de quem não é vendedor desta proposta: 422 e nada criado', async () => {
+    const { POST } = await import('../route')
+    const total = estado.tabelas.pessoas.length
+    for (const vendedor of [undefined, 'heitor']) {
+      const res = await POST(req(rg('Maria', {
+        novo_participante: { nome: 'Maria', papel: 'conjuge_vendedor', ...(vendedor ? { vendedor_pessoa_id: vendedor } : {}) }, processo_id: 'p1',
+      })), ctx)
+      expect(res.status).toBe(422)
+    }
+    expect(estado.tabelas.pessoas).toHaveLength(total)
+    expect(doc().pessoa_id).toBe('heitor')
+  })
+
+  it('vendedor já casado com outra pessoa: 409 pergunta, nada fica gravado; com confirmar_encerrar registra', async () => {
+    vendedorNoNegocio('afranio')
+    estado.tabelas.pessoas.push({ id: 'ex', empresa_id: 'e1', nome: 'Ex Esposa', conjuge_pessoa_id: 'afranio', deleted_at: null })
+    pessoa('afranio').conjuge_pessoa_id = 'ex'
+    const { POST } = await import('../route')
+    const corpo = rg('Nova Esposa', {
+      novo_participante: { nome: 'Nova Esposa', papel: 'conjuge_vendedor', vendedor_pessoa_id: 'afranio' }, processo_id: 'p1',
+    })
+    const total = estado.tabelas.pessoas.length
+    const r1 = await POST(req(corpo), ctx)
+    expect(r1.status).toBe(409)
+    expect(await r1.json()).toMatchObject({ casamento_encerra: expect.arrayContaining([expect.objectContaining({ id: 'ex' })]) })
+    expect(estado.tabelas.pessoas).toHaveLength(total) // cadastro novo desfeito
+    expect(pessoa('afranio').conjuge_pessoa_id).toBe('ex')
+    const r2 = await POST(req({ ...corpo, confirmar_encerrar: true }), ctx)
+    expect(r2.status).toBe(200)
+    const nova = estado.tabelas.pessoas.find(p => p.nome === 'Nova Esposa')!
+    expect(pessoa('afranio').conjuge_pessoa_id).toBe(nova.id)
+  })
+
+  it('cônjuge reaproveitado pelo CPF que já é casado(a) com outra pessoa: 409, casamento dela intacto', async () => {
+    vendedorNoNegocio('afranio')
+    estado.tabelas.pessoas.push({ id: 'z', empresa_id: 'e1', nome: 'Zé', conjuge_pessoa_id: 'maria-existente', deleted_at: null })
+    pessoa('maria-existente').conjuge_pessoa_id = 'z'
+    const { POST } = await import('../route')
+    const res = await POST(req({ campos: { nome: 'Maria Souza', cpf: '111.444.777-35' }, tipo_confirmado: 'rg',
+      novo_participante: { nome: 'Maria Souza', cpf: '111.444.777-35', papel: 'conjuge_vendedor', vendedor_pessoa_id: 'afranio' },
+      processo_id: 'p1' }), ctx)
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ casamento_encerra: [expect.objectContaining({ id: 'z' })] })
+    expect(pessoa('maria-existente').conjuge_pessoa_id).toBe('z')
+    expect(pessoa('afranio').conjuge_pessoa_id ?? null).toBeNull()
+    expect(estado.tabelas.pessoas.find(p => p.id === 'maria-existente')).toBeTruthy() // reaproveitada: nunca apagada
+  })
+
+  it('negócio: Pessoa de operador (pelo CPF) nunca vira vendedor — 422', async () => {
+    estado.operador = ['operador']
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('Comercial', {
+      novo_participante: { nome: 'Comercial', cpf: '390.533.447-05', papel: 'vendedor' }, processo_id: 'p1',
+    })), ctx)
+    expect(res.status).toBe(422)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
+  })
+
+  it('papel desconhecido: 422', async () => {
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('X', { novo_participante: { nome: 'X', papel: 'corretor' }, processo_id: 'p1' })), ctx)
+    expect(res.status).toBe(422)
+  })
+
+  it('negócio sem permissão ou fora da carteira: 403 e nada gravado', async () => {
+    const { POST } = await import('../route')
+    estado.podeEditarLead = false
+    const r1 = await POST(req(rg('X', { novo_participante: { nome: 'X', papel: 'vendedor' }, processo_id: 'p1' })), ctx)
+    expect(r1.status).toBe(403)
+    estado.podeEditarLead = true
+    const r2 = await POST(req(rg('X', { novo_participante: { nome: 'X', papel: 'vendedor' }, processo_id: 'outro' })), ctx)
+    expect(r2.status).toBe(403)
+    expect(estado.tabelas.participacoes).toHaveLength(0)
+  })
+
+  it('nome parecido com vendedor do negócio (sem CPF): 409 pergunta antes de criar', async () => {
+    estado.tabelas.pessoas.push({ id: 'aden', empresa_id: 'e1', nome: 'ADENILDO MADUREIRA PARA', cpf: null, deleted_at: null })
+    estado.tabelas.participacoes.push({ id: 'pa-aden', empresa_id: 'e1', processo_id: 'p1', pessoa_id: 'aden', papel: 'vendedor', explicita: true,
+      pessoa: { id: 'aden', nome: 'ADENILDO MADUREIRA PARA', cpf: null, deleted_at: null } })
+    const { POST } = await import('../route')
+    const res = await POST(req(rg('ADENILDO MADUREIRA PARÁ', {
+      novo_participante: { nome: 'ADENILDO MADUREIRA PARRA', cpf: '301.409.439-00', papel: 'vendedor' }, processo_id: 'p1',
+    })), ctx)
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ parecido: { pessoa_id: 'aden' } })
   })
 })

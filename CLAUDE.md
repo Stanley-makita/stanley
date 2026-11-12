@@ -991,3 +991,19 @@ Despesas (custas) financiadas junto — até 5% do valor do imóvel:
   `/api/processos/alerta-parados` (12:00 UTC): avisa 1x ao passar do prazo e lembra a cada 5 dias na mesma fase
   (`decidirAvisoParado`, controle em `processo_avisos_parado`); destinatário = operacional ativo, senão comercial;
   reentrar na fase recomeça a contagem (entrada = último `processo_fases_historico` daquela fase).
+
+## OCR do vendedor e do cônjuge do vendedor (pedido da equipe, 12/11/2026)
+
+- **"De quem é este documento?" lista compra e venda** (`DocumentoOcrRevisaoModal`, `<optgroup>` Compra/Venda com o
+  papel ao lado). "Novo participante" vale no Lead **e** no Negócio (só RG/CNH/CPF/certidão) e **obriga a escolher o
+  papel**: comprador, vendedor ou cônjuge do vendedor (nada vem marcado — o sistema não tem como adivinhar o lado).
+- `ocr-confirmar` inclui pelo serviço do papel: lead → `incluirParticipanteLead`/`incluirVendedorLead`; negócio →
+  `incluirParticipanteNegocio` (`escritaNegocio.ts`). Permissão/visibilidade por `verificarDestino`. Sem `papel` no
+  corpo = comprador (compatibilidade).
+- **Cônjuge do vendedor nunca é participação explícita**: o OCR só registra o casamento (`registrarCasamento`) e a
+  sincronização deriva `conjuge_vendedor` — no negócio desde a 333, no **lead desde a 353** (que também faz
+  `fn_pv2_pessoas` ressincronizar os leads em que a Pessoa participa, não só onde é titular).
+- **Casamento já registrado (do vendedor OU da Pessoa reaproveitada pelo CPF) sempre pergunta** (409
+  `casamento_encerra` → `confirmar_encerrar`). Atenção ao reusar `registrarCasamento(pessoa, conjuge)`: o casamento
+  anterior de `pessoa` conta como "dela" e é encerrado SEM confirmação — só o de terceiros pede. Por isso a rota checa
+  os dois lados antes.
