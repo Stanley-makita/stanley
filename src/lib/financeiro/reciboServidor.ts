@@ -29,6 +29,19 @@ async function telefoneDaPessoa(pessoaId: string): Promise<string | null> {
   return (data as { telefone: string } | null)?.telefone ?? null
 }
 
+/** Logo trocada em Dados da Empresa → data URL. undefined = usa a logo oficial embutida. */
+async function logoDocumentos(url: string | null): Promise<string | undefined> {
+  if (!url) return undefined
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    const tipo = res.headers.get('content-type') ?? ''
+    if (!res.ok || !/image\/(png|jpe?g)/.test(tipo)) return undefined
+    return `data:${tipo};base64,${Buffer.from(await res.arrayBuffer()).toString('base64')}`
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Lê o lançamento com o JWT do usuário (a RLS decide se ele enxerga o negócio) e monta
  * tudo que o recibo precisa. Devolve a resposta de erro pronta quando não dá.
@@ -53,14 +66,17 @@ export async function carregarRecibo(
     supabase.from('processos').select('numero_processo').eq('id', processoId)
       .abortSignal(AbortSignal.timeout(TIMEOUT_QUERY)).maybeSingle(),
     supabase.from('empresas')
-      .select('nome, razao_social, cnpj, telefone, email, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep')
+      .select('nome, razao_social, cnpj, telefone, email, logo_documentos_url, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, endereco_cep')
       .eq('id', lanc.empresa_id)
       .abortSignal(AbortSignal.timeout(TIMEOUT_QUERY)).maybeSingle(),
     titularDaProposta(supabase, { tipo: 'processo', id: processoId }, { timeoutMs: TIMEOUT_QUERY }).catch(() => null),
   ])
   if (!empresa) return NextResponse.json({ error: 'Empresa não encontrada.' }, { status: 500 })
 
-  const telefoneTitular = titular ? await telefoneDaPessoa(titular.pessoa_id) : null
+  const [telefoneTitular, logo] = await Promise.all([
+    titular ? telefoneDaPessoa(titular.pessoa_id) : Promise.resolve(null),
+    logoDocumentos((empresa as { logo_documentos_url: string | null }).logo_documentos_url),
+  ])
 
   const reciboNome = (lanc.recibo_nome as string | null)?.trim() || null
   const reciboCpf = (lanc.recibo_cpf as string | null)?.trim() || null
@@ -81,6 +97,7 @@ export async function carregarRecibo(
       pagadorCpf: reciboNome ? reciboCpf : (reciboCpf ?? titular?.cpf ?? null),
       processoNumero: (processo as { numero_processo: string | null } | null)?.numero_processo ?? null,
       empresa: empresa as unknown as EmpresaRecibo,
+      logoDataUrl: logo,
     },
   }
 }
