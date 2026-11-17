@@ -93,3 +93,34 @@ export function comTipoPretendidoSugerido<T extends { imovel_tipo?: string | nul
   const sugerido = tipoPretendidoDoImovelCadastrado(patch.imovel_tipo)
   return sugerido ? { ...patch, tipo_imovel: sugerido } : patch
 }
+
+/**
+ * Valor total financiado = financiamento + custas financiadas (decisão do usuário, 17/11/2026).
+ * O financiamento é pago ao vendedor e é a base da entrada; as custas são pagas ao comprador, NÃO mexem na entrada,
+ * mas entram no total que o cliente fica devendo ao banco. Nada é gravado somado: `valor_financiado` /
+ * `valor_pretendido` continuam sendo só o financiamento. Comissão segue sobre o financiamento sem custas até existir
+ * a opção por banco. Única fonte dessa conta — telas, Emissões e e-mail de Confirmar Valores usam esta função.
+ * Devolve null quando não há custas a somar ou o financiamento não foi informado.
+ */
+export function totalFinanciado(
+  financiamento: number | null | undefined,
+  financiarCustas: boolean | null | undefined,
+  valorCustas: number | null | undefined,
+): { custas: number; total: number } | null {
+  // Number.isFinite também barra NaN: campo de moeda apagado no drawer vira NaN (strParaNum), não null.
+  if (financiarCustas !== true || financiamento == null || valorCustas == null) return null
+  if (!Number.isFinite(financiamento) || !Number.isFinite(valorCustas) || valorCustas <= 0) return null
+  return { custas: valorCustas, total: Math.round((financiamento + valorCustas) * 100) / 100 }
+}
+
+/** Dica do ícone em Financeiro → Emissões: "Custas financiadas: R$ X · Total financiado: R$ Y". */
+export function dicaCustasFinanciadas(
+  financiamento: number | null | undefined,
+  financiarCustas: boolean | null | undefined,
+  valorCustas: number | null | undefined,
+): string | null {
+  const t = totalFinanciado(financiamento, financiarCustas, valorCustas)
+  if (!t) return null
+  const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+  return `Custas financiadas: ${brl(t.custas)} · Total financiado: ${brl(t.total)}`
+}

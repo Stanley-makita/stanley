@@ -150,3 +150,24 @@ export function useRemoverProcessoFechamento() {
     onError: () => toast.error('Erro ao remover processo.'),
   })
 }
+
+// Custas financiadas dos negócios listados em Emissões (só para a dica do ícone — pedido de 17/11/2026). O snapshot
+// do fechamento e a RPC emissoes_mes_preview não trazem essas colunas; lê o valor ATUAL do processo.
+export function useCustasDosProcessos(processoIds: string[]) {
+  const ids = Array.from(new Set(processoIds)).sort()
+  return useQuery({
+    queryKey: ['financeiro', 'custas_processos', ...ids],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processos')
+        .select('id, financiar_despesas_cartorariais, valor_despesas_financiadas')
+        .in('id', ids)
+      if (error) throw error
+      return new Map((data ?? []).map((p) => [p.id as string, {
+        financiar: p.financiar_despesas_cartorariais as boolean | null,
+        valor: p.valor_despesas_financiadas as number | null,
+      }]))
+    },
+    enabled: ids.length > 0,
+  })
+}

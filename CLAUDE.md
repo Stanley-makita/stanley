@@ -1025,3 +1025,13 @@ não-dono com "Editar Negócios" liberado (Jurídico, Apoio, Assistente, customi
 Migration 354: policy = dono (operacional/comercial/jurídico) OU `usuario_atual_pode('processos.editar')`, e o
 fallback SQL de `processos.editar` = `PERMISSOES_PADRAO` (teste `migration-354-processos-update.test.ts` trava a
 divergência). Mudança de fase grava o processo ANTES do histórico, via `updateProcessoOuFalha`.
+
+## Valor total financiado = financiamento + custas — só exibição (2026-11-17)
+
+`processos.valor_financiado` / `leads.valor_pretendido` = SÓ o financiamento do imóvel (pago ao vendedor, base da
+entrada). Custas financiadas (`financiar_despesas_cartorariais` + `valor_despesas_financiadas`, migration 351) são pagas
+ao comprador, NÃO mexem na entrada, mas entram no total devido ao banco. O total é calculado, nunca gravado:
+`totalFinanciado()` (`src/lib/oportunidade/tipoEDespesas.ts`) é a única conta — Oportunidade, Dados do Negócio, Resumo,
+Financeiro → Emissões (ícone com dica) e e-mail de Confirmar Valores usam ela. **Comissão continua sobre o financiamento
+sem custas** (decisão do usuário: alguns bancos pagam sobre custas, outros não; quando souber, criar opção por banco em
+Configurações > Bancos). Não somar custas em `valor_financiado` — quebra a entrada e duplica no e-mail.

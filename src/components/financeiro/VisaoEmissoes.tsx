@@ -12,7 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, UserCheck, UserX } from 'lucide-react'
+import { Info, Search, UserCheck, UserX } from 'lucide-react'
+import { useCustasDosProcessos } from '@/hooks/financeiro/useFechamentoProcessos'
+import { dicaCustasFinanciadas } from '@/lib/oportunidade/tipoEDespesas'
 import { type FinFechamentoProcesso } from '@/types/financeiro'
 import { formatarMoeda } from '@/lib/utils'
 import { rotuloModalidade } from '@/types/processos'
@@ -25,6 +27,7 @@ interface Props {
 
 export function VisaoEmissoes({ processos, isLoading, vazioAoVivo }: Props) {
   const [busca, setBusca] = useState('')
+  const { data: custas } = useCustasDosProcessos(processos.map(p => p.processo_id).filter(Boolean))
 
   const filtrados = processos.filter(p =>
     !busca ||
@@ -126,6 +129,15 @@ export function VisaoEmissoes({ processos, isLoading, vazioAoVivo }: Props) {
                   <TableCell className="text-sm text-gray-600">{rotuloModalidade(proc.modalidade) || '—'}</TableCell>
                   <TableCell className="text-right text-sm font-mono">
                     {proc.valor_financiado != null ? formatarMoeda(proc.valor_financiado) : '—'}
+                    {(() => {
+                      const c = custas?.get(proc.processo_id)
+                      const dica = c ? dicaCustasFinanciadas(proc.valor_financiado, c.financiar, c.valor) : null
+                      return dica ? (
+                        <span title={dica} aria-label={dica} className="cursor-help">
+                          <Info className="ml-1 inline h-3.5 w-3.5 text-amber-600" />
+                        </span>
+                      ) : null
+                    })()}
                   </TableCell>
                   <TableCell>
                     {proc.comercial ? (

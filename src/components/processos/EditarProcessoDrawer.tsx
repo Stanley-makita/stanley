@@ -21,6 +21,7 @@ import { useAtualizarDadosProcesso } from '@/hooks/processos/useProcessos'
 import type { Processo, ResponsavelRegistro } from '@/types/processos'
 import { RESPONSAVEL_REGISTRO_LABELS } from '@/types/processos'
 import { CampoDespesasFinanciadas } from '@/components/oportunidade/CampoDespesasFinanciadas'
+import { QuadroTotalFinanciado } from '@/components/oportunidade/QuadroTotalFinanciado'
 import { TIPOS_IMOVEL_PRETENDIDO, TIPO_IMOVEL_PRETENDIDO_LABELS, type TipoImovelPretendido } from '@/lib/oportunidade/tipoEDespesas'
 
 const MODALIDADES = [
@@ -633,6 +634,11 @@ export function EditarProcessoDrawer({ aberto, onFechar, processo }: Props) {
                     }}
                   />
                   <p className="text-xs text-gray-400">Até 5% do valor do imóvel, junto com o financiamento.</p>
+                  <QuadroTotalFinanciado
+                    financiamento={form.watch('valor_financiado')}
+                    financiarCustas={form.watch('financiar_despesas_cartorariais')}
+                    valorCustas={form.watch('valor_despesas_financiadas')}
+                  />
                 </div>
               </div>
             </div>

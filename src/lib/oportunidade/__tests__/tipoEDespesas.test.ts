@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  comTipoPretendidoSugerido, descreverDespesasResumo, descreverValorDespesas, percentualDespesas, rotuloTipoImovelPretendido, sugerirValorDespesas,
+  comTipoPretendidoSugerido, descreverDespesasResumo, descreverValorDespesas, dicaCustasFinanciadas, percentualDespesas, rotuloTipoImovelPretendido, sugerirValorDespesas,
+  totalFinanciado,
   tipoPretendidoDoImovelCadastrado,
 } from '../tipoEDespesas'
 
@@ -54,5 +55,38 @@ describe('comTipoPretendidoSugerido', () => {
     expect(comTipoPretendidoSugerido({ imovel_tipo: 'sobrado' }, null)).toEqual({ imovel_tipo: 'sobrado', tipo_imovel: 'casa' })
     expect(comTipoPretendidoSugerido({ imovel_tipo: 'sobrado' }, 'comercial')).toEqual({ imovel_tipo: 'sobrado' })
     expect(comTipoPretendidoSugerido({ imovel_tipo: null }, null)).toEqual({ imovel_tipo: null })
+  })
+})
+
+describe('valor total financiado (financiamento + custas)', () => {
+  it('soma as custas ao financiamento quando vai financiar', () => {
+    expect(totalFinanciado(481000, true, 34570.77)).toEqual({ custas: 34570.77, total: 515570.77 })
+  })
+  it('sem custas a somar → null (não vai financiar, não definido, sem valor, valor 0)', () => {
+    expect(totalFinanciado(481000, false, 34570)).toBeNull()
+    expect(totalFinanciado(481000, null, 34570)).toBeNull()
+    expect(totalFinanciado(481000, true, null)).toBeNull()
+    expect(totalFinanciado(481000, true, 0)).toBeNull()
+  })
+  it('sem financiamento informado → null (não mostra custas sozinhas)', () => {
+    expect(totalFinanciado(null, true, 34570)).toBeNull()
+    // campo apagado no drawer vira NaN (strParaNum) — não pode mostrar "R$ NaN"
+    expect(totalFinanciado(NaN, true, 34570)).toBeNull()
+    expect(totalFinanciado(481000, true, NaN)).toBeNull()
+  })
+  it('arredonda a centavos', () => {
+    expect(totalFinanciado(0.1, true, 0.2)?.total).toBe(0.3)
+  })
+})
+
+describe('dica de custas financiadas (Emissões)', () => {
+  const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+  it('mostra custas e total', () => {
+    expect(dicaCustasFinanciadas(848000, true, 53000)).toBe(
+      `Custas financiadas: ${brl(53000)} · Total financiado: ${brl(901000)}`,
+    )
+  })
+  it('sem custas → null', () => {
+    expect(dicaCustasFinanciadas(848000, false, 53000)).toBeNull()
   })
 })
