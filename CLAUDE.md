@@ -1015,3 +1015,13 @@ Documentos e `*fonti atualiza` **não disparam mais OCR**: o documento fica `sta
 escolhe quais ler em "Extrair dados" (IR, recibos e extratos não precisam de leitura). `uploadDocumentoParaPasta`
 tem `extrairAposUpload = false` por padrão; só o Construtor de Contratos passa `true` (ainda não conferido se a
 análise do contrato depende da leitura). Nenhum caminho novo deve ler documento automaticamente sem decisão do usuário.
+
+## `processos_update` regrediu na 315 — redefinir policy/função sempre a partir da ÚLTIMA versão (2026-11-17)
+
+A Claudia (Jurídico) preenchia o Registro e mudava de fase; a tela dizia "salvo"/"Fase avançada" e nada
+gravava (10 linhas de histórico "Protocolado" em negócios parados em Preparação). A 315 recriou
+`processos_update` a partir da 183 e apagou o `usuario_atual_pode('processos.editar')` da 221 — todo perfil
+não-dono com "Editar Negócios" liberado (Jurídico, Apoio, Assistente, customizados) ficou bloqueado em silêncio.
+Migration 354: policy = dono (operacional/comercial/jurídico) OU `usuario_atual_pode('processos.editar')`, e o
+fallback SQL de `processos.editar` = `PERMISSOES_PADRAO` (teste `migration-354-processos-update.test.ts` trava a
+divergência). Mudança de fase grava o processo ANTES do histórico, via `updateProcessoOuFalha`.
