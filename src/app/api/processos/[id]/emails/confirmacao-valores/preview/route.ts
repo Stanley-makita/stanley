@@ -9,6 +9,7 @@ import { rotuloModalidade } from '@/types/processos'
 import { fmtTaxaAnual } from '@/lib/email/templates/confirmacaoValores/_helpers'
 import { calcTarifaBanco } from '@/lib/simulador/calcular'
 import { calcularRecursosProprios } from '@/lib/email/templates/confirmacaoValores/entradaFgts'
+import { totalFinanciado } from '@/lib/oportunidade/tipoEDespesas'
 import {
   normalizarBancoTemplate,
   gerarEmailConfirmacaoValores,
@@ -137,11 +138,14 @@ export async function POST(
     }
 
     // Despesas (custas) financiadas junto — Oportunidade/Dados do Negócio (migration 351). Entram no total financiado.
-    const despesasFinanciadas = (processo as any).financiar_despesas_cartorariais
-      ? ((processo as any).valor_despesas_financiadas as number | null) ?? null
-      : null
     const valorFinanciado = (processo as any).valor_financiado as number | null
-    const totalFinanciado = valorFinanciado != null && despesasFinanciadas ? valorFinanciado + despesasFinanciadas : valorFinanciado
+    const total = totalFinanciado(
+      valorFinanciado,
+      (processo as any).financiar_despesas_cartorariais,
+      (processo as any).valor_despesas_financiadas,
+    )
+    const despesasFinanciadas = total?.custas ?? null
+    const valorTotalFinanciado = total?.total ?? valorFinanciado
 
     const dados: DadosConfirmacaoValores = {
       cliente_nome:           compradorPrincipal?.nome ?? 'Cliente',
@@ -159,7 +163,7 @@ export async function POST(
       subsidio:               null,
       valor_financiado:       (processo as any).valor_financiado,
       despesas_financiadas:   despesasFinanciadas,
-      valor_total_financiado: totalFinanciado,
+      valor_total_financiado: valorTotalFinanciado,
       prazo_meses:            (processo as any).prazo_amortizacao_meses,
       modalidade:             rotuloModalidade((processo as any).modalidade),
       amortizacao:            (processo as any).sistema_amortizacao,
