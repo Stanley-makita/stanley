@@ -107,7 +107,9 @@ export function totalFinanciado(
   financiarCustas: boolean | null | undefined,
   valorCustas: number | null | undefined,
 ): { custas: number; total: number } | null {
-  if (financiarCustas !== true || valorCustas == null || valorCustas <= 0 || financiamento == null) return null
+  // Number.isFinite também barra NaN: campo de moeda apagado no drawer vira NaN (strParaNum), não null.
+  if (financiarCustas !== true || financiamento == null || valorCustas == null) return null
+  if (!Number.isFinite(financiamento) || !Number.isFinite(valorCustas) || valorCustas <= 0) return null
   return { custas: valorCustas, total: Math.round((financiamento + valorCustas) * 100) / 100 }
 }
 

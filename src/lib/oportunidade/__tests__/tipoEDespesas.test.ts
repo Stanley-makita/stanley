@@ -70,6 +70,9 @@ describe('valor total financiado (financiamento + custas)', () => {
   })
   it('sem financiamento informado → null (não mostra custas sozinhas)', () => {
     expect(totalFinanciado(null, true, 34570)).toBeNull()
+    // campo apagado no drawer vira NaN (strParaNum) — não pode mostrar "R$ NaN"
+    expect(totalFinanciado(NaN, true, 34570)).toBeNull()
+    expect(totalFinanciado(481000, true, NaN)).toBeNull()
   })
   it('arredonda a centavos', () => {
     expect(totalFinanciado(0.1, true, 0.2)?.total).toBe(0.3)
