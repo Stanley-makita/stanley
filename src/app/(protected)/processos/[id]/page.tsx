@@ -31,7 +31,7 @@ import { differenceInDays } from 'date-fns'
 import { useState, useMemo, useEffect } from 'react'
 import { NovaSolicitacaoDrawer } from '@/components/solicitacoes/NovaSolicitacaoDrawer'
 import { RESPONSAVEL_REGISTRO_LABELS, rotuloModalidade } from '@/types/processos'
-import { descreverDespesasResumo, rotuloTipoImovelPretendido } from '@/lib/oportunidade/tipoEDespesas'
+import { descreverDespesasResumo, rotuloTipoImovelPretendido, totalFinanciado } from '@/lib/oportunidade/tipoEDespesas'
 import { ParticularidadeCliente } from '@/components/pessoas/ParticularidadeCliente'
 import { BlocoResponsaveis } from '@/components/processos/BlocoResponsaveis'
 import { BlocoParceiros } from '@/components/processos/BlocoParceiros'
@@ -961,6 +961,10 @@ function AbaResumo({
                 <Campo label="Despesas financiadas" valor={descreverDespesasResumo(
                   processo.financiar_despesas_cartorariais ?? false, processo.valor_despesas_financiadas, processo.valor_imovel,
                 )} />
+                {(() => {
+                  const t = totalFinanciado(processo.valor_financiado, processo.financiar_despesas_cartorariais, processo.valor_despesas_financiadas)
+                  return t ? <Campo label="Valor total financiado" valor={fmtMoeda(t.total)} /> : null
+                })()}
               </>
             )}
           </div>

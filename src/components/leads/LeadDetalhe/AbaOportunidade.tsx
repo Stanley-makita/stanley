@@ -27,6 +27,7 @@ import { type Lead, codigoProdutoInteresse } from '@/types/leads'
 import { MODALIDADE_LABELS, type ModalidadeProcesso, RESPONSAVEL_REGISTRO_LABELS, type ResponsavelRegistro } from '@/types/processos'
 import { cn } from '@/lib/utils'
 import { CampoDespesasFinanciadas } from '@/components/oportunidade/CampoDespesasFinanciadas'
+import { QuadroTotalFinanciado } from '@/components/oportunidade/QuadroTotalFinanciado'
 import { TIPOS_IMOVEL_PRETENDIDO, TIPO_IMOVEL_PRETENDIDO_LABELS } from '@/lib/oportunidade/tipoEDespesas'
 import { Loader2 } from 'lucide-react'
 
@@ -457,6 +458,11 @@ export function AbaOportunidade({ lead }: Props) {
                     }}
                   />
                   <p className="text-xs text-gray-400">Até 5% do valor do imóvel, junto com o financiamento.</p>
+                  <QuadroTotalFinanciado
+                    financiamento={form.watch('valor_pretendido')}
+                    financiarCustas={field.value}
+                    valorCustas={form.watch('valor_despesas_financiadas')}
+                  />
                   <FormMessage />
                 </FormItem>
               )} />
