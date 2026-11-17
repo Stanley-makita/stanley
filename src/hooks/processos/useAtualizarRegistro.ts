@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { type Processo, type StatusProtocolo } from '@/types/processos'
 import { deveAvancarParaProtocolado } from '@/lib/processos/registroAutoAvanco'
 import { normalizarTexto } from '@/lib/utils'
+import { updateProcessoOuFalha } from '@/hooks/processos/useProcessos'
 import { toast } from 'sonner'
 
 export interface DadosRegistroForm {
@@ -23,11 +24,9 @@ export function useAtualizarRegistro(processo: Processo) {
 
   return useMutation({
     mutationFn: async (dados: DadosRegistroForm) => {
-      const { error } = await supabase
-        .from('processos')
-        .update(dados)
-        .eq('id', processo.id)
-      if (error) throw error
+      // Helper que checa linhas afetadas: RLS barrando o UPDATE não gera erro
+      // (achado real 2026-11-17, perfil Jurídico — ver migration 354).
+      await updateProcessoOuFalha(processo.id, usuario!.empresa_id, { ...dados })
 
       // Avanço automático Preparação -> Protocolado. Deliberadamente sem a
       // trava de dados financeiros obrigatórios do avanço manual
@@ -49,14 +48,17 @@ export function useAtualizarRegistro(processo: Processo) {
 
         const fase = faseProtocolado?.find((f) => normalizarTexto(f.nome) === normalizarTexto('Protocolado'))
         if (fase) {
-          await supabase.from('processo_fases_historico').insert({
+          // Muda a fase ANTES de gravar o histórico: se o UPDATE falhar, não
+          // fica registro de "entrou em Protocolado" num processo que não andou.
+          await updateProcessoOuFalha(processo.id, usuario!.empresa_id, { fase_atual_id: fase.id })
+          const { error: histError } = await supabase.from('processo_fases_historico').insert({
             processo_id: processo.id,
             empresa_id: usuario!.empresa_id,
             fase_id: fase.id,
             usuario_id: usuario!.id,
             observacao: 'Avanço automático: protocolo registrado no Cartório.',
           })
-          await supabase.from('processos').update({ fase_atual_id: fase.id }).eq('id', processo.id)
+          if (histError) throw histError
         }
       }
     },
@@ -69,7 +71,7 @@ export function useAtualizarRegistro(processo: Processo) {
     },
     onError: (err: any) => {
       console.error('[useAtualizarRegistro] erro:', err)
-      toast.error('Erro ao salvar dados de Registro.')
+      toast.error('Erro ao salvar dados de Registro.', { description: err?.message })
     },
   })
 }

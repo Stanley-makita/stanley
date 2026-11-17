@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoFaseHistorico } from '@/types/processos'
 import { dadosFinanceirosIncompletos } from '@/lib/processos/validacaoFinanceira'
 import { toast } from 'sonner'
+import { updateProcessoOuFalha } from '@/hooks/processos/useProcessos'
 
 export function useProcessoFasesHistorico(processoId: string) {
   return useQuery({
@@ -55,7 +56,14 @@ async function moverFaseProcesso({ processoId, faseId, observacao, retrocedendo,
     }
   }
 
-  // 1. Registrar no histórico
+  // 1. Atualizar fase atual no processo — retrocesso sem processos.retroceder_fase
+  // é barrado aqui pelo trigger fn_bloquear_retrocesso_fase_sem_permissao (42501).
+  // Vem ANTES do histórico e checa linhas afetadas: a RLS barrando o UPDATE não dá
+  // erro, e na ordem antiga ficava "entrou em Protocolado" no histórico de um processo
+  // que não andou, com toast de sucesso (achado real 2026-11-17, ver migration 354).
+  await updateProcessoOuFalha(processoId, empresaId, { fase_atual_id: faseId })
+
+  // 2. Registrar no histórico
   const { error: histError } = await supabase
     .from('processo_fases_historico')
     .insert({
@@ -66,14 +74,6 @@ async function moverFaseProcesso({ processoId, faseId, observacao, retrocedendo,
       observacao: observacao ?? null,
     })
   if (histError) throw histError
-
-  // 2. Atualizar fase atual no processo — retrocesso sem processos.retroceder_fase
-  // é barrado aqui pelo trigger fn_bloquear_retrocesso_fase_sem_permissao (42501).
-  const { error: procError } = await supabase
-    .from('processos')
-    .update({ fase_atual_id: faseId })
-    .eq('id', processoId)
-  if (procError) throw procError
 
   // 3. Consórcio: fase marcada como final do módulo (fases.e_fase_final_consorcio)
   // dispara a geração do fluxo financeiro (N parcelas a receber da empresa + N a
@@ -102,6 +102,10 @@ function mensagemErroMoverFase(err: Error) {
   }
   if (err.message.includes('Sem permissão para retroceder')) {
     toast.error('Você não tem permissão para retroceder a fase deste processo.')
+    return
+  }
+  if (err.message.includes('não tem permissão para editar este processo')) {
+    toast.error('Você não tem permissão para mudar a fase deste processo.')
     return
   }
   toast.error('Erro ao avançar fase.')
