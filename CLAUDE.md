@@ -67,6 +67,14 @@ errado falha silenciosamente (401 no webhook, ou busca de nome de perfil sempre 
 null) — ver `src/app/api/instagram/webhook/route.ts` e
 `src/lib/comunicacao/enviarMensagemInstagram.ts`.
 
+### Instagram: resposta só em até 24h depois da última mensagem do cliente
+
+A Meta recusa DM da empresa fora da janela de 24h (403, code 10, subcode 2534022 — achado real
+2026-10-22: "não consigo mais responder os clientes do Instagram"). Não é bug do Fonti.
+`enviarMensagemInstagram` tenta de novo com `tag: 'HUMAN_AGENT'` (estende pra 7 dias, mas só com o
+recurso "Human Agent" aprovado no app da Meta) e, se ainda falhar, devolve `MENSAGEM_JANELA_FECHADA`
+em vez de "Tente novamente". Qualquer novo envio pro Instagram deve passar por essa função.
+
 ## Pegadinhas de arquitetura (simulador de financiamento — `simuladorFinanciamento/`)
 
 Achados reais parametrizando imóvel comercial (Bradesco e Caixa, 2026-09-16) — repetir

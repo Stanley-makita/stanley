@@ -11,7 +11,31 @@ const INSTAGRAM_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN ?? '
 // Login) — API própria em graph.instagram.com, não graph.facebook.com.
 const INSTAGRAM_GRAPH_URL = 'https://graph.instagram.com/v21.0/me/messages'
 
-async function enviarInstagram(destinatarioId: string, texto: string): Promise<{ message_id?: string }> {
+// A Meta só deixa responder em até 24h depois da última mensagem do cliente
+// (erro code 10, subcode 2534022). A tag HUMAN_AGENT estende pra 7 dias, mas só
+// funciona com o recurso "Human Agent" aprovado no app — sem ele, a 2ª
+// tentativa falha igual e o atendente recebe a explicação da janela.
+const SUBCODE_FORA_DA_JANELA = 2534022
+
+export const MENSAGEM_JANELA_FECHADA =
+  'O Instagram só permite responder em até 24h depois da última mensagem do cliente. ' +
+  'Aguarde ele escrever de novo para responder por aqui.'
+
+export class ErroEnvioInstagram extends Error {
+  constructor(readonly status: number, readonly corpo: string) {
+    super(`Instagram send: ${status} ${corpo}`)
+  }
+
+  get foraDaJanela(): boolean {
+    try {
+      return JSON.parse(this.corpo)?.error?.error_subcode === SUBCODE_FORA_DA_JANELA
+    } catch {
+      return false
+    }
+  }
+}
+
+async function enviarInstagram(destinatarioId: string, texto: string, comTagHumanAgent = false): Promise<{ message_id?: string }> {
   if (!INSTAGRAM_PAGE_ACCESS_TOKEN) {
     throw new Error('INSTAGRAM_PAGE_ACCESS_TOKEN não configurado')
   }
@@ -25,11 +49,13 @@ async function enviarInstagram(destinatarioId: string, texto: string): Promise<{
     body: JSON.stringify({
       recipient: { id: destinatarioId },
       message: { text: texto },
+      ...(comTagHumanAgent ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' } : {}),
     }),
+    signal: AbortSignal.timeout(20_000),
   })
 
   if (!res.ok) {
-    throw new Error(`Instagram send: ${res.status} ${await res.text()}`)
+    throw new ErroEnvioInstagram(res.status, await res.text())
   }
   return res.json()
 }
@@ -53,9 +79,17 @@ export async function enviarMensagemInstagram(params: EnviarMensagemInstagramPar
 
   let resultado: { message_id?: string }
   try {
-    resultado = await enviarInstagram(destinatarioId, texto)
+    try {
+      resultado = await enviarInstagram(destinatarioId, texto)
+    } catch (err) {
+      if (!(err instanceof ErroEnvioInstagram && err.foraDaJanela)) throw err
+      resultado = await enviarInstagram(destinatarioId, texto, true)
+    }
   } catch (err) {
     console.error('[enviarMensagemInstagram] Erro:', err instanceof Error ? err.message : err)
+    if (err instanceof ErroEnvioInstagram && err.foraDaJanela) {
+      return { ok: false, status: 422, error: MENSAGEM_JANELA_FECHADA }
+    }
     return { ok: false, status: 502, error: 'Falha ao enviar mensagem pelo Instagram. Tente novamente.' }
   }
 
