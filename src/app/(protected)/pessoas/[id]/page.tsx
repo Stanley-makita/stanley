@@ -11,10 +11,11 @@ import {
   ArrowLeft, Phone, Mail, User, MessageSquare, Briefcase,
   Plus, Trash2, Edit2, Check, X, GitMerge, ExternalLink,
   UserPlus, MessageCirclePlus, FileText, Building2, FolderPlus,
-  CreditCard, Calendar, MapPin, DollarSign, History, Heart, FolderOpen,
+  CreditCard, Calendar, MapPin, DollarSign, Heart, FolderOpen,
 } from 'lucide-react'
 import { AbaDocumentos } from '@/components/documentos/AbaDocumentos'
-import { usePessoaAlteracoes } from '@/hooks/pessoas/usePessoaAlteracoes'
+import { HistoricoAlteracoesPessoa } from '@/components/pessoas/HistoricoAlteracoesPessoa'
+import { lerValoresAtuaisPessoa, registrarAlteracoesPessoa } from '@/lib/pessoas/alteracoes'
 import { ExcluirPessoaDialog } from '@/components/pessoas/ExcluirPessoaDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -188,63 +189,6 @@ const REGIME_LABELS: Record<string, string> = {
   participacao_final: 'Participação Final',
 }
 
-const CAMPO_LABELS: Record<string, string> = {
-  nome: 'Nome', email: 'E-mail', cpf: 'CPF', data_nascimento: 'Nascimento',
-  rg: 'RG', profissao: 'Profissão', estado_civil: 'Estado civil',
-  renda_formal: 'Renda formal', renda_informal: 'Renda informal',
-  nacionalidade: 'Nacionalidade', endereco_rua: 'Rua', endereco_numero: 'Número',
-  endereco_bairro: 'Bairro', endereco_cidade: 'Cidade', endereco_uf: 'UF',
-  endereco_cep: 'CEP', conjuge_nome: 'Nome do cônjuge', conjuge_cpf: 'CPF do cônjuge',
-  conjuge_data_nascimento: 'Nasc. cônjuge', conjuge_telefone: 'Tel. cônjuge',
-  conjuge_profissao: 'Profissão do cônjuge', conjuge_renda_formal: 'Renda formal cônjuge',
-  conjuge_renda_informal: 'Renda informal cônjuge', regime_casamento: 'Regime de bens',
-  observacoes: 'Observações', tipo: 'Tipo',
-}
-
-const ORIGEM_LABELS: Record<string, string> = {
-  leads: 'via Leads',
-  pessoas: 'via Cadastro',
-  processos: 'via Processos',
-}
-
-function HistoricoAlteracoes({ pessoaId, perfil, usuarioId }: { pessoaId: string; perfil?: string; usuarioId?: string }) {
-  const { data: alteracoes = [], isLoading } = usePessoaAlteracoes(pessoaId)
-
-  const podeVerTudo = perfil === 'admin' || perfil === 'gerente' || perfil === 'gestor'
-  const visiveis = podeVerTudo
-    ? alteracoes
-    : alteracoes.filter((a) => a.usuario_id === usuarioId)
-
-  if (!isLoading && visiveis.length === 0) return null
-
-  return (
-    <div className="bg-white rounded-xl border overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-3 border-b">
-        <History className="h-4 w-4 text-gray-400" />
-        <p className="text-sm font-medium text-gray-700">Histórico de Alterações</p>
-      </div>
-      <div className="divide-y">
-        {isLoading ? (
-          <div className="px-5 py-4 space-y-2">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" />)}
-          </div>
-        ) : visiveis.map((a) => {
-          const campos = a.campos_alterados.map((c) => CAMPO_LABELS[c] ?? c).join(', ')
-          const data = format(new Date(a.alterado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-          return (
-            <div key={a.id} className="px-5 py-3 text-sm">
-              <span className="font-medium text-gray-800">{a.usuario?.nome ?? 'Sistema'}</span>
-              {' '}alterou{' '}
-              <span className="text-gray-600">{campos}</span>
-              <span className="text-gray-400"> — {data} — {ORIGEM_LABELS[a.origem] ?? a.origem}</span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 const CANAL_LABEL: Record<string, string> = {
   whatsapp: 'WhatsApp',
   site: 'Site',
@@ -402,12 +346,6 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
     },
   })
 
-  const CAMPOS_AUDITADOS = [
-    'nome','email','cpf','data_nascimento','observacoes','tipo',
-    'rg','profissao','estado_civil','renda_formal','renda_informal','nacionalidade',
-    'endereco_rua','endereco_numero','endereco_bairro','endereco_cidade','endereco_uf','endereco_cep',
-  ] as const
-
   const eCasadoForm = form.estado_civil === 'casado' || form.estado_civil === 'uniao_estavel'
 
   const mutAtualizarPessoa = useMutation({
@@ -448,6 +386,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         if (errTel) throw errTel
       }
 
+      const valoresAntes = await lerValoresAtuaisPessoa(supabase, params.id, Object.keys(payload))
       const { error } = await supabase
         .from('pessoas')
         .update(payload)
@@ -481,36 +420,11 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
         renda_informal:          payload.renda_informal,
       }).eq('pessoa_id', params.id).eq('empresa_id', usuario!.empresa_id)
 
-      // Registrar auditoria — calcular diff
-      if (pessoa) {
-        const anteriores: Record<string, unknown> = {}
-        const novos: Record<string, unknown> = {}
-        const camposAlterados: string[] = []
-
-        for (const campo of CAMPOS_AUDITADOS) {
-          const anterior = (pessoa as unknown as Record<string, unknown>)[campo] ?? null
-          const novo = (payload as unknown as Record<string, unknown>)[campo] ?? null
-          const anteriorStr = anterior != null ? String(anterior) : null
-          const novoStr = novo != null ? String(novo) : null
-          if (anteriorStr !== novoStr) {
-            camposAlterados.push(campo)
-            anteriores[campo] = anterior
-            novos[campo] = novo
-          }
-        }
-
-        if (camposAlterados.length > 0) {
-          await supabase.from('pessoas_alteracoes').insert({
-            pessoa_id: params.id,
-            empresa_id: usuario!.empresa_id,
-            usuario_id: usuario!.id,
-            campos_alterados: camposAlterados,
-            valores_anteriores: anteriores,
-            valores_novos: novos,
-            origem: 'pessoas',
-          })
-        }
-      }
+      // Histórico: só o que mudou de verdade
+      await registrarAlteracoesPessoa(supabase, {
+        pessoaId: params.id, empresaId: usuario!.empresa_id, usuarioId: usuario!.id,
+        origem: 'pessoas', anterior: valoresAntes, novo: payload,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pessoa', params.id] })
@@ -1387,7 +1301,7 @@ export default function PessoaDetalhePage({ params }: { params: { id: string } }
       </div>
 
       {/* Histórico de Alterações */}
-      <HistoricoAlteracoes pessoaId={params.id} perfil={usuario?.perfil} usuarioId={usuario?.id} />
+      <HistoricoAlteracoesPessoa pessoaId={params.id} perfil={usuario?.perfil} usuarioId={usuario?.id} />
 
       {/* Drawer: Criar Lead pré-preenchido */}
       <LeadFormDrawer

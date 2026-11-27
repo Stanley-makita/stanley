@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { lerValoresAtuaisPessoa, registrarAlteracoesPessoa } from '@/lib/pessoas/alteracoes'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -293,9 +294,11 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
 
       // 0. Telefone principal
       const telefoneVal = form.telefone.trim()
+      let telefoneAntes: string | null = null
       {
         const telsAtuais = ((pessoa as unknown as { pessoa_telefones?: Array<{ telefone: string; principal: boolean; ativo: boolean }> } | undefined)?.pessoa_telefones ?? []).filter(t => t.ativo)
         const anterior = (telsAtuais.find(t => t.principal) ?? telsAtuais[0])?.telefone
+        telefoneAntes = anterior ?? null
         if (usuario?.empresa_id && !(await confirmarTelefoneDaEquipe(usuario.empresa_id, telefoneVal, anterior))) {
           throw new Error('Salvamento cancelado: confira o telefone.')
         }
@@ -324,6 +327,7 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
       const payloadSemCpf = { ...payload } as Record<string, unknown>
       delete payloadSemCpf['cpf']
 
+      const valoresAntes = await lerValoresAtuaisPessoa(supabase, pessoaId, Object.keys(payload))
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
 
@@ -365,15 +369,11 @@ export function FormularioPessoa({ pessoaId, participantesDaProposta, onConjugeF
         }
       }
 
-      // 5. Auditoria
-      await supabase.from('pessoas_alteracoes').insert({
-        pessoa_id:          pessoaId,
-        empresa_id:         usuario.empresa_id,
-        usuario_id:         usuario.id,
-        campos_alterados:   Object.keys(payload),
-        valores_anteriores: {},
-        valores_novos:      payload as Record<string, unknown>,
-        origem:             'leads',
+      // 5. Histórico: só o que mudou de verdade (CPF só se ficou salvo — vazio não é gravado acima)
+      await registrarAlteracoesPessoa(supabase, {
+        pessoaId, empresaId: usuario.empresa_id, usuarioId: usuario.id, origem: 'leads',
+        anterior: valoresAntes && { ...valoresAntes, telefone: telefoneAntes },
+        novo: { ...payload, cpf: payload.cpf && cpfSalvo ? cpfSalvo : undefined, telefone: telefoneVal || undefined },
       })
     },
     onSuccess: () => {

@@ -174,7 +174,7 @@ export async function POST(
     await supabase.from('pessoas_alteracoes').insert({
       pessoa_id:          pessoaId,
       empresa_id:         usuario.empresa_id,
-      alterado_por:       usuario.id,
+      usuario_id:         usuario.id,
       origem:             'ocr',
       campos_alterados:   camposAplicados,
       valores_anteriores: valoresAnteriores,

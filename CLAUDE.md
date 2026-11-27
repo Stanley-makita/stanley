@@ -1025,3 +1025,14 @@ não-dono com "Editar Negócios" liberado (Jurídico, Apoio, Assistente, customi
 Migration 354: policy = dono (operacional/comercial/jurídico) OU `usuario_atual_pode('processos.editar')`, e o
 fallback SQL de `processos.editar` = `PERMISSOES_PADRAO` (teste `migration-354-processos-update.test.ts` trava a
 divergência). Mudança de fase grava o processo ANTES do histórico, via `updateProcessoOuFalha`.
+
+## Histórico de alterações da Pessoa: só o que mudou, sempre com antes → depois (2026-11-27)
+
+`pessoas_alteracoes` é o histórico da tela /pessoas/[id]. Até 27/11, 4 telas (aba Pessoa do Lead, "Completar
+dados", cards Comprador/Vendedor do Negócio) gravavam TODOS os campos do formulário a cada "Salvar", com
+`valores_anteriores` vazio — o histórico mostrava ~40 campos iguais para qualquer usuário. E a confirmação de OCR
+(`aplicar-ocr`) gravava numa coluna inexistente (`alterado_por`) e o registro falhava em silêncio.
+**Regra:** todo caminho que grava em `pessoas` lê os valores atuais ANTES do UPDATE
+(`lerValoresAtuaisPessoa`) e registra com `registrarAlteracoesPessoa` (`src/lib/pessoas/alteracoes.ts`) — nunca
+`insert` direto com `Object.keys(payload)`. Registro sem `valores_anteriores` = antigo; a tela mostra "salvou o
+cadastro (registro antigo)" em vez da lista de campos (`eRegistroAntigo`).

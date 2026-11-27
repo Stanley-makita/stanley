@@ -13,7 +13,7 @@ export function usePessoaAlteracoes(pessoaId: string) {
         .select('*, usuario:usuarios!usuario_id(nome)')
         .eq('pessoa_id', pessoaId)
         .order('alterado_em', { ascending: false })
-        .limit(50)
+        .limit(200)
 
       if (error) throw error
       return data

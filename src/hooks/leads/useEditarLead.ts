@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { lerValoresAtuaisPessoa, registrarAlteracoesPessoa } from '@/lib/pessoas/alteracoes'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type Lead } from '@/types/leads'
 import { toast } from 'sonner'
@@ -119,39 +120,13 @@ export function useEditarLead() {
         if (campos.renda_informal !== undefined) pessoaPayload.renda_informal = campos.renda_informal ?? null
 
         if (Object.keys(pessoaPayload).length > 0) {
-          // Buscar dados atuais da pessoa para calcular diff real no audit
-          const { data: pessoaAtual } = await supabase
-            .from('pessoas')
-            .select('nome,email,cpf,data_nascimento,rg,profissao,estado_civil,renda_formal,renda_informal')
-            .eq('id', data.pessoa_id)
-            .single()
-
+          const valoresAntes = await lerValoresAtuaisPessoa(supabase, data.pessoa_id, Object.keys(pessoaPayload))
           await supabase.from('pessoas').update(pessoaPayload).eq('id', data.pessoa_id)
 
-          // Registrar auditoria — só campos que realmente mudaram
-          const anteriores: Record<string, unknown> = {}
-          const novos: Record<string, unknown> = {}
-          const camposAlterados: string[] = []
-          for (const [campo, novoValor] of Object.entries(pessoaPayload)) {
-            const anteriorValor = (pessoaAtual as Record<string, unknown> | null)?.[campo] ?? null
-            const anteriorStr = anteriorValor != null ? String(anteriorValor) : null
-            const novoStr = novoValor != null ? String(novoValor) : null
-            if (anteriorStr !== novoStr) {
-              camposAlterados.push(campo)
-              anteriores[campo] = anteriorValor
-              novos[campo] = novoValor
-            }
-          }
-
-          if (camposAlterados.length > 0 && usuario?.id && usuario?.empresa_id) {
-            await supabase.from('pessoas_alteracoes').insert({
-              pessoa_id: data.pessoa_id,
-              empresa_id: usuario.empresa_id,
-              usuario_id: usuario.id,
-              campos_alterados: camposAlterados,
-              valores_anteriores: anteriores,
-              valores_novos: novos,
-              origem: 'leads',
+          if (usuario?.id && usuario?.empresa_id) {
+            await registrarAlteracoesPessoa(supabase, {
+              pessoaId: data.pessoa_id, empresaId: usuario.empresa_id, usuarioId: usuario.id,
+              origem: 'leads', anterior: valoresAntes, novo: pessoaPayload,
             })
           }
         }
