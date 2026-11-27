@@ -65,7 +65,7 @@ export interface PessoaAlteracao {
   campos_alterados: string[]
   valores_anteriores: Record<string, unknown>
   valores_novos: Record<string, unknown>
-  origem: 'leads' | 'pessoas' | 'processos'
+  origem: 'leads' | 'pessoas' | 'processos' | 'ocr'
   alterado_em: string
   usuario?: { nome: string } | null
 }

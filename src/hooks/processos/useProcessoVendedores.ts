@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { lerValoresAtuaisPessoa, registrarAlteracoesPessoa } from '@/lib/pessoas/alteracoes'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { type ProcessoVendedor } from '@/types/processos'
 import { toast } from 'sonner'
@@ -84,17 +85,13 @@ export function useEditarVendedor(processoId: string) {
         if (input.conta   !== undefined) pessoaPayload.conta_bancaria_numero  = input.conta || null
 
         if (Object.keys(pessoaPayload).length > 0) {
+          const valoresAntes = await lerValoresAtuaisPessoa(supabase, resolvedPessoaId, Object.keys(pessoaPayload))
           const { error: errPessoa } = await supabase.from('pessoas').update(pessoaPayload).eq('id', resolvedPessoaId)
           if (errPessoa) throw errPessoa
           if (usuario?.id && usuario?.empresa_id) {
-            await supabase.from('pessoas_alteracoes').insert({
-              pessoa_id: resolvedPessoaId,
-              empresa_id: usuario.empresa_id,
-              usuario_id: usuario.id,
-              campos_alterados: Object.keys(pessoaPayload),
-              valores_anteriores: {},
-              valores_novos: pessoaPayload,
-              origem: 'processos',
+            await registrarAlteracoesPessoa(supabase, {
+              pessoaId: resolvedPessoaId, empresaId: usuario.empresa_id, usuarioId: usuario.id,
+              origem: 'processos', anterior: valoresAntes, novo: pessoaPayload,
             })
           }
         }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { lerValoresAtuaisPessoa, registrarAlteracoesPessoa } from '@/lib/pessoas/alteracoes'
 import { useAuth } from '@/hooks/auth/useAuth'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -281,6 +282,7 @@ export function CompletarDadosPessoaDrawer({
       const payloadSemCpf = { ...payload }
       delete (payloadSemCpf as Record<string, unknown>)['cpf']
 
+      const valoresAntes = await lerValoresAtuaisPessoa(supabase, pessoaId, Object.keys(payload))
       const { error } = await supabase.from('pessoas').update(payloadSemCpf).eq('id', pessoaId)
       if (error) throw error
 
@@ -319,15 +321,11 @@ export function CompletarDadosPessoaDrawer({
         renda_informal:          payload.renda_informal,
       }).eq('pessoa_id', pessoaId).eq('empresa_id', usuario.empresa_id)
 
-      // 5. Auditoria
-      await supabase.from('pessoas_alteracoes').insert({
-        pessoa_id:          pessoaId,
-        empresa_id:         usuario.empresa_id,
-        usuario_id:         usuario.id,
-        campos_alterados:   Object.keys(payload),
-        valores_anteriores: {},
-        valores_novos:      payload as Record<string, unknown>,
-        origem:             origemAuditoria,
+      // 5. Histórico: só o que mudou de verdade (telefone já registrado pela RPC; CPF só se ficou salvo)
+      await registrarAlteracoesPessoa(supabase, {
+        pessoaId, empresaId: usuario.empresa_id, usuarioId: usuario.id, origem: origemAuditoria,
+        anterior: valoresAntes,
+        novo: { ...payload, cpf: payload.cpf && cpfSalvo ? cpfSalvo : undefined },
       })
     },
     onSuccess: () => {
